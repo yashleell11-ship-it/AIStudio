@@ -1,0 +1,34 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "32dce569-8fcc-46b6-853c-f956e16ee0bc",
+      "type": "manga",
+      "attributes": {
+        "title": { "en": "Solo Leveling" },
+        "status": "completed",
+        "latestUploadedChapter": "2020-12-29T16:00:00.000Z"
+      },
+      "relationships": [
+        { "id": "author-1", "type": "author" },
+        { "id": "cover-1", "type": "cover_art" }
+      ]
+    }
+  ],
+  "included": [
+    {
+      "id": "author-1",
+      "type": "author",
+      "attributes": { "name": "Chugong" }
+    },
+    {
+      "id": "cover-1",
+      "type": "cover_art",
+      "attributes": { "fileName": "cover.jpg" }
+    }
+  ],
+  "limit": 24,
+  "offset": 0,
+  "total": 1
+}

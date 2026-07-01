@@ -1,0 +1,860 @@
+{
+  "data": [
+    {
+      "id": 2161,
+      "slug": "emperor-of-solo-play",
+      "title": "Emperor of Solo Play",
+      "alt_titles": [
+        "\u5b64\u72ec\u300a\u30bd\u30ed\u30d7\u30ec\u30a4\u300b\u306e\u5e1d\u738b",
+        "\u55ae\u5237\u738b\u8005",
+        "\uc194\ud50c\uc758 \uc81c\uc655",
+        "\u0e23\u0e32\u0e0a\u0e32\u0e41\u0e2b\u0e48\u0e07\u0e42\u0e0b\u0e42\u0e25\u0e48\u0e40\u0e1e\u0e25\u0e40\u0e22\u0e2d\u0e23\u0e4c",
+        "\u5355\u5237\u4e4b\u738b",
+        "The King of Soloplay",
+        "The Emperor of Solo Play"
+      ],
+      "description": "<p>The launch of the virtual reality game Warlord in the year 2035 changed the world.</p><p>Ahn Jaehyun was one of many who sought to change his fate within it.</p><p>But the price of devoting his entire life to the game was betrayal by the very comrades he trusted the most.</p><p>Having lost everything because of that betrayal, Jaehyun is given one more chance to start over.</p><p>\"I'm never playing with others again. Whether I win or lose, I'll do it all on my own, and show them exactly what that means.\"</p><p>While others roll dice to split the loot, Jaehyun is the one who takes it all for himself.</p><p>And so begins his thrilling, ruthless, solo-kill gaming life!</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/emperor-of-solo-play.0d7530.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/emperor-of-solo-play.jpg",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Dedart",
+      "artist": "Redice Studio",
+      "popularity_rank": 127,
+      "bookmark_count": 12986,
+      "rating": 8.52919708029197,
+      "chapter_count": 73,
+      "last_chapter_at": "2026-06-28T18:41:16.248442Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.695158Z",
+      "public_url": "/comics/emperor-of-solo-play-30e93729",
+      "source_url": "/s/2161",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 7,
+          "name": "Comedy",
+          "slug": "comedy"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259639,
+          "series_id": 0,
+          "number": 73,
+          "slug": "chapter-73",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-29T00:41:16.248442Z",
+          "published_at": "2026-06-28T18:41:16.248442Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259581,
+          "series_id": 0,
+          "number": 72,
+          "slug": "chapter-72",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-26T18:21:16.689198Z",
+          "published_at": "2026-06-26T12:21:16.689198Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259349,
+          "series_id": 0,
+          "number": 71,
+          "slug": "chapter-71",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-14T23:26:58.921911Z",
+          "published_at": "2026-06-14T17:26:58.921911Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1896,
+      "slug": "solo-max-level-newbie",
+      "title": "Solo Max-Level Newbie",
+      "alt_titles": [
+        "\u041d\u0443\u0431 \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0443\u0440\u043e\u0432\u043d\u044f",
+        "\u6ee1\u7ea7\u65b0\u624b",
+        "I'm the Max-Level Newbie",
+        "Na Honja Mallep Newbie",
+        "\ub098\ud63c\uc790\ub9cc\ub819\ub274\ube44",
+        "I'm the Only Max-Leveled Newbie",
+        "Ng\u01b0\u1eddi Ch\u01a1i M\u1edbi C\u1ea5p T\u1ed1i \u0110a",
+        "\u0e1c\u0e39\u0e49\u0e40\u0e25\u0e48\u0e19\u0e2b\u0e19\u0e49\u0e32\u0e43\u0e2b\u0e21\u0e48\u0e40\u0e25\u0e40\u0e27\u0e25\u0e41\u0e21\u0e01\u0e0b\u0e4c",
+        "\u4ffa\u3060\u3051\u30ec\u30d9\u30ebMAX\u306a\u30d3\u30ae\u30ca\u30fc",
+        "\u6211\u72ec\u81ea\u6ee1\u7ea7\u65b0\u624b",
+        "\u6eff\u7d1a\u65b0\u624b",
+        "\ub098 \ud63c\uc790 \ub9cc\ub819 \ub274\ube44",
+        "Novato Solo a Nivel M\u00e1ximo",
+        "I Am the Top Ranker Newbie"
+      ],
+      "description": "<p>Jinhyuk, a gaming Nutuber, was the only person who saw the ending of the game [Tower of Trials].\nHowever, when the game's popularity declined, it became difficult for him to continue making a living as a gaming Nutuber.\nSince he already saw the ending of the game, he was about to quit playing. But that day, [Tower of Trials] became reality, and Jinhyuk, who knew about every single thing in the game, took over everything faster than anyone possibly could! \"I'll show you what a true pro is like.\"</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/solo-max-level-newbie.bac83f.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/solo-max-level-newbie.88c2f5.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Maslow",
+      "artist": "Redice Studio",
+      "popularity_rank": 9,
+      "bookmark_count": 106787,
+      "rating": 9.543240973971452,
+      "chapter_count": 266,
+      "last_chapter_at": "2026-06-25T17:48:45.804058Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.515044Z",
+      "public_url": "/comics/solo-max-level-newbie-30e93729",
+      "source_url": "/s/1896",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 7,
+          "name": "Comedy",
+          "slug": "comedy"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 18,
+          "name": "Game",
+          "slug": "game"
+        },
+        {
+          "id": 67,
+          "name": "Tower",
+          "slug": "tower"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259556,
+          "series_id": 0,
+          "number": 265,
+          "title": "Kraken (1) ",
+          "slug": "chapter-265",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-25T23:48:45.804058Z",
+          "published_at": "2026-06-25T17:48:45.804058Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259424,
+          "series_id": 0,
+          "number": 264,
+          "title": "Undersea City \u201cAtlantis\u201d (3)",
+          "slug": "chapter-264",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-18T23:13:11.663622Z",
+          "published_at": "2026-06-18T17:13:11.663622Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259290,
+          "series_id": 0,
+          "number": 263,
+          "title": "Underwater City Atlantis (2)",
+          "slug": "chapter-263",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-11T21:29:30.232481Z",
+          "published_at": "2026-06-11T15:29:30.232481Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 6057,
+      "slug": "only-i-have-an-ex-grade-summon",
+      "title": "Only I Have an EX-Grade Summon",
+      "alt_titles": [
+        "\ub098 \ud63c\uc790 EX\uae09 \uc18c\ud658\uc218",
+        "EX-Grade Summon",
+        "Only I Have an EX-Grade Summon",
+        "I Am the Only EX-Class Summoner",
+        "I Alone Have an EX-Rank Summon",
+        "Solo EX-Rank Summoner",
+        "Mi Invocaci\u00f3n es de Clase EX"
+      ],
+      "description": "<p>After being in a coma for three years due to a traffic accident, I woke up to find that the world of a certain game had become reality.</p><p>In a world where systems and summons are the norm, people say that in order to climb the \u201cTower of Trials,\u201d they must find \u201cGod Ji-nu.\u201d</p><p>But\u2026 God Ji-nu?</p><p>That\u2019s <strong>me</strong>.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/only-i-have-an-ex-grade-summon.b0a55d.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Im Je-yeol",
+      "artist": "Studio Inus",
+      "release_year": 2026,
+      "popularity_rank": 113,
+      "bookmark_count": 18456,
+      "rating": 8.965397923875432,
+      "chapter_count": 30,
+      "last_chapter_at": "2026-06-25T16:00:39.844849Z",
+      "created_at": "2026-04-03T21:42:53.439547Z",
+      "updated_at": "2026-06-30T21:14:09.875137Z",
+      "public_url": "/comics/only-i-have-an-ex-grade-summon-30e93729",
+      "source_url": "/s/6057",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 35,
+          "name": "Mystery",
+          "slug": "mystery"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259553,
+          "series_id": 0,
+          "number": 30,
+          "slug": "chapter-30",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-25T22:00:39.844849Z",
+          "published_at": "2026-06-25T16:00:39.844849Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259423,
+          "series_id": 0,
+          "number": 29,
+          "slug": "chapter-29",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-18T22:39:16.60255Z",
+          "published_at": "2026-06-18T16:39:16.60255Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259291,
+          "series_id": 0,
+          "number": 28,
+          "slug": "chapter-28",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-11T23:02:05.944535Z",
+          "published_at": "2026-06-11T17:02:05.944535Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2185,
+      "slug": "the-academys-sashimi-sword-master",
+      "title": "The Academy\u2019s Sashimi Sword Master",
+      "alt_titles": [
+        "Th\u1ed1ng L\u0129nh H\u1ecdc Vi\u1ec7n Ch\u1ec9 B\u1eb1ng Dao Sashimi",
+        "\u523a\u8eab\u5200\u5236\u9738\u82f1\u96c4\u5b66\u9662",
+        "\u523a\u8eab\u5305\u4e01\u3067\u30a2\u30ab\u30c7\u30df\u30fc\u7121\u53cc",
+        "\uc0ac\uc2dc\ubbf8 \ud55c \uc790\ub8e8\ub85c \uc544\uce74\ub370\ubbf8\ub97c \uc539\uc5b4\uba39\uc74c",
+        "Conquering the Academy With Just a Sashimi Knife",
+        "\u0e0a\u0e33\u0e41\u0e2b\u0e25\u0e30\u0e2d\u0e30\u0e04\u0e32\u0e40\u0e14\u0e21\u0e35\u0e14\u0e49\u0e27\u0e22\u0e21\u0e35\u0e14\u0e41\u0e25\u0e48\u0e1b\u0e25\u0e32",
+        "I Took Over the Academy With a Single Sashimi Knife",
+        "\u523a\u8eab\u5200\u82f1\u96c4\u6a6b\u6383\u5b78\u9662",
+        "Conquistando la Academia con solo un Cuchillo de Sashimi"
+      ],
+      "description": "<p>Chef Kim, Korea's legendary sashimi master, is transported into the world of Blessing M, a mobile game he once played. But instead of being a hero, he finds himself as Geomma Kang, a mere background extra. Forced into a new life, Geomma discovers a new power: the Blessing of the Blade God. Now, to survive in this game-like world, he must slice through challenges and enemies alike. Will his unmatched skills in the kitchen be enough to carve out a new destiny?</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/the-academys-sashimi-sword-master.7f20f6.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "GMAN",
+      "artist": "Soo Comics",
+      "popularity_rank": 39,
+      "bookmark_count": 40896,
+      "rating": 9.480706344015697,
+      "chapter_count": 85,
+      "last_chapter_at": "2026-06-24T19:09:52.760495Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.679035Z",
+      "public_url": "/comics/the-academys-sashimi-sword-master-30e93729",
+      "source_url": "/s/2185",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259544,
+          "series_id": 0,
+          "number": 84,
+          "title": "Lord of the Dead (1)",
+          "slug": "chapter-84",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-25T01:09:52.760495Z",
+          "published_at": "2026-06-24T19:09:52.760495Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259409,
+          "series_id": 0,
+          "number": 83,
+          "title": "Calm Before the Storm",
+          "slug": "chapter-83",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-18T00:50:56.686594Z",
+          "published_at": "2026-06-17T18:50:56.686594Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259277,
+          "series_id": 0,
+          "number": 82,
+          "title": "The People of the Sword Saint Family",
+          "slug": "chapter-82",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-11T00:08:08.654695Z",
+          "published_at": "2026-06-10T18:08:10.752714Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2201,
+      "slug": "solo-farming-in-the-tower",
+      "title": "Solo Farming In The Tower",
+      "alt_titles": [
+        "\u6211\u7368\u81ea\u5728\u9ad8\u5854\u7a2e\u7530",
+        "\u6211\u72ec\u81ea\u5728\u9ad8\u5854\u79cd\u7530",
+        "Dungeon Farming on My Own",
+        "Sole Dungeon Farming",
+        "I'm the Only One Farming in the Dungeon",
+        "The Top Dungeon Farmer",
+        "\u0e1b\u0e25\u0e39\u0e01\u0e1c\u0e31\u0e01\u0e1e\u0e34\u0e0a\u0e34\u0e15\u0e2b\u0e2d\u0e04\u0e2d\u0e22",
+        "Farming in the Tower Alone",
+        "\ub098\ud63c\uc790 \ud0d1\uc5d0\uc11c \ub18d\uc0ac",
+        "\u4ffa\u3060\u3051\u5854\u3067\u8fb2\u5bb6\u306f\u3058\u3081\u307e\u3057\u305f",
+        "Nahonja Tabeseo Nongsa",
+        "Only I Farm in the Dungeon"
+      ],
+      "description": "<p>One sunny day, a mysterious tower suddenly emerged in the city, earning the name \"dungeon\" from the intrigued populace. Within its confines lie treacherous terrains and menacing creatures, yet it also holds the promise of abundant treasures and untapped opportunities.</p><p>Sejun, a young man leading a mundane life, finds himself unexpectedly invited into the tower. Filled with excitement at the prospect of wealth, he embarks on this adventure, only to find himself stranded in a concealed area of the mysterious tower.</p><p>Armed with nothing more than a handful of seeds and his own physical abilities, Sejun must now adapt to his new reality by farming corps, collecting resources, and figuring out his survival strategy!</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/solo-farming-in-the-tower.d60872.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/solo-farming-in-the-tower.jpg",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Lim Hyeong",
+      "artist": "Studio 389",
+      "popularity_rank": 38,
+      "bookmark_count": 38196,
+      "rating": 9.635491606714629,
+      "chapter_count": 132,
+      "last_chapter_at": "2026-06-19T16:17:35.87243Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.519213Z",
+      "public_url": "/comics/solo-farming-in-the-tower-30e93729",
+      "source_url": "/s/2201",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 67,
+          "name": "Tower",
+          "slug": "tower"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259451,
+          "series_id": 0,
+          "number": 131,
+          "slug": "chapter-131",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-19T22:17:35.87243Z",
+          "published_at": "2026-06-19T16:17:35.87243Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259303,
+          "series_id": 0,
+          "number": 130,
+          "slug": "chapter-130",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-12T16:45:48.452702Z",
+          "published_at": "2026-06-12T10:45:48.452702Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259141,
+          "series_id": 0,
+          "number": 129,
+          "slug": "chapter-129",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-05T00:26:23.553239Z",
+          "published_at": "2026-06-04T18:26:23.553239Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2064,
+      "slug": "solo-leveling-ragnarok",
+      "title": "Solo Leveling: Ragnarok",
+      "alt_titles": [
+        "\u4ffa\u3060\u3051\u30ec\u30d9\u30eb\u30a2\u30c3\u30d7\u306a\u4ef6\u301c\u30e9\u30b0\u30ca\u30ed\u30af\u301c",
+        "\ub098 \ud63c\uc790\ub9cc \ub808\ubca8\uc5c5 : \ub77c\uadf8\ub098\ub85c\ud06c",
+        "I Alone Level Up: Ragnarok",
+        "\u6211\u72ec\u81ea\u5347\u7ea7 \uff1a\u8bf8\u795e\u9ec4\u660f",
+        "\u041f\u043e\u0434\u043d\u044f\u0442\u0438\u0435 \u0443\u0440\u043e\u0432\u043d\u044f \u0432 \u043e\u0434\u0438\u043d\u043e\u0447\u043a\u0443: \u0420\u0430\u0433\u043d\u0430\u0440\u0451\u043a",
+        "Ore dake Level Up na Ken: Ragnarok",
+        "Only I Level Up: Ragnarok",
+        "Na Honjaman Level Up: Ragnarok",
+        "Na Honjaman Rebereop: Ragnarok",
+        "\u6211\u72ec\u81ea\u5347\u7ea7\uff1a\u8bf8\u795e\u9ec4\u660f"
+      ],
+      "description": "The Earth's existence is under threat once more as Itarim, the gods of other universes, seek to fill the void left by the Absolute Being. Sung Jinwoo has no choice but to send Beru, the shadow ant king, to awaken his son's powers and start him on the journey he once took. Suho must conquer the shadow dungeon and earn his place in the world of hunters as he navigates through a new world against a new evil looking to swallow the world whole.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/solo-leveling-ragnarok.9ead3a.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/solo-leveling-ragnarok.d759ae.webp",
+      "status": "hiatus",
+      "type": "manhwa",
+      "author": "Dangdo",
+      "artist": "Redice Studio",
+      "popularity_rank": 118,
+      "bookmark_count": 64721,
+      "rating": 9.54066985645933,
+      "chapter_count": 68,
+      "last_chapter_at": "2026-01-07T14:35:15Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.690878Z",
+      "public_url": "/comics/solo-leveling-ragnarok-30e93729",
+      "source_url": "/s/2064",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 167519,
+          "series_id": 0,
+          "number": 68,
+          "title": "[S2 END]",
+          "slug": "f8de3c18-06e2-4b60-8638-0805dbe46af2",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2026-01-07T14:35:15Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 167376,
+          "series_id": 0,
+          "number": 67,
+          "slug": "fea646cb-44ee-4b98-a8a2-f7b0a2e063e2",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2025-12-31T14:48:14Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 167129,
+          "series_id": 0,
+          "number": 66,
+          "slug": "4409f45f-dcc4-4751-97c1-50b46d59e0b2",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2025-12-25T03:25:24Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1955,
+      "slug": "solo-leveling",
+      "title": "Solo Leveling",
+      "alt_titles": [
+        "Tek ba\u015f\u0131na seviye atlama",
+        "Ore dake Level Up na Ken",
+        "\u4ffa\u3060\u3051\u30ec\u30d9\u30eb\u30a2\u30c3\u30d7\u306a\u4ef6",
+        "Solo adtritio",
+        "Upando sozinho",
+        "\u10e1\u10dd\u10da\u10dd \u10da\u10d4\u10d5\u10d4\u10da\u10d8\u10dc\u10d2\u10d8",
+        "\ub098 \ud63c\uc790\ub9cc \ub808\ubca8\uc5c5",
+        "\u0915\u0947\u0935\u0932 \u092e\u0948\u0902 \u0938\u094d\u0924\u0930 \u092c\u0922\u093c\u093e\u0924\u093e \u0939\u0942\u0902",
+        "Singur \u00eemi ridic nivelul",
+        "Grinding Sendiri",
+        "\u4ffa\u3060\u3051\u30ec\u30d9\u30eb\u30a2\u30c3\u30d7\u306a\u4ef6\u3000\uff5e\u5916\u4f1d\uff5e",
+        "\u062a\u06a9\u0631\u0648",
+        "\u0422\u0456\u043b\u044c\u043a\u0438 \u044f \u0432\u0456\u0437\u044c\u043c\u0443 \u043d\u043e\u0432\u0438\u0439 \u0440\u0456\u0432\u0435\u043d\u044c",
+        "Na Honjaman Level Up",
+        "\ub098\ud63c\ub819"
+      ],
+      "description": "<p>10 years ago, after \u201cthe Gate\u201d that connected the real world with the monster world opened, some of the ordinary, everyday people received the power to hunt monsters within the Gate. They are known as \"Hunters\". However, not all Hunters are powerful. My name is Sung Jin-Woo, an E-rank Hunter. I'm someone who has to risk his life in the lowliest of dungeons, the \"World's Weakest\". Having no skills whatsoever to display, I barely earned the required money by fighting in low-leveled dungeons\u2026 at least until I found a hidden dungeon with the hardest difficulty within the D-rank dungeons! In the end, as I was accepting death, I suddenly received a strange power, a quest log that only I could see, a secret to leveling up that only I know about! If I trained in accordance with my quests and hunted monsters, my level would rise. Changing from the weakest\u00a0 Hunter to the strongest S-rank Hunter!\u00a0\u00a0</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/solo-leveling.c27830.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/solo-leveling.b0f7b9.webp",
+      "status": "completed",
+      "type": "manhwa",
+      "author": "\u110e\u116e\u1100\u1169\u11bc (Chugong)",
+      "artist": "REDICE STUDIO",
+      "popularity_rank": 40,
+      "bookmark_count": 34806,
+      "rating": 9.79920049200492,
+      "chapter_count": 201,
+      "last_chapter_at": "2024-07-13T02:15:04Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.663931Z",
+      "public_url": "/comics/solo-leveling-30e93729",
+      "source_url": "/s/1955",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 142312,
+          "series_id": 0,
+          "number": 200,
+          "title": "Side Story 21 { THE END }",
+          "slug": "e85021f4-d477-4bc9-b2da-29b56e031f6b",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2024-07-13T02:15:04Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 142469,
+          "series_id": 0,
+          "number": 199,
+          "title": "Side Story 20",
+          "slug": "3e0bb11b-de52-42b3-85f3-f5e18e36a35f",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2023-05-24T13:56:37Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 142314,
+          "series_id": 0,
+          "number": 198,
+          "title": "Side Story 19",
+          "slug": "2e2ee4ce-b82d-411f-9b22-0cf267b304a9",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2023-05-17T13:29:02Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2038,
+      "slug": "solo-bug-player",
+      "title": "Solo Bug Player",
+      "alt_titles": [
+        "Solo Glitch Player",
+        "\ub098 \ud640\ub85c \ubc84\uadf8\ub85c \uafc0\ube60\ub294 \ud50c\ub808\uc774\uc5b4",
+        "\u041e\u0434\u0438\u043d\u043e\u0447\u043d\u044b\u0439 \u0438\u0433\u0440\u043e\u043a-\u0431\u0430\u0433\u043e\u044e\u0437\u0435\u0440",
+        "\u30d0\u30b0\u3067\u3082\u30ba\u30eb\u3067\u3082\u95a2\u4fc2\u306d\u3047\uff01",
+        "Bug Player",
+        "\u0e1c\u0e39\u0e49\u0e40\u0e25\u0e48\u0e19\u0e02\u0e31\u0e49\u0e19\u0e40\u0e17\u0e1e\u0e08\u0e32\u0e01\u0e40\u0e01\u0e21\u0e15\u0e34\u0e14\u0e1a\u0e31\u0e4a\u0e01"
+      ],
+      "description": "<p>Sudden death after all-nighters and ridiculous amounts of work playing a game?! What greeted me after opening my eyes was the reality that I was in the world of . And on top of that, I was stuck in the body of a perfectly vulgar, obese, extra of a lord. The worst of the worst. I reincarnated in Jared\u2019s body! Dammit! All those protagonists in books or movies are born to stupidly well-off families, being raised with wealth and riches! \u201cI\u2019ll get to the top as soon as I can!\u201d I\u2019ll succeed and grow! Whether I use bugs or hacks, it\u2019s all a-okay! The start of a challenging world of intense dieting and bug abuse begins now![video width=\"750\" height=\"1100\" webm=\"https://asuratoon.com/wp-content/uploads/2021/02/bug-player.webm\"][/video]</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/solo-bug-player.e28bc2.webp",
+      "status": "dropped",
+      "type": "manhwa",
+      "author": "Cheongcho",
+      "artist": "Golem Factory",
+      "popularity_rank": 298,
+      "bookmark_count": 644,
+      "rating": 8.818181818181818,
+      "chapter_count": 48,
+      "last_chapter_at": "2022-04-17T18:05:45Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.692332Z",
+      "public_url": "/comics/solo-bug-player-30e93729",
+      "source_url": "/s/2038",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 7,
+          "name": "Comedy",
+          "slug": "comedy"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 141200,
+          "series_id": 0,
+          "number": 88,
+          "slug": "6a9d0e0e-30a8-4ae2-94dd-8f3472a4c3cc",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2022-04-17T18:05:45Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 141201,
+          "series_id": 0,
+          "number": 87,
+          "slug": "945bff5b-d33a-4b12-943b-c6f26774836a",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2022-04-17T18:05:38Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 141199,
+          "series_id": 0,
+          "number": 86,
+          "slug": "3bff3492-5e80-42da-bc79-f93a992097f0",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2022-04-17T18:05:31Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2094,
+      "slug": "solo-spell-caster",
+      "title": "Solo Spell Caster",
+      "alt_titles": [
+        "\u4e16\u754c\u552f\u4e00\u7684\u5492\u8a9e\u4f7f\u7528\u8005",
+        "\u0e09\u0e31\u0e19\u0e04\u0e37\u0e2d\u0e08\u0e2d\u0e21\u0e04\u0e32\u0e16\u0e32\u0e21\u0e2b\u0e32\u0e40\u0e27\u0e17\u0e25\u0e38\u0e22\u0e40\u0e14\u0e35\u0e48\u0e22\u0e27",
+        "\ub098 \ud640\ub85c \uc8fc\ubb38 \uc0ac\uc6a9\uc790",
+        "\u6211\u72ec\u81ea\u4f7f\u7528\u5492\u8bed",
+        "\u4ffa\u3060\u3051\u304c\u546a\u6587\u4f7f\u3044",
+        "The Lone Spellcaster",
+        "Na Hollo Jumun Sayongja",
+        "Le mage solitaire"
+      ],
+      "description": "The ordinary salaryman Park Do-Hyuk, finally got the awakening he had always wished for in a life or death situation!\r\nUnbelievably, the memories and experiences from the game he spent his entire life in his twenties playing became these powers of awakening!\r\n\r\nWhat\u2019s more, it was a 1 in a billion \u2018Triple Awakening\u2019!\r\n\r\nThe extraordinary player Park Do-Hyuk\u2019s journey picks up now, as he aims to reach the world\u2019s peak.\r\n\r\nOriginal Webtoon",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/solo-spell-caster.a3f315.webp",
+      "status": "dropped",
+      "type": "manhwa",
+      "author": "Chungcho",
+      "artist": "Golem Factory",
+      "popularity_rank": 289,
+      "bookmark_count": 702,
+      "rating": 7.625,
+      "chapter_count": 87,
+      "last_chapter_at": "2022-04-08T14:08:03Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:13:48.829927Z",
+      "public_url": "/comics/solo-spell-caster-30e93729",
+      "source_url": "/s/2094",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 34,
+          "name": "Murim",
+          "slug": "murim"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 141277,
+          "series_id": 0,
+          "number": 87,
+          "slug": "8e2a3b5e-4157-400d-8dcf-5670fc96f56b",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2022-04-08T14:08:03Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 141286,
+          "series_id": 0,
+          "number": 86,
+          "slug": "05965923-6914-40c5-9ac8-95a620971c29",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2022-04-01T11:26:29Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 141284,
+          "series_id": 0,
+          "number": 85,
+          "slug": "24ec2b2d-4e60-4912-afa6-6a2f148949f0",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "published_at": "2022-03-20T00:28:35Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "total": 9,
+    "per_page": 20
+  }
+}

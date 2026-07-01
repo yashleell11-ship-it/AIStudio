@@ -1,0 +1,1963 @@
+{
+  "data": [
+    {
+      "id": 1943,
+      "slug": "return-of-the-mount-hua-sect",
+      "title": "Return of the Mount Hua Sect",
+      "alt_titles": [
+        "Return of the Mount Hua Sect (Novel)",
+        "\u528d\u5c0a\u6b78\u4f86(Novel)",
+        "Return of Sword Master (Novel)",
+        "Return of the Blossoming Blade (Novel)",
+        "\ud654\uc0b0\uadc0\ud658 (Novel)",
+        "Return of the Hwasan Sect (Novel)"
+      ],
+      "description": "<p>Chung Myung, The 13th Disciple of the Mount Hua Sect, One of the 3 Great Swordsmen, Plum Blossom Sword Saint, defeated Chun Ma, who brought destruction and disarray onto the world. After the battle, he breathes his last breath on top of the headquarter mountain of the Heavenly Demon Sect. He is reborn after 100 years in the body of a child. ......What? The Mount Hua Sect has fallen? What kind of nonsense is that!?</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/return-of-the-mount-hua-sect.c0cbf9.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/return-of-the-mount-hua-sect.69c4b7.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Biga",
+      "artist": "Lico",
+      "popularity_rank": 4,
+      "bookmark_count": 104350,
+      "rating": 9.831990450611757,
+      "chapter_count": 175,
+      "last_chapter_at": "2026-06-30T17:04:03.712033Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.541742Z",
+      "public_url": "/comics/return-of-the-mount-hua-sect-30e93729",
+      "source_url": "/s/1943",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 7,
+          "name": "Comedy",
+          "slug": "comedy"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 34,
+          "name": "Murim",
+          "slug": "murim"
+        },
+        {
+          "id": 44,
+          "name": "Reincarnation",
+          "slug": "reincarnation"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259696,
+          "series_id": 0,
+          "number": 169,
+          "slug": "chapter-169",
+          "page_count": 0,
+          "is_premium": true,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T23:04:03.712033Z",
+          "published_at": "2026-06-30T17:04:03.712033Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259528,
+          "series_id": 0,
+          "number": 168,
+          "slug": "chapter-168",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-23T22:50:55.767793Z",
+          "published_at": "2026-06-23T16:50:55.767793Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259389,
+          "series_id": 0,
+          "number": 167,
+          "slug": "chapter-167",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-16T23:03:33.468116Z",
+          "published_at": "2026-06-16T17:03:33.468116Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2065,
+      "slug": "star-embracing-swordmaster",
+      "title": "Star-Embracing Swordmaster",
+      "alt_titles": [
+        "Star-Fostered Swordmaster",
+        "\ubcc4\uc744 \ud488\uc740 \uc18c\ub4dc\ub9c8\uc2a4\ud130",
+        "Byeoreul Pumeun Swordmaster",
+        "El maestro de la espada acogedor de estrellas",
+        "\u661f\u5251\u5927\u5e08",
+        "\u661f\u5263\u306e\u30bd\u30fc\u30c9\u30de\u30b9\u30bf\u30fc",
+        "\u661f\u8000\u528d\u58eb",
+        "The Stellar Swordmaster",
+        "Maestro de espadas estelar",
+        "\u0e22\u0e2d\u0e14\u0e19\u0e31\u0e01\u0e14\u0e32\u0e1a\u0e1c\u0e39\u0e49\u0e42\u0e2d\u0e1a\u0e2d\u0e38\u0e49\u0e21\u0e14\u0e32\u0e23\u0e32"
+      ],
+      "description": "<p>Vlad was a vagrant child of the slums who always admired knights. After an incident where he was struck by black lightning, he began hearing a voice. A knight of blue moonlight appeared one day, and Vlad's back-alley life was turned upside down... Even an obscure star that does not shine in the highest peaks of the night sky is still a star if it wishes to shine.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/star-embracing-swordmaster.6b1222.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/star-embracing-swordmaster.069afb.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Hong Daeui",
+      "artist": "Juno",
+      "popularity_rank": 6,
+      "bookmark_count": 125458,
+      "rating": 9.81060291060291,
+      "chapter_count": 127,
+      "last_chapter_at": "2026-06-30T16:21:12.609793Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.547161Z",
+      "public_url": "/comics/star-embracing-swordmaster-30e93729",
+      "source_url": "/s/2065",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 20,
+          "name": "Genius MC",
+          "slug": "genius-mc"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259695,
+          "series_id": 0,
+          "number": 127,
+          "slug": "chapter-127",
+          "page_count": 0,
+          "is_premium": true,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T22:21:12.609793Z",
+          "published_at": "2026-06-30T16:21:12.609793Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259393,
+          "series_id": 0,
+          "number": 126,
+          "slug": "chapter-126",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T01:30:19.983755Z",
+          "published_at": "2026-06-16T19:30:19.983755Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259255,
+          "series_id": 0,
+          "number": 125,
+          "slug": "chapter-125",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-09T21:19:39.993916Z",
+          "published_at": "2026-06-09T15:19:39.993916Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2204,
+      "slug": "murim-psychopath",
+      "title": "Murim Psychopath",
+      "alt_titles": [
+        "\uc2f8\uc774\ucf54\ud328\uc2a4 in \ubb34\ub9bc",
+        "Psychopath in Murim",
+        "K\u1ebb T\u00e2m Th\u1ea7n T\u1ea1i Th\u1ebf Gi\u1edbi Murim"
+      ],
+      "description": "<p>When he tried returning to virtual reality, the place he logged into was instead the \u201creal Murim.\u201d</p><p>A once-in-an-era psychopath fell into the Murim due to the Grim Reaper\u2019s mistake.</p><p>Dong Bongsu's merciless fangs cast a shadow over Murim, which is rife with schemes and malice.<br></p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/murim-psychopath.60ee5d.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/murim-psychopath.jpg",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Gonbung",
+      "artist": "Hitbook",
+      "popularity_rank": 65,
+      "bookmark_count": 28176,
+      "rating": 9.618233618233619,
+      "chapter_count": 34,
+      "last_chapter_at": "2026-06-30T15:58:39.255834Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.696685Z",
+      "public_url": "/comics/murim-psychopath-30e93729",
+      "source_url": "/s/2204",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 9,
+          "name": "Crazy MC",
+          "slug": "crazy-mc"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 34,
+          "name": "Murim",
+          "slug": "murim"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259693,
+          "series_id": 0,
+          "number": 33,
+          "slug": "chapter-33",
+          "page_count": 0,
+          "is_premium": true,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T21:58:39.255834Z",
+          "published_at": "2026-06-30T15:58:39.255834Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259529,
+          "series_id": 0,
+          "number": 32,
+          "slug": "chapter-32",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-24T00:02:16.475047Z",
+          "published_at": "2026-06-23T18:02:16.475047Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259392,
+          "series_id": 0,
+          "number": 31,
+          "slug": "chapter-31",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T01:29:46.564518Z",
+          "published_at": "2026-06-16T19:29:46.564518Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2525,
+      "slug": "i-became-the-first-prince-legend-of-swords-song",
+      "title": "I Became the First Prince: Legend of Sword's Song",
+      "alt_titles": [
+        "I Became the Rouge First Prince: Legend of Sword's Song",
+        "I Became the Trashy First Prince",
+        "\ub9dd\ub098\ub2c8 1\uc655\uc790\uac00 \ub418\uc5c8\ub2e4",
+        "I Became the Degenerate First Prince",
+        "I Became the Rogue First Prince"
+      ],
+      "description": "I was reincarnated as a sword and lived for hundreds of years, spending my entire existence cleaning up after others.</p><p>Then, out of nowhere, I ended up taking over the body of the fifteen-year-old First Prince\u2014a notorious good-for-nothing.</p><p>\u201cHow many do you think I\u2019ve raised?\"</p><p>The great knight once called invincible, the Dragon Slayer who brought down the Mad Dragon, the Mercenary King...</p><p>I raised every last one of them.</p><p>The magic sword Gruhorn, possessing the body of the rogue First Prince... this is the myth he begins to write anew.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/i-became-the-first-prince-legend-of-swords-song.460332.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/i-became-the-first-prince-legend-of-swords-song.png",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Glumph",
+      "artist": "MStoryHub",
+      "popularity_rank": 72,
+      "bookmark_count": 33817,
+      "rating": 9.403379091869061,
+      "chapter_count": 43,
+      "last_chapter_at": "2026-06-30T15:16:32.653949Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.557292Z",
+      "public_url": "/comics/i-became-the-first-prince-legend-of-swords-song-30e93729",
+      "source_url": "/s/2525",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 7,
+          "name": "Comedy",
+          "slug": "comedy"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259692,
+          "series_id": 0,
+          "number": 42,
+          "slug": "chapter-42",
+          "page_count": 0,
+          "is_premium": true,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T21:16:32.653949Z",
+          "published_at": "2026-06-30T15:16:32.653949Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259524,
+          "series_id": 0,
+          "number": 41,
+          "slug": "chapter-41",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-23T21:06:32.758511Z",
+          "published_at": "2026-06-23T15:06:32.758511Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259384,
+          "series_id": 0,
+          "number": 40,
+          "slug": "chapter-40",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-16T21:32:50.453071Z",
+          "published_at": "2026-06-16T15:32:50.453071Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2060,
+      "slug": "the-max-level-players-100th-regression",
+      "title": "The Max-Level Player's 100th Regression",
+      "alt_titles": [
+        "\u30ab\u30f3\u30b9\u30c8\u30d7\u30ec\u30a4\u30e4\u30fc\u306e100\u56de\u76ee\u306e\u56de\u5e30",
+        "\u91cd\u751f\u767e\u6b21\u7684\u6700\u5f37\u73a9\u5bb6",
+        "\u6ee1\u7ea7\u73a9\u5bb6\u7684\u7b2c100\u6b21\u56de\u5f52",
+        "Man-Level Player-ui 100-beonjjae Hoegwi",
+        "100-\u044f \u0440\u0435\u0433\u0440\u0435\u0441\u0441\u0438\u044f \u0438\u0433\u0440\u043e\u043a\u0430 \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0443\u0440\u043e\u0432\u043d\u044f",
+        "La regresi\u00f3n 100 del jugador de nivel m\u00e1ximo",
+        "A Cent\u00e9sima Regress\u00e3o do Jogador de N\u00edvel M\u00e1ximo",
+        "100-\u0442\u0430 \u0440\u0435\u0433\u0440\u0435\u0441\u0456\u044f \u0433\u0440\u0430\u0432\u0446\u044f \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0440\u0456\u0432\u043d\u044f",
+        "\u0e01\u0e32\u0e23\u0e01\u0e25\u0e31\u0e1a\u0e21\u0e32\u0e04\u0e23\u0e31\u0e49\u0e07\u0e17\u0e35\u0e48 100 \u0e02\u0e2d\u0e07\u0e1c\u0e39\u0e49\u0e40\u0e25\u0e48\u0e19\u0e40\u0e25\u0e40\u0e27\u0e25\u0e41\u0e21\u0e47\u0e01\u0e0b\u0e4c",
+        "The 100th Regression of the Max-Level Player",
+        "\ub9cc\ub819 \ud50c\ub808\uc774\uc5b4\uc758 100\ubc88\uc9f8 \ud68c\uadc0"
+      ],
+      "description": "Everyone between the age of 15 and 25 worldwide is required to participate in the death game of twenty rounds. The main character starts his 100th challenge thanks to his ability to regress. Having experienced the game 99 times beforehand, he is able to become overwhelmingly more powerful than anyone else. Once he realizes that the condition of the last round is to have at least five people, he starts to take in party members in order to avoid repeating his past mistakes.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/the-max-level-players-100th-regression.8a12aa.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "yeowoon/ King soda",
+      "artist": "Terapin Studio",
+      "popularity_rank": 28,
+      "bookmark_count": 66132,
+      "rating": 9.60909090909091,
+      "chapter_count": 90,
+      "last_chapter_at": "2026-06-30T15:16:27.944752Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.595094Z",
+      "public_url": "/comics/the-max-level-players-100th-regression-30e93729",
+      "source_url": "/s/2060",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 43,
+          "name": "Regression",
+          "slug": "regression"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259691,
+          "series_id": 0,
+          "number": 89,
+          "slug": "chapter-89",
+          "page_count": 0,
+          "is_premium": true,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T21:16:27.944752Z",
+          "published_at": "2026-06-30T15:16:27.944752Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259525,
+          "series_id": 0,
+          "number": 88,
+          "slug": "chapter-88",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-23T21:26:47.959372Z",
+          "published_at": "2026-06-23T15:26:47.959372Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259382,
+          "series_id": 0,
+          "number": 87,
+          "slug": "chapter-87",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-16T20:46:21.707863Z",
+          "published_at": "2026-06-16T14:46:21.707863Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2049,
+      "slug": "infinite-mage",
+      "title": "Infinite Mage",
+      "alt_titles": [
+        "Mago do infinito",
+        "\u0110\u1ea1i Ph\u00e1p S\u01b0 To\u00e0n N\u0103ng",
+        "\ubb34\ud55c\uc758 \ub9c8\ubc95\uc0ac",
+        "\u7121\u9650\u306e\u9b54\u6cd5\u4f7f\u3044",
+        "\u0e08\u0e2d\u0e21\u0e40\u0e27\u0e17\u0e44\u0e23\u0e49\u0e02\u0e35\u0e14\u0e08\u0e33\u0e01\u0e31\u0e14",
+        "\u7121\u9650\u9b54\u6cd5\u5e2b",
+        "The Infinite Mage",
+        "\u65e0\u9650\u9b54\u6cd5\u5e08",
+        "Muhanui Mabeopsa",
+        "Infinite Wizard"
+      ],
+      "description": "Abandoned at birth in a stable, Shirone was raised by commoners.As a child, he had gifted Insight and had learned how to read. After visiting the city, he finally saw the workings of magic, which he was immensely curious about.This inspired Shirone's dream of becoming a mage. However, the city was a place with a cruel and rigid social hierarchy. Here, Shirone discovered the hidden side of the world before he even reached adulthood...Will Shirone be able to achieve his dream of becoming a mage in this twisted world?\u00a0\u00a0\u00a0\u00a0\u00a0",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/infinite-mage.e79aed.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/infinite-mage.6a725d.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Kimchi Woo",
+      "artist": "REDICE STUDIO",
+      "popularity_rank": 15,
+      "bookmark_count": 101648,
+      "rating": 9.29487713452728,
+      "chapter_count": 175,
+      "last_chapter_at": "2026-06-30T14:35:09.136337Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.686178Z",
+      "public_url": "/comics/infinite-mage-30e93729",
+      "source_url": "/s/2049",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 20,
+          "name": "Genius MC",
+          "slug": "genius-mc"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259689,
+          "series_id": 0,
+          "number": 175,
+          "slug": "chapter-175",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T20:35:09.136337Z",
+          "published_at": "2026-06-30T14:35:09.136337Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259526,
+          "series_id": 0,
+          "number": 174,
+          "slug": "chapter-174",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-23T22:09:15.790612Z",
+          "published_at": "2026-06-23T16:09:15.790612Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259383,
+          "series_id": 0,
+          "number": 173,
+          "slug": "chapter-173",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-16T20:54:45.891829Z",
+          "published_at": "2026-06-16T14:54:45.891829Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1911,
+      "slug": "i-am-the-fated-villain",
+      "title": "I Am the Fated Villain",
+      "alt_titles": [
+        "\u041c\u043e\u044f \u0441\u0443\u0434\u044c\u0431\u0430 \u0437\u043b\u043e\u0434\u0435\u044f",
+        "Eu Sou o Vil\u00e3o Predestinado",
+        "The Villain of Destiny",
+        "Villain Is Here",
+        "\u6211\uff01\u5929\u547d\u5927\u53cd\u6d3e",
+        "\uc545\uc5ed\uc774\uc9c0\ub9cc \uc990\uac81\uc2b5\ub2c8\ub2e4",
+        "El Villano del Destino",
+        "Ta Tr\u1eddi Sinh \u0110\u00e3 L\u00e0 Nh\u00e2n V\u1eadt Ph\u1ea3n Di\u1ec7n",
+        "\u6211\u3053\u305d\u306f\u5927\u60aa\u515a",
+        "Me! The Heavenly Destined Villain",
+        "Me, the Heavenly Destined Villain"
+      ],
+      "description": "<p>Immediately after Gu Changge realized he had transgressed into a fantasy world, the world's protagonist, and fortune's chosen, vowed to take revenge on him. Envied by all, he not only has the female lead head over heels for him but he's also treated as a distinguished guest wherever he goes. Fortunately, Gu Changge's prestige and power are superior to everyone else's, so shouldn\u2019t it be easy to trample on a mere fortune's chosen?\u00a0Hold on... There's a system dedicated to milking and harvesting from the protagonist? Gu Changge smirked. \"Seems like even fate wants me to fulfill my destiny as the Villain of this world!\u201d.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/i-am-the-fated-villain.e8d6b3.webp",
+      "status": "ongoing",
+      "type": "manhua",
+      "author": "\u5929\u547d\u53cd\u6d3e",
+      "artist": "Kuaikan",
+      "popularity_rank": 32,
+      "bookmark_count": 37691,
+      "rating": 9.43744752308984,
+      "chapter_count": 341,
+      "last_chapter_at": "2026-06-30T01:08:13.648971Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.492208Z",
+      "public_url": "/comics/i-am-the-fated-villain-30e93729",
+      "source_url": "/s/1911",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 24,
+          "name": "Isekai",
+          "slug": "isekai"
+        },
+        {
+          "id": 34,
+          "name": "Murim",
+          "slug": "murim"
+        },
+        {
+          "id": 63,
+          "name": "System",
+          "slug": "system"
+        },
+        {
+          "id": 72,
+          "name": "Villain",
+          "slug": "villain"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259688,
+          "series_id": 0,
+          "number": 341,
+          "slug": "chapter-341",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T07:08:13.648971Z",
+          "published_at": "2026-06-30T01:08:13.648971Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259686,
+          "series_id": 0,
+          "number": 340,
+          "slug": "chapter-340",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T06:29:28.925004Z",
+          "published_at": "2026-06-30T00:29:28.925004Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259521,
+          "series_id": 0,
+          "number": 339,
+          "slug": "chapter-339",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-23T13:30:38.849846Z",
+          "published_at": "2026-06-23T07:30:38.849846Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2069,
+      "slug": "the-nebulas-civilization",
+      "title": "The Nebula's Civilization",
+      "alt_titles": [
+        "Nebula's Civilization",
+        "Seulgiroun Munmyeongsaenghwal",
+        "\u30c8\u30c3\u30d7\u30e9\u30f3\u30ab\u30fc\u3001\u6587\u660e\u4e16\u754c\u306e\u795e\u306b\u306a\u308b",
+        "\uc2ac\uae30\ub85c\uc6b4 \ubb38\uba85\uc0dd\ud65c",
+        "A Civiliza\u00e7\u00e3o da Nebulosa",
+        "\u4e3a\u667a\u6167\u6587\u660e\u751f\u6d3b\u800c\u6765"
+      ],
+      "description": "Choi Sungwoon successfully completed all of the achievements in the game, \u201cPerished World,\u201d as the No. 1 player in the game\u2019s rankings.\nAfter a brief moment of joy due to his achievement, Sungwoon receives a suspicious email and is summoned to a real version of \u201cPerished World,\u201d starting his race to becoming a \u201cgod\u201d.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/the-nebulas-civilization.243e12.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/the-nebulas-civilization.573b0a.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Wirae",
+      "artist": "Bluepic",
+      "popularity_rank": 50,
+      "bookmark_count": 41970,
+      "rating": 9.692554043234587,
+      "chapter_count": 136,
+      "last_chapter_at": "2026-06-29T23:51:56.486764Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.487546Z",
+      "public_url": "/comics/the-nebulas-civilization-30e93729",
+      "source_url": "/s/2069",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 20,
+          "name": "Genius MC",
+          "slug": "genius-mc"
+        },
+        {
+          "id": 63,
+          "name": "System",
+          "slug": "system"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259685,
+          "series_id": 0,
+          "number": 136,
+          "slug": "chapter-136",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T05:51:56.486764Z",
+          "published_at": "2026-06-29T23:51:56.486764Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259590,
+          "series_id": 0,
+          "number": 135,
+          "slug": "chapter-135",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-27T01:05:31.967235Z",
+          "published_at": "2026-06-26T19:05:31.967235Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259395,
+          "series_id": 0,
+          "number": 134,
+          "slug": "chapter-134",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T03:49:39.975973Z",
+          "published_at": "2026-06-16T21:49:39.975973Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1908,
+      "slug": "the-s-classes-that-i-raised",
+      "title": "The S-Classes That I Raised",
+      "alt_titles": [
+        "Naega Kiun S-geupdeul",
+        "My S-Class Hunters",
+        "Os classe-S que eu criei",
+        "The S-Ranks That I Raised",
+        "\u6211\u57f9\u80b2\u7684S\u7d1a\u5011",
+        "\u6211\u57f9\u517b\u7684S\u7ea7\u4eec",
+        "\u4ffa\u304c\u80b2\u3066\u305fS\u7d1a\u305f\u3061",
+        "\u0412\u043e\u0441\u043f\u0438\u0442\u0430\u043d\u043d\u044b\u0435 \u043c\u043d\u043e\u0439 S-\u043a\u043b\u0430\u0441\u0441\u044b",
+        "Naega Kiun S-geup-deul",
+        "Los clase S que cri\u00e9",
+        "\ub0b4\uac00 \ud0a4\uc6b4 S\uae09\ub4e4"
+      ],
+      "description": "<p>An F-rank Hunter.More than that, a useless, pathetic F-rank older brother who's holding back his younger brother, who's doing well as an S-rank.The title that was given to me, who regressed after living a shitty life halfheartedly and sapping my younger brother's life away, The \u2018Perfect Caregiver' Alright then. This time, I'll just live a low-profile life, keeping to myself while watching over those amazing bastards...\u2026That was what I\u2019d thought, but these S-ranks are\u2026 a little weird.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/the-s-classes-that-i-raised.494ef4.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/the-s-classes-that-i-raised.a2172b.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Geunseo",
+      "artist": "JP Media",
+      "popularity_rank": 45,
+      "bookmark_count": 28577,
+      "rating": 8.94279176201373,
+      "chapter_count": 171,
+      "last_chapter_at": "2026-06-29T23:36:10.244537Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.568065Z",
+      "public_url": "/comics/the-s-classes-that-i-raised-30e93729",
+      "source_url": "/s/1908",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 7,
+          "name": "Comedy",
+          "slug": "comedy"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259684,
+          "series_id": 0,
+          "number": 171,
+          "slug": "chapter-171",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T05:36:10.244537Z",
+          "published_at": "2026-06-29T23:36:10.244537Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259563,
+          "series_id": 0,
+          "number": 170,
+          "slug": "chapter-170",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-26T01:59:49.557253Z",
+          "published_at": "2026-06-25T19:59:49.557253Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259394,
+          "series_id": 0,
+          "number": 169,
+          "slug": "chapter-169",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T02:40:57.907306Z",
+          "published_at": "2026-06-16T20:40:57.907306Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1967,
+      "slug": "i-obtained-a-mythic-item",
+      "title": "I Obtained a Mythic Item",
+      "alt_titles": [
+        "\u5165\u624b\u795e\u8bdd\u7ea7\u4e13\u5c5e\u88c5\u5907",
+        "\u795e\u8a71\u7d1a\u306e\u5e30\u5c5e\u30a2\u30a4\u30c6\u30e0\u3092\u624b\u306b\u5165\u308c\u305f",
+        "Sinhwageup Gwisok Item-eul Sone Neoeotda",
+        "\u00c0 moi, l'item l\u00e9gendaire",
+        "\uc2e0\ud654\uae09 \uadc0\uc18d \uc544\uc774\ud15c\uc744 \uc190\uc5d0 \ub123\uc5c8\ub2e4",
+        "\u6211\u83b7\u5f97\u4e86\u795e\u7ea7\u88c5\u5907",
+        "\u0e1e\u0e25\u0e34\u0e01\u0e0a\u0e30\u0e15\u0e32\u0e04\u0e27\u0e49\u0e32\u0e44\u0e2d\u0e40\u0e17\u0e21\u0e23\u0e30\u0e14\u0e31\u0e1a\u0e40\u0e17\u0e1e",
+        "Eu Obtive um Item M\u00edtico",
+        "Mythic Item Obtained",
+        "\u795e\u8a71\u7d1a\u9053\u5177\u5165\u624b\u4e86\uff01",
+        "\u042f \u0417\u0434\u043e\u0431\u0443\u0432 \u041c\u0456\u0444\u0438\u0447\u043d\u0438\u0439 \u041f\u0440\u0435\u0434\u043c\u0435\u0442"
+      ],
+      "description": "<p>D-Rank non-combat raider becomes a great enemy of god that will save the world with the strongest restoration item.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/i-obtained-a-mythic-item.64dea7.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/i-obtained-a-mythic-item.ca841d.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Jung SeonYul",
+      "artist": "Hess",
+      "popularity_rank": 60,
+      "bookmark_count": 40471,
+      "rating": 8.826979472140762,
+      "chapter_count": 188,
+      "last_chapter_at": "2026-06-29T22:57:22.691054Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.48944Z",
+      "public_url": "/comics/i-obtained-a-mythic-item-30e93729",
+      "source_url": "/s/1967",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 48,
+          "name": "Revenge",
+          "slug": "revenge"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259683,
+          "series_id": 0,
+          "number": 186,
+          "slug": "chapter-186",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T04:57:22.691054Z",
+          "published_at": "2026-06-29T22:57:22.691054Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259573,
+          "series_id": 0,
+          "number": 185,
+          "slug": "chapter-185",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-26T09:22:49.498666Z",
+          "published_at": "2026-06-26T03:22:49.498666Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259377,
+          "series_id": 0,
+          "number": 184,
+          "slug": "chapter-184",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-16T03:34:25.200598Z",
+          "published_at": "2026-06-15T21:34:25.200598Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2093,
+      "slug": "villain-to-kill",
+      "title": "Villain To Kill",
+      "alt_titles": [
+        "\u0423\u0431\u0438\u0442\u044c \u0437\u043b\u043e\u0434\u0435\u044f",
+        "Ti\u00eau Di\u1ec7t \u00c1c Nh\u00e2n",
+        "\u53cd\u6d3e\u7edd\u6740",
+        "\u53cd\u6d3e\u7d55\u6bba",
+        "\u30f4\u30a3\u30e9\u30f3\u30fb\u30c8\u30a5\u30fb\u30ad\u30eb",
+        "\ube4c\ub7f0\ud22c\ud0ac"
+      ],
+      "description": "<p>After being accused of murdering a colleague, Cassian Lee came to his death. The moment he thought it was all over, his soul was suddenly possessed by a boy's body and he awakens as a villain.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/villain-to-kill.e7589f.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Fupin",
+      "artist": "ToYou Dream",
+      "popularity_rank": 105,
+      "bookmark_count": 22655,
+      "rating": 9.238636363636363,
+      "chapter_count": 243,
+      "last_chapter_at": "2026-06-29T22:54:21.829259Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.526163Z",
+      "public_url": "/comics/villain-to-kill-30e93729",
+      "source_url": "/s/2093",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 44,
+          "name": "Reincarnation",
+          "slug": "reincarnation"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259682,
+          "series_id": 0,
+          "number": 242,
+          "slug": "chapter-242",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T04:54:21.829259Z",
+          "published_at": "2026-06-29T22:54:21.829259Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259571,
+          "series_id": 0,
+          "number": 241,
+          "slug": "chapter-241",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-26T08:45:20.332303Z",
+          "published_at": "2026-06-26T02:45:20.332303Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259404,
+          "series_id": 0,
+          "number": 240,
+          "slug": "chapter-240",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T21:02:19.140259Z",
+          "published_at": "2026-06-17T15:02:19.140259Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1953,
+      "slug": "the-world-after-the-end",
+      "title": "The World After The End",
+      "alt_titles": [
+        "The World After the Fall",
+        "\uba78\ub9dd \uc774\ud6c4\uc758 \uc138\uacc4",
+        "Myeolmang Ihuui Segye",
+        "The World After Destruction",
+        "The Post-Destruction World",
+        "\u6ec5\u4ea1\u5f8c\u306e\u4e16\u754c",
+        "\u706d\u4ea1\u4e4b\u540e\u7684\u4e16\u754c",
+        "\u0e2b\u0e25\u0e31\u0e07\u0e27\u0e31\u0e19\u0e2a\u0e34\u0e49\u0e19\u0e42\u0e25\u0e01",
+        "\u041c\u0438\u0440 \u043f\u043e\u0441\u043b\u0435 \u043f\u0430\u0434\u0435\u043d\u0438\u044f",
+        "\u0421\u0432\u0456\u0442 \u043f\u0456\u0441\u043b\u044f \u043a\u0456\u043d\u0446\u044f",
+        "D\u00fc\u015f\u00fc\u015ften Sonraki D\u00fcnya",
+        "El mundo despu\u00e9s del cataclismo",
+        "El mundo despu\u00e9s del fin"
+      ],
+      "description": "<p>This is about a man who didn't regress when everyone else returned back to the past.Humans were suddenly summoned to become \"Walkers\", and they needed to clear the tower to save the world. . . Floor 77: The \"Stone of Regression\" was discovered.Walkers could now \"return\" to the past. Slowly, everyone left. . . Humanity's last hope, \"Carpe Diem\", was formed, made up of people who refused to abandon the world. . . The last Walker reached floor 100.He no longer knew what to believe.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/the-world-after-the-end.dade11.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/the-world-after-the-end.7f8a35.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "S-Cynaan",
+      "artist": "3B2S",
+      "popularity_rank": 49,
+      "bookmark_count": 48411,
+      "rating": 9.461629279811097,
+      "chapter_count": 242,
+      "last_chapter_at": "2026-06-29T22:05:57.865371Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.601513Z",
+      "public_url": "/comics/the-world-after-the-end-30e93729",
+      "source_url": "/s/1953",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259680,
+          "series_id": 0,
+          "number": 241,
+          "slug": "chapter-241",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T04:05:57.865371Z",
+          "published_at": "2026-06-29T22:05:57.865371Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259569,
+          "series_id": 0,
+          "number": 240,
+          "slug": "chapter-240",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-26T07:54:46.652Z",
+          "published_at": "2026-06-26T01:54:46.652Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259397,
+          "series_id": 0,
+          "number": 239,
+          "slug": "chapter-239",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T05:17:49.754788Z",
+          "published_at": "2026-06-16T23:17:49.754788Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2020,
+      "slug": "the-knight-king-who-returned-with-a-god",
+      "title": "The Knight King Who Returned with a God",
+      "alt_titles": [
+        "\uc2e0\uacfc\ud568\uaed8 \ub3cc\uc544\uc628 \uae30\uc0ac\uc655\ub2d8",
+        "\u0e23\u0e32\u0e0a\u0e32\u0e2d\u0e31\u0e28\u0e27\u0e34\u0e19\u0e1c\u0e39\u0e49\u0e21\u0e32\u0e01\u0e31\u0e1a\u0e40\u0e17\u0e1e",
+        "O Rei dos Cavaleiros que Retorna com um Deus",
+        "El Rey Caballero que regres\u00f3 con un Dios",
+        "300\u5e74\u3076\u308a\u306b\u795e\u3068\u5e30\u9084\u3057\u305f\u9a0e\u58eb\u738b",
+        "\u4e0e\u795e\u540c\u5f52\u7684\u9a91\u58eb\u738b",
+        "\u8207\u795e\u540c\u6b78\u7684\u9a0e\u58eb\u738b"
+      ],
+      "description": "<p>I returned to Earth after hunting demons in the otherworld for three hundred years. But I did not return alone.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/the-knight-king-who-returned-with-a-god.04a2c1.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Jidaegong Mabeobsonyeon",
+      "artist": "Blue Line Studio",
+      "popularity_rank": 31,
+      "bookmark_count": 48837,
+      "rating": 9.212351029252437,
+      "chapter_count": 171,
+      "last_chapter_at": "2026-06-29T21:31:45.729722Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.512128Z",
+      "public_url": "/comics/the-knight-king-who-returned-with-a-god-30e93729",
+      "source_url": "/s/2020",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 38,
+          "name": "Overpowered",
+          "slug": "overpowered"
+        },
+        {
+          "id": 44,
+          "name": "Reincarnation",
+          "slug": "reincarnation"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259679,
+          "series_id": 0,
+          "number": 171,
+          "slug": "chapter-171",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T03:31:45.729722Z",
+          "published_at": "2026-06-29T21:31:45.729722Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259594,
+          "series_id": 0,
+          "number": 170,
+          "slug": "chapter-170",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-27T03:26:28.227284Z",
+          "published_at": "2026-06-26T21:26:28.227284Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259413,
+          "series_id": 0,
+          "number": 169,
+          "slug": "chapter-169",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-18T03:05:18.157392Z",
+          "published_at": "2026-06-17T21:05:18.157392Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2099,
+      "slug": "my-exclusive-tower-guide",
+      "title": "My Exclusive Tower Guide",
+      "alt_titles": [
+        "\u552f\u6211\u53ef\u89c1\u7684\u9ad8\u5854\u653b\u7565",
+        "\u6211\u7684\u5c08\u5c6c\u9ad8\u5854\u653b\u7565",
+        "Meu Guia Exclusivo da Torre",
+        "\u4ffa\u3060\u3051\u304c\u77e5\u308b\u5854\u653b\u7565\u6cd5",
+        "My Very Own Tower Strategy Guide",
+        "A Collection of Top Strategies That Only I See",
+        "\u0e04\u0e39\u0e48\u0e21\u0e37\u0e2d\u0e01\u0e25\u0e22\u0e38\u0e17\u0e18\u0e4c\u0e1e\u0e34\u0e0a\u0e34\u0e15\u0e2b\u0e2d\u0e04\u0e2d\u0e22",
+        "\ub098\ub9cc \ubcf4\ub294 \ud0d1 \uacf5\ub7b5\uc9d1",
+        "Tengo la gu\u00eda exclusiva de la torre"
+      ],
+      "description": "A mysterious message came to me the same day the end of the world befell us and a survival game began. A tower that makes humans distrust one another, instigates fights, and leads humanity to destruction... I will not be shaken. I will see this to the end with the people I trust. ...Yes, I will create a happy ending with them all!\u00a0</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/my-exclusive-tower-guide.f49132.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "GoodLuck",
+      "artist": "Redice Studio",
+      "popularity_rank": 106,
+      "bookmark_count": 19005,
+      "rating": 8.380191693290735,
+      "chapter_count": 126,
+      "last_chapter_at": "2026-06-29T21:27:58.88492Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.581558Z",
+      "public_url": "/comics/my-exclusive-tower-guide-30e93729",
+      "source_url": "/s/2099",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        },
+        {
+          "id": 67,
+          "name": "Tower",
+          "slug": "tower"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259678,
+          "series_id": 0,
+          "number": 126,
+          "slug": "chapter-126",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T03:27:58.88492Z",
+          "published_at": "2026-06-29T21:27:58.88492Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259547,
+          "series_id": 0,
+          "number": 125,
+          "slug": "chapter-125",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-25T12:13:45.492417Z",
+          "published_at": "2026-06-25T06:13:45.492417Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259380,
+          "series_id": 0,
+          "number": 124,
+          "slug": "chapter-124",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-16T17:47:52.387626Z",
+          "published_at": "2026-06-16T11:47:52.387626Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2203,
+      "slug": "debtbound-by-blood",
+      "title": "Debtbound by Blood",
+      "alt_titles": [
+        "Loan Shark Ties",
+        "Private Debtors",
+        "Debt-Bound Classroom",
+        "The Loan Shark Teacher",
+        "The Devil's Classroom",
+        "\uc0ac\ucc44\uc9c0\uac04"
+      ],
+      "description": "<p>Kim Sang-an is a cold-blooded loan shark.</p><p>When his younger sister, a schoolteacher, takes her own life after relentless bullying from her students, he becomes the homeroom teacher of those very students to collect the price of her life.</p><p>A merciless loan shark who will collect his debts even if it means descending into hell and a class of devil-like students...</p><p>A vicious, twisted teacher-student relationship.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/debtbound-by-blood.1b8e5a.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Black and White",
+      "artist": "YLAB",
+      "popularity_rank": 155,
+      "bookmark_count": 5171,
+      "rating": 9.055299539170507,
+      "chapter_count": 32,
+      "last_chapter_at": "2026-06-29T21:17:02.023899Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.485033Z",
+      "public_url": "/comics/debtbound-by-blood-30e93729",
+      "source_url": "/s/2203",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 48,
+          "name": "Revenge",
+          "slug": "revenge"
+        },
+        {
+          "id": 51,
+          "name": "School Life",
+          "slug": "school-life"
+        },
+        {
+          "id": 68,
+          "name": "Tragedy",
+          "slug": "tragedy"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259677,
+          "series_id": 0,
+          "number": 32,
+          "slug": "chapter-32",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T03:17:02.023899Z",
+          "published_at": "2026-06-29T21:17:02.023899Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259555,
+          "series_id": 0,
+          "number": 31,
+          "title": "Win It Back To Pay It Back",
+          "slug": "chapter-31",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-25T22:40:20.305675Z",
+          "published_at": "2026-06-25T16:40:20.305675Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259403,
+          "series_id": 0,
+          "number": 30,
+          "title": "Paradox",
+          "slug": "chapter-30",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T20:44:19.143Z",
+          "published_at": "2026-06-17T14:44:19.143Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2033,
+      "slug": "the-max-level-hero-has-returned",
+      "title": "The Max Level Hero has Returned!",
+      "alt_titles": [
+        "\u6700\u7d42\u30ec\u30d9\u30eb\u82f1\u96c4\u306e\u3054\u5e30\u9084",
+        "Max Level Hero",
+        "The Max Level Hero Strikes Back!",
+        "The Max Leveled Hero Will Return!",
+        "O Her\u00f3i de N\u00edvel M\u00e1ximo Retornou",
+        "The Max Level Hero Strikes Back",
+        "\ub9cc\ub819 \uc601\uc6c5\ub2d8\uaed8\uc11c \uadc0\ud658\ud558\uc2e0\ub2e4!",
+        "\u0e01\u0e32\u0e23\u0e01\u0e25\u0e31\u0e1a\u0e21\u0e32\u0e02\u0e2d\u0e07\u0e27\u0e35\u0e23\u0e1a\u0e38\u0e23\u0e38\u0e29\u0e40\u0e27\u0e25\u0e15\u0e31\u0e19",
+        "\u9876\u7ea7\u82f1\u96c4\u5f52\u6765",
+        "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0435\u043d\u0438\u0435 \u0433\u0435\u0440\u043e\u044f \u043c\u0430\u043a\u0441\u0438\u043c\u0430\u043b\u044c\u043d\u043e\u0433\u043e \u0443\u0440\u043e\u0432\u043d\u044f",
+        "\u82f1\u96c4\u5927\u4eba\u6eff\u7d1a\u56de\u6b78",
+        "Max Level Hero Is Making a Comeback!"
+      ],
+      "description": "<p>The weak prince of an insignificant country, Davey. After becoming comatose, his soul escaped to a temple where the souls of heroes gathered. He trained for a thousand years and has now returned as a max level hero!!\u201cJust you guys wait, I\u2019m gonna face you all head on!\u201dThe refreshing story of Davey\u2019s royal life and revenge has just begun.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/the-max-level-hero-has-returned.9cc9f9.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/the-max-level-hero-has-returned.13e13c.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Devil's tail",
+      "artist": "Yudo",
+      "popularity_rank": 75,
+      "bookmark_count": 30271,
+      "rating": 8.155813953488373,
+      "chapter_count": 238,
+      "last_chapter_at": "2026-06-29T20:43:22.152081Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.47367Z",
+      "public_url": "/comics/the-max-level-hero-has-returned-30e93729",
+      "source_url": "/s/2033",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 24,
+          "name": "Isekai",
+          "slug": "isekai"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259676,
+          "series_id": 0,
+          "number": 238,
+          "slug": "chapter-238",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T02:43:22.152081Z",
+          "published_at": "2026-06-29T20:43:22.152081Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259519,
+          "series_id": 0,
+          "number": 237,
+          "slug": "chapter-237",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-23T10:32:28.247214Z",
+          "published_at": "2026-06-23T04:32:28.247214Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259243,
+          "series_id": 0,
+          "number": 236,
+          "slug": "chapter-236",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-09T03:01:59.286Z",
+          "published_at": "2026-06-08T21:01:59.286Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 6055,
+      "slug": "immortals-way-of-life",
+      "title": "Immortal\u2019s Way of Life",
+      "alt_titles": [
+        "\ubd88\ub85c\ubd88\uc0ac\ub85c \uc0b0\ub2e4\ub294 \uac83\uc740",
+        "Immortal\u2019s Way of Life",
+        "Living Immortally",
+        "Living as the Immortal Lord",
+        "What It Means to Live Undying and Immortal",
+        "Immortal's Ascending Path",
+        "Eternal Youth",
+        "Cr\u00f3nicas de un Inmortal"
+      ],
+      "description": "<p>[By the Studio that brought you &lt;<strong><em>The Regressed Mercenary's Machinations</em></strong> and <strong><em>A Regressor\u2019s Tale of Cultivation</em></strong>&gt;</p><p><br>Roberta, a priestess of the church, is designated as the head priestess of a remote region in the northern edge\u2014Dithmar.</p><p>As the appointment came immediately after the disappearance of her predecessor, Roberta remained on guard and began to investigate Duke Ulrich of Dithmarschen.</p><p>According to rumors, he has ruled over the region's lord for over 300 years, and even claimed to be an immortal... one who lives a life no human should be capable of possessing.</p><p>Determined to uncover the truth, Roberta decides to trace his steps.<br></p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/immortals-way-of-life.4b976f.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Winter Aircon",
+      "artist": "Roby",
+      "release_year": 2026,
+      "popularity_rank": 128,
+      "bookmark_count": 10731,
+      "rating": 9.209726443768997,
+      "chapter_count": 20,
+      "last_chapter_at": "2026-06-29T20:30:44.360971Z",
+      "created_at": "2026-03-30T13:24:24.365793Z",
+      "updated_at": "2026-06-30T21:14:15.556254Z",
+      "public_url": "/comics/immortals-way-of-life-30e93729",
+      "source_url": "/s/6055",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 20,
+          "name": "Genius MC",
+          "slug": "genius-mc"
+        },
+        {
+          "id": 28,
+          "name": "Magic",
+          "slug": "magic"
+        },
+        {
+          "id": 35,
+          "name": "Mystery",
+          "slug": "mystery"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259675,
+          "series_id": 0,
+          "number": 19,
+          "slug": "chapter-19",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T02:30:44.360971Z",
+          "published_at": "2026-06-29T20:30:44.360971Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259568,
+          "series_id": 0,
+          "number": 18,
+          "slug": "chapter-18",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-26T07:33:48.47781Z",
+          "published_at": "2026-06-26T01:33:48.47781Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259376,
+          "series_id": 0,
+          "number": 17,
+          "slug": "chapter-17",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-16T03:34:23.123742Z",
+          "published_at": "2026-06-15T21:34:23.123742Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2029,
+      "slug": "martial-god-regressed-to-level-2",
+      "title": "Martial God Regressed to Level 2",
+      "alt_titles": [
+        "2\ub808\ubca8\ub85c \ud68c\uadc0\ud55c \ubb34\uc2e0",
+        "2 Level Hoegwihan Musin",
+        "Deus marcial retorna ao n\u00edvel 2",
+        "El Dios marcial que regres\u00f3 al nivel 2",
+        "The Warlord Returned to Level 2",
+        "\u30ec\u30d9\u30eb2\u304b\u3089\u59cb\u307e\u308b\u3084\u308a\u76f4\u3057",
+        "\u0e40\u0e17\u0e1e\u0e19\u0e31\u0e01\u0e23\u0e1a\u0e1c\u0e39\u0e49\u0e2b\u0e27\u0e19\u0e04\u0e37\u0e19\u0e2a\u0e39\u0e48\u0e40\u0e25\u0e40\u0e27\u0e25 2",
+        "The Martial God Who Regressed to Level 2",
+        "Deus Marcial Regressou Para o N\u00edvel 2",
+        "The Martial God Who Regressed Back to Level 2",
+        "\u6b66\u795e\u91cd\u751f\uff1a\u4ece2\u7ea7\u5f00\u59cb\u9006\u88ad",
+        "2\u7b49\u6b66\u795e",
+        "El Dios marcial que retrocedi\u00f3 al nivel 2",
+        "\u56de\u5f52\u5230level 2\u7684\u6b66\u795e",
+        "Warlord Who Returned to Level 2"
+      ],
+      "description": "<p>[Humanity, which has been deemed worthless, will be deleted]. \u201cBattle Net,\u201d which was thought to be a game, turned into a disaster for humankind. After the \u201cSpace League\u201d was hosted, all living organisms in the universe fought for their lives. Humanity, represented by Earth, kept failing and was eventually annihilated. Except for one person, \u201cMartial Saint\u201d Seong Jihan. His skill, \u201cNameless Divine Arts,\u201d resisted the system\u2019s deletion. Humanity, which had been deemed worthless, received another \u201cchance.\u201d This was the second chance granted to Seong Jihan. \u201cThings will be different this time.\u201d Since he, the one who completed the game, had returned.</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/martial-god-regressed-to-level-2.2a1f51.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Ah Nyunsung (D&C Webtoon Biz) / Yeombi",
+      "artist": "Ah Yoongu",
+      "popularity_rank": 47,
+      "bookmark_count": 51252,
+      "rating": 9.183254344391786,
+      "chapter_count": 122,
+      "last_chapter_at": "2026-06-29T20:30:25.236153Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:15.472551Z",
+      "public_url": "/comics/martial-god-regressed-to-level-2-30e93729",
+      "source_url": "/s/2029",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 38,
+          "name": "Overpowered",
+          "slug": "overpowered"
+        },
+        {
+          "id": 43,
+          "name": "Regression",
+          "slug": "regression"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259674,
+          "series_id": 0,
+          "number": 122,
+          "slug": "chapter-122",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T02:30:25.236153Z",
+          "published_at": "2026-06-29T20:30:25.236153Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259520,
+          "series_id": 0,
+          "number": 121,
+          "slug": "chapter-121",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-23T11:08:07.848135Z",
+          "published_at": "2026-06-23T05:08:07.848135Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259391,
+          "series_id": 0,
+          "number": 120,
+          "slug": "chapter-120",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T00:20:58.775395Z",
+          "published_at": "2026-06-16T18:20:58.775395Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 2182,
+      "slug": "breakers",
+      "title": "Breakers",
+      "alt_titles": [
+        "\ube0c\ub808\uc774\ucee4\uc988",
+        "Beureikeojeu"
+      ],
+      "description": "Joo In-gong was dragged into the remake of a game he was playing called <Knight Saga:Re>.</p><p>However, something wasn't right. The only playable characters should be Loch of the human side and Zephyr of the demon side. Instead, he awakens in the body of Shutra\u2014 the ninth prince of the Demon Realm, a character who actually didn't exist in the game\u2019s story.</p><p>Granted two mysterious powers, \"Protagonist Setting Adjustment\" and \"Power of Conquest,\" Joo In-gong now must alter the game's plot to survive against Zephyr.</p><p>Yet, with every twist of the plot, he garners more attention...</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/breakers.7f8d96.webp",
+      "banner": "https://cdn.asurascans.com/asura-images/banners/breakers.jpg",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Chwiryong",
+      "artist": "Redice Studio",
+      "popularity_rank": 134,
+      "bookmark_count": 14534,
+      "rating": 7.570230607966457,
+      "chapter_count": 92,
+      "last_chapter_at": "2026-06-29T20:10:24.674789Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.665907Z",
+      "public_url": "/comics/breakers-30e93729",
+      "source_url": "/s/2182",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 34,
+          "name": "Murim",
+          "slug": "murim"
+        },
+        {
+          "id": 35,
+          "name": "Mystery",
+          "slug": "mystery"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259673,
+          "series_id": 0,
+          "number": 92,
+          "title": "The Queen #2",
+          "slug": "chapter-92",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T02:10:24.674789Z",
+          "published_at": "2026-06-29T20:10:24.674789Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259672,
+          "series_id": 0,
+          "number": 91,
+          "title": "The Queen #1",
+          "slug": "chapter-91",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-30T02:08:12.515841Z",
+          "published_at": "2026-06-29T20:08:12.515841Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259554,
+          "series_id": 0,
+          "number": 90,
+          "title": " Conquest #4",
+          "slug": "chapter-90",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-25T22:04:58.561362Z",
+          "published_at": "2026-06-25T16:04:58.561362Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    },
+    {
+      "id": 1962,
+      "slug": "return-of-the-sss-class-ranker",
+      "title": "Return of the SSS-Class Ranker",
+      "alt_titles": [
+        "SSS-Level Assassin Returns",
+        "SSS\u7ea7\u523a\u5ba2\u56de\u5f52",
+        "SSS-Class Assassin Returns",
+        "SSS-Class Assassin's Return",
+        "Return of the SSS-Class Assassin"
+      ],
+      "description": "<p>Rokan was the 'King of Violence' who reigned as the strongest in the virtual reality game, 'The Lord'. Unfortunately, the assassination order issued by an enemy guild caused him to lose everything. To his surprise, the next time he woke up, he had returned back to three years ago!\"Fucking brats, just you wait. I'll devour you all!\"A new story begins as Rokan, who travelled back in time, climbs his way back to the top!</p>",
+      "cover": "https://cdn.asurascans.com/asura-images/covers/return-of-the-sss-class-ranker.5c938f.webp",
+      "status": "ongoing",
+      "type": "manhwa",
+      "author": "Gald",
+      "artist": "Label ICE",
+      "popularity_rank": 96,
+      "bookmark_count": 33310,
+      "rating": 8.361921097770155,
+      "chapter_count": 198,
+      "last_chapter_at": "2026-06-29T20:02:47.408727Z",
+      "created_at": "0001-01-01T00:00:00Z",
+      "updated_at": "2026-06-30T21:14:20.668809Z",
+      "public_url": "/comics/return-of-the-sss-class-ranker-30e93729",
+      "source_url": "/s/1962",
+      "genres": [
+        {
+          "id": 1,
+          "name": "Action",
+          "slug": "action"
+        },
+        {
+          "id": 4,
+          "name": "Adventure",
+          "slug": "adventure"
+        },
+        {
+          "id": 16,
+          "name": "Fantasy",
+          "slug": "fantasy"
+        },
+        {
+          "id": 55,
+          "name": "Shounen",
+          "slug": "shounen"
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": 259671,
+          "series_id": 0,
+          "number": 198,
+          "slug": "chapter-198",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "1970-01-01T00:00:00Z",
+          "published_at": "2026-06-29T20:02:47.408727Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259543,
+          "series_id": 0,
+          "number": 197,
+          "slug": "chapter-197",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-24T23:21:04.539032Z",
+          "published_at": "2026-06-24T17:21:04.539032Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        },
+        {
+          "id": 259398,
+          "series_id": 0,
+          "number": 196,
+          "slug": "chapter-196",
+          "page_count": 0,
+          "is_premium": false,
+          "comments_enabled": false,
+          "early_access_until": "2026-06-17T08:54:19.795845Z",
+          "published_at": "2026-06-17T02:54:19.795845Z",
+          "view_count": 0,
+          "created_at": "0001-01-01T00:00:00Z"
+        }
+      ]
+    }
+  ],
+  "meta": {
+    "total": 333,
+    "per_page": 20,
+    "has_more": true
+  }
+}

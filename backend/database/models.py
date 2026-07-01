@@ -1,0 +1,575 @@
+from __future__ import annotations
+
+from datetime import datetime
+
+from sqlalchemy import (
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
+from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
+
+
+class Base(DeclarativeBase):
+    pass
+
+
+class Library(Base):
+    __tablename__ = "libraries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    root_path: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
+    scan_interval_minutes: Mapped[int] = mapped_column(Integer, default=60)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    series: Mapped[list[Series]] = relationship(back_populates="library")
+
+
+class Series(Base):
+    __tablename__ = "series"
+    __table_args__ = (
+        UniqueConstraint("folder_path", name="uq_series_folder_path"),
+        Index("ix_series_library_id", "library_id"),
+        Index("ix_series_title", "title"),
+        Index("ix_series_sort_title", "sort_title"),
+        Index("ix_series_reading_status", "reading_status"),
+        Index("ix_series_is_favorite", "is_favorite"),
+        Index("ix_series_updated_at", "updated_at"),
+        Index("ix_series_live", "library_id", "sort_title"),
+        # Production: compound indexes for filtered queries
+        Index("ix_series_status_sort", "status", "sort_title"),
+        Index("ix_series_author_sort", "author", "sort_title"),
+        Index("ix_series_language_sort", "language", "sort_title"),
+        Index("ix_series_year_sort", "year"),
+        Index("ix_series_created_at", "created_at"),
+        Index("ix_series_content_rating", "content_rating"),
+        Index("ix_series_deleted_at", "deleted_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    library_id: Mapped[int] = mapped_column(ForeignKey("libraries.id"), nullable=False)
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    author: Mapped[str | None] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text)
+    status: Mapped[str | None] = mapped_column(String(64))
+    cover_path: Mapped[str | None] = mapped_column(String(1024))
+    folder_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    # Library Intelligence fields
+    sort_title: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    original_title: Mapped[str | None] = mapped_column(String(512))
+    artist: Mapped[str | None] = mapped_column(String(255))
+    content_rating: Mapped[str] = mapped_column(String(64), nullable=False, default="unknown")
+    language: Mapped[str] = mapped_column(String(8), nullable=False, default="ko")
+    year: Mapped[int | None] = mapped_column(Integer)
+    is_favorite: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    reading_status: Mapped[str] = mapped_column(String(64), nullable=False, default="unread")
+    total_chapters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    read_chapters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    total_pages: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_created: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    library: Mapped[Library] = relationship(back_populates="series")
+    chapters: Mapped[list[Chapter]] = relationship(
+        back_populates="series", order_by="Chapter.number"
+    )
+    reading_progress: Mapped[ReadingProgress | None] = relationship(
+        back_populates="series", uselist=False
+    )
+    bookmarks: Mapped[list[Bookmark]] = relationship(back_populates="series")
+    collections: Mapped[list[CollectionSeries]] = relationship(
+        back_populates="series", cascade="all, delete-orphan"
+    )
+    tags: Mapped[list[SeriesTag]] = relationship(
+        back_populates="series", cascade="all, delete-orphan"
+    )
+
+
+class Chapter(Base):
+    __tablename__ = "chapters"
+    __table_args__ = (
+        UniqueConstraint("series_id", "folder_path", name="uq_chapter_series_folder"),
+        Index("ix_chapters_series_id", "series_id"),
+        Index("ix_chapters_folder_path", "folder_path"),
+        # Production indexes for read tracking and sort
+        Index("ix_chapters_series_sort", "series_id", "sort_key"),
+        Index("ix_chapters_is_read", "is_read"),
+        Index("ix_chapters_read_at", "read_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False)
+    volume_id: Mapped[int | None] = mapped_column(ForeignKey("volumes.id"))
+    title: Mapped[str] = mapped_column(String(512), nullable=False)
+    number: Mapped[float | None] = mapped_column(Float)
+    folder_path: Mapped[str | None] = mapped_column(String(1024))
+    archive_path: Mapped[str | None] = mapped_column(String(1024))
+    page_count: Mapped[int] = mapped_column(Integer, default=0)
+    cover_path: Mapped[str | None] = mapped_column(String(1024))
+    # Library Intelligence fields
+    sort_key: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    is_read: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    read_at: Mapped[datetime | None] = mapped_column(DateTime)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    scanned_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    series: Mapped[Series] = relationship(back_populates="chapters")
+    pages: Mapped[list[Page]] = relationship(
+        back_populates="chapter", order_by="Page.number"
+    )
+    ocr_jobs: Mapped[list[OcrJob]] = relationship(
+        back_populates="chapter", order_by="OcrJob.created_at"
+    )
+    chapter_text: Mapped[ChapterText | None] = relationship(
+        back_populates="chapter", uselist=False
+    )
+
+
+class Volume(Base):
+    __tablename__ = "volumes"
+    __table_args__ = (Index("ix_volumes_series_id", "series_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False)
+    title: Mapped[str | None] = mapped_column(String(255))
+    number: Mapped[int | None] = mapped_column(Integer)
+    cover_path: Mapped[str | None] = mapped_column(String(1024))
+
+
+class Page(Base):
+    __tablename__ = "pages"
+    __table_args__ = (Index("ix_pages_chapter_id", "chapter_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
+    number: Mapped[int] = mapped_column(Integer, nullable=False)
+    file_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    width: Mapped[int | None] = mapped_column(Integer)
+    height: Mapped[int | None] = mapped_column(Integer)
+
+    chapter: Mapped[Chapter] = relationship(back_populates="pages")
+    page_text: Mapped[PageText | None] = relationship(
+        back_populates="page", uselist=False
+    )
+
+
+class ReadingProgress(Base):
+    __tablename__ = "reading_progress"
+    __table_args__ = (
+        Index("ix_reading_progress_series_id", "series_id"),
+        # Production: powers "continue reading" strip and activity feeds
+        Index("ix_reading_progress_last_read", "last_read_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False, unique=True)
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
+    last_page: Mapped[int] = mapped_column(Integer, default=1)
+    # Library Intelligence fields
+    scroll_offset_px: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    progress_pct: Mapped[float] = mapped_column(Float, default=0.0)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    last_read_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    series: Mapped[Series] = relationship(back_populates="reading_progress")
+    chapter: Mapped[Chapter] = relationship()
+
+
+class Bookmark(Base):
+    __tablename__ = "bookmarks"
+    __table_args__ = (Index("ix_bookmarks_series_id", "series_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False)
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
+    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    # Library Intelligence field
+    page_id: Mapped[int | None] = mapped_column(ForeignKey("pages.id"), nullable=True)
+    note: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    series: Mapped[Series] = relationship(back_populates="bookmarks")
+    chapter: Mapped[Chapter] = relationship()
+    page_ref: Mapped[Page | None] = relationship()
+
+
+class ImportHistory(Base):
+    __tablename__ = "import_history"
+    __table_args__ = (Index("ix_import_history_library_id", "library_id"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    library_id: Mapped[int | None] = mapped_column(ForeignKey("libraries.id"))
+    folder_path: Mapped[str] = mapped_column(String(1024), nullable=False)
+    status: Mapped[str] = mapped_column(String(64), nullable=False)
+    series_count: Mapped[int] = mapped_column(Integer, default=0)
+    chapter_count: Mapped[int] = mapped_column(Integer, default=0)
+    page_count: Mapped[int] = mapped_column(Integer, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class Download(Base):
+    __tablename__ = "downloads"
+    __table_args__ = (
+        Index("ix_downloads_source_series_chapter", "source", "series_id", "chapter_id"),
+        Index("ix_downloads_status", "status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    series_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    chapter_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    series_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    chapter_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
+    progress: Mapped[float] = mapped_column(Float, default=0.0)
+    pages_done: Mapped[int] = mapped_column(Integer, default=0)
+    pages_total: Mapped[int] = mapped_column(Integer, default=0)
+    bytes_downloaded: Mapped[int] = mapped_column(Integer, default=0)
+    local_chapter_id: Mapped[int | None] = mapped_column(ForeignKey("chapters.id"))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+    error: Mapped[str | None] = mapped_column(Text)
+
+    queue: Mapped[DownloadQueue | None] = relationship(
+        back_populates="download", uselist=False
+    )
+
+
+class DownloadQueue(Base):
+    __tablename__ = "download_queue"
+    __table_args__ = (Index("ix_download_queue_state_priority", "state", "priority"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    download_id: Mapped[int] = mapped_column(
+        ForeignKey("downloads.id"), nullable=False, unique=True
+    )
+    priority: Mapped[int] = mapped_column(Integer, default=0)
+    state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+
+    download: Mapped[Download] = relationship(back_populates="queue")
+
+
+class SourceChapterLink(Base):
+    """Maps an external source chapter to a local library chapter."""
+
+    __tablename__ = "source_chapter_links"
+    __table_args__ = (
+        UniqueConstraint("source", "series_id", "chapter_id", name="uq_source_chapter"),
+        Index("ix_source_chapter_links_local", "local_chapter_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    series_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    chapter_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    local_chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Collection(Base):
+    __tablename__ = "collections"
+    __table_args__ = (
+        # Production: fast ordering for collection grid
+        Index("ix_collection_sort_order", "sort_order"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    description: Mapped[str | None] = mapped_column(Text)
+    cover_path: Mapped[str | None] = mapped_column(String(1024))
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    series: Mapped[list[CollectionSeries]] = relationship(
+        back_populates="collection", cascade="all, delete-orphan"
+    )
+
+
+class CollectionSeries(Base):
+    __tablename__ = "collection_series"
+    __table_args__ = (
+        Index("ix_collection_series_series_id", "series_id"),
+    )
+
+    collection_id: Mapped[int] = mapped_column(
+        ForeignKey("collections.id"), primary_key=True
+    )
+    series_id: Mapped[int] = mapped_column(
+        ForeignKey("series.id"), primary_key=True
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    collection: Mapped[Collection] = relationship(back_populates="series")
+    series: Mapped[Series] = relationship(back_populates="collections")
+
+
+class Tag(Base):
+    __tablename__ = "tags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    category: Mapped[str] = mapped_column(String(64), nullable=False, default="custom")
+    color: Mapped[str | None] = mapped_column(String(16))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    series: Mapped[list[SeriesTag]] = relationship(
+        back_populates="tag", cascade="all, delete-orphan"
+    )
+
+
+class SeriesTag(Base):
+    __tablename__ = "series_tags"
+    __table_args__ = (
+        Index("ix_series_tags_tag_id", "tag_id"),
+    )
+
+    series_id: Mapped[int] = mapped_column(
+        ForeignKey("series.id"), primary_key=True
+    )
+    tag_id: Mapped[int] = mapped_column(
+        ForeignKey("tags.id"), primary_key=True
+    )
+    is_ai_generated: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    confidence: Mapped[float | None] = mapped_column(Float)
+
+    series: Mapped[Series] = relationship(back_populates="tags")
+    tag: Mapped[Tag] = relationship(back_populates="series")
+
+
+class ChapterProgress(Base):
+    __tablename__ = "chapter_progress"
+    __table_args__ = (
+        Index("ix_chapter_progress_chapter_id", "chapter_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chapter_id: Mapped[int] = mapped_column(
+        ForeignKey("chapters.id"), nullable=False, unique=True
+    )
+    last_page: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    scroll_offset_px: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    is_completed: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    time_spent_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_read_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    chapter: Mapped[Chapter] = relationship()
+
+
+class ReadingSession(Base):
+    __tablename__ = "reading_sessions"
+    __table_args__ = (
+        Index("ix_reading_sessions_series_id", "series_id"),
+        Index("ix_reading_sessions_chapter_id", "chapter_id"),
+        Index("ix_reading_sessions_started_at", "started_at"),
+        # Production: compound index for history aggregation and per-series lookups
+        Index("ix_reading_sessions_started_series", "started_at", "series_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    series_id: Mapped[int] = mapped_column(
+        ForeignKey("series.id"), nullable=False
+    )
+    chapter_id: Mapped[int] = mapped_column(
+        ForeignKey("chapters.id"), nullable=False
+    )
+    start_page: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    end_page: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    pages_read: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    ended_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    series: Mapped[Series] = relationship()
+    chapter: Mapped[Chapter] = relationship()
+
+
+class OcrJob(Base):
+    """Tracks OCR processing jobs for chapters."""
+
+    __tablename__ = "ocr_jobs"
+    __table_args__ = (
+        Index("ix_ocr_jobs_chapter_id", "chapter_id"),
+        Index("ix_ocr_jobs_status", "status"),
+        Index("ix_ocr_jobs_status_created", "status", "created_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, default="queued"
+    )  # queued, processing, completed, failed, cancelled
+    engine: Mapped[str] = mapped_column(String(64), nullable=False, default="tesseract")
+    progress: Mapped[float] = mapped_column(Float, default=0.0)
+    pages_done: Mapped[int] = mapped_column(Integer, default=0)
+    pages_total: Mapped[int] = mapped_column(Integer, default=0)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    chapter: Mapped[Chapter] = relationship(back_populates="ocr_jobs")
+
+
+class PageText(Base):
+    """Extracted text and bounding boxes for a single page."""
+
+    __tablename__ = "page_texts"
+    __table_args__ = (
+        UniqueConstraint("page_id", name="uq_page_texts_page_id"),
+        Index("ix_page_texts_page_id", "page_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    page_id: Mapped[int] = mapped_column(ForeignKey("pages.id"), nullable=False)
+    text: Mapped[str | None] = mapped_column(Text)
+    confidence: Mapped[float | None] = mapped_column(Float)
+    boxes: Mapped[str | None] = mapped_column(Text)  # JSON array of bounding boxes
+    engine: Mapped[str] = mapped_column(String(64), nullable=False, default="tesseract")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    page: Mapped[Page] = relationship(back_populates="page_text")
+
+
+class ChapterText(Base):
+    """Aggregated full-text for a chapter, enabling search and future AI features."""
+
+    __tablename__ = "chapter_texts"
+    __table_args__ = (
+        UniqueConstraint("chapter_id", name="uq_chapter_texts_chapter_id"),
+        Index("ix_chapter_texts_chapter_id", "chapter_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
+    full_text: Mapped[str | None] = mapped_column(Text)
+    word_count: Mapped[int] = mapped_column(Integer, default=0)
+    language: Mapped[str | None] = mapped_column(String(16))
+    engine: Mapped[str] = mapped_column(String(64), nullable=False, default="tesseract")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    chapter: Mapped[Chapter] = relationship(back_populates="chapter_text")
+
+
+class UpdateSettings(Base):
+    """Global automatic update configuration (singleton row, id=1)."""
+
+    __tablename__ = "update_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    check_interval_minutes: Mapped[int] = mapped_column(Integer, nullable=False, default=60)
+    notify_enabled: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    auto_download_enabled: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    check_on_startup: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+
+class SeriesTracker(Base):
+    """Tracks a remote series for new chapter detection (followed or downloaded)."""
+
+    __tablename__ = "series_trackers"
+    __table_args__ = (
+        UniqueConstraint("source", "series_id", "track_kind", name="uq_series_tracker"),
+        Index("ix_series_trackers_source", "source"),
+        Index("ix_series_trackers_enabled", "enabled"),
+        Index("ix_series_trackers_track_kind", "track_kind"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    series_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    series_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    track_kind: Mapped[str] = mapped_column(String(32), nullable=False)  # followed | downloaded
+    local_series_id: Mapped[int | None] = mapped_column(ForeignKey("series.id"))
+    enabled: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    notify: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    auto_download: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    check_interval_minutes: Mapped[int | None] = mapped_column(Integer)
+    known_chapter_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+    )
+
+    notifications: Mapped[list[UpdateNotification]] = relationship(
+        back_populates="tracker", cascade="all, delete-orphan"
+    )
+
+
+class UpdateNotification(Base):
+    """Notification emitted when a tracked series gains new chapters."""
+
+    __tablename__ = "update_notifications"
+    __table_args__ = (
+        Index("ix_update_notifications_is_read", "is_read"),
+        Index("ix_update_notifications_created_at", "created_at"),
+        Index("ix_update_notifications_tracker_id", "tracker_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tracker_id: Mapped[int] = mapped_column(ForeignKey("series_trackers.id"), nullable=False)
+    source: Mapped[str] = mapped_column(String(64), nullable=False)
+    series_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    series_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    chapter_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    chapter_title: Mapped[str] = mapped_column(String(512), nullable=False)
+    chapter_number: Mapped[int | None] = mapped_column(Integer)
+    is_read: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    tracker: Mapped[SeriesTracker] = relationship(back_populates="notifications")
+
+
+class UpdateRun(Base):
+    """Audit log for manual and scheduled update checks."""
+
+    __tablename__ = "update_runs"
+    __table_args__ = (Index("ix_update_runs_started_at", "started_at"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    trigger: Mapped[str] = mapped_column(String(32), nullable=False)  # manual | scheduled | startup
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="running")
+    series_checked: Mapped[int] = mapped_column(Integer, default=0)
+    new_chapters_found: Mapped[int] = mapped_column(Integer, default=0)
+    error: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime)

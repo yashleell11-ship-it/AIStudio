@@ -1,0 +1,43 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aistudio-backend"
+version = "0.1.0"
+description = "AIStudio FastAPI backend"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi==0.138.2",
+    "uvicorn==0.49.0",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.14.2",
+    "ollama==0.6.2",
+    "sqlalchemy==2.0.35",
+    "httpx==0.28.1",
+    "pytesseract==0.3.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==9.1.1",
+]
+
+[project.scripts]
+aistudio = "cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["api*", "connectors*", "core*", "database*", "routes*", "services*", "utils*"]
+exclude = ["tests*", "scripts*", "venv*"]
+
+[tool.setuptools]
+py-modules = ["main", "cli", "bootstrap"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+addopts = "-m 'not integration'"
+markers = [
+    "integration: live network tests against external APIs",
+]
