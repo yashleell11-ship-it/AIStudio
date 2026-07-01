@@ -1,6 +1,7 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 
 interface PagePlaceholderProps {
   title: string;
@@ -22,23 +23,22 @@ export function PagePlaceholder({
   actionLabel,
 }: PagePlaceholderProps) {
   return (
-    <div className="flex h-full min-h-[50vh] flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="flex size-14 items-center justify-center rounded-xl bg-surface-2 text-muted">
-        <Icon className="size-7" aria-hidden />
+    <div className="page-shell flex min-h-[50vh] flex-col items-center justify-center text-center">
+      <div className="empty-state max-w-lg">
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-violet-500/10">
+          <Icon className="size-8 text-violet-400" aria-hidden />
+        </div>
+        <Badge variant="primary" className="mb-3">
+          Coming soon
+        </Badge>
+        <h1 className="page-title">{title}</h1>
+        <p className="page-subtitle mx-auto mt-3 max-w-md">{description}</p>
+        {actionHref && actionLabel ? (
+          <Link href={actionHref} className="mt-6 inline-block">
+            <Button variant="secondary">{actionLabel}</Button>
+          </Link>
+        ) : null}
       </div>
-      <div className="flex flex-col items-center gap-2">
-        <Badge variant="default">Coming soon</Badge>
-        <h1 className="text-xl font-semibold text-fg">{title}</h1>
-      </div>
-      <p className="max-w-md text-sm text-muted">{description}</p>
-      {actionHref && actionLabel ? (
-        <Link
-          href={actionHref}
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-surface-2 px-4 text-sm font-medium text-fg transition-colors hover:bg-border"
-        >
-          {actionLabel}
-        </Link>
-      ) : null}
     </div>
   );
 }

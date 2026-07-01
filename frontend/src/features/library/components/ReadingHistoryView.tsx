@@ -22,12 +22,11 @@ export function ReadingHistoryView() {
         : null;
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-fg">Reading History</h1>
-        <p className="mt-1 text-sm text-muted">
-          Track your reading sessions and activity.
-        </p>
+    <div className="page-shell">
+      <div className="page-container">
+      <div className="mb-8">
+        <h1 className="page-title">Reading History</h1>
+        <p className="page-subtitle">Track your reading sessions and activity.</p>
       </div>
 
       {errorMessage && (
@@ -131,6 +130,7 @@ export function ReadingHistoryView() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

@@ -16,12 +16,11 @@ export function RecommendationsView() {
         : null;
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-fg">Recommendations</h1>
-        <p className="mt-1 text-sm text-muted">
-          Based on your reading history, tags, and authors.
-        </p>
+    <div className="page-shell">
+      <div className="page-container">
+      <div className="mb-8">
+        <h1 className="page-title">Recommendations</h1>
+        <p className="page-subtitle">Based on your reading history, tags, and authors.</p>
       </div>
 
       {errorMessage && (
@@ -37,7 +36,7 @@ export function RecommendationsView() {
           ))}
         </div>
       ) : recommendationsQuery.data && recommendationsQuery.data.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
+        <div className="empty-state">
           <p className="text-lg font-medium text-fg">No recommendations yet</p>
           <p className="mt-2 text-sm text-muted">
             Start reading some series to get personalized recommendations.
@@ -56,6 +55,7 @@ export function RecommendationsView() {
           ))}
         </div>
       )}
+      </div>
     </div>
   );
 }

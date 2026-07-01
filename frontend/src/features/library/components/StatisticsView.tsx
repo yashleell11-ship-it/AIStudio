@@ -41,14 +41,16 @@ export function StatisticsView() {
 
   if (statsQuery.isLoading) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-fg">Reading Statistics</h1>
-        </div>
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-2" />
-          ))}
+      <div className="page-shell">
+        <div className="page-container">
+          <div className="mb-8">
+            <h1 className="page-title">Reading Statistics</h1>
+          </div>
+          <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-2" />
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -56,27 +58,28 @@ export function StatisticsView() {
 
   if (!stats) {
     return (
-      <div className="p-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold text-fg">Reading Statistics</h1>
-        </div>
-        {errorMessage && (
-          <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {errorMessage}
+      <div className="page-shell">
+        <div className="page-container">
+          <div className="mb-8">
+            <h1 className="page-title">Reading Statistics</h1>
           </div>
-        )}
+          {errorMessage && (
+            <div className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+              {errorMessage}
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-fg">Reading Statistics</h1>
-        <p className="mt-1 text-sm text-muted">
-          Your library and reading activity at a glance.
-        </p>
-      </div>
+    <div className="page-shell">
+      <div className="page-container">
+        <div className="mb-8">
+          <h1 className="page-title">Reading Statistics</h1>
+          <p className="page-subtitle">Your library and reading activity at a glance.</p>
+        </div>
 
       {errorMessage && (
         <div className="mb-6 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
@@ -189,6 +192,7 @@ export function StatisticsView() {
           </CardContent>
         </Card>
       )}
+      </div>
     </div>
   );
 }

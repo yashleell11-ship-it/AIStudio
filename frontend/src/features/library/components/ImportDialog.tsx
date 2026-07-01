@@ -29,7 +29,7 @@ export function ImportDialog({ open, onClose }: ImportDialogProps) {
   const error = importMutation.error?.message ?? null;
 
   return (
-    <Dialog open={open} onClose={onClose} title="Import Library">
+    <Dialog open={open} onClose={onClose} title="Import Library" className="max-w-md">
       <div className="space-y-4">
         <p className="text-sm text-muted">
           Enter the absolute path to your library folder on this machine. AIStudio
