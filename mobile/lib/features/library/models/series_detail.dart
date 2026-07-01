@@ -1,5 +1,6 @@
 import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/models/collection.dart';
+import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
 
@@ -38,6 +39,40 @@ class SeriesDetail extends SeriesSummary {
   final List<ChapterSummary> chapters;
   final List<Tag> tags;
   final List<CollectionRef> collections;
+
+  @override
+  SeriesDetail copyWith({bool? isFavorite, ReadingProgress? readingProgress}) {
+    return SeriesDetail(
+      id: id,
+      libraryId: libraryId,
+      title: title,
+      sortTitle: sortTitle,
+      originalTitle: originalTitle,
+      author: author,
+      artist: artist,
+      description: description,
+      status: status,
+      contentRating: contentRating,
+      language: language,
+      year: year,
+      coverPath: coverPath,
+      folderPath: folderPath,
+      isFavorite: isFavorite ?? this.isFavorite,
+      readingStatus: readingStatus,
+      chapterCount: chapterCount,
+      readChapters: readChapters,
+      pageCount: pageCount,
+      totalChapters: totalChapters,
+      totalPages: totalPages,
+      firstChapterId: firstChapterId,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      readingProgress: readingProgress ?? this.readingProgress,
+      chapters: chapters,
+      tags: tags,
+      collections: collections,
+    );
+  }
 
   factory SeriesDetail.fromJson(Map<String, dynamic> json) {
     final base = SeriesSummary.fromJson(json);

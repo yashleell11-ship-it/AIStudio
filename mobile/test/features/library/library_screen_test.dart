@@ -7,7 +7,7 @@ import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
+import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
 import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
@@ -115,6 +115,9 @@ class _FakeLibraryRepository implements LibraryRepository {
 
   @override
   Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
+
+  @override
+  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
 }
 
 Future<Widget> _buildTestApp() async {
@@ -148,7 +151,8 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'missing title');
-      await tester.pumpAndSettle(const Duration(milliseconds: 400));
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pump();
 
       expect(find.text('No results found'), findsOneWidget);
     });

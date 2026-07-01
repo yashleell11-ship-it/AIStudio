@@ -51,11 +51,7 @@ class _Placeholder extends StatelessWidget {
       height: height,
       color: AppColors.surface2,
       child: const Center(
-        child: SizedBox(
-          width: 24,
-          height: 24,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
+        child: Icon(Icons.image_outlined, color: AppColors.muted, size: 24),
       ),
     );
   }
