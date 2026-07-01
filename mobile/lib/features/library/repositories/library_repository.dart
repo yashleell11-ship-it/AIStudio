@@ -2,9 +2,11 @@ import 'package:aistudio_mobile/core/utils/pagination.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/models/collection.dart';
+import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
 import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
+import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
@@ -50,11 +52,34 @@ abstract interface class LibraryRepository {
 
   Future<Result<List<Collection>>> listCollections();
 
+  Future<Result<CollectionDetail>> getCollection(int collectionId);
+
+  Future<Result<Collection>> createCollection({
+    required String name,
+    String? description,
+  });
+
+  Future<Result<Collection>> updateCollection(
+    int collectionId, {
+    String? name,
+    String? description,
+  });
+
+  Future<Result<void>> deleteCollection(int collectionId);
+
+  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId);
+
+  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId);
+
   Future<Result<List<Tag>>> listTags();
 
   Future<Result<void>> toggleFavorite(int seriesId);
 
   Future<Result<LibraryStatistics>> statistics();
+
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50});
+
+  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30});
 
   Future<Result<Bookmark>> addBookmark({
     required int seriesId,

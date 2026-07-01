@@ -6,6 +6,9 @@ abstract final class Routes {
   // ── Library ───────────────────────────────────────────────────────────────
   static const String library = '/library';
   static const String libraryBrowse = '/library/browse';
+  static const String recommendations = '/library/recommendations';
+  static const String statistics = '/library/statistics';
+  static const String readingHistory = '/library/history';
   static const String seriesDetail = '/library/:seriesId';
   static const String reader = '/library/:seriesId/chapters/:chapterId/read';
 

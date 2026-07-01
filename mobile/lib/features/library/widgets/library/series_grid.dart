@@ -18,11 +18,13 @@ class SeriesCard extends ConsumerWidget {
     required this.series,
     required this.onTap,
     required this.onToggleFavorite,
+    this.onRemove,
   });
 
   final SeriesSummary series;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -90,6 +92,12 @@ class SeriesCard extends ConsumerWidget {
                       onPressed: onToggleFavorite,
                     ),
                   ),
+                  if (onRemove != null)
+                    Positioned(
+                      left: AppSpacing.sm,
+                      top: AppSpacing.sm,
+                      child: _RemoveButton(onPressed: onRemove!),
+                    ),
                   Positioned(
                     left: AppSpacing.md,
                     right: AppSpacing.md,
@@ -156,11 +164,13 @@ class SeriesListTile extends ConsumerWidget {
     required this.series,
     required this.onTap,
     required this.onToggleFavorite,
+    this.onRemove,
   });
 
   final SeriesSummary series;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
+  final VoidCallback? onRemove;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -237,6 +247,10 @@ class SeriesListTile extends ConsumerWidget {
             onPressed: onToggleFavorite,
             compact: true,
           ),
+          if (onRemove != null) ...[
+            const SizedBox(width: AppSpacing.sm),
+            _RemoveButton(onPressed: onRemove!),
+          ],
         ],
       ),
     );
@@ -269,6 +283,32 @@ class _FavoriteButton extends StatelessWidget {
             isFavorite ? Icons.star : Icons.star_border,
             size: compact ? 20 : 18,
             color: isFavorite ? AppColors.warning : AppColors.fg.withAlpha(179),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _RemoveButton extends StatelessWidget {
+  const _RemoveButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.bg.withAlpha(179),
+      shape: const CircleBorder(),
+      child: InkWell(
+        onTap: onPressed,
+        customBorder: const CircleBorder(),
+        child: const Padding(
+          padding: EdgeInsets.all(6),
+          child: Icon(
+            Icons.remove_circle_outline,
+            size: 18,
+            color: AppColors.danger,
           ),
         ),
       ),
@@ -331,12 +371,14 @@ class SeriesGrid extends ConsumerWidget {
     required this.viewMode,
     required this.onSeriesTap,
     required this.onToggleFavorite,
+    this.onRemoveSeries,
   });
 
   final List<SeriesSummary> items;
   final LibraryViewMode viewMode;
   final ValueChanged<SeriesSummary> onSeriesTap;
   final ValueChanged<int> onToggleFavorite;
+  final ValueChanged<int>? onRemoveSeries;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -348,6 +390,7 @@ class SeriesGrid extends ConsumerWidget {
               series: series,
               onTap: () => onSeriesTap(series),
               onToggleFavorite: () => onToggleFavorite(series.id),
+              onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -373,6 +416,7 @@ class SeriesGrid extends ConsumerWidget {
           series: series,
           onTap: () => onSeriesTap(series),
           onToggleFavorite: () => onToggleFavorite(series.id),
+          onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
         );
       },
     );

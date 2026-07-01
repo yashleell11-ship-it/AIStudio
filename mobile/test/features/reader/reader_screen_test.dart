@@ -1,8 +1,10 @@
 import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/models/collection.dart';
+import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
 import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
+import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
 import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
@@ -125,6 +127,36 @@ class _FakeReaderRepository implements LibraryRepository {
   Future<Result<List<Collection>>> listCollections() => throw UnimplementedError();
 
   @override
+  Future<Result<CollectionDetail>> getCollection(int collectionId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<Collection>> createCollection({
+    required String name,
+    String? description,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<Collection>> updateCollection(
+    int collectionId, {
+    String? name,
+    String? description,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
+      throw UnimplementedError();
+
+  @override
   Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
 
   @override
@@ -132,6 +164,14 @@ class _FakeReaderRepository implements LibraryRepository {
 
   @override
   Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
+      throw UnimplementedError();
 }
 
 ChapterDetail _sampleChapter() {
