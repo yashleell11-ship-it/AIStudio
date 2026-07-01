@@ -82,7 +82,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             tabIndex={-1}
             className={cn(
               "flex-1 overflow-y-auto outline-none",
-              isReaderChapter && "bg-bg",
+              isReaderChapter && "bg-obsidian",
             )}
           >
             {children}
