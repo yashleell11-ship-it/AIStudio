@@ -1,3 +1,5 @@
+import 'package:aistudio_mobile/features/library/models/statistics_detail.dart';
+
 class LibraryStatistics {
   const LibraryStatistics({
     required this.totalSeries,
@@ -11,6 +13,9 @@ class LibraryStatistics {
     required this.pagesReadThisWeek,
     required this.readingStreakDays,
     required this.readingVelocityPagesPerHour,
+    this.tagDistribution = const [],
+    this.topAuthors = const [],
+    this.weeklyChart = const [],
   });
 
   final int totalSeries;
@@ -24,6 +29,9 @@ class LibraryStatistics {
   final int pagesReadThisWeek;
   final int readingStreakDays;
   final double readingVelocityPagesPerHour;
+  final List<TagDistributionItem> tagDistribution;
+  final List<AuthorStat> topAuthors;
+  final List<WeeklyChartItem> weeklyChart;
 
   factory LibraryStatistics.fromJson(Map<String, dynamic> json) => LibraryStatistics(
         totalSeries: json['total_series'] as int,
@@ -39,5 +47,17 @@ class LibraryStatistics {
         readingStreakDays: json['reading_streak_days'] as int,
         readingVelocityPagesPerHour:
             (json['reading_velocity_pages_per_hour'] as num).toDouble(),
+        tagDistribution: (json['tag_distribution'] as List<dynamic>?)
+                ?.map((item) => TagDistributionItem.fromJson(item as Map<String, dynamic>))
+                .toList() ??
+            const [],
+        topAuthors: (json['top_authors'] as List<dynamic>?)
+                ?.map((item) => AuthorStat.fromJson(item as Map<String, dynamic>))
+                .toList() ??
+            const [],
+        weeklyChart: (json['weekly_chart'] as List<dynamic>?)
+                ?.map((item) => WeeklyChartItem.fromJson(item as Map<String, dynamic>))
+                .toList() ??
+            const [],
       );
 }

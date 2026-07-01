@@ -3,9 +3,11 @@ import 'package:aistudio_mobile/core/utils/pagination.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/models/collection.dart';
+import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
 import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
+import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
@@ -164,6 +166,86 @@ class LibraryRepositoryImpl implements LibraryRepository {
       );
 
   @override
+  Future<Result<CollectionDetail>> getCollection(int collectionId) => _request(
+        () => _dio.get<Map<String, dynamic>>('/library/collections/$collectionId'),
+        CollectionDetail.fromJson,
+      );
+
+  @override
+  Future<Result<Collection>> createCollection({
+    required String name,
+    String? description,
+  }) =>
+      _request(
+        () => _dio.post<Map<String, dynamic>>(
+          '/library/collections',
+          data: {
+            'name': name,
+            if (description != null && description.isNotEmpty) 'description': description,
+          },
+        ),
+        Collection.fromJson,
+      );
+
+  @override
+  Future<Result<Collection>> updateCollection(
+    int collectionId, {
+    String? name,
+    String? description,
+  }) =>
+      _request(
+        () => _dio.patch<Map<String, dynamic>>(
+          '/library/collections/$collectionId',
+          data: {
+            if (name != null) 'name': name,
+            if (description != null) 'description': description,
+          },
+        ),
+        Collection.fromJson,
+      );
+
+  @override
+  Future<Result<void>> deleteCollection(int collectionId) async {
+    try {
+      await _dio.delete<void>('/library/collections/$collectionId');
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_extractError(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) async {
+    try {
+      await _dio.post<void>('/library/collections/$collectionId/series/$seriesId');
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_extractError(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId,
+    int seriesId,
+  ) async {
+    try {
+      await _dio.delete<void>(
+        '/library/collections/$collectionId/series/$seriesId',
+      );
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_extractError(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
   Future<Result<List<Tag>>> listTags() => _requestList(
         () => _dio.get<List<dynamic>>('/library/tags'),
         Tag.fromJson,
@@ -185,6 +267,26 @@ class LibraryRepositoryImpl implements LibraryRepository {
   Future<Result<LibraryStatistics>> statistics() => _request(
         () => _dio.get<Map<String, dynamic>>('/library/statistics'),
         LibraryStatistics.fromJson,
+      );
+
+  @override
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
+      _requestList(
+        () => _dio.get<List<dynamic>>(
+          '/library/reading-history',
+          queryParameters: {'limit': limit},
+        ),
+        ReadingHistoryItem.fromJson,
+      );
+
+  @override
+  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
+      _requestList(
+        () => _dio.get<List<dynamic>>(
+          '/library/reading-calendar',
+          queryParameters: {'days': days},
+        ),
+        ReadingCalendarDay.fromJson,
       );
 
   @override

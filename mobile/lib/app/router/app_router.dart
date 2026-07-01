@@ -3,9 +3,18 @@ import 'package:aistudio_mobile/features/library/screens/dashboard_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/series_detail_screen.dart';
 import 'package:aistudio_mobile/features/reader/screens/reader_screen.dart';
+import 'package:aistudio_mobile/features/collections/screens/collection_detail_screen.dart';
+import 'package:aistudio_mobile/features/collections/screens/collections_screen.dart';
 import 'package:aistudio_mobile/features/downloads/screens/downloads_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/search_screen.dart';
-import 'package:aistudio_mobile/shared/screens/placeholder_screen.dart';
+import 'package:aistudio_mobile/features/library/screens/reading_history_screen.dart';
+import 'package:aistudio_mobile/features/library/screens/recommendations_screen.dart';
+import 'package:aistudio_mobile/features/library/screens/statistics_screen.dart';
+import 'package:aistudio_mobile/features/settings/screens/settings_screen.dart';
+import 'package:aistudio_mobile/features/sources/screens/source_browser_screen.dart';
+import 'package:aistudio_mobile/features/sources/screens/source_series_detail_screen.dart';
+import 'package:aistudio_mobile/features/sources/screens/sources_list_screen.dart';
+import 'package:aistudio_mobile/features/updates/screens/updates_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
@@ -36,6 +45,18 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'browse',
                   builder: (context, state) => const LibraryScreen(),
+                ),
+                GoRoute(
+                  path: 'recommendations',
+                  builder: (context, state) => const RecommendationsScreen(),
+                ),
+                GoRoute(
+                  path: 'statistics',
+                  builder: (context, state) => const StatisticsScreen(),
+                ),
+                GoRoute(
+                  path: 'history',
+                  builder: (context, state) => const ReadingHistoryScreen(),
                 ),
                 GoRoute(
                   path: ':seriesId',
@@ -69,12 +90,12 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: Routes.collections,
-              builder: (context, state) => const PlaceholderScreen(label: 'Collections'),
+              builder: (context, state) => const CollectionsScreen(),
               routes: [
                 GoRoute(
                   path: ':collectionId',
-                  builder: (context, state) => PlaceholderScreen(
-                    label: 'Collection ${state.pathParameters['collectionId']}',
+                  builder: (context, state) => CollectionDetailScreen(
+                    collectionId: int.parse(state.pathParameters['collectionId']!),
                   ),
                 ),
               ],
@@ -87,28 +108,20 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: Routes.sources,
-              builder: (context, state) => const PlaceholderScreen(label: 'Sources'),
+              builder: (context, state) => const SourcesListScreen(),
               routes: [
                 GoRoute(
                   path: ':sourceId',
-                  builder: (context, state) => PlaceholderScreen(
-                    label: 'Source ${state.pathParameters['sourceId']}',
+                  builder: (context, state) => SourceBrowserScreen(
+                    sourceId: state.pathParameters['sourceId']!,
                   ),
                   routes: [
                     GoRoute(
                       path: 'series/:seriesId',
-                      builder: (context, state) => PlaceholderScreen(
-                        label: 'Source Series ${state.pathParameters['seriesId']}',
+                      builder: (context, state) => SourceSeriesDetailScreen(
+                        sourceId: state.pathParameters['sourceId']!,
+                        seriesId: state.pathParameters['seriesId']!,
                       ),
-                      routes: [
-                        GoRoute(
-                          path: 'chapters/:chapterId/read',
-                          builder: (context, state) => PlaceholderScreen(
-                            label:
-                                'Source Reader ${state.pathParameters['chapterId']}',
-                          ),
-                        ),
-                      ],
                     ),
                   ],
                 ),
@@ -146,11 +159,11 @@ final appRouter = GoRouter(
     ),
     GoRoute(
       path: Routes.updates,
-      builder: (context, state) => const PlaceholderScreen(label: 'Updates'),
+      builder: (context, state) => const UpdatesScreen(),
     ),
     GoRoute(
       path: Routes.settings,
-      builder: (context, state) => const PlaceholderScreen(label: 'Settings'),
+      builder: (context, state) => const SettingsScreen(),
     ),
   ],
 );
