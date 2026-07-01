@@ -4,9 +4,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import {
+  ArrowLeft,
+  BookOpen,
+  ChevronRight,
+  Play,
+  Sparkles,
+  Star,
+} from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { coverUrl } from "@/features/library/api";
 import {
@@ -20,10 +27,40 @@ import {
 } from "@/features/library/hooks";
 import { prefetchReaderChapter } from "@/features/reader/hooks";
 import { ApiError } from "@/types/api";
+import { cn } from "@/lib/cn";
 import { SeriesCard } from "./SeriesCard";
 
 interface SeriesDetailViewProps {
   seriesId: number;
+}
+
+function languageLabel(language: string): string {
+  switch (language.toLowerCase()) {
+    case "ko":
+      return "Manhwa";
+    case "ja":
+      return "Manga";
+    case "zh":
+      return "Manhua";
+    case "en":
+      return "Webtoon";
+    default:
+      return language.toUpperCase();
+  }
+}
+
+function statusBadgeStyle(status: string): string {
+  switch (status) {
+    case "reading":
+      return "bg-violet-500/20 text-violet-400 border-violet-500/30";
+    case "completed":
+      return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+    case "on_hold":
+    case "on-hold":
+      return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+    default:
+      return "bg-white/5 text-muted border-border/50";
+  }
 }
 
 export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
@@ -54,15 +91,16 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
 
   if (seriesQuery.isLoading) {
     return (
-      <div className="p-6" aria-busy="true" aria-label="Loading series">
-        <div className="mb-6 h-4 w-32 animate-pulse rounded bg-surface-2" />
-        <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-          <div className="aspect-[2/3] animate-pulse rounded-xl bg-surface-2" />
-          <div className="space-y-4">
-            <div className="h-8 w-2/3 animate-pulse rounded bg-surface-2" />
-            <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
-            <div className="h-4 w-1/2 animate-pulse rounded bg-surface-2" />
-            <div className="h-32 animate-pulse rounded-xl bg-surface-2" />
+      <div className="min-h-full bg-bg" aria-busy="true" aria-label="Loading series">
+        <div className="h-[280px] animate-pulse bg-surface-2" />
+        <div className="mx-auto max-w-6xl px-6 py-8 md:px-10">
+          <div className="grid gap-8 lg:grid-cols-[220px_1fr]">
+            <div className="aspect-[2/3] animate-pulse rounded-2xl bg-surface-2" />
+            <div className="space-y-4">
+              <div className="h-10 w-2/3 animate-pulse rounded bg-surface-2" />
+              <div className="h-4 w-full animate-pulse rounded bg-surface-2" />
+              <div className="h-24 animate-pulse rounded-xl bg-surface-2" />
+            </div>
           </div>
         </div>
       </div>
@@ -79,7 +117,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
         <p className="text-danger">{message}</p>
         <Link
           href="/library"
-          className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-surface-2 px-4 text-sm font-medium text-fg hover:bg-border"
+          className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-violet-600 px-4 text-sm font-medium text-white hover:bg-violet-500"
         >
           Back to library
         </Link>
@@ -103,207 +141,287 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const similar = similarQuery.data ?? [];
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <Link href="/library" className="text-sm text-muted hover:text-fg">
-          ← Back to library
-        </Link>
-      </div>
-
-      <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <Card className="overflow-hidden">
-          <div className="relative aspect-[2/3] w-full bg-surface-2">
-            <Image
-              src={coverUrl(series.id)}
-              alt={series.title}
-              fill
-              className="object-cover"
-              sizes="220px"
-              unoptimized
-            />
-          </div>
-        </Card>
-
-        <div>
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <h1 className="text-3xl font-bold text-fg">{series.title}</h1>
-              {series.original_title && (
-                <p className="mt-1 text-sm text-muted italic">{series.original_title}</p>
-              )}
-            </div>
-            <Button
-              variant={series.is_favorite ? "primary" : "secondary"}
-              onClick={() => toggleFavorite.mutate(series.id)}
-              aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
-            >
-              {series.is_favorite ? "★ Favorite" : "☆ Add Favorite"}
-            </Button>
-          </div>
-
-          {series.author && <p className="mt-2 text-muted">{series.author}</p>}
-          {series.artist && (
-            <p className="text-sm text-muted">Artist: {series.artist}</p>
-          )}
-          <p className="mt-2 text-sm text-muted">
-            {series.chapter_count} chapters · {series.page_count} pages
-            {series.year && ` · ${series.year}`}
-            {series.language && ` · ${series.language.toUpperCase()}`}
-          </p>
-          {series.reading_status && (
-            <Badge variant={series.reading_status === "reading" ? "primary" : "default"} className="mt-2">
-              {series.reading_status}
-            </Badge>
-          )}
-
-          {continueHref && (
-            <Link
-              href={continueHref}
-              className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
-            >
-              {progress ? "Continue Reading" : "Start Reading"}
-            </Link>
-          )}
-
-          {/* Tags */}
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            {series.tags.map((tag) => (
-              <Badge
-                key={tag.id}
-                variant="default"
-                className="cursor-pointer"
-                onClick={() => removeTag.mutate({ seriesId: series.id, tagId: tag.id })}
-                title="Click to remove"
-              >
-                {tag.name} ×
-              </Badge>
-            ))}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowTagPicker(!showTagPicker)}
-            >
-              + Tag
-            </Button>
-          </div>
-          {showTagPicker && tagsQuery.data && (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {tagsQuery.data
-                .filter((t) => !series.tags.some((st) => st.id === t.id))
-                .map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    variant="default"
-                    className="cursor-pointer hover:bg-primary/15"
-                    onClick={() => {
-                      addTag.mutate({ seriesId: series.id, tagId: tag.id });
-                      setShowTagPicker(false);
-                    }}
-                  >
-                    + {tag.name}
-                  </Badge>
-                ))}
-            </div>
-          )}
-
-          {/* Collections */}
-          {series.collections.length > 0 && (
-            <div className="mt-2 text-sm text-muted">
-              In collections:{" "}
-              {series.collections.map((c, i) => (
-                <span key={c.id}>
-                  <Link
-                    href={`/library/collections/${c.id}`}
-                    className="text-primary hover:underline"
-                  >
-                    {c.name}
-                  </Link>
-                  {i < series.collections.length - 1 && ", "}
-                </span>
-              ))}
-            </div>
-          )}
-
-          {/* Description */}
-          {series.description && (
-            <p className="mt-4 text-sm leading-relaxed text-fg/80">
-              {series.description}
-            </p>
-          )}
+    <div className="min-h-full bg-bg">
+      {/* Hero banner */}
+      <section className="relative h-[280px] overflow-hidden md:h-[320px]">
+        <Image
+          src={coverUrl(series.id)}
+          alt=""
+          fill
+          className="object-cover brightness-[0.35] blur-sm"
+          sizes="100vw"
+          unoptimized
+          aria-hidden
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-void/60 via-void/80 to-bg" />
+        <div className="absolute inset-x-0 top-0 px-6 py-4 md:px-10">
+          <Link
+            href="/library"
+            className="inline-flex items-center gap-1.5 text-sm text-white/70 transition-colors hover:text-white"
+          >
+            <ArrowLeft className="size-4" />
+            Back to library
+          </Link>
         </div>
-      </div>
+      </section>
 
-      {/* Metadata Quality */}
-      {metadata && (
-        <Card className="mt-6">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              Metadata Quality
-              <span className="text-sm font-normal text-muted">
-                {metadata.score}/100
+      <div className="relative mx-auto max-w-6xl px-6 pb-10 md:px-10">
+        <div className="-mt-36 grid gap-8 lg:grid-cols-[220px_1fr] lg:gap-10">
+          {/* Cover */}
+          <div className="mx-auto w-full max-w-[220px] lg:mx-0">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-2xl shadow-glow ring-1 ring-white/10">
+              <Image
+                src={coverUrl(series.id)}
+                alt={series.title}
+                fill
+                className="object-cover"
+                sizes="220px"
+                unoptimized
+                priority
+              />
+            </div>
+          </div>
+
+          {/* Info */}
+          <div className="pt-2 lg:pt-16">
+            <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="min-w-0 flex-1">
+                <h1 className="text-3xl font-bold tracking-tight text-fg md:text-4xl">
+                  {series.title}
+                </h1>
+                {series.original_title ? (
+                  <p className="mt-1 text-sm italic text-muted">{series.original_title}</p>
+                ) : null}
+              </div>
+              <Button
+                variant={series.is_favorite ? "primary" : "secondary"}
+                onClick={() => toggleFavorite.mutate(series.id)}
+                aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                className={cn(
+                  "shrink-0",
+                  series.is_favorite
+                    ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                    : "border border-border/50 bg-white/5 hover:bg-white/10",
+                )}
+              >
+                <Star
+                  className={cn("size-4", series.is_favorite && "fill-amber-400")}
+                />
+                {series.is_favorite ? "Favorited" : "Add Favorite"}
+              </Button>
+            </div>
+
+            {series.author ? (
+              <p className="mt-3 text-base text-muted">by {series.author}</p>
+            ) : null}
+            {series.artist ? (
+              <p className="text-sm text-muted/80">Art by {series.artist}</p>
+            ) : null}
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              {series.reading_status ? (
+                <span
+                  className={cn(
+                    "rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-wide",
+                    statusBadgeStyle(series.reading_status),
+                  )}
+                >
+                  {series.reading_status.replace(/_/g, " ")}
+                </span>
+              ) : null}
+              <span className="rounded-full border border-border/50 bg-white/5 px-3 py-1 text-xs text-muted">
+                {languageLabel(series.language)}
               </span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Progress value={metadata.score} className="mb-3" />
-            {metadata.suggestions.length > 0 && (
-              <div className="space-y-1">
-                {metadata.suggestions.map((s) => (
-                  <p key={s} className="text-sm text-muted">• {s}</p>
+              {series.year ? (
+                <span className="rounded-full border border-border/50 bg-white/5 px-3 py-1 text-xs text-muted">
+                  {series.year}
+                </span>
+              ) : null}
+            </div>
+
+            <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted">
+              <span>{series.chapter_count} chapters</span>
+              <span>{series.page_count.toLocaleString()} pages</span>
+              {progress != null ? (
+                <span className="text-cyan-400">
+                  {Math.round(progress.progress_pct)}% read
+                </span>
+              ) : null}
+            </div>
+
+            {continueHref ? (
+              <Link
+                href={continueHref}
+                className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 text-sm font-semibold text-white shadow-glow transition-colors hover:bg-violet-500"
+              >
+                <Play className="size-4 fill-current" />
+                {progress ? "Continue Reading" : "Start Reading"}
+              </Link>
+            ) : null}
+
+            {/* Tags */}
+            <div className="mt-6 flex flex-wrap items-center gap-2">
+              {series.tags.map((tag) => (
+                <Badge
+                  key={tag.id}
+                  variant="default"
+                  className="cursor-pointer border-border/50 bg-white/5 hover:bg-red-500/10"
+                  onClick={() => removeTag.mutate({ seriesId: series.id, tagId: tag.id })}
+                  title="Click to remove"
+                >
+                  {tag.name} ×
+                </Badge>
+              ))}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowTagPicker(!showTagPicker)}
+                className="text-muted hover:text-fg"
+              >
+                + Tag
+              </Button>
+            </div>
+            {showTagPicker && tagsQuery.data ? (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {tagsQuery.data
+                  .filter((t) => !series.tags.some((st) => st.id === t.id))
+                  .map((tag) => (
+                    <Badge
+                      key={tag.id}
+                      variant="default"
+                      className="cursor-pointer border-border/50 bg-white/5 hover:bg-violet-500/15"
+                      onClick={() => {
+                        addTag.mutate({ seriesId: series.id, tagId: tag.id });
+                        setShowTagPicker(false);
+                      }}
+                    >
+                      + {tag.name}
+                    </Badge>
+                  ))}
+              </div>
+            ) : null}
+
+            {series.collections.length > 0 ? (
+              <div className="mt-3 text-sm text-muted">
+                In collections:{" "}
+                {series.collections.map((c, i) => (
+                  <span key={c.id}>
+                    <Link
+                      href={`/library/collections/${c.id}`}
+                      className="text-violet-400 hover:underline"
+                    >
+                      {c.name}
+                    </Link>
+                    {i < series.collections.length - 1 && ", "}
+                  </span>
                 ))}
               </div>
-            )}
-            {metadata.suggestions.length === 0 && (
-              <p className="text-sm text-success">All metadata fields complete!</p>
-            )}
-          </CardContent>
-        </Card>
-      )}
+            ) : null}
 
-      {/* Chapters */}
-      <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Chapters</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {series.chapters.length === 0 ? (
-            <p className="text-sm text-muted">No chapters found for this series.</p>
-          ) : (
-            series.chapters.map((chapter) => {
-              const isCurrent = progress?.chapter_id === chapter.id;
-              return (
-                <Link
-                  key={chapter.id}
-                  href={`/reader/${series.id}/${chapter.id}`}
-                  onMouseEnter={() => prefetchChapter(chapter.id)}
-                  onFocus={() => prefetchChapter(chapter.id)}
-                  className="flex items-center justify-between rounded-lg border border-border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-surface-2"
-                >
-                  <div>
-                    <p className="font-medium text-fg">{chapter.title}</p>
-                    <p className="text-sm text-muted">{chapter.page_count} pages</p>
-                  </div>
-                  {isCurrent && <Badge variant="primary">In progress</Badge>}
-                </Link>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
+            {series.description ? (
+              <p className="mt-6 max-w-3xl text-sm leading-relaxed text-fg/80">
+                {series.description}
+              </p>
+            ) : null}
+          </div>
+        </div>
 
-      {/* Similar Series */}
-      {similar.length > 0 && (
-        <section className="mt-8">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-muted">
-            Similar Series
-          </h2>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {similar.map((s) => (
-              <SeriesCard key={s.id} series={s} />
-            ))}
+        {/* Metadata Quality */}
+        {metadata ? (
+          <section className="glass-panel mt-10 rounded-2xl p-6">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="size-4 text-cyan-400" aria-hidden />
+                <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
+                  Metadata Quality
+                </h2>
+              </div>
+              <span className="font-mono text-sm tabular-nums text-muted">
+                {metadata.score}/100
+              </span>
+            </div>
+            <Progress
+              value={metadata.score}
+              className="mb-4 h-2 bg-white/10 [&>div]:bg-gradient-to-r [&>div]:from-violet-500 [&>div]:to-cyan-500"
+            />
+            {metadata.suggestions.length > 0 ? (
+              <div className="space-y-1.5">
+                {metadata.suggestions.map((s) => (
+                  <p key={s} className="text-sm text-muted">
+                    • {s}
+                  </p>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-emerald-400">All metadata fields complete!</p>
+            )}
+          </section>
+        ) : null}
+
+        {/* Chapters */}
+        <section className="mt-10">
+          <div className="mb-4 flex items-center gap-2">
+            <BookOpen className="size-4 text-cyan-400" aria-hidden />
+            <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
+              Chapters
+            </h2>
+            <span className="text-xs text-muted">({series.chapters.length})</span>
+          </div>
+
+          <div className="glass-panel divide-y divide-border/30 overflow-hidden rounded-2xl">
+            {series.chapters.length === 0 ? (
+              <p className="p-6 text-sm text-muted">No chapters found for this series.</p>
+            ) : (
+              series.chapters.map((chapter, index) => {
+                const isCurrent = progress?.chapter_id === chapter.id;
+                return (
+                  <Link
+                    key={chapter.id}
+                    href={`/reader/${series.id}/${chapter.id}`}
+                    onMouseEnter={() => prefetchChapter(chapter.id)}
+                    onFocus={() => prefetchChapter(chapter.id)}
+                    className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-white/[0.03]"
+                  >
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/5 font-mono text-xs tabular-nums text-muted group-hover:bg-violet-500/20 group-hover:text-violet-400">
+                      {chapter.number ?? index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium text-fg group-hover:text-violet-400">
+                        {chapter.title}
+                      </p>
+                      <p className="text-xs text-muted">{chapter.page_count} pages</p>
+                    </div>
+                    {isCurrent ? (
+                      <Badge variant="primary" className="shrink-0 bg-violet-500/20 text-violet-400">
+                        In progress
+                      </Badge>
+                    ) : (
+                      <ChevronRight className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                    )}
+                  </Link>
+                );
+              })
+            )}
           </div>
         </section>
-      )}
+
+        {/* Similar Series */}
+        {similar.length > 0 ? (
+          <section className="mt-10">
+            <div className="mb-4 flex items-center gap-2">
+              <Sparkles className="size-4 text-cyan-400" aria-hidden />
+              <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
+                Similar Series
+              </h2>
+            </div>
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {similar.map((s) => (
+                <SeriesCard key={s.id} series={s} />
+              ))}
+            </div>
+          </section>
+        ) : null}
+      </div>
     </div>
   );
 }
