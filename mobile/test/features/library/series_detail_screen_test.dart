@@ -10,6 +10,8 @@ import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
 import 'package:aistudio_mobile/features/library/providers/series_detail_provider.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
+import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
+import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
 import 'package:aistudio_mobile/features/library/screens/series_detail_screen.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
@@ -88,6 +90,22 @@ class _FakeSeriesDetailRepository implements LibraryRepository {
 
   @override
   Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
+
+  @override
+  Future<Result<Bookmark>> addBookmark({
+    required int seriesId,
+    required int chapterId,
+    required int page,
+    String? note,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<AdjacentChapter?>> getAdjacentChapter(
+    int chapterId, {
+    required String direction,
+  }) =>
+      throw UnimplementedError();
 }
 
 SeriesDetail _sampleSeriesDetail() {
