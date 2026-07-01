@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/core/utils/result.dart';
+import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/features/library/models/library_list_state.dart';
 import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';

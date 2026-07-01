@@ -1,5 +1,5 @@
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/dashboard_stats.dart';
+import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 
 class DashboardData {
@@ -11,7 +11,7 @@ class DashboardData {
 
   final List<SeriesSummary> recentlyUpdated;
   final List<ContinueReadingItem> continueReading;
-  final DashboardStats stats;
+  final LibraryStatistics stats;
 
   bool get isEmpty =>
       stats.totalSeries == 0 &&

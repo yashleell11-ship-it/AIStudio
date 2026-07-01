@@ -1,6 +1,7 @@
 import 'package:aistudio_mobile/app/router/routes.dart';
 import 'package:aistudio_mobile/features/library/screens/dashboard_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
+import 'package:aistudio_mobile/features/library/screens/series_detail_screen.dart';
 import 'package:aistudio_mobile/shared/screens/placeholder_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -30,8 +31,8 @@ final appRouter = GoRouter(
                 ),
                 GoRoute(
                   path: ':seriesId',
-                  builder: (context, state) => PlaceholderScreen(
-                    label: 'Series ${state.pathParameters['seriesId']}',
+                  builder: (context, state) => SeriesDetailScreen(
+                    seriesId: int.parse(state.pathParameters['seriesId']!),
                   ),
                   routes: [
                     GoRoute(

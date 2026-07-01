@@ -5,7 +5,7 @@ import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/models/collection.dart';
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
 import 'package:aistudio_mobile/features/library/models/dashboard_data.dart';
-import 'package:aistudio_mobile/features/library/models/dashboard_stats.dart';
+import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
@@ -107,6 +107,14 @@ class _FakeLibraryRepository implements LibraryRepository {
   Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
 
   @override
+  Future<Result<LibraryStatistics>> statistics() async {
+    if (shouldFail) {
+      return const Err(UnknownError(message: 'network failure'));
+    }
+    return Ok(data.stats);
+  }
+
+  @override
   Future<Result<void>> toggleFavorite(int seriesId) => throw UnimplementedError();
 }
 
@@ -145,11 +153,18 @@ DashboardData _sampleDashboard() {
         lastReadAt: DateTime.now(),
       ),
     ],
-    stats: const DashboardStats(
+    stats: const LibraryStatistics(
       totalSeries: 2,
       totalChapters: 358,
       totalPages: 7160,
+      completedSeries: 0,
+      inProgress: 1,
+      favorites: 1,
+      completionRatePct: 0,
+      totalReadingTimeEstimateMinutes: 0,
+      pagesReadThisWeek: 0,
       readingStreakDays: 1,
+      readingVelocityPagesPerHour: 0,
     ),
   );
 }
@@ -187,7 +202,7 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('AIStudio'), findsWidgets);
-      expect(find.text('Recently Updated'), findsOneWidget);
+      expect(find.text('RECENTLY UPDATED'), findsOneWidget);
       expect(find.text('Continue Reading'), findsWidgets);
       expect(find.text('Total Comics'), findsOneWidget);
       expect(find.text('Solo Leveling'), findsWidgets);
@@ -199,16 +214,23 @@ void main() {
           data: const DashboardData(
             recentlyUpdated: [],
             continueReading: [],
-            stats: DashboardStats(
+            stats: LibraryStatistics(
               totalSeries: 0,
               totalChapters: 0,
               totalPages: 0,
+              completedSeries: 0,
+              inProgress: 0,
+              favorites: 0,
+              completionRatePct: 0,
+              totalReadingTimeEstimateMinutes: 0,
+              pagesReadThisWeek: 0,
               readingStreakDays: 0,
+              readingVelocityPagesPerHour: 0,
             ),
           ),
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.text('Your library is empty'), findsOneWidget);
     });
@@ -220,7 +242,7 @@ void main() {
           shouldFail: true,
         ),
       );
-      await tester.pumpAndSettle();
+      await tester.pump();
 
       expect(find.text('Could not load dashboard'), findsOneWidget);
       expect(find.text('Try Again'), findsOneWidget);

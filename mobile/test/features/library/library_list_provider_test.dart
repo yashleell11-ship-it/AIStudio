@@ -3,7 +3,7 @@ import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/models/collection.dart';
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
+import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
@@ -84,6 +84,9 @@ class _FakeLibraryRepository implements LibraryRepository {
 
   @override
   Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
+
+  @override
+  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
 }
 
 SeriesSummary _series(int id) {

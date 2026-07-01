@@ -4,6 +4,7 @@ import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/models/collection.dart';
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
 import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
+import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
@@ -50,4 +51,6 @@ abstract interface class LibraryRepository {
   Future<Result<List<Tag>>> listTags();
 
   Future<Result<void>> toggleFavorite(int seriesId);
+
+  Future<Result<LibraryStatistics>> statistics();
 }

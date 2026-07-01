@@ -3,7 +3,7 @@ import 'package:aistudio_mobile/app/theme/app_colors.dart';
 import 'package:aistudio_mobile/app/theme/app_spacing.dart';
 import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/dashboard_stats.dart';
+import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/utils/cover_url.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
@@ -433,7 +433,7 @@ class _ContinueReadingCard extends StatelessWidget {
 class StatsGrid extends StatelessWidget {
   const StatsGrid({super.key, required this.stats});
 
-  final DashboardStats stats;
+  final LibraryStatistics stats;
 
   @override
   Widget build(BuildContext context) {
