@@ -1,0 +1,148 @@
+import 'package:aistudio_mobile/core/error/app_error.dart';
+import 'package:aistudio_mobile/core/utils/result.dart';
+import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
+import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
+import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
+import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
+import 'package:dio/dio.dart';
+
+class DownloadsRepositoryImpl implements DownloadsRepository {
+  const DownloadsRepositoryImpl(this._dio);
+
+  final Dio _dio;
+
+  @override
+  Future<Result<List<DownloadItem>>> listDownloads() => _list(
+        '/downloads',
+        DownloadItem.fromJson,
+      );
+
+  @override
+  Future<Result<DownloadMetrics>> getMetrics() => _obj(
+        '/downloads/metrics',
+        DownloadMetrics.fromJson,
+      );
+
+  @override
+  Future<Result<DownloadSettings>> getSettings() => _obj(
+        '/downloads/settings',
+        DownloadSettings.fromJson,
+      );
+
+  @override
+  Future<Result<DownloadSettings>> updateSettings(DownloadSettings settings) =>
+      _objPut('/downloads/settings', settings.toUpdateJson(), DownloadSettings.fromJson);
+
+  @override
+  Future<Result<void>> queueChapters({
+    required String sourceId,
+    required String seriesId,
+    required List<String> chapterIds,
+    String? seriesTitle,
+    int? priority,
+  }) =>
+      _void(
+        () => _dio.post<dynamic>(
+          '/downloads/chapters',
+          data: {
+            'source_id': sourceId,
+            'series_id': seriesId,
+            'chapter_ids': chapterIds,
+            if (seriesTitle != null) 'series_title': seriesTitle,
+            if (priority != null) 'priority': priority,
+          },
+        ),
+      );
+
+  @override
+  Future<Result<void>> pauseDownload(int downloadId) =>
+      _void(() => _dio.post<dynamic>('/downloads/$downloadId/pause'));
+
+  @override
+  Future<Result<void>> resumeDownload(int downloadId) =>
+      _void(() => _dio.post<dynamic>('/downloads/$downloadId/resume'));
+
+  @override
+  Future<Result<void>> cancelDownload(int downloadId) =>
+      _void(() => _dio.post<dynamic>('/downloads/$downloadId/cancel'));
+
+  @override
+  Future<Result<void>> retryDownload(int downloadId) =>
+      _void(() => _dio.post<dynamic>('/downloads/$downloadId/retry'));
+
+  @override
+  Future<Result<void>> pauseAll() =>
+      _void(() => _dio.post<dynamic>('/downloads/pause-all'));
+
+  @override
+  Future<Result<void>> resumeAll() =>
+      _void(() => _dio.post<dynamic>('/downloads/resume-all'));
+
+  @override
+  Future<Result<void>> cancelAll() =>
+      _void(() => _dio.post<dynamic>('/downloads/cancel-all'));
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  Future<Result<T>> _obj<T>(
+    String path,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    try {
+      final r = await _dio.get<Map<String, dynamic>>(path);
+      return Ok(fromJson(r.data!));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  Future<Result<T>> _objPut<T>(
+    String path,
+    Map<String, dynamic> body,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    try {
+      final r = await _dio.put<Map<String, dynamic>>(path, data: body);
+      return Ok(fromJson(r.data!));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  Future<Result<List<T>>> _list<T>(
+    String path,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    try {
+      final r = await _dio.get<List<dynamic>>(path);
+      final items = (r.data ?? [])
+          .map((e) => fromJson(e as Map<String, dynamic>))
+          .toList();
+      return Ok(items);
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  Future<Result<void>> _void(Future<dynamic> Function() call) async {
+    try {
+      await call();
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  AppError _err(DioException e) {
+    if (e.error is AppError) return e.error! as AppError;
+    return UnknownError(message: e.message ?? 'Dio error', cause: e);
+  }
+}

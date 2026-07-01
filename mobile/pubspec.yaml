@@ -1,0 +1,58 @@
+name: aistudio_mobile
+description: AIStudio mobile client — manga/manhwa reader
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # State management + DI
+  flutter_riverpod: ^2.5.1
+  riverpod_annotation: ^2.3.5
+
+  # Navigation
+  go_router: ^14.0.0
+
+  # Networking
+  dio: ^5.4.3
+
+  # Local storage
+  flutter_secure_storage: ^9.0.0
+  shared_preferences: ^2.2.3
+
+  # Image caching
+  cached_network_image: ^3.3.1
+
+  # Logging
+  logger: ^2.3.0
+
+  # Utilities
+  intl: ^0.19.0
+  collection: ^1.18.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  # Code-gen (used when building features, not needed for foundation)
+  build_runner: ^2.4.11
+  riverpod_generator: ^2.4.3
+  json_serializable: ^6.8.0
+  freezed: ^2.5.2
+  freezed_annotation: ^2.4.4
+
+  # Testing
+  mocktail: ^1.0.4
+
+  # Linting
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/images/
