@@ -13,10 +13,21 @@ final libraryQueryProvider = StateProvider<LibraryQuery>(
   name: 'libraryQuery',
 );
 
+final searchQueryProvider = StateProvider<LibraryQuery>(
+  (ref) => const LibraryQuery(viewMode: LibraryViewMode.list),
+  name: 'searchQuery',
+);
+
 final libraryListProvider =
     AsyncNotifierProvider.autoDispose<LibraryListNotifier, LibraryListState>(
   LibraryListNotifier.new,
   name: 'libraryList',
+);
+
+final searchListProvider =
+    AsyncNotifierProvider.autoDispose<SearchListNotifier, LibraryListState>(
+  SearchListNotifier.new,
+  name: 'searchList',
 );
 
 class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
@@ -87,34 +98,165 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
   Future<({List<SeriesSummary> items, int total, bool hasNext})> _fetchPage(
     LibraryQuery query,
     int page,
-  ) async {
-    final repo = ref.read(libraryRepositoryProvider);
+  ) =>
+      fetchLibraryListPage(ref, query, page);
+}
 
-    if (query.isSearching) {
-      final result = await repo.search(query.search.trim(), page: page);
-      if (result.isErr) throw result.error;
-      final items = result.value;
-      return (
-        items: items,
-        total: items.length,
-        hasNext: items.length >= _searchPageSize,
-      );
+class SearchListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
+  @override
+  Future<LibraryListState> build() async {
+    final query = ref.watch(searchQueryProvider);
+    if (!query.isSearching) {
+      return const LibraryListState(items: [], total: 0, page: 1, hasNext: false);
     }
+    return _fetchFirstPage(query);
+  }
 
-    final result = await repo.listSeries(
-      page: page,
-      perPage: _listPageSize,
-      sort: query.sortParam,
-      status: query.statusParam,
-      isFavorite: query.favoritesOnly ? true : null,
-    );
-    if (result.isErr) throw result.error;
+  Future<void> refresh() async {
+    final query = ref.read(searchQueryProvider);
+    if (!query.isSearching) {
+      state = const AsyncData(
+        LibraryListState(items: [], total: 0, page: 1, hasNext: false),
+      );
+      return;
+    }
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => _fetchFirstPage(query));
+  }
 
-    final paged = result.value;
-    return (
-      items: paged.items,
-      total: paged.total,
-      hasNext: paged.hasNext,
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasNext || current.isLoadingMore) return;
+
+    final query = ref.read(searchQueryProvider);
+    state = AsyncData(current.copyWith(isLoadingMore: true, clearError: true));
+
+    final nextPage = current.page + 1;
+    final result = await fetchLibraryListPage(ref, query, nextPage);
+
+    state = AsyncData(
+      current.copyWith(
+        items: [...current.items, ...result.items],
+        page: nextPage,
+        hasNext: result.hasNext,
+        total: current.items.length + result.items.length,
+        isLoadingMore: false,
+      ),
     );
   }
+
+  Future<void> toggleFavorite(int seriesId) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    final repo = ref.read(libraryRepositoryProvider);
+    final result = await repo.toggleFavorite(seriesId);
+    if (result.isErr) {
+      state = AsyncData(current.copyWith(error: result.error));
+      return;
+    }
+
+    final updatedItems = current.items.map((series) {
+      if (series.id != seriesId) return series;
+      return series.copyWith(isFavorite: !series.isFavorite);
+    }).toList();
+
+    state = AsyncData(
+      current.copyWith(
+        items: applySearchClientFilters(updatedItems, ref.read(searchQueryProvider)),
+        clearError: true,
+      ),
+    );
+  }
+
+  Future<LibraryListState> _fetchFirstPage(LibraryQuery query) async {
+    final page = await fetchLibraryListPage(ref, query, 1);
+    return LibraryListState(
+      items: page.items,
+      total: page.total,
+      page: 1,
+      hasNext: page.hasNext,
+    );
+  }
+}
+
+Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListPage(
+  Ref ref,
+  LibraryQuery query,
+  int page,
+) async {
+  final repo = ref.read(libraryRepositoryProvider);
+
+  if (query.isSearching) {
+    final result = await repo.search(query.search.trim(), page: page);
+    if (result.isErr) throw result.error;
+    final filtered = applySearchClientFilters(result.value, query);
+    return (
+      items: filtered,
+      total: filtered.length,
+      hasNext: result.value.length >= _searchPageSize,
+    );
+  }
+
+  final result = await repo.listSeries(
+    page: page,
+    perPage: _listPageSize,
+    sort: query.sortParam,
+    status: query.statusParam,
+    isFavorite: query.favoritesOnly ? true : null,
+  );
+  if (result.isErr) throw result.error;
+
+  final paged = result.value;
+  return (
+    items: paged.items,
+    total: paged.total,
+    hasNext: paged.hasNext,
+  );
+}
+
+List<SeriesSummary> applySearchClientFilters(
+  List<SeriesSummary> items,
+  LibraryQuery query,
+) {
+  var filtered = items;
+
+  if (query.favoritesOnly) {
+    filtered = filtered.where((series) => series.isFavorite).toList();
+  }
+
+  filtered = switch (query.filter) {
+    LibraryFilter.all => filtered,
+    LibraryFilter.reading =>
+      filtered.where((series) => series.readingStatus == 'reading').toList(),
+    LibraryFilter.unread => filtered
+        .where(
+          (series) =>
+              series.readingStatus == 'unread' || series.readChapters == 0,
+        )
+        .toList(),
+  };
+
+  filtered = List<SeriesSummary>.from(filtered);
+  filtered.sort((a, b) => _compareSeries(a, b, query.sort));
+  return filtered;
+}
+
+int _compareSeries(SeriesSummary a, SeriesSummary b, LibrarySort sort) {
+  return switch (sort) {
+    LibrarySort.title => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+    LibrarySort.author => (a.author ?? '')
+        .toLowerCase()
+        .compareTo((b.author ?? '').toLowerCase()),
+    LibrarySort.year => (b.year ?? 0).compareTo(a.year ?? 0),
+    LibrarySort.totalChapters =>
+      b.chapterCount.compareTo(a.chapterCount),
+    LibrarySort.dateAdded => b.createdAt.compareTo(a.createdAt),
+    LibrarySort.recent =>
+      (b.readingProgress?.lastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0))
+          .compareTo(
+        a.readingProgress?.lastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0),
+      ),
+    LibrarySort.updated => b.updatedAt.compareTo(a.updatedAt),
+  };
 }

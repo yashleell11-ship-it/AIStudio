@@ -3,6 +3,7 @@ import 'package:aistudio_mobile/features/library/screens/dashboard_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/series_detail_screen.dart';
 import 'package:aistudio_mobile/features/reader/screens/reader_screen.dart';
+import 'package:aistudio_mobile/features/library/screens/search_screen.dart';
 import 'package:aistudio_mobile/shared/screens/placeholder_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -130,7 +131,7 @@ final appRouter = GoRouter(
           routes: [
             GoRoute(
               path: Routes.search,
-              builder: (context, state) => const PlaceholderScreen(label: 'Search'),
+              builder: (context, state) => const SearchScreen(),
             ),
           ],
         ),
