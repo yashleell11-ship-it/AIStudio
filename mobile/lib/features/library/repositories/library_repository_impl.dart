@@ -10,6 +10,8 @@ import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
+import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
+import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
 import 'package:dio/dio.dart';
 
 class LibraryRepositoryImpl implements LibraryRepository {
@@ -184,6 +186,45 @@ class LibraryRepositoryImpl implements LibraryRepository {
         () => _dio.get<Map<String, dynamic>>('/library/statistics'),
         LibraryStatistics.fromJson,
       );
+
+  @override
+  Future<Result<Bookmark>> addBookmark({
+    required int seriesId,
+    required int chapterId,
+    required int page,
+    String? note,
+  }) =>
+      _request(
+        () => _dio.post<Map<String, dynamic>>(
+          '/reader/bookmarks',
+          data: {
+            'series_id': seriesId,
+            'chapter_id': chapterId,
+            'page': page,
+            if (note != null) 'note': note,
+          },
+        ),
+        Bookmark.fromJson,
+      );
+
+  @override
+  Future<Result<AdjacentChapter?>> getAdjacentChapter(
+    int chapterId, {
+    required String direction,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>?>(
+        '/reader/chapter/$chapterId/adjacent',
+        queryParameters: {'direction': direction},
+      );
+      final data = response.data;
+      return Ok(data != null ? AdjacentChapter.fromJson(data) : null);
+    } on DioException catch (e) {
+      return Err(_extractError(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 

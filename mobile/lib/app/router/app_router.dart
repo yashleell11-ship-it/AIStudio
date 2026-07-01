@@ -2,14 +2,19 @@ import 'package:aistudio_mobile/app/router/routes.dart';
 import 'package:aistudio_mobile/features/library/screens/dashboard_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/series_detail_screen.dart';
+import 'package:aistudio_mobile/features/reader/screens/reader_screen.dart';
 import 'package:aistudio_mobile/shared/screens/placeholder_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+
+final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
+final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 
 /// Application router — all screens registered here.
 ///
 /// Feature screens replace the [PlaceholderScreen] as they are built.
 final appRouter = GoRouter(
+  navigatorKey: _rootNavigatorKey,
   initialLocation: Routes.home,
   debugLogDiagnostics: true,
   routes: [
@@ -20,6 +25,7 @@ final appRouter = GoRouter(
       branches: [
         // 0 — Library
         StatefulShellBranch(
+          navigatorKey: _shellNavigatorKey,
           routes: [
             GoRoute(
               path: Routes.library,
@@ -37,10 +43,17 @@ final appRouter = GoRouter(
                   routes: [
                     GoRoute(
                       path: 'chapters/:chapterId/read',
-                      builder: (context, state) => PlaceholderScreen(
-                        label:
-                            'Reader ch:${state.pathParameters['chapterId']}',
-                      ),
+                      parentNavigatorKey: _rootNavigatorKey,
+                      builder: (context, state) {
+                        final pageParam = state.uri.queryParameters['page'];
+                        final initialPage =
+                            pageParam != null ? int.tryParse(pageParam) ?? 1 : 1;
+                        return ReaderScreen(
+                          seriesId: int.parse(state.pathParameters['seriesId']!),
+                          chapterId: int.parse(state.pathParameters['chapterId']!),
+                          initialPage: initialPage,
+                        );
+                      },
                     ),
                   ],
                 ),
