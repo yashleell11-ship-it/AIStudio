@@ -71,16 +71,52 @@ class DownloadsRepositoryImpl implements DownloadsRepository {
       _void(() => _dio.post<dynamic>('/downloads/$downloadId/retry'));
 
   @override
-  Future<Result<void>> pauseAll() =>
-      _void(() => _dio.post<dynamic>('/downloads/pause-all'));
+  Future<Result<int>> pauseAll() =>
+      _bulkInt(() => _dio.post<Map<String, dynamic>>('/downloads/pause-all'));
 
   @override
-  Future<Result<void>> resumeAll() =>
-      _void(() => _dio.post<dynamic>('/downloads/resume-all'));
+  Future<Result<int>> resumeAll() =>
+      _bulkInt(() => _dio.post<Map<String, dynamic>>('/downloads/resume-all'));
 
   @override
-  Future<Result<void>> cancelAll() =>
-      _void(() => _dio.post<dynamic>('/downloads/cancel-all'));
+  Future<Result<int>> cancelAll() =>
+      _bulkInt(() => _dio.post<Map<String, dynamic>>('/downloads/cancel-all'));
+
+  @override
+  Future<Result<int>> pauseSeries({
+    required String sourceId,
+    required String seriesId,
+  }) =>
+      _bulkInt(
+        () => _dio.post<Map<String, dynamic>>(
+          '/downloads/series/pause',
+          data: {'source_id': sourceId, 'series_id': seriesId},
+        ),
+      );
+
+  @override
+  Future<Result<int>> resumeSeries({
+    required String sourceId,
+    required String seriesId,
+  }) =>
+      _bulkInt(
+        () => _dio.post<Map<String, dynamic>>(
+          '/downloads/series/resume',
+          data: {'source_id': sourceId, 'series_id': seriesId},
+        ),
+      );
+
+  @override
+  Future<Result<int>> cancelSeries({
+    required String sourceId,
+    required String seriesId,
+  }) =>
+      _bulkInt(
+        () => _dio.post<Map<String, dynamic>>(
+          '/downloads/series/cancel',
+          data: {'source_id': sourceId, 'series_id': seriesId},
+        ),
+      );
 
   // ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -123,6 +159,20 @@ class DownloadsRepositoryImpl implements DownloadsRepository {
           .map((e) => fromJson(e as Map<String, dynamic>))
           .toList();
       return Ok(items);
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  Future<Result<int>> _bulkInt(
+    Future<Response<Map<String, dynamic>>> Function() call,
+  ) async {
+    try {
+      final response = await call();
+      final affected = response.data?['affected'];
+      return Ok(affected is int ? affected : 0);
     } on DioException catch (e) {
       return Err(_err(e));
     } catch (e) {

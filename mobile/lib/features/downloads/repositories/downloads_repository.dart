@@ -22,7 +22,22 @@ abstract interface class DownloadsRepository {
   Future<Result<void>> cancelDownload(int downloadId);
   Future<Result<void>> retryDownload(int downloadId);
 
-  Future<Result<void>> pauseAll();
-  Future<Result<void>> resumeAll();
-  Future<Result<void>> cancelAll();
+  Future<Result<int>> pauseAll();
+  Future<Result<int>> resumeAll();
+  Future<Result<int>> cancelAll();
+
+  Future<Result<int>> pauseSeries({
+    required String sourceId,
+    required String seriesId,
+  });
+
+  Future<Result<int>> resumeSeries({
+    required String sourceId,
+    required String seriesId,
+  });
+
+  Future<Result<int>> cancelSeries({
+    required String sourceId,
+    required String seriesId,
+  });
 }
