@@ -1,5 +1,6 @@
 import 'package:aistudio_mobile/app/router/routes.dart';
 import 'package:aistudio_mobile/features/library/screens/dashboard_screen.dart';
+import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
 import 'package:aistudio_mobile/shared/screens/placeholder_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -23,6 +24,10 @@ final appRouter = GoRouter(
               path: Routes.library,
               builder: (context, state) => const DashboardScreen(),
               routes: [
+                GoRoute(
+                  path: 'browse',
+                  builder: (context, state) => const LibraryScreen(),
+                ),
                 GoRoute(
                   path: ':seriesId',
                   builder: (context, state) => PlaceholderScreen(

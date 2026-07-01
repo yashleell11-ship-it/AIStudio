@@ -58,6 +58,39 @@ class SeriesSummary {
   double get readProgressPct =>
       totalChapters > 0 ? readChapters / totalChapters : 0;
 
+  SeriesSummary copyWith({
+    bool? isFavorite,
+    ReadingProgress? readingProgress,
+  }) {
+    return SeriesSummary(
+      id: id,
+      libraryId: libraryId,
+      title: title,
+      sortTitle: sortTitle,
+      originalTitle: originalTitle,
+      author: author,
+      artist: artist,
+      description: description,
+      status: status,
+      contentRating: contentRating,
+      language: language,
+      year: year,
+      coverPath: coverPath,
+      folderPath: folderPath,
+      isFavorite: isFavorite ?? this.isFavorite,
+      readingStatus: readingStatus,
+      chapterCount: chapterCount,
+      readChapters: readChapters,
+      pageCount: pageCount,
+      totalChapters: totalChapters,
+      totalPages: totalPages,
+      firstChapterId: firstChapterId,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      readingProgress: readingProgress ?? this.readingProgress,
+    );
+  }
+
   factory SeriesSummary.fromJson(Map<String, dynamic> json) => SeriesSummary(
         id: json['id'] as int,
         libraryId: json['library_id'] as int,
