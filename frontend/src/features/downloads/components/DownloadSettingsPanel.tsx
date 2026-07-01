@@ -1,25 +1,78 @@
 "use client";
 
 import { useState } from "react";
+import { Download, Gauge } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/cn";
 import { ApiError } from "@/types/api";
 import { useDownloadSettings, useUpdateDownloadSettings } from "../hooks";
 import type { DownloadSettings } from "../types";
 
-const CONCURRENT_CHAPTER_OPTIONS = Array.from({ length: 10 }, (_, i) => i + 1);
-
-const selectClassName = cn(
-  "flex h-10 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-fg",
-  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60",
-  "disabled:cursor-not-allowed disabled:opacity-50",
-);
-
 function parseNumberField(value: string, fallback: number): number {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function SettingsField({
+  label,
+  hint,
+  children,
+  className,
+}: {
+  label: string;
+  hint?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <label className={cn("flex flex-col gap-2 text-sm", className)}>
+      <span className="font-medium text-fg">{label}</span>
+      {children}
+      {hint ? <span className="text-xs leading-relaxed text-muted">{hint}</span> : null}
+    </label>
+  );
+}
+
+function SliderField({
+  label,
+  hint,
+  value,
+  min,
+  max,
+  step,
+  unit,
+  onChange,
+}: {
+  label: string;
+  hint?: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  unit?: string;
+  onChange: (value: number) => void;
+}) {
+  return (
+    <SettingsField label={label} hint={hint}>
+      <div className="flex items-center gap-3">
+        <Slider
+          value={value}
+          min={min}
+          max={max}
+          step={step}
+          onChange={onChange}
+          aria-label={label}
+          className="flex-1"
+        />
+        <span className="w-12 shrink-0 text-right font-mono text-sm tabular-nums text-violet-400">
+          {value}
+          {unit}
+        </span>
+      </div>
+    </SettingsField>
+  );
 }
 
 function DownloadSettingsForm({
@@ -30,10 +83,6 @@ function DownloadSettingsForm({
   activeDownloadCount: number;
 }) {
   const mutation = useUpdateDownloadSettings();
-  // Seeded once from the first successful fetch. Deliberately not
-  // re-synced from later background refetches (active_download_count
-  // alone changes every few seconds while something is downloading) --
-  // that would silently discard whatever the user is mid-editing.
   const [draft, setDraft] = useState(initial);
   const [feedback, setFeedback] = useState<string | null>(null);
 
@@ -47,171 +96,150 @@ function DownloadSettingsForm({
         download_retry_delay_seconds: draft.download_retry_delay_seconds,
         download_timeout_seconds: draft.download_timeout_seconds,
       });
-      setFeedback("Saved. Takes effect immediately -- no restart needed.");
+      setFeedback("Saved. Takes effect immediately — no restart needed.");
     } catch (error) {
       setFeedback(error instanceof ApiError ? error.message : "Failed to save settings.");
     }
   };
 
   return (
-    <CardContent className="grid gap-4 md:grid-cols-2">
-      <label className="flex flex-col gap-1 text-sm">
-        Concurrent chapter downloads
-        <select
-          className={selectClassName}
+    <div className="space-y-6">
+      <div className="grid gap-5 md:grid-cols-2">
+        <SliderField
+          label="Concurrent chapter downloads"
+          hint="How many chapters may download at once, across all series."
           value={draft.download_concurrent_chapters}
-          onChange={(e) =>
-            setDraft({ ...draft, download_concurrent_chapters: Number(e.target.value) })
-          }
-        >
-          {CONCURRENT_CHAPTER_OPTIONS.map((value) => (
-            <option key={value} value={value}>
-              {value}
-            </option>
-          ))}
-        </select>
-        <span className="text-xs text-muted">
-          How many chapters may download at once, across all series.
-        </span>
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Retry count
-        <Input
-          type="number"
-          min={0}
-          max={10}
-          value={draft.download_retry_count}
-          onChange={(e) =>
-            setDraft({ ...draft, download_retry_count: parseNumberField(e.target.value, draft.download_retry_count) })
-          }
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Retry delay (seconds)
-        <Input
-          type="number"
-          min={0}
-          max={30}
-          step={0.1}
-          value={draft.download_retry_delay_seconds}
-          onChange={(e) =>
-            setDraft({
-              ...draft,
-              download_retry_delay_seconds: parseNumberField(
-                e.target.value,
-                draft.download_retry_delay_seconds,
-              ),
-            })
-          }
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Download timeout (seconds)
-        <Input
-          type="number"
-          min={1}
-          max={300}
-          value={draft.download_timeout_seconds}
-          onChange={(e) =>
-            setDraft({
-              ...draft,
-              download_timeout_seconds: parseNumberField(
-                e.target.value,
-                draft.download_timeout_seconds,
-              ),
-            })
-          }
-        />
-      </label>
-
-      <label className="flex flex-col gap-1 text-sm">
-        Maximum simultaneous page downloads per chapter
-        <Input
-          type="number"
           min={1}
           max={10}
+          onChange={(value) => setDraft({ ...draft, download_concurrent_chapters: value })}
+        />
+
+        <SliderField
+          label="Page downloads per chapter"
+          hint="Advanced. Pages within a chapter may still fetch in parallel."
           value={draft.download_page_concurrency}
-          onChange={(e) =>
-            setDraft({
-              ...draft,
-              download_page_concurrency: parseNumberField(
-                e.target.value,
-                draft.download_page_concurrency,
-              ),
-            })
-          }
+          min={1}
+          max={10}
+          onChange={(value) => setDraft({ ...draft, download_page_concurrency: value })}
         />
-        <span className="text-xs text-muted">
-          Advanced. Independent of the chapter limit above -- pages within a
-          chapter may still fetch in parallel for performance.
-        </span>
-      </label>
 
-      <div className="flex flex-col gap-1 text-sm">
-        Active downloads right now
-        <p className="text-lg font-semibold text-fg">{activeDownloadCount}</p>
+        <SettingsField label="Retry count">
+          <Input
+            type="number"
+            min={0}
+            max={10}
+            value={draft.download_retry_count}
+            onChange={(e) =>
+              setDraft({
+                ...draft,
+                download_retry_count: parseNumberField(e.target.value, draft.download_retry_count),
+              })
+            }
+          />
+        </SettingsField>
+
+        <SettingsField label="Retry delay (seconds)">
+          <Input
+            type="number"
+            min={0}
+            max={30}
+            step={0.1}
+            value={draft.download_retry_delay_seconds}
+            onChange={(e) =>
+              setDraft({
+                ...draft,
+                download_retry_delay_seconds: parseNumberField(
+                  e.target.value,
+                  draft.download_retry_delay_seconds,
+                ),
+              })
+            }
+          />
+        </SettingsField>
+
+        <SettingsField label="Download timeout (seconds)">
+          <Input
+            type="number"
+            min={1}
+            max={300}
+            value={draft.download_timeout_seconds}
+            onChange={(e) =>
+              setDraft({
+                ...draft,
+                download_timeout_seconds: parseNumberField(
+                  e.target.value,
+                  draft.download_timeout_seconds,
+                ),
+              })
+            }
+          />
+        </SettingsField>
+
+        <div className="glass-card flex flex-col justify-center rounded-xl p-4">
+          <div className="flex items-center gap-2 text-sm text-muted">
+            <Gauge className="size-4 text-cyan-400" aria-hidden />
+            Active downloads right now
+          </div>
+          <p className="mt-1 font-display text-3xl tabular-nums text-fg">{activeDownloadCount}</p>
+        </div>
       </div>
 
-      <div className="flex items-end gap-3 md:col-span-2">
+      <div className="flex flex-wrap items-center gap-3 border-t border-border/40 pt-5">
         <Button type="button" disabled={mutation.isPending} onClick={save}>
-          Save settings
+          {mutation.isPending ? "Saving…" : "Save settings"}
         </Button>
-        {feedback && <p className="text-sm text-muted">{feedback}</p>}
+        {feedback ? <p className="text-sm text-muted">{feedback}</p> : null}
       </div>
-    </CardContent>
+    </div>
+  );
+}
+
+function PanelSkeleton() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading download settings">
+      {Array.from({ length: 4 }).map((_, index) => (
+        <div key={index} className="h-12 animate-pulse rounded-xl bg-surface-2" />
+      ))}
+    </div>
   );
 }
 
 export function DownloadSettingsPanel() {
   const settingsQuery = useDownloadSettings();
 
-  if (settingsQuery.isError) {
-    const message =
-      settingsQuery.error instanceof ApiError
-        ? settingsQuery.error.message
-        : "Failed to load download settings.";
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Downloads</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-3">
-          <p className="text-sm text-danger">{message}</p>
+  return (
+    <section className="glass-card rounded-2xl p-5 md:p-6">
+      <div className="mb-6 flex items-start gap-3">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/10 text-violet-400">
+          <Download className="size-5" aria-hidden />
+        </div>
+        <div>
+          <h2 className="text-lg font-semibold text-fg">Downloads</h2>
+          <p className="mt-0.5 text-sm text-muted">
+            Control queue concurrency, retries, and timeouts for chapter downloads.
+          </p>
+        </div>
+      </div>
+
+      {settingsQuery.isError ? (
+        <div className="space-y-3">
+          <p className="text-sm text-danger">
+            {settingsQuery.error instanceof ApiError
+              ? settingsQuery.error.message
+              : "Failed to load download settings."}
+          </p>
           <Button variant="secondary" onClick={() => settingsQuery.refetch()}>
             Try again
           </Button>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (settingsQuery.isLoading || !settingsQuery.data) {
-    return (
-      <Card aria-busy="true" aria-label="Loading download settings">
-        <CardHeader>
-          <CardTitle>Downloads</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-4 md:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="h-10 animate-pulse rounded bg-surface-2" />
-          ))}
-        </CardContent>
-      </Card>
-    );
-  }
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Downloads</CardTitle>
-      </CardHeader>
-      <DownloadSettingsForm
-        initial={settingsQuery.data}
-        activeDownloadCount={settingsQuery.data.active_download_count}
-      />
-    </Card>
+        </div>
+      ) : settingsQuery.isLoading || !settingsQuery.data ? (
+        <PanelSkeleton />
+      ) : (
+        <DownloadSettingsForm
+          initial={settingsQuery.data}
+          activeDownloadCount={settingsQuery.data.active_download_count}
+        />
+      )}
+    </section>
   );
 }
