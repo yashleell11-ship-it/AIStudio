@@ -86,7 +86,7 @@ class _DashboardContent extends ConsumerWidget {
           SliverToBoxAdapter(
             child: DashboardHero(
               firstContinueItem: firstContinue,
-              onBrowseLibrary: () => context.go(Routes.search),
+              onBrowseLibrary: () => context.push(Routes.libraryBrowse),
               onContinueReading: firstContinue == null
                   ? () {}
                   : () => context.push(
@@ -113,7 +113,7 @@ class _DashboardContent extends ConsumerWidget {
                 if (data.recentlyUpdated.isNotEmpty)
                   RecentlyUpdatedCarousel(
                     series: data.recentlyUpdated,
-                    onViewAll: () => context.go(Routes.search),
+                    onViewAll: () => context.push(Routes.libraryBrowse),
                   )
                 else
                   const _SectionEmptyMessage(
@@ -125,7 +125,7 @@ class _DashboardContent extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xl3),
                 ContinueReadingSection(
                   items: data.continueReading,
-                  onViewAll: () => context.go(Routes.search),
+                  onViewAll: () => context.push(Routes.libraryBrowse),
                 ),
                 if (data.continueReading.isEmpty)
                   const _SectionEmptyMessage(
@@ -161,7 +161,7 @@ class _RecentUpdatesList extends ConsumerWidget {
         SectionHeader(
           icon: Icons.schedule,
           title: 'Recent Updates',
-          onViewAll: () => context.go(Routes.search),
+          onViewAll: () => context.push(Routes.libraryBrowse),
         ),
         GlassCard(
           child: Column(
