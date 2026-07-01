@@ -14,6 +14,14 @@ from starlette.responses import Response
 HEADER_LIST_TOTAL = "X-Total-Count"
 HEADER_PROGRESS_FOUND = "X-Progress-Found"
 
+__all__ = [
+    "HEADER_LIST_TOTAL",
+    "HEADER_PROGRESS_FOUND",
+    "enrich_pagination_aliases",
+    "set_list_total_header",
+    "set_progress_found_header",
+]
+
 
 def enrich_pagination_aliases(payload: dict[str, Any]) -> dict[str, Any]:
     """Return *payload* with cross-endpoint pagination field aliases."""
