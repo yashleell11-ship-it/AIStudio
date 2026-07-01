@@ -1,0 +1,24 @@
+{
+  "data": {
+    "access_gate": "",
+    "chapter": {
+      "id": 259528,
+      "series_id": 1943,
+      "number": 168,
+      "slug": "chapter-168",
+      "title": "Chapter 168",
+      "pages": [
+        {
+          "url": "https://cdn.asurascans.com/asura-images/chapters/return-of-the-mount-hua-sect/168/page1.webp"
+        },
+        {
+          "url": "https://cdn.asurascans.com/asura-images/chapters/return-of-the-mount-hua-sect/168/page2.webp"
+        }
+      ],
+      "page_count": 2,
+      "is_premium": false,
+      "published_at": "2026-06-23T16:50:55.767793Z",
+      "series_slug": "return-of-the-mount-hua-sect"
+    }
+  }
+}
