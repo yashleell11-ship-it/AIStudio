@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 from sqlalchemy.orm import Session, sessionmaker
 
-from database.models import Chapter, Library, Page, ReadingSession, Series
+from database.models import Chapter, Library, Page, Series
 from services.reader_service import ReaderService
 
 
@@ -44,40 +44,6 @@ def _seed_chapter_with_pages(db: Session, page_count: int = 3) -> Chapter:
         db.add(Page(chapter_id=chapter.id, number=i, file_path=f"page_{i}.jpg"))
     db.flush()
     return chapter
-
-
-def test_save_progress_records_reading_session(db: Session):
-    chapter = _seed_chapter_with_pages(db)
-    service = ReaderService(db)
-
-    service.save_progress(
-        series_id=chapter.series_id,
-        chapter_id=chapter.id,
-        last_page=2,
-    )
-    service.save_progress(
-        series_id=chapter.series_id,
-        chapter_id=chapter.id,
-        last_page=2,
-    )
-    service.save_progress(
-        series_id=chapter.series_id,
-        chapter_id=chapter.id,
-        last_page=4,
-    )
-
-    sessions = (
-        db.query(ReadingSession)
-        .filter(ReadingSession.series_id == chapter.series_id)
-        .order_by(ReadingSession.id.asc())
-        .all()
-    )
-    assert len(sessions) == 2
-    assert sessions[0].pages_read == 2
-    assert sessions[0].end_page == 2
-    assert sessions[1].pages_read == 2
-    assert sessions[1].start_page == 3
-    assert sessions[1].end_page == 4
 
 
 def test_add_bookmark_populates_page_id(db: Session):

@@ -7,7 +7,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session, joinedload
 
 from core.errors import AppError
-from database.models import Bookmark, Chapter, Page, ReadingProgress, ReadingSession, Series
+from database.models import Bookmark, Chapter, Page, ReadingProgress, Series
 from database.session import get_db
 from utils.path_utils import natural_sort_key
 
@@ -63,8 +63,6 @@ class ReaderService:
             .filter(ReadingProgress.series_id == series_id)
             .first()
         )
-        previous_chapter_id = progress.chapter_id if progress is not None else None
-        previous_last_page = progress.last_page if progress is not None else None
         if not progress:
             progress = ReadingProgress(
                 series_id=series_id,
@@ -81,14 +79,6 @@ class ReaderService:
             progress.last_read_at = datetime.utcnow()
             if scroll_offset_px is not None:
                 progress.scroll_offset_px = scroll_offset_px
-
-        self._record_reading_session(
-            series_id=series_id,
-            chapter_id=chapter_id,
-            last_page=last_page,
-            previous_chapter_id=previous_chapter_id,
-            previous_last_page=previous_last_page,
-        )
 
         self._db.commit()
         self._db.refresh(progress)
@@ -245,46 +235,6 @@ class ReaderService:
             "title": target.title,
             "number": target.number,
         }
-
-    def _record_reading_session(
-        self,
-        *,
-        series_id: int,
-        chapter_id: int,
-        last_page: int,
-        previous_chapter_id: int | None,
-        previous_last_page: int | None,
-    ) -> None:
-        """Append a reading session when the user makes forward progress."""
-        if (
-            previous_chapter_id == chapter_id
-            and previous_last_page is not None
-            and last_page <= previous_last_page
-        ):
-            return
-
-        if previous_chapter_id == chapter_id and previous_last_page is not None:
-            start_page = previous_last_page + 1
-            pages_read = last_page - previous_last_page
-        else:
-            start_page = 1
-            pages_read = last_page
-
-        if pages_read <= 0:
-            return
-
-        now = datetime.utcnow()
-        self._db.add(
-            ReadingSession(
-                series_id=series_id,
-                chapter_id=chapter_id,
-                start_page=start_page,
-                end_page=last_page,
-                pages_read=pages_read,
-                started_at=now,
-                ended_at=now,
-            )
-        )
 
 
 def get_reader_service(db: Annotated[Session, Depends(get_db)]) -> ReaderService:

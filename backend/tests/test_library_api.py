@@ -260,37 +260,6 @@ def test_list_series_returns_mobile_summary_fields(client: TestClient, tmp_path:
     assert item["ocr_summary"]["total"] == item["chapter_count"]
 
 
-def test_reading_history_populated_after_progress_save(client: TestClient, tmp_path: Path):
-    """History screen data must be written when the reader saves progress."""
-    series_dir = tmp_path / "Solo Leveling"
-    _build_solo_leveling_series(series_dir)
-    folder = str(series_dir.resolve())
-
-    import_response = client.post("/library/import", json={"folder_path": folder})
-    assert import_response.status_code == 200
-
-    series_id = client.get("/library/series").json()["items"][0]["id"]
-    chapter_id = client.get("/library/series").json()["items"][0]["first_chapter_id"]
-
-    history_before = client.get("/library/reading-history")
-    assert history_before.status_code == 200
-    assert history_before.json() == []
-
-    progress_response = client.post(
-        "/reader/progress",
-        json={"series_id": series_id, "chapter_id": chapter_id, "last_page": 2},
-    )
-    assert progress_response.status_code == 200
-
-    history_after = client.get("/library/reading-history")
-    assert history_after.status_code == 200
-    sessions = history_after.json()
-    assert len(sessions) == 1
-    assert sessions[0]["series_id"] == series_id
-    assert sessions[0]["chapter_id"] == chapter_id
-    assert sessions[0]["pages_read"] == 2
-
-
 def test_reimport_after_ocr_succeeds(client: TestClient, tmp_path: Path, db_session: Session):
     """Rescanning a chapter with OCR text must not hit PageText FK violations."""
     series_dir = tmp_path / "Solo Leveling"
