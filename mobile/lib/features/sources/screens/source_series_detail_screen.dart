@@ -5,7 +5,6 @@ import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/features/sources/providers/sources_provider.dart';
 import 'package:aistudio_mobile/features/sources/utils/chapter_label.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
 import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
 import 'package:aistudio_mobile/shared/widgets/empty_state.dart';
 import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
@@ -28,10 +27,6 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
     final detailAsync = ref.watch(
       sourceSeriesDetailProvider((sourceId: sourceId, seriesId: seriesId)),
     );
-    // Watch the updates provider so the Follow/Unfollow button reflects the
-    // current tracker state. autoDispose + family-safe: this screen is the
-    // only consumer when the user is browsing a source series.
-    final updatesAsync = ref.watch(updatesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -92,7 +87,6 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
                 sourceId: sourceId,
                 seriesId: seriesId,
                 seriesTitle: series.title,
-                updatesAsync: updatesAsync,
               ),
               const SizedBox(height: AppSpacing.xl2),
               Text('Chapters', style: AppTypography.h3),
@@ -153,26 +147,28 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
 
 /// Follow / Unfollow button for the currently-viewed source series.
 ///
-/// Reads follow state from [updatesAsync] (the shared trackers cache) via
-/// [UpdatesNotifier.trackerFor]. The button is disabled while a follow or
-/// unfollow action is in flight (`actionPending`) or while the trackers list
-/// has not yet loaded (so we never show a stale "Follow" label for a series
-/// the user is already following).
+/// Reads follow state from [updatesProvider] (the shared trackers cache) via
+/// [UpdatesNotifier.trackerFor] -- the single lookup implementation, not
+/// duplicated here. This widget is the only part of the screen that watches
+/// [updatesProvider], so tracker/notification changes elsewhere never rebuild
+/// the rest of [SourceSeriesDetailScreen]. The button is disabled while a
+/// follow or unfollow action is in flight (`actionPending`) or while the
+/// trackers list has not yet loaded (so we never show a stale "Follow" label
+/// for a series the user is already following).
 class _FollowButton extends ConsumerWidget {
   const _FollowButton({
     required this.sourceId,
     required this.seriesId,
     required this.seriesTitle,
-    required this.updatesAsync,
   });
 
   final String sourceId;
   final String seriesId;
   final String seriesTitle;
-  final AsyncValue<UpdatesState> updatesAsync;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final updatesAsync = ref.watch(updatesProvider);
     final state = updatesAsync.valueOrNull;
     final loading = updatesAsync.isLoading;
     final actionPending = state?.actionPending ?? false;
@@ -180,7 +176,9 @@ class _FollowButton extends ConsumerWidget {
     // While the trackers list is loading for the first time we cannot know
     // whether this series is followed, so keep the button disabled to avoid
     // a misleading label.
-    final tracker = state == null ? null : _lookup(state);
+    final tracker = ref
+        .read(updatesProvider.notifier)
+        .trackerFor(source: sourceId, seriesId: seriesId);
     final isFollowed = tracker != null;
     final busy = actionPending || (loading && state == null);
 
@@ -201,17 +199,6 @@ class _FollowButton extends ConsumerWidget {
         label: Text(label),
       ),
     );
-  }
-
-  SeriesTracker? _lookup(UpdatesState state) {
-    for (final tracker in state.trackers) {
-      if (tracker.trackKind == TrackKind.followed &&
-          tracker.source == sourceId &&
-          tracker.seriesId == seriesId) {
-        return tracker;
-      }
-    }
-    return null;
   }
 
   Future<void> _toggle(WidgetRef ref, bool isFollowed, int? trackerId) async {

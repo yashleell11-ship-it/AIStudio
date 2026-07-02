@@ -85,10 +85,23 @@ class UpdatesNotifier extends AutoDisposeAsyncNotifier<UpdatesState> {
     return null;
   }
 
+  /// Unfollow / stop tracking a series. Mirrors [followSeries]: sets
+  /// `actionPending` optimistically so the Unfollow button shows a busy
+  /// state and disables itself the instant it is tapped, preventing a
+  /// double tap from firing a second delete before the first completes.
   Future<AppError?> deleteTracker(int id) async {
+    final current = state.valueOrNull;
+    if (current != null) {
+      state = AsyncData(current.copyWith(actionPending: true));
+    }
     final repo = ref.read(updatesRepositoryProvider);
     final result = await repo.deleteTracker(id);
-    if (result.isErr) return result.error;
+    if (result.isErr) {
+      if (current != null) {
+        state = AsyncData(current.copyWith(actionPending: false));
+      }
+      return result.error;
+    }
     await refresh();
     return null;
   }

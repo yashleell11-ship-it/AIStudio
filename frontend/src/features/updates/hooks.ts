@@ -93,26 +93,30 @@ export function useMarkAllNotificationsRead() {
   });
 }
 
-export function useFollowedTrackers(sourceId?: string, seriesId?: string) {
-  return useQuery({
-    queryKey: [...UPDATES_KEY, "trackers", "followed", sourceId ?? "_", seriesId ?? "_"],
-    queryFn: () => updatesApi.trackers({ track_kind: "followed" }),
-    refetchInterval: 30_000,
-    enabled: Boolean(sourceId) && Boolean(seriesId),
-  });
+/** Pure lookup used by {@link useFollowedTracker} -- exported for unit testing. */
+export function findFollowedTracker(
+  trackers: SeriesTracker[] | undefined,
+  sourceId: string,
+  seriesId: string,
+): SeriesTracker | undefined {
+  return trackers?.find(
+    (tracker) => tracker.source === sourceId && tracker.series_id === seriesId,
+  );
 }
 
 /**
  * Returns the tracker row for the given source+series if the user is
  * currently following it, else undefined. Drives the Follow/Unfollow button
- * state on source series detail. Reads from the shared trackers cache so
- * optimistic writes in useFollowSeries/useUnfollowTracker are visible
- * immediately.
+ * state on source series detail.
+ *
+ * Derives from the exact same `useTrackers("followed")` cache used
+ * everywhere else (e.g. the Updates page) instead of its own query, so a
+ * follow/unfollow mutation that patches that cache is reflected here on the
+ * very next render -- there is no second cache that can go stale.
  */
 export function useFollowedTracker(sourceId: string, seriesId: string) {
-  return useFollowedTrackers(sourceId, seriesId).data?.find(
-    (tracker) => tracker.source === sourceId && tracker.series_id === seriesId,
-  );
+  const followed = useTrackers("followed");
+  return findFollowedTracker(followed.data, sourceId, seriesId);
 }
 
 /**
@@ -139,18 +143,11 @@ export function useFollowSeries() {
         if (previous.some((t) => t.id === tracker.id)) continue;
         queryClient.setQueryData<SeriesTracker[]>(key, [...previous, tracker]);
       }
-      // The per-source/series followed view (used by the detail screen) is
-      // keyed narrowly, so invalidating the broad followed key is the safest
-      // way to refresh it without over-fetching everything.
-      void queryClient.invalidateQueries({
-        queryKey: [...UPDATES_KEY, "trackers", "followed"],
-        refetchType: "none",
-      });
     },
   });
 }
 
-export function useUnfollowTracker(sourceId?: string, seriesId?: string) {
+export function useUnfollowTracker() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: updatesApi.unfollow,

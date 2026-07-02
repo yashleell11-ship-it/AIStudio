@@ -38,7 +38,7 @@ export function SourceSeriesDetailView({
   const queueSeries = useQueueSeries();
   const followedTracker = useFollowedTracker(sourceId, seriesId);
   const followMutation = useFollowSeries();
-  const unfollowMutation = useUnfollowTracker(sourceId, seriesId);
+  const unfollowMutation = useUnfollowTracker();
   const queryClient = useQueryClient();
   const [selectedChapterIds, setSelectedChapterIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<string | null>(null);

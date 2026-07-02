@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:aistudio_mobile/app/router/routes.dart';
 import 'package:aistudio_mobile/core/utils/pagination.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
@@ -74,6 +76,12 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   List<SeriesTracker> trackers;
   bool followCalled = false;
   int? deletedTrackerId;
+  int deleteCallCount = 0;
+
+  /// When set, [deleteTracker] awaits this before resolving, so tests can
+  /// observe the button's busy/disabled state mid-flight and verify a
+  /// second tap while pending does not fire a second delete.
+  Completer<void>? deleteGate;
 
   @override
   Future<Result<void>> followSeries({
@@ -101,7 +109,9 @@ class _FakeUpdatesRepository implements UpdatesRepository {
 
   @override
   Future<Result<void>> deleteTracker(int trackerId) async {
+    deleteCallCount++;
     deletedTrackerId = trackerId;
+    if (deleteGate != null) await deleteGate!.future;
     trackers = trackers.where((t) => t.id != trackerId).toList();
     return const Ok(null);
   }
@@ -351,6 +361,89 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(fakeUpdates.deletedTrackerId, 42);
+    });
+
+    testWidgets('unfollow disables the button while the delete is pending',
+        (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository(
+        trackers: [
+          const SeriesTracker(
+            id: 42,
+            source: 'mangadex',
+            seriesId: 'manga-1',
+            seriesTitle: 'Solo Leveling',
+            trackKind: TrackKind.followed,
+            enabled: true,
+            notify: true,
+            autoDownload: false,
+            knownChapterCount: 0,
+          ),
+        ],
+      )..deleteGate = Completer<void>();
+      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(find.text('Unfollow'), findsOneWidget);
+
+      await tester.tap(find.text('Unfollow'));
+      await tester.pump();
+
+      // Mirrors followSeries: actionPending flips immediately, before the
+      // repo call resolves, so the button shows a busy label and disables.
+      expect(find.text('Unfollowing…'), findsOneWidget);
+      final button = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Unfollowing…'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+
+      fakeUpdates.deleteGate!.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Follow'), findsOneWidget);
+    });
+
+    testWidgets('double-tapping Unfollow while pending only calls deleteTracker once',
+        (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository(
+        trackers: [
+          const SeriesTracker(
+            id: 42,
+            source: 'mangadex',
+            seriesId: 'manga-1',
+            seriesTitle: 'Solo Leveling',
+            trackKind: TrackKind.followed,
+            enabled: true,
+            notify: true,
+            autoDownload: false,
+            knownChapterCount: 0,
+          ),
+        ],
+      )..deleteGate = Completer<void>();
+      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('Unfollow'));
+      await tester.pump();
+      expect(fakeUpdates.deleteCallCount, 1);
+
+      // The button is disabled while pending, so this second tap must be a
+      // no-op -- it must not fire a second deleteTracker call.
+      await tester.tap(find.text('Unfollowing…'), warnIfMissed: false);
+      await tester.pump();
+      expect(fakeUpdates.deleteCallCount, 1);
+
+      fakeUpdates.deleteGate!.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(fakeUpdates.deleteCallCount, 1);
     });
   });
 }
