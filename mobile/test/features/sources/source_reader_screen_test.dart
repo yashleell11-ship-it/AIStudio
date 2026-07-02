@@ -21,6 +21,7 @@ import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
 import 'package:aistudio_mobile/features/reader/screens/reader_screen.dart';
 import 'package:aistudio_mobile/features/sources/providers/source_reader_provider.dart';
 import 'package:aistudio_mobile/features/sources/screens/source_reader_screen.dart';
+import '../../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
@@ -302,13 +303,11 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider(
-              const SourceReaderChapterArgs(
-                sourceId: 'mangadex',
-                seriesId: 'manga-1',
-                chapterId: 'manga-1:1',
-              ),
-            ).overrideWith((ref) => completer.future),
+            sourceReaderChapterProvider((
+              sourceId: 'mangadex',
+              seriesId: 'manga-1',
+              chapterId: 'manga-1:1',
+            )).overrideWith((ref) => completer.future),
           ],
           const SourceReaderScreen(
             sourceId: 'mangadex',
@@ -335,13 +334,11 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider(
-              const SourceReaderChapterArgs(
-                sourceId: 'mangadex',
-                seriesId: 'manga-1',
-                chapterId: 'manga-1:1',
-              ),
-            ).overrideWith((ref) async => _onlineChapter()),
+            sourceReaderChapterProvider((
+              sourceId: 'mangadex',
+              seriesId: 'manga-1',
+              chapterId: 'manga-1:1',
+            )).overrideWith((ref) async => _onlineChapter()),
           ],
           const SourceReaderScreen(
             sourceId: 'mangadex',
@@ -371,13 +368,11 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider(
-              const SourceReaderChapterArgs(
-                sourceId: 'mangadex',
-                seriesId: 'manga-1',
-                chapterId: 'manga-1:1',
-              ),
-            ).overrideWith(
+            sourceReaderChapterProvider((
+              sourceId: 'mangadex',
+              seriesId: 'manga-1',
+              chapterId: 'manga-1:1',
+            )).overrideWith(
               (ref) async => _onlineChapter(
                 previousChapterId: 'manga-1:0',
                 nextChapterId: 'manga-1:2',
@@ -418,13 +413,11 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider(
-              const SourceReaderChapterArgs(
-                sourceId: 'mangadex',
-                seriesId: 'manga-1',
-                chapterId: 'manga-1:1',
-              ),
-            ).overrideWith((ref) async {
+            sourceReaderChapterProvider((
+              sourceId: 'mangadex',
+              seriesId: 'manga-1',
+              chapterId: 'manga-1:1',
+            )).overrideWith((ref) async {
               throw Exception('network failure');
             }),
           ],
@@ -479,15 +472,13 @@ void main() {
         ProviderScope(
           overrides: [
             sharedPrefsProvider.overrideWithValue(prefs),
-            apiBaseUrlProvider.overrideWithValue('http://example.test'),
+            apiBaseUrlOverride('http://example.test'),
             libraryRepositoryProvider.overrideWithValue(_LocalReaderRepository()),
-            sourceReaderChapterProvider(
-              const SourceReaderChapterArgs(
-                sourceId: 'mangadex',
-                seriesId: 'manga-1',
-                chapterId: 'manga-1:1',
-              ),
-            ).overrideWith((ref) async => _localChapter()),
+            sourceReaderChapterProvider((
+              sourceId: 'mangadex',
+              seriesId: 'manga-1',
+              chapterId: 'manga-1:1',
+            )).overrideWith((ref) async => _localChapter()),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),

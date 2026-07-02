@@ -15,6 +15,7 @@ import 'package:aistudio_mobile/features/library/repositories/library_repository
 import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
 import 'package:aistudio_mobile/features/library/screens/series_detail_screen.dart';
+import '../../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
@@ -214,7 +215,7 @@ Future<Widget> _buildSeriesDetailApp(SeriesDetail detail) async {
 
   return ProviderScope(
     overrides: [
-      apiBaseUrlProvider.overrideWithValue('http://127.0.0.1:8000'),
+      apiBaseUrlOverride('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
       libraryRepositoryProvider.overrideWithValue(
         _FakeSeriesDetailRepository(detail),

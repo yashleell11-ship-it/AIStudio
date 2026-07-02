@@ -25,7 +25,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [
-        apiBaseUrlProvider.overrideWith((ref) => StateController(apiUrl)),
+        apiBaseUrlProvider.overrideWith((ref) => apiUrl),
         sharedPrefsProvider.overrideWithValue(prefs),
       ],
       child: const AiStudioApp(),

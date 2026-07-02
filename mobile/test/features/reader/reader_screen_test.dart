@@ -15,6 +15,7 @@ import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
 import 'package:aistudio_mobile/features/reader/providers/reader_chapter_provider.dart';
 import 'package:aistudio_mobile/features/reader/screens/reader_screen.dart';
+import '../../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
@@ -225,7 +226,7 @@ void main() {
           overrides: [
             sharedPrefsProvider.overrideWithValue(prefs),
             libraryRepositoryProvider.overrideWithValue(repo),
-            apiBaseUrlProvider.overrideWithValue('http://127.0.0.1:8000'),
+            apiBaseUrlOverride('http://127.0.0.1:8000'),
           ],
           child: const MaterialApp(
             home: ReaderScreen(seriesId: 1, chapterId: 1, initialPage: 1),

@@ -93,13 +93,13 @@ void main() {
       );
     });
 
-    test('SourceReaderChapterArgs equality is stable', () {
-      const a = SourceReaderChapterArgs(
+    test('SourceReaderChapterKey equality is stable', () {
+      const SourceReaderChapterKey a = (
         sourceId: 'src',
         seriesId: 'series',
         chapterId: 'ch',
       );
-      const b = SourceReaderChapterArgs(
+      const SourceReaderChapterKey b = (
         sourceId: 'src',
         seriesId: 'series',
         chapterId: 'ch',
