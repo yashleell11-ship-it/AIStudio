@@ -1,9 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useEffect } from "react";
+import { memo, useEffect, useState } from "react";
 import { readerDebug } from "../debug";
-import { pageAspectRatio } from "../page-layout";
+import { pageContainerStyle } from "../page-layout";
 
 interface PageImageProps {
   imageUrl: string;
@@ -22,16 +22,23 @@ export const PageImage = memo(function PageImage({
   priority,
   onLoad,
 }: PageImageProps) {
-  const aspectRatio = pageAspectRatio(width, height);
+  const [loaded, setLoaded] = useState(false);
   const imageWidth = width && width > 0 ? width : 800;
   const imageHeight = height && height > 0 ? height : 1200;
+
+  useEffect(() => {
+    setLoaded(false);
+  }, [imageUrl]);
 
   useEffect(() => {
     readerDebug("page-image-mounted", { alt, imageUrl });
   }, [alt, imageUrl]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-sm bg-black shadow-lg shadow-black/40" style={{ aspectRatio }}>
+    <div
+      className="relative w-full overflow-hidden rounded-sm bg-black shadow-lg shadow-black/40"
+      style={pageContainerStyle(loaded, width, height)}
+    >
       <Image
         src={imageUrl}
         alt={alt}
@@ -42,7 +49,10 @@ export const PageImage = memo(function PageImage({
         priority={priority}
         loading={priority ? undefined : "lazy"}
         unoptimized
-        onLoad={onLoad}
+        onLoad={() => {
+          setLoaded(true);
+          onLoad?.();
+        }}
       />
     </div>
   );
