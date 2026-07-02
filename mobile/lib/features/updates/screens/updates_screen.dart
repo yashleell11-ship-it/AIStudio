@@ -240,11 +240,14 @@ class _TrackerCard extends StatelessWidget {
           ],
           if (onAutoDownloadChanged != null) ...[
             const SizedBox(height: AppSpacing.sm),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Auto download new chapters'),
-              value: tracker.autoDownload,
-              onChanged: actionPending ? null : onAutoDownloadChanged,
+            Material(
+              type: MaterialType.transparency,
+              child: SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Auto download new chapters'),
+                value: tracker.autoDownload,
+                onChanged: actionPending ? null : onAutoDownloadChanged,
+              ),
             ),
           ],
           Align(
