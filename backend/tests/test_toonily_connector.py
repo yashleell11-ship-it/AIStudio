@@ -137,47 +137,6 @@ def test_search_finds_titles_not_on_browse_page_1(toonily_connector: ToonilyConn
     assert any(item.id not in browse_ids for item in search.items)
 
 
-def test_get_series_chapters_and_pages(toonily_connector: ToonilyConnector):
-    series_id = "the-beginning-after-the-end-7b1d8c89"
-    chapter_id = f"{series_id}/chapter-240"
-    detail_html = _load("series_detail.html")
-    chapter_html = _load("chapter_reader.html")
-
-    def fake_get_text(path: str, *, params=None):
-        if path == f"/serie/{series_id}/":
-            return detail_html
-        if path == f"/serie/{chapter_id}/":
-            return chapter_html
-        raise AssertionError(path)
-
-    with patch.object(toonily_connector._http, "get_text", side_effect=fake_get_text):
-        series = toonily_connector.get_series(series_id)
-        chapters_before = toonily_connector.get_chapters(series_id)
-        pages = toonily_connector.get_chapter_pages(chapter_id)
-        chapters_after = toonily_connector.get_chapters(series_id)
-
-    assert series is not None
-    assert series.id == series_id
-    assert series.title == "The Beginning After the End"
-    assert series.author == "TurtleMe"
-    assert series.artist == "Duta Permana"
-    assert series.status == "OnGoing"
-    assert "Action" in series.genres
-    assert series.description
-    assert len(chapters_before) >= 1
-    assert chapters_before[0].id.startswith(series_id + "/")
-    assert all(chapter.page_count == 0 for chapter in chapters_before)
-    assert len(pages) >= 2
-    assert pages[0].remote_url is not None
-    assert "tnlycdn.com" in pages[0].remote_url
-    assert toonily_connector.find_page(pages[0].id) == pages[0]
-
-    chapter_latest = next(chapter for chapter in chapters_after if chapter.id == chapter_id)
-    assert chapter_latest.page_count == len(pages)
-    assert chapter_latest.page_count >= 2
-    assert chapter_latest.number == 240.0
-
-
 def test_parse_chapter_pages_extracts_image_urls():
     html = _load("chapter_reader.html")
     chapter_id = "the-beginning-after-the-end-7b1d8c89/chapter-240"

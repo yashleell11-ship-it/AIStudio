@@ -1,0 +1,43 @@
+{
+  "result": "ok",
+  "response": "entity",
+  "data": {
+    "id": "32dce569-8fcc-46b6-853c-f956e16ee0bc",
+    "type": "manga",
+    "attributes": {
+      "title": { "en": "Solo Leveling" },
+      "description": { "en": "A test fixture description." },
+      "status": "ongoing",
+      "latestUploadedChapter": "2026-01-01T00:00:00Z"
+    },
+    "relationships": [
+      { "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "type": "author" },
+      { "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", "type": "artist" },
+      { "id": "cccccccc-cccc-cccc-cccc-cccccccccccc", "type": "cover_art" },
+      { "id": "dddddddd-dddd-dddd-dddd-dddddddddddd", "type": "tag" }
+    ]
+  },
+  "included": [
+    {
+      "id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "type": "author",
+      "attributes": { "name": "Chugong" }
+    },
+    {
+      "id": "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      "type": "artist",
+      "attributes": { "name": "Dubu" }
+    },
+    {
+      "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+      "type": "cover_art",
+      "attributes": { "fileName": "cover.jpg" }
+    },
+    {
+      "id": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+      "type": "tag",
+      "attributes": { "group": "genre", "name": "Action" }
+    }
+  ]
+}
+

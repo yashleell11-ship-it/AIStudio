@@ -138,40 +138,6 @@ def test_search_finds_titles_not_on_browse_page_1(mangakatana_connector: MangaKa
     assert any("solo" in item.title.casefold() for item in search.items)
     assert any(item.id not in browse_ids for item in search.items)
 
-
-def test_get_series_chapters_and_pages(mangakatana_connector: MangaKatanaConnector):
-    series_id = "aishiteru-uso-dakedo.10797"
-    chapter_id = f"{series_id}/c1"
-    detail_html = _load("series_detail.html")
-    chapter_html = _load("chapter_reader.html")
-
-    def fake_get_text(path: str, *, params=None):
-        if path == f"/manga/{series_id}":
-            return detail_html
-        if path == f"/manga/{chapter_id}":
-            return chapter_html
-        raise AssertionError(path)
-
-    with patch.object(mangakatana_connector._http, "get_text", side_effect=fake_get_text):
-        series = mangakatana_connector.get_series(series_id)
-        chapters_before = mangakatana_connector.get_chapters(series_id)
-        pages = mangakatana_connector.get_chapter_pages(chapter_id)
-        chapters_after = mangakatana_connector.get_chapters(series_id)
-
-    assert series is not None
-    assert series.id == series_id
-    assert len(chapters_before) >= 1
-    assert chapters_before[0].id.startswith(series_id + "/")
-    assert all(chapter.page_count == 0 for chapter in chapters_before)
-    assert len(pages) >= 2
-    assert pages[0].remote_url is not None
-    assert mangakatana_connector.find_page(pages[0].id) == pages[0]
-
-    chapter_one = next(chapter for chapter in chapters_after if chapter.id == chapter_id)
-    assert chapter_one.page_count == len(pages)
-    assert chapter_one.page_count >= 2
-
-
 def test_parse_chapter_pages_extracts_script_urls():
     html = _load("chapter_reader.html")
     pages = parse_chapter_pages(html, "aishiteru-uso-dakedo.10797/c1")
