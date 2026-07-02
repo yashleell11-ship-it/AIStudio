@@ -2,6 +2,7 @@ import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
+import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 
 abstract interface class DownloadsRepository {
   Future<Result<List<DownloadItem>>> listDownloads();
@@ -9,11 +10,17 @@ abstract interface class DownloadsRepository {
   Future<Result<DownloadSettings>> getSettings();
   Future<Result<DownloadSettings>> updateSettings(DownloadSettings settings);
 
-  Future<Result<void>> queueChapters({
+  Future<Result<QueueDownloadResponse>> queueChapters({
     required String sourceId,
     required String seriesId,
     required List<String> chapterIds,
     String? seriesTitle,
+    int? priority,
+  });
+
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
     int? priority,
   });
 

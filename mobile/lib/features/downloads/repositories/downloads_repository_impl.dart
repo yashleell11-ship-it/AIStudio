@@ -3,6 +3,7 @@ import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
+import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
 import 'package:dio/dio.dart';
 
@@ -34,24 +35,39 @@ class DownloadsRepositoryImpl implements DownloadsRepository {
       _objPut('/downloads/settings', settings.toUpdateJson(), DownloadSettings.fromJson);
 
   @override
-  Future<Result<void>> queueChapters({
+  Future<Result<QueueDownloadResponse>> queueChapters({
     required String sourceId,
     required String seriesId,
     required List<String> chapterIds,
     String? seriesTitle,
     int? priority,
   }) =>
-      _void(
-        () => _dio.post<dynamic>(
-          '/downloads/chapters',
-          data: {
-            'source_id': sourceId,
-            'series_id': seriesId,
-            'chapter_ids': chapterIds,
-            if (seriesTitle != null) 'series_title': seriesTitle,
-            if (priority != null) 'priority': priority,
-          },
-        ),
+      _objPost(
+        '/downloads/chapters',
+        {
+          'source_id': sourceId,
+          'series_id': seriesId,
+          'chapter_ids': chapterIds,
+          if (seriesTitle != null) 'series_title': seriesTitle,
+          if (priority != null) 'priority': priority,
+        },
+        QueueDownloadResponse.fromJson,
+      );
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
+    int? priority,
+  }) =>
+      _objPost(
+        '/downloads/series',
+        {
+          'source_id': sourceId,
+          'series_id': seriesId,
+          if (priority != null) 'priority': priority,
+        },
+        QueueDownloadResponse.fromJson,
       );
 
   @override
@@ -126,6 +142,21 @@ class DownloadsRepositoryImpl implements DownloadsRepository {
   ) async {
     try {
       final r = await _dio.get<Map<String, dynamic>>(path);
+      return Ok(fromJson(r.data!));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  Future<Result<T>> _objPost<T>(
+    String path,
+    Map<String, dynamic> body,
+    T Function(Map<String, dynamic>) fromJson,
+  ) async {
+    try {
+      final r = await _dio.post<Map<String, dynamic>>(path, data: body);
       return Ok(fromJson(r.data!));
     } on DioException catch (e) {
       return Err(_err(e));
