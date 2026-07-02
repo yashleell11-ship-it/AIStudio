@@ -252,20 +252,33 @@ class EasyOcrEngine(OcrEngine):
         return reader
 
     def recognize(self, image: "Image.Image", *, preprocess: bool = True) -> OcrResult:
+        import os
+        import tempfile
+
         from PIL import Image
 
         if not isinstance(image, Image.Image):
             raise TypeError("Expected PIL Image instance")
 
         started = time.perf_counter()
+        temp_path: str | None = None
         try:
             if preprocess:
                 image = _preprocess_image(image)
 
-            # EasyOCR accepts numpy arrays, but we keep numpy optional for the backend
-            # because EasyOCR is an optional engine. Most unit tests mock EasyOCR and
-            # do not install heavy deps.
-            results = self._ensure_reader().readtext(image)
+            reader = self._ensure_reader()
+            try:
+                import numpy as np  # type: ignore
+            except ModuleNotFoundError:
+                with tempfile.NamedTemporaryFile(
+                    suffix=".png",
+                    delete=False,
+                ) as handle:
+                    temp_path = handle.name
+                image.save(temp_path, format="PNG")
+                results = reader.readtext(temp_path)
+            else:
+                results = reader.readtext(np.array(image))
 
             text_parts: list[str] = []
             boxes: list[dict[str, Any]] = []
@@ -289,6 +302,12 @@ class EasyOcrEngine(OcrEngine):
             )
         except Exception as exc:
             raise OcrRecognitionError(f"EasyOCR recognition failed: {exc}")
+        finally:
+            if temp_path:
+                try:
+                    os.remove(temp_path)
+                except FileNotFoundError:
+                    pass
 
 
 def get_ocr_engine(engine_name: str | None = None, **kwargs: Any) -> OcrEngine:

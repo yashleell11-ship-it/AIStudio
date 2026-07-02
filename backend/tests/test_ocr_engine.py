@@ -7,6 +7,7 @@ heavy runtime dependencies or the Tesseract binary.
 from __future__ import annotations
 
 import sys
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -108,6 +109,8 @@ class TestEasyOcrEngine:
         assert result.confidence == pytest.approx((0.95 + 0.88) / 2)
         assert len(result.boxes) == 2
         assert result.elapsed_ms >= 0
+        # In the numpy-present path, EasyOCR should receive an array-like object.
+        assert mock_reader.readtext.call_args.args
 
     def test_missing_dependency(self) -> None:
         """Engine raises OcrEngineNotAvailable when easyocr is absent."""
@@ -115,6 +118,40 @@ class TestEasyOcrEngine:
             engine = EasyOcrEngine(languages=["en"])
             with pytest.raises(OcrEngineNotAvailable, match="easyocr is not installed"):
                 engine._ensure_reader()
+
+    def test_recognize_without_numpy_uses_temp_file_and_cleans_up(self, tmp_path) -> None:
+        """Regression: without numpy, EasyOCR should use a temp PNG path and remove it."""
+        mock_reader = MagicMock()
+        mock_reader.readtext.return_value = [
+            ([[0, 0], [10, 0], [10, 10], [0, 10]], "Hello", 0.95),
+        ]
+        mock_easyocr = MagicMock()
+        mock_easyocr.Reader.return_value = mock_reader
+
+        import tempfile
+
+        created_paths: list[str] = []
+        original_named_tempfile = tempfile.NamedTemporaryFile
+
+        def fake_named_tempfile(*args, **kwargs):
+            kwargs["dir"] = tmp_path
+            handle = original_named_tempfile(*args, **kwargs)
+            created_paths.append(handle.name)
+            return handle
+
+        with patch.dict(sys.modules, {"easyocr": mock_easyocr, "numpy": None}):
+            with patch("tempfile.NamedTemporaryFile", side_effect=fake_named_tempfile):
+                engine = EasyOcrEngine(languages=["en"])
+                img = Image.new("RGB", (32, 32))
+                result = engine.recognize(img, preprocess=False)
+
+        assert result.text == "Hello"
+        assert created_paths, "expected a temp file to be created"
+        # EasyOCR must receive a file path in this mode.
+        assert isinstance(mock_reader.readtext.call_args.args[0], str)
+        assert mock_reader.readtext.call_args.args[0] == created_paths[-1]
+        # Temp file must be deleted.
+        assert not tmp_path.joinpath(Path(created_paths[-1]).name).exists()
 
 
 class TestEasyOcrReaderCaching:
