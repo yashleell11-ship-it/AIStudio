@@ -8,6 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQueueChapters, useQueueSeries } from "@/features/downloads/hooks";
+import {
+  useFollowedTracker,
+  useFollowSeries,
+  useUnfollowTracker,
+} from "@/features/updates/hooks";
 import { ApiError } from "@/types/api";
 import { sourceImageUrl } from "../api";
 import { chapterLabel } from "../chapter-label";
@@ -31,6 +36,9 @@ export function SourceSeriesDetailView({
   const chaptersQuery = useSourceChapters(sourceId, seriesId);
   const queueChapters = useQueueChapters();
   const queueSeries = useQueueSeries();
+  const followedTracker = useFollowedTracker(sourceId, seriesId);
+  const followMutation = useFollowSeries();
+  const unfollowMutation = useUnfollowTracker(sourceId, seriesId);
   const queryClient = useQueryClient();
   const [selectedChapterIds, setSelectedChapterIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<string | null>(null);
@@ -140,7 +148,28 @@ export function SourceSeriesDetailView({
     }
   };
 
+  const toggleFollow = async () => {
+    setFeedback(null);
+    try {
+      if (followedTracker) {
+        await unfollowMutation.mutateAsync(followedTracker.id);
+        setFeedback(`Unfollowed ${series.title}.`);
+      } else {
+        await followMutation.mutateAsync({
+          source: sourceId,
+          series_id: seriesId,
+          series_title: series.title,
+        });
+        setFeedback(`Following ${series.title}. New chapters will notify you.`);
+      }
+    } catch (error) {
+      setFeedback(error instanceof ApiError ? error.message : "Failed to update follow status.");
+    }
+  };
+
   const downloadBusy = queueChapters.isPending || queueSeries.isPending;
+  const followBusy = followMutation.isPending || unfollowMutation.isPending;
+  const isFollowed = Boolean(followedTracker);
 
   return (
     <div className="p-6">
@@ -196,6 +225,19 @@ export function SourceSeriesDetailView({
                 <Button>Read Online</Button>
               </Link>
             )}
+            <Button
+              variant={isFollowed ? "ghost" : "secondary"}
+              disabled={followBusy}
+              onClick={toggleFollow}
+            >
+              {followBusy
+                ? isFollowed
+                  ? "Unfollowing…"
+                  : "Following…"
+                : isFollowed
+                  ? "Unfollow"
+                  : "Follow"}
+            </Button>
             <Button variant="secondary" disabled={downloadBusy || chapters.length === 0} onClick={downloadSeries}>
               Download Entire Series
             </Button>
