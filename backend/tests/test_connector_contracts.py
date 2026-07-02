@@ -149,6 +149,33 @@ def _mock_toonily(connector: SourceConnector):
         yield
 
 
+@contextmanager
+def _mock_demonicscans(connector: SourceConnector):
+    fixtures = ROOT / "demonicscans"
+
+    latest = (fixtures / "browse_latest.html").read_text(encoding="utf-8")
+    popular = (fixtures / "browse_popular.html").read_text(encoding="utf-8")
+    advanced = (fixtures / "search_advanced.html").read_text(encoding="utf-8")
+    series_detail = (fixtures / "series_detail.html").read_text(encoding="utf-8")
+    chapter_reader = (fixtures / "chapter_reader.html").read_text(encoding="utf-8")
+
+    def fake_get_text(path: str, *, params=None):
+        if path.startswith("/lastupdates.php"):
+            return latest
+        if path == "/":
+            return popular
+        if path.startswith("/advanced.php"):
+            return advanced
+        if path.startswith("/manga/"):
+            return series_detail
+        if path.startswith("/title/"):
+            return chapter_reader
+        return latest
+
+    with patch.object(connector._http, "get_text", side_effect=fake_get_text):
+        yield
+
+
 CASES: list[ConnectorContractCase] = [
     ConnectorContractCase(
         source_type="asurascans",
@@ -229,6 +256,23 @@ CASES: list[ConnectorContractCase] = [
             ),
         ),
         mock=_mock_toonily,
+    ),
+    ConnectorContractCase(
+        source_type="demonicscans",
+        fixtures_dir=ROOT / "demonicscans",
+        search_query="demons",
+        series_id="Tales-of-Demons-and-Gods",
+        reader_chapter_id="Tales-of-Demons-and-Gods:522.1",
+        expected_title_substring="Tales of Demons and Gods",
+        expected_image_host_substring="demoniclibs.com",
+        expected_latest_first_id="Tales-of-Demons-and-Gods",
+        expected_popular_first_id="Pick-Me-Up",
+        expected_page2_first_id="Series-21",
+        expected_search_ids=("Tales-of-Demons-and-Gods",),
+        decimal_chapter_ids=("Tales-of-Demons-and-Gods:522.1",),
+        ordering_probe_ids=("Tales-of-Demons-and-Gods:521.1", "Tales-of-Demons-and-Gods:521.6", "Tales-of-Demons-and-Gods:522.1"),
+        adjacent_pairs=(("Tales-of-Demons-and-Gods:521.6", "Tales-of-Demons-and-Gods:522.1"),),
+        mock=lambda c: _mock_demonicscans(c),
     ),
 ]
 

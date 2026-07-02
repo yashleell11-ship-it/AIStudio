@@ -11,6 +11,7 @@ from connectors.base import SourceConnector
 from connectors.local_filesystem.connector import LocalFilesystemConnector
 from connectors.mangadex.connector import MangaDexConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
+from connectors.demonicscans.connector import DemonicScansConnector
 from connectors.toonily.connector import ToonilyConnector
 
 logger = logging.getLogger(__name__)
@@ -21,6 +22,7 @@ _CONFIGLESS_CONNECTORS = {
     AsuraScansConnector.SOURCE_TYPE,
     MangaDexConnector.SOURCE_TYPE,
     MangaKatanaConnector.SOURCE_TYPE,
+    DemonicScansConnector.SOURCE_TYPE,
     ToonilyConnector.SOURCE_TYPE,
 }
 
@@ -63,6 +65,7 @@ def _register_builtin_connectors() -> None:
         (LocalFilesystemConnector.SOURCE_TYPE, LocalFilesystemConnector),
         (MangaDexConnector.SOURCE_TYPE, MangaDexConnector),
         (MangaKatanaConnector.SOURCE_TYPE, MangaKatanaConnector),
+        (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
     )
     failures: list[str] = []
