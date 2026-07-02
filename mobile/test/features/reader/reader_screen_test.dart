@@ -90,6 +90,7 @@ class _FakeReaderRepository implements LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   }) =>
       throw UnimplementedError();
 

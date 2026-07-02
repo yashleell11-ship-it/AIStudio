@@ -285,3 +285,46 @@ def test_reimport_after_ocr_succeeds(client: TestClient, tmp_path: Path, db_sess
     reimport = client.post("/library/import", json={"folder_path": folder})
     assert reimport.status_code == 200
     assert len(client.get("/library/series").json()["items"]) == 1
+
+
+def test_list_series_has_chapters_filter(client: TestClient, tmp_path: Path, db_session: Session):
+    library_root = tmp_path / "Library"
+    downloaded_dir = library_root / "Solo Leveling"
+    chapter_dir = downloaded_dir / "Chapter 001"
+    chapter_dir.mkdir(parents=True)
+    (chapter_dir / "001.jpg").write_bytes(b"fake-image")
+
+    import_response = client.post(
+        "/library/import",
+        json={"folder_path": str(library_root.resolve())},
+    )
+    assert import_response.status_code == 200
+
+    library = db_session.query(Library).first()
+    assert library is not None
+    db_session.add(
+        Series(
+            library_id=library.id,
+            title="Empty Series",
+            sort_title="empty series",
+            folder_path=str((library_root / "Empty Series").resolve()),
+            total_chapters=0,
+        )
+    )
+    db_session.commit()
+
+    all_response = client.get("/library/series", params={"per_page": 1})
+    assert all_response.status_code == 200
+    all_payload = all_response.json()
+    assert all_payload["total"] == 2
+    assert all_payload["has_next"] is True
+
+    downloaded_response = client.get(
+        "/library/series",
+        params={"per_page": 1, "has_chapters": True},
+    )
+    assert downloaded_response.status_code == 200
+    downloaded_payload = downloaded_response.json()
+    assert downloaded_payload["total"] == 1
+    assert downloaded_payload["items"][0]["chapter_count"] > 0
+    assert downloaded_payload["has_next"] is False

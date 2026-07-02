@@ -185,6 +185,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   }) async =>
       Ok(
         PagedResult(

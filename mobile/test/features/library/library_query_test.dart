@@ -19,6 +19,21 @@ void main() {
       expect(const LibraryQuery().readingStatusParam, isNull);
     });
 
+    test('maps downloaded filter to has_chapters param', () {
+      expect(
+        const LibraryQuery(filter: LibraryFilter.downloaded).hasChaptersParam,
+        isTrue,
+      );
+      expect(const LibraryQuery().hasChaptersParam, isNull);
+      expect(
+        const LibraryQuery(
+          filter: LibraryFilter.downloaded,
+          search: 'solo',
+        ).hasChaptersParam,
+        isNull,
+      );
+    });
+
     test('maps sort to API param', () {
       expect(
         const LibraryQuery(sort: LibrarySort.dateAdded).sortParam,

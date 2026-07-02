@@ -61,3 +61,9 @@ T _parseEnum<T>(List<T> values, String? name, T fallback) {
   }
   return fallback;
 }
+
+bool libraryQueryPersistedFieldsChanged(LibraryQuery before, LibraryQuery after) =>
+    before.sort != after.sort ||
+    before.filter != after.filter ||
+    before.favoritesOnly != after.favoritesOnly ||
+    before.viewMode != after.viewMode;

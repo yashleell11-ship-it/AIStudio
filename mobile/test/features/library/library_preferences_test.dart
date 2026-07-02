@@ -34,5 +34,26 @@ void main() {
 
       expect(readLibraryQuery(prefs).filter, LibraryFilter.all);
     });
+
+    test('libraryQueryPersistedFieldsChanged ignores search-only changes', () {
+      const base = LibraryQuery();
+      const withSearch = LibraryQuery(search: 'solo');
+
+      expect(libraryQueryPersistedFieldsChanged(base, withSearch), isFalse);
+      expect(
+        libraryQueryPersistedFieldsChanged(
+          base,
+          const LibraryQuery(sort: LibrarySort.dateAdded),
+        ),
+        isTrue,
+      );
+      expect(
+        libraryQueryPersistedFieldsChanged(
+          base,
+          const LibraryQuery(filter: LibraryFilter.completed),
+        ),
+        isTrue,
+      );
+    });
   });
 }

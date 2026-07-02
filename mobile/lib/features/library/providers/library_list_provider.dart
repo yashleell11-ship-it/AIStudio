@@ -20,8 +20,12 @@ class LibraryQueryNotifier extends Notifier<LibraryQuery> {
   LibraryQuery build() => _normalizeBrowseQuery(readLibraryQuery(ref.read(sharedPrefsProvider)));
 
   void updateQuery(LibraryQuery query) {
-    state = _normalizeBrowseQuery(query);
-    writeLibraryQuery(ref.read(sharedPrefsProvider), state);
+    final normalized = _normalizeBrowseQuery(query);
+    final shouldPersist = libraryQueryPersistedFieldsChanged(state, normalized);
+    state = normalized;
+    if (shouldPersist) {
+      writeLibraryQuery(ref.read(sharedPrefsProvider), state);
+    }
   }
 
   void patchQuery(LibraryQuery Function(LibraryQuery current) update) {
@@ -226,6 +230,7 @@ Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListP
     perPage: _listPageSize,
     sort: query.sortParam,
     readingStatus: query.readingStatusParam,
+    hasChapters: query.hasChaptersParam,
     isFavorite: query.favoritesOnly ? true : null,
   );
   if (result.isErr) throw result.error;
@@ -234,7 +239,7 @@ Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListP
   final items = applyLibraryClientFilters(paged.items, query, sortResults: false);
   return (
     items: items,
-    total: query.filter == LibraryFilter.downloaded ? items.length : paged.total,
+    total: paged.total,
     hasNext: paged.hasNext,
   );
 }
@@ -258,8 +263,9 @@ List<SeriesSummary> applyLibraryClientFilters(
 
   filtered = switch (query.filter) {
     LibraryFilter.all => filtered,
-    LibraryFilter.downloaded =>
+    LibraryFilter.downloaded when query.isSearching =>
       filtered.where((series) => series.chapterCount > 0).toList(),
+    LibraryFilter.downloaded => filtered,
     LibraryFilter.reading =>
       filtered.where((series) => series.readingStatus == 'reading').toList(),
     LibraryFilter.completed =>

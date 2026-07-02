@@ -12,6 +12,7 @@ import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
 import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
+import 'package:aistudio_mobile/features/library/utils/library_preferences.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
 import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
@@ -28,6 +29,7 @@ class _FakeLibraryRepository implements LibraryRepository {
   int listCalls = 0;
   String? lastReadingStatus;
   String? lastSort;
+  bool? lastHasChapters;
 
   @override
   Future<Result<PagedResult<SeriesSummary>>> listSeries({
@@ -40,10 +42,12 @@ class _FakeLibraryRepository implements LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   }) async {
     listCalls++;
     lastReadingStatus = readingStatus;
     lastSort = sort;
+    lastHasChapters = hasChapters;
     return Ok(pages[page] ?? pages[1]!);
   }
 
@@ -252,9 +256,106 @@ void main() {
       expect(fakeRepo.lastSort, 'recent');
     });
 
-    test('applyLibraryClientFilters keeps downloaded series with chapters', () {
+    test('downloaded filter passes has_chapters and preserves pagination', () async {
+      final fakeRepo = _FakeLibraryRepository({
+        1: PagedResult(
+          items: [_series(1), _series(2)],
+          total: 3,
+          page: 1,
+          perPage: 2,
+          hasNext: true,
+        ),
+        2: PagedResult(
+          items: [_series(3)],
+          total: 3,
+          page: 2,
+          perPage: 2,
+          hasNext: false,
+        ),
+      });
+
+      final container = await _container(fakeRepo);
+
+      container.read(libraryQueryProvider.notifier).updateQuery(
+            const LibraryQuery(filter: LibraryFilter.downloaded),
+          );
+      final state = await container.read(libraryListProvider.future);
+
+      expect(fakeRepo.lastHasChapters, isTrue);
+      expect(state.total, 3);
+      expect(state.items, hasLength(2));
+      expect(state.hasNext, isTrue);
+
+      await container.read(libraryListProvider.notifier).loadMore();
+      final loaded = container.read(libraryListProvider).value!;
+
+      expect(loaded.items, hasLength(3));
+      expect(loaded.total, 3);
+      expect(loaded.hasNext, isFalse);
+      expect(fakeRepo.listCalls, 2);
+    });
+
+    test('search-only query update does not write preferences', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      await writeLibraryQuery(prefs, const LibraryQuery());
+      final before = prefs.getString(libraryQueryPrefsKey);
+
+      final container = ProviderContainer(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(_FakeLibraryRepository({
+            1: PagedResult(
+              items: [_series(1)],
+              total: 1,
+              page: 1,
+              perPage: 20,
+              hasNext: false,
+            ),
+          })),
+          sharedPrefsProvider.overrideWithValue(prefs),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(libraryQueryProvider.notifier).patchQuery(
+            (query) => query.copyWith(search: 'solo'),
+          );
+
+      expect(prefs.getString(libraryQueryPrefsKey), equals(before));
+      expect(container.read(libraryQueryProvider).search, 'solo');
+    });
+
+    test('persisted query fields still write preferences', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      await writeLibraryQuery(prefs, const LibraryQuery());
+
+      final container = ProviderContainer(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(_FakeLibraryRepository({
+            1: PagedResult(
+              items: [_series(1)],
+              total: 1,
+              page: 1,
+              perPage: 20,
+              hasNext: false,
+            ),
+          })),
+          sharedPrefsProvider.overrideWithValue(prefs),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      container.read(libraryQueryProvider.notifier).patchQuery(
+            (query) => query.copyWith(sort: LibrarySort.dateAdded),
+          );
+
+      expect(readLibraryQuery(prefs).sort, LibrarySort.dateAdded);
+    });
+
+    test('applyLibraryClientFilters skips downloaded filter for browse', () {
       final items = [
-        _series(1).copyWith(isFavorite: false),
+        _series(1),
         SeriesSummary(
           id: 2,
           libraryId: 1,
@@ -278,6 +379,38 @@ void main() {
       final filtered = applyLibraryClientFilters(
         items,
         const LibraryQuery(filter: LibraryFilter.downloaded),
+        sortResults: false,
+      );
+
+      expect(filtered, hasLength(2));
+    });
+
+    test('applyLibraryClientFilters keeps downloaded filter for search', () {
+      final items = [
+        _series(1),
+        SeriesSummary(
+          id: 2,
+          libraryId: 1,
+          title: 'Empty',
+          sortTitle: 'empty',
+          contentRating: 'teen',
+          language: 'en',
+          folderPath: '/library/2',
+          isFavorite: false,
+          readingStatus: 'unread',
+          chapterCount: 0,
+          readChapters: 0,
+          pageCount: 0,
+          totalChapters: 0,
+          totalPages: 0,
+          createdAt: DateTime(2024, 1, 1),
+          updatedAt: DateTime(2024, 6, 1),
+        ),
+      ];
+
+      final filtered = applyLibraryClientFilters(
+        items,
+        const LibraryQuery(filter: LibraryFilter.downloaded, search: 'solo'),
         sortResults: false,
       );
 

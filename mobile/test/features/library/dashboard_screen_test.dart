@@ -57,6 +57,7 @@ class _FakeLibraryRepository implements LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   }) async {
     if (shouldFail) {
       return const Err(UnknownError(message: 'network failure'));

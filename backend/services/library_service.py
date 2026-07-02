@@ -372,13 +372,14 @@ class LibraryService:
         sort: str = "title",
         search: str | None = None,
         status: str | None = None,
-        reading_status: str | None = None,
-        collection_id: int | None = None,
-        tag_id: int | None = None,
-        library_id: int | None = None,
-        is_favorite: bool | None = None,
-        language: str | None = None,
-    ) -> dict[str, object]:
+    reading_status: str | None = None,
+    collection_id: int | None = None,
+    tag_id: int | None = None,
+    library_id: int | None = None,
+    is_favorite: bool | None = None,
+    language: str | None = None,
+    has_chapters: bool | None = None,
+) -> dict[str, object]:
         query = self._db.query(Series).filter(Series.deleted_at.is_(None))
 
         if library_id is not None:
@@ -397,6 +398,11 @@ class LibraryService:
 
         if reading_status is not None:
             query = query.filter(Series.reading_status == reading_status)
+
+        if has_chapters is True:
+            query = query.filter(Series.total_chapters > 0)
+        elif has_chapters is False:
+            query = query.filter(Series.total_chapters == 0)
 
         if collection_id is not None:
             query = query.join(CollectionSeries).filter(

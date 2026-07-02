@@ -24,6 +24,7 @@ abstract interface class LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   });
 
   Future<Result<SeriesDetail>> getSeries(int seriesId);
