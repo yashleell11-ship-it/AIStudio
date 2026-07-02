@@ -30,7 +30,7 @@ from database.models import Download, DownloadQueue
 from services.download_manager import DownloadManager, reset_download_manager_for_tests
 
 PAGE_LATENCY_SECONDS = 0.05
-PAGE_COUNT = 12
+PAGE_COUNT = 40
 
 MINIMAL_PNG = (
     b"\x89PNG\r\n\x1a\n"
@@ -149,9 +149,7 @@ def test_page_concurrency_speeds_up_chapter_download(db_engine, downloads_root: 
         f"\n[benchmark] sequential={sequential_seconds:.3f}s "
         f"concurrent(4)={concurrent_seconds:.3f}s speedup={speedup:.2f}x"
     )
-    # Windows CI timers + thread scheduling jitter can shave a few percent off
-    # the theoretical ratio; keep this threshold strong but non-flaky.
-    assert speedup > 1.8, (
+    assert speedup > 2.0, (
         f"expected a substantial speedup from page concurrency, got {speedup:.2f}x "
         f"(sequential={sequential_seconds:.3f}s, concurrent={concurrent_seconds:.3f}s)"
     )

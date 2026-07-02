@@ -2,6 +2,7 @@
 .claude/
 .cursor/
 .vscode/
+.continue/
 
 # Local library and runtime data
 library/
