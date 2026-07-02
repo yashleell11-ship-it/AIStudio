@@ -7,9 +7,23 @@ import pytest
 
 from connectors.registry import create_connector, list_installed_connectors
 from connectors.toonily.connector import ToonilyConnector
-from connectors.toonily.mappers import parse_chapter_pages, parse_chapters, parse_series_list
+from connectors.toonily.mappers import (
+    chapter_id_sort_key,
+    parse_chapter_pages,
+    parse_chapter_segment,
+    parse_chapters,
+    parse_series_list,
+)
 
 FIXTURES = Path(__file__).parent / "fixtures" / "toonily"
+SERIES_ID = "the-beginning-after-the-end-7b1d8c89"
+MADARA_SUBCHAPTER_SEGMENTS = (
+    "chapter-175-8",
+    "chapter-175-8_1",
+    "chapter-175-8_2",
+    "chapter-175-8_11",
+    "chapter-175-9",
+)
 
 
 def _load(name: str) -> str:
@@ -172,25 +186,112 @@ def test_parse_chapter_pages_extracts_image_urls():
     assert all(page.remote_url and "tnlycdn.com" in page.remote_url for page in pages)
 
 
+def _chapter_id(series_id: str, segment: str) -> str:
+    return f"{series_id}/{segment}"
+
+
+def _adjacent_chapter_ids(chapters, chapter_id: str) -> tuple[str | None, str | None]:
+    chapter_index = next(index for index, chapter in enumerate(chapters) if chapter.id == chapter_id)
+    previous_id = chapters[chapter_index - 1].id if chapter_index > 0 else None
+    next_id = chapters[chapter_index + 1].id if chapter_index < len(chapters) - 1 else None
+    return previous_id, next_id
+
+
+def test_madara_subchapter_segments_parse_display_number():
+    assert parse_chapter_segment("chapter-175-8") == 175.8
+    assert parse_chapter_segment("chapter-175-8_1") == 175.8
+    assert parse_chapter_segment("chapter-175-8_2") == 175.8
+    assert parse_chapter_segment("chapter-175-8_11") == 175.8
+    assert parse_chapter_segment("chapter-175-9") == 175.9
+
+
+def test_madara_subchapter_segments_have_distinct_sort_keys():
+    keys = [chapter_id_sort_key(_chapter_id(SERIES_ID, segment)) for segment in MADARA_SUBCHAPTER_SEGMENTS]
+    assert keys == [
+        (175, 8, 0),
+        (175, 8, 1),
+        (175, 8, 2),
+        (175, 8, 11),
+        (175, 9, 0),
+    ]
+    assert len(set(keys)) == len(keys)
+
+
+def test_madara_subchapters_ordered_from_real_fixture():
+    html = _load("chapters_175_8_madara.html")
+    chapters = parse_chapters(html, SERIES_ID)
+    ordered_segments = [chapter.id.rsplit("/", 1)[-1] for chapter in chapters]
+
+    for left, right in zip(MADARA_SUBCHAPTER_SEGMENTS, MADARA_SUBCHAPTER_SEGMENTS[1:]):
+        assert ordered_segments.index(left) < ordered_segments.index(right)
+
+    assert ordered_segments.index("chapter-175-7") < ordered_segments.index("chapter-175-8")
+    subchapter_segments = [
+        segment for segment in ordered_segments if segment.startswith("chapter-175-8")
+    ]
+    assert subchapter_segments == sorted(
+        subchapter_segments,
+        key=lambda segment: chapter_id_sort_key(_chapter_id(SERIES_ID, segment)),
+    )
+    assert all(chapter.number == 175.8 for chapter in chapters if "chapter-175-8" in chapter.id)
+
+
+def test_madara_subchapters_not_sorted_to_beginning():
+    html = _load("chapters_175_8_madara.html")
+    chapters = parse_chapters(html, SERIES_ID)
+    first_segment = chapters[0].id.rsplit("/", 1)[-1]
+
+    assert first_segment == "chapter-175-7"
+    assert chapters[0].number == 175.7
+    assert all(chapter.number is not None for chapter in chapters)
+
+
+def test_madara_subchapter_adjacent_navigation_from_real_fixture():
+    html = _load("chapters_175_8_madara.html")
+    chapters = parse_chapters(html, SERIES_ID)
+
+    teaser_id = _chapter_id(SERIES_ID, "chapter-175-8")
+    part_one_id = _chapter_id(SERIES_ID, "chapter-175-8_1")
+    part_two_id = _chapter_id(SERIES_ID, "chapter-175-8_2")
+    part_eleven_id = _chapter_id(SERIES_ID, "chapter-175-8_11")
+    next_main_id = _chapter_id(SERIES_ID, "chapter-175-9")
+
+    assert _adjacent_chapter_ids(chapters, part_one_id) == (teaser_id, part_two_id)
+    assert _adjacent_chapter_ids(chapters, part_eleven_id) == (
+        _chapter_id(SERIES_ID, "chapter-175-8_9"),
+        next_main_id,
+    )
+    assert _adjacent_chapter_ids(chapters, teaser_id)[0] == _chapter_id(SERIES_ID, "chapter-175-7")
+
+
+def test_madara_subchapter_adjacent_navigation_via_connector(toonily_connector: ToonilyConnector):
+    html = _load("chapters_175_8_madara.html")
+
+    def fake_get_text(path: str, *, params=None):
+        if path == f"/serie/{SERIES_ID}/":
+            return html
+        raise AssertionError(path)
+
+    with patch.object(toonily_connector._http, "get_text", side_effect=fake_get_text):
+        chapters = toonily_connector.get_chapters(SERIES_ID)
+
+    part_one_id = _chapter_id(SERIES_ID, "chapter-175-8_1")
+    assert _adjacent_chapter_ids(chapters, part_one_id) == (
+        _chapter_id(SERIES_ID, "chapter-175-8"),
+        _chapter_id(SERIES_ID, "chapter-175-8_2"),
+    )
+
+
 def test_parse_chapters_filters_by_series():
     html = _load("series_detail.html")
-    series_id = "the-beginning-after-the-end-7b1d8c89"
-    chapters = parse_chapters(html, series_id)
+    chapters = parse_chapters(html, SERIES_ID)
     assert len(chapters) >= 2
-    assert chapters[0].series_id == series_id
+    assert chapters[0].series_id == SERIES_ID
     assert chapters[-1].number == 240.0
-
-
-def test_parse_decimal_chapter_number():
-    html = _load("series_detail.html")
-    series_id = "the-beginning-after-the-end-7b1d8c89"
-    chapters = parse_chapters(html, series_id)
-    decimal = next(
-        (chapter for chapter in chapters if chapter.number is not None and chapter.number % 1 != 0),
-        None,
+    part_eleven = next(
+        chapter for chapter in chapters if chapter.id.endswith("chapter-175-8_11")
     )
-    if decimal is not None:
-        assert decimal.number == float(int(decimal.number)) + (decimal.number % 1)
+    assert part_eleven.number == 175.8
 
 
 def test_create_toonily_connector():

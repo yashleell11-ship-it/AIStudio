@@ -80,17 +80,50 @@ def page_id_chapter_id(page_id: str) -> str | None:
 
 
 def parse_chapter_segment(segment: str) -> float | None:
-    """Parse ``chapter-240`` or ``chapter-175-8`` into a chapter number."""
+    """Parse ``chapter-240``, ``chapter-175-8``, or ``chapter-175-8_3`` for display."""
+    parts = _parse_chapter_segment_parts(segment)
+    if parts is None:
+        return None
+    return _display_number_from_parts(parts)
+
+
+def _parse_chapter_segment_parts(segment: str) -> tuple[int, int, int] | None:
+    """Return ``(major, minor, part)`` for Madara chapter URL segments.
+
+    Examples:
+    - ``chapter-240`` -> (240, 0, 0)
+    - ``chapter-175-8`` -> (175, 8, 0) teaser/base episode
+    - ``chapter-175-8_1`` -> (175, 8, 1) side-story installment
+    """
     value = segment.strip().strip("/")
     if not value.startswith("chapter-"):
         return None
     body = value.removeprefix("chapter-")
-    match = re.fullmatch(r"(\d+)(?:-(\d+))?", body)
+    match = re.fullmatch(r"(\d+)(?:-(\d+))?(?:_(\d+))?", body)
     if not match:
         return None
-    if match.group(2):
-        return float(f"{match.group(1)}.{match.group(2)}")
-    return float(match.group(1))
+    major = int(match.group(1))
+    minor = int(match.group(2)) if match.group(2) is not None else 0
+    part = int(match.group(3)) if match.group(3) is not None else 0
+    return (major, minor, part)
+
+
+def _display_number_from_parts(parts: tuple[int, int, int]) -> float:
+    major, minor, _part = parts
+    if minor:
+        return float(f"{major}.{minor}")
+    return float(major)
+
+
+def chapter_id_sort_key(chapter_id: str) -> tuple[int, int, int]:
+    """Stable ascending order key for Madara chapter ids within a series."""
+    if "/" not in chapter_id:
+        return (2**31 - 1, 2**31 - 1, 2**31 - 1)
+    _, segment = chapter_id.rsplit("/", 1)
+    parts = _parse_chapter_segment_parts(segment)
+    if parts is None:
+        return (2**31 - 1, 2**31 - 1, 2**31 - 1)
+    return parts
 
 
 def parse_chapter_number(chapter_id: str) -> float | None:
@@ -290,7 +323,7 @@ def parse_chapters(html_text: str, series_id: str) -> list[Chapter]:
                 page_count=0,
             )
         )
-    chapters.sort(key=lambda chapter: chapter.number if chapter.number is not None else 0.0)
+    chapters.sort(key=lambda chapter: chapter_id_sort_key(chapter.id))
     return chapters
 
 
