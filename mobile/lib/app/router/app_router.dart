@@ -12,6 +12,7 @@ import 'package:aistudio_mobile/features/library/screens/recommendations_screen.
 import 'package:aistudio_mobile/features/library/screens/statistics_screen.dart';
 import 'package:aistudio_mobile/features/settings/screens/settings_screen.dart';
 import 'package:aistudio_mobile/features/sources/screens/source_browser_screen.dart';
+import 'package:aistudio_mobile/features/sources/screens/source_reader_screen.dart';
 import 'package:aistudio_mobile/features/sources/screens/source_series_detail_screen.dart';
 import 'package:aistudio_mobile/features/sources/screens/sources_list_screen.dart';
 import 'package:aistudio_mobile/features/updates/screens/updates_screen.dart';
@@ -122,6 +123,25 @@ final appRouter = GoRouter(
                         sourceId: state.pathParameters['sourceId']!,
                         seriesId: state.pathParameters['seriesId']!,
                       ),
+                      routes: [
+                        GoRoute(
+                          path: 'chapters/:chapterId/read',
+                          parentNavigatorKey: _rootNavigatorKey,
+                          builder: (context, state) {
+                            final pageParam =
+                                state.uri.queryParameters['page'];
+                            final initialPage = pageParam != null
+                                ? int.tryParse(pageParam) ?? 1
+                                : 1;
+                            return SourceReaderScreen(
+                              sourceId: state.pathParameters['sourceId']!,
+                              seriesId: state.pathParameters['seriesId']!,
+                              chapterId: state.pathParameters['chapterId']!,
+                              initialPage: initialPage,
+                            );
+                          },
+                        ),
+                      ],
                     ),
                   ],
                 ),

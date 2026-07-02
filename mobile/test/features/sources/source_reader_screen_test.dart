@@ -1,0 +1,220 @@
+import 'dart:async';
+
+import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
+import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
+import 'package:aistudio_mobile/features/sources/providers/source_reader_provider.dart';
+import 'package:aistudio_mobile/features/sources/screens/source_reader_screen.dart';
+import 'package:aistudio_mobile/shared/providers/core_providers.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+ReaderChapter _onlineChapter({
+  String? previousChapterId,
+  String? nextChapterId,
+}) {
+  return ReaderChapter(
+    id: 'manga-1:1',
+    seriesId: 'manga-1',
+    title: 'Chapter 1',
+    pageCount: 2,
+    mode: ReaderMode.remote,
+    sourceId: 'mangadex',
+    seriesTitle: 'Solo Leveling',
+    previousChapterId: previousChapterId,
+    nextChapterId: nextChapterId,
+    pages: const [
+      ReaderPage(
+        id: 'manga-1:1:1',
+        number: 1,
+        imageUrl: 'http://example.test/sources/mangadex/pages/p1/image',
+        width: 800,
+        height: 1200,
+      ),
+      ReaderPage(
+        id: 'manga-1:1:2',
+        number: 2,
+        imageUrl: 'http://example.test/sources/mangadex/pages/p2/image',
+        width: 800,
+        height: 1200,
+      ),
+    ],
+  );
+}
+
+GoRouter _router(Widget child) => GoRouter(
+      routes: [GoRoute(path: '/', builder: (_, __) => child)],
+    );
+
+Widget _wrap(
+  List<Override> overrides,
+  Widget child,
+) {
+  return ProviderScope(
+    overrides: overrides,
+    child: MaterialApp.router(routerConfig: _router(child)),
+  );
+}
+
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('SourceReaderScreen', () {
+    testWidgets('shows loading skeleton while fetching', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      // A completer that is never completed keeps the provider pending without
+      // leaving a Timer alive (a Future.delayed would, failing test teardown).
+      final completer = Completer<ReaderChapter>();
+
+      await tester.pumpWidget(
+        _wrap(
+          [
+            sharedPrefsProvider.overrideWithValue(prefs),
+            sourceReaderChapterProvider(
+              const SourceReaderChapterArgs(
+                sourceId: 'mangadex',
+                seriesId: 'manga-1',
+                chapterId: 'manga-1:1',
+              ),
+            ).overrideWith((ref) => completer.future),
+          ],
+          const SourceReaderScreen(
+            sourceId: 'mangadex',
+            seriesId: 'manga-1',
+            chapterId: 'manga-1:1',
+          ),
+        ),
+      );
+
+      // First frame starts the future; skeleton renders immediately.
+      await tester.pump();
+      expect(find.text('Loading chapter…'), findsOneWidget);
+    });
+
+    testWidgets('renders online chapter title, pages and hides bookmark',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _wrap(
+          [
+            sharedPrefsProvider.overrideWithValue(prefs),
+            sourceReaderChapterProvider(
+              const SourceReaderChapterArgs(
+                sourceId: 'mangadex',
+                seriesId: 'manga-1',
+                chapterId: 'manga-1:1',
+              ),
+            ).overrideWith((ref) async => _onlineChapter()),
+          ],
+          const SourceReaderScreen(
+            sourceId: 'mangadex',
+            seriesId: 'manga-1',
+            chapterId: 'manga-1:1',
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Chapter 1'), findsOneWidget);
+      expect(find.textContaining('Page 1 / 2'), findsOneWidget);
+      // Online reader never offers bookmarks.
+      expect(find.text('Save'), findsNothing);
+    });
+
+    testWidgets('enables prev/next buttons when payload provides chapter ids',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _wrap(
+          [
+            sharedPrefsProvider.overrideWithValue(prefs),
+            sourceReaderChapterProvider(
+              const SourceReaderChapterArgs(
+                sourceId: 'mangadex',
+                seriesId: 'manga-1',
+                chapterId: 'manga-1:1',
+              ),
+            ).overrideWith(
+              (ref) async => _onlineChapter(
+                previousChapterId: 'manga-1:0',
+                nextChapterId: 'manga-1:2',
+              ),
+            ),
+          ],
+          const SourceReaderScreen(
+            sourceId: 'mangadex',
+            seriesId: 'manga-1',
+            chapterId: 'manga-1:1',
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final prevButton = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Prev'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      final nextButton = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Next'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(prevButton.enabled, isTrue);
+      expect(nextButton.enabled, isTrue);
+    });
+
+    testWidgets('shows retry state on load failure', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.pumpWidget(
+        _wrap(
+          [
+            sharedPrefsProvider.overrideWithValue(prefs),
+            sourceReaderChapterProvider(
+              const SourceReaderChapterArgs(
+                sourceId: 'mangadex',
+                seriesId: 'manga-1',
+                chapterId: 'manga-1:1',
+              ),
+            ).overrideWith((ref) async {
+              throw Exception('network failure');
+            }),
+          ],
+          const SourceReaderScreen(
+            sourceId: 'mangadex',
+            seriesId: 'manga-1',
+            chapterId: 'manga-1:1',
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Retry'), findsOneWidget);
+      expect(find.text('Go back'), findsOneWidget);
+    });
+  });
+}

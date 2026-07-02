@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
+import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
 
 const double defaultContainerWidth = 768;
 const double maxContentWidth = 768;
@@ -8,7 +8,7 @@ double resolveContainerWidth(double measuredWidth) =>
     measuredWidth > 0 ? measuredWidth : defaultContainerWidth;
 
 double estimatePageHeight(
-  PageInfo page,
+  ReaderPage page,
   double containerWidth,
   double zoom,
 ) {
@@ -21,7 +21,7 @@ double estimatePageHeight(
   return contentWidth / defaultAspectRatio;
 }
 
-double pageAspectRatio(PageInfo page) {
+double pageAspectRatio(ReaderPage page) {
   final width = page.width;
   final height = page.height;
   if (width != null && height != null && width > 0 && height > 0) {
@@ -31,7 +31,7 @@ double pageAspectRatio(PageInfo page) {
 }
 
 double estimateScrollOffsetToPage(
-  List<PageInfo> pages,
+  List<ReaderPage> pages,
   int pageNumber,
   double containerWidth,
   double zoom,
@@ -45,7 +45,7 @@ double estimateScrollOffsetToPage(
 }
 
 int resolveVisiblePage(
-  List<PageInfo> pages,
+  List<ReaderPage> pages,
   double scrollOffset,
   double containerWidth,
   double zoom,
