@@ -407,8 +407,12 @@ void main() {
       await tester.pumpWidget(
         await _wrap(const SettingsScreen(), overrides: []),
       );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('General'), findsOneWidget);
       expect(find.text('Server'), findsOneWidget);
-      expect(find.text('Downloads'), findsOneWidget);
+      expect(find.text('About'), findsOneWidget);
     });
   });
 }
