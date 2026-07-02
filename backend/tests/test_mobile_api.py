@@ -28,14 +28,15 @@ def _client(db_engine):
     return TestClient(app)
 
 
-def _seed_series_with_chapter(db: Session) -> tuple[int, int]:
-    library = Library(name="Mobile Library", root_path="/tmp/mobile")
+def _seed_series_with_chapter(db: Session, suffix: str = "") -> tuple[int, int]:
+    root = f"/tmp/mobile{suffix}"
+    library = Library(name=f"Mobile Library{suffix}", root_path=root)
     db.add(library)
     db.flush()
     series = Series(
         library_id=library.id,
         title="Mobile Series",
-        folder_path="/tmp/mobile/series",
+        folder_path=f"{root}/series",
     )
     db.add(series)
     db.flush()
@@ -43,13 +44,13 @@ def _seed_series_with_chapter(db: Session) -> tuple[int, int]:
         series_id=series.id,
         title="Chapter 1",
         number=1,
-        folder_path="/tmp/mobile/series/ch1",
+        folder_path=f"{root}/series/ch1",
         page_count=2,
     )
     db.add(chapter)
     db.flush()
-    db.add(Page(chapter_id=chapter.id, number=1, file_path="/tmp/mobile/series/ch1/001.jpg"))
-    db.add(Page(chapter_id=chapter.id, number=2, file_path="/tmp/mobile/series/ch1/002.jpg"))
+    db.add(Page(chapter_id=chapter.id, number=1, file_path=f"{root}/series/ch1/001.jpg"))
+    db.add(Page(chapter_id=chapter.id, number=2, file_path=f"{root}/series/ch1/002.jpg"))
     db.commit()
     return series.id, chapter.id
 
@@ -210,6 +211,58 @@ def test_delete_bookmark(db_engine) -> None:
 
     bookmarks = client.get(f"/reader/bookmarks/{series_id}").json()
     assert bookmarks == []
+
+
+def test_list_all_bookmarks_includes_series_and_chapter_titles(db_engine) -> None:
+    session_factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+    db = session_factory()
+    try:
+        series_id, chapter_id = _seed_series_with_chapter(db)
+    finally:
+        db.close()
+
+    client = _client(db_engine)
+    client.post(
+        "/reader/bookmarks",
+        json={"series_id": series_id, "chapter_id": chapter_id, "page": 2, "note": "cliffhanger"},
+    )
+
+    response = client.get("/reader/bookmarks")
+    assert response.status_code == 200
+    assert response.headers[HEADER_LIST_TOTAL] == "1"
+
+    bookmark = response.json()[0]
+    assert bookmark["series_id"] == series_id
+    assert bookmark["series_title"] == "Mobile Series"
+    assert bookmark["chapter_id"] == chapter_id
+    assert bookmark["chapter_title"] == "Chapter 1"
+    assert bookmark["page"] == 2
+    assert bookmark["note"] == "cliffhanger"
+
+
+def test_list_all_bookmarks_spans_multiple_series(db_engine) -> None:
+    session_factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+    db = session_factory()
+    try:
+        series_a, chapter_a = _seed_series_with_chapter(db, suffix="-a")
+        series_b, chapter_b = _seed_series_with_chapter(db, suffix="-b")
+    finally:
+        db.close()
+
+    client = _client(db_engine)
+    client.post("/reader/bookmarks", json={"series_id": series_a, "chapter_id": chapter_a, "page": 1})
+    client.post("/reader/bookmarks", json={"series_id": series_b, "chapter_id": chapter_b, "page": 1})
+
+    response = client.get("/reader/bookmarks")
+    assert response.status_code == 200
+    series_ids = {item["series_id"] for item in response.json()}
+    assert series_ids == {series_a, series_b}
+
+    # Per-series listing still only returns that series' bookmark -- the new
+    # global endpoint is additive, not a replacement.
+    only_a = client.get(f"/reader/bookmarks/{series_a}").json()
+    assert len(only_a) == 1
+    assert only_a[0]["series_id"] == series_a
 
 
 def test_delete_bookmark_not_found(db_engine) -> None:

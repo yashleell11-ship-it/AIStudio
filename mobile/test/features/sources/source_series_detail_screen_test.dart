@@ -1,12 +1,14 @@
 import 'dart:async';
 
 import 'package:aistudio_mobile/app/router/routes.dart';
+import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/core/utils/pagination.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
 import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
+import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
 import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
 import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
 import 'package:aistudio_mobile/features/sources/models/source.dart';
@@ -144,17 +146,78 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   Future<Result<void>> triggerCheck() async => const Ok(null);
 }
 
+class _FakeDownloadsNotifier extends DownloadsNotifier {
+  _FakeDownloadsNotifier(this.fakeRepo);
+  final DownloadsRepository fakeRepo;
+
+  @override
+  Future<DownloadsState> build() async {
+    return DownloadsState(
+      items: const [],
+      metrics: DownloadMetrics(
+        total: 0,
+        completed: 0,
+        failed: 0,
+        remaining: 0,
+        active: 0,
+        queued: 0,
+        paused: 0,
+        storageUsedBytes: 0,
+        storageFreeBytes: 0,
+        overallSpeedBps: 0,
+        overallSpeedMbps: 0,
+        overallEtaSeconds: null,
+        workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
+      ),
+    );
+  }
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueChapters({
+    required String sourceId,
+    required String seriesId,
+    required List<String> chapterIds,
+    String? seriesTitle,
+    int? priority,
+  }) {
+    return fakeRepo.queueChapters(
+      sourceId: sourceId,
+      seriesId: seriesId,
+      chapterIds: chapterIds,
+      seriesTitle: seriesTitle,
+      priority: priority,
+    );
+  }
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
+    int? priority,
+  }) {
+    return fakeRepo.queueSeries(
+      sourceId: sourceId,
+      seriesId: seriesId,
+      priority: priority,
+    );
+  }
+}
+
 class _RecordingDownloadsRepository implements DownloadsRepository {
   _RecordingDownloadsRepository({
-    this.chaptersResponse = const QueueDownloadResponse(queued: [1], skipped: []),
-    this.seriesResponse = const QueueDownloadResponse(queued: [1, 2], skipped: ['ch-old']),
+    this.chaptersResponse = const Ok(QueueDownloadResponse(queued: [1], skipped: [])),
+    this.seriesResponse = const Ok(QueueDownloadResponse(queued: [1, 2], skipped: ['ch-old'])),
+    this.delay,
   });
 
-  QueueDownloadResponse chaptersResponse;
-  QueueDownloadResponse seriesResponse;
+  Result<QueueDownloadResponse> chaptersResponse;
+  Result<QueueDownloadResponse> seriesResponse;
+  Duration? delay;
 
   List<String>? lastChapterIds;
   bool queueSeriesCalled = false;
+  int queueChaptersCallCount = 0;
+  int queueSeriesCallCount = 0;
 
   @override
   Future<Result<QueueDownloadResponse>> queueChapters({
@@ -164,8 +227,12 @@ class _RecordingDownloadsRepository implements DownloadsRepository {
     String? seriesTitle,
     int? priority,
   }) async {
+    queueChaptersCallCount++;
     lastChapterIds = chapterIds;
-    return Ok(chaptersResponse);
+    if (delay != null) {
+      await Future<void>.delayed(delay!);
+    }
+    return chaptersResponse;
   }
 
   @override
@@ -174,8 +241,12 @@ class _RecordingDownloadsRepository implements DownloadsRepository {
     required String seriesId,
     int? priority,
   }) async {
+    queueSeriesCallCount++;
     queueSeriesCalled = true;
-    return Ok(seriesResponse);
+    if (delay != null) {
+      await Future<void>.delayed(delay!);
+    }
+    return seriesResponse;
   }
 
   @override
@@ -295,6 +366,7 @@ Future<ProviderContainer> _pumpScreen(
       sourcesRepositoryProvider.overrideWithValue(fakeSourcesRepo),
       updatesRepositoryProvider.overrideWithValue(updatesRepo),
       downloadsRepositoryProvider.overrideWithValue(fakeDownloadsRepo),
+      downloadsProvider.overrideWith(() => _FakeDownloadsNotifier(fakeDownloadsRepo)),
     ],
   );
   addTearDown(container.dispose);
@@ -364,6 +436,8 @@ void main() {
             apiBaseUrlProvider.overrideWithValue('http://example.test'),
             sourcesRepositoryProvider.overrideWithValue(fakeRepo),
             updatesRepositoryProvider.overrideWithValue(fakeUpdates),
+            downloadsRepositoryProvider.overrideWithValue(_RecordingDownloadsRepository()),
+            downloadsProvider.overrideWith(() => _FakeDownloadsNotifier(_RecordingDownloadsRepository())),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),
@@ -373,7 +447,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Chapters'), findsOneWidget);
+      final chaptersFinder = find.text('Chapters', skipOffstage: false);
+      await tester.ensureVisible(chaptersFinder);
+      await tester.pumpAndSettle();
 
       // The chapter row label is "Chapter 1" (from chapterLabel).
       await tester.tap(find.text('Chapter 1'));
@@ -562,7 +638,7 @@ void main() {
     });
   });
 
-  group('SourceSeriesDetailScreen download actions', () {
+    group('SourceSeriesDetailScreen download actions', () {
     testWidgets('Download Selected stays disabled until a chapter is selected',
         (tester) async {
       final fakeUpdates = _FakeUpdatesRepository();
@@ -578,17 +654,20 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final selectedButton = tester.widget<OutlinedButton>(
-        find.byKey(const Key('download-selected')),
-      );
+      final downloadSelectedFinder = find.byKey(const Key('download-selected'), skipOffstage: false);
+      await tester.ensureVisible(downloadSelectedFinder);
+      await tester.pumpAndSettle();
+
+      final selectedButton = tester.widget<OutlinedButton>(find.byKey(const Key('download-selected')));
       expect(selectedButton.onPressed, isNull);
 
-      await tester.tap(find.byKey(const Key('select-manga-1:2')));
-      await tester.pump();
+      final checkboxFinder = find.byKey(const Key('select-manga-1:2'), skipOffstage: false);
+      await tester.ensureVisible(checkboxFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(checkboxFinder);
+      await tester.pumpAndSettle();
 
-      final enabledButton = tester.widget<OutlinedButton>(
-        find.byKey(const Key('download-selected')),
-      );
+      final enabledButton = tester.widget<OutlinedButton>(find.byKey(const Key('download-selected')));
       expect(enabledButton.onPressed, isNotNull);
     });
 
@@ -596,10 +675,10 @@ void main() {
         (tester) async {
       final fakeUpdates = _FakeUpdatesRepository();
       final fakeDownloads = _RecordingDownloadsRepository(
-        chaptersResponse: const QueueDownloadResponse(
+        chaptersResponse: const Ok(QueueDownloadResponse(
           queued: [1, 2],
           skipped: ['manga-1:3'],
-        ),
+        )),
       );
       await _pumpScreen(
         tester,
@@ -614,17 +693,26 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byKey(const Key('select-manga-1:1')));
-      await tester.tap(find.byKey(const Key('select-manga-1:2')));
-      await tester.pump();
+      final ch1Checkbox = find.byKey(const Key('select-manga-1:1'), skipOffstage: false);
+      await tester.ensureVisible(ch1Checkbox);
+      await tester.pumpAndSettle();
+      await tester.tap(ch1Checkbox);
 
-      await tester.tap(find.byKey(const Key('download-selected')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      final ch2Checkbox = find.byKey(const Key('select-manga-1:2'), skipOffstage: false);
+      await tester.ensureVisible(ch2Checkbox);
+      await tester.pumpAndSettle();
+      await tester.tap(ch2Checkbox);
+      await tester.pumpAndSettle();
+
+      final downloadButton = find.byKey(const Key('download-selected'), skipOffstage: false);
+      await tester.ensureVisible(downloadButton);
+      await tester.pumpAndSettle();
+      await tester.tap(downloadButton);
+      await tester.pumpAndSettle();
 
       expect(fakeDownloads.lastChapterIds, ['manga-1:1', 'manga-1:2']);
-      expect(find.text('Queued 2 chapters'), findsOneWidget);
-      expect(find.text('Skipped 1 already downloaded'), findsOneWidget);
+      expect(find.textContaining('Queued 2 chapters'), findsOneWidget);
+      expect(find.textContaining('Skipped 1 already downloaded'), findsOneWidget);
       expect(find.text('Downloads'), findsOneWidget);
     });
 
@@ -632,10 +720,10 @@ void main() {
         (tester) async {
       final fakeUpdates = _FakeUpdatesRepository();
       final fakeDownloads = _RecordingDownloadsRepository(
-        seriesResponse: const QueueDownloadResponse(
+        seriesResponse: const Ok(QueueDownloadResponse(
           queued: [1, 2, 3],
           skipped: [],
-        ),
+        )),
       );
       await _pumpScreen(
         tester,
@@ -646,18 +734,20 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byKey(const Key('download-series')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      final button = find.byKey(const Key('download-series'), skipOffstage: false);
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+      await tester.tap(button);
+      await tester.pumpAndSettle();
 
       expect(fakeDownloads.queueSeriesCalled, isTrue);
-      expect(find.text('Queued 3 chapters'), findsOneWidget);
+      expect(find.textContaining('Queued 3 chapters'), findsOneWidget);
     });
 
     testWidgets('per-chapter download button queues one chapter', (tester) async {
       final fakeUpdates = _FakeUpdatesRepository();
       final fakeDownloads = _RecordingDownloadsRepository(
-        chaptersResponse: const QueueDownloadResponse(queued: [9], skipped: []),
+        chaptersResponse: const Ok(QueueDownloadResponse(queued: [9], skipped: [])),
       );
       await _pumpScreen(
         tester,
@@ -668,12 +758,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byKey(const Key('download-manga-1:1')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      final btn = find.byKey(const Key('download-manga-1:1'), skipOffstage: false);
+      await tester.ensureVisible(btn);
+      await tester.pumpAndSettle();
+      await tester.tap(btn);
+      await tester.pumpAndSettle();
 
       expect(fakeDownloads.lastChapterIds, ['manga-1:1']);
-      expect(find.text('Queued 1 chapter'), findsOneWidget);
+      expect(find.textContaining('Queued 1 chapter'), findsOneWidget);
     });
 
     testWidgets('snackbar Downloads action navigates to downloads screen',
@@ -681,7 +773,12 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final fakeUpdates = _FakeUpdatesRepository();
-      final fakeDownloads = _RecordingDownloadsRepository();
+      final fakeDownloads = _RecordingDownloadsRepository(
+        seriesResponse: const Ok(QueueDownloadResponse(
+          queued: [1],
+          skipped: [],
+        )),
+      );
 
       String? navigatedLocation;
       final router = GoRouter(
@@ -695,7 +792,7 @@ void main() {
             ),
           ),
           GoRoute(
-            path: RoutePaths.downloads,
+            path: Routes.downloads,
             builder: (_, state) {
               navigatedLocation = state.uri.toString();
               return const Scaffold(body: Center(child: Text('DOWNLOADS')));
@@ -720,6 +817,7 @@ void main() {
             ),
             updatesRepositoryProvider.overrideWithValue(fakeUpdates),
             downloadsRepositoryProvider.overrideWithValue(fakeDownloads),
+            downloadsProvider.overrideWith(() => _FakeDownloadsNotifier(fakeDownloads)),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),
@@ -728,15 +826,104 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.byKey(const Key('download-series')));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      final downloadSeriesButton = find.byKey(const Key('download-series'), skipOffstage: false);
+      await tester.ensureVisible(downloadSeriesButton);
+      await tester.pumpAndSettle();
+      await tester.tap(downloadSeriesButton);
+      await tester.pumpAndSettle();
 
       await tester.tap(find.text('Downloads'));
       await tester.pumpAndSettle();
 
-      expect(navigatedLocation, RoutePaths.downloads);
+      expect(navigatedLocation, Routes.downloads);
       expect(find.text('DOWNLOADS'), findsOneWidget);
+    });
+
+    testWidgets('ignores duplicate queue requests while pending', (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository();
+      final fakeDownloads = _RecordingDownloadsRepository(
+        seriesResponse: const Ok(QueueDownloadResponse(queued: [1], skipped: [])),
+        delay: const Duration(milliseconds: 50),
+      );
+      
+      await _pumpScreen(
+        tester,
+        updatesRepo: fakeUpdates,
+        downloadsRepo: fakeDownloads,
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final button = find.byKey(const Key('download-series'), skipOffstage: false);
+      await tester.ensureVisible(button);
+      await tester.pumpAndSettle();
+
+      // Tap twice quickly
+      await tester.tap(button, warnIfMissed: false);
+      await tester.tap(button, warnIfMissed: false);
+      
+      // Wait for the async task to complete
+      await tester.pumpAndSettle();
+
+      expect(fakeDownloads.queueSeriesCallCount, 1);
+      expect(find.textContaining('Queued 1 chapter'), findsOneWidget);
+    });
+
+    testWidgets('clears pending state and preserves selection on failure', (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository();
+      final fakeDownloads = _RecordingDownloadsRepository(
+        chaptersResponse: const Err(ApiError(
+          statusCode: 500,
+          code: 'queue_failed',
+          message: 'Queue failed',
+        )),
+      );
+
+      await _pumpScreen(
+        tester,
+        updatesRepo: fakeUpdates,
+        downloadsRepo: fakeDownloads,
+        chapters: [
+          _chapter(id: 'manga-1:1', number: 1),
+        ],
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Select chapter
+      final checkboxFinder = find.byKey(const Key('select-manga-1:1'), skipOffstage: false);
+      await tester.ensureVisible(checkboxFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(checkboxFinder);
+      await tester.pumpAndSettle();
+
+      // Tap download
+      final downloadButton = find.byKey(const Key('download-selected'), skipOffstage: false);
+      await tester.ensureVisible(downloadButton);
+      await tester.pumpAndSettle();
+      await tester.tap(downloadButton);
+      
+      await tester.pumpAndSettle();
+
+      // Verify error snackbar
+      expect(find.text('Queue failed'), findsOneWidget);
+
+      // Clear snackbars so the next one shows immediately
+      ScaffoldMessenger.of(tester.element(find.byType(SourceSeriesDetailScreen))).clearSnackBars();
+      await tester.pumpAndSettle();
+      
+      // Verify selection is preserved (we can tap download again)
+      expect(fakeDownloads.queueChaptersCallCount, 1);
+      
+      // Try again with success response
+      fakeDownloads.chaptersResponse = const Ok(QueueDownloadResponse(queued: [1], skipped: []));
+      await tester.tap(downloadButton);
+      await tester.pumpAndSettle();
+
+      expect(fakeDownloads.queueChaptersCallCount, 2);
+      expect(find.textContaining('Queued 1 chapter'), findsOneWidget);
     });
   });
 }

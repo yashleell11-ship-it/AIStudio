@@ -8,7 +8,9 @@ export type { ReadingProgress };
 export interface Bookmark {
   id: number;
   series_id: number;
+  series_title?: string | null;
   chapter_id: number;
+  chapter_title?: string | null;
   page: number;
   note: string | null;
   created_at: string;
@@ -106,6 +108,12 @@ export const readerApi = {
     page: number;
     note?: string;
   }) => http.post<Bookmark>("/reader/bookmarks", payload),
+
+  listBookmarks: (limit = 200) =>
+    http.get<Bookmark[]>("/reader/bookmarks", { query: { limit } }),
+
+  deleteBookmark: (bookmarkId: number) =>
+    http.delete<void>(`/reader/bookmarks/${bookmarkId}`),
 
   getAdjacentChapter: (chapterId: number, direction: "previous" | "next") =>
     http.get<AdjacentChapter | null>(`/reader/chapter/${chapterId}/adjacent`, {

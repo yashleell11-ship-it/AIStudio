@@ -264,6 +264,12 @@ class _LocalReaderRepository implements LibraryRepository {
   @override
   Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
       throw UnimplementedError();
+
+  @override
+  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
 }
 
 Widget _wrap(
@@ -489,7 +495,7 @@ void main() {
       await tester.pump();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-
+      await tester.pump();
       expect(navigatedLocation, '/library/7/chapters/42/read');
       expect(find.text('Save'), findsOneWidget);
 

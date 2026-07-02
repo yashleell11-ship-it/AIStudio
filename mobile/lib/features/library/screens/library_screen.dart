@@ -75,6 +75,13 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           icon: const Icon(Icons.arrow_back),
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.library),
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.bookmark_outline),
+            tooltip: 'Bookmarks',
+            onPressed: () => context.push(Routes.bookmarks),
+          ),
+        ],
       ),
       body: listAsync.when(
         loading: () => _LibraryScrollView(

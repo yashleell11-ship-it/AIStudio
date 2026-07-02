@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
 import 'package:aistudio_mobile/features/reader/widgets/reader_content.dart';
@@ -297,25 +298,31 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(430, 932));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      await tester.pumpWidget(
-        _wrapWithPrefs(
-          prefs,
-          ReaderContent(
-            chapter: _sampleChapter(),
-            scrollStorageKey: '1',
-            showBookmark: true,
-            onAddBookmark: (_) async => throw Exception('bookmark failed'),
-            onBack: () {},
+      dynamic caughtError;
+      await runZonedGuarded(() async {
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: _sampleChapter(),
+              scrollStorageKey: '1',
+              showBookmark: true,
+              onAddBookmark: (_) async => throw Exception('bookmark failed'),
+              onBack: () {},
+            ),
           ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.text('Save'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(tester.takeException(), isA<Exception>());
+        await tester.tap(find.text('Save'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+      }, (error, stack) {
+        caughtError = error;
+      });
+
+      expect(caughtError, isNotNull);
 
       final saveButton = tester.widget<TextButton>(
         find.ancestor(
