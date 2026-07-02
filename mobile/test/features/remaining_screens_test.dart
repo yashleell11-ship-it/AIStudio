@@ -26,7 +26,7 @@ import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
 import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
 import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
 import 'package:aistudio_mobile/features/updates/screens/updates_screen.dart';
-import '../../support/test_overrides.dart';
+import '../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
