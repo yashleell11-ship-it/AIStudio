@@ -5,6 +5,32 @@ import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+/// Renders a fully loaded page at full width with its natural height.
+///
+/// This must never be wrapped in an [AspectRatio]: sources without page
+/// dimensions (e.g. AsuraScans webtoon strips up to 900x16000) would be
+/// letterboxed into the 2/3 fallback box and become unreadable slivers.
+class ReaderLoadedPageImage extends StatelessWidget {
+  const ReaderLoadedPageImage({
+    super.key,
+    required this.image,
+    this.semanticLabel,
+  });
+
+  final ImageProvider image;
+  final String? semanticLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Image(
+      image: image,
+      fit: BoxFit.fitWidth,
+      width: double.infinity,
+      semanticLabel: semanticLabel,
+    );
+  }
+}
+
 class ReaderPageImage extends StatefulWidget {
   const ReaderPageImage({
     super.key,
@@ -17,6 +43,9 @@ class ReaderPageImage extends StatefulWidget {
 
   final String imageUrl;
   final String alt;
+
+  /// Placeholder ratio used only while the page is loading or failed;
+  /// the loaded image always lays out at its intrinsic size.
   final double aspectRatio;
   final bool priority;
   final VoidCallback? onLoad;
@@ -30,30 +59,37 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
 
   void _retry() => setState(() => _retryToken++);
 
-  @override
-  Widget build(BuildContext context) {
+  Widget _placeholderBox({required Widget child}) {
     return AspectRatio(
       aspectRatio: widget.aspectRatio,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: Colors.black,
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x66000000),
-              blurRadius: 16,
-              offset: Offset(0, 8),
-            ),
-          ],
-        ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.sm),
-          child: CachedNetworkImage(
-            key: ValueKey('${widget.imageUrl}:$_retryToken'),
-            imageUrl: widget.imageUrl,
-            fit: BoxFit.contain,
-            fadeInDuration: const Duration(milliseconds: 150),
-            placeholder: (_, __) => const ColoredBox(
+      child: child,
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.black,
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 16,
+            offset: Offset(0, 8),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(AppRadius.sm),
+        child: CachedNetworkImage(
+          key: ValueKey('${widget.imageUrl}:$_retryToken'),
+          imageUrl: widget.imageUrl,
+          fit: BoxFit.fitWidth,
+          width: double.infinity,
+          fadeInDuration: const Duration(milliseconds: 150),
+          placeholder: (_, __) => _placeholderBox(
+            child: const ColoredBox(
               color: Colors.black,
               child: Center(
                 child: SizedBox(
@@ -63,7 +99,9 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
                 ),
               ),
             ),
-            errorWidget: (_, __, ___) => ColoredBox(
+          ),
+          errorWidget: (_, __, ___) => _placeholderBox(
+            child: ColoredBox(
               color: AppColors.void_,
               child: Center(
                 child: Padding(
@@ -85,15 +123,14 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
                 ),
               ),
             ),
-            imageBuilder: (context, imageProvider) {
-              WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
-              return Image(
-                image: imageProvider,
-                fit: BoxFit.contain,
-                semanticLabel: widget.alt,
-              );
-            },
           ),
+          imageBuilder: (context, imageProvider) {
+            WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
+            return ReaderLoadedPageImage(
+              image: imageProvider,
+              semanticLabel: widget.alt,
+            );
+          },
         ),
       ),
     );

@@ -4,6 +4,7 @@ import 'package:aistudio_mobile/app/theme/app_spacing.dart';
 import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/features/sources/providers/sources_provider.dart';
+import 'package:aistudio_mobile/features/sources/utils/chapter_label.dart';
 import 'package:aistudio_mobile/shared/widgets/empty_state.dart';
 import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
 import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
@@ -92,28 +93,36 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
                 )
               else
                 ...data.chapters.map(
-                  (chapter) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                    child: GlassCard(
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(chapter.title, style: AppTypography.labelLg),
-                                Text(
-                                  '${chapter.pageCount} pages',
-                                  style: AppTypography.caption.copyWith(color: AppColors.muted),
-                                ),
-                              ],
+                  (chapter) {
+                    final label = chapterLabel(
+                      number: chapter.number,
+                      title: chapter.title,
+                    );
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                      child: GlassCard(
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(label.primary, style: AppTypography.labelLg),
+                                  if (label.secondary != null)
+                                    Text(label.secondary!, style: AppTypography.bodySm),
+                                  Text(
+                                    '${chapter.pageCount} pages',
+                                    style: AppTypography.caption.copyWith(color: AppColors.muted),
+                                  ),
+                                ],
+                              ),
                             ),
-                          ),
-                          const Icon(Icons.chevron_right),
-                        ],
+                            const Icon(Icons.chevron_right),
+                          ],
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
             ],
           );
