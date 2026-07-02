@@ -2,6 +2,8 @@ import 'package:aistudio_mobile/app/router/routes.dart';
 import 'package:aistudio_mobile/app/theme/app_colors.dart';
 import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:aistudio_mobile/core/error/app_error.dart';
+import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
+import 'package:aistudio_mobile/features/reader/utils/local_reader_handoff.dart';
 import 'package:aistudio_mobile/features/reader/widgets/reader_content.dart';
 import 'package:aistudio_mobile/features/reader/widgets/reader_error_state.dart';
 import 'package:aistudio_mobile/features/reader/widgets/reader_skeleton.dart';
@@ -65,6 +67,18 @@ class SourceReaderScreen extends ConsumerWidget {
         );
       },
       data: (chapter) {
+        if (chapter.mode == ReaderMode.local) {
+          final librarySeriesId = int.tryParse(chapter.seriesId);
+          final libraryChapterId = int.tryParse(chapter.id);
+          if (librarySeriesId != null && libraryChapterId != null) {
+            return LocalReaderHandoff(
+              seriesId: librarySeriesId,
+              chapterId: libraryChapterId,
+              initialPage: initialPage,
+            );
+          }
+        }
+
         if (chapter.pages.isEmpty) {
           return ColoredBox(
             color: AppColors.bg,
