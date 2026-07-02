@@ -3,6 +3,7 @@ import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
+import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
 import 'package:aistudio_mobile/features/downloads/screens/downloads_screen.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
@@ -62,11 +63,19 @@ class _FakeDownloadsRepository implements DownloadsRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> queueChapters({
+  Future<Result<QueueDownloadResponse>> queueChapters({
     required String sourceId,
     required String seriesId,
     required List<String> chapterIds,
     String? seriesTitle,
+    int? priority,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
     int? priority,
   }) =>
       throw UnimplementedError();
@@ -177,11 +186,19 @@ class _FailingDownloadsRepository implements DownloadsRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> queueChapters({
+  Future<Result<QueueDownloadResponse>> queueChapters({
     required String sourceId,
     required String seriesId,
     required List<String> chapterIds,
     String? seriesTitle,
+    int? priority,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
     int? priority,
   }) =>
       throw UnimplementedError();

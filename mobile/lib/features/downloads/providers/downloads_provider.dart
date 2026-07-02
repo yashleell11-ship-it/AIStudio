@@ -4,6 +4,7 @@ import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
+import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -236,4 +237,48 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
         () => ref.read(downloadsRepositoryProvider).cancelAll(),
         'Cancel all',
       );
+
+  Future<Result<QueueDownloadResponse>> queueChapters({
+    required String sourceId,
+    required String seriesId,
+    required List<String> chapterIds,
+    String? seriesTitle,
+    int? priority,
+  }) async {
+    final result = await ref.read(downloadsRepositoryProvider).queueChapters(
+          sourceId: sourceId,
+          seriesId: seriesId,
+          chapterIds: chapterIds,
+          seriesTitle: seriesTitle,
+          priority: priority,
+        );
+    if (result.isOk) {
+      await _refreshAfterQueue();
+    }
+    return result;
+  }
+
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
+    int? priority,
+  }) async {
+    final result = await ref.read(downloadsRepositoryProvider).queueSeries(
+          sourceId: sourceId,
+          seriesId: seriesId,
+          priority: priority,
+        );
+    if (result.isOk) {
+      await _refreshAfterQueue();
+    }
+    return result;
+  }
+
+  Future<void> _refreshAfterQueue() async {
+    if (state.valueOrNull != null) {
+      await _silentRefresh();
+      return;
+    }
+    ref.invalidateSelf();
+  }
 }

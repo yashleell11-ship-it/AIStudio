@@ -3,6 +3,11 @@ import 'dart:async';
 import 'package:aistudio_mobile/app/router/routes.dart';
 import 'package:aistudio_mobile/core/utils/pagination.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
+import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
+import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
+import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
+import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
+import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
 import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
 import 'package:aistudio_mobile/features/sources/models/source.dart';
 import 'package:aistudio_mobile/features/sources/models/source_series.dart';
@@ -139,6 +144,112 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   Future<Result<void>> triggerCheck() async => const Ok(null);
 }
 
+class _RecordingDownloadsRepository implements DownloadsRepository {
+  _RecordingDownloadsRepository({
+    this.chaptersResponse = const QueueDownloadResponse(queued: [1], skipped: []),
+    this.seriesResponse = const QueueDownloadResponse(queued: [1, 2], skipped: ['ch-old']),
+  });
+
+  QueueDownloadResponse chaptersResponse;
+  QueueDownloadResponse seriesResponse;
+
+  List<String>? lastChapterIds;
+  bool queueSeriesCalled = false;
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueChapters({
+    required String sourceId,
+    required String seriesId,
+    required List<String> chapterIds,
+    String? seriesTitle,
+    int? priority,
+  }) async {
+    lastChapterIds = chapterIds;
+    return Ok(chaptersResponse);
+  }
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
+    int? priority,
+  }) async {
+    queueSeriesCalled = true;
+    return Ok(seriesResponse);
+  }
+
+  @override
+  Future<Result<List<DownloadItem>>> listDownloads() async => const Ok([]);
+
+  @override
+  Future<Result<DownloadMetrics>> getMetrics() async => Ok(
+        DownloadMetrics(
+          total: 0,
+          completed: 0,
+          failed: 0,
+          remaining: 0,
+          active: 0,
+          queued: 0,
+          paused: 0,
+          storageUsedBytes: 0,
+          storageFreeBytes: 0,
+          overallSpeedBps: 0,
+          overallSpeedMbps: 0,
+          overallEtaSeconds: null,
+          workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
+        ),
+      );
+
+  @override
+  Future<Result<DownloadSettings>> getSettings() => throw UnimplementedError();
+
+  @override
+  Future<Result<DownloadSettings>> updateSettings(DownloadSettings settings) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> pauseDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> resumeDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> cancelDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> retryDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<int>> pauseAll() => throw UnimplementedError();
+
+  @override
+  Future<Result<int>> resumeAll() => throw UnimplementedError();
+
+  @override
+  Future<Result<int>> cancelAll() => throw UnimplementedError();
+
+  @override
+  Future<Result<int>> pauseSeries({
+    required String sourceId,
+    required String seriesId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<int>> resumeSeries({
+    required String sourceId,
+    required String seriesId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<int>> cancelSeries({
+    required String sourceId,
+    required String seriesId,
+  }) =>
+      throw UnimplementedError();
+}
+
 SourceSeriesSummary _series() => const SourceSeriesSummary(
       id: 'manga-1',
       sourceId: 'mangadex',
@@ -165,14 +276,17 @@ SourceChapterSummary _chapter({
 Future<ProviderContainer> _pumpScreen(
   WidgetTester tester, {
   required _FakeUpdatesRepository updatesRepo,
+  _RecordingDownloadsRepository? downloadsRepo,
+  List<SourceChapterSummary>? chapters,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
   final fakeSourcesRepo = _FakeSourcesRepository(
     _series(),
-    [_chapter(id: 'manga-1:1', number: 1)],
+    chapters ?? [_chapter(id: 'manga-1:1', number: 1)],
   );
+  final fakeDownloadsRepo = downloadsRepo ?? _RecordingDownloadsRepository();
 
   final container = ProviderContainer(
     overrides: [
@@ -180,6 +294,7 @@ Future<ProviderContainer> _pumpScreen(
       apiBaseUrlProvider.overrideWithValue('http://example.test'),
       sourcesRepositoryProvider.overrideWithValue(fakeSourcesRepo),
       updatesRepositoryProvider.overrideWithValue(updatesRepo),
+      downloadsRepositoryProvider.overrideWithValue(fakeDownloadsRepo),
     ],
   );
   addTearDown(container.dispose);
@@ -444,6 +559,184 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(fakeUpdates.deleteCallCount, 1);
+    });
+  });
+
+  group('SourceSeriesDetailScreen download actions', () {
+    testWidgets('Download Selected stays disabled until a chapter is selected',
+        (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository();
+      await _pumpScreen(
+        tester,
+        updatesRepo: fakeUpdates,
+        chapters: [
+          _chapter(id: 'manga-1:1', number: 1, title: 'Chapter 1'),
+          _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
+        ],
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final selectedButton = tester.widget<OutlinedButton>(
+        find.byKey(const Key('download-selected')),
+      );
+      expect(selectedButton.onPressed, isNull);
+
+      await tester.tap(find.byKey(const Key('select-manga-1:2')));
+      await tester.pump();
+
+      final enabledButton = tester.widget<OutlinedButton>(
+        find.byKey(const Key('download-selected')),
+      );
+      expect(enabledButton.onPressed, isNotNull);
+    });
+
+    testWidgets('Download Selected queues selected chapters and shows snackbar',
+        (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository();
+      final fakeDownloads = _RecordingDownloadsRepository(
+        chaptersResponse: const QueueDownloadResponse(
+          queued: [1, 2],
+          skipped: ['manga-1:3'],
+        ),
+      );
+      await _pumpScreen(
+        tester,
+        updatesRepo: fakeUpdates,
+        downloadsRepo: fakeDownloads,
+        chapters: [
+          _chapter(id: 'manga-1:1', number: 1, title: 'Chapter 1'),
+          _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
+        ],
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byKey(const Key('select-manga-1:1')));
+      await tester.tap(find.byKey(const Key('select-manga-1:2')));
+      await tester.pump();
+
+      await tester.tap(find.byKey(const Key('download-selected')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(fakeDownloads.lastChapterIds, ['manga-1:1', 'manga-1:2']);
+      expect(find.text('Queued 2 chapters'), findsOneWidget);
+      expect(find.text('Skipped 1 already downloaded'), findsOneWidget);
+      expect(find.text('Downloads'), findsOneWidget);
+    });
+
+    testWidgets('Download Series queues the series and shows snackbar',
+        (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository();
+      final fakeDownloads = _RecordingDownloadsRepository(
+        seriesResponse: const QueueDownloadResponse(
+          queued: [1, 2, 3],
+          skipped: [],
+        ),
+      );
+      await _pumpScreen(
+        tester,
+        updatesRepo: fakeUpdates,
+        downloadsRepo: fakeDownloads,
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byKey(const Key('download-series')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(fakeDownloads.queueSeriesCalled, isTrue);
+      expect(find.text('Queued 3 chapters'), findsOneWidget);
+    });
+
+    testWidgets('per-chapter download button queues one chapter', (tester) async {
+      final fakeUpdates = _FakeUpdatesRepository();
+      final fakeDownloads = _RecordingDownloadsRepository(
+        chaptersResponse: const QueueDownloadResponse(queued: [9], skipped: []),
+      );
+      await _pumpScreen(
+        tester,
+        updatesRepo: fakeUpdates,
+        downloadsRepo: fakeDownloads,
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byKey(const Key('download-manga-1:1')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(fakeDownloads.lastChapterIds, ['manga-1:1']);
+      expect(find.text('Queued 1 chapter'), findsOneWidget);
+    });
+
+    testWidgets('snackbar Downloads action navigates to downloads screen',
+        (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final fakeUpdates = _FakeUpdatesRepository();
+      final fakeDownloads = _RecordingDownloadsRepository();
+
+      String? navigatedLocation;
+      final router = GoRouter(
+        initialLocation: '/sources/mangadex/series/manga-1',
+        routes: [
+          GoRoute(
+            path: '/sources/:sourceId/series/:seriesId',
+            builder: (_, state) => SourceSeriesDetailScreen(
+              sourceId: state.pathParameters['sourceId']!,
+              seriesId: state.pathParameters['seriesId']!,
+            ),
+          ),
+          GoRoute(
+            path: RoutePaths.downloads,
+            builder: (_, state) {
+              navigatedLocation = state.uri.toString();
+              return const Scaffold(body: Center(child: Text('DOWNLOADS')));
+            },
+          ),
+        ],
+      );
+
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            sharedPrefsProvider.overrideWithValue(prefs),
+            apiBaseUrlProvider.overrideWithValue('http://example.test'),
+            sourcesRepositoryProvider.overrideWithValue(
+              _FakeSourcesRepository(
+                _series(),
+                [_chapter(id: 'manga-1:1', number: 1)],
+              ),
+            ),
+            updatesRepositoryProvider.overrideWithValue(fakeUpdates),
+            downloadsRepositoryProvider.overrideWithValue(fakeDownloads),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byKey(const Key('download-series')));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('Downloads'));
+      await tester.pumpAndSettle();
+
+      expect(navigatedLocation, RoutePaths.downloads);
+      expect(find.text('DOWNLOADS'), findsOneWidget);
     });
   });
 }
