@@ -66,12 +66,35 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() async {
+    final current = state.valueOrNull;
+    if (current == null) {
+      state = const AsyncLoading();
+      state = await AsyncValue.guard(() async {
+        final data = await _fetch();
+        _schedulePolling(data.items);
+        return data;
+      });
+      return;
+    }
+
+    try {
       final data = await _fetch();
       _schedulePolling(data.items);
-      return data;
-    });
+      state = AsyncData(
+        current.copyWith(
+          items: data.items,
+          metrics: data.metrics,
+          clearActionError: true,
+        ),
+      );
+    } catch (error, stackTrace) {
+      state = AsyncError(
+        error is AppError
+            ? error
+            : UnknownError(message: error.toString(), cause: error),
+        stackTrace,
+      );
+    }
   }
 
   Future<void> _silentRefresh() async {
