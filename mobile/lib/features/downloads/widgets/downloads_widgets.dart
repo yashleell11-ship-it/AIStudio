@@ -356,37 +356,50 @@ class DownloadRow extends StatelessWidget {
 }
 
 class CompletedDownloadRow extends StatelessWidget {
-  const CompletedDownloadRow({super.key, required this.item});
+  const CompletedDownloadRow({
+    super.key,
+    required this.item,
+    this.onTap,
+  });
 
   final DownloadItem item;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      decoration: BoxDecoration(
-        color: AppColors.fg.withAlpha(5),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        key: Key('completed-download-${item.id}'),
+        onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: AppColors.border.withAlpha(77)),
-      ),
-      child: Row(
-        children: [
-          DownloadThumbnail(title: item.seriesTitle),
-          const SizedBox(width: AppSpacing.lg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(item.seriesTitle, style: AppTypography.labelLg),
-                Text(
-                  '${item.chapterTitle} · ${formatDownloadBytes(item.bytesDownloaded)}',
-                  style: AppTypography.bodySm.copyWith(color: AppColors.muted),
-                ),
-              ],
-            ),
+        child: Container(
+          padding: const EdgeInsets.all(AppSpacing.lg),
+          decoration: BoxDecoration(
+            color: AppColors.fg.withAlpha(5),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
+            border: Border.all(color: AppColors.border.withAlpha(77)),
           ),
-          const Icon(Icons.check_circle, color: AppColors.success),
-        ],
+          child: Row(
+            children: [
+              DownloadThumbnail(title: item.seriesTitle),
+              const SizedBox(width: AppSpacing.lg),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(item.seriesTitle, style: AppTypography.labelLg),
+                    Text(
+                      '${item.chapterTitle} · ${formatDownloadBytes(item.bytesDownloaded)}',
+                      style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.check_circle, color: AppColors.success),
+            ],
+          ),
+        ),
       ),
     );
   }

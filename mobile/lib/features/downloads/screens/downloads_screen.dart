@@ -7,6 +7,7 @@ import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.
 import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
 import 'package:aistudio_mobile/features/downloads/widgets/downloads_skeleton.dart';
 import 'package:aistudio_mobile/features/downloads/widgets/downloads_widgets.dart';
+import 'package:aistudio_mobile/features/reader/utils/local_reader_handoff.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -208,7 +209,12 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
       if (_completedOpen) ...[
         const SizedBox(height: AppSpacing.md),
         for (final item in completedItems) ...[
-          CompletedDownloadRow(item: item),
+          CompletedDownloadRow(
+            item: item,
+            onTap: item.localChapterId != null
+                ? () => openDownloadedChapter(context, ref, item)
+                : null,
+          ),
           const SizedBox(height: AppSpacing.sm),
         ],
       ],
