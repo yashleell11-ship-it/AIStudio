@@ -955,6 +955,18 @@ void main() {
           retryCount: 0,
         );
 
+    Future<void> _scrollToChapterWidget(
+      WidgetTester tester,
+      Finder finder,
+    ) async {
+      await tester.scrollUntilVisible(
+        finder,
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
+      await tester.pump();
+    }
+
     Future<void> _pumpWithStatuses(
       WidgetTester tester,
       List<DownloadItem> downloadItems,
@@ -971,8 +983,7 @@ void main() {
         ],
         downloadItems: downloadItems,
       );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
     }
 
     testWidgets('shows chapter download badges from downloads state', (tester) async {
@@ -982,6 +993,10 @@ void main() {
         _statusItem(chapterId: 'manga-1:3', status: 'completed'),
         _statusItem(chapterId: 'manga-1:4', status: 'failed'),
       ]);
+
+      for (final label in ['Queued', 'Downloading', 'Completed', 'Failed']) {
+        await _scrollToChapterWidget(tester, find.text(label));
+      }
 
       expect(find.text('Queued'), findsOneWidget);
       expect(find.text('Downloading'), findsOneWidget);
@@ -999,26 +1014,18 @@ void main() {
         _statusItem(chapterId: 'manga-1:5', status: 'cancelled'),
       ]);
 
-      expect(
-        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:1'))).onPressed,
-        isNull,
-      );
-      expect(
-        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:2'))).onPressed,
-        isNull,
-      );
-      expect(
-        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:3'))).onPressed,
-        isNull,
-      );
-      expect(
-        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:4'))).onPressed,
-        isNotNull,
-      );
-      expect(
-        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:5'))).onPressed,
-        isNotNull,
-      );
+      final disabledChapterIds = ['manga-1:1', 'manga-1:2', 'manga-1:3'];
+      for (final chapterId in disabledChapterIds) {
+        final finder = find.byKey(Key('download-$chapterId'));
+        await _scrollToChapterWidget(tester, finder);
+        expect(tester.widget<IconButton>(finder).onPressed, isNull);
+      }
+
+      for (final chapterId in ['manga-1:4', 'manga-1:5']) {
+        final finder = find.byKey(Key('download-$chapterId'));
+        await _scrollToChapterWidget(tester, finder);
+        expect(tester.widget<IconButton>(finder).onPressed, isNotNull);
+      }
     });
 
     testWidgets('failed chapter download button remains retryable', (tester) async {
@@ -1049,15 +1056,14 @@ void main() {
         ],
       );
 
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       final buttonFinder = find.byKey(const Key('download-manga-1:4'));
+      await _scrollToChapterWidget(tester, buttonFinder);
       expect(tester.widget<IconButton>(buttonFinder).onPressed, isNotNull);
 
       await tester.tap(buttonFinder);
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
+      await tester.pumpAndSettle();
 
       expect(fakeDownloads.lastChapterIds, ['manga-1:4']);
     });
