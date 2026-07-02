@@ -8,12 +8,14 @@ import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
+import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
+import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
+import 'package:aistudio_mobile/features/library/utils/library_preferences.dart';
 import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
@@ -22,6 +24,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeLibraryRepository implements LibraryRepository {
+  _FakeLibraryRepository(this._items);
+
+  final List<SeriesSummary> _items;
+  String? lastSearch;
+  String? lastReadingStatus;
+  String? lastSort;
+
   @override
   Future<Result<PagedResult<SeriesSummary>>> listSeries({
     int page = 1,
@@ -34,36 +43,16 @@ class _FakeLibraryRepository implements LibraryRepository {
     int? tagId,
     bool? isFavorite,
   }) async {
+    lastSort = sort;
+    lastReadingStatus = readingStatus;
+    var items = List<SeriesSummary>.from(_items);
+    if (readingStatus != null) {
+      items = items.where((item) => item.readingStatus == readingStatus).toList();
+    }
     return Ok(
       PagedResult(
-        items: [
-          SeriesSummary(
-            id: 1,
-            libraryId: 1,
-            title: 'Solo Leveling',
-            sortTitle: 'solo leveling',
-            contentRating: 'teen',
-            language: 'ko',
-            folderPath: '/library/solo-leveling',
-            isFavorite: true,
-            readingStatus: 'reading',
-            chapterCount: 179,
-            readChapters: 50,
-            pageCount: 3580,
-            totalChapters: 179,
-            totalPages: 3580,
-            createdAt: DateTime(2024, 1, 1),
-            updatedAt: DateTime(2024, 6, 1),
-            readingProgress: ReadingProgress(
-              seriesId: 1,
-              chapterId: 150,
-              lastPage: 10,
-              progressPct: 27.9,
-              lastReadAt: DateTime(2024, 6, 1),
-            ),
-          ),
-        ],
-        total: 1,
+        items: items,
+        total: items.length,
         page: 1,
         perPage: 20,
         hasNext: false,
@@ -144,8 +133,13 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) async =>
-      const Ok([]);
+  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) async {
+    lastSearch = query;
+    final items = _items
+        .where((item) => item.title.toLowerCase().contains(query.toLowerCase()))
+        .toList();
+    return Ok(items);
+  }
 
   @override
   Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
@@ -184,7 +178,7 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 }
 
-Future<Widget> _buildTestApp() async {
+Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
@@ -192,7 +186,54 @@ Future<Widget> _buildTestApp() async {
     overrides: [
       apiBaseUrlProvider.overrideWithValue('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
-      libraryRepositoryProvider.overrideWithValue(_FakeLibraryRepository()),
+      libraryRepositoryProvider.overrideWithValue(
+        repo ??
+            _FakeLibraryRepository([
+              SeriesSummary(
+                id: 1,
+                libraryId: 1,
+                title: 'Solo Leveling',
+                sortTitle: 'solo leveling',
+                contentRating: 'teen',
+                language: 'ko',
+                folderPath: '/library/solo-leveling',
+                isFavorite: true,
+                readingStatus: 'reading',
+                chapterCount: 179,
+                readChapters: 50,
+                pageCount: 3580,
+                totalChapters: 179,
+                totalPages: 3580,
+                createdAt: DateTime(2024, 1, 1),
+                updatedAt: DateTime(2024, 6, 1),
+                readingProgress: ReadingProgress(
+                  seriesId: 1,
+                  chapterId: 150,
+                  lastPage: 10,
+                  progressPct: 27.9,
+                  lastReadAt: DateTime(2024, 6, 1),
+                ),
+              ),
+              SeriesSummary(
+                id: 2,
+                libraryId: 1,
+                title: 'Tower of God',
+                sortTitle: 'tower of god',
+                contentRating: 'teen',
+                language: 'ko',
+                folderPath: '/library/tog',
+                isFavorite: false,
+                readingStatus: 'completed',
+                chapterCount: 120,
+                readChapters: 120,
+                pageCount: 2400,
+                totalChapters: 120,
+                totalPages: 2400,
+                createdAt: DateTime(2024, 2, 1),
+                updatedAt: DateTime(2024, 7, 1),
+              ),
+            ]),
+      ),
     ],
     child: const MaterialApp(home: LibraryScreen()),
   );
@@ -219,6 +260,114 @@ void main() {
       await tester.pump();
 
       expect(find.text('No results found'), findsOneWidget);
+    });
+
+    testWidgets('search filters visible series', (tester) async {
+      final repo = _FakeLibraryRepository([
+        SeriesSummary(
+          id: 1,
+          libraryId: 1,
+          title: 'Solo Leveling',
+          sortTitle: 'solo leveling',
+          contentRating: 'teen',
+          language: 'ko',
+          folderPath: '/library/solo-leveling',
+          isFavorite: false,
+          readingStatus: 'reading',
+          chapterCount: 10,
+          readChapters: 1,
+          pageCount: 100,
+          totalChapters: 10,
+          totalPages: 100,
+          createdAt: DateTime(2024, 1, 1),
+          updatedAt: DateTime(2024, 6, 1),
+        ),
+        SeriesSummary(
+          id: 2,
+          libraryId: 1,
+          title: 'Tower of God',
+          sortTitle: 'tower of god',
+          contentRating: 'teen',
+          language: 'ko',
+          folderPath: '/library/tog',
+          isFavorite: false,
+          readingStatus: 'completed',
+          chapterCount: 10,
+          readChapters: 10,
+          pageCount: 100,
+          totalChapters: 10,
+          totalPages: 100,
+          createdAt: DateTime(2024, 2, 1),
+          updatedAt: DateTime(2024, 7, 1),
+        ),
+      ]);
+
+      await tester.pumpWidget(await _buildTestApp(repo: repo));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'Tower');
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+
+      expect(repo.lastSearch, 'Tower');
+      expect(find.text('Tower of God'), findsWidgets);
+      expect(find.text('Solo Leveling'), findsNothing);
+    });
+
+    testWidgets('completed filter requests completed reading status', (tester) async {
+      final repo = _FakeLibraryRepository([
+        SeriesSummary(
+          id: 2,
+          libraryId: 1,
+          title: 'Tower of God',
+          sortTitle: 'tower of god',
+          contentRating: 'teen',
+          language: 'ko',
+          folderPath: '/library/tog',
+          isFavorite: false,
+          readingStatus: 'completed',
+          chapterCount: 10,
+          readChapters: 10,
+          pageCount: 100,
+          totalChapters: 10,
+          totalPages: 100,
+          createdAt: DateTime(2024, 2, 1),
+          updatedAt: DateTime(2024, 7, 1),
+        ),
+      ]);
+
+      await tester.pumpWidget(await _buildTestApp(repo: repo));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Completed'));
+      await tester.pumpAndSettle();
+
+      expect(repo.lastReadingStatus, 'completed');
+      expect(find.text('Tower of God'), findsWidgets);
+    });
+
+    testWidgets('sort change updates query and persists', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            apiBaseUrlProvider.overrideWithValue('http://127.0.0.1:8000'),
+            sharedPrefsProvider.overrideWithValue(prefs),
+            libraryRepositoryProvider.overrideWithValue(_FakeLibraryRepository([])),
+          ],
+          child: const MaterialApp(home: LibraryScreen()),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byType(DropdownButtonFormField<LibrarySort>));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Recently Added').last);
+      await tester.pumpAndSettle();
+
+      expect(readLibraryQuery(prefs).sort, LibrarySort.dateAdded);
     });
   });
 }

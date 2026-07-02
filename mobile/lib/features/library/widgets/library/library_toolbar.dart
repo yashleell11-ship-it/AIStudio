@@ -12,7 +12,6 @@ class LibraryToolbar extends StatefulWidget {
     required this.onSearchChanged,
     required this.onSortChanged,
     required this.onFilterChanged,
-    required this.onFavoritesChanged,
     required this.onViewModeChanged,
   });
 
@@ -21,7 +20,6 @@ class LibraryToolbar extends StatefulWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<LibrarySort> onSortChanged;
   final ValueChanged<LibraryFilter> onFilterChanged;
-  final ValueChanged<bool> onFavoritesChanged;
   final ValueChanged<LibraryViewMode> onViewModeChanged;
 
   @override
@@ -95,29 +93,15 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
-              for (final filter in LibraryFilter.values)
+              for (final filter in libraryBrowseFilterOptions)
                 Padding(
                   padding: const EdgeInsets.only(right: AppSpacing.sm),
                   child: _FilterChip(
                     label: filter.label,
-                    selected:
-                        widget.query.filter == filter && !widget.query.favoritesOnly,
-                    onTap: () {
-                      widget.onFilterChanged(filter);
-                      if (widget.query.favoritesOnly) {
-                        widget.onFavoritesChanged(false);
-                      }
-                    },
+                    selected: widget.query.filter == filter,
+                    onTap: () => widget.onFilterChanged(filter),
                   ),
                 ),
-              _FilterChip(
-                label: '★ Favorites',
-                selected: widget.query.favoritesOnly,
-                selectedColor: AppColors.warning.withAlpha(51),
-                selectedTextColor: AppColors.warning,
-                onTap: () =>
-                    widget.onFavoritesChanged(!widget.query.favoritesOnly),
-              ),
             ],
           ),
         ),
@@ -128,7 +112,7 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
             labelText: 'Sort',
             isDense: true,
           ),
-          items: LibrarySort.values
+          items: libraryBrowseSortOptions
               .map(
                 (sort) => DropdownMenuItem(
                   value: sort,

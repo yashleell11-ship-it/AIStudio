@@ -34,7 +34,8 @@ Collection _sampleCollection({required int id, required String name}) {
 }
 
 class _FakeCollectionsRepository implements LibraryRepository {
-  _FakeCollectionsRepository({this.collections = const []});
+  _FakeCollectionsRepository({List<Collection>? collections})
+      : collections = collections ?? [];
 
   final List<Collection> collections;
 
@@ -237,6 +238,30 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Retry'), findsOneWidget);
+    });
+
+    testWidgets('creates a collection from the dialog', (tester) async {
+      final repo = _FakeCollectionsRepository();
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [libraryRepositoryProvider.overrideWithValue(repo)],
+          child: const MaterialApp(home: CollectionsScreen()),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.byTooltip('New Collection'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).first, 'Must Read');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Create'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Must Read'), findsWidgets);
+      expect(find.text('1 collection'), findsOneWidget);
     });
   });
 }

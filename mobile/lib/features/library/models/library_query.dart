@@ -1,4 +1,4 @@
-enum LibraryFilter { all, reading, unread }
+enum LibraryFilter { all, downloaded, reading, completed }
 
 enum LibrarySort {
   updated,
@@ -14,10 +14,25 @@ enum LibraryViewMode { grid, list }
 
 enum LibraryEmptyState { library, search, filter }
 
+/// Sort options exposed on the library browse screen.
+const libraryBrowseSortOptions = [
+  LibrarySort.recent,
+  LibrarySort.dateAdded,
+  LibrarySort.title,
+];
+
+/// Filter chips exposed on the library browse screen.
+const libraryBrowseFilterOptions = [
+  LibraryFilter.all,
+  LibraryFilter.downloaded,
+  LibraryFilter.reading,
+  LibraryFilter.completed,
+];
+
 class LibraryQuery {
   const LibraryQuery({
     this.search = '',
-    this.sort = LibrarySort.updated,
+    this.sort = LibrarySort.recent,
     this.filter = LibraryFilter.all,
     this.favoritesOnly = false,
     this.viewMode = LibraryViewMode.grid,
@@ -39,12 +54,12 @@ class LibraryQuery {
     return LibraryEmptyState.library;
   }
 
-  String? get statusParam {
+  String? get readingStatusParam {
     if (isSearching) return null;
     return switch (filter) {
-      LibraryFilter.all => null,
+      LibraryFilter.all || LibraryFilter.downloaded => null,
       LibraryFilter.reading => 'reading',
-      LibraryFilter.unread => 'unread',
+      LibraryFilter.completed => 'completed',
     };
   }
 
@@ -92,7 +107,7 @@ extension LibrarySortLabel on LibrarySort {
   String get label => switch (this) {
         LibrarySort.updated => 'Recently Updated',
         LibrarySort.dateAdded => 'Recently Added',
-        LibrarySort.title => 'Title',
+        LibrarySort.title => 'Alphabetical',
         LibrarySort.recent => 'Recently Read',
         LibrarySort.author => 'Author',
         LibrarySort.year => 'Year',
@@ -103,7 +118,8 @@ extension LibrarySortLabel on LibrarySort {
 extension LibraryFilterLabel on LibraryFilter {
   String get label => switch (this) {
         LibraryFilter.all => 'All',
+        LibraryFilter.downloaded => 'Downloaded',
         LibraryFilter.reading => 'Reading',
-        LibraryFilter.unread => 'Not Started',
+        LibraryFilter.completed => 'Completed',
       };
 }
