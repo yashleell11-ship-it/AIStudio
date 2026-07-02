@@ -1,31 +1,14 @@
 import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
+import 'package:aistudio_mobile/features/sources/providers/source_reader_provider.dart';
+import 'package:aistudio_mobile/features/sources/utils/source_reader_offline.dart';
+import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// Arguments for [sourceReaderChapterProvider].
-class SourceReaderChapterArgs {
-  const SourceReaderChapterArgs({
-    required this.sourceId,
-    required this.seriesId,
-    required this.chapterId,
-  });
-
-  final String sourceId;
-  final String seriesId;
-  final String chapterId;
-
-  @override
-  bool operator ==(Object other) =>
-      other is SourceReaderChapterArgs &&
-      other.sourceId == sourceId &&
-      other.seriesId == seriesId &&
-      other.chapterId == chapterId;
-
-  @override
-  int get hashCode => Object.hash(sourceId, seriesId, chapterId);
-}
-
 /// Fetches the unified reader payload for an online source chapter.
+///
+/// When the online fetch fails, attempts to open a completed local download
+/// for the same source chapter before surfacing the error.
 final sourceReaderChapterProvider = FutureProvider.autoDispose
     .family<ReaderChapter, SourceReaderChapterArgs>((ref, args) async {
   final repo = ref.watch(sourcesRepositoryProvider);
@@ -34,6 +17,23 @@ final sourceReaderChapterProvider = FutureProvider.autoDispose
     args.seriesId,
     args.chapterId,
   );
-  if (result.isErr) throw result.error;
-  return result.value;
+  if (result.isOk) return result.value;
+
+  final offline = await resolveSourceReaderOfflineHandoff(
+    downloadsRepository: ref.read(downloadsRepositoryProvider),
+    libraryRepository: ref.read(libraryRepositoryProvider),
+    args: args,
+  );
+  if (offline != null) {
+    final chapterResult =
+        await ref.read(libraryRepositoryProvider).getChapter(offline.chapterId);
+    if (chapterResult.isOk) {
+      return readerChapterFromLibraryDetail(
+        chapterResult.value,
+        ref.read(apiBaseUrlProvider),
+      );
+    }
+  }
+
+  throw result.error;
 });

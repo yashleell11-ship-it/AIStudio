@@ -30,9 +30,9 @@ final preferencesProvider = Provider<PreferencesService>(
 
 /// The resolved API base URL — runtime value from secure storage or compile-time default.
 ///
-/// Must be overridden in ProviderScope after the secure storage read completes.
-final apiBaseUrlProvider = Provider<String>(
-  (_) => Env.defaultApiUrl,
+/// Updated live from Settings without requiring an app restart.
+final apiBaseUrlProvider = StateProvider<String>(
+  (ref) => Env.defaultApiUrl,
   name: 'apiBaseUrl',
 );
 

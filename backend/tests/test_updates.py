@@ -167,6 +167,53 @@ def test_check_tracker_detects_new_chapters(db_session: Session) -> None:
     assert notifications[0].chapter_id == "ch-2"
 
 
+def test_auto_download_queues_new_chapters_when_enabled(db_session: Session) -> None:
+    from services.update_auto_download import auto_download_new_chapters
+    from services.update_service import register_new_chapters_callback
+
+    register_new_chapters_callback(auto_download_new_chapters)
+
+    tracker = SeriesTracker(
+        source="mangadex",
+        series_id="series-1",
+        series_title="Series",
+        track_kind="followed",
+        known_chapter_ids='["ch-1"]',
+        auto_download=True,
+    )
+    db_session.add(tracker)
+    db_session.flush()
+
+    service = UpdateService(db_session)
+    settings = service.get_global_settings()
+    service.update_global_settings({"auto_download_enabled": True})
+    settings = service.get_global_settings()
+
+    mock_connector = MagicMock()
+    mock_connector.get_chapters.return_value = [
+        _chapter("ch-1", number=1),
+        _chapter("ch-2", number=2, title="New Chapter"),
+    ]
+    mock_connector.get_series.return_value = MagicMock(title="Series")
+
+    with patch("services.update_service.create_connector", return_value=mock_connector):
+        with patch("services.download_service.create_connector", return_value=mock_connector):
+            new_count = service._check_tracker(tracker, settings)
+
+    assert new_count == 1
+    downloads = (
+        db_session.query(Download)
+        .filter(
+            Download.source == "mangadex",
+            Download.series_id == "series-1",
+            Download.chapter_id == "ch-2",
+        )
+        .all()
+    )
+    assert len(downloads) == 1
+    assert downloads[0].status == "queued"
+
+
 def test_run_check_records_run(db_session: Session) -> None:
     tracker = SeriesTracker(
         source="mangadex",

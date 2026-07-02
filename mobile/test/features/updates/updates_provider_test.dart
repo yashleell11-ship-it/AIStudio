@@ -21,6 +21,37 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   Completer<void>? followGate;
   int deleteCallCount = 0;
   int followCallCount = 0;
+  int? lastAutoDownloadTrackerId;
+  bool? lastAutoDownloadValue;
+
+  @override
+  Future<Result<void>> updateTracker(
+    int trackerId, {
+    bool? autoDownload,
+  }) async {
+    lastAutoDownloadTrackerId = trackerId;
+    lastAutoDownloadValue = autoDownload;
+    trackers = [
+      for (final tracker in trackers)
+        if (tracker.id == trackerId && autoDownload != null)
+          SeriesTracker(
+            id: tracker.id,
+            source: tracker.source,
+            seriesId: tracker.seriesId,
+            seriesTitle: tracker.seriesTitle,
+            trackKind: tracker.trackKind,
+            enabled: tracker.enabled,
+            notify: tracker.notify,
+            autoDownload: autoDownload,
+            knownChapterCount: tracker.knownChapterCount,
+            lastCheckedAt: tracker.lastCheckedAt,
+            lastError: tracker.lastError,
+          )
+        else
+          tracker,
+    ];
+    return const Ok(null);
+  }
 
   @override
   Future<Result<void>> followSeries({
@@ -194,6 +225,29 @@ void main() {
       expect(container.read(updatesProvider).valueOrNull?.actionPending, isFalse);
     });
   });
+
+  group('UpdatesNotifier.setTrackerAutoDownload', () {
+    test('persists auto-download flag via repository', () async {
+      final repo = _FakeUpdatesRepository(trackers: [_tracked]);
+      final container = ProviderContainer(
+        overrides: [updatesRepositoryProvider.overrideWithValue(repo)],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(updatesProvider.future);
+      final notifier = container.read(updatesProvider.notifier);
+
+      final error = await notifier.setTrackerAutoDownload(42, true);
+
+      expect(error, isNull);
+      expect(repo.lastAutoDownloadTrackerId, 42);
+      expect(repo.lastAutoDownloadValue, isTrue);
+      expect(
+        container.read(updatesProvider).valueOrNull?.trackers.first.autoDownload,
+        isTrue,
+      );
+    });
+  });
 }
 
 /// Repository whose [deleteTracker] always fails, to exercise the
@@ -233,6 +287,13 @@ class _FailingDeleteRepository implements UpdatesRepository {
 
   @override
   Future<Result<void>> markAllRead() async => const Ok(null);
+
+  @override
+  Future<Result<void>> updateTracker(
+    int trackerId, {
+    bool? autoDownload,
+  }) async =>
+      const Ok(null);
 
   @override
   Future<Result<void>> triggerCheck() async => const Ok(null);

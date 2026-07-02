@@ -11,6 +11,7 @@ abstract final class _Keys {
   static const String keepScreenAwake = 'settings_keep_screen_awake';
   static const String autoNextChapter = 'settings_auto_next_chapter';
   static const String wifiOnlyDownloads = 'settings_wifi_only_downloads';
+  static const String setupCompleted = 'settings_setup_completed';
 }
 
 /// Light preferences that do not need encryption.
@@ -74,4 +75,8 @@ class PreferencesService {
   bool get wifiOnlyDownloads => _prefs.getBool(_Keys.wifiOnlyDownloads) ?? false;
   Future<void> setWifiOnlyDownloads(bool value) =>
       _prefs.setBool(_Keys.wifiOnlyDownloads, value);
+
+  bool get setupCompleted => _prefs.getBool(_Keys.setupCompleted) ?? false;
+  Future<void> setSetupCompleted(bool value) =>
+      _prefs.setBool(_Keys.setupCompleted, value);
 }

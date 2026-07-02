@@ -35,6 +35,9 @@ abstract final class Routes {
 
   // ── Settings ──────────────────────────────────────────────────────────────
   static const String settings = '/settings';
+
+  // ── First-run setup ───────────────────────────────────────────────────────
+  static const String setup = '/setup';
 }
 
 /// Helper for building concrete paths with parameters filled in.
