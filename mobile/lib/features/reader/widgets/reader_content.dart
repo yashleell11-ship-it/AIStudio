@@ -225,12 +225,18 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
   void _maybeAutoNextChapter(bool atBottom) {
     if (!atBottom || widget.onNextChapter == null || _autoNextTriggered) {
+      // Leaving bottom (or nothing to do): cancel any pending countdown.
       _autoNextTimer?.cancel();
       _autoNextTimer = null;
       return;
     }
 
-    _autoNextTimer?.cancel();
+    // Remaining at bottom: a countdown is already running (started the
+    // moment we first reached bottom) — repeated scroll/image-load events
+    // must not restart it, or auto-next could be delayed indefinitely.
+    if (_autoNextTimer != null) return;
+
+    // Returning to bottom: start exactly one countdown.
     _autoNextTimer = Timer(const Duration(milliseconds: _autoNextChapterMs), () {
       if (!mounted || _autoNextTriggered) return;
       _autoNextTriggered = true;

@@ -38,6 +38,34 @@ ReaderChapter _sampleChapter({
   );
 }
 
+/// A chapter tall enough that its total content height clearly exceeds the
+/// test viewport (430x932), so "at bottom" and "at top" are genuinely
+/// distinct scroll states. The 2-page [_sampleChapter] is too short for
+/// that: its total height is smaller than the viewport, so the "at bottom"
+/// threshold check is trivially true at every scroll position, including
+/// the very top — any test asserting on leaving/returning to bottom needs
+/// this fixture instead.
+ReaderChapter _tallChapter({String? nextChapterId}) {
+  return ReaderChapter(
+    id: '1',
+    seriesId: '1',
+    title: 'Chapter 1',
+    pageCount: 6,
+    mode: ReaderMode.local,
+    nextChapterId: nextChapterId,
+    pages: List.generate(
+      6,
+      (index) => ReaderPage(
+        id: '${101 + index}',
+        number: index + 1,
+        imageUrl: 'http://example.test/reader/page/${101 + index}/image',
+        width: 800,
+        height: 1200,
+      ),
+    ),
+  );
+}
+
 Future<SharedPreferences> _freshPrefs() async {
   SharedPreferences.setMockInitialValues({});
   return SharedPreferences.getInstance();
@@ -330,5 +358,196 @@ void main() {
 
       expect(nextCalls, 1);
     });
+
+    testWidgets(
+      'does not restart the auto-next countdown on repeated scroll events '
+      'while remaining at the bottom',
+      (tester) async {
+        final prefs = await _freshPrefs();
+        await tester.binding.setSurfaceSize(const Size(430, 932));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        var nextCalls = 0;
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: _tallChapter(nextChapterId: '2'),
+              scrollStorageKey: '1',
+              onBack: () {},
+              onNextChapter: () => nextCalls++,
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final controller =
+            tester.widget<ListView>(find.byType(ListView)).controller!;
+        final maxExtent = controller.position.maxScrollExtent;
+        expect(maxExtent, greaterThan(500), reason: 'fixture must be scrollable');
+
+        // Reach the bottom: this arms the countdown (fires at +900ms).
+        controller.jumpTo(maxExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Simulate late-arriving scroll notifications (e.g. an image
+        // finishing its load) while still sitting at the bottom. A small
+        // wiggle stays within the edge threshold, so _atBottom remains
+        // true throughout and _handleScroll fires again without the reader
+        // ever leaving bottom. This must NOT push the countdown further out.
+        controller.jumpTo(maxExtent - 20);
+        await tester.pump();
+        controller.jumpTo(maxExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // 300ms (arrival) + 300ms (after wiggle) = 600ms < 900ms.
+        expect(nextCalls, 0);
+
+        // Advance past the ORIGINAL 900ms window measured from the first
+        // arrival at bottom (600ms + 400ms = 1000ms). A buggy implementation
+        // that restarted the timer at the wiggle (t=300ms) would only fire
+        // at t=1200ms and still be 0 here.
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(nextCalls, 1);
+      },
+    );
+
+    testWidgets(
+      'cancels the auto-next countdown when leaving the bottom before it fires',
+      (tester) async {
+        final prefs = await _freshPrefs();
+        await tester.binding.setSurfaceSize(const Size(430, 932));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        var nextCalls = 0;
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: _tallChapter(nextChapterId: '2'),
+              scrollStorageKey: '1',
+              onBack: () {},
+              onNextChapter: () => nextCalls++,
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final controller =
+            tester.widget<ListView>(find.byType(ListView)).controller!;
+        final maxExtent = controller.position.maxScrollExtent;
+
+        // Reach the bottom: arms the countdown.
+        controller.jumpTo(maxExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+
+        // Leave the bottom well before the 900ms window elapses.
+        controller.jumpTo(0);
+        await tester.pump();
+
+        // Wait well past the original window; the countdown must have been
+        // cancelled on leaving, not merely left to fire later.
+        await tester.pump(const Duration(milliseconds: 1200));
+
+        expect(nextCalls, 0);
+      },
+    );
+
+    testWidgets(
+      'returning to the bottom starts exactly one new countdown',
+      (tester) async {
+        final prefs = await _freshPrefs();
+        await tester.binding.setSurfaceSize(const Size(430, 932));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        var nextCalls = 0;
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: _tallChapter(nextChapterId: '2'),
+              scrollStorageKey: '1',
+              onBack: () {},
+              onNextChapter: () => nextCalls++,
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final controller =
+            tester.widget<ListView>(find.byType(ListView)).controller!;
+        final maxExtent = controller.position.maxScrollExtent;
+
+        // Reach bottom, then leave before it fires (cancels the countdown).
+        controller.jumpTo(maxExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        controller.jumpTo(0);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(nextCalls, 0);
+
+        // Return to bottom: exactly one fresh countdown starts here.
+        controller.jumpTo(maxExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 700));
+        // Only 700ms since returning: must not have fired yet.
+        expect(nextCalls, 0);
+
+        await tester.pump(const Duration(milliseconds: 300));
+        // 1000ms since returning: the single fresh countdown has fired once.
+        expect(nextCalls, 1);
+      },
+    );
+
+    testWidgets(
+      'auto-next fires exactly once even with further scroll activity at bottom',
+      (tester) async {
+        final prefs = await _freshPrefs();
+        await tester.binding.setSurfaceSize(const Size(430, 932));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        var nextCalls = 0;
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: _tallChapter(nextChapterId: '2'),
+              scrollStorageKey: '1',
+              onBack: () {},
+              onNextChapter: () => nextCalls++,
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final controller =
+            tester.widget<ListView>(find.byType(ListView)).controller!;
+        final maxExtent = controller.position.maxScrollExtent;
+
+        controller.jumpTo(maxExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 1000));
+
+        expect(nextCalls, 1);
+
+        // Further scroll wiggles at bottom after firing must not fire again.
+        controller.jumpTo(maxExtent - 20);
+        await tester.pump();
+        controller.jumpTo(maxExtent);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 1000));
+
+        expect(nextCalls, 1);
+      },
+    );
   });
 }
