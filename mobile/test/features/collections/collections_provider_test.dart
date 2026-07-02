@@ -82,6 +82,7 @@ class _CollectionsRepo implements LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   }) =>
       throw UnimplementedError();
 

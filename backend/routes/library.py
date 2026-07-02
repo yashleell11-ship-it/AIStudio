@@ -147,6 +147,7 @@ def list_series(
     library_id: int | None = None,
     is_favorite: bool | None = None,
     language: str | None = None,
+    has_chapters: bool | None = None,
 ) -> SeriesListResponse:
     """Return a paginated list of series in the library."""
     result = service.list_series(
@@ -161,6 +162,7 @@ def list_series(
         library_id=library_id,
         is_favorite=is_favorite,
         language=language,
+        has_chapters=has_chapters,
     )
     return SeriesListResponse(**result)
 

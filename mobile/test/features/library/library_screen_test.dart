@@ -42,6 +42,7 @@ class _FakeLibraryRepository implements LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   }) async {
     lastSort = sort;
     lastReadingStatus = readingStatus;

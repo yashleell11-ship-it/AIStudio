@@ -63,6 +63,14 @@ class LibraryQuery {
     };
   }
 
+  bool? get hasChaptersParam {
+    if (isSearching) return null;
+    return switch (filter) {
+      LibraryFilter.downloaded => true,
+      _ => null,
+    };
+  }
+
   String get sortParam => switch (sort) {
         LibrarySort.updated => 'updated',
         LibrarySort.dateAdded => 'date_added',

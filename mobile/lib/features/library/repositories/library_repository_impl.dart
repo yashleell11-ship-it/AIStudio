@@ -32,6 +32,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
     int? collectionId,
     int? tagId,
     bool? isFavorite,
+    bool? hasChapters,
   }) =>
       _request(
         () => _dio.get<Map<String, dynamic>>(
@@ -46,6 +47,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
             if (collectionId != null) 'collection_id': collectionId,
             if (tagId != null) 'tag_id': tagId,
             if (isFavorite != null) 'is_favorite': isFavorite,
+            if (hasChapters != null) 'has_chapters': hasChapters,
           },
         ),
         (data) => PagedResult.fromJson(data, SeriesSummary.fromJson),
