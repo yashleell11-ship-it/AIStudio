@@ -7,7 +7,9 @@ from unittest.mock import patch
 import pytest
 
 from connectors.asurascans.connector import AsuraScansConnector
+from connectors.asurascans.mappers import chapter_pages_to_pages
 from connectors.registry import create_connector, list_installed_connectors
+from services.browse_service import _serialize_page
 
 
 FIXTURES = Path(__file__).parent / "fixtures" / "asurascans"
@@ -105,6 +107,41 @@ def test_get_series_chapters_and_pages(asurascans_connector: AsuraScansConnector
     assert len(pages) == 14
     assert pages[0].remote_url is not None
     assert asurascans_connector.find_page(pages[0].id) == pages[0]
+
+
+@pytest.mark.parametrize("fixture_name", ["chapter_pages.json", "chapter_pages_mount.json"])
+def test_chapter_page_extraction_preserves_every_page(fixture_name: str):
+    """Regression: extraction must emit exactly one page per source payload entry.
+
+    Fails if even a single page is dropped, duplicated, or reordered between the
+    AsuraScans API payload and the connector's normalized page list.
+    """
+    payload = _load(fixture_name)
+    raw_pages = payload["data"]["chapter"]["pages"]
+    chapter_id = "series-x:1"
+
+    pages = chapter_pages_to_pages(chapter_id, payload)
+
+    assert len(pages) == len(raw_pages)
+    assert [page.number for page in pages] == list(range(1, len(raw_pages) + 1))
+    assert [page.remote_url for page in pages] == [entry["url"] for entry in raw_pages]
+    assert [page.id for page in pages] == [
+        f"{chapter_id}:{index}" for index in range(1, len(raw_pages) + 1)
+    ]
+
+
+@pytest.mark.parametrize("fixture_name", ["chapter_pages.json", "chapter_pages_mount.json"])
+def test_chapter_page_serialization_preserves_every_page(fixture_name: str):
+    """Regression: API serialization must keep a 1:1 mapping with extracted pages."""
+    payload = _load(fixture_name)
+    raw_pages = payload["data"]["chapter"]["pages"]
+    pages = chapter_pages_to_pages("series-x:1", payload)
+
+    serialized = [_serialize_page(page, "asurascans") for page in pages]
+
+    assert len(serialized) == len(raw_pages)
+    assert [item["number"] for item in serialized] == list(range(1, len(raw_pages) + 1))
+    assert all(item["image_url"].startswith("/sources/asurascans/pages/") for item in serialized)
 
 
 @pytest.mark.integration
