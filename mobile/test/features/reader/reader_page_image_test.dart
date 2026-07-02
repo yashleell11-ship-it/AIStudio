@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:aistudio_mobile/features/reader/widgets/reader_page_image.dart';
+import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -122,7 +123,11 @@ void main() {
           await tester.pumpWidget(
             _harness(
               width: 100,
-              child: ReaderLoadedPageImage(image: provider, semanticLabel: 'page'),
+              child: ReaderLoadedPageImage(
+                image: provider,
+                fitMode: ReaderFitMode.width,
+                semanticLabel: 'page',
+              ),
             ),
           );
           // Let the image decode and the layout settle.
@@ -149,7 +154,11 @@ void main() {
         await tester.pumpWidget(
           _harness(
             width: 100,
-            child: ReaderLoadedPageImage(image: provider, semanticLabel: 'page'),
+            child: ReaderLoadedPageImage(
+              image: provider,
+              fitMode: ReaderFitMode.width,
+              semanticLabel: 'page',
+            ),
           ),
         );
         await precacheImage(
@@ -173,6 +182,7 @@ void main() {
             imageUrl: 'http://127.0.0.1:1/never-loads.png',
             alt: 'page',
             aspectRatio: 2 / 3,
+            fitMode: ReaderFitMode.width,
           ),
         ),
       );
