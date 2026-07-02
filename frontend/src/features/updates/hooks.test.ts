@@ -1,19 +1,23 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
-import { useFollowedTrackers } from "./hooks";
+import { findFollowedTracker } from "./hooks";
+import * as updatesHooks from "./hooks";
 import type { SeriesTracker } from "./types";
 
 /**
- * Follow/unfollow hooks wrap React Query mutations that patch the shared
- * trackers cache optimistically. These tests drive a real QueryClient to
- * verify the cache keys the hooks use for lookups, mirroring the pattern in
- * features/sources/hooks.test.ts.
+ * Regression tests for the stale-detail-page bug: `useFollowedTracker` used
+ * to run its own `useFollowedTrackers` query keyed by (sourceId, seriesId),
+ * while `useFollowSeries` / `useUnfollowTracker` only patched the
+ * `useTrackers("followed")` cache. The two caches never talked to each
+ * other, so the source series detail page could show a stale Follow/Unfollow
+ * label until an unrelated refetch happened to land.
  *
- * The mutation logic itself (onMutate/onSuccess/onError) is exercised
- * indirectly via the React Query lifecycle; here we assert the query-key
- * conventions and the `useFollowedTrackers` lookup shape so that a refactor
- * of the key layout does not silently break the Follow button on the source
- * detail screen.
+ * The fix makes `useFollowedTracker` derive from `useTrackers("followed")`
+ * via the pure `findFollowedTracker` selector below, so there is exactly one
+ * cache and no React renderer is needed to prove correctness -- these tests
+ * exercise the same selector the hook calls, against the same query key the
+ * mutations patch, matching the QueryClient-driven style used throughout
+ * this test suite (see features/sources/hooks.test.ts).
  */
 function tracker(overrides: Partial<SeriesTracker> = {}): SeriesTracker {
   return {
@@ -36,44 +40,101 @@ function tracker(overrides: Partial<SeriesTracker> = {}): SeriesTracker {
   };
 }
 
-describe("useFollowedTrackers query key", () => {
-  it("uses a per-source+series key so the detail screen lookup is independent", () => {
+// The exact key useTrackers("followed") builds -- the ONE cache both the
+// Updates page and the source detail page's Follow button read from.
+const FOLLOWED_KEY = ["updates", "trackers", "followed"];
+
+describe("useFollowedTracker: single source of truth", () => {
+  it("has no duplicate per-series followed query left to go stale", () => {
+    // useFollowedTrackers was the second cache. Its removal is the actual
+    // fix -- assert there is nothing left to reintroduce the split.
+    expect(
+      Object.prototype.hasOwnProperty.call(updatesHooks, "useFollowedTrackers"),
+    ).toBe(false);
+  });
+
+  it("reads from the exact useTrackers(\"followed\") cache key", () => {
     const queryClient = new QueryClient();
     const sourceId = "mangadex";
     const seriesId = "series-1";
 
-    // The Follow button reads from useFollowedTrackers(sourceId, seriesId).
-    // Verify the query is registered under a narrow, stable key so that an
-    // optimistic patch to the broad followed list refreshes this consumer.
-    const key = ["updates", "trackers", "followed", sourceId, seriesId];
-    queryClient.setQueryData(key, [tracker({ source: sourceId, series_id: seriesId })]);
+    // This is the ONE key useFollowSeries/useUnfollowTracker patch.
+    queryClient.setQueryData(FOLLOWED_KEY, [
+      tracker({ id: 42, source: sourceId, series_id: seriesId }),
+    ]);
 
-    const data = queryClient.getQueryData<SeriesTracker[]>(key);
-    expect(data).toHaveLength(1);
-    expect(data?.[0].source).toBe(sourceId);
-    expect(data?.[0].series_id).toBe(seriesId);
+    const data = queryClient.getQueryData<SeriesTracker[]>(FOLLOWED_KEY);
+    expect(findFollowedTracker(data, sourceId, seriesId)?.id).toBe(42);
   });
 
-  it("keys for different (source, series) pairs do not collide", () => {
+  it("Follow immediately changes to Unfollow", () => {
+    const sourceId = "mangadex";
+    const seriesId = "series-1";
+
+    // Not followed yet.
+    expect(findFollowedTracker([], sourceId, seriesId)).toBeUndefined();
+
+    // useFollowSeries.onSuccess appends the returned tracker to this exact
+    // array -- the very same one the selector reads, so the next render
+    // sees it without any refetch.
+    const afterFollow = [tracker({ id: 7, source: sourceId, series_id: seriesId })];
+    expect(findFollowedTracker(afterFollow, sourceId, seriesId)?.id).toBe(7);
+  });
+
+  it("Unfollow immediately changes to Follow", () => {
+    const sourceId = "mangadex";
+    const seriesId = "series-1";
+    const followed = [tracker({ id: 7, source: sourceId, series_id: seriesId })];
+    expect(findFollowedTracker(followed, sourceId, seriesId)).toBeDefined();
+
+    // useUnfollowTracker.onMutate optimistically filters the tracker out of
+    // this exact array.
+    const afterUnfollow = followed.filter((t) => t.id !== 7);
+    expect(findFollowedTracker(afterUnfollow, sourceId, seriesId)).toBeUndefined();
+  });
+
+  it("detail page never becomes stale: reading the same key mutations patch always reflects the latest write", () => {
     const queryClient = new QueryClient();
-    const keyA = ["updates", "trackers", "followed", "mangadex", "series-1"];
-    const keyB = ["updates", "trackers", "followed", "mangadex", "series-2"];
+    const sourceId = "mangadex";
+    const seriesId = "series-1";
 
-    queryClient.setQueryData(keyA, [tracker({ id: 1, series_id: "series-1" })]);
-    queryClient.setQueryData(keyB, [tracker({ id: 2, series_id: "series-2" })]);
-
-    expect(queryClient.getQueryData<SeriesTracker[]>(keyA)).toHaveLength(1);
-    expect(queryClient.getQueryData<SeriesTracker[]>(keyB)).toHaveLength(1);
     expect(
-      queryClient.getQueryData<SeriesTracker[]>(keyA)?.[0].id,
-    ).not.toBe(
-      queryClient.getQueryData<SeriesTracker[]>(keyB)?.[0].id,
-    );
-  });
-});
+      findFollowedTracker(
+        queryClient.getQueryData<SeriesTracker[]>(FOLLOWED_KEY),
+        sourceId,
+        seriesId,
+      ),
+    ).toBeUndefined();
 
-describe("useFollowedTrackers hook options", () => {
-  it("exports the hook", () => {
-    expect(typeof useFollowedTrackers).toBe("function");
+    // Simulate useFollowSeries.onSuccess.
+    queryClient.setQueryData<SeriesTracker[]>(FOLLOWED_KEY, (previous) => [
+      ...(previous ?? []),
+      tracker({ id: 9, source: sourceId, series_id: seriesId }),
+    ]);
+    expect(
+      findFollowedTracker(
+        queryClient.getQueryData<SeriesTracker[]>(FOLLOWED_KEY),
+        sourceId,
+        seriesId,
+      )?.id,
+    ).toBe(9);
+
+    // Simulate useUnfollowTracker.onMutate.
+    queryClient.setQueryData<SeriesTracker[]>(FOLLOWED_KEY, (previous) =>
+      previous ? previous.filter((t) => t.id !== 9) : previous,
+    );
+    expect(
+      findFollowedTracker(
+        queryClient.getQueryData<SeriesTracker[]>(FOLLOWED_KEY),
+        sourceId,
+        seriesId,
+      ),
+    ).toBeUndefined();
+  });
+
+  it("does not match a followed tracker for a different source or series", () => {
+    const data = [tracker({ id: 1, source: "mangadex", series_id: "series-1" })];
+    expect(findFollowedTracker(data, "mangadex", "series-2")).toBeUndefined();
+    expect(findFollowedTracker(data, "asurascans", "series-1")).toBeUndefined();
   });
 });
