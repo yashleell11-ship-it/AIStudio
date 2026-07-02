@@ -5,17 +5,19 @@ import 'package:aistudio_mobile/app/theme/app_spacing.dart';
 import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
 import 'package:aistudio_mobile/features/reader/providers/reader_ui_provider.dart';
 import 'package:aistudio_mobile/features/reader/utils/page_layout.dart';
+import 'package:aistudio_mobile/features/reader/utils/reader_wakelock.dart';
 import 'package:aistudio_mobile/features/reader/utils/scroll_storage.dart';
 import 'package:aistudio_mobile/features/reader/widgets/reader_controls.dart';
 import 'package:aistudio_mobile/features/reader/widgets/reader_page_image.dart';
 import 'package:aistudio_mobile/features/reader/widgets/reader_shortcuts.dart';
+import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
+import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _scrollEdgeThreshold = 48.0;
 const _scrollSaveMs = 250;
 const _progressSaveMs = 500;
 const _autoNextChapterMs = 900;
@@ -69,6 +71,7 @@ class ReaderContent extends ConsumerStatefulWidget {
 class _ReaderContentState extends ConsumerState<ReaderContent> {
   late final ScrollController _scrollController;
   SharedPreferences? _prefs;
+  ReaderWakelock? _wakelock;
   Timer? _scrollSaveTimer;
   Timer? _progressSaveTimer;
   Timer? _autoNextTimer;
@@ -76,17 +79,20 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   var _pendingPage = 0;
   var _visiblePage = 1;
   var _scrollProgress = 0;
-  var _atTop = false;
-  var _atBottom = false;
+  var _atReadingStart = false;
+  var _atReadingEnd = false;
   var _bookmarkPending = false;
   var _initialScrollApplied = false;
   var _autoNextTriggered = false;
+  var _wakelockEnabled = false;
   double? _containerWidth;
+  double? _containerHeight;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     _prefs ??= ref.read(sharedPrefsProvider);
+    _wakelock ??= ref.read(readerWakelockProvider);
   }
 
   @override
@@ -95,7 +101,10 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _visiblePage = widget.initialPage.clamp(1, widget.chapter.pages.length);
     _scrollController = ScrollController()..addListener(_handleScroll);
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
-    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreInitialScroll());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _restoreInitialScroll();
+      _syncWakelock(ref.read(readerDefaultsProvider).keepScreenAwake);
+    });
   }
 
   @override
@@ -105,6 +114,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _progressSaveTimer?.cancel();
     _autoNextTimer?.cancel();
     _autoNextTimer = null;
+    unawaited(_releaseWakelock());
     if (_scrollController.hasClients && _prefs != null) {
       writeReaderScrollPositionByKey(
         _prefs!,
@@ -119,12 +129,37 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
   SharedPreferences _resolvedPrefs() => _prefs ?? ref.read(sharedPrefsProvider);
 
+  ReaderDefaults get _defaults => ref.read(readerDefaultsProvider);
+
+  Future<void> _syncWakelock(bool enabled) async {
+    final wakelock = _wakelock;
+    if (wakelock == null) return;
+
+    if (enabled && !_wakelockEnabled) {
+      await wakelock.enable();
+      _wakelockEnabled = true;
+      return;
+    }
+
+    if (!enabled && _wakelockEnabled) {
+      await _releaseWakelock();
+    }
+  }
+
+  Future<void> _releaseWakelock() async {
+    if (!_wakelockEnabled) return;
+    await _wakelock?.disable();
+    _wakelockEnabled = false;
+  }
+
   void _restoreInitialScroll() {
     if (_initialScrollApplied || !_scrollController.hasClients) return;
 
     final prefs = _resolvedPrefs();
     final zoom = ref.read(readerUiProvider).zoomLevel;
+    final defaults = _defaults;
     final width = _containerWidth ?? MediaQuery.sizeOf(context).width;
+    final height = _containerHeight ?? MediaQuery.sizeOf(context).height;
     final savedScroll =
         readReaderScrollPositionByKey(prefs, widget.scrollStorageKey);
     final targetPage =
@@ -134,6 +169,8 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       targetPage,
       width,
       zoom,
+      scrollAxis: defaults.direction.scrollAxis,
+      crossAxisSize: defaults.direction.isVertical ? width : height,
     );
     final initialOffset = resolveInitialScrollTop(
       savedScroll: savedScroll,
@@ -155,34 +192,48 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
 
+    final defaults = _defaults;
     final position = _scrollController.position;
     final maxScroll = position.maxScrollExtent;
-    final scrollTop = position.pixels;
+    final scrollOffset = position.pixels;
     final viewport = position.viewportDimension;
     final progress =
-        maxScroll > 0 ? ((scrollTop / maxScroll) * 100).round() : 100;
-    final atTop = scrollTop <= _scrollEdgeThreshold;
-    final atBottom = scrollTop + viewport >= maxScroll - _scrollEdgeThreshold;
+        maxScroll > 0 ? ((scrollOffset / maxScroll) * 100).round() : 100;
+    final atStart = isAtReadingStart(
+      scrollOffset: scrollOffset,
+      viewport: viewport,
+      maxScroll: maxScroll,
+      direction: defaults.direction,
+    );
+    final atEnd = isAtReadingEnd(
+      scrollOffset: scrollOffset,
+      viewport: viewport,
+      maxScroll: maxScroll,
+      direction: defaults.direction,
+    );
 
     final width = _containerWidth ?? MediaQuery.sizeOf(context).width;
+    final height = _containerHeight ?? MediaQuery.sizeOf(context).height;
     final zoom = ref.read(readerUiProvider).zoomLevel;
     final page = resolveVisiblePage(
       widget.chapter.pages,
-      scrollTop,
+      scrollOffset,
       width,
       zoom,
+      scrollAxis: defaults.direction.scrollAxis,
+      crossAxisSize: defaults.direction.isVertical ? width : height,
     );
 
     setState(() {
       _scrollProgress = progress;
-      _atTop = atTop;
-      _atBottom = atBottom;
+      _atReadingStart = atStart;
+      _atReadingEnd = atEnd;
       _visiblePage = page;
     });
 
     _scheduleProgressSave(page);
-    _scheduleScrollSave(scrollTop);
-    _maybeAutoNextChapter(atBottom);
+    _scheduleScrollSave(scrollOffset);
+    _maybeAutoNextChapter(atEnd);
   }
 
   void _scheduleScrollSave(double scrollTop) {
@@ -223,20 +274,18 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     await save(page);
   }
 
-  void _maybeAutoNextChapter(bool atBottom) {
-    if (!atBottom || widget.onNextChapter == null || _autoNextTriggered) {
-      // Leaving bottom (or nothing to do): cancel any pending countdown.
+  void _maybeAutoNextChapter(bool atEnd) {
+    if (!_defaults.autoNextChapter ||
+        !atEnd ||
+        widget.onNextChapter == null ||
+        _autoNextTriggered) {
       _autoNextTimer?.cancel();
       _autoNextTimer = null;
       return;
     }
 
-    // Remaining at bottom: a countdown is already running (started the
-    // moment we first reached bottom) — repeated scroll/image-load events
-    // must not restart it, or auto-next could be delayed indefinitely.
     if (_autoNextTimer != null) return;
 
-    // Returning to bottom: start exactly one countdown.
     _autoNextTimer = Timer(const Duration(milliseconds: _autoNextChapterMs), () {
       if (!mounted || _autoNextTriggered) return;
       _autoNextTriggered = true;
@@ -265,14 +314,94 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     }
   }
 
+  Widget _buildPageItem({
+    required int index,
+    required ReaderDefaults defaults,
+    required double zoom,
+    required double viewportWidth,
+    required double viewportHeight,
+  }) {
+    final page = widget.chapter.pages[index];
+    final pageNumber = index + 1;
+    final aspectRatio = pageAspectRatio(page);
+    final direction = defaults.direction;
+    final fitMode = defaults.fitMode;
+    final contentWidthFactor = zoom == 1 ? 1.0 : zoom;
+    final maxWidth = zoom <= 1 ? maxContentWidth : double.infinity;
+    final crossAxisSize = direction.isVertical ? viewportWidth : viewportHeight;
+
+    final pageImage = ReaderPageImage(
+      imageUrl: page.imageUrl,
+      alt: '${widget.chapter.title} page $pageNumber',
+      aspectRatio: aspectRatio,
+      fitMode: fitMode,
+      layoutAxis: direction.scrollAxis,
+      viewportWidth: viewportWidth,
+      viewportHeight: viewportHeight,
+      priority: index < 2,
+      onLoad: _handleScroll,
+    );
+
+    if (direction.isHorizontal) {
+      final pageWidth = estimatePageExtent(
+        page,
+        crossAxisSize,
+        zoom,
+        Axis.horizontal,
+      );
+      return Padding(
+        padding: const EdgeInsets.only(right: AppSpacing.xs),
+        child: Align(
+          alignment: Alignment.center,
+          child: SizedBox(
+            height: crossAxisSize,
+            width: pageWidth * contentWidthFactor,
+            child: pageImage,
+          ),
+        ),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+      child: Align(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: FractionallySizedBox(
+            widthFactor: contentWidthFactor,
+            child: pageImage,
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final defaults = ref.watch(readerDefaultsProvider);
+    ref.listen<ReaderDefaults>(readerDefaultsProvider, (previous, next) {
+      if (previous?.keepScreenAwake != next.keepScreenAwake) {
+        unawaited(_syncWakelock(next.keepScreenAwake));
+      }
+      if (previous?.autoNextChapter == true && !next.autoNextChapter) {
+        _autoNextTimer?.cancel();
+        _autoNextTimer = null;
+      }
+    });
+
     final ui = ref.watch(readerUiProvider);
     final uiController = ref.read(readerUiProvider.notifier);
     final hasPrevious = widget.onPreviousChapter != null;
     final hasNext = widget.onNextChapter != null;
+    final mediaSize = MediaQuery.sizeOf(context);
 
-    _containerWidth = MediaQuery.sizeOf(context).width;
+    _containerWidth = mediaSize.width;
+    _containerHeight = mediaSize.height;
+
+    final direction = defaults.direction;
+    final listPadding = direction.isVertical
+        ? const EdgeInsets.only(top: AppSpacing.lg, bottom: 120)
+        : const EdgeInsets.only(left: AppSpacing.lg, right: 120);
 
     return ReaderShortcuts(
       onPreviousChapter:
@@ -290,57 +419,39 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
           child: Stack(
             children: [
               ListView.builder(
+                key: ValueKey('reader-list-${direction.name}-${defaults.fitMode.name}'),
                 controller: _scrollController,
-                padding: const EdgeInsets.only(
-                  top: AppSpacing.lg,
-                  bottom: 120,
-                ),
+                scrollDirection: direction.scrollAxis,
+                reverse: direction.reverseScroll,
+                padding: listPadding,
                 cacheExtent: 2400,
                 itemCount: widget.chapter.pages.length,
-                itemBuilder: (context, index) {
-                  final page = widget.chapter.pages[index];
-                  final pageNumber = index + 1;
-                  final aspectRatio = pageAspectRatio(page);
-                  final zoom = ui.zoomLevel;
-                  final contentWidthFactor = zoom == 1 ? 1.0 : zoom;
-                  final maxWidth = zoom <= 1 ? 768.0 : double.infinity;
-
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-                    child: Align(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: maxWidth),
-                        child: FractionallySizedBox(
-                          widthFactor: contentWidthFactor,
-                          child: ReaderPageImage(
-                            imageUrl: page.imageUrl,
-                            alt: '${widget.chapter.title} page $pageNumber',
-                            aspectRatio: aspectRatio,
-                            priority: index < 2,
-                            onLoad: _handleScroll,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                },
+                itemBuilder: (context, index) => _buildPageItem(
+                  index: index,
+                  defaults: defaults,
+                  zoom: ui.zoomLevel,
+                  viewportWidth: mediaSize.width,
+                  viewportHeight: mediaSize.height,
+                ),
               ),
-              if (_atTop && hasPrevious)
+              if (_atReadingStart && hasPrevious)
                 Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
+                  top: direction.isVertical ? 0 : null,
+                  bottom: direction.isVertical ? null : 96,
+                  left: direction.isHorizontal ? 0 : 0,
+                  right: direction.isHorizontal ? null : 0,
                   child: ChapterEdgePrompt(
                     label: 'Previous chapter',
                     direction: EdgeDirection.previous,
                     onTap: widget.onPreviousChapter!,
                   ),
                 ),
-              if (_atBottom && hasNext)
+              if (_atReadingEnd && hasNext)
                 Positioned(
-                  bottom: 96,
-                  left: 0,
-                  right: 0,
+                  top: direction.isVertical ? null : 96,
+                  bottom: direction.isVertical ? 96 : null,
+                  left: direction.isHorizontal ? null : 0,
+                  right: direction.isHorizontal ? 0 : 0,
                   child: ChapterEdgePrompt(
                     label: 'Next chapter',
                     direction: EdgeDirection.next,

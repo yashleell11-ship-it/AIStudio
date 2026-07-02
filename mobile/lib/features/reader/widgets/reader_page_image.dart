@@ -2,10 +2,12 @@ import 'package:aistudio_mobile/app/theme/app_colors.dart';
 import 'package:aistudio_mobile/app/theme/app_radius.dart';
 import 'package:aistudio_mobile/app/theme/app_spacing.dart';
 import 'package:aistudio_mobile/app/theme/app_typography.dart';
+import 'package:aistudio_mobile/features/reader/utils/page_layout.dart';
+import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-/// Renders a fully loaded page at full width with its natural height.
+/// Renders a fully loaded page using the configured fit mode.
 ///
 /// This must never be wrapped in an [AspectRatio]: sources without page
 /// dimensions (e.g. AsuraScans webtoon strips up to 900x16000) would be
@@ -14,20 +16,63 @@ class ReaderLoadedPageImage extends StatelessWidget {
   const ReaderLoadedPageImage({
     super.key,
     required this.image,
+    required this.fitMode,
+    this.layoutAxis = Axis.vertical,
+    this.viewportWidth,
+    this.viewportHeight,
     this.semanticLabel,
   });
 
   final ImageProvider image;
+  final ReaderFitMode fitMode;
+  final Axis layoutAxis;
+  final double? viewportWidth;
+  final double? viewportHeight;
   final String? semanticLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Image(
+    final boxFit = readerFitModeToBoxFit(fitMode);
+    final width = viewportWidth;
+    final height = viewportHeight;
+
+    Widget loadedImage = Image(
       image: image,
-      fit: BoxFit.fitWidth,
-      width: double.infinity,
+      fit: boxFit,
       semanticLabel: semanticLabel,
     );
+
+    if (layoutAxis == Axis.vertical) {
+      switch (fitMode) {
+        case ReaderFitMode.width:
+          loadedImage = SizedBox(width: double.infinity, child: loadedImage);
+        case ReaderFitMode.height:
+          if (height != null) {
+            loadedImage = SizedBox(height: height, child: loadedImage);
+          }
+        case ReaderFitMode.screen:
+          if (width != null && height != null) {
+            loadedImage = SizedBox(width: width, height: height, child: loadedImage);
+          }
+      }
+    } else {
+      switch (fitMode) {
+        case ReaderFitMode.width:
+          if (width != null) {
+            loadedImage = SizedBox(width: width, child: loadedImage);
+          }
+        case ReaderFitMode.height:
+          if (height != null) {
+            loadedImage = SizedBox(height: height, child: loadedImage);
+          }
+        case ReaderFitMode.screen:
+          if (width != null && height != null) {
+            loadedImage = SizedBox(width: width, height: height, child: loadedImage);
+          }
+      }
+    }
+
+    return loadedImage;
   }
 }
 
@@ -37,6 +82,10 @@ class ReaderPageImage extends StatefulWidget {
     required this.imageUrl,
     required this.alt,
     required this.aspectRatio,
+    required this.fitMode,
+    this.layoutAxis = Axis.vertical,
+    this.viewportWidth,
+    this.viewportHeight,
     this.priority = false,
     this.onLoad,
   });
@@ -47,6 +96,10 @@ class ReaderPageImage extends StatefulWidget {
   /// Placeholder ratio used only while the page is loading or failed;
   /// the loaded image always lays out at its intrinsic size.
   final double aspectRatio;
+  final ReaderFitMode fitMode;
+  final Axis layoutAxis;
+  final double? viewportWidth;
+  final double? viewportHeight;
   final bool priority;
   final VoidCallback? onLoad;
 
@@ -65,6 +118,8 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
       child: child,
     );
   }
+
+  BoxFit get _boxFit => readerFitModeToBoxFit(widget.fitMode);
 
   @override
   Widget build(BuildContext context) {
@@ -85,8 +140,15 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
         child: CachedNetworkImage(
           key: ValueKey('${widget.imageUrl}:$_retryToken'),
           imageUrl: widget.imageUrl,
-          fit: BoxFit.fitWidth,
-          width: double.infinity,
+          fit: _boxFit,
+          width: widget.layoutAxis == Axis.vertical &&
+                  widget.fitMode == ReaderFitMode.width
+              ? double.infinity
+              : null,
+          height: widget.layoutAxis == Axis.horizontal &&
+                  widget.fitMode == ReaderFitMode.height
+              ? double.infinity
+              : null,
           fadeInDuration: const Duration(milliseconds: 150),
           placeholder: (_, __) => _placeholderBox(
             child: const ColoredBox(
@@ -128,6 +190,10 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
             WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
             return ReaderLoadedPageImage(
               image: imageProvider,
+              fitMode: widget.fitMode,
+              layoutAxis: widget.layoutAxis,
+              viewportWidth: widget.viewportWidth,
+              viewportHeight: widget.viewportHeight,
               semanticLabel: widget.alt,
             );
           },
