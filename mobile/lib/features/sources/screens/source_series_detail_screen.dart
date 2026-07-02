@@ -7,8 +7,10 @@ import 'package:aistudio_mobile/features/downloads/models/queue_download_respons
 import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
 import 'package:aistudio_mobile/features/downloads/utils/queue_download_feedback.dart';
 import 'package:aistudio_mobile/features/sources/models/source_series.dart';
+import 'package:aistudio_mobile/features/sources/providers/source_series_download_status_provider.dart';
 import 'package:aistudio_mobile/features/sources/providers/sources_provider.dart';
 import 'package:aistudio_mobile/features/sources/utils/chapter_label.dart';
+import 'package:aistudio_mobile/features/sources/widgets/source_chapter_download_status_badge.dart';
 import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
 import 'package:aistudio_mobile/shared/widgets/empty_state.dart';
 import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
@@ -179,6 +181,11 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     final series = widget.series;
     final chapters = widget.chapters;
     final downloadBusy = _downloadPending;
+    final downloadLookup = ref.watch(
+      sourceSeriesChapterDownloadLookupProvider(
+        (sourceId: widget.sourceId, seriesId: widget.seriesId),
+      ),
+    );
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -248,6 +255,10 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
                 title: chapter.title,
               );
               final selected = _selectedChapterIds.contains(chapter.id);
+              final chapterStatus = downloadLookup.statusFor(chapter.id);
+              final downloadDisabled =
+                  downloadBusy || downloadLookup.isDownloadDisabled(chapter.id);
+              final retryable = downloadLookup.isRetryable(chapter.id);
               return Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: GlassCard(
@@ -282,6 +293,10 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
                                   '${chapter.pageCount} pages',
                                   style: AppTypography.caption.copyWith(color: AppColors.muted),
                                 ),
+                                SourceChapterDownloadStatusBadge(
+                                  key: Key('chapter-status-${chapter.id}'),
+                                  status: chapterStatus,
+                                ),
                               ],
                             ),
                           ),
@@ -289,11 +304,13 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
                       ),
                       IconButton(
                         key: Key('download-${chapter.id}'),
-                        tooltip: 'Download Chapter',
-                        onPressed: downloadBusy
+                        tooltip: retryable ? 'Retry Download' : 'Download Chapter',
+                        onPressed: downloadDisabled
                             ? null
                             : () => _queueChapters([chapter.id]),
-                        icon: const Icon(Icons.download_outlined),
+                        icon: Icon(
+                          retryable ? Icons.refresh : Icons.download_outlined,
+                        ),
                       ),
                     ],
                   ),
