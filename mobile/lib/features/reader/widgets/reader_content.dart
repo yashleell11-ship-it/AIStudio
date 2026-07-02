@@ -55,7 +55,8 @@ class ReaderContent extends ConsumerStatefulWidget {
   final Future<void> Function(int page)? onSaveProgress;
 
   /// Create a bookmark at the visible page. Only the local library reader.
-  final Future<void> Function(int page)? onAddBookmark;
+  /// Return ``true`` when the bookmark was saved successfully.
+  final Future<bool> Function(int page)? onAddBookmark;
 
   /// Navigate to the previous/next chapter. ``null`` disables that direction.
   final VoidCallback? onPreviousChapter;
@@ -103,6 +104,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _scrollSaveTimer?.cancel();
     _progressSaveTimer?.cancel();
     _autoNextTimer?.cancel();
+    _autoNextTimer = null;
     if (_scrollController.hasClients && _prefs != null) {
       writeReaderScrollPositionByKey(
         _prefs!,
@@ -224,10 +226,12 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   void _maybeAutoNextChapter(bool atBottom) {
     if (!atBottom || widget.onNextChapter == null || _autoNextTriggered) {
       _autoNextTimer?.cancel();
+      _autoNextTimer = null;
       return;
     }
 
-    _autoNextTimer ??= Timer(const Duration(milliseconds: _autoNextChapterMs), () {
+    _autoNextTimer?.cancel();
+    _autoNextTimer = Timer(const Duration(milliseconds: _autoNextChapterMs), () {
       if (!mounted || _autoNextTriggered) return;
       _autoNextTriggered = true;
       widget.onNextChapter?.call();
@@ -238,17 +242,19 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     final addBookmark = widget.onAddBookmark;
     if (addBookmark == null || _bookmarkPending) return;
     setState(() => _bookmarkPending = true);
-    await _persistProgress(_visiblePage);
-    await addBookmark(_visiblePage);
-    if (mounted) {
-      setState(() => _bookmarkPending = false);
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Bookmarked page $_visiblePage'),
-            behavior: SnackBarBehavior.floating,
-          ),
-        );
+    try {
+      await _persistProgress(_visiblePage);
+      final success = await addBookmark(_visiblePage);
+      if (!mounted || !success || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Bookmarked page $_visiblePage'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _bookmarkPending = false);
       }
     }
   }
