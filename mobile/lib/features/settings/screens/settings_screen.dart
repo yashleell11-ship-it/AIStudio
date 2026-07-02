@@ -4,6 +4,7 @@ import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:aistudio_mobile/core/config/env.dart';
 import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
+import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
 import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
 import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
 import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
@@ -25,7 +26,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
   }
 
   @override
@@ -43,21 +44,387 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
+            Tab(text: 'General'),
             Tab(text: 'Server'),
-            Tab(text: 'Downloads'),
+            Tab(text: 'About'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
+          const _GeneralSettingsPanel(),
           _ServerSettingsPanel(controller: _apiUrlController),
-          const _DownloadSettingsPanel(),
+          const _AboutPanel(),
         ],
       ),
     );
   }
 }
+
+// ── General ──────────────────────────────────────────────────────────────
+
+class _GeneralSettingsPanel extends StatelessWidget {
+  const _GeneralSettingsPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xl2),
+      children: const [
+        _SectionHeading('Theme'),
+        SizedBox(height: AppSpacing.sm),
+        _ThemeSelector(),
+        SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('Language'),
+        SizedBox(height: AppSpacing.sm),
+        _LanguageSelector(),
+        SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('Default reader preferences'),
+        SizedBox(height: AppSpacing.sm),
+        _ReaderDefaultsSection(),
+        SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('Download preferences'),
+        SizedBox(height: AppSpacing.sm),
+        _DownloadPreferencesSection(),
+        SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('Cache'),
+        SizedBox(height: AppSpacing.sm),
+        _CacheSection(),
+      ],
+    );
+  }
+}
+
+class _SectionHeading extends StatelessWidget {
+  const _SectionHeading(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Text(text, style: AppTypography.h3);
+}
+
+class _ThemeSelector extends ConsumerWidget {
+  const _ThemeSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeModeProvider);
+
+    return GlassCard(
+      // RadioListTile paints its selection/splash on the nearest Material
+      // ancestor; GlassCard only provides one when onTap is set, so this
+      // needs its own.
+      child: Material(
+        color: Colors.transparent,
+        child: RadioGroup<ThemeMode>(
+          groupValue: themeMode,
+          onChanged: (value) {
+            if (value != null) {
+              ref.read(themeModeProvider.notifier).setThemeMode(value);
+            }
+          },
+          child: Column(
+            children: ThemeMode.values.map((mode) {
+              return RadioListTile<ThemeMode>(
+                title: Text(_themeModeLabel(mode)),
+                value: mode,
+              );
+            }).toList(),
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _themeModeLabel(ThemeMode mode) => switch (mode) {
+        ThemeMode.system => 'System',
+        ThemeMode.light => 'Light',
+        ThemeMode.dark => 'Dark',
+      };
+}
+
+class _LanguageSelector extends ConsumerWidget {
+  const _LanguageSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final language = ref.watch(languageProvider);
+
+    return GlassCard(
+      child: DropdownButtonFormField<AppLanguage>(
+        initialValue: language,
+        decoration: const InputDecoration(labelText: 'App language'),
+        items: AppLanguage.values
+            .map((lang) => DropdownMenuItem(value: lang, child: Text(lang.label)))
+            .toList(),
+        onChanged: (value) {
+          if (value != null) {
+            ref.read(languageProvider.notifier).setLanguage(value);
+          }
+        },
+      ),
+    );
+  }
+}
+
+class _ReaderDefaultsSection extends ConsumerWidget {
+  const _ReaderDefaultsSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final defaults = ref.watch(readerDefaultsProvider);
+    final notifier = ref.read(readerDefaultsProvider.notifier);
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text('Reading direction', style: AppTypography.labelLg),
+          ),
+          SegmentedButton<ReadingDirection>(
+            segments: ReadingDirection.values
+                .map((d) => ButtonSegment(value: d, label: Text(d.label)))
+                .toList(),
+            selected: {defaults.direction},
+            onSelectionChanged: (selection) => notifier.setDirection(selection.first),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            child: Text('Fit mode', style: AppTypography.labelLg),
+          ),
+          SegmentedButton<ReaderFitMode>(
+            segments: ReaderFitMode.values
+                .map((f) => ButtonSegment(value: f, label: Text(f.label)))
+                .toList(),
+            selected: {defaults.fitMode},
+            onSelectionChanged: (selection) => notifier.setFitMode(selection.first),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          // SwitchListTile paints on the nearest Material ancestor; GlassCard
+          // doesn't provide one unless onTap is set.
+          Material(
+            color: Colors.transparent,
+            child: Column(
+              children: [
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Keep screen awake'),
+                  value: defaults.keepScreenAwake,
+                  onChanged: notifier.setKeepScreenAwake,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Auto next chapter'),
+                  value: defaults.autoNextChapter,
+                  onChanged: notifier.setAutoNextChapter,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DownloadPreferencesSection extends ConsumerStatefulWidget {
+  const _DownloadPreferencesSection();
+
+  @override
+  ConsumerState<_DownloadPreferencesSection> createState() =>
+      _DownloadPreferencesSectionState();
+}
+
+class _DownloadPreferencesSectionState
+    extends ConsumerState<_DownloadPreferencesSection> {
+  DownloadSettings? _draft;
+  var _saving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final wifiOnly = ref.watch(wifiOnlyDownloadsProvider);
+    final settingsAsync = ref.watch(downloadSettingsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        GlassCard(
+          // SwitchListTile paints on the nearest Material ancestor; GlassCard
+          // doesn't provide one unless onTap is set.
+          child: Material(
+            color: Colors.transparent,
+            child: SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Wi-Fi only'),
+              subtitle: const Text('Only download chapters while connected to Wi-Fi'),
+              value: wifiOnly,
+              onChanged: (value) =>
+                  ref.read(wifiOnlyDownloadsProvider.notifier).setEnabled(value),
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        settingsAsync.when(
+          loading: () => const SkeletonBox(width: double.infinity, height: 180),
+          error: (error, _) => Text(
+            error is AppError ? error.userMessage : 'Failed to load download settings.',
+            style: AppTypography.body.copyWith(color: AppColors.danger),
+          ),
+          data: (settings) {
+            _draft ??= settings;
+            final draft = _draft!;
+
+            return GlassCard(
+              child: Column(
+                children: [
+                  _SliderField(
+                    label: 'Concurrent chapters',
+                    value: draft.concurrentChapters.toDouble(),
+                    min: 1,
+                    max: 8,
+                    divisions: 7,
+                    onChanged: (value) => setState(
+                      () => _draft = DownloadSettings(
+                        concurrentChapters: value.round(),
+                        pageConcurrency: draft.pageConcurrency,
+                        retryCount: draft.retryCount,
+                        retryDelaySeconds: draft.retryDelaySeconds,
+                        timeoutSeconds: draft.timeoutSeconds,
+                        activeDownloadCount: draft.activeDownloadCount,
+                      ),
+                    ),
+                  ),
+                  _SliderField(
+                    label: 'Page concurrency',
+                    value: draft.pageConcurrency.toDouble(),
+                    min: 1,
+                    max: 16,
+                    divisions: 15,
+                    onChanged: (value) => setState(
+                      () => _draft = DownloadSettings(
+                        concurrentChapters: draft.concurrentChapters,
+                        pageConcurrency: value.round(),
+                        retryCount: draft.retryCount,
+                        retryDelaySeconds: draft.retryDelaySeconds,
+                        timeoutSeconds: draft.timeoutSeconds,
+                        activeDownloadCount: draft.activeDownloadCount,
+                      ),
+                    ),
+                  ),
+                  _SliderField(
+                    label: 'Retry count',
+                    value: draft.retryCount.toDouble(),
+                    min: 0,
+                    max: 10,
+                    divisions: 10,
+                    onChanged: (value) => setState(
+                      () => _draft = DownloadSettings(
+                        concurrentChapters: draft.concurrentChapters,
+                        pageConcurrency: draft.pageConcurrency,
+                        retryCount: value.round(),
+                        retryDelaySeconds: draft.retryDelaySeconds,
+                        timeoutSeconds: draft.timeoutSeconds,
+                        activeDownloadCount: draft.activeDownloadCount,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  FilledButton(
+                    onPressed: _saving
+                        ? null
+                        : () async {
+                            setState(() => _saving = true);
+                            final error = await ref
+                                .read(settingsActionsProvider)
+                                .saveDownloadSettings(draft);
+                            if (!context.mounted) return;
+                            setState(() => _saving = false);
+                            if (error == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Download settings saved.')),
+                              );
+                            } else {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text(error.userMessage)),
+                              );
+                            }
+                          },
+                    child: Text(_saving ? 'Saving…' : 'Save download settings'),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+class _CacheSection extends ConsumerWidget {
+  const _CacheSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final usageAsync = ref.watch(cacheUsageProvider);
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Image cache usage', style: AppTypography.labelLg),
+          const SizedBox(height: AppSpacing.xs),
+          usageAsync.when(
+            loading: () => const SkeletonBox(width: 120, height: 20),
+            error: (_, __) => Text(
+              'Unable to read cache size',
+              style: AppTypography.body.copyWith(color: AppColors.muted),
+            ),
+            data: (bytes) => Text(
+              _formatBytes(bytes),
+              style: AppTypography.body.copyWith(color: AppColors.muted),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          OutlinedButton(
+            onPressed: () async {
+              await ref.read(settingsActionsProvider).clearImageCache();
+              if (context.mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Image cache cleared.')),
+                );
+              }
+            },
+            child: const Text('Clear image cache'),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton(
+            onPressed: () {
+              ref.read(settingsActionsProvider).clearMetadataCache();
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Metadata cache cleared.')),
+              );
+            },
+            child: const Text('Clear metadata cache'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+}
+
+// ── Server ───────────────────────────────────────────────────────────────
 
 class _ServerSettingsPanel extends ConsumerWidget {
   const _ServerSettingsPanel({required this.controller});
@@ -135,143 +502,6 @@ class _ServerSettingsPanel extends ConsumerWidget {
   }
 }
 
-class _DownloadSettingsPanel extends ConsumerStatefulWidget {
-  const _DownloadSettingsPanel();
-
-  @override
-  ConsumerState<_DownloadSettingsPanel> createState() => _DownloadSettingsPanelState();
-}
-
-class _DownloadSettingsPanelState extends ConsumerState<_DownloadSettingsPanel> {
-  DownloadSettings? _draft;
-  var _saving = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final settingsAsync = ref.watch(downloadSettingsProvider);
-
-    return settingsAsync.when(
-      loading: () => const Padding(
-        padding: EdgeInsets.all(AppSpacing.xl2),
-        child: SkeletonBox(width: double.infinity, height: 240),
-      ),
-      error: (error, _) => Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              error is AppError ? error.userMessage : 'Failed to load settings.',
-              style: AppTypography.body.copyWith(color: AppColors.danger),
-            ),
-            const SizedBox(height: AppSpacing.lg),
-            FilledButton(
-              onPressed: () => ref.invalidate(downloadSettingsProvider),
-              child: const Text('Retry'),
-            ),
-          ],
-        ),
-      ),
-      data: (settings) {
-        _draft ??= settings;
-        final draft = _draft!;
-
-        return ListView(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
-          children: [
-            Text('Download queue', style: AppTypography.h3),
-            const SizedBox(height: AppSpacing.sm),
-            Text(
-              '${settings.activeDownloadCount} active downloads',
-              style: AppTypography.body.copyWith(color: AppColors.muted),
-            ),
-            const SizedBox(height: AppSpacing.xl2),
-            GlassCard(
-              child: Column(
-                children: [
-                  _SliderField(
-                    label: 'Concurrent chapters',
-                    value: draft.concurrentChapters.toDouble(),
-                    min: 1,
-                    max: 8,
-                    divisions: 7,
-                    onChanged: (value) => setState(
-                      () => _draft = DownloadSettings(
-                        concurrentChapters: value.round(),
-                        pageConcurrency: draft.pageConcurrency,
-                        retryCount: draft.retryCount,
-                        retryDelaySeconds: draft.retryDelaySeconds,
-                        timeoutSeconds: draft.timeoutSeconds,
-                        activeDownloadCount: draft.activeDownloadCount,
-                      ),
-                    ),
-                  ),
-                  _SliderField(
-                    label: 'Page concurrency',
-                    value: draft.pageConcurrency.toDouble(),
-                    min: 1,
-                    max: 16,
-                    divisions: 15,
-                    onChanged: (value) => setState(
-                      () => _draft = DownloadSettings(
-                        concurrentChapters: draft.concurrentChapters,
-                        pageConcurrency: value.round(),
-                        retryCount: draft.retryCount,
-                        retryDelaySeconds: draft.retryDelaySeconds,
-                        timeoutSeconds: draft.timeoutSeconds,
-                        activeDownloadCount: draft.activeDownloadCount,
-                      ),
-                    ),
-                  ),
-                  _SliderField(
-                    label: 'Retry count',
-                    value: draft.retryCount.toDouble(),
-                    min: 0,
-                    max: 10,
-                    divisions: 10,
-                    onChanged: (value) => setState(
-                      () => _draft = DownloadSettings(
-                        concurrentChapters: draft.concurrentChapters,
-                        pageConcurrency: draft.pageConcurrency,
-                        retryCount: value.round(),
-                        retryDelaySeconds: draft.retryDelaySeconds,
-                        timeoutSeconds: draft.timeoutSeconds,
-                        activeDownloadCount: draft.activeDownloadCount,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: AppSpacing.xl2),
-            FilledButton(
-              onPressed: _saving
-                  ? null
-                  : () async {
-                      setState(() => _saving = true);
-                      final error = await ref
-                          .read(settingsActionsProvider)
-                          .saveDownloadSettings(draft);
-                      if (!mounted) return;
-                      setState(() => _saving = false);
-                      if (error == null) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Download settings saved.')),
-                        );
-                      } else {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(content: Text(error.userMessage)),
-                        );
-                      }
-                    },
-              child: Text(_saving ? 'Saving…' : 'Save download settings'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
 class _SliderField extends StatelessWidget {
   const _SliderField({
     required this.label,
@@ -308,6 +538,72 @@ class _SliderField extends StatelessWidget {
           divisions: divisions,
           onChanged: onChanged,
         ),
+      ],
+    );
+  }
+}
+
+// ── About ────────────────────────────────────────────────────────────────
+
+class _AboutPanel extends ConsumerWidget {
+  const _AboutPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final infoAsync = ref.watch(packageInfoProvider);
+
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xl2),
+      children: [
+        Text('About', style: AppTypography.h3),
+        const SizedBox(height: AppSpacing.xl2),
+        infoAsync.when(
+          loading: () => const SkeletonBox(width: double.infinity, height: 100),
+          error: (_, __) => Text(
+            'Unable to read app info',
+            style: AppTypography.body.copyWith(color: AppColors.muted),
+          ),
+          data: (info) => GlassCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _InfoRow(label: 'App version', value: info.version),
+                const SizedBox(height: AppSpacing.sm),
+                _InfoRow(label: 'Build number', value: info.buildNumber),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        OutlinedButton(
+          onPressed: () {
+            final info = infoAsync.valueOrNull;
+            showLicensePage(
+              context: context,
+              applicationName: info?.appName ?? 'AIStudio',
+              applicationVersion: info?.version,
+            );
+          },
+          child: const Text('Open source licenses'),
+        ),
+      ],
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  const _InfoRow({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label, style: AppTypography.body.copyWith(color: AppColors.muted)),
+        Text(value, style: AppTypography.labelLg),
       ],
     );
   }
