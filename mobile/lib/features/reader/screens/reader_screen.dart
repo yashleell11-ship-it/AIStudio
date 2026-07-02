@@ -1,6 +1,4 @@
 import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/features/library/models/chapter.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
@@ -47,14 +45,10 @@ class ReaderScreen extends ConsumerWidget {
       },
       data: (chapter) {
         if (chapter.pages.isEmpty) {
-          return ColoredBox(
-            color: AppColors.bg,
-            child: Center(
-              child: Text(
-                'This chapter has no pages.',
-                style: AppTypography.body.copyWith(color: AppColors.muted),
-              ),
-            ),
+          return ReaderErrorState(
+            error: const UnknownError(message: 'This chapter has no pages.'),
+            onRetry: () => ref.invalidate(readerChapterProvider(chapterId)),
+            onBack: () => context.pop(),
           );
         }
 

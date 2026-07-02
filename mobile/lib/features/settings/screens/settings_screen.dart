@@ -471,7 +471,7 @@ class _ServerSettingsPanel extends ConsumerWidget {
                 if (error == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Server URL saved. Restart the app to apply.'),
+                      content: Text('Server URL saved and applied.'),
                     ),
                   );
                 } else {
@@ -567,6 +567,15 @@ class _AboutPanel extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                Text('AIStudio', style: AppTypography.h3),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Local-first manga & manhwa reader',
+                  style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                ),
+                const SizedBox(height: AppSpacing.lg),
+                _InfoRow(label: 'App name', value: info.appName),
+                const SizedBox(height: AppSpacing.sm),
                 _InfoRow(label: 'App version', value: info.version),
                 const SizedBox(height: AppSpacing.sm),
                 _InfoRow(label: 'Build number', value: info.buildNumber),

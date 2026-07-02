@@ -84,6 +84,16 @@ void main() {
     });
   });
 
+  group('PreferencesService setup persistence', () {
+    test('setupCompleted defaults to false and round-trips', () async {
+      final service = await _freshService();
+      expect(service.setupCompleted, isFalse);
+
+      await service.setSetupCompleted(true);
+      expect(service.setupCompleted, isTrue);
+    });
+  });
+
   group('PreferencesService pre-existing reader settings are untouched', () {
     test('readerMode and readerBrightness keep their original defaults', () async {
       final service = await _freshService();

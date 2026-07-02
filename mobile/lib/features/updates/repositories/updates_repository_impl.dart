@@ -121,6 +121,26 @@ class UpdatesRepositoryImpl implements UpdatesRepository {
   }
 
   @override
+  Future<Result<void>> updateTracker(
+    int trackerId, {
+    bool? autoDownload,
+  }) async {
+    try {
+      await _dio.patch<void>(
+        '/updates/trackers/$trackerId',
+        data: {
+          if (autoDownload != null) 'auto_download': autoDownload,
+        },
+      );
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
   Future<Result<void>> triggerCheck() async {
     try {
       await _dio.post<void>('/updates/check');

@@ -105,7 +105,12 @@ class UpdatesScreen extends ConsumerWidget {
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: _TrackerCard(
                       tracker: tracker,
+                      actionPending: state.actionPending,
                       onDelete: () => notifier.deleteTracker(tracker.id),
+                      onAutoDownloadChanged: tracker.trackKind == TrackKind.followed
+                          ? (enabled) =>
+                              notifier.setTrackerAutoDownload(tracker.id, enabled)
+                          : null,
                     ),
                   ),
                 ),
@@ -195,10 +200,14 @@ class _TrackerCard extends StatelessWidget {
   const _TrackerCard({
     required this.tracker,
     required this.onDelete,
+    this.onAutoDownloadChanged,
+    this.actionPending = false,
   });
 
   final SeriesTracker tracker;
   final VoidCallback onDelete;
+  final ValueChanged<bool>? onAutoDownloadChanged;
+  final bool actionPending;
 
   @override
   Widget build(BuildContext context) {
@@ -229,9 +238,21 @@ class _TrackerCard extends StatelessWidget {
               style: AppTypography.caption.copyWith(color: AppColors.warning),
             ),
           ],
+          if (onAutoDownloadChanged != null) ...[
+            const SizedBox(height: AppSpacing.sm),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Auto download new chapters'),
+              value: tracker.autoDownload,
+              onChanged: actionPending ? null : onAutoDownloadChanged,
+            ),
+          ],
           Align(
             alignment: Alignment.centerRight,
-            child: TextButton(onPressed: onDelete, child: const Text('Remove')),
+            child: TextButton(
+              onPressed: actionPending ? null : onDelete,
+              child: const Text('Remove'),
+            ),
           ),
         ],
       ),

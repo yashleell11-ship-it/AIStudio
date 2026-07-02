@@ -1,4 +1,6 @@
+import 'package:aistudio_mobile/core/config/env.dart';
 import 'package:aistudio_mobile/core/error/app_error.dart';
+import 'package:aistudio_mobile/core/network/dio_client.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
 import 'package:aistudio_mobile/features/library/providers/bookmarks_provider.dart';
 import 'package:aistudio_mobile/features/library/providers/dashboard_providers.dart';
@@ -9,6 +11,7 @@ import 'package:aistudio_mobile/features/settings/services/image_cache_service.d
 import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -144,7 +147,25 @@ class SettingsActions {
       return const UnknownError(message: 'Server URL cannot be empty.');
     }
     await ref.read(secureStorageProvider).setApiUrl(trimmed);
+    ref.read(apiBaseUrlProvider.notifier).state = trimmed;
+    ref.invalidate(dioProvider);
     ref.invalidate(settingsApiUrlProvider);
+    return null;
+  }
+
+  Future<AppError?> validateAndSaveApiUrl(String url) async {
+    final trimmed = url.trim();
+    if (trimmed.isEmpty) {
+      return const UnknownError(message: 'Server URL cannot be empty.');
+    }
+
+    final validationError = await ref.read(serverValidationProvider)(trimmed);
+    if (validationError != null) return validationError;
+
+    final saveError = await saveApiUrl(trimmed);
+    if (saveError != null) return saveError;
+
+    await ref.read(preferencesProvider).setSetupCompleted(true);
     return null;
   }
 
@@ -181,6 +202,29 @@ class SettingsActions {
 final settingsActionsProvider = Provider<SettingsActions>(
   SettingsActions.new,
   name: 'settingsActions',
+);
+
+typedef ServerUrlValidator = Future<AppError?> Function(String url);
+
+final serverValidationProvider = Provider<ServerUrlValidator>(
+  (ref) => (url) async {
+    final dio = createDioClient(baseUrl: url);
+    try {
+      await dio.get<Map<String, dynamic>>('/health');
+      return null;
+    } on DioException catch (e) {
+      if (e.error is AppError) return e.error! as AppError;
+      return NetworkError(message: e.message ?? 'Unable to reach server.');
+    } catch (e) {
+      return UnknownError(message: e.toString(), cause: e);
+    }
+  },
+  name: 'serverValidation',
+);
+
+final setupCompletedProvider = Provider<bool>(
+  (ref) => ref.watch(preferencesProvider).setupCompleted,
+  name: 'setupCompleted',
 );
 
 /// Providers invalidated by [SettingsActions.clearMetadataCache], exposed

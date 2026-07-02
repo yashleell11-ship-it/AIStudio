@@ -24,5 +24,10 @@ abstract interface class UpdatesRepository {
 
   Future<Result<void>> deleteTracker(int trackerId);
 
+  Future<Result<void>> updateTracker(
+    int trackerId, {
+    bool? autoDownload,
+  });
+
   Future<Result<void>> triggerCheck();
 }

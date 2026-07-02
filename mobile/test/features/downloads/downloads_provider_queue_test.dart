@@ -1,3 +1,4 @@
+import 'package:aistudio_mobile/core/network/network_connectivity.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
@@ -5,9 +6,14 @@ import 'package:aistudio_mobile/features/downloads/models/download_settings.dart
 import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
 import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
+import 'package:aistudio_mobile/features/downloads/utils/download_wifi_guard.dart';
+import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../support/test_overrides.dart';
 
 class _QueueDownloadsRepository implements DownloadsRepository {
   _QueueDownloadsRepository({
@@ -121,6 +127,23 @@ class _QueueDownloadsRepository implements DownloadsRepository {
       throw UnimplementedError();
 }
 
+class _AlwaysWifiConnectivity implements NetworkConnectivity {
+  @override
+  Future<bool> isOnWifi() async => true;
+}
+
+Future<ProviderContainer> _queueContainer(_QueueDownloadsRepository repo) async {
+  SharedPreferences.setMockInitialValues(testPrefsDefaults());
+  final prefs = await SharedPreferences.getInstance();
+  return ProviderContainer(
+    overrides: [
+      sharedPrefsProvider.overrideWithValue(prefs),
+      downloadsRepositoryProvider.overrideWithValue(repo),
+      networkConnectivityProvider.overrideWithValue(_AlwaysWifiConnectivity()),
+    ],
+  );
+}
+
 void main() {
   group('DownloadsNotifier queue actions', () {
     test('queueChapters returns repository response and refreshes list', () async {
@@ -130,9 +153,7 @@ void main() {
           skipped: ['ch-old'],
         ),
       );
-      final container = ProviderContainer(
-        overrides: [downloadsRepositoryProvider.overrideWithValue(repo)],
-      );
+      final container = await _queueContainer(repo);
       addTearDown(container.dispose);
 
       await container.read(downloadsProvider.future);
@@ -160,9 +181,7 @@ void main() {
           skipped: [],
         ),
       );
-      final container = ProviderContainer(
-        overrides: [downloadsRepositoryProvider.overrideWithValue(repo)],
-      );
+      final container = await _queueContainer(repo);
       addTearDown(container.dispose);
 
       await container.read(downloadsProvider.future);
@@ -177,5 +196,40 @@ void main() {
       expect(repo.queueSeriesCalled, isTrue);
       expect(repo.listDownloadsCalls, greaterThan(1));
     });
+
+    test('queueChapters returns Wi-Fi error when Wi-Fi only is enabled', () async {
+      final repo = _QueueDownloadsRepository();
+      SharedPreferences.setMockInitialValues(
+        testPrefsDefaults({'settings_wifi_only_downloads': true}),
+      );
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(
+        overrides: [
+          sharedPrefsProvider.overrideWithValue(prefs),
+          downloadsRepositoryProvider.overrideWithValue(repo),
+          networkConnectivityProvider.overrideWithValue(
+            _FakeCellularConnectivity(),
+          ),
+        ],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(downloadsProvider.future);
+
+      final result = await container.read(downloadsProvider.notifier).queueChapters(
+            sourceId: 'mangadex',
+            seriesId: 'manga-1',
+            chapterIds: ['manga-1:1'],
+          );
+
+      expect(result.isErr, isTrue);
+      expect(result.error, isA<WifiRequiredError>());
+      expect(repo.lastChapterIds, isNull);
+    });
   });
+}
+
+class _FakeCellularConnectivity implements NetworkConnectivity {
+  @override
+  Future<bool> isOnWifi() async => false;
 }

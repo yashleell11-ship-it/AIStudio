@@ -6,6 +6,7 @@ import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
 import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
+import 'package:aistudio_mobile/features/downloads/utils/download_wifi_guard.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -271,6 +272,9 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
     String? seriesTitle,
     int? priority,
   }) async {
+    final wifiError = await checkWifiForDownload(ref);
+    if (wifiError != null) return Err(wifiError);
+
     final result = await ref.read(downloadsRepositoryProvider).queueChapters(
           sourceId: sourceId,
           seriesId: seriesId,
@@ -289,6 +293,9 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
     required String seriesId,
     int? priority,
   }) async {
+    final wifiError = await checkWifiForDownload(ref);
+    if (wifiError != null) return Err(wifiError);
+
     final result = await ref.read(downloadsRepositoryProvider).queueSeries(
           sourceId: sourceId,
           seriesId: seriesId,

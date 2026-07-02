@@ -13,7 +13,9 @@ from core.errors import register_error_handlers
 from database.session import SessionLocal, init_db
 from services.download_manager import get_download_manager
 from services.ocr_pipeline import get_ocr_manager
+from services.update_auto_download import auto_download_new_chapters
 from services.update_scheduler import get_update_manager
+from services.update_service import register_new_chapters_callback
 from services.import_cleanup import ImportCleanupService
 
 
@@ -32,6 +34,7 @@ def run_startup_migrations() -> None:
 
 def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> FastAPI:
     settings = get_settings()
+    register_new_chapters_callback(auto_download_new_chapters)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):

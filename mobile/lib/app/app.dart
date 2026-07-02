@@ -9,11 +9,8 @@ class AiStudioApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    // AIStudio only ships a dark ThemeData today, so every ThemeMode
-    // currently renders the same look. themeMode itself is wired to the
-    // user's persisted Settings > Theme choice (System/Light/Dark) so the
-    // preference takes effect immediately once a light theme is added.
     final themeMode = ref.watch(themeModeProvider);
+    final router = ref.watch(appRouterProvider);
 
     return MaterialApp.router(
       title: 'AIStudio',
@@ -21,7 +18,7 @@ class AiStudioApp extends ConsumerWidget {
       theme: AppTheme.dark,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
-      routerConfig: appRouter,
+      routerConfig: router,
     );
   }
 }

@@ -11,6 +11,8 @@ import 'package:aistudio_mobile/features/library/screens/search_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/reading_history_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/recommendations_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/statistics_screen.dart';
+import 'package:aistudio_mobile/features/setup/screens/setup_screen.dart';
+import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
 import 'package:aistudio_mobile/features/settings/screens/settings_screen.dart';
 import 'package:aistudio_mobile/features/sources/screens/source_browser_screen.dart';
 import 'package:aistudio_mobile/features/sources/screens/source_reader_screen.dart';
@@ -18,6 +20,7 @@ import 'package:aistudio_mobile/features/sources/screens/source_series_detail_sc
 import 'package:aistudio_mobile/features/sources/screens/sources_list_screen.dart';
 import 'package:aistudio_mobile/features/updates/screens/updates_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
@@ -26,11 +29,20 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 /// Application router — all screens registered here.
 ///
 /// Feature screens replace the [PlaceholderScreen] as they are built.
-final appRouter = GoRouter(
-  navigatorKey: _rootNavigatorKey,
-  initialLocation: Routes.home,
-  debugLogDiagnostics: true,
-  routes: [
+final appRouterProvider = Provider<GoRouter>((ref) {
+  final setupCompleted = ref.watch(setupCompletedProvider);
+
+  return GoRouter(
+    navigatorKey: _rootNavigatorKey,
+    initialLocation: Routes.home,
+    debugLogDiagnostics: true,
+    redirect: (context, state) {
+      final onSetup = state.uri.path == Routes.setup;
+      if (!setupCompleted && !onSetup) return Routes.setup;
+      if (setupCompleted && onSetup) return Routes.library;
+      return null;
+    },
+    routes: [
     // ── Shell with bottom-nav ──────────────────────────────────────────────
     StatefulShellRoute.indexedStack(
       builder: (context, state, navigationShell) =>
@@ -190,8 +202,13 @@ final appRouter = GoRouter(
       path: Routes.settings,
       builder: (context, state) => const SettingsScreen(),
     ),
+    GoRoute(
+      path: Routes.setup,
+      builder: (context, state) => const SetupScreen(),
+    ),
   ],
-);
+  );
+});
 
 /// Bottom-navigation shell shared by the main tab branches.
 class _AppShell extends StatelessWidget {
