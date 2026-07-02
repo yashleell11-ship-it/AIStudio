@@ -18,6 +18,11 @@ class _FakeConnectivity implements NetworkConnectivity {
   Future<bool> isOnWifi() async => onWifi;
 }
 
+/// Exposes the container's [Ref] for helpers that require it.
+final _containerRefProvider = Provider<Ref>((ref) => ref);
+
+Ref _refFrom(ProviderContainer container) => container.read(_containerRefProvider);
+
 void main() {
   group('download_wifi_guard', () {
     test('allows queue when Wi-Fi only is disabled', () async {
@@ -31,7 +36,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      expect(await checkWifiForDownload(container), isNull);
+      expect(await checkWifiForDownload(_refFrom(container)), isNull);
     });
 
     test('blocks queue on cellular when Wi-Fi only is enabled', () async {
@@ -47,7 +52,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      final error = await checkWifiForDownload(container);
+      final error = await checkWifiForDownload(_refFrom(container));
       expect(isWifiRequiredDownloadError(error!), isTrue);
     });
 
@@ -64,7 +69,7 @@ void main() {
       );
       addTearDown(container.dispose);
 
-      expect(await checkWifiForDownload(container), isNull);
+      expect(await checkWifiForDownload(_refFrom(container)), isNull);
     });
   });
 }
