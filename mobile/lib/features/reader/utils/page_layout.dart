@@ -11,9 +11,6 @@ BoxFit readerFitModeToBoxFit(ReaderFitMode mode) => switch (mode) {
       ReaderFitMode.height => BoxFit.fitHeight,
       ReaderFitMode.screen => BoxFit.contain,
     };
-const double maxContentWidth = 768;
-const double defaultAspectRatio = 2 / 3;
-
 double resolveContainerWidth(double measuredWidth) =>
     measuredWidth > 0 ? measuredWidth : defaultContainerWidth;
 
