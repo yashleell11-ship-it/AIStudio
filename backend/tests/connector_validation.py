@@ -7,7 +7,7 @@ from typing import Any, Callable, ContextManager, Iterable
 
 from connectors.base import SourceConnector
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
-from services.browse_service import _serialize_page
+from services.outbound_security import host_matches_allowlist
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +32,12 @@ class ConnectorContractCase:
     decimal_chapter_ids: tuple[str, ...] = ()
     ordering_probe_ids: tuple[str, ...] = ()
     adjacent_pairs: tuple[tuple[str, str], ...] = ()
+
+    # Optional stronger validations (only when fixtures support them)
+    expected_latest_first_id: str | None = None
+    expected_popular_first_id: str | None = None
+    expected_page2_first_id: str | None = None
+    expected_search_ids: tuple[str, ...] = ()
 
     # Mock installer: patches connector network methods to use fixtures.
     mock: Callable[[SourceConnector], ContextManager[None]] | None = None
@@ -71,13 +77,22 @@ def _assert_series_metadata(series: Series, *, expected_title_substring: str) ->
     assert series.cover_url, "expected cover_url"
 
 
-def _assert_pages(pages: list[Page], *, expected_host_substring: str, source_type: str) -> None:
+def _assert_pages(
+    pages: list[Page],
+    *,
+    expected_host_substring: str,
+    connector: SourceConnector,
+) -> None:
+    from urllib.parse import urlparse
+
     assert pages, "expected non-empty pages"
     assert pages[0].remote_url, "expected remote_url on pages"
     assert expected_host_substring in (pages[0].remote_url or "")
     assert pages[0].number == 1
-    serialized = _serialize_page(pages[0], source_type)
-    assert str(serialized["image_url"]).startswith(f"/sources/{source_type}/pages/")
+    parsed = urlparse(pages[0].remote_url or "")
+    assert parsed.scheme == "https"
+    assert parsed.hostname
+    assert host_matches_allowlist(parsed.hostname, connector.allowed_image_hosts)
 
 
 def _assert_chapters_ordered(chapters: list[Chapter]) -> None:
@@ -116,9 +131,7 @@ def _assert_adjacent_pairs(chapters: list[Chapter], *, pairs: tuple[tuple[str, s
 
 
 def validate_connector_contract(case: ConnectorContractCase) -> None:
-    connector = __import__("connectors.registry", fromlist=["create_connector"]).create_connector(
-        case.source_type
-    )
+    connector = __import__("connectors.registry", fromlist=["create_connector"]).create_connector(case.source_type)
     assert connector.source_type == case.source_type
     assert connector.is_browsable is True
 
@@ -133,11 +146,27 @@ def validate_connector_contract(case: ConnectorContractCase) -> None:
         _assert_listing(latest)
         popular = connector.get_series_list(1, sort="popular")
         _assert_listing(popular)
+        page2 = connector.get_series_list(2, sort="default")
+        _assert_listing(page2)
+        assert page2.page == 2
+
+        if case.expected_latest_first_id:
+            assert latest.items[0].id == case.expected_latest_first_id
+        if case.expected_popular_first_id:
+            assert popular.items[0].id == case.expected_popular_first_id
+            assert latest.items[0].id != popular.items[0].id
+        if case.expected_page2_first_id:
+            assert page2.items[0].id == case.expected_page2_first_id
 
         # Search
         search = connector.search_series(case.search_query, 1)
         _assert_listing(search)
-        assert any(case.search_query.casefold() in s.title.casefold() for s in search.items)
+        if case.expected_search_ids:
+            result_ids = {item.id for item in search.items}
+            for expected in case.expected_search_ids:
+                assert expected in result_ids
+        else:
+            assert any(case.search_query.casefold() in s.title.casefold() for s in search.items)
 
         # Metadata
         series = connector.get_series(case.series_id)
@@ -156,7 +185,7 @@ def validate_connector_contract(case: ConnectorContractCase) -> None:
         _assert_pages(
             pages,
             expected_host_substring=case.expected_image_host_substring,
-            source_type=case.source_type,
+            connector=connector,
         )
         assert connector.find_page(pages[0].id) == pages[0]
 

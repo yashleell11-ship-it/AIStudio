@@ -190,6 +190,10 @@ CASES: list[ConnectorContractCase] = [
         reader_chapter_id="aishiteru-uso-dakedo.10797/c1",
         expected_title_substring="Aishiteru",
         expected_image_host_substring="mangakatana.com",
+        expected_latest_first_id="kuroneko-to-majo-no-kyoushitsu.26203",
+        expected_popular_first_id="martial-peak.20405",
+        expected_page2_first_id="kakegurui.1388",
+        expected_search_ids=("solo-leveling.21708",),
         mock=_mock_mangakatana,
     ),
     ConnectorContractCase(
@@ -200,6 +204,10 @@ CASES: list[ConnectorContractCase] = [
         reader_chapter_id="the-beginning-after-the-end-7b1d8c89/chapter-240",
         expected_title_substring="Beginning After the End",
         expected_image_host_substring="tnlycdn.com",
+        expected_latest_first_id="the-beginning-after-the-end-7b1d8c89",
+        expected_popular_first_id="omniscient-reader-kk11",
+        expected_page2_first_id="solo-leveling-ab12cd34",
+        expected_search_ids=("solo-leveling-ab12cd34",),
         decimal_chapter_ids=(
             "the-beginning-after-the-end-7b1d8c89/chapter-175-8",
         ),
