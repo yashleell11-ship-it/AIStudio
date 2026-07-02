@@ -51,9 +51,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   void _updateQuery(LibraryQuery Function(LibraryQuery current) update) {
-    ref.read(libraryQueryProvider.notifier).state = update(
-      ref.read(libraryQueryProvider),
-    );
+    ref.read(libraryQueryProvider.notifier).patchQuery(update);
   }
 
   void _onSearchChanged(String value) {
@@ -100,9 +98,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       _updateQuery((q) => q.copyWith(sort: sort)),
                   onFilterChanged: (filter) =>
                       _updateQuery((q) => q.copyWith(filter: filter)),
-                  onFavoritesChanged: (favoritesOnly) => _updateQuery(
-                    (q) => q.copyWith(favoritesOnly: favoritesOnly),
-                  ),
                   onViewModeChanged: (viewMode) =>
                       _updateQuery((q) => q.copyWith(viewMode: viewMode)),
                 ),
@@ -127,8 +122,6 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           onSortChanged: (sort) => _updateQuery((q) => q.copyWith(sort: sort)),
           onFilterChanged: (filter) =>
               _updateQuery((q) => q.copyWith(filter: filter)),
-          onFavoritesChanged: (favoritesOnly) =>
-              _updateQuery((q) => q.copyWith(favoritesOnly: favoritesOnly)),
           onViewModeChanged: (viewMode) =>
               _updateQuery((q) => q.copyWith(viewMode: viewMode)),
           onSeriesTap: (series) => context.push(RoutePaths.seriesDetail(series.id)),
@@ -149,7 +142,6 @@ class _LibraryBody extends StatelessWidget {
     required this.onSearchChanged,
     required this.onSortChanged,
     required this.onFilterChanged,
-    required this.onFavoritesChanged,
     required this.onViewModeChanged,
     required this.onSeriesTap,
     required this.onToggleFavorite,
@@ -162,7 +154,6 @@ class _LibraryBody extends StatelessWidget {
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<LibrarySort> onSortChanged;
   final ValueChanged<LibraryFilter> onFilterChanged;
-  final ValueChanged<bool> onFavoritesChanged;
   final ValueChanged<LibraryViewMode> onViewModeChanged;
   final ValueChanged<SeriesSummary> onSeriesTap;
   final ValueChanged<int> onToggleFavorite;
@@ -182,9 +173,8 @@ class _LibraryBody extends StatelessWidget {
               seriesCount: state.total,
               onSearchChanged: onSearchChanged,
               onSortChanged: onSortChanged,
-              onFilterChanged: onFilterChanged,
-              onFavoritesChanged: onFavoritesChanged,
-              onViewModeChanged: onViewModeChanged,
+          onFilterChanged: onFilterChanged,
+          onViewModeChanged: onViewModeChanged,
             ),
             if (state.error != null) ...[
               const SizedBox(height: AppSpacing.lg),

@@ -1,17 +1,40 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/features/library/models/library_list_state.dart';
 import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
+import 'package:aistudio_mobile/features/library/utils/library_preferences.dart';
+import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 const _listPageSize = 20;
 const _searchPageSize = 40;
 
-final libraryQueryProvider = StateProvider<LibraryQuery>(
-  (ref) => const LibraryQuery(),
+final libraryQueryProvider =
+    NotifierProvider<LibraryQueryNotifier, LibraryQuery>(
+  LibraryQueryNotifier.new,
   name: 'libraryQuery',
 );
+
+class LibraryQueryNotifier extends Notifier<LibraryQuery> {
+  @override
+  LibraryQuery build() => _normalizeBrowseQuery(readLibraryQuery(ref.read(sharedPrefsProvider)));
+
+  void updateQuery(LibraryQuery query) {
+    state = _normalizeBrowseQuery(query);
+    writeLibraryQuery(ref.read(sharedPrefsProvider), state);
+  }
+
+  void patchQuery(LibraryQuery Function(LibraryQuery current) update) {
+    updateQuery(update(state));
+  }
+}
+
+LibraryQuery _normalizeBrowseQuery(LibraryQuery query) {
+  if (!libraryBrowseSortOptions.contains(query.sort)) {
+    return query.copyWith(sort: LibrarySort.recent);
+  }
+  return query;
+}
 
 final searchQueryProvider = StateProvider<LibraryQuery>(
   (ref) => const LibraryQuery(viewMode: LibraryViewMode.list),
@@ -202,15 +225,16 @@ Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListP
     page: page,
     perPage: _listPageSize,
     sort: query.sortParam,
-    status: query.statusParam,
+    readingStatus: query.readingStatusParam,
     isFavorite: query.favoritesOnly ? true : null,
   );
   if (result.isErr) throw result.error;
 
   final paged = result.value;
+  final items = applyLibraryClientFilters(paged.items, query, sortResults: false);
   return (
-    items: paged.items,
-    total: paged.total,
+    items: items,
+    total: query.filter == LibraryFilter.downloaded ? items.length : paged.total,
     hasNext: paged.hasNext,
   );
 }
@@ -218,7 +242,14 @@ Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListP
 List<SeriesSummary> applySearchClientFilters(
   List<SeriesSummary> items,
   LibraryQuery query,
-) {
+) =>
+    applyLibraryClientFilters(items, query, sortResults: true);
+
+List<SeriesSummary> applyLibraryClientFilters(
+  List<SeriesSummary> items,
+  LibraryQuery query, {
+  required bool sortResults,
+}) {
   var filtered = items;
 
   if (query.favoritesOnly) {
@@ -227,18 +258,18 @@ List<SeriesSummary> applySearchClientFilters(
 
   filtered = switch (query.filter) {
     LibraryFilter.all => filtered,
+    LibraryFilter.downloaded =>
+      filtered.where((series) => series.chapterCount > 0).toList(),
     LibraryFilter.reading =>
       filtered.where((series) => series.readingStatus == 'reading').toList(),
-    LibraryFilter.unread => filtered
-        .where(
-          (series) =>
-              series.readingStatus == 'unread' || series.readChapters == 0,
-        )
-        .toList(),
+    LibraryFilter.completed =>
+      filtered.where((series) => series.readingStatus == 'completed').toList(),
   };
 
   filtered = List<SeriesSummary>.from(filtered);
-  filtered.sort((a, b) => _compareSeries(a, b, query.sort));
+  if (sortResults) {
+    filtered.sort((a, b) => _compareSeries(a, b, query.sort));
+  }
   return filtered;
 }
 

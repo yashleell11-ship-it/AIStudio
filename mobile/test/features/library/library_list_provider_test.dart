@@ -10,19 +10,24 @@ import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
 import 'package:aistudio_mobile/features/library/models/series_detail.dart';
 import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:aistudio_mobile/features/library/models/tag.dart';
+import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
 import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
+import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository(this.pages);
 
   final Map<int, PagedResult<SeriesSummary>> pages;
   int listCalls = 0;
+  String? lastReadingStatus;
+  String? lastSort;
 
   @override
   Future<Result<PagedResult<SeriesSummary>>> listSeries({
@@ -37,6 +42,8 @@ class _FakeLibraryRepository implements LibraryRepository {
     bool? isFavorite,
   }) async {
     listCalls++;
+    lastReadingStatus = readingStatus;
+    lastSort = sort;
     return Ok(pages[page] ?? pages[1]!);
   }
 
@@ -176,6 +183,19 @@ SeriesSummary _series(int id) {
 
 void main() {
   group('LibraryListNotifier', () {
+    Future<ProviderContainer> _container(_FakeLibraryRepository fakeRepo) async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final container = ProviderContainer(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(fakeRepo),
+          sharedPrefsProvider.overrideWithValue(prefs),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
     test('loads first page and appends on loadMore', () async {
       final fakeRepo = _FakeLibraryRepository({
         1: PagedResult(
@@ -194,12 +214,7 @@ void main() {
         ),
       });
 
-      final container = ProviderContainer(
-        overrides: [
-          libraryRepositoryProvider.overrideWithValue(fakeRepo),
-        ],
-      );
-      addTearDown(container.dispose);
+      final container = await _container(fakeRepo);
 
       final state = await container.read(libraryListProvider.future);
       expect(state.items, hasLength(2));
@@ -210,6 +225,64 @@ void main() {
       expect(loaded.items, hasLength(4));
       expect(loaded.hasNext, isFalse);
       expect(fakeRepo.listCalls, 2);
+    });
+
+    test('passes reading status filter to repository', () async {
+      final fakeRepo = _FakeLibraryRepository({
+        1: PagedResult(
+          items: [_series(1)],
+          total: 1,
+          page: 1,
+          perPage: 20,
+          hasNext: false,
+        ),
+      });
+
+      final container = await _container(fakeRepo);
+
+      container.read(libraryQueryProvider.notifier).updateQuery(
+            const LibraryQuery(
+              filter: LibraryFilter.completed,
+              sort: LibrarySort.recent,
+            ),
+          );
+      await container.read(libraryListProvider.future);
+
+      expect(fakeRepo.lastReadingStatus, 'completed');
+      expect(fakeRepo.lastSort, 'recent');
+    });
+
+    test('applyLibraryClientFilters keeps downloaded series with chapters', () {
+      final items = [
+        _series(1).copyWith(isFavorite: false),
+        SeriesSummary(
+          id: 2,
+          libraryId: 1,
+          title: 'Empty',
+          sortTitle: 'empty',
+          contentRating: 'teen',
+          language: 'en',
+          folderPath: '/library/2',
+          isFavorite: false,
+          readingStatus: 'unread',
+          chapterCount: 0,
+          readChapters: 0,
+          pageCount: 0,
+          totalChapters: 0,
+          totalPages: 0,
+          createdAt: DateTime(2024, 1, 1),
+          updatedAt: DateTime(2024, 6, 1),
+        ),
+      ];
+
+      final filtered = applyLibraryClientFilters(
+        items,
+        const LibraryQuery(filter: LibraryFilter.downloaded),
+        sortResults: false,
+      );
+
+      expect(filtered, hasLength(1));
+      expect(filtered.first.id, 1);
     });
   });
 }

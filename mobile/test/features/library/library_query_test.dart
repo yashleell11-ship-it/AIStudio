@@ -3,16 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('LibraryQuery', () {
-    test('maps filter to status param', () {
+    test('maps filter to reading status param', () {
       expect(
-        const LibraryQuery(filter: LibraryFilter.reading).statusParam,
+        const LibraryQuery(filter: LibraryFilter.reading).readingStatusParam,
         'reading',
       );
       expect(
-        const LibraryQuery(filter: LibraryFilter.unread).statusParam,
-        'unread',
+        const LibraryQuery(filter: LibraryFilter.completed).readingStatusParam,
+        'completed',
       );
-      expect(const LibraryQuery().statusParam, isNull);
+      expect(
+        const LibraryQuery(filter: LibraryFilter.downloaded).readingStatusParam,
+        isNull,
+      );
+      expect(const LibraryQuery().readingStatusParam, isNull);
     });
 
     test('maps sort to API param', () {
@@ -21,8 +25,12 @@ void main() {
         'date_added',
       );
       expect(
-        const LibraryQuery(sort: LibrarySort.totalChapters).sortParam,
-        'total_chapters',
+        const LibraryQuery(sort: LibrarySort.recent).sortParam,
+        'recent',
+      );
+      expect(
+        const LibraryQuery(sort: LibrarySort.title).sortParam,
+        'title',
       );
     });
 
@@ -32,10 +40,21 @@ void main() {
         LibraryEmptyState.search,
       );
       expect(
-        const LibraryQuery(favoritesOnly: true).emptyState,
+        const LibraryQuery(filter: LibraryFilter.reading).emptyState,
         LibraryEmptyState.filter,
       );
       expect(const LibraryQuery().emptyState, LibraryEmptyState.library);
+    });
+
+    test('browse options expose required sort and filter labels', () {
+      expect(
+        libraryBrowseSortOptions.map((sort) => sort.label).toList(),
+        ['Recently Read', 'Recently Added', 'Alphabetical'],
+      );
+      expect(
+        libraryBrowseFilterOptions.map((filter) => filter.label).toList(),
+        ['All', 'Downloaded', 'Reading', 'Completed'],
+      );
     });
   });
 }
