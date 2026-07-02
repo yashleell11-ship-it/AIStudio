@@ -147,13 +147,15 @@ class _FakeUpdatesRepository implements UpdatesRepository {
 }
 
 class _FakeDownloadsNotifier extends DownloadsNotifier {
-  _FakeDownloadsNotifier(this.fakeRepo);
+  _FakeDownloadsNotifier(this.fakeRepo, {this.items = const []});
+
   final DownloadsRepository fakeRepo;
+  final List<DownloadItem> items;
 
   @override
   Future<DownloadsState> build() async {
     return DownloadsState(
-      items: const [],
+      items: items,
       metrics: DownloadMetrics(
         total: 0,
         completed: 0,
@@ -349,6 +351,7 @@ Future<ProviderContainer> _pumpScreen(
   required _FakeUpdatesRepository updatesRepo,
   _RecordingDownloadsRepository? downloadsRepo,
   List<SourceChapterSummary>? chapters,
+  List<DownloadItem> downloadItems = const [],
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -366,7 +369,9 @@ Future<ProviderContainer> _pumpScreen(
       sourcesRepositoryProvider.overrideWithValue(fakeSourcesRepo),
       updatesRepositoryProvider.overrideWithValue(updatesRepo),
       downloadsRepositoryProvider.overrideWithValue(fakeDownloadsRepo),
-      downloadsProvider.overrideWith(() => _FakeDownloadsNotifier(fakeDownloadsRepo)),
+      downloadsProvider.overrideWith(
+        () => _FakeDownloadsNotifier(fakeDownloadsRepo, items: downloadItems),
+      ),
     ],
   );
   addTearDown(container.dispose);
@@ -924,6 +929,137 @@ void main() {
 
       expect(fakeDownloads.queueChaptersCallCount, 2);
       expect(find.textContaining('Queued 1 chapter'), findsOneWidget);
+    });
+  });
+
+  group('SourceSeriesDetailScreen download status', () {
+    DownloadItem _statusItem({
+      required String chapterId,
+      required String status,
+    }) =>
+        DownloadItem(
+          id: chapterId.hashCode,
+          source: 'mangadex',
+          seriesId: 'manga-1',
+          chapterId: chapterId,
+          seriesTitle: 'Solo Leveling',
+          chapterTitle: 'Chapter',
+          status: status,
+          progress: status == 'completed' ? 1 : 0.5,
+          pagesDone: 5,
+          pagesTotal: 10,
+          bytesDownloaded: 1024,
+          createdAt: DateTime.utc(2024, 1, 1),
+          updatedAt: DateTime.utc(2024, 1, 2),
+          priority: 0,
+          retryCount: 0,
+        );
+
+    Future<void> _pumpWithStatuses(
+      WidgetTester tester,
+      List<DownloadItem> downloadItems,
+    ) async {
+      await _pumpScreen(
+        tester,
+        updatesRepo: _FakeUpdatesRepository(),
+        chapters: [
+          _chapter(id: 'manga-1:1', number: 1, title: 'Chapter 1'),
+          _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
+          _chapter(id: 'manga-1:3', number: 3, title: 'Chapter 3'),
+          _chapter(id: 'manga-1:4', number: 4, title: 'Chapter 4'),
+          _chapter(id: 'manga-1:5', number: 5, title: 'Chapter 5'),
+        ],
+        downloadItems: downloadItems,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+
+    testWidgets('shows chapter download badges from downloads state', (tester) async {
+      await _pumpWithStatuses(tester, [
+        _statusItem(chapterId: 'manga-1:1', status: 'queued'),
+        _statusItem(chapterId: 'manga-1:2', status: 'downloading'),
+        _statusItem(chapterId: 'manga-1:3', status: 'completed'),
+        _statusItem(chapterId: 'manga-1:4', status: 'failed'),
+      ]);
+
+      expect(find.text('Queued'), findsOneWidget);
+      expect(find.text('Downloading'), findsOneWidget);
+      expect(find.text('Completed'), findsOneWidget);
+      expect(find.text('Failed'), findsOneWidget);
+    });
+
+    testWidgets('disables download for queued, downloading, and completed chapters',
+        (tester) async {
+      await _pumpWithStatuses(tester, [
+        _statusItem(chapterId: 'manga-1:1', status: 'queued'),
+        _statusItem(chapterId: 'manga-1:2', status: 'downloading'),
+        _statusItem(chapterId: 'manga-1:3', status: 'completed'),
+        _statusItem(chapterId: 'manga-1:4', status: 'failed'),
+        _statusItem(chapterId: 'manga-1:5', status: 'cancelled'),
+      ]);
+
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:1'))).onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:2'))).onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:3'))).onPressed,
+        isNull,
+      );
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:4'))).onPressed,
+        isNotNull,
+      );
+      expect(
+        tester.widget<IconButton>(find.byKey(const Key('download-manga-1:5'))).onPressed,
+        isNotNull,
+      );
+    });
+
+    testWidgets('failed chapter download button remains retryable', (tester) async {
+      final fakeDownloads = _RecordingDownloadsRepository();
+      await _pumpScreen(
+        tester,
+        updatesRepo: _FakeUpdatesRepository(),
+        downloadsRepo: fakeDownloads,
+        chapters: [_chapter(id: 'manga-1:4', number: 4, title: 'Chapter 4')],
+        downloadItems: [
+          DownloadItem(
+            id: 44,
+            source: 'mangadex',
+            seriesId: 'manga-1',
+            chapterId: 'manga-1:4',
+            seriesTitle: 'Solo Leveling',
+            chapterTitle: 'Chapter 4',
+            status: 'failed',
+            progress: 0.2,
+            pagesDone: 2,
+            pagesTotal: 10,
+            bytesDownloaded: 512,
+            createdAt: DateTime.utc(2024, 1, 1),
+            updatedAt: DateTime.utc(2024, 1, 2),
+            priority: 0,
+            retryCount: 1,
+          ),
+        ],
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final buttonFinder = find.byKey(const Key('download-manga-1:4'));
+      expect(tester.widget<IconButton>(buttonFinder).onPressed, isNotNull);
+
+      await tester.tap(buttonFinder);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(fakeDownloads.lastChapterIds, ['manga-1:4']);
     });
   });
 }
