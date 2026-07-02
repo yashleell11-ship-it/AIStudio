@@ -252,7 +252,6 @@ class EasyOcrEngine(OcrEngine):
         return reader
 
     def recognize(self, image: "Image.Image", *, preprocess: bool = True) -> OcrResult:
-        import numpy as np
         from PIL import Image
 
         if not isinstance(image, Image.Image):
@@ -263,8 +262,10 @@ class EasyOcrEngine(OcrEngine):
             if preprocess:
                 image = _preprocess_image(image)
 
-            arr = np.array(image)
-            results = self._ensure_reader().readtext(arr)
+            # EasyOCR accepts numpy arrays, but we keep numpy optional for the backend
+            # because EasyOCR is an optional engine. Most unit tests mock EasyOCR and
+            # do not install heavy deps.
+            results = self._ensure_reader().readtext(image)
 
             text_parts: list[str] = []
             boxes: list[dict[str, Any]] = []

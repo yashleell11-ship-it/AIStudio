@@ -6,4 +6,3 @@ ollama==0.6.2
 sqlalchemy==2.0.35
 httpx==0.28.1
 pytesseract==0.3.13
-numpy==2.5.0
