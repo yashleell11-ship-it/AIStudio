@@ -84,42 +84,82 @@ class DemonicScansConnector(SourceConnector):
             BrowseMode(id="popular", label="Popular"),
         ]
 
+    def _log_request(
+        self,
+        operation: str,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        status: str,
+        detail: str | None = None,
+    ) -> None:
+        message = (
+            f"DemonicScans {operation} {SITE_BASE}{path} "
+            f"params={params or {}} status={status}"
+        )
+        if detail:
+            message += f" detail={detail}"
+        logger.info(message)
+
     def _normalize_series_id(self, series_id: str) -> str:
         return unquote(series_id).strip().strip("/").removeprefix("manga/")
 
     def _normalize_chapter_id(self, chapter_id: str) -> str:
         return unquote(chapter_id).strip().strip("/")
 
-    def _slice_page(self, items: list[Series], page: int) -> PaginatedSeriesList:
-        safe_page = max(page, 1)
-        start = (safe_page - 1) * PAGE_SIZE
-        end = start + PAGE_SIZE
-        sliced = items[start:end]
-        total = len(items)
-        return PaginatedSeriesList(
-            items=sliced,
-            page=safe_page,
-            page_size=PAGE_SIZE,
-            total=total,
-            api_has_more=end < total,
-        )
-
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
+        if page < 1:
+            page = 1
         mode = "popular" if sort == "popular" else "latest"
         path = listing_path(page, kind=mode)
-        html = self._http.get_text(path)
-        listing = parse_series_list(html, page=1, page_size=PAGE_SIZE)
-        return self._slice_page(listing.items, page)
+        try:
+            html = self._http.get_text(path)
+        except ConnectorHttpError as exc:
+            self._log_request("browse", path, status="error", detail=str(exc))
+            raise
+        listing = parse_series_list(html, page=page, page_size=PAGE_SIZE)
+        self._log_request(
+            "browse",
+            path,
+            status="ok",
+            detail=f"page={page} sort={sort!r} count={len(listing.items)} total={listing.total}",
+        )
+        return listing
 
     def search_series(self, query: str, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
+        if page < 1:
+            page = 1
         normalized = query.strip().casefold()
         path = listing_path(page, kind="search")
-        html = self._http.get_text(path)
-        listing = parse_series_list(html, page=1, page_size=PAGE_SIZE)
+        try:
+            html = self._http.get_text(path)
+        except ConnectorHttpError as exc:
+            self._log_request("search", path, status="error", detail=str(exc))
+            raise
+        listing = parse_series_list(html, page=page, page_size=PAGE_SIZE)
         if not normalized:
-            return self._slice_page(listing.items, page)
+            self._log_request(
+                "search",
+                path,
+                status="ok",
+                detail=f"page={page} query='' count={len(listing.items)} total={listing.total}",
+            )
+            return listing
         filtered = [item for item in listing.items if normalized in item.title.casefold()]
-        return self._slice_page(filtered, page)
+        result = PaginatedSeriesList(
+            items=filtered,
+            page=page,
+            page_size=PAGE_SIZE,
+            total=len(filtered),
+            api_has_more=False,
+        )
+        self._log_request(
+            "search",
+            path,
+            status="ok",
+            detail=f"page={page} query={normalized!r} count={len(filtered)} total={len(filtered)}",
+        )
+        return result
 
     def get_series(self, series_id: str) -> Series | None:
         api_key = self._normalize_series_id(series_id)
@@ -129,10 +169,12 @@ class DemonicScansConnector(SourceConnector):
         path = series_id_to_path(api_key)
         try:
             html = self._http.get_text(path)
-        except ConnectorHttpError:
+        except ConnectorHttpError as exc:
+            self._log_request("detail", path, status="error", detail=str(exc))
             return None
         series = parse_series_detail(html, api_key)
         if series is None:
+            self._log_request("detail", path, status="error", detail="parse failed")
             return None
         chapters = self.get_chapters(api_key)
         if chapters:
@@ -150,6 +192,12 @@ class DemonicScansConnector(SourceConnector):
                 latest_chapter=chapters[-1].title,
             )
         self._series_cache.set(api_key, series)
+        self._log_request(
+            "detail",
+            path,
+            status="ok",
+            detail=f"chapters={series.chapter_count}",
+        )
         return series
 
     def _remember_page_count(self, chapter_id: str, page_count: int) -> None:
@@ -171,11 +219,14 @@ class DemonicScansConnector(SourceConnector):
         path = series_id_to_path(api_key)
         try:
             html = self._http.get_text(path)
-        except ConnectorHttpError:
+        except ConnectorHttpError as exc:
+            self._log_request("chapters", path, status="error", detail=str(exc))
             return []
         chapters = parse_chapters(html, api_key)
         self._chapter_list_cache.set(api_key, chapters)
-        return self._enrich_chapters(chapters)
+        enriched = self._enrich_chapters(chapters)
+        self._log_request("chapters", path, status="ok", detail=f"count={len(enriched)}")
+        return enriched
 
     def get_chapter_pages(self, chapter_id: str) -> list[Page]:
         api_key = self._normalize_chapter_id(chapter_id)
@@ -185,11 +236,13 @@ class DemonicScansConnector(SourceConnector):
         path = chapter_id_to_reader_path(api_key)
         try:
             html = self._http.get_text(path)
-        except ConnectorHttpError:
+        except ConnectorHttpError as exc:
+            self._log_request("pages", path, status="error", detail=str(exc))
             return []
         pages = parse_chapter_pages(html, api_key)
         self._page_cache.set(api_key, pages)
         self._remember_page_count(api_key, len(pages))
+        self._log_request("pages", path, status="ok", detail=f"count={len(pages)}")
         return pages
 
     def find_page(self, page_id: str) -> Page | None:

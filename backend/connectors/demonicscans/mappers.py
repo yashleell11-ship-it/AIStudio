@@ -6,12 +6,21 @@ import html
 import re
 from typing import Any
 from urllib.parse import urljoin
+from urllib.parse import urlparse
 
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
 from connectors.titles import normalize_chapter_title
 
 SITE_BASE = "https://demonicscans.org"
 PAGE_SIZE = 20
+READER_IMAGE_HOST_SUFFIXES = ("demoniclibs.com",)
+READER_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
+READER_IMAGE_BLOCKLIST_SUBSTRINGS = (
+    "/img/free_ads",
+    "paypal.svg",
+    "flaticon.com/",
+    "upload.wikimedia.org/",
+)
 
 
 def _clean_text(value: str) -> str:
@@ -197,9 +206,28 @@ def extract_image_urls(html_text: str) -> list[str]:
     urls: list[str] = []
     seen: set[str] = set()
 
+    def _is_real_reader_image(full_url: str) -> bool:
+        parsed = urlparse(full_url)
+        if parsed.scheme != "https":
+            return False
+        if not parsed.netloc:
+            return False
+        host = parsed.netloc.lower()
+        if not any(host == suffix or host.endswith(f".{suffix}") for suffix in READER_IMAGE_HOST_SUFFIXES):
+            return False
+        path = (parsed.path or "").lower()
+        if not path.endswith(READER_IMAGE_EXTENSIONS):
+            return False
+        full_lower = full_url.lower()
+        if any(token in full_lower for token in READER_IMAGE_BLOCKLIST_SUBSTRINGS):
+            return False
+        return True
+
     def _add(url: str) -> None:
         full = urljoin(SITE_BASE, url.strip())
         if not full or full in seen:
+            return
+        if not _is_real_reader_image(full):
             return
         seen.add(full)
         urls.append(full)
@@ -250,11 +278,17 @@ def page_id_chapter_id(page_id: str) -> str | None:
 
 def listing_path(page: int, *, kind: str) -> str:
     if kind == "latest":
-        return "/lastupdates.php?list=2"
+        safe_page = max(page, 1)
+        # DemonicScans uses `list` as the paging cursor for updates.
+        # page 1 -> list=2, page 2 -> list=3, ...
+        list_value = min(4, safe_page + 1)
+        return f"/lastupdates.php?list={list_value}"
     if kind == "popular":
         return "/"
     if kind == "search":
-        return "/advanced.php"
+        safe_page = max(page, 1)
+        list_value = min(4, safe_page + 1)
+        return f"/advanced.php?list={list_value}"
     return "/"
 
 
