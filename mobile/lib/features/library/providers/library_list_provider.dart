@@ -85,9 +85,9 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
         items: [...current.items, ...result.items],
         page: nextPage,
         hasNext: result.hasNext,
-        total: query.isSearching
-            ? current.items.length + result.items.length
-            : result.total,
+        total: query.usesListSeriesFetch
+            ? result.total
+            : current.items.length + result.items.length,
         isLoadingMore: false,
       ),
     );
@@ -166,7 +166,9 @@ class SearchListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
         items: [...current.items, ...result.items],
         page: nextPage,
         hasNext: result.hasNext,
-        total: current.items.length + result.items.length,
+        total: query.usesListSeriesFetch
+            ? result.total
+            : current.items.length + result.items.length,
         isLoadingMore: false,
       ),
     );
@@ -214,7 +216,7 @@ Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListP
 ) async {
   final repo = ref.read(libraryRepositoryProvider);
 
-  if (query.isSearching) {
+  if (!query.usesListSeriesFetch) {
     final result = await repo.search(query.search.trim(), page: page);
     if (result.isErr) throw result.error;
     final filtered = applySearchClientFilters(result.value, query);
@@ -225,10 +227,12 @@ Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListP
     );
   }
 
+  final perPage = query.isSearching ? _searchPageSize : _listPageSize;
   final result = await repo.listSeries(
     page: page,
-    perPage: _listPageSize,
+    perPage: perPage,
     sort: query.sortParam,
+    search: query.isSearching ? query.search.trim() : null,
     readingStatus: query.readingStatusParam,
     hasChapters: query.hasChaptersParam,
     isFavorite: query.favoritesOnly ? true : null,
@@ -263,8 +267,6 @@ List<SeriesSummary> applyLibraryClientFilters(
 
   filtered = switch (query.filter) {
     LibraryFilter.all => filtered,
-    LibraryFilter.downloaded when query.isSearching =>
-      filtered.where((series) => series.chapterCount > 0).toList(),
     LibraryFilter.downloaded => filtered,
     LibraryFilter.reading =>
       filtered.where((series) => series.readingStatus == 'reading').toList(),
