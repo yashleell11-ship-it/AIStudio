@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import Any
 
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
+from connectors.titles import normalize_chapter_title
 
 API_BASE = "https://api.asurascans.com"
 PAGE_SIZE = 20
@@ -149,7 +150,7 @@ def series_detail_to_series(payload: dict[str, Any], *, chapter_count: int | Non
 def chapter_item_to_chapter(item: dict[str, Any], *, series_id: str) -> Chapter:
     number = item.get("number")
     chapter_number = int(number) if number is not None else None
-    title = item.get("title")
+    title = normalize_chapter_title(item.get("title"))
     if not title:
         title = f"Chapter {number}" if number is not None else "Chapter"
     return Chapter(
