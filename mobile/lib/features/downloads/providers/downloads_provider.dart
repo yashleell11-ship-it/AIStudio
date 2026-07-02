@@ -80,8 +80,11 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
     try {
       final data = await _fetch();
       _schedulePolling(data.items);
+      final latest = state.valueOrNull;
+      if (latest == null) return;
+
       state = AsyncData(
-        current.copyWith(
+        latest.copyWith(
           items: data.items,
           metrics: data.metrics,
           clearActionError: true,

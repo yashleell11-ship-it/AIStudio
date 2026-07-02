@@ -651,6 +651,26 @@ void main() {
       expect(find.text('Failed: 1'), findsOneWidget);
       expect(find.text('Completed: 1'), findsOneWidget);
     });
+
+    testWidgets('shows paused count in queue summary', (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            downloadsRepositoryProvider.overrideWithValue(
+              _ItemsDownloadsRepository([
+                _queueItem(id: 9, status: 'paused'),
+              ]),
+            ),
+          ],
+          child: const MaterialApp(home: DownloadsScreen()),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Paused: 1'), findsOneWidget);
+    });
   });
 }
 

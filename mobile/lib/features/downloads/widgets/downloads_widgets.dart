@@ -618,6 +618,7 @@ class DownloadQueueSummary extends StatelessWidget {
       ('Importing', counts[DownloadQueueDisplayStatus.importing]!),
       ('Completed', counts[DownloadQueueDisplayStatus.completed]!),
       ('Failed', counts[DownloadQueueDisplayStatus.failed]!),
+      ('Paused', counts[DownloadQueueDisplayStatus.paused]!),
     ].where((entry) => entry.$2 > 0).toList();
 
     if (entries.isEmpty) return const SizedBox.shrink();

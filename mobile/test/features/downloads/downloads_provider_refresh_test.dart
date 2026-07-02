@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
@@ -147,5 +149,73 @@ void main() {
       expect(state.value!.items.first.progress, 80);
       expect(repo.listCalls, greaterThan(1));
     });
+
+    test('does not clear actionPending when action starts during refresh', () async {
+      final listGate = Completer<void>();
+      final pauseGate = Completer<void>();
+      final fetchBlocked = Completer<void>();
+      final repo = _DelayedRefreshRepo(
+        [_downloadingItem()],
+        listGate: listGate,
+        pauseGate: pauseGate,
+        fetchBlocked: fetchBlocked,
+      );
+      final container = ProviderContainer(
+        overrides: [downloadsRepositoryProvider.overrideWithValue(repo)],
+      );
+      addTearDown(container.dispose);
+
+      await container.read(downloadsProvider.future);
+      expect(container.read(downloadsProvider).requireValue.actionPending, isFalse);
+
+      repo.blockListFetch = true;
+      final refreshFuture = container.read(downloadsProvider.notifier).refresh();
+      await fetchBlocked.future;
+
+      final pauseFuture = container.read(downloadsProvider.notifier).pauseItem(1);
+
+      expect(container.read(downloadsProvider).requireValue.actionPending, isTrue);
+
+      listGate.complete();
+      await refreshFuture;
+
+      expect(container.read(downloadsProvider).requireValue.actionPending, isTrue);
+
+      pauseGate.complete();
+      await pauseFuture;
+
+      expect(container.read(downloadsProvider).requireValue.actionPending, isFalse);
+    });
   });
+}
+
+class _DelayedRefreshRepo extends _RefreshRepo {
+  _DelayedRefreshRepo(
+    super.items, {
+    required this.listGate,
+    required this.pauseGate,
+    required this.fetchBlocked,
+  });
+
+  final Completer<void> listGate;
+  final Completer<void> pauseGate;
+  final Completer<void> fetchBlocked;
+  bool blockListFetch = false;
+
+  @override
+  Future<Result<List<DownloadItem>>> listDownloads() async {
+    if (blockListFetch) {
+      if (!fetchBlocked.isCompleted) {
+        fetchBlocked.complete();
+      }
+      await listGate.future;
+    }
+    return super.listDownloads();
+  }
+
+  @override
+  Future<Result<void>> pauseDownload(int downloadId) async {
+    await pauseGate.future;
+    return const Ok(null);
+  }
 }
