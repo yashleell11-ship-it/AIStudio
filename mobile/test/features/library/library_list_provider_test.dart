@@ -27,8 +27,10 @@ class _FakeLibraryRepository implements LibraryRepository {
 
   final Map<int, PagedResult<SeriesSummary>> pages;
   int listCalls = 0;
+  int searchCalls = 0;
   String? lastReadingStatus;
   String? lastSort;
+  String? lastSearch;
   bool? lastHasChapters;
 
   @override
@@ -47,6 +49,7 @@ class _FakeLibraryRepository implements LibraryRepository {
     listCalls++;
     lastReadingStatus = readingStatus;
     lastSort = sort;
+    lastSearch = search;
     lastHasChapters = hasChapters;
     return Ok(pages[page] ?? pages[1]!);
   }
@@ -124,8 +127,10 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) =>
-      throw UnimplementedError();
+  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) async {
+    searchCalls++;
+    throw UnimplementedError('search should not be called');
+  }
 
   @override
   Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
@@ -385,7 +390,7 @@ void main() {
       expect(filtered, hasLength(2));
     });
 
-    test('applyLibraryClientFilters keeps downloaded filter for search', () {
+    test('applyLibraryClientFilters skips downloaded filter for search', () {
       final items = [
         _series(1),
         SeriesSummary(
@@ -414,8 +419,68 @@ void main() {
         sortResults: false,
       );
 
-      expect(filtered, hasLength(1));
-      expect(filtered.first.id, 1);
+      expect(filtered, hasLength(2));
+    });
+  });
+
+  group('SearchListNotifier', () {
+    Future<ProviderContainer> _searchContainer(
+      _FakeLibraryRepository fakeRepo,
+    ) async {
+      final container = ProviderContainer(
+        overrides: [
+          libraryRepositoryProvider.overrideWithValue(fakeRepo),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    test('search with downloaded uses listSeries and preserves pagination', () async {
+      final fakeRepo = _FakeLibraryRepository({
+        1: PagedResult(
+          items: [_series(1), _series(2)],
+          total: 3,
+          page: 1,
+          perPage: 40,
+          hasNext: true,
+        ),
+        2: PagedResult(
+          items: [_series(3)],
+          total: 3,
+          page: 2,
+          perPage: 40,
+          hasNext: false,
+        ),
+      });
+
+      final container = await _searchContainer(fakeRepo);
+      container.read(searchQueryProvider.notifier).state = const LibraryQuery(
+        search: 'solo',
+        filter: LibraryFilter.downloaded,
+        sort: LibrarySort.recent,
+        viewMode: LibraryViewMode.list,
+      );
+
+      final state = await container.read(searchListProvider.future);
+
+      expect(fakeRepo.searchCalls, 0);
+      expect(fakeRepo.listCalls, 1);
+      expect(fakeRepo.lastSearch, 'solo');
+      expect(fakeRepo.lastHasChapters, isTrue);
+      expect(fakeRepo.lastSort, 'recent');
+      expect(state.total, 3);
+      expect(state.hasNext, isTrue);
+      expect(state.items, hasLength(2));
+
+      await container.read(searchListProvider.notifier).loadMore();
+      final loaded = container.read(searchListProvider).value!;
+
+      expect(fakeRepo.searchCalls, 0);
+      expect(fakeRepo.listCalls, 2);
+      expect(loaded.total, 3);
+      expect(loaded.hasNext, isFalse);
+      expect(loaded.items, hasLength(3));
     });
   });
 }

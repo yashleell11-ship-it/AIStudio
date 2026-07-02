@@ -30,7 +30,21 @@ void main() {
           filter: LibraryFilter.downloaded,
           search: 'solo',
         ).hasChaptersParam,
-        isNull,
+        isTrue,
+      );
+    });
+
+    test('uses listSeries fetch for search with downloaded filter', () {
+      expect(
+        const LibraryQuery(
+          filter: LibraryFilter.downloaded,
+          search: 'solo',
+        ).usesListSeriesFetch,
+        isTrue,
+      );
+      expect(
+        const LibraryQuery(search: 'solo').usesListSeriesFetch,
+        isFalse,
       );
     });
 

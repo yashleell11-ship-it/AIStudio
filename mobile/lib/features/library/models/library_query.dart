@@ -64,12 +64,14 @@ class LibraryQuery {
   }
 
   bool? get hasChaptersParam {
-    if (isSearching) return null;
     return switch (filter) {
       LibraryFilter.downloaded => true,
       _ => null,
     };
   }
+
+  bool get usesListSeriesFetch =>
+      !isSearching || filter == LibraryFilter.downloaded;
 
   String get sortParam => switch (sort) {
         LibrarySort.updated => 'updated',
