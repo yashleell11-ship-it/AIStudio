@@ -1,0 +1,12 @@
+# Editor / agent metadata
+.claude/
+.cursor/
+.vscode/
+
+# Local library and runtime data
+library/
+memory/
+config/
+
+# Connector probe scratch output
+backend/scripts/toonily_probe_out/
