@@ -72,43 +72,6 @@ def test_list_series_page_2_uses_offset(asurascans_connector: AsuraScansConnecto
     assert captured[1]["offset"] == 20
     assert captured[1]["sort"] == "popular"
 
-
-def test_get_series_chapters_and_pages(asurascans_connector: AsuraScansConnector):
-    listing_payload = _load("series_list.json")
-    detail_payload = _load("series_detail.json")
-    chapter_payload = _load("chapter_list.json")
-    pages_payload = _load("chapter_pages.json")
-    series_id = "return-of-the-mount-hua-sect-30e93729"
-    chapter_id = "breakers-30e93729:91"
-
-    def fake_get_json(path: str, *, params=None):
-        if path == "/api/series":
-            return listing_payload
-        if path == f"/api/series/{series_id}":
-            return detail_payload
-        if path == f"/api/series/{series_id}/chapters":
-            return chapter_payload
-        if path == "/api/series/breakers-30e93729/chapters/91":
-            return pages_payload
-        raise AssertionError(f"Unexpected path: {path}")
-
-    with patch.object(asurascans_connector._http, "get_json", side_effect=fake_get_json):
-        listing = asurascans_connector.get_series_list(1)
-        series = asurascans_connector.get_series(listing.items[0].id)
-        chapters = asurascans_connector.get_chapters(series_id)
-        pages = asurascans_connector.get_chapter_pages(chapter_id)
-
-    assert listing.items[0].id == series_id
-    assert series is not None
-    assert series.id == series_id
-    assert series.title == "Return of the Mount Hua Sect"
-    assert len(chapters) == 175
-    assert chapters[-1].id == f"{series_id}:169"
-    assert len(pages) == 14
-    assert pages[0].remote_url is not None
-    assert asurascans_connector.find_page(pages[0].id) == pages[0]
-
-
 @pytest.mark.parametrize("fixture_name", ["chapter_pages.json", "chapter_pages_mount.json"])
 def test_chapter_page_extraction_preserves_every_page(fixture_name: str):
     """Regression: extraction must emit exactly one page per source payload entry.

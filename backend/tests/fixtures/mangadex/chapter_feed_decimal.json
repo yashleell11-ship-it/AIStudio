@@ -1,0 +1,30 @@
+{
+  "result": "ok",
+  "response": "collection",
+  "data": [
+    {
+      "id": "00000000-0000-0000-0000-000000000001",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "1",
+        "title": "Chapter 1",
+        "pages": 2,
+        "publishAt": "2026-01-01T00:00:00Z"
+      }
+    },
+    {
+      "id": "00000000-0000-0000-0000-000000000002",
+      "type": "chapter",
+      "attributes": {
+        "chapter": "1.5",
+        "title": "Chapter 1.5",
+        "pages": 2,
+        "publishAt": "2026-01-02T00:00:00Z"
+      }
+    }
+  ],
+  "limit": 500,
+  "offset": 0,
+  "total": 2
+}
+

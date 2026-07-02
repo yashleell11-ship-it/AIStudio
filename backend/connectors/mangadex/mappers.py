@@ -158,11 +158,7 @@ def chapter_item_to_chapter(item: dict[str, Any], *, series_id: str) -> Chapter:
     title = attributes.get("title") or attributes.get("chapter") or "Chapter"
     pages = int(attributes.get("pages") or 0)
     publish_at = attributes.get("publishAt")
-    number = (
-        int(chapter_number)
-        if chapter_number is not None and chapter_number.is_integer()
-        else None
-    )
+    number = chapter_number
     return Chapter(
         id=chapter_id,
         series_id=series_id,
