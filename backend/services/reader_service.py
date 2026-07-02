@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from core.errors import AppError
 from database.models import Bookmark, Chapter, Page, ReadingProgress, Series
@@ -169,6 +169,35 @@ class ReaderService:
             "note": bookmark.note,
             "created_at": bookmark.created_at.isoformat(),
         }
+
+    def list_all_bookmarks(self, limit: int = 200) -> list[dict[str, object]]:
+        """Return the most recent bookmarks across every series, with series
+        and chapter names attached so the Bookmark Manager can render a
+        useful list without a lookup per row."""
+        bookmarks = (
+            self._db.query(Bookmark)
+            .options(
+                selectinload(Bookmark.series),
+                selectinload(Bookmark.chapter),
+            )
+            .order_by(Bookmark.created_at.desc())
+            .limit(limit)
+            .all()
+        )
+        return [
+            {
+                "id": bookmark.id,
+                "series_id": bookmark.series_id,
+                "series_title": bookmark.series.title if bookmark.series else None,
+                "chapter_id": bookmark.chapter_id,
+                "chapter_title": bookmark.chapter.title if bookmark.chapter else None,
+                "page": bookmark.page,
+                "page_id": bookmark.page_id,
+                "note": bookmark.note,
+                "created_at": bookmark.created_at.isoformat(),
+            }
+            for bookmark in bookmarks
+        ]
 
     def list_bookmarks(self, series_id: int) -> list[dict[str, object]]:
         bookmarks = (

@@ -88,6 +88,10 @@ abstract interface class LibraryRepository {
     String? note,
   });
 
+  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200});
+
+  Future<Result<void>> deleteBookmark(int bookmarkId);
+
   Future<Result<AdjacentChapter?>> getAdjacentChapter(
     int chapterId, {
     required String direction,

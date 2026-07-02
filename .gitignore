@@ -5,7 +5,7 @@
 .continue/
 
 # Local library and runtime data
-library/
+/library/
 memory/
 config/
 

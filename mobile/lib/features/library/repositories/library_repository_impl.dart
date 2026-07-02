@@ -310,6 +310,28 @@ class LibraryRepositoryImpl implements LibraryRepository {
       );
 
   @override
+  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) =>
+      _requestList(
+        () => _dio.get<List<dynamic>>(
+          '/reader/bookmarks',
+          queryParameters: {'limit': limit},
+        ),
+        Bookmark.fromJson,
+      );
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) async {
+    try {
+      await _dio.delete<void>('/reader/bookmarks/$bookmarkId');
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_extractError(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
   Future<Result<AdjacentChapter?>> getAdjacentChapter(
     int chapterId, {
     required String direction,

@@ -145,6 +145,12 @@ class _ChapterLookupRepository implements LibraryRepository {
     String? note,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
 }
 
 DownloadItem _completedDownload({int? localChapterId}) => DownloadItem(

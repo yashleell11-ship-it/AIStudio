@@ -5,6 +5,7 @@ import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
+import 'package:aistudio_mobile/features/downloads/utils/queue_download_feedback.dart';
 import 'package:aistudio_mobile/features/sources/models/source_series.dart';
 import 'package:aistudio_mobile/features/sources/providers/sources_provider.dart';
 import 'package:aistudio_mobile/features/sources/utils/chapter_label.dart';
@@ -103,24 +104,12 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
 
   void _showQueueFeedback(QueueDownloadResponse response) {
     if (!mounted) return;
-    final queued = response.queued.length;
-    final skipped = response.skipped.length;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (queued > 0)
-              Text('Queued $queued chapter${queued == 1 ? '' : 's'}'),
-            if (skipped > 0)
-              Text('Skipped $skipped already downloaded'),
-            if (queued == 0 && skipped == 0) const Text('No chapters queued'),
-          ],
-        ),
+        content: Text(queueDownloadFeedbackMessage(response)),
         action: SnackBarAction(
           label: 'Downloads',
-          onPressed: () => context.go(RoutePaths.downloads),
+          onPressed: () => context.go(Routes.downloads),
         ),
       ),
     );
@@ -150,6 +139,9 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         );
         return;
       }
+      setState(() {
+        _selectedChapterIds.removeAll(chapterIds);
+      });
       _showQueueFeedback(result.value);
     } finally {
       if (mounted) {

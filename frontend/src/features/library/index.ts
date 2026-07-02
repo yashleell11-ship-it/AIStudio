@@ -6,6 +6,7 @@ export { CollectionDetailView } from "./components/CollectionDetailView";
 export { RecommendationsView } from "./components/RecommendationsView";
 export { StatisticsView } from "./components/StatisticsView";
 export { ReadingHistoryView } from "./components/ReadingHistoryView";
+export { BookmarksView } from "./components/BookmarksView";
 export { SearchView } from "./components/SearchView";
 export { libraryApi, coverUrl, pageImageUrl } from "./api";
 export * from "./hooks";

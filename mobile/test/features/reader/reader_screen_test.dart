@@ -172,6 +172,12 @@ class _FakeReaderRepository implements LibraryRepository {
   @override
   Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
       throw UnimplementedError();
+
+  @override
+  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
 }
 
 ChapterDetail _sampleChapter() {

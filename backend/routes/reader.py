@@ -100,6 +100,18 @@ def create_bookmark(body: BookmarkRequest, service: ReaderDep) -> dict[str, obje
     )
 
 
+@router.get("/bookmarks")
+def list_all_bookmarks(
+    service: ReaderDep,
+    response: Response,
+    limit: int = Query(200, ge=1, le=500),
+) -> list[dict[str, object]]:
+    """List the most recent bookmarks across every series (Bookmark Manager)."""
+    items = service.list_all_bookmarks(limit=limit)
+    set_list_total_header(response, len(items))
+    return items
+
+
 @router.get("/bookmarks/{series_id}")
 def list_bookmarks(
     series_id: int,

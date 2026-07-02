@@ -89,3 +89,28 @@ def test_list_bookmarks_includes_page_id(db: Session):
 
     assert len(bookmarks) == 1
     assert bookmarks[0]["page_id"] is not None
+
+
+def test_list_all_bookmarks_enriches_series_and_chapter_titles(db: Session):
+    chapter = _seed_chapter_with_pages(db)
+    service = ReaderService(db)
+    service.add_bookmark(series_id=chapter.series_id, chapter_id=chapter.id, page=2, note="wow")
+
+    bookmarks = service.list_all_bookmarks()
+
+    assert len(bookmarks) == 1
+    assert bookmarks[0]["series_title"] == "Solo Leveling"
+    assert bookmarks[0]["chapter_title"] == "Chapter 1"
+    assert bookmarks[0]["note"] == "wow"
+
+
+def test_list_all_bookmarks_orders_newest_first_and_respects_limit(db: Session):
+    chapter = _seed_chapter_with_pages(db)
+    service = ReaderService(db)
+    for page in range(1, 4):
+        service.add_bookmark(series_id=chapter.series_id, chapter_id=chapter.id, page=page)
+
+    bookmarks = service.list_all_bookmarks(limit=2)
+
+    assert len(bookmarks) == 2
+    assert [b["page"] for b in bookmarks] == [3, 2]

@@ -1,4 +1,5 @@
 import 'package:aistudio_mobile/app/router/routes.dart';
+import 'package:aistudio_mobile/features/library/screens/bookmarks_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/dashboard_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
 import 'package:aistudio_mobile/features/library/screens/series_detail_screen.dart';
@@ -58,6 +59,10 @@ final appRouter = GoRouter(
                 GoRoute(
                   path: 'history',
                   builder: (context, state) => const ReadingHistoryScreen(),
+                ),
+                GoRoute(
+                  path: 'bookmarks',
+                  builder: (context, state) => const BookmarksScreen(),
                 ),
                 GoRoute(
                   path: ':seriesId',

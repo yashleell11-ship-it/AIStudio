@@ -384,6 +384,12 @@ class _LibraryChapterLookupRepository implements LibraryRepository {
     String? note,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
 }
 
 void main() {
@@ -466,8 +472,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Completed (1)'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('completed-download-99')));
-      await tester.pump();
+      final completedDownloadFinder = find.byKey(const Key('completed-download-99'));
+      await tester.ensureVisible(completedDownloadFinder);
+      await tester.pumpAndSettle();
+      await tester.tap(completedDownloadFinder);
+      await tester.pumpAndSettle();
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(navigatedLocation, '/library/7/chapters/42/read');

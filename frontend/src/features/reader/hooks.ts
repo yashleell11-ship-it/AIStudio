@@ -60,6 +60,27 @@ export function useAddBookmark() {
   });
 }
 
+export function bookmarksQueryKey() {
+  return [...READER_KEY, "bookmarks"] as const;
+}
+
+export function useBookmarks() {
+  return useQuery({
+    queryKey: bookmarksQueryKey(),
+    queryFn: () => readerApi.listBookmarks(),
+  });
+}
+
+export function useDeleteBookmark() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: readerApi.deleteBookmark,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: bookmarksQueryKey() });
+    },
+  });
+}
+
 export function useAdjacentChapter(
   chapterId: number,
   direction: "previous" | "next",

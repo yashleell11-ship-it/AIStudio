@@ -201,6 +201,12 @@ class _FakeIntelligenceRepository implements LibraryRepository {
     required String direction,
   }) =>
       throw UnimplementedError();
+
+  @override
+  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
 }
 
 class _FakeUpdatesRepository implements UpdatesRepository {

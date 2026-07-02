@@ -9,6 +9,7 @@ abstract final class Routes {
   static const String recommendations = '/library/recommendations';
   static const String statistics = '/library/statistics';
   static const String readingHistory = '/library/history';
+  static const String bookmarks = '/library/bookmarks';
   static const String seriesDetail = '/library/:seriesId';
   static const String reader = '/library/:seriesId/chapters/:chapterId/read';
 
