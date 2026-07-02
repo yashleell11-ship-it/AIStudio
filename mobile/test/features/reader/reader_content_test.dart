@@ -91,7 +91,7 @@ void main() {
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
             showBookmark: true,
-            onAddBookmark: (_) async {},
+            onAddBookmark: (_) async => true,
             onBack: () {},
           ),
         ),
@@ -206,6 +206,129 @@ void main() {
       await tester.pump();
 
       expect(backCalls, 1);
+    });
+
+    testWidgets('shows bookmark snackbar only when callback returns true',
+        (tester) async {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _wrapWithPrefs(
+          prefs,
+          ReaderContent(
+            chapter: _sampleChapter(),
+            scrollStorageKey: '1',
+            showBookmark: true,
+            onAddBookmark: (_) async => true,
+            onBack: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Bookmarked page 1'), findsOneWidget);
+    });
+
+    testWidgets('hides bookmark snackbar when callback returns false',
+        (tester) async {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _wrapWithPrefs(
+          prefs,
+          ReaderContent(
+            chapter: _sampleChapter(),
+            scrollStorageKey: '1',
+            showBookmark: true,
+            onAddBookmark: (_) async => false,
+            onBack: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.textContaining('Bookmarked page'), findsNothing);
+    });
+
+    testWidgets('clears bookmark pending after callback throws', (tester) async {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        _wrapWithPrefs(
+          prefs,
+          ReaderContent(
+            chapter: _sampleChapter(),
+            scrollStorageKey: '1',
+            showBookmark: true,
+            onAddBookmark: (_) async => throw Exception('bookmark failed'),
+            onBack: () {},
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(tester.takeException(), isA<Exception>());
+
+      final saveButton = tester.widget<TextButton>(
+        find.ancestor(
+          of: find.text('Save'),
+          matching: find.byType(TextButton),
+        ),
+      );
+      expect(saveButton.enabled, isTrue);
+    });
+
+    testWidgets('re-arms auto-next timer after scrolling away from bottom',
+        (tester) async {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      var nextCalls = 0;
+      await tester.pumpWidget(
+        _wrapWithPrefs(
+          prefs,
+          ReaderContent(
+            chapter: _sampleChapter(nextChapterId: '2'),
+            scrollStorageKey: '1',
+            onBack: () {},
+            onNextChapter: () => nextCalls++,
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      final listView = find.byType(ListView);
+      await tester.drag(listView, const Offset(0, -4000));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 500));
+
+      await tester.drag(listView, const Offset(0, 4000));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1000));
+
+      expect(nextCalls, 1);
     });
   });
 }

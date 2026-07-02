@@ -113,6 +113,7 @@ class _LocalReaderBody extends ConsumerWidget {
     );
 
     return ReaderContent(
+      key: ValueKey(chapterId.toString()),
       chapter: readerChapter,
       scrollStorageKey: chapterId.toString(),
       initialPage: initialPage,
@@ -129,11 +130,13 @@ class _LocalReaderBody extends ConsumerWidget {
         chapterId: chapterId,
         lastPage: page,
       ).then((_) {}),
-      onAddBookmark: (page) => repo.addBookmark(
-        seriesId: seriesId,
-        chapterId: chapterId,
-        page: page,
-      ).then((_) {}),
+      onAddBookmark: (page) => repo
+          .addBookmark(
+            seriesId: seriesId,
+            chapterId: chapterId,
+            page: page,
+          )
+          .then((result) => result.isOk),
     );
   }
 }

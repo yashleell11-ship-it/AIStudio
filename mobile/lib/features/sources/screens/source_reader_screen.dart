@@ -78,6 +78,7 @@ class SourceReaderScreen extends ConsumerWidget {
         }
 
         return ReaderContent(
+          key: ValueKey('$sourceId:$seriesId:$chapterId'),
           chapter: chapter,
           scrollStorageKey: '$sourceId:$seriesId:$chapterId',
           initialPage: initialPage,
