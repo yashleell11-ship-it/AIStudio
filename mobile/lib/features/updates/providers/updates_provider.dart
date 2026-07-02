@@ -92,4 +92,50 @@ class UpdatesNotifier extends AutoDisposeAsyncNotifier<UpdatesState> {
     await refresh();
     return null;
   }
+
+  /// Follow a source series for new-chapter notifications. Idempotent on the
+  /// server side, but we still refresh so the tracker list reflects the
+  /// change immediately. Sets `actionPending` optimistically (mirroring
+  /// DownloadsNotifier._runAction) so the Follow button shows a busy state
+  /// the instant it is tapped, before the network round-trip completes.
+  Future<AppError?> followSeries({
+    required String source,
+    required String seriesId,
+    required String seriesTitle,
+  }) async {
+    final current = state.valueOrNull;
+    if (current != null) {
+      state = AsyncData(current.copyWith(actionPending: true));
+    }
+    final repo = ref.read(updatesRepositoryProvider);
+    final result = await repo.followSeries(
+      source: source,
+      seriesId: seriesId,
+      seriesTitle: seriesTitle,
+    );
+    if (result.isErr) {
+      if (current != null) {
+        state = AsyncData(current.copyWith(actionPending: false));
+      }
+      return result.error;
+    }
+    await refresh();
+    return null;
+  }
+
+  /// Returns the followed-tracker row for the given source+series, or null
+  /// if the user is not following it. Used by the source detail screen to
+  /// drive the Follow / Unfollow button label and action.
+  SeriesTracker? trackerFor({required String source, required String seriesId}) {
+    final value = state.valueOrNull;
+    if (value == null) return null;
+    for (final tracker in value.trackers) {
+      if (tracker.trackKind == TrackKind.followed &&
+          tracker.source == source &&
+          tracker.seriesId == seriesId) {
+        return tracker;
+      }
+    }
+    return null;
+  }
 }
