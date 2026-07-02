@@ -17,6 +17,7 @@ import 'package:aistudio_mobile/features/library/screens/statistics_screen.dart'
 import 'package:aistudio_mobile/features/settings/screens/settings_screen.dart';
 import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
+import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
 import 'package:aistudio_mobile/features/sources/models/source.dart';
 import 'package:aistudio_mobile/features/sources/models/source_series.dart';
 import 'package:aistudio_mobile/features/sources/repositories/sources_repository.dart';
@@ -294,6 +295,14 @@ class _FakeSourcesRepository implements SourcesRepository {
   Future<Result<List<SourceChapterSummary>>> getChapters(
     String sourceId,
     String seriesId,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ReaderChapter>> getReaderChapter(
+    String sourceId,
+    String seriesId,
+    String chapterId,
   ) =>
       throw UnimplementedError();
 }

@@ -1,14 +1,13 @@
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
+import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
 import 'package:aistudio_mobile/features/reader/utils/page_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('page_layout', () {
-    const page = PageInfo(
-      id: 1,
-      chapterId: 10,
+    const page = ReaderPage(
+      id: '1',
       number: 1,
-      filePath: '/pages/1.jpg',
+      imageUrl: '/pages/1.jpg',
       width: 800,
       height: 1200,
     );
@@ -22,11 +21,10 @@ void main() {
     test('resolveVisiblePage tracks scroll offset', () {
       final pages = List.generate(
         3,
-        (index) => PageInfo(
-          id: index + 1,
-          chapterId: 10,
+        (index) => ReaderPage(
+          id: '${index + 1}',
           number: index + 1,
-          filePath: '/pages/${index + 1}.jpg',
+          imageUrl: '/pages/${index + 1}.jpg',
           width: 800,
           height: 1200,
         ),

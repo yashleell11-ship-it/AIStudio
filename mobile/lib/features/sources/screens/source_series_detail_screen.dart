@@ -101,6 +101,13 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
                     return Padding(
                       padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                       child: GlassCard(
+                        onTap: () => context.go(
+                          RoutePaths.sourceReader(
+                            sourceId,
+                            seriesId,
+                            chapter.id,
+                          ),
+                        ),
                         child: Row(
                           children: [
                             Expanded(

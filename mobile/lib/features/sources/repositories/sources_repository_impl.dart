@@ -1,6 +1,7 @@
 import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/core/utils/pagination.dart';
 import 'package:aistudio_mobile/core/utils/result.dart';
+import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
 import 'package:aistudio_mobile/features/sources/models/source.dart';
 import 'package:aistudio_mobile/features/sources/models/source_series.dart';
 import 'package:aistudio_mobile/features/sources/repositories/sources_repository.dart';
@@ -110,6 +111,26 @@ class SourcesRepositoryImpl implements SourcesRepository {
           .map((e) => SourceChapterSummary.fromJson(e as Map<String, dynamic>))
           .toList();
       return Ok(items);
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<ReaderChapter>> getReaderChapter(
+    String sourceId,
+    String seriesId,
+    String chapterId,
+  ) async {
+    try {
+      // chapterId is appended raw so slash-bearing ids (e.g. toonily's
+      // ``series/chapter-1``) match the backend ``:path`` route converter.
+      final r = await _dio.get<Map<String, dynamic>>(
+        '/sources/$sourceId/series/$seriesId/chapters/$chapterId/reader',
+      );
+      return Ok(ReaderChapter.fromJson(r.data!, _apiBaseUrl));
     } on DioException catch (e) {
       return Err(_err(e));
     } catch (e) {
