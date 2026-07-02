@@ -7,6 +7,7 @@ import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart'
 import 'package:aistudio_mobile/features/downloads/models/series_download_group.dart';
 import 'package:aistudio_mobile/features/downloads/utils/download_formatters.dart';
 import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
+import 'package:aistudio_mobile/features/downloads/utils/download_queue_status.dart';
 import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
 
@@ -222,9 +223,11 @@ class DownloadRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isActive = item.isDownloading || item.isQueued;
+    final actions = downloadRowActions(item);
+    final displayStatus = downloadQueueDisplayStatus(item);
 
     return GlassCard(
+      key: Key('download-row-${item.id}'),
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +259,7 @@ class DownloadRow extends StatelessWidget {
                         ],
                       ),
                     ),
-                    _StatusBadge(status: item.status),
+                    _StatusBadge(item: item),
                   ],
                 ),
                 const SizedBox(height: AppSpacing.md),
@@ -279,12 +282,12 @@ class DownloadRow extends StatelessWidget {
                       '${item.pagesDone}/${item.pagesTotal > 0 ? item.pagesTotal : '?'} pages',
                       style: AppTypography.caption,
                     ),
-                    if (item.isDownloading)
+                    if (displayStatus == DownloadQueueDisplayStatus.downloading)
                       Text(
                         formatDownloadSpeed(item.speedBps, item.speedMbps),
                         style: AppTypography.caption.copyWith(color: AppColors.cyan400),
                       ),
-                    if (item.isDownloading &&
+                    if (displayStatus == DownloadQueueDisplayStatus.downloading &&
                         item.etaSeconds != null &&
                         item.etaSeconds! > 0)
                       Text(
@@ -319,26 +322,30 @@ class DownloadRow extends StatelessWidget {
                 Wrap(
                   spacing: AppSpacing.sm,
                   children: [
-                    if (isActive)
+                    if (actions.showPause)
                       OutlinedButton.icon(
+                        key: Key('download-pause-${item.id}'),
                         onPressed: busy ? null : onPause,
                         icon: const Icon(Icons.pause, size: 16),
                         label: const Text('Pause'),
                       ),
-                    if (item.isPaused || item.isFailed)
+                    if (actions.showResume)
                       OutlinedButton.icon(
+                        key: Key('download-resume-${item.id}'),
                         onPressed: busy ? null : onResume,
                         icon: const Icon(Icons.play_arrow, size: 16),
                         label: const Text('Resume'),
                       ),
-                    if (item.isFailed)
+                    if (actions.showRetry)
                       OutlinedButton.icon(
+                        key: Key('download-retry-${item.id}'),
                         onPressed: busy ? null : onRetry,
                         icon: const Icon(Icons.refresh, size: 16),
                         label: const Text('Retry'),
                       ),
-                    if (!item.isCompleted && !item.isCancelled)
+                    if (actions.showCancel)
                       TextButton.icon(
+                        key: Key('download-cancel-${item.id}'),
                         onPressed: busy ? null : onCancel,
                         icon: const Icon(Icons.close, size: 16),
                         label: const Text('Cancel'),
@@ -574,32 +581,68 @@ class _GroupBadge extends StatelessWidget {
 }
 
 class _StatusBadge extends StatelessWidget {
-  const _StatusBadge({required this.status});
+  const _StatusBadge({required this.item});
 
-  final String status;
-
-  Color get _color => switch (status) {
-        'downloading' => AppColors.violet400,
-        'queued' => AppColors.cyan400,
-        'paused' => AppColors.warning,
-        'failed' => AppColors.danger,
-        'completed' => AppColors.success,
-        _ => AppColors.muted,
-      };
+  final DownloadItem item;
 
   @override
   Widget build(BuildContext context) {
+    final color = downloadQueueStatusColor(item);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: _color.withAlpha(38),
+        color: color.withAlpha(38),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: _color.withAlpha(102)),
+        border: Border.all(color: color.withAlpha(102)),
       ),
       child: Text(
-        downloadStatusLabel(status),
-        style: AppTypography.caption.copyWith(color: _color),
+        downloadQueueStatusLabel(item),
+        style: AppTypography.caption.copyWith(color: color),
       ),
+    );
+  }
+}
+
+class DownloadQueueSummary extends StatelessWidget {
+  const DownloadQueueSummary({super.key, required this.items});
+
+  final List<DownloadItem> items;
+
+  @override
+  Widget build(BuildContext context) {
+    final counts = countDownloadQueueStatuses(items);
+    final entries = <(String, int)>[
+      ('Queued', counts[DownloadQueueDisplayStatus.queued]!),
+      ('Downloading', counts[DownloadQueueDisplayStatus.downloading]!),
+      ('Verifying', counts[DownloadQueueDisplayStatus.verifying]!),
+      ('Importing', counts[DownloadQueueDisplayStatus.importing]!),
+      ('Completed', counts[DownloadQueueDisplayStatus.completed]!),
+      ('Failed', counts[DownloadQueueDisplayStatus.failed]!),
+    ].where((entry) => entry.$2 > 0).toList();
+
+    if (entries.isEmpty) return const SizedBox.shrink();
+
+    return Wrap(
+      spacing: AppSpacing.sm,
+      runSpacing: AppSpacing.sm,
+      children: [
+        for (final entry in entries)
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: AppSpacing.md,
+              vertical: AppSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: AppColors.fg.withAlpha(8),
+              borderRadius: BorderRadius.circular(AppRadius.lg),
+              border: Border.all(color: AppColors.border.withAlpha(128)),
+            ),
+            child: Text(
+              '${entry.$1}: ${entry.$2}',
+              style: AppTypography.caption,
+            ),
+          ),
+      ],
     );
   }
 }

@@ -101,6 +101,8 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                       ],
                       const SizedBox(height: AppSpacing.xl2),
                       DownloadsMetricsPanel(metrics: state.metrics),
+                      const SizedBox(height: AppSpacing.lg),
+                      DownloadQueueSummary(items: state.items),
                       const SizedBox(height: AppSpacing.xl2),
                       DownloadFilterChips(
                         items: state.items,
