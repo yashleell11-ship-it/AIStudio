@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// Overrides [apiBaseUrlProvider] for widget/provider tests.
 Override apiBaseUrlOverride(String url) =>
-    apiBaseUrlProvider.overrideWith((ref) => StateController(url));
+    apiBaseUrlProvider.overrideWith((ref) => url);
 
 const setupCompletedPrefKey = 'settings_setup_completed';
 

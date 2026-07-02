@@ -17,7 +17,7 @@ import 'package:aistudio_mobile/features/library/models/tag.dart';
 import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
 import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
+import '../../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -308,7 +308,7 @@ Future<void> _pumpDetail(
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
-        apiBaseUrlProvider.overrideWithValue('http://127.0.0.1:8000'),
+        apiBaseUrlOverride('http://127.0.0.1:8000'),
         libraryRepositoryProvider.overrideWithValue(repo),
       ],
       child: MaterialApp(

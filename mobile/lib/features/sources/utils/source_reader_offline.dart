@@ -6,8 +6,6 @@ import 'package:aistudio_mobile/features/library/repositories/library_repository
 import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
 import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
 import 'package:aistudio_mobile/features/reader/utils/page_image_url.dart';
-import 'package:aistudio_mobile/features/sources/providers/source_reader_provider.dart';
-
 /// Resolved local library ids for a downloaded source chapter.
 class SourceReaderOfflineHandoff {
   const SourceReaderOfflineHandoff({
@@ -70,15 +68,17 @@ ReaderChapter readerChapterFromLibraryDetail(
 Future<SourceReaderOfflineHandoff?> resolveSourceReaderOfflineHandoff({
   required DownloadsRepository downloadsRepository,
   required LibraryRepository libraryRepository,
-  required SourceReaderChapterArgs args,
+  required String sourceId,
+  required String seriesId,
+  required String chapterId,
 }) async {
   final downloadsResult = await downloadsRepository.listDownloads();
   if (downloadsResult.isErr) return null;
 
   final download = findCompletedSourceDownload(
-    sourceId: args.sourceId,
-    seriesId: args.seriesId,
-    chapterId: args.chapterId,
+    sourceId: sourceId,
+    seriesId: seriesId,
+    chapterId: chapterId,
     items: downloadsResult.value,
   );
   final localChapterId = download?.localChapterId;

@@ -223,7 +223,7 @@ void main() {
           );
 
       expect(result.isErr, isTrue);
-      expect(result.error, isA<WifiRequiredError>());
+      expect(isWifiRequiredDownloadError(result.error), isTrue);
       expect(repo.lastChapterIds, isNull);
     });
   });

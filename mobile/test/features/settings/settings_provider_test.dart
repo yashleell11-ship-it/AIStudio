@@ -214,6 +214,13 @@ class _EmptyUpdatesRepository implements UpdatesRepository {
   Future<Result<void>> deleteTracker(int trackerId) => throw UnimplementedError();
 
   @override
+  Future<Result<void>> updateTracker(
+    int trackerId, {
+    bool? autoDownload,
+  }) =>
+      throw UnimplementedError();
+
+  @override
   Future<Result<void>> triggerCheck() => throw UnimplementedError();
 }
 

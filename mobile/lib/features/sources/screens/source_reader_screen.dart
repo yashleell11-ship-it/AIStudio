@@ -33,13 +33,11 @@ class SourceReaderScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chapterAsync = ref.watch(
-      sourceReaderChapterProvider(
-        SourceReaderChapterArgs(
-          sourceId: sourceId,
-          seriesId: seriesId,
-          chapterId: chapterId,
-        ),
-      ),
+      sourceReaderChapterProvider((
+        sourceId: sourceId,
+        seriesId: seriesId,
+        chapterId: chapterId,
+      )),
     );
 
     return chapterAsync.when(
@@ -51,13 +49,11 @@ class SourceReaderScreen extends ConsumerWidget {
         return ReaderErrorState(
           error: appError,
           onRetry: () => ref.invalidate(
-            sourceReaderChapterProvider(
-              SourceReaderChapterArgs(
-                sourceId: sourceId,
-                seriesId: seriesId,
-                chapterId: chapterId,
-              ),
-            ),
+            sourceReaderChapterProvider((
+              sourceId: sourceId,
+              seriesId: seriesId,
+              chapterId: chapterId,
+            )),
           ),
           onBack: () => context.go(
             RoutePaths.sourceSeriesDetail(sourceId, seriesId),
@@ -83,13 +79,11 @@ class SourceReaderScreen extends ConsumerWidget {
               message: 'This chapter has no pages.',
             ),
             onRetry: () => ref.invalidate(
-              sourceReaderChapterProvider(
-                SourceReaderChapterArgs(
-                  sourceId: sourceId,
-                  seriesId: seriesId,
-                  chapterId: chapterId,
-                ),
-              ),
+              sourceReaderChapterProvider((
+                sourceId: sourceId,
+                seriesId: seriesId,
+                chapterId: chapterId,
+              )),
             ),
             onBack: () => context.go(
               RoutePaths.sourceSeriesDetail(sourceId, seriesId),

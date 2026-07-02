@@ -26,6 +26,7 @@ import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
 import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
 import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
 import 'package:aistudio_mobile/features/updates/screens/updates_screen.dart';
+import '../../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
@@ -266,6 +267,13 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   Future<Result<void>> deleteTracker(int trackerId) async => const Ok(null);
 
   @override
+  Future<Result<void>> updateTracker(
+    int trackerId, {
+    bool? autoDownload,
+  }) async =>
+      const Ok(null);
+
+  @override
   Future<Result<void>> triggerCheck() async => const Ok(null);
 }
 
@@ -319,7 +327,7 @@ Future<Widget> _wrap(Widget child, {required List<Override> overrides}) async {
   final prefs = await SharedPreferences.getInstance();
   return ProviderScope(
     overrides: [
-      apiBaseUrlProvider.overrideWithValue('http://127.0.0.1:8000'),
+      apiBaseUrlOverride('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
       ...overrides,
     ],

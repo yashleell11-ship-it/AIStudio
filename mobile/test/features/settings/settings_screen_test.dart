@@ -26,6 +26,7 @@ import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart
 import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
 import 'package:aistudio_mobile/features/settings/screens/settings_screen.dart';
 import 'package:aistudio_mobile/features/settings/services/image_cache_service.dart';
+import '../../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
@@ -297,7 +298,7 @@ Future<ProviderContainer> _pumpSettings(
   final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [
-      apiBaseUrlProvider.overrideWithValue('http://127.0.0.1:8000'),
+      apiBaseUrlOverride('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
       libraryRepositoryProvider.overrideWithValue(_EmptyLibraryRepository()),
       downloadsRepositoryProvider

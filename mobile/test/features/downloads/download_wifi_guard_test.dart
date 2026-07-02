@@ -1,3 +1,4 @@
+import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:aistudio_mobile/core/network/network_connectivity.dart';
 import 'package:aistudio_mobile/features/downloads/utils/download_wifi_guard.dart';
 import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
@@ -47,7 +48,7 @@ void main() {
       addTearDown(container.dispose);
 
       final error = await checkWifiForDownload(container);
-      expect(error, isA<WifiRequiredError>());
+      expect(isWifiRequiredDownloadError(error!), isTrue);
     });
 
     test('allows queue on Wi-Fi when Wi-Fi only is enabled', () async {

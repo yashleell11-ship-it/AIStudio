@@ -18,6 +18,7 @@ import 'package:aistudio_mobile/features/sources/screens/source_series_detail_sc
 import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
 import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
 import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
+import '../../support/test_overrides.dart';
 import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
@@ -120,6 +121,33 @@ class _FakeUpdatesRepository implements UpdatesRepository {
     deletedTrackerId = trackerId;
     if (deleteGate != null) await deleteGate!.future;
     trackers = trackers.where((t) => t.id != trackerId).toList();
+    return const Ok(null);
+  }
+
+  @override
+  Future<Result<void>> updateTracker(
+    int trackerId, {
+    bool? autoDownload,
+  }) async {
+    trackers = [
+      for (final tracker in trackers)
+        if (tracker.id == trackerId && autoDownload != null)
+          SeriesTracker(
+            id: tracker.id,
+            source: tracker.source,
+            seriesId: tracker.seriesId,
+            seriesTitle: tracker.seriesTitle,
+            trackKind: tracker.trackKind,
+            enabled: tracker.enabled,
+            notify: tracker.notify,
+            autoDownload: autoDownload,
+            knownChapterCount: tracker.knownChapterCount,
+            lastCheckedAt: tracker.lastCheckedAt,
+            lastError: tracker.lastError,
+          )
+        else
+          tracker,
+    ];
     return const Ok(null);
   }
 
@@ -365,7 +393,7 @@ Future<ProviderContainer> _pumpScreen(
   final container = ProviderContainer(
     overrides: [
       sharedPrefsProvider.overrideWithValue(prefs),
-      apiBaseUrlProvider.overrideWithValue('http://example.test'),
+      apiBaseUrlOverride('http://example.test'),
       sourcesRepositoryProvider.overrideWithValue(fakeSourcesRepo),
       updatesRepositoryProvider.overrideWithValue(updatesRepo),
       downloadsRepositoryProvider.overrideWithValue(fakeDownloadsRepo),
@@ -438,7 +466,7 @@ void main() {
         ProviderScope(
           overrides: [
             sharedPrefsProvider.overrideWithValue(prefs),
-            apiBaseUrlProvider.overrideWithValue('http://example.test'),
+            apiBaseUrlOverride('http://example.test'),
             sourcesRepositoryProvider.overrideWithValue(fakeRepo),
             updatesRepositoryProvider.overrideWithValue(fakeUpdates),
             downloadsRepositoryProvider.overrideWithValue(_RecordingDownloadsRepository()),
@@ -813,7 +841,7 @@ void main() {
         ProviderScope(
           overrides: [
             sharedPrefsProvider.overrideWithValue(prefs),
-            apiBaseUrlProvider.overrideWithValue('http://example.test'),
+            apiBaseUrlOverride('http://example.test'),
             sourcesRepositoryProvider.overrideWithValue(
               _FakeSourcesRepository(
                 _series(),
