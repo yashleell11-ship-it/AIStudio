@@ -9,7 +9,8 @@ from urllib.parse import unquote
 
 from connectors.base import SourceConnector
 from connectors.http.cache import TTLCache
-from connectors.http.client import ConnectorHttpError, SyncConnectorHttpClient
+from connectors.http.cf_client import CfSyncHttpClient
+from connectors.http.client import ConnectorHttpError
 from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Series
 from connectors.toonily.mappers import (
     PAGE_SIZE,
@@ -33,10 +34,7 @@ logger = logging.getLogger(__name__)
 HTML_HEADERS = {
     "Accept": "text/html,application/xhtml+xml",
 }
-BROWSER_USER_AGENT = (
-    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-)
+BROWSER_IMPERSONATE = "chrome131"
 
 
 class ToonilyConnector(SourceConnector):
@@ -46,16 +44,16 @@ class ToonilyConnector(SourceConnector):
     DISPLAY_NAME = "Toonily"
     DESCRIPTION = (
         "Browse and read manhwa and webtoons from Toonily. "
-        "Images are proxied through AIStudio for reliable local reading."
+        "Images are proxied through ManhwaManiacs for reliable local reading."
     )
     BROWSABLE = True
     SUPPORTS_IMPORT = False
 
     def __init__(self) -> None:
-        self._http = SyncConnectorHttpClient(
+        self._http = CfSyncHttpClient(
             SITE_BASE,
             headers=HTML_HEADERS,
-            user_agent=BROWSER_USER_AGENT,
+            impersonate=BROWSER_IMPERSONATE,
         )
         self._series_cache: TTLCache[Series] = TTLCache(ttl_seconds=300.0)
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
