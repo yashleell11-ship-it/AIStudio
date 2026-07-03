@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+from connectors.http.cf_client import is_cloudflare_challenge
 from connectors.registry import create_connector, list_installed_connectors
 from connectors.toonily.connector import ToonilyConnector
 from connectors.toonily.mappers import (
@@ -38,6 +39,15 @@ def toonily_connector() -> ToonilyConnector:
 def test_registry_lists_toonily():
     browsable = [item.source_type for item in list_installed_connectors(browsable_only=True)]
     assert "toonily" in browsable
+
+
+def test_cloudflare_challenge_detection():
+    assert is_cloudflare_challenge("<title>Just a moment...</title>")
+    assert not is_cloudflare_challenge('<div class="page-item-detail">')
+    assert not is_cloudflare_challenge(
+        '<script src="/cdn-cgi/challenge-platform/h/b/orchestrate/chl_page/v1"></script>'
+        '<div class="page-item-detail"></div>'
+    )
 
 
 def test_parse_series_list_from_fixture():
