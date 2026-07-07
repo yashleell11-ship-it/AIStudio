@@ -11,3 +11,23 @@ config/
 
 # Connector probe scratch output
 backend/scripts/toonily_probe_out/
+
+# --- Build & runtime artifacts (platform) ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.log
+node_modules/
+.next/
+out/
+mobile/.dart_tool/
+mobile/build/
+.venv/
+venv/
+.env
+.env.local
+.DS_Store
+Thumbs.db
