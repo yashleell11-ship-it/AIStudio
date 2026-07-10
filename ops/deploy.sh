@@ -177,7 +177,10 @@ ENV
 
   # 4) build + start the isolated stack
   say "build + up ($PROJECT)"
-  ( cd "$DIR" && docker compose -p "$PROJECT" up -d --build ) 2>&1 | sed 's/^/   /'
+  # --remove-orphans clears containers from a prior compose shape (e.g. the old
+  # single-service placeholder, whose container name collides with the new
+  # frontend service) so the 1->2 service transition doesn't fail on a name clash.
+  ( cd "$DIR" && docker compose -p "$PROJECT" up -d --build --remove-orphans ) 2>&1 | sed 's/^/   /'
   if [ "${PIPESTATUS[0]}" -ne 0 ]; then
     err "build/start failed — previous version (if any) left running"
     logline "$SLUG" "build FAILED"
@@ -209,7 +212,7 @@ ENV
     docker tag "$IMAGE-previous" "$IMAGE"
     docker image inspect "$IMAGE-backend-previous" >/dev/null 2>&1 \
       && docker tag "$IMAGE-backend-previous" "$IMAGE-backend"
-    ( cd "$DIR" && docker compose -p "$PROJECT" up -d --force-recreate ) 2>&1 | sed 's/^/   /'
+    ( cd "$DIR" && docker compose -p "$PROJECT" up -d --force-recreate --remove-orphans ) 2>&1 | sed 's/^/   /'
     hs=$(wait_health "$CONTAINER"); code=$(verify_http "$HOST")
     if { [ "$hs" = healthy ] || [ "$hs" = running ]; } && { [ "${code:0:1}" = 2 ] || [ "${code:0:1}" = 3 ]; }; then
       say "ROLLED BACK — previous image restored and healthy"; logline "$SLUG" "rollback OK"
@@ -235,7 +238,7 @@ do_rollback(){
   docker tag "$IMAGE-previous" "$IMAGE"
   docker image inspect "$IMAGE-backend-previous" >/dev/null 2>&1 \
     && docker tag "$IMAGE-backend-previous" "$IMAGE-backend"
-  ( cd "$DIR" && docker compose -p "$PROJECT" up -d --force-recreate ) 2>&1 | sed 's/^/   /'
+  ( cd "$DIR" && docker compose -p "$PROJECT" up -d --force-recreate --remove-orphans ) 2>&1 | sed 's/^/   /'
   local hs code; hs=$(wait_health "$CONTAINER"); code=$(verify_http "$HOST")
   echo "   container: $hs | https://$HOST -> HTTP $code"
   if { [ "$hs" = healthy ] || [ "$hs" = running ]; } && { [ "${code:0:1}" = 2 ] || [ "${code:0:1}" = 3 ]; }; then
