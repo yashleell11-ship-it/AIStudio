@@ -220,11 +220,11 @@ export function DashboardView() {
           className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 select-none font-display text-[clamp(80px,12vw,180px)] leading-none text-white/[0.03]"
           aria-hidden
         >
-          AIStudio
+          ManhwaManiacs
         </p>
         <div className="relative mx-auto max-w-5xl text-center">
           <h1 className="font-display text-5xl tracking-wide text-fg text-glow md:text-7xl">
-            AIStudio
+            ManhwaManiacs
           </h1>
           <p className="mt-3 text-sm text-muted md:text-base">
             Your Premium Manga &amp; Webtoon Experience

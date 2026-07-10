@@ -32,7 +32,7 @@ export function ImportDialog({ open, onClose }: ImportDialogProps) {
     <Dialog open={open} onClose={onClose} title="Import Library" className="max-w-md">
       <div className="space-y-4">
         <p className="text-sm text-muted">
-          Enter the absolute path to your library folder on this machine. AIStudio
+          Enter the absolute path to your library folder on this machine. ManhwaManiacs
           indexes files in place — nothing is copied.
         </p>
         <Input

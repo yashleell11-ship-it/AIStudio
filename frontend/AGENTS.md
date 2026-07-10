@@ -1,31 +1,27 @@
-<!-- AIStudio Global Agent Instructions -->
+<!-- ManhwaManiacs Global Agent Instructions -->
 
-# AIStudio - Global AI Agent Instructions
+# ManhwaManiacs - Global AI Agent Instructions
 
 ## Project Vision
 
-AIStudio is a local-first AI-powered Manhwa, Manga and Manhua platform.
+ManhwaManiacs is a self-hosted Manhwa/Manga/Manhua reader and library manager,
+deployed on Linux/Docker (NAS) with a web and mobile client.
 
-The final goal is to build the best self-hosted reader available.
+The goal is the best self-hosted reading experience.
 
-Core features:
+MVP feature areas:
 
-- Library Management
-- Reader
-- Search
-- OCR
-- AI Summaries
-- Character Tracking
-- Timeline Tracking
-- World Memory
-- Recommendations
-- Offline First
-- Local AI
-- NAS Support
-- Windows Support
-- Mobile Support
-- Web Support
-- Multi-user Support
+- Library management
+- Reader (web + mobile)
+- Multi-source connectors, browse & search
+- Downloads
+- New-chapter update tracking
+- Multi-user accounts (P1)
+
+AI is a PRODUCT feature only, delivered via EXTERNAL APIs (recommendations,
+summaries, similar-series, search assistance). There is NO local-AI platform,
+no Ollama, no "Creation Studio", and no knowledge-graph / character / world /
+timeline extraction — those were permanently abandoned. Never reintroduce them.
 
 ---
 
@@ -61,7 +57,6 @@ Separate:
 - Business Logic
 - Database
 - API
-- AI
 
 Never tightly couple unrelated modules.
 
@@ -186,53 +181,11 @@ Downloads
 
 ---
 
-# AI Rules
+# Platform
 
-Everything must work locally.
-
-Prefer Ollama.
-
-Support multiple models.
-
-Never require cloud APIs unless explicitly requested.
-
-AI should improve user experience rather than replace normal functionality.
-
----
-
-# Windows Rules
-
-This project targets Windows first.
-
-Always use PowerShell-compatible syntax.
-
-Never assume Linux.
-
-Never assume macOS.
-
-Never use:
-
-open
-
-xdg-open
-
-&&
-
-||
-
-Run commands separately.
-
-Correct:
-
-npm run build
-
-npm run lint
-
-npm run typecheck
-
-Incorrect:
-
-npm run build && npm run lint
+This project is developed and deployed on Linux (Docker on the NAS); use POSIX
+shell syntax. The production stack is the FastAPI backend + Next.js frontend,
+built into containers and deployed via `ops/deploy.sh` (Forgejo Actions).
 
 ---
 

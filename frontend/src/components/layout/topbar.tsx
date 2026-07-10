@@ -59,7 +59,7 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
           className="size-2 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500"
           aria-hidden
         />
-        <span className="font-display text-base tracking-wide text-fg">AIStudio</span>
+        <span className="font-display text-base tracking-wide text-fg">ManhwaManiacs</span>
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-3">

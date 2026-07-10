@@ -75,7 +75,7 @@ function UpdateSettingsForm({ settings }: { settings: UpdateSettings }) {
           />
           <ToggleRow
             label="Check on startup"
-            description="Run an update check when AIStudio launches."
+            description="Run an update check when ManhwaManiacs launches."
             checked={draft.check_on_startup}
             onCheckedChange={(check_on_startup) => setDraft({ ...draft, check_on_startup })}
           />
