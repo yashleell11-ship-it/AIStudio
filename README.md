@@ -4,7 +4,7 @@ Self-hosted manga/manhwa platform: a Python backend (content connectors + downlo
 management), a Next.js web frontend, and a Flutter mobile app.
 
 > **Canonical home:** this repo lives on the NAS at `/home/yash/dev/aistudio` and is
-> version-controlled in Forgejo (`git.yashnas.space/yash/aistudio`). Develop on the NAS —
+> version-controlled in Forgejo (`git.yashnas.xyz/yash/aistudio`). Develop on the NAS —
 > see the platform docs in `/srv`: `DEV-WORKFLOW.md`, `REMOTE-ACCESS.md`, `DISASTER-RECOVERY.md`.
 
 ## Layout
