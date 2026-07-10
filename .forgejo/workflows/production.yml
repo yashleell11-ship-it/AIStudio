@@ -1,0 +1,23 @@
+# Production pipeline — push to `main` deploys https://manhwamaniacs.xyz
+# All deploy logic lives in ops/deploy.sh (single source, reused by every workflow).
+# The self-hosted runner is on the internal `edge` network, so we clone directly from
+# the in-cluster Forgejo (no external action marketplace, no Access-gated public URL).
+name: production
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: docker
+    steps:
+      - name: Clone & deploy production
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          SHA="${{ github.sha }}"
+          git clone -q "http://${{ github.actor }}:${{ github.token }}@forgejo:3000/${REPO}.git" /tmp/src
+          git -C /tmp/src checkout -q "$SHA"
+          export HEALTH_RESOLVE=caddy
+          export GIT_BRANCH="${{ github.ref_name }}"
+          bash /tmp/src/ops/deploy.sh production

@@ -1,0 +1,11 @@
+# node_modules is reinstalled cleanly in the deps stage; .next is rebuilt.
+node_modules/
+.next/
+out/
+.git/
+.gitignore
+Dockerfile
+.dockerignore
+npm-debug.log*
+.env*.local
+coverage/

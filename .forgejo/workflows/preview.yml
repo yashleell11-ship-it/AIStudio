@@ -1,0 +1,65 @@
+# Preview pipeline — every pull request gets its own isolated environment at
+# https://pr-<number>.manhwamaniacs.xyz, deployed on open/update and destroyed on
+# merge/close. The preview URL is posted back as a PR comment.
+# Logic is shared in ops/deploy.sh; this workflow only wires PR events to it.
+name: preview
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+jobs:
+  preview:
+    runs-on: docker
+    steps:
+      # ---- Deploy / update the preview (PR open, push, reopen) ----
+      - name: Deploy preview
+        if: ${{ github.event.action != 'closed' }}
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          PR="${{ github.event.number }}"
+          SHA="${{ github.event.pull_request.head.sha }}"
+          git clone -q "http://${{ github.actor }}:${{ github.token }}@forgejo:3000/${REPO}.git" /tmp/src
+          git -C /tmp/src checkout -q "$SHA"
+          export HEALTH_RESOLVE=caddy
+          export GIT_BRANCH="${{ github.event.pull_request.head.ref }}"
+          export PREVIEW_BRANCH="${{ github.event.pull_request.head.ref }}"
+          bash /tmp/src/ops/deploy.sh preview "$PR"
+
+      - name: Comment preview URL
+        if: ${{ github.event.action == 'opened' || github.event.action == 'reopened' }}
+        run: |
+          set -e
+          PR="${{ github.event.number }}"
+          URL="https://pr-${PR}.manhwamaniacs.xyz"
+          BODY="🚀 **Preview deployed** for this PR → [$URL]($URL)\n\nEnvironment: \`preview\` · branch \`${{ github.event.pull_request.head.ref }}\` · commit \`${{ github.event.pull_request.head.sha }}\`\nHealth: $URL/api/health\n\n_This environment is created automatically and destroyed when the PR is merged or closed._"
+          curl -sS -X POST \
+            -H "Authorization: token ${{ github.token }}" \
+            -H "Content-Type: application/json" \
+            "http://forgejo:3000/api/v1/repos/${{ github.repository }}/issues/${PR}/comments" \
+            -d "$(printf '{"body":"%s"}' "$BODY")" -o /dev/null -w "comment -> HTTP %{http_code}\n"
+
+      # ---- Destroy the preview (PR merged or closed) ----
+      - name: Destroy preview
+        if: ${{ github.event.action == 'closed' }}
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          PR="${{ github.event.number }}"
+          # Clone the default branch just to obtain the deploy script; destroy operates
+          # on the already-running stack (no PR source needed).
+          git clone -q "http://${{ github.actor }}:${{ github.token }}@forgejo:3000/${REPO}.git" /tmp/src
+          export HEALTH_RESOLVE=caddy
+          bash /tmp/src/ops/deploy.sh destroy-preview "$PR"
+
+      - name: Comment preview destroyed
+        if: ${{ github.event.action == 'closed' }}
+        run: |
+          set -e
+          PR="${{ github.event.number }}"
+          BODY="🧹 Preview \`pr-${PR}.manhwamaniacs.xyz\` has been destroyed (PR ${{ github.event.pull_request.merged && 'merged' || 'closed' }})."
+          curl -sS -X POST \
+            -H "Authorization: token ${{ github.token }}" \
+            -H "Content-Type: application/json" \
+            "http://forgejo:3000/api/v1/repos/${{ github.repository }}/issues/${PR}/comments" \
+            -d "$(printf '{"body":"%s"}' "$BODY")" -o /dev/null -w "comment -> HTTP %{http_code}\n"

@@ -1,8 +1,24 @@
 import { env } from "@/config/env";
 import { ApiError, type ApiErrorBody, type RequestOptions } from "@/types/api";
 
+/**
+ * Resolve the API base to an absolute URL.
+ *
+ * - Absolute base (e.g. dev's `http://127.0.0.1:8000`): used as-is.
+ * - Relative base (e.g. prod's same-origin `/api`): resolved against the
+ *   current origin, so the browser calls same-origin and Next.js proxies
+ *   `/api/*` to the backend. API calls only run in the browser, so `window`
+ *   is available; on the server we fall back to the raw value.
+ */
+function resolveApiBase(): string {
+  const base = env.apiUrl;
+  if (/^https?:\/\//i.test(base)) return base;
+  if (typeof window !== "undefined") return `${window.location.origin}${base}`;
+  return base;
+}
+
 function buildUrl(path: string, query?: RequestOptions["query"]): string {
-  const url = new URL(path.replace(/^\//, ""), ensureTrailingSlash(env.apiUrl));
+  const url = new URL(path.replace(/^\//, ""), ensureTrailingSlash(resolveApiBase()));
   if (query) {
     for (const [key, value] of Object.entries(query)) {
       if (value !== undefined && value !== null) {

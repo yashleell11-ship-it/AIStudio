@@ -42,6 +42,7 @@ class ConnectorDescriptor:
     description: str
     browsable: bool
     supports_import: bool
+    mature: bool = False
 
 
 _REGISTRY: dict[str, type[SourceConnector]] = {}
@@ -171,15 +172,25 @@ def _descriptor_for(connector_cls: type[SourceConnector]) -> ConnectorDescriptor
         description=getattr(connector_cls, "DESCRIPTION", ""),
         browsable=getattr(connector_cls, "BROWSABLE", True),
         supports_import=getattr(connector_cls, "SUPPORTS_IMPORT", False),
+        mature=getattr(connector_cls, "MATURE", False),
     )
 
 
-def list_installed_connectors(*, browsable_only: bool = False) -> list[ConnectorDescriptor]:
-    """Return metadata for installed connectors."""
+def list_installed_connectors(
+    *, browsable_only: bool = False, include_mature: bool = True
+) -> list[ConnectorDescriptor]:
+    """Return metadata for installed connectors.
+
+    ``include_mature=False`` drops adult (18+) sources -- callers that
+    respect the user's ``mature_content_enabled`` preference pass the
+    setting through here. The default keeps this a neutral listing so the
+    maturity *policy* lives with the browse service, not the registry."""
     descriptors: list[ConnectorDescriptor] = []
     for connector_cls in _REGISTRY.values():
         descriptor = _descriptor_for(connector_cls)
         if browsable_only and not descriptor.browsable:
+            continue
+        if not include_mature and descriptor.mature:
             continue
         descriptors.append(descriptor)
     return sorted(descriptors, key=lambda item: item.name.casefold())

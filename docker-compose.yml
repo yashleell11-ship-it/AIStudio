@@ -1,0 +1,85 @@
+# ManhwaManiacs app — one compose definition, fully parameterized so each
+# environment (production / staging / preview-<pr>) is an isolated stack: its own
+# compose project, container names, image tags, env, build, volume, restart policy
+# and logs. The deploy engine (ops/deploy.sh) writes a per-environment .env and runs
+# `docker compose -p manhwamaniacs-<slug> up -d --build`.
+#
+# Topology: `frontend` is the only edge-facing service (Caddy proxies to it on :3000)
+# and reverse-proxies /api/* to `backend` over a private per-project network. `backend`
+# is never on `edge` and never exposes a host port. Persistent state (SQLite DB +
+# downloaded pages) lives on the `data` volume mounted into the backend.
+services:
+  backend:
+    build:
+      context: ./backend
+    image: ${MM_IMAGE:-local/manhwamaniacs:production}-backend
+    container_name: ${MM_CONTAINER:-manhwamaniacs-production}-backend
+    restart: ${MM_RESTART:-unless-stopped}
+    environment:
+      - APP_ENV=${APP_ENV:-production}
+      - MM_DB_PATH=/data/manhwamaniacs.db
+      - MM_DOWNLOADS_PATH=/data/downloads
+      # Admin-only endpoints (backup export/import) are disabled unless a token
+      # is provided; leave unset to keep them off in staging/preview.
+      - MM_ADMIN_TOKEN=${MM_ADMIN_TOKEN:-}
+    expose:
+      - "8000"
+    networks: [internal]
+    volumes:
+      - data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-dev}
+        BUILD_TIME: ${BUILD_TIME:-}
+        GIT_BRANCH: ${GIT_BRANCH:-unknown}
+        APP_ENV: ${APP_ENV:-production}
+        # Browser calls same-origin /api; Next proxies it to the backend below.
+        NEXT_PUBLIC_API_URL: ${MM_PUBLIC_API_URL:-/api}
+        BACKEND_INTERNAL_URL: http://backend:8000
+    image: ${MM_IMAGE:-local/manhwamaniacs:production}
+    container_name: ${MM_CONTAINER:-manhwamaniacs-production}
+    restart: ${MM_RESTART:-unless-stopped}
+    environment:
+      - NODE_ENV=production
+      - APP_ENV=${APP_ENV:-production}
+      - GIT_BRANCH=${GIT_BRANCH:-unknown}
+      - GIT_COMMIT=${GIT_COMMIT:-dev}
+      - BUILD_TIME=${BUILD_TIME:-}
+      - BACKEND_INTERNAL_URL=http://backend:8000
+    expose:
+      - "3000"
+    networks: [edge, internal]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+networks:
+  edge:
+    external: true
+  internal:
+    driver: bridge
+
+volumes:
+  data:
+    name: ${MM_VOLUME:-manhwamaniacs-production-data}

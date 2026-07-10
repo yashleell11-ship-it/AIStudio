@@ -1,0 +1,23 @@
+# Keep the build context small and reproducible: never ship local venvs,
+# caches, local databases, or test artifacts into the image.
+.venv/
+venv/
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.db
+*.db-wal
+*.db-shm
+*.sqlite3
+*.egg-info/
+.coverage
+htmlcov/
+tests/
+scripts/
+.git/
+.gitignore
+Dockerfile
+.dockerignore

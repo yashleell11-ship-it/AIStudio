@@ -29,6 +29,12 @@ class Settings(BaseModel):
     project_name: str = "ManhwaManiacs"
     default_project: str = "ManhwaManiacs"
 
+    # Adult/18+ content gate. Hidden by default; the user must explicitly
+    # opt in (with an age confirmation on the client) before mature sources,
+    # search results, and recommendations are shown. Persisted in
+    # config/settings.json like the other user-facing preferences.
+    mature_content_enabled: bool = False
+
     # Runtime-only (not persisted in settings.json).
     version: str = APP_VERSION
     db_path: str = str(REPO_ROOT / "backend" / "manhwamaniacs.db")
@@ -77,6 +83,15 @@ def get_settings() -> Settings:
     extra_origins = os.getenv("CORS_ORIGINS")
     if extra_origins:
         data["cors_origins"] = [o.strip() for o in extra_origins.split(",") if o.strip()]
+
+    # Deployment overrides: point the database and downloads at the mounted
+    # data volume (see docker-compose.yml) without editing settings.json.
+    db_path_override = os.getenv("MM_DB_PATH")
+    if db_path_override:
+        data["db_path"] = db_path_override
+    downloads_override = os.getenv("MM_DOWNLOADS_PATH")
+    if downloads_override:
+        data["downloads_path"] = downloads_override
 
     return Settings(**data)
 

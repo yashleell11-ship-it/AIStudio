@@ -1,0 +1,353 @@
+#!/usr/bin/env bash
+# =============================================================================
+# ManhwaManiacs multi-environment deploy engine.
+#
+# One script drives every environment (production / staging / preview-<pr>) as a
+# fully isolated stack: own compose project, container, image tag, env vars, build,
+# volume, restart policy, logs, deploy directory and Caddy vhost. Reuses the existing
+# platform (Caddy on the shared `edge` network, Cloudflare Tunnel, Homepage, Docker).
+#
+# Usage:
+#   ops/deploy.sh production                 # deploy production   (branch: main)
+#   ops/deploy.sh staging                    # deploy staging      (branch: develop)
+#   ops/deploy.sh preview <pr>               # deploy PR preview   (pr-<n>.manhwamaniacs.xyz)
+#   ops/deploy.sh destroy-preview <pr>       # tear a preview down (container+vhost+volume+dir)
+#   ops/deploy.sh rollback production|staging|preview [<pr>]
+#   ops/deploy.sh list                       # show every env + live health
+#   ops/deploy.sh homepage-sync              # rebuild the Homepage ManhwaManiacs block
+#
+# Runs with write access to /srv and /apps (i.e. inside the CI `ci-tools` container as
+# root, or as root on the host). Health checks reach Caddy at $HEALTH_RESOLVE
+# (default 127.0.0.1; CI sets `caddy`). Source is taken from this script's own repo
+# checkout, so CI just clones and calls this script.
+# =============================================================================
+set -uo pipefail
+
+APP=manhwamaniacs
+DOMAIN=manhwamaniacs.xyz
+ROOT=/srv/apps/$APP
+CADDY_CONF=/srv/caddy/conf.d
+LOGDIR=$ROOT/logs
+HEALTH_RESOLVE="${HEALTH_RESOLVE:-127.0.0.1}"
+HOMEPAGE_CFG=/apps/homepage/config/services.yaml
+# Repo root = parent of the dir holding this script (…/repo/ops/deploy.sh -> …/repo)
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+c_grn=$'\033[32m'; c_red=$'\033[31m'; c_ylw=$'\033[33m'; c_rst=$'\033[0m'
+say(){ echo "${c_grn}==>${c_rst} $*"; }
+warn(){ echo "${c_ylw}!! $*${c_rst}"; }
+err(){ echo "${c_red}!! $*${c_rst}" >&2; }
+logline(){ mkdir -p "$LOGDIR"; echo "$(date '+%Y-%m-%d %H:%M:%S') [$1] ${*:2}" >> "$LOGDIR/$1.log"; }
+
+# ---------------------------------------------------------------------------
+# resolve_env <production|staging|preview> [pr]  -> sets SLUG HOST APP_ENV BRANCH
+#   RESTART DIR PROJECT CONTAINER IMAGE VOLUME VHOST IS_APEX
+# ---------------------------------------------------------------------------
+resolve_env(){
+  local kind="$1" pr="${2:-}"
+  IS_APEX=0
+  case "$kind" in
+    production)
+      SLUG=production; HOST="$DOMAIN"; APP_ENV=production; BRANCH=main
+      RESTART=unless-stopped; DIR="$ROOT/production"; IS_APEX=1 ;;
+    staging)
+      SLUG=staging; HOST="staging.$DOMAIN"; APP_ENV=staging; BRANCH=develop
+      RESTART=unless-stopped; DIR="$ROOT/staging" ;;
+    preview)
+      [ -n "$pr" ] || { err "preview requires a PR number"; exit 2; }
+      SLUG="preview-$pr"; HOST="pr-$pr.$DOMAIN"; APP_ENV=preview; BRANCH="${PREVIEW_BRANCH:-pr-$pr}"
+      RESTART=on-failure:3; DIR="$ROOT/preview/pr-$pr" ;;
+    *) err "unknown environment '$kind'"; exit 2 ;;
+  esac
+  PROJECT="$APP-$SLUG"
+  CONTAINER="$APP-$SLUG"
+  IMAGE="local/$APP:$SLUG"
+  VOLUME="$APP-$SLUG-data"
+  VHOST="$CADDY_CONF/$APP-$SLUG.caddy"
+}
+
+# ---------------------------------------------------------------------------
+# Caddy vhost (first line is always the primary hostname). Public TLS is terminated
+# by Cloudflare; origin uses Caddy's internal CA (tunnel connects with noTLSVerify).
+# ---------------------------------------------------------------------------
+write_vhost(){
+  mkdir -p "$CADDY_CONF"
+  if [ "$IS_APEX" = 1 ]; then
+    cat > "$VHOST" <<CADDY
+$HOST {
+	tls internal
+	import sec
+	import zip
+	import logroll $APP-$SLUG
+	reverse_proxy $CONTAINER:3000
+}
+
+www.$DOMAIN {
+	tls internal
+	import sec
+	redir https://$HOST{uri} permanent
+}
+CADDY
+    # Retire the pre-multi-env single vhost (same site address) so the cutover is a
+    # single atomic Caddy reload — zero downtime. Harmless once it's gone.
+    rm -f "$CADDY_CONF/$APP.caddy"
+  else
+    cat > "$VHOST" <<CADDY
+$HOST {
+	tls internal
+	import sec
+	import zip
+	import logroll $APP-$SLUG
+	reverse_proxy $CONTAINER:3000
+}
+CADDY
+  fi
+}
+
+reload_caddy(){ /srv/bin/site-reload.sh >/dev/null 2>&1 && say "caddy reloaded" || warn "caddy reload reported an issue"; }
+
+# ---------------------------------------------------------------------------
+# health helpers
+# ---------------------------------------------------------------------------
+wait_health(){ # $1 container
+  local st rc
+  for _ in $(seq 1 45); do
+    st=$(docker inspect "$1" -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || echo missing)
+    rc=$(docker inspect "$1" -f '{{.RestartCount}}' 2>/dev/null || echo 0)
+    case "$st" in
+      healthy|running) echo "$st"; return 0 ;;
+      unhealthy|exited|dead|missing) echo "$st"; return 1 ;;
+    esac
+    [ "${rc:-0}" -ge 3 ] && { echo "restart-loop($rc)"; return 1; }
+    sleep 2
+  done
+  echo "$st"; return 1
+}
+
+verify_http(){ # $1 host -> checks the app answers through Caddy over HTTPS
+  local code
+  code=$(curl -sk -m 15 --connect-to "$1:443:$HEALTH_RESOLVE:443" -o /dev/null -w '%{http_code}' "https://$1/api/health" 2>/dev/null || echo 000)
+  echo "$code"
+  case "$code" in 2*|3*) return 0 ;; *) return 1 ;; esac
+}
+
+# ---------------------------------------------------------------------------
+# deploy <production|staging|preview> [pr]
+# ---------------------------------------------------------------------------
+do_deploy(){
+  local kind="$1" pr="${2:-}"
+  resolve_env "$kind" "$pr"
+  local commit branch build_time
+  git config --global --add safe.directory "$SRC" 2>/dev/null || true
+  commit="${GIT_COMMIT:-$(git -C "$SRC" rev-parse --short=7 HEAD 2>/dev/null || echo dev)}"
+  branch="${GIT_BRANCH:-$BRANCH}"
+  build_time="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  say "deploy $SLUG  host=$HOST  container=$CONTAINER  image=$IMAGE"
+  logline "$SLUG" "deploy start commit=$commit branch=$branch resolve=$HEALTH_RESOLVE"
+
+  # 1) sync source into the isolated env directory
+  mkdir -p "$DIR"
+  rsync -a --delete \
+    --exclude '.git' --exclude '.forgejo' --exclude 'node_modules' --exclude '.next' \
+    "$SRC"/ "$DIR"/
+  chown -R 1000:1000 "$DIR" 2>/dev/null || true
+
+  # 2) per-environment .env (isolation: compose reads this for build args + runtime env)
+  cat > "$DIR/.env" <<ENV
+MM_CONTAINER=$CONTAINER
+MM_IMAGE=$IMAGE
+MM_RESTART=$RESTART
+MM_VOLUME=$VOLUME
+MM_PUBLIC_API_URL=https://$HOST/api
+APP_ENV=$APP_ENV
+GIT_BRANCH=$branch
+GIT_COMMIT=$commit
+BUILD_TIME=$build_time
+ENV
+  chown 1000:1000 "$DIR/.env" 2>/dev/null || true
+
+  # 3) preserve current images for rollback (frontend + backend)
+  local have_prev=0
+  if docker image inspect "$IMAGE" >/dev/null 2>&1; then
+    docker tag "$IMAGE" "$IMAGE-previous" && have_prev=1
+  fi
+  docker image inspect "$IMAGE-backend" >/dev/null 2>&1 \
+    && docker tag "$IMAGE-backend" "$IMAGE-backend-previous"
+
+  # 4) build + start the isolated stack
+  say "build + up ($PROJECT)"
+  ( cd "$DIR" && docker compose -p "$PROJECT" up -d --build ) 2>&1 | sed 's/^/   /'
+  if [ "${PIPESTATUS[0]}" -ne 0 ]; then
+    err "build/start failed — previous version (if any) left running"
+    logline "$SLUG" "build FAILED"
+    exit 1
+  fi
+
+  # 5) write/refresh Caddy vhost and reload (hot, zero-downtime)
+  write_vhost; reload_caddy
+
+  # 6) health gate
+  local hs code
+  hs=$(wait_health "$CONTAINER"); echo "   container: $hs"
+  code=$(verify_http "$HOST");    echo "   https://$HOST/api/health -> HTTP $code (via $HEALTH_RESOLVE)"
+
+  if [ "$hs" = healthy ] || [ "$hs" = running ]; then
+    if [ "${code:0:1}" = 2 ] || [ "${code:0:1}" = 3 ]; then
+      logline "$SLUG" "deploy OK commit=$commit image=$(docker inspect "$CONTAINER" -f '{{.Image}}' 2>/dev/null|cut -c8-19)"
+      say "${c_grn}OK${c_rst}: $SLUG healthy at https://$HOST"
+      homepage_sync
+      return 0
+    fi
+  fi
+
+  # 7) health failed -> rollback
+  err "health check FAILED for $SLUG"
+  logline "$SLUG" "health FAILED (container=$hs http=$code)"
+  if [ "$have_prev" = 1 ]; then
+    say "rolling back $SLUG to previous image"
+    docker tag "$IMAGE-previous" "$IMAGE"
+    docker image inspect "$IMAGE-backend-previous" >/dev/null 2>&1 \
+      && docker tag "$IMAGE-backend-previous" "$IMAGE-backend"
+    ( cd "$DIR" && docker compose -p "$PROJECT" up -d --force-recreate ) 2>&1 | sed 's/^/   /'
+    hs=$(wait_health "$CONTAINER"); code=$(verify_http "$HOST")
+    if { [ "$hs" = healthy ] || [ "$hs" = running ]; } && { [ "${code:0:1}" = 2 ] || [ "${code:0:1}" = 3 ]; }; then
+      say "ROLLED BACK — previous image restored and healthy"; logline "$SLUG" "rollback OK"
+    else
+      err "ROLLBACK still unhealthy — inspect: docker logs $CONTAINER"; logline "$SLUG" "rollback FAILED"
+    fi
+  else
+    warn "no previous image to roll back to (first deploy). Left running: docker logs $CONTAINER"
+    logline "$SLUG" "no previous image; not rolled back"
+  fi
+  return 1
+}
+
+# ---------------------------------------------------------------------------
+# rollback <production|staging|preview> [pr]
+# ---------------------------------------------------------------------------
+do_rollback(){
+  local kind="$1" pr="${2:-}"
+  resolve_env "$kind" "$pr"
+  docker image inspect "$IMAGE-previous" >/dev/null 2>&1 || { err "no previous image for $SLUG ($IMAGE-previous)"; exit 1; }
+  say "rollback $SLUG -> $IMAGE-previous"
+  logline "$SLUG" "manual rollback start"
+  docker tag "$IMAGE-previous" "$IMAGE"
+  docker image inspect "$IMAGE-backend-previous" >/dev/null 2>&1 \
+    && docker tag "$IMAGE-backend-previous" "$IMAGE-backend"
+  ( cd "$DIR" && docker compose -p "$PROJECT" up -d --force-recreate ) 2>&1 | sed 's/^/   /'
+  local hs code; hs=$(wait_health "$CONTAINER"); code=$(verify_http "$HOST")
+  echo "   container: $hs | https://$HOST -> HTTP $code"
+  if { [ "$hs" = healthy ] || [ "$hs" = running ]; } && { [ "${code:0:1}" = 2 ] || [ "${code:0:1}" = 3 ]; }; then
+    say "${c_grn}OK${c_rst}: $SLUG rolled back and healthy"; logline "$SLUG" "manual rollback OK"; homepage_sync
+  else
+    err "rollback unhealthy — inspect: docker logs $CONTAINER"; logline "$SLUG" "manual rollback FAILED"; exit 1
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# destroy-preview <pr>
+# ---------------------------------------------------------------------------
+do_destroy_preview(){
+  local pr="$1"; resolve_env preview "$pr"
+  say "destroy preview pr-$pr"
+  ( cd "$DIR" 2>/dev/null && docker compose -p "$PROJECT" down -v ) 2>&1 | sed 's/^/   /' || \
+    docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
+  docker volume rm "$VOLUME" >/dev/null 2>&1 || true
+  docker image rm -f "$IMAGE" "$IMAGE-previous" >/dev/null 2>&1 || true
+  rm -f "$VHOST"; reload_caddy
+  rm -rf "$DIR"
+  logline "preview-$pr" "destroyed"
+  homepage_sync
+  say "${c_grn}OK${c_rst}: preview pr-$pr destroyed"
+}
+
+# ---------------------------------------------------------------------------
+# list — every manhwamaniacs env + live health
+# ---------------------------------------------------------------------------
+do_list(){
+  printf '%-26s %-32s %-10s %-10s\n' CONTAINER HOST STATUS HTTP
+  for c in $(docker ps -a --filter "name=^$APP-" --format '{{.Names}}' | sort); do
+    local slug host vh code st
+    slug="${c#$APP-}"; vh="$CADDY_CONF/$APP-$slug.caddy"
+    host=$(awk 'NR==1{sub(/ .*/,"");print;exit}' "$vh" 2>/dev/null || echo '-')
+    st=$(docker inspect "$c" -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' 2>/dev/null || echo '-')
+    code=$( [ "$host" != '-' ] && curl -sk -m 8 --connect-to "$host:443:$HEALTH_RESOLVE:443" -o /dev/null -w '%{http_code}' "https://$host/api/health" 2>/dev/null || echo '-')
+    printf '%-26s %-32s %-10s %-10s\n' "$c" "$host" "$st" "$code"
+  done
+}
+
+# ---------------------------------------------------------------------------
+# homepage_sync — regenerate the marker-delimited ManhwaManiacs block from the
+# currently-running envs (prod/staging/active previews), each with a health monitor.
+# ---------------------------------------------------------------------------
+homepage_sync(){
+  [ -f "$HOMEPAGE_CFG" ] || return 0
+  local A="# >>> manhwamaniacs (managed by ops/deploy.sh) >>>"
+  local B="# <<< manhwamaniacs <<<"
+  local tmp; tmp=$(mktemp)
+  { echo "$A"; echo "- ManhwaManiacs:"; } >> "$tmp"
+  # Order: production, staging, then previews (natural sort).
+  local slugs; slugs=$(docker ps --filter "name=^$APP-" --format '{{.Names}}' \
+    | sed "s/^$APP-//" | awk '{o=2; if($0=="production")o=0; else if($0=="staging")o=1; print o"\t"$0}' \
+    | sort | cut -f2)
+  local n=0 slug host title desc icon
+  for slug in $slugs; do
+    host=$(awk 'NR==1{sub(/ .*/,"");print;exit}' "$CADDY_CONF/$APP-$slug.caddy" 2>/dev/null)
+    [ -n "$host" ] || continue
+    case "$slug" in
+      production) title=Production; desc="Production · main"; icon=mdi-book-open-page-variant ;;
+      staging)    title=Staging;    desc="Staging · develop"; icon=mdi-flask-outline ;;
+      preview-*)  title="Preview ${slug#preview-}"; desc="PR #${slug#preview-} preview"; icon=mdi-source-pull ;;
+      *)          title="$slug"; desc="$slug"; icon=mdi-web ;;
+    esac
+    cat >> "$tmp" <<ITEM
+    - $title:
+        icon: $icon
+        href: https://$host
+        description: $desc
+        siteMonitor: http://$APP-$slug:3000/api/health
+        server: my-docker
+        container: $APP-$slug
+ITEM
+    n=$((n+1))
+  done
+  [ "$n" -eq 0 ] && { echo "    - (no environments running):" >> "$tmp"; echo "        description: none" >> "$tmp"; }
+  echo "$B" >> "$tmp"
+  # Replace existing block (or append) using awk, then swap in atomically.
+  local out; out=$(mktemp)
+  awk -v a="$A" -v b="$B" -v blk="$tmp" '
+    BEGIN{ while((getline l < blk) > 0) B[++nb]=l }
+    $0==a { skip=1; for(i=1;i<=nb;i++) print B[i]; done=1; next }
+    skip && $0==b { skip=0; next }
+    skip { next }
+    { print }
+    END{ if(!done){ print ""; for(i=1;i<=nb;i++) print B[i] } }
+  ' "$HOMEPAGE_CFG" > "$out"
+  cat "$out" > "$HOMEPAGE_CFG"
+  rm -f "$tmp" "$out"
+  chown 1000:1000 "$HOMEPAGE_CFG" 2>/dev/null || true
+  echo "   homepage: ManhwaManiacs block updated ($n env(s))"
+  docker restart homepage >/dev/null 2>&1 || true
+}
+
+# ---------------------------------------------------------------------------
+# dispatch
+# ---------------------------------------------------------------------------
+case "${1:-}" in
+  production|staging) do_deploy "$1" ;;
+  preview)            do_deploy preview "${2:-}" ;;
+  destroy-preview)    do_destroy_preview "${2:?usage: destroy-preview <pr>}" ;;
+  rollback)           do_rollback "${2:?usage: rollback <production|staging|preview> [pr]}" "${3:-}" ;;
+  list)               do_list ;;
+  homepage-sync)      homepage_sync ;;
+  *) cat >&2 <<USAGE
+usage: ops/deploy.sh <command>
+  production | staging            deploy that environment
+  preview <pr>                    deploy a PR preview
+  destroy-preview <pr>            tear a preview down
+  rollback production|staging|preview [<pr>]
+  list                            show all envs + health
+USAGE
+     exit 2 ;;
+esac
