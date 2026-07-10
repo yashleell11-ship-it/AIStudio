@@ -5,7 +5,8 @@ AIStudio supports pluggable **source connectors** for browsing and reading onlin
 ## Architecture
 
 ```
-connectors/          Plugin implementations (mangadex, local filesystem, future sites)
+connectors/          Plugin implementations (mangadex, asurascans, mangakatana,
+                     demonicscans, toonily, local_filesystem)
 services/            browse_service, reading_service, source_service
 routes/sources.py    HTTP API for browsing and online reading
 features/sources/    Frontend Sources UI (no source-specific logic)
@@ -36,6 +37,10 @@ Connectors return normalized models from `connectors/models.py`:
 | ID | Type | Browsable | Import |
 |----|------|-----------|--------|
 | `mangadex` | MangaDex official API | Yes | No |
+| `asurascans` | AsuraScans (HTML catalog) | Yes | No |
+| `mangakatana` | MangaKatana (HTML catalog) | Yes | No |
+| `demonicscans` | DemonicScans (HTML catalog) | Yes | No |
+| `toonily` | Toonily (HTML catalog; Cloudflare-hardened via curl_cffi) | Yes | No |
 | `local_filesystem` | Folder scan | No | Yes |
 
 Register new connectors in `connectors/registry.py`:
