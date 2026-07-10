@@ -1,7 +1,7 @@
-# AIStudio
+# ManhwaManiacs
 
-Self-hosted manga/manhwa platform: a Python backend (content connectors + download/library
-management), a Next.js web frontend, and a Flutter mobile app.
+Self-hosted manga/manhwa reader and multi-source aggregator: a FastAPI backend (content
+connectors + download/library management), a Next.js web frontend, and a Flutter mobile app.
 
 > **Canonical home:** this repo lives on the NAS at `/home/yash/dev/aistudio` and is
 > version-controlled in Forgejo (`git.yashnas.xyz/yash/aistudio`). Develop on the NAS —

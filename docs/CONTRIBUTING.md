@@ -3,8 +3,8 @@
 This document establishes how contributions are made to AIStudio — by humans and AI
 agents alike. Read it before writing any code.
 
-Cross-references: [PROJECT_RULES.md](PROJECT_RULES.md) · [ARCHITECTURE.md](ARCHITECTURE.md) ·
-[STRUCTURE.md](STRUCTURE.md) · [PRODUCT.md](PRODUCT.md)
+Cross-references: [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md) ·
+[ROADMAP.md](ROADMAP.md)
 
 ---
 
@@ -12,12 +12,10 @@ Cross-references: [PROJECT_RULES.md](PROJECT_RULES.md) · [ARCHITECTURE.md](ARCH
 
 Read these documents in this order:
 
-1. [VISION.md](VISION.md) — understand what you're building toward.
-2. [PRODUCT.md](PRODUCT.md) — understand who it's for and what they need.
-3. [PROJECT_RULES.md](PROJECT_RULES.md) — understand the non-negotiable rules.
-4. [ARCHITECTURE.md](ARCHITECTURE.md) — understand the technical decisions.
-5. [STRUCTURE.md](STRUCTURE.md) — understand where code belongs.
-6. [ROADMAP.md](ROADMAP.md) — understand which phase you're working in.
+1. [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md) — the real
+   current architecture, subsystem-by-subsystem state, known debt, and the priority
+   roadmap (§9).
+2. [ROADMAP.md](ROADMAP.md) — what the product is today and which phase you're working in.
 
 Do not write code until you understand the context for your change. Read the files
 you will modify before modifying them.
@@ -38,8 +36,8 @@ AIStudio/
 └─ covers/          Generated thumbnails (runtime, not committed)
 ```
 
-See [STRUCTURE.md](STRUCTURE.md) for the full annotated layout of `frontend/src/`
-and `backend/`, including which files exist today vs. which are planned for later phases.
+See [ARCHITECTURE_REVIEW_2026-07-11.md § 5](ARCHITECTURE_REVIEW_2026-07-11.md#5-folder-organization)
+for the current folder organization of `frontend/src/` and `backend/`.
 
 ---
 
@@ -86,8 +84,8 @@ Omitting this file defaults to `http://127.0.0.1:8000`.
 - Run commands individually. Never use `&&` or `||` between commands.
 - Use PowerShell, not Command Prompt.
 - `venv\Scripts\activate` (backslash) on Windows; `venv/bin/activate` on Linux/macOS.
-- See [PROJECT_RULES.md § 13](PROJECT_RULES.md#13-windows-compatibility-rules) for the
-  full list of Windows compatibility requirements.
+- See [archive/PROJECT_RULES.md § 13](archive/PROJECT_RULES.md#13-windows-compatibility-rules)
+  (archived) for the full list of Windows compatibility requirements.
 
 ---
 
@@ -295,7 +293,9 @@ Closes #42
 
 ### 7.1 Before opening a PR
 
-Complete the full Definition of Done checklist from [PROJECT_RULES.md § 18](PROJECT_RULES.md#18-definition-of-done).
+Complete the recurring-rules checklist in [ROADMAP.md](ROADMAP.md#recurring-rules-every-phase);
+the fuller historical Definition of Done is archived at
+[archive/PROJECT_RULES.md § 18](archive/PROJECT_RULES.md#18-definition-of-done).
 If any item fails, the PR is not ready.
 
 ### 7.2 PR title and description
@@ -320,7 +320,6 @@ Description template:
 - [ ] `python -m pytest` passes (if backend changes)
 - [ ] No hardcoded colors
 - [ ] No business logic in routes
-- [ ] STRUCTURE.md updated (if new files added)
 - [ ] ROADMAP.md updated (if phase task completed)
 - [ ] No TODO comments in committed code
 - [ ] Error envelope intact for all new endpoints
@@ -375,9 +374,8 @@ For every file changed, the reviewer verifies:
 - [ ] Error envelope shape is correct for all new endpoints.
 
 ### Documentation
-- [ ] `STRUCTURE.md` updated for new files.
 - [ ] FastAPI docstrings on new endpoints.
-- [ ] `ARCHITECTURE.md` updated for new dependencies.
+- [ ] `ROADMAP.md` updated if a phase/milestone task is completed.
 
 ---
 
@@ -435,12 +433,9 @@ When your change touches any of the following, update the corresponding document
 
 | Change | Update required |
 |--------|----------------|
-| New file or directory | `STRUCTURE.md` |
 | Completed roadmap task | `ROADMAP.md` (mark complete, update dates) |
-| New dependency added | `ARCHITECTURE.md` (technology table + rationale) |
-| New rule established | `PROJECT_RULES.md` |
+| Major architectural change | `ARCHITECTURE_REVIEW_2026-07-11.md` (or a dated follow-up review) |
 | New API endpoint | FastAPI docstring (auto-generates OpenAPI spec) |
-| New product feature | `PRODUCT.md` (feature description, user workflow) |
 | New shortcut | `CONTRIBUTING.md` (keyboard reference, when added) |
 
 Documentation is not optional. An undocumented change is an incomplete change.
@@ -461,9 +456,9 @@ what already exists without reading the existing implementation first.
 ### 11.2 Read the relevant docs
 
 For any non-trivial change:
-1. Read [PROJECT_RULES.md](PROJECT_RULES.md) for the relevant section.
-2. Read [ARCHITECTURE.md](ARCHITECTURE.md) for the layer that's being changed.
-3. Read [STRUCTURE.md](STRUCTURE.md) for where the code belongs.
+1. Read [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md) for the
+   subsystem map, dependency graph, and known debt for the layer being changed.
+2. Read [ROADMAP.md](ROADMAP.md) to confirm which phase/milestone the change belongs to.
 
 For frontend changes specifically:
 - Read `frontend/node_modules/next/dist/docs/` for the relevant Next.js 16 API before
@@ -577,10 +572,8 @@ in [ROADMAP.md](ROADMAP.md). "I have implemented X" must be verified by:
 When a non-obvious decision is made during development — a tradeoff, a deviation from
 the planned approach, a discovery that changes the design — document it.
 
-If the decision is architectural: add a row to the relevant table in
-[ARCHITECTURE.md](ARCHITECTURE.md).
-
-If the decision is a rule: add it to [PROJECT_RULES.md](PROJECT_RULES.md).
+If the decision is architectural: note it in a dated follow-up to
+[ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md).
 
 If the decision changes the phase plan: update [ROADMAP.md](ROADMAP.md).
 
