@@ -14,12 +14,14 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from sqlalchemy import func
+from sqlalchemy.dialects.sqlite import insert as _sqlite_insert
 from sqlalchemy.orm import Session
 
 from connectors.models import Chapter as ConnectorChapter
 from connectors.registry import create_connector, list_installed_connectors
 from core.config import get_settings
 from core.errors import AppError
+from core.time_utils import utcnow
 from database.models import Download, SeriesTracker, UpdateNotification, UpdateRun, UpdateSettings
 from database.session import SessionLocal
 
@@ -68,19 +70,29 @@ class UpdateService:
     # ------------------------------------------------------------------
 
     def get_global_settings(self) -> UpdateSettings:
-        row = self._db.query(UpdateSettings).filter(UpdateSettings.id == 1).first()
-        if row is None:
-            settings = get_settings()
-            row = UpdateSettings(
+        # Fast path: row already in DB (normal case after first startup).
+        row = self._db.get(UpdateSettings, 1)
+        if row is not None:
+            return row
+
+        # Slow path: first ever startup. Use INSERT OR IGNORE so concurrent
+        # sessions racing here (scheduler thread vs main thread) can never
+        # collide on the UNIQUE primary-key constraint.
+        config = get_settings()
+        self._db.execute(
+            _sqlite_insert(UpdateSettings)
+            .values(
                 id=1,
                 enabled=True,
-                check_interval_minutes=settings.update_check_interval_minutes,
+                check_interval_minutes=config.update_check_interval_minutes,
                 notify_enabled=True,
                 auto_download_enabled=False,
                 check_on_startup=True,
             )
-            self._db.add(row)
-            self._db.flush()
+            .on_conflict_do_nothing()
+        )
+        row = self._db.get(UpdateSettings, 1)
+        assert row is not None, "update_settings singleton (id=1) missing after upsert"
         return row
 
     def update_global_settings(self, payload: dict[str, Any]) -> dict[str, object]:
@@ -388,14 +400,14 @@ class UpdateService:
             run.status = "completed"
             run.series_checked = checked
             run.new_chapters_found = new_total
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utcnow()
             settings.last_run_at = run.finished_at
             self._db.flush()
             return self.serialize_run(run)
         except Exception as exc:
             run.status = "failed"
             run.error = str(exc)
-            run.finished_at = datetime.utcnow()
+            run.finished_at = utcnow()
             self._db.flush()
             logger.exception("Update check failed")
             raise
@@ -421,7 +433,7 @@ class UpdateService:
             return True
         interval = tracker.check_interval_minutes or settings.check_interval_minutes
         due_at = tracker.last_checked_at + timedelta(minutes=interval)
-        return datetime.utcnow() >= due_at
+        return utcnow() >= due_at
 
     def _check_tracker(self, tracker: SeriesTracker, settings: UpdateSettings) -> int:
         try:
@@ -429,7 +441,7 @@ class UpdateService:
             remote_chapters = connector.get_chapters(tracker.series_id)
         except Exception as exc:
             tracker.last_error = str(exc)
-            tracker.last_checked_at = datetime.utcnow()
+            tracker.last_checked_at = utcnow()
             self._db.flush()
             logger.warning(
                 "Failed to check %s/%s: %s",
@@ -445,7 +457,7 @@ class UpdateService:
 
         if not known_ids:
             tracker.known_chapter_ids = _dump_known_ids(remote_ids)
-            tracker.last_checked_at = datetime.utcnow()
+            tracker.last_checked_at = utcnow()
             tracker.last_error = None
             self._db.flush()
             return 0
@@ -477,7 +489,7 @@ class UpdateService:
             _on_new_chapters(self._db, tracker, new_chapters)
 
         tracker.known_chapter_ids = _dump_known_ids(remote_ids)
-        tracker.last_checked_at = datetime.utcnow()
+        tracker.last_checked_at = utcnow()
         tracker.last_error = None
         self._db.flush()
         return len(new_chapters)

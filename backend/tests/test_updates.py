@@ -60,6 +60,37 @@ def test_global_settings_defaults(db_session: Session) -> None:
     assert payload["check_interval_minutes"] >= 5
 
 
+def test_get_global_settings_idempotent_across_sessions(db_engine) -> None:
+    """get_global_settings must never raise even when called from two separate
+    sessions — this guards against the startup race between the scheduler thread
+    (_current_interval_minutes) and the main thread (_maybe_run_startup_check)
+    where both sessions previously tried to INSERT id=1 concurrently."""
+    factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+    s1 = factory()
+    s2 = factory()
+    try:
+        # s1 creates and commits the row (simulates first caller winning the race)
+        UpdateService(s1).get_global_settings()
+        s1.commit()
+
+        # s2 must return the existing row without raising IntegrityError
+        row = UpdateService(s2).get_global_settings()
+        s2.commit()
+
+        assert row.id == 1
+    finally:
+        s1.close()
+        s2.close()
+
+
+def test_get_global_settings_repeated_call_same_session(db_session: Session) -> None:
+    """Calling get_global_settings twice on the same session must not raise."""
+    svc = UpdateService(db_session)
+    r1 = svc.get_global_settings()
+    r2 = svc.get_global_settings()
+    assert r1.id == r2.id == 1
+
+
 def test_follow_series_creates_tracker(db_session: Session) -> None:
     service = UpdateService(db_session)
     with patch.object(service, "_ensure_browsable_source"):

@@ -19,7 +19,7 @@ from services.outbound_security import validate_outbound_url
 
 logger = logging.getLogger(__name__)
 
-MANIFEST_FILENAME = ".aistudio-download.json"
+MANIFEST_FILENAME = ".manhwamaniacs-download.json"
 PARTIAL_SUFFIX = ".partial"
 
 PRIORITY_CURRENT_CHAPTER = 0

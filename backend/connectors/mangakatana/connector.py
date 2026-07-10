@@ -42,7 +42,7 @@ class MangaKatanaConnector(SourceConnector):
     DISPLAY_NAME = "MangaKatana"
     DESCRIPTION = (
         "Browse and read manga, manhwa, and manhua from MangaKatana. "
-        "Images are proxied through AIStudio for reliable local reading."
+        "Images are proxied through ManhwaManiacs for reliable local reading."
     )
     BROWSABLE = True
     SUPPORTS_IMPORT = False

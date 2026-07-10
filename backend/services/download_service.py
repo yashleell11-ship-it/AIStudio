@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 from connectors.registry import create_connector
 from core.config import get_settings, update_persisted_settings
 from core.errors import AppError
+from core.time_utils import utcnow
 from database.models import Download, DownloadQueue, SourceChapterLink
 from database.session import get_db
 from services.download_manager import DownloadManager, get_download_manager
@@ -239,7 +240,7 @@ class DownloadService:
                 status_code=400,
             )
         download.status = "paused"
-        download.updated_at = datetime.utcnow()
+        download.updated_at = utcnow()
         if download.queue:
             download.queue.state = "paused"
         self._db.commit()
@@ -263,7 +264,7 @@ class DownloadService:
 
         download.status = "queued"
         download.error = None
-        download.updated_at = datetime.utcnow()
+        download.updated_at = utcnow()
         if download.queue:
             download.queue.state = "pending"
         self._db.commit()
@@ -279,7 +280,7 @@ class DownloadService:
                 status_code=400,
             )
         download.status = "cancelled"
-        download.updated_at = datetime.utcnow()
+        download.updated_at = utcnow()
         if download.queue:
             download.queue.state = "cancelled"
         self._db.commit()
@@ -311,7 +312,7 @@ class DownloadService:
         ).all()
         for row in rows:
             row.status = "paused"
-            row.updated_at = datetime.utcnow()
+            row.updated_at = utcnow()
             if row.queue:
                 row.queue.state = "paused"
         self._db.commit()
@@ -333,7 +334,7 @@ class DownloadService:
                 continue
             row.status = "queued"
             row.error = None
-            row.updated_at = datetime.utcnow()
+            row.updated_at = utcnow()
             if row.queue:
                 row.queue.state = "pending"
             resumed += 1
@@ -350,7 +351,7 @@ class DownloadService:
         ).all()
         for row in rows:
             row.status = "cancelled"
-            row.updated_at = datetime.utcnow()
+            row.updated_at = utcnow()
             if row.queue:
                 row.queue.state = "cancelled"
         self._db.commit()
@@ -369,7 +370,71 @@ class DownloadService:
             download.queue.state = "pending"
         download.status = "queued"
         download.error = None
-        download.updated_at = datetime.utcnow()
+        download.updated_at = utcnow()
+        self._db.commit()
+        self._manager.notify_change()
+        return self._serialize_download(download)
+
+    def move_queue_item(self, download_id: int, *, direction: str) -> dict[str, Any]:
+        """Reorder a queued download earlier or later within its own series'
+        dispatch queue, by swapping priority with the adjacent sibling.
+
+        Dispatch order is ``DownloadQueue.priority ASC`` (see
+        ``DownloadManager``'s scheduler), so "up" (dispatched sooner) swaps
+        with the next lower-priority neighbour and "down" the next
+        higher-priority one. Only downloads still pending dispatch
+        (``status="queued"``, queue ``state="pending"``) participate --
+        matching exactly what the scheduler itself considers eligible.
+        Already at the front/back of its own series' queue is a no-op, not
+        an error, since a client can't easily tell in advance.
+        """
+        if direction not in ("up", "down"):
+            raise AppError(
+                "direction must be 'up' or 'down'.",
+                code="invalid_direction",
+                status_code=422,
+            )
+
+        download = self._get_download(download_id)
+        if (
+            download.queue is None
+            or download.status != "queued"
+            or download.queue.state != "pending"
+        ):
+            raise AppError(
+                "Only queued downloads waiting to start can be reordered.",
+                code="invalid_state",
+                status_code=400,
+            )
+
+        siblings = (
+            self._db.query(Download)
+            .join(DownloadQueue)
+            .options(joinedload(Download.queue))
+            .filter(
+                Download.source == download.source,
+                Download.series_id == download.series_id,
+                Download.status == "queued",
+                DownloadQueue.state == "pending",
+            )
+            .order_by(DownloadQueue.priority.asc(), Download.created_at.asc())
+            .all()
+        )
+        index = next(
+            (i for i, row in enumerate(siblings) if row.id == download.id), None
+        )
+        if index is None:
+            return self._serialize_download(download)
+
+        neighbour_index = index - 1 if direction == "up" else index + 1
+        if neighbour_index < 0 or neighbour_index >= len(siblings):
+            return self._serialize_download(download)
+
+        neighbour = siblings[neighbour_index]
+        download.queue.priority, neighbour.queue.priority = (
+            neighbour.queue.priority,
+            download.queue.priority,
+        )
         self._db.commit()
         self._manager.notify_change()
         return self._serialize_download(download)

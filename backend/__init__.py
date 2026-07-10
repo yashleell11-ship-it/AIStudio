@@ -1,4 +1,4 @@
-"""AIStudio backend package.
+"""ManhwaManiacs backend package.
 
 When imported as ``backend`` (e.g. ``python -m backend.main`` from the repo
 root), ensure the backend application root is on ``sys.path`` so flat imports

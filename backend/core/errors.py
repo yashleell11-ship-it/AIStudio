@@ -6,10 +6,14 @@ Every error returned to the client uses one shape so the frontend's
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
+
+_logger = logging.getLogger("manhwamaniacs.errors")
 
 
 class AppError(Exception):
@@ -51,6 +55,10 @@ def register_error_handlers(app: FastAPI) -> None:
         return _envelope(exc.status_code, "http_error", str(exc.detail))
 
     @app.exception_handler(Exception)
-    async def _unexpected(_: Request, exc: Exception):
-        # Don't leak internals; log-friendly message stays server-side in practice.
+    async def _unexpected(request: Request, exc: Exception):
+        # Log the full traceback server-side for debugging, but never leak
+        # internals to the client — they only get a generic message.
+        _logger.exception(
+            "Unhandled error on %s %s", request.method, request.url.path
+        )
         return _envelope(500, "internal_error", "An unexpected error occurred.")

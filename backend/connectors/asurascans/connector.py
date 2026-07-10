@@ -33,7 +33,7 @@ class AsuraScansConnector(SourceConnector):
     DISPLAY_NAME = "AsuraScans"
     DESCRIPTION = (
         "Browse and read manhwa and manhua from AsuraScans. "
-        "Images are proxied through AIStudio for reliable local reading."
+        "Images are proxied through ManhwaManiacs for reliable local reading."
     )
     BROWSABLE = True
     SUPPORTS_IMPORT = False

@@ -14,6 +14,8 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
+from core.time_utils import utcnow
+
 
 class Base(DeclarativeBase):
     pass
@@ -26,7 +28,7 @@ class Library(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     root_path: Mapped[str] = mapped_column(String(1024), nullable=False, unique=True)
     scan_interval_minutes: Mapped[int] = mapped_column(Integer, default=60)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     series: Mapped[list[Series]] = relationship(back_populates="library")
 
@@ -74,9 +76,9 @@ class Series(Base):
     total_pages: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_created: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
     deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     library: Mapped[Library] = relationship(back_populates="series")
@@ -121,9 +123,9 @@ class Chapter(Base):
     is_read: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
     read_at: Mapped[datetime | None] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     scanned_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     series: Mapped[Series] = relationship(back_populates="chapters")
@@ -181,9 +183,9 @@ class ReadingProgress(Base):
     # Library Intelligence fields
     scroll_offset_px: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     progress_pct: Mapped[float] = mapped_column(Float, default=0.0)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_read_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     series: Mapped[Series] = relationship(back_populates="reading_progress")
@@ -201,7 +203,7 @@ class Bookmark(Base):
     # Library Intelligence field
     page_id: Mapped[int | None] = mapped_column(ForeignKey("pages.id"), nullable=True)
     note: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     series: Mapped[Series] = relationship(back_populates="bookmarks")
     chapter: Mapped[Chapter] = relationship()
@@ -219,7 +221,7 @@ class ImportHistory(Base):
     series_count: Mapped[int] = mapped_column(Integer, default=0)
     chapter_count: Mapped[int] = mapped_column(Integer, default=0)
     page_count: Mapped[int] = mapped_column(Integer, default=0)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
@@ -242,9 +244,9 @@ class Download(Base):
     pages_total: Mapped[int] = mapped_column(Integer, default=0)
     bytes_downloaded: Mapped[int] = mapped_column(Integer, default=0)
     local_chapter_id: Mapped[int | None] = mapped_column(ForeignKey("chapters.id"))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
     error: Mapped[str | None] = mapped_column(Text)
 
@@ -282,7 +284,7 @@ class SourceChapterLink(Base):
     series_id: Mapped[str] = mapped_column(String(128), nullable=False)
     chapter_id: Mapped[str] = mapped_column(String(128), nullable=False)
     local_chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 class Collection(Base):
@@ -297,9 +299,9 @@ class Collection(Base):
     description: Mapped[str | None] = mapped_column(Text)
     cover_path: Mapped[str | None] = mapped_column(String(1024))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     series: Mapped[list[CollectionSeries]] = relationship(
@@ -320,7 +322,7 @@ class CollectionSeries(Base):
         ForeignKey("series.id"), primary_key=True
     )
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    added_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    added_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     collection: Mapped[Collection] = relationship(back_populates="series")
     series: Mapped[Series] = relationship(back_populates="collections")
@@ -333,7 +335,7 @@ class Tag(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     category: Mapped[str] = mapped_column(String(64), nullable=False, default="custom")
     color: Mapped[str | None] = mapped_column(String(16))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     series: Mapped[list[SeriesTag]] = relationship(
         back_populates="tag", cascade="all, delete-orphan"
@@ -373,10 +375,10 @@ class ChapterProgress(Base):
     scroll_offset_px: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     is_completed: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
     time_spent_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     completed_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_read_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     chapter: Mapped[Chapter] = relationship()
@@ -402,7 +404,7 @@ class ReadingSession(Base):
     start_page: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     end_page: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     pages_read: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     ended_at: Mapped[datetime | None] = mapped_column(DateTime)
 
     series: Mapped[Series] = relationship()
@@ -430,9 +432,9 @@ class OcrJob(Base):
     pages_total: Mapped[int] = mapped_column(Integer, default=0)
     retry_count: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     chapter: Mapped[Chapter] = relationship(back_populates="ocr_jobs")
@@ -453,9 +455,9 @@ class PageText(Base):
     confidence: Mapped[float | None] = mapped_column(Float)
     boxes: Mapped[str | None] = mapped_column(Text)  # JSON array of bounding boxes
     engine: Mapped[str] = mapped_column(String(64), nullable=False, default="tesseract")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     page: Mapped[Page] = relationship(back_populates="page_text")
@@ -476,9 +478,9 @@ class ChapterText(Base):
     word_count: Mapped[int] = mapped_column(Integer, default=0)
     language: Mapped[str | None] = mapped_column(String(16))
     engine: Mapped[str] = mapped_column(String(64), nullable=False, default="tesseract")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     chapter: Mapped[Chapter] = relationship(back_populates="chapter_text")
@@ -497,7 +499,7 @@ class UpdateSettings(Base):
     check_on_startup: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
     last_run_at: Mapped[datetime | None] = mapped_column(DateTime)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
 
@@ -525,9 +527,9 @@ class SeriesTracker(Base):
     known_chapter_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_error: Mapped[str | None] = mapped_column(Text)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
-        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow
+        DateTime, default=utcnow, onupdate=utcnow
     )
 
     notifications: Mapped[list[UpdateNotification]] = relationship(
@@ -554,7 +556,7 @@ class UpdateNotification(Base):
     chapter_title: Mapped[str] = mapped_column(String(512), nullable=False)
     chapter_number: Mapped[int | None] = mapped_column(Integer)
     is_read: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
     tracker: Mapped[SeriesTracker] = relationship(back_populates="notifications")
 
@@ -571,5 +573,5 @@ class UpdateRun(Base):
     series_checked: Mapped[int] = mapped_column(Integer, default=0)
     new_chapters_found: Mapped[int] = mapped_column(Integer, default=0)
     error: Mapped[str | None] = mapped_column(Text)
-    started_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
