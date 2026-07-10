@@ -22,8 +22,8 @@ const bebasNeue = Bebas_Neue({
 });
 
 export const metadata: Metadata = {
-  title: "AIStudio",
-  description: "Read, organize, and create manhwa locally with AI.",
+  title: "ManhwaManiacs",
+  description: "ManhwaManiacs — read and manage your manga & manhwa library.",
 };
 
 export default function RootLayout({

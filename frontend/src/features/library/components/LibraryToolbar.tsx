@@ -90,7 +90,7 @@ export function LibraryToolbar({
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-fg">Library</h1>
           <p className="mt-1 text-sm text-muted">
-            {seriesCount.toLocaleString()} {seriesCount === 1 ? "series" : "series"}
+            {seriesCount.toLocaleString()} series
           </p>
         </div>
 

@@ -36,7 +36,7 @@ export function useSeries(seriesId: number | null) {
 
 export function useContinueReading(limit = 10) {
   return useQuery({
-    queryKey: [...LIBRARY_KEY, "continue-reading"],
+    queryKey: [...LIBRARY_KEY, "continue-reading", limit],
     queryFn: () => libraryApi.continueReading(limit),
   });
 }

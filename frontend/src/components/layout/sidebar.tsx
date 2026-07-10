@@ -93,7 +93,7 @@ export function Sidebar() {
             className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-bold text-white"
             aria-hidden
           >
-            AS
+            MM
           </div>
         ) : (
           <div className="flex items-center gap-2">
@@ -101,9 +101,9 @@ export function Sidebar() {
               className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-bold text-white"
               aria-hidden
             >
-              AS
+              MM
             </div>
-            <span className="font-display text-lg tracking-wide text-fg">AIStudio</span>
+            <span className="font-display text-lg tracking-wide text-fg">ManhwaManiacs</span>
           </div>
         )}
       </div>

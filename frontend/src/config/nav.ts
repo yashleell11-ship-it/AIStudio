@@ -7,10 +7,8 @@ import {
   History,
   Home,
   Library,
-  PenTool,
   Search,
   Settings,
-  Sparkles,
   BarChart3,
   Heart,
   List,
@@ -36,9 +34,7 @@ export const primaryNav: NavItem[] = [
   { href: "/downloads", label: "Downloads", icon: Download },
   { href: "/updates", label: "Updates", icon: Bell },
   { href: "/reader", label: "Reader", icon: BookOpen },
-  { href: "/create", label: "Create", icon: PenTool },
   { href: "/search", label: "Search", icon: Search },
-  { href: "/ai", label: "AI", icon: Sparkles },
 ];
 
 /** Pinned to the bottom of the sidebar. */
