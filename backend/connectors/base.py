@@ -36,6 +36,18 @@ class SourceConnector(ABC):
         return False
 
     @property
+    def is_mature(self) -> bool:
+        """Whether this source primarily serves adult (18+) content.
+
+        Mature sources are hidden from the Sources browser and are not
+        searchable unless the user has explicitly enabled mature content
+        (``Settings.mature_content_enabled``). Set the class attribute
+        ``MATURE = True`` on a connector to mark it adult -- both this
+        property and the registry descriptor read that attribute, so a
+        connector never needs to override this method."""
+        return bool(getattr(self, "MATURE", False))
+
+    @property
     def allowed_image_hosts(self) -> frozenset[str]:
         """Domain suffixes this connector may proxy images/covers from.
 

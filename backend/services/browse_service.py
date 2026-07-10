@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 from urllib.parse import quote, unquote
 
+from core.config import get_settings
 from core.errors import AppError
 from connectors.base import SourceConnector
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
@@ -85,7 +86,10 @@ class BrowseService:
 
     def list_sources(self) -> list[dict[str, object]]:
         snapshot = registry_snapshot()
-        descriptors = list_installed_connectors(browsable_only=True)
+        descriptors = list_installed_connectors(
+            browsable_only=True,
+            include_mature=get_settings().mature_content_enabled,
+        )
         logging.getLogger("uvicorn.error").info(
             "GET /sources registry_id=%s all_types=%s browsable_types=%s returning=%s",
             snapshot["registry_id"],
@@ -120,6 +124,18 @@ class BrowseService:
                 "Source is not browsable.",
                 code="source_not_browsable",
                 status_code=400,
+                details={"source_id": source_id},
+            )
+        # A mature source is hidden entirely when the user has not opted into
+        # adult content: report it as not-found rather than "forbidden" so its
+        # existence isn't disclosed. This one check covers every read path
+        # (browse, search, series, chapters, pages, reader, covers) because
+        # they all resolve their connector here.
+        if connector.is_mature and not get_settings().mature_content_enabled:
+            raise AppError(
+                "Source not found.",
+                code="source_not_found",
+                status_code=404,
                 details={"source_id": source_id},
             )
         return connector

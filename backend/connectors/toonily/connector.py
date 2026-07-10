@@ -48,6 +48,8 @@ class ToonilyConnector(SourceConnector):
     )
     BROWSABLE = True
     SUPPORTS_IMPORT = False
+    # Toonily is an adult (18+) catalogue; hidden unless the user opts in.
+    MATURE = True
 
     def __init__(self) -> None:
         self._http = CfSyncHttpClient(

@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from core.config import get_settings
+from core.config import get_settings, update_persisted_settings
 from database.session import get_db
 from services.download_service import DownloadService, get_download_service
 from services.update_service import UpdateService, get_update_service
@@ -36,6 +36,7 @@ class UnifiedSettingsUpdate(BaseModel):
     updates_notify_enabled: bool | None = None
     updates_auto_download_enabled: bool | None = None
     updates_check_on_startup: bool | None = None
+    mature_content_enabled: bool | None = None
 
 
 def _serialize_app_settings(
@@ -47,6 +48,7 @@ def _serialize_app_settings(
     return {
         "version": settings.version,
         "project_name": settings.project_name,
+        "mature_content_enabled": settings.mature_content_enabled,
         "downloads": download_service.get_download_settings(),
         "updates": update_payload,
         "ocr": {
@@ -111,5 +113,8 @@ def update_app_settings(
         update_changes["check_on_startup"] = body.updates_check_on_startup
     if update_changes:
         update_service.update_global_settings(update_changes)
+
+    if body.mature_content_enabled is not None:
+        update_persisted_settings(mature_content_enabled=body.mature_content_enabled)
 
     return _serialize_app_settings(download_service, update_service)

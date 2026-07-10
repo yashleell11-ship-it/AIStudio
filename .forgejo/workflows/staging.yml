@@ -1,0 +1,22 @@
+# Staging pipeline — push to `develop` deploys https://staging.manhwamaniacs.xyz
+# Identical shape to production.yml; only the environment differs (logic is shared
+# in ops/deploy.sh). Staging is a full, isolated mirror of production for pre-release testing.
+name: staging
+on:
+  push:
+    branches: [develop]
+
+jobs:
+  deploy:
+    runs-on: docker
+    steps:
+      - name: Clone & deploy staging
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          SHA="${{ github.sha }}"
+          git clone -q "http://${{ github.actor }}:${{ github.token }}@forgejo:3000/${REPO}.git" /tmp/src
+          git -C /tmp/src checkout -q "$SHA"
+          export HEALTH_RESOLVE=caddy
+          export GIT_BRANCH="${{ github.ref_name }}"
+          bash /tmp/src/ops/deploy.sh staging

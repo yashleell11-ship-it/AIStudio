@@ -6,14 +6,16 @@ import {
   Download,
   Keyboard,
   RefreshCw,
+  ShieldAlert,
 } from "lucide-react";
 import { DownloadSettingsPanel } from "@/features/downloads";
 import { UpdateSettingsPanel } from "@/features/updates";
 import { useUpdateSettings } from "@/features/updates/hooks";
+import { MatureContentPanel } from "@/features/preferences";
 import { KeyboardShortcutsPanel } from "@/components/settings/keyboard-shortcuts-panel";
 import { cn } from "@/lib/cn";
 
-type SettingsTab = "general" | "downloads" | "shortcuts";
+type SettingsTab = "general" | "downloads" | "content" | "shortcuts";
 
 const NAV_ITEMS: {
   id: SettingsTab;
@@ -32,6 +34,12 @@ const NAV_ITEMS: {
     label: "Downloads",
     icon: Download,
     description: "Queue and concurrency",
+  },
+  {
+    id: "content",
+    label: "Content",
+    icon: ShieldAlert,
+    description: "Mature (18+) content",
   },
   {
     id: "shortcuts",
@@ -103,6 +111,7 @@ export default function SettingsPage() {
           <div className="min-w-0 flex-1 space-y-6">
             {activeTab === "general" && <UpdatesSettingsSection />}
             {activeTab === "downloads" && <DownloadSettingsPanel />}
+            {activeTab === "content" && <MatureContentPanel />}
             {activeTab === "shortcuts" && <KeyboardShortcutsPanel />}
           </div>
         </div>

@@ -39,6 +39,8 @@ from sqlalchemy.orm import (
     selectinload,
 )
 
+from core.config import get_settings
+from core.content_rating import MATURE_CONTENT_RATINGS
 from core.errors import AppError
 from database.models import (
     Chapter,
@@ -57,6 +59,22 @@ from database.models import (
 )
 from database.session import get_db
 from utils.path_utils import natural_sort_key
+
+
+def _apply_mature_filter(query):
+    """Drop adult-rated series from a *discovery* query unless the user has
+    enabled mature content.
+
+    Applied to surfaced rows only -- recommendations, similar-series, and the
+    recently-added/updated discovery strips -- so a user who has not opted in
+    never has an 18+ cover pushed at them. The full "My Library" grid is left
+    untouched: series the user deliberately added stay visible and manageable
+    regardless of this setting."""
+    if get_settings().mature_content_enabled:
+        return query
+    return query.filter(
+        func.lower(Series.content_rating).notin_(sorted(MATURE_CONTENT_RATINGS))
+    )
 
 
 # ------------------------------------------------------------------
@@ -336,15 +354,14 @@ class LibraryIntelligenceService:
             .subquery()
         )
 
-        results = (
+        results = _apply_mature_filter(
             self._db.query(Series, subq.c.tag_score)
             .outerjoin(subq, subq.c.series_id == Series.id)
             .filter(
                 Series.id != series_id,
                 Series.deleted_at.is_(None),
             )
-            .all()
-        )
+        ).all()
 
         scored: list[tuple[int, Series]] = []
         for row in results:
@@ -422,7 +439,7 @@ class LibraryIntelligenceService:
         # Select the already-joined shared_tags column directly — the subquery
         # above already computes it per candidate, so no per-row query is needed.
         if tag_subq is not None:
-            rows = (
+            rows = _apply_mature_filter(
                 self._db.query(Series, tag_subq.c.shared_tags)
                 .outerjoin(tag_subq, tag_subq.c.series_id == Series.id)
                 .filter(
@@ -430,17 +447,16 @@ class LibraryIntelligenceService:
                     Series.deleted_at.is_(None),
                     tag_subq.c.shared_tags.isnot(None),
                 )
-                .all()
-            )
+            ).all()
         else:
             rows = [
                 (s, 0)
-                for s in self._db.query(Series)
-                .filter(
-                    Series.id.notin_(active_ids),
-                    Series.deleted_at.is_(None),
-                )
-                .all()
+                for s in _apply_mature_filter(
+                    self._db.query(Series).filter(
+                        Series.id.notin_(active_ids),
+                        Series.deleted_at.is_(None),
+                    )
+                ).all()
             ]
 
         if not rows:
@@ -1125,8 +1141,9 @@ class LibraryIntelligenceService:
 
     def get_recently_added(self, limit: int = 10) -> list[dict[str, object]]:
         series = (
-            self._db.query(Series)
-            .filter(Series.deleted_at.is_(None))
+            _apply_mature_filter(
+                self._db.query(Series).filter(Series.deleted_at.is_(None))
+            )
             .order_by(Series.created_at.desc())
             .limit(limit)
             .all()
@@ -1135,8 +1152,9 @@ class LibraryIntelligenceService:
 
     def get_recently_updated(self, limit: int = 10) -> list[dict[str, object]]:
         series = (
-            self._db.query(Series)
-            .filter(Series.deleted_at.is_(None))
+            _apply_mature_filter(
+                self._db.query(Series).filter(Series.deleted_at.is_(None))
+            )
             .order_by(Series.updated_at.desc())
             .limit(limit)
             .all()
