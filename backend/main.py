@@ -1,5 +1,14 @@
 from __future__ import annotations
 
+# Must run before any other backend import: if a restore was staged (see
+# core.backup_restore / routes.backup), this swaps the database file in on
+# disk before database.session ever opens (and process-lifetime caches) a
+# connection to it. core.backup_restore is stdlib + core.config only, so
+# importing it here can never transitively trigger database.session itself.
+from core.backup_restore import apply_pending_restore_if_present
+
+_restore_applied_on_boot = apply_pending_restore_if_present()
+
 import logging
 from contextlib import asynccontextmanager
 
@@ -38,6 +47,10 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
+        if _restore_applied_on_boot:
+            logging.getLogger("uvicorn.error").info(
+                "Applied a staged database restore before startup."
+            )
         if run_migrations:
             run_startup_migrations()
         else:
@@ -60,9 +73,9 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
             update_manager.stop()
 
     app = FastAPI(
-        title="AIStudio Backend",
+        title="ManhwaManiacs Backend",
         version=settings.version,
-        description="AIStudio backend API for manhwa library management",
+        description="ManhwaManiacs backend API for manhwa library management",
         docs_url="/docs",
         redoc_url="/redoc",
         lifespan=lifespan,
@@ -107,13 +120,16 @@ app = create_app()
 
 
 def main() -> None:
+    import os
+
     import uvicorn
 
     uvicorn.run(
         "main:app",
-        host="127.0.0.1",
+        host="0.0.0.0",
         port=8000,
-        reload=True,
+        # Auto-reload is a dev-only convenience; never enable it in a real deploy.
+        reload=os.getenv("MM_DEV_RELOAD", "").lower() in ("1", "true", "yes"),
     )
 
 

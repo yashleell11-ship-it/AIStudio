@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
 from core.config import get_settings
+from routes.app_distribution import render_landing_html
 
 router = APIRouter(tags=["system"])
 
@@ -16,8 +18,7 @@ class SystemStatus(BaseModel):
     version: str
 
 
-@router.get("/", response_model=SystemStatus)
-def get_status() -> SystemStatus:
+def _status() -> SystemStatus:
     settings = get_settings()
     return SystemStatus(
         status="online",
@@ -26,7 +27,20 @@ def get_status() -> SystemStatus:
     )
 
 
+@router.get("/", response_model=None)
+def get_status(request: Request) -> SystemStatus | HTMLResponse:
+    """Root endpoint.
+
+    Browsers (``Accept: text/html``) get the phone-friendly APK install page;
+    API clients keep receiving the unchanged JSON status payload, so existing
+    integrations and the ``/health`` probe are unaffected.
+    """
+    if "text/html" in request.headers.get("accept", ""):
+        return HTMLResponse(render_landing_html())
+    return _status()
+
+
 @router.get("/health", response_model=SystemStatus)
 def health_check() -> SystemStatus:
-    """Mobile-friendly health probe (same payload as GET /)."""
-    return get_status()
+    """Mobile-friendly health probe (JSON status)."""
+    return _status()

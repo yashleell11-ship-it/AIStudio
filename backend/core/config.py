@@ -13,7 +13,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
-# backend/core/config.py -> parents[2] == repo root (D:/AIStudio)
+# backend/core/config.py -> parents[2] == repo root
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SETTINGS_PATH = REPO_ROOT / "config" / "settings.json"
 
@@ -26,19 +26,12 @@ class Settings(BaseModel):
     # Tolerate unknown keys so settings.json can grow without breaking startup.
     model_config = {"extra": "allow"}
 
-    project_name: str = "AI Studio"
-    default_project: str = "ManhwaStudio"
-
-    ollama_url: str = "http://127.0.0.1:11434"
-    comfyui_url: str = "http://127.0.0.1:8188"
-
-    default_chat: str = "qwen3:30b"
-    default_writer: str = "llama3.3:70b"
-    default_reasoner: str = "deepseek-r1:32b"
+    project_name: str = "ManhwaManiacs"
+    default_project: str = "ManhwaManiacs"
 
     # Runtime-only (not persisted in settings.json).
     version: str = APP_VERSION
-    db_path: str = str(REPO_ROOT / "backend" / "ai_studio.db")
+    db_path: str = str(REPO_ROOT / "backend" / "manhwamaniacs.db")
     cors_origins: list[str] = [
         "http://localhost:3000",
         "http://127.0.0.1:3000",

@@ -99,9 +99,6 @@ class ImportCleanupService:
 
         return removed
 
-    def _remove_orphan_series(self, library_id: int, scanned_paths: set[str]) -> int:
-        return self.merge_all_orphans_global()
-
     def _remove_stale_series(self, library_id: int, scanned_paths: set[str]) -> int:
         removed = 0
         all_series = (

@@ -1,4 +1,4 @@
-"""AIStudio backend command-line interface."""
+"""ManhwaManiacs backend command-line interface."""
 
 from __future__ import annotations
 
@@ -28,8 +28,8 @@ def migrate_orphan_series() -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="aistudio",
-        description="AIStudio backend utilities",
+        prog="manhwamaniacs",
+        description="ManhwaManiacs backend utilities",
     )
     subparsers = parser.add_subparsers(dest="command", required=True)
 

@@ -33,6 +33,10 @@ class SeriesActionRequest(BaseModel):
     series_id: str
 
 
+class MoveQueueItemRequest(BaseModel):
+    direction: str
+
+
 class DownloadSettingsUpdate(BaseModel):
     download_concurrent_chapters: int | None = Field(default=None, ge=1, le=10)
     download_page_concurrency: int | None = Field(default=None, ge=1, le=10)
@@ -142,3 +146,11 @@ def cancel_download(download_id: int, service: DownloadDep) -> dict[str, object]
 @router.post("/{download_id}/retry")
 def retry_download(download_id: int, service: DownloadDep) -> dict[str, object]:
     return service.retry(download_id)
+
+
+@router.post("/{download_id}/move")
+def move_download(
+    download_id: int, body: MoveQueueItemRequest, service: DownloadDep
+) -> dict[str, object]:
+    """Move a queued download up/down within its own series' dispatch order."""
+    return service.move_queue_item(download_id, direction=body.direction)

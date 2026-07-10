@@ -103,7 +103,7 @@ def test_update_persisted_settings_preserves_unrelated_keys(tmp_path: Path):
     from core import config as config_module
 
     config_module.SETTINGS_PATH.write_text(
-        json.dumps({"project_name": "Custom Name", "ollama_url": "http://custom:1"}),
+        json.dumps({"project_name": "Custom Name", "custom_setting": "keep-me"}),
         encoding="utf-8",
     )
     get_settings.cache_clear()
@@ -112,7 +112,7 @@ def test_update_persisted_settings_preserves_unrelated_keys(tmp_path: Path):
 
     on_disk = json.loads(config_module.SETTINGS_PATH.read_text(encoding="utf-8"))
     assert on_disk["project_name"] == "Custom Name"
-    assert on_disk["ollama_url"] == "http://custom:1"
+    assert on_disk["custom_setting"] == "keep-me"
     assert on_disk["download_concurrent_chapters"] == 3
 
 
@@ -190,7 +190,10 @@ class TestSchedulerRespectsTheConfiguredLimit:
 
     @staticmethod
     def _slow_fetch(url, *, connector, final_path, partial_path, **kwargs):
-        time.sleep(0.08)
+        # Long enough that concurrently-dispatched chapters reliably overlap
+        # inside this sleep even under a loaded CI machine — otherwise the
+        # "chapters overlapped" assertions become timing-flaky under load.
+        time.sleep(0.2)
         final_path.parent.mkdir(parents=True, exist_ok=True)
         final_path.write_bytes(
             b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01"

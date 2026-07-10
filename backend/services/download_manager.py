@@ -13,6 +13,7 @@ from sqlalchemy.orm import joinedload
 
 from connectors.base import SourceConnector
 from connectors.models import Page
+from core.time_utils import utcnow
 from connectors.registry import create_connector
 from core.config import get_settings
 from database.models import Chapter, Download, DownloadQueue, SourceChapterLink
@@ -284,7 +285,7 @@ class DownloadManager:
                     if row.pages_total > 0:
                         row.progress = round((row.pages_done / row.pages_total) * 100, 2)
                 row.status = "queued"
-                row.updated_at = datetime.utcnow()
+                row.updated_at = utcnow()
                 if row.queue:
                     row.queue.state = "pending"
             db.commit()
@@ -430,7 +431,7 @@ class DownloadManager:
             download.status = "downloading"
             download.queue.state = "active"
             download.error = None
-            download.updated_at = datetime.utcnow()
+            download.updated_at = utcnow()
             db.commit()
 
             connector = create_connector(download.source)
@@ -449,7 +450,7 @@ class DownloadManager:
 
             if download.pages_total <= 0:
                 download.pages_total = len(remote_pages)
-            download.updated_at = datetime.utcnow()
+            download.updated_at = utcnow()
             db.commit()
 
             ensure_disk_space(
@@ -505,7 +506,7 @@ class DownloadManager:
             if skipped_count > download.pages_done:
                 download.pages_done = skipped_count
                 download.progress = round((skipped_count / len(remote_pages)) * 100, 2)
-                download.updated_at = datetime.utcnow()
+                download.updated_at = utcnow()
                 db.commit()
 
             # Phase 2 (parallel): fetch the remaining pages concurrently.
@@ -555,7 +556,7 @@ class DownloadManager:
                         download.progress = round(
                             (download.pages_done / len(remote_pages)) * 100, 2
                         )
-                        download.updated_at = datetime.utcnow()
+                        download.updated_at = utcnow()
                         db.commit()
                         self._speed.update(download.id, bytes_total)
                 except Exception:
@@ -585,7 +586,7 @@ class DownloadManager:
             download.progress = 100.0
             download.pages_done = len(remote_pages)
             download.local_chapter_id = local_chapter.id
-            download.updated_at = datetime.utcnow()
+            download.updated_at = utcnow()
             if download.queue:
                 download.queue.state = "completed"
             db.commit()
@@ -710,7 +711,7 @@ class DownloadManager:
             if download is None:
                 return
             download.status = status
-            download.updated_at = datetime.utcnow()
+            download.updated_at = utcnow()
             if download.queue:
                 download.queue.state = queue_state
             db.commit()
@@ -724,7 +725,7 @@ class DownloadManager:
             if download is None:
                 return
             download.status = "paused"
-            download.updated_at = datetime.utcnow()
+            download.updated_at = utcnow()
             if download.queue:
                 download.queue.state = "paused"
             db.commit()
@@ -739,7 +740,7 @@ class DownloadManager:
                 return
             download.status = "paused" if pause else "failed"
             download.error = message
-            download.updated_at = datetime.utcnow()
+            download.updated_at = utcnow()
             if download.queue:
                 download.queue.state = "paused" if pause else "pending"
             db.commit()

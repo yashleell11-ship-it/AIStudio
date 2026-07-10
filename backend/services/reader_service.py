@@ -7,6 +7,7 @@ from fastapi import Depends
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from core.errors import AppError
+from core.time_utils import utcnow
 from database.models import Bookmark, Chapter, Page, ReadingProgress, Series
 from database.session import get_db
 from utils.path_utils import natural_sort_key
@@ -76,7 +77,7 @@ class ReaderService:
             progress.chapter_id = chapter_id
             progress.last_page = last_page
             progress.progress_pct = progress_pct
-            progress.last_read_at = datetime.utcnow()
+            progress.last_read_at = utcnow()
             if scroll_offset_px is not None:
                 progress.scroll_offset_px = scroll_offset_px
 

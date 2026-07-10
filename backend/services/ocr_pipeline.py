@@ -29,6 +29,8 @@ from typing import Any
 
 from sqlalchemy.orm import Session, joinedload
 
+from core.time_utils import utcnow
+
 from core.config import get_settings
 from core.errors import AppError
 from database.models import Chapter, ChapterText, OcrJob, Page, PageText
@@ -208,7 +210,7 @@ class OcrPipelineManager:
                 return
             for row in rows:
                 row.status = "queued"
-                row.updated_at = datetime.utcnow()
+                row.updated_at = utcnow()
             db.commit()
         finally:
             db.close()
@@ -418,7 +420,7 @@ class OcrPipelineManager:
 
             job.status = "processing"
             job.error = None
-            job.updated_at = datetime.utcnow()
+            job.updated_at = utcnow()
             db.commit()
             job_logger.info("Job started (engine=%s)", job.engine)
 
@@ -438,7 +440,7 @@ class OcrPipelineManager:
             for index, page in enumerate(pages, start=1):
                 if self._stop_event.is_set():
                     job.status = "queued"
-                    job.updated_at = datetime.utcnow()
+                    job.updated_at = utcnow()
                     db.commit()
                     job_logger.info("Job re-queued (shutdown in progress)")
                     return
@@ -447,7 +449,7 @@ class OcrPipelineManager:
                 if success:
                     job.pages_done = index
                     job.progress = round((index / len(pages)) * 100, 2)
-                    job.updated_at = datetime.utcnow()
+                    job.updated_at = utcnow()
                     db.commit()
 
             # Aggregate chapter-level text
@@ -456,7 +458,7 @@ class OcrPipelineManager:
             job.status = "completed"
             job.progress = 100.0
             job.error = None
-            job.updated_at = datetime.utcnow()
+            job.updated_at = utcnow()
             db.commit()
 
             elapsed = (time.perf_counter() - job_started) * 1000
@@ -499,7 +501,7 @@ class OcrPipelineManager:
             chapter_text.full_text = full_text
             chapter_text.word_count = word_count
             chapter_text.engine = engine_name
-            chapter_text.updated_at = datetime.utcnow()
+            chapter_text.updated_at = utcnow()
         else:
             chapter_text = ChapterText(
                 chapter_id=chapter.id,
@@ -518,7 +520,7 @@ class OcrPipelineManager:
             if job is not None:
                 job.status = "failed"
                 job.error = message
-                job.updated_at = datetime.utcnow()
+                job.updated_at = utcnow()
                 db.commit()
         finally:
             db.close()
@@ -753,7 +755,7 @@ class OcrJobService:
         job.status = "queued"
         job.retry_count += 1
         job.error = None
-        job.updated_at = datetime.utcnow()
+        job.updated_at = utcnow()
         self._db.commit()
         get_ocr_manager().notify_change()
         return self._serialize_job(job)
@@ -773,7 +775,7 @@ class OcrJobService:
                 status_code=400,
             )
         job.status = "cancelled"
-        job.updated_at = datetime.utcnow()
+        job.updated_at = utcnow()
         self._db.commit()
         return self._serialize_job(job)
 

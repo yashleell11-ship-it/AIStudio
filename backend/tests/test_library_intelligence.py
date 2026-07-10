@@ -6,6 +6,7 @@ import pytest
 from sqlalchemy import event
 from sqlalchemy.orm import Session, sessionmaker
 
+from core.time_utils import utcnow
 from database.models import (
     Chapter,
     Collection,
@@ -288,7 +289,7 @@ class TestRecentlyAndStatistics:
         lib = _seed_library(db)
         s1 = _seed_series(db, lib, "A")
         s2 = _seed_series(db, lib, "B")
-        s2.updated_at = datetime.utcnow() + timedelta(seconds=1)
+        s2.updated_at = utcnow() + timedelta(seconds=1)
         db.commit()
         result = intel.get_recently_updated(limit=10)
         assert result[0]["title"] == "B"
@@ -319,7 +320,7 @@ class TestRecentlyAndStatistics:
                 start_page=1,
                 end_page=5,
                 pages_read=5,
-                started_at=datetime.utcnow(),
+                started_at=utcnow(),
             )
         )
         db.commit()
@@ -514,13 +515,13 @@ class TestReadingHistory:
                 start_page=1,
                 end_page=5,
                 pages_read=5,
-                started_at=datetime.utcnow(),
+                started_at=utcnow(),
             )
         )
         db.commit()
         calendar = intel.get_reading_calendar(days=30)
         assert len(calendar) >= 1
-        today_str = datetime.utcnow().strftime("%Y-%m-%d")
+        today_str = utcnow().strftime("%Y-%m-%d")
         today_entry = next((d for d in calendar if d["day"] == today_str), None)
         assert today_entry is not None
         assert today_entry["pages_read"] == 5
@@ -534,13 +535,13 @@ class TestReadingHistory:
         db.add(
             ReadingSession(
                 series_id=s1.id, chapter_id=ch1.id, start_page=1, end_page=5, pages_read=5,
-                started_at=datetime.utcnow() - timedelta(minutes=5),
+                started_at=utcnow() - timedelta(minutes=5),
             )
         )
         db.add(
             ReadingSession(
                 series_id=s1.id, chapter_id=ch2.id, start_page=1, end_page=3, pages_read=3,
-                started_at=datetime.utcnow(),
+                started_at=utcnow(),
             )
         )
         db.commit()
@@ -556,17 +557,17 @@ class TestReadingHistory:
         # Today
         db.add(ReadingSession(
             series_id=s1.id, chapter_id=ch1.id, start_page=1, end_page=1, pages_read=1,
-            started_at=datetime.utcnow(),
+            started_at=utcnow(),
         ))
         # Yesterday
         db.add(ReadingSession(
             series_id=s1.id, chapter_id=ch1.id, start_page=1, end_page=1, pages_read=1,
-            started_at=datetime.utcnow() - timedelta(days=1),
+            started_at=utcnow() - timedelta(days=1),
         ))
         # Two days ago
         db.add(ReadingSession(
             series_id=s1.id, chapter_id=ch1.id, start_page=1, end_page=1, pages_read=1,
-            started_at=datetime.utcnow() - timedelta(days=2),
+            started_at=utcnow() - timedelta(days=2),
         ))
         db.commit()
         stats = intel.get_statistics()

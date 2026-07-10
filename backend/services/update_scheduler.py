@@ -48,6 +48,10 @@ class UpdateSchedulerManager:
             daemon=True,
         )
         self._started = True
+        # Commit the singleton settings row BEFORE any thread reads it, so the
+        # scheduler thread and the startup-check always see a committed row and
+        # never race to INSERT it simultaneously.
+        self._ensure_settings_row()
         self._scheduler_thread.start()
         self._maybe_run_startup_check()
 
@@ -95,6 +99,18 @@ class UpdateSchedulerManager:
 
         self._executor.submit(_run)
         return True
+
+    def _ensure_settings_row(self) -> None:
+        """Create and commit the update_settings singleton before any thread touches it."""
+        db = SessionLocal()
+        try:
+            UpdateService(db).get_global_settings()
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Failed to initialize update_settings singleton")
+        finally:
+            db.close()
 
     def _maybe_run_startup_check(self) -> None:
         db = SessionLocal()

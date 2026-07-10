@@ -22,6 +22,7 @@ from functools import lru_cache
 from typing import Annotated
 
 from fastapi import Depends
+from core.time_utils import utcnow
 from sqlalchemy import (
     and_,
     case,
@@ -242,7 +243,7 @@ class LibraryIntelligenceService:
                 if key == "title":
                     series.sort_title = self._compute_sort_title(str(value))
 
-        series.updated_at = datetime.utcnow()
+        series.updated_at = utcnow()
         self._db.commit()
         self._db.refresh(series)
         return self._series_detail(series)
@@ -445,7 +446,7 @@ class LibraryIntelligenceService:
         if not rows:
             return self.get_recently_added(limit=limit)
 
-        month_ago = datetime.utcnow() - timedelta(days=30)
+        month_ago = utcnow() - timedelta(days=30)
         scored: list[tuple[int, Series]] = []
         for s, shared_tags in rows:
             score = (shared_tags or 0) * 2
@@ -544,7 +545,7 @@ class LibraryIntelligenceService:
 
     def get_reading_calendar(self, days: int = 30) -> list[dict[str, object]]:
         """Return daily reading aggregates for the last N days."""
-        cutoff = datetime.utcnow() - timedelta(days=days)
+        cutoff = utcnow() - timedelta(days=days)
 
         # Aggregate by date (SQLite DATE truncation)
         rows = (
@@ -608,7 +609,7 @@ class LibraryIntelligenceService:
                 details={"series_id": series_id},
             )
         series.is_favorite = not series.is_favorite
-        series.updated_at = datetime.utcnow()
+        series.updated_at = utcnow()
         self._db.commit()
         self._db.refresh(series)
         return {"series_id": series.id, "is_favorite": bool(series.is_favorite)}
@@ -705,7 +706,7 @@ class LibraryIntelligenceService:
             collection.description = description
         if sort_order is not None:
             collection.sort_order = sort_order
-        collection.updated_at = datetime.utcnow()
+        collection.updated_at = utcnow()
         self._db.commit()
         self._db.refresh(collection)
         return self._collection_summary(collection)
@@ -954,7 +955,7 @@ class LibraryIntelligenceService:
         )
 
         # Pages read in last 7 days
-        week_ago = datetime.utcnow() - timedelta(days=7)
+        week_ago = utcnow() - timedelta(days=7)
         pages_this_week = (
             self._db.query(func.sum(ReadingSession.pages_read))
             .filter(ReadingSession.started_at >= week_ago)
@@ -1012,7 +1013,7 @@ class LibraryIntelligenceService:
             return 0
 
         streak = 0
-        today = datetime.utcnow().date()
+        today = utcnow().date()
         expected = today
         for row in rows:
             day = datetime.strptime(row.day, "%Y-%m-%d").date()
@@ -1025,7 +1026,7 @@ class LibraryIntelligenceService:
 
     def _compute_reading_velocity(self) -> float:
         """Approximate reading velocity in pages per hour over last 30 days."""
-        month_ago = datetime.utcnow() - timedelta(days=30)
+        month_ago = utcnow() - timedelta(days=30)
         total_pages = (
             self._db.query(func.sum(ReadingSession.pages_read))
             .filter(ReadingSession.started_at >= month_ago)
@@ -1094,7 +1095,7 @@ class LibraryIntelligenceService:
 
     def _get_weekly_reading_chart(self) -> list[dict[str, object]]:
         """Return 7-day reading chart with pages read per day."""
-        today = datetime.utcnow().date()
+        today = utcnow().date()
         days = [(today - timedelta(days=i)) for i in range(6, -1, -1)]
         day_strs = [d.strftime("%Y-%m-%d") for d in days]
 

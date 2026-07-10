@@ -249,6 +249,7 @@ def _seed_download(
     chapter_id: str,
     status: str = "queued",
     queue_state: str = "pending",
+    priority: int = 0,
 ) -> Download:
     download = Download(
         source=source,
@@ -260,7 +261,9 @@ def _seed_download(
     )
     db_session.add(download)
     db_session.flush()
-    db_session.add(DownloadQueue(download_id=download.id, state=queue_state))
+    db_session.add(
+        DownloadQueue(download_id=download.id, state=queue_state, priority=priority)
+    )
     db_session.commit()
     db_session.refresh(download)
     return download
@@ -455,6 +458,124 @@ def test_pause_resume_cancel_retry(client: TestClient, db_session: Session):
     assert retried.json()["retry_count"] == 1
 
 
+def _priorities(db_session: Session, ids: list[int]) -> list[int]:
+    db_session.expire_all()
+    return [db_session.get(Download, i).queue.priority for i in ids]
+
+
+def test_move_up_swaps_priority_with_the_next_sooner_sibling(
+    client: TestClient, db_session: Session
+):
+    first = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c1", priority=0
+    )
+    second = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c2", priority=1
+    )
+
+    response = client.post(f"/downloads/{second.id}/move", json={"direction": "up"})
+
+    assert response.status_code == 200
+    assert _priorities(db_session, [first.id, second.id]) == [1, 0]
+
+
+def test_move_down_swaps_priority_with_the_next_later_sibling(
+    client: TestClient, db_session: Session
+):
+    first = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c1", priority=0
+    )
+    second = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c2", priority=1
+    )
+
+    response = client.post(f"/downloads/{first.id}/move", json={"direction": "down"})
+
+    assert response.status_code == 200
+    assert _priorities(db_session, [first.id, second.id]) == [1, 0]
+
+
+def test_move_up_at_the_front_of_the_queue_is_a_noop(
+    client: TestClient, db_session: Session
+):
+    first = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c1", priority=0
+    )
+    second = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c2", priority=1
+    )
+
+    response = client.post(f"/downloads/{first.id}/move", json={"direction": "up"})
+
+    assert response.status_code == 200
+    assert _priorities(db_session, [first.id, second.id]) == [0, 1]
+
+
+def test_move_down_at_the_back_of_the_queue_is_a_noop(
+    client: TestClient, db_session: Session
+):
+    first = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c1", priority=0
+    )
+    second = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c2", priority=1
+    )
+
+    response = client.post(f"/downloads/{second.id}/move", json={"direction": "down"})
+
+    assert response.status_code == 200
+    assert _priorities(db_session, [first.id, second.id]) == [0, 1]
+
+
+def test_move_never_reorders_across_different_series(
+    client: TestClient, db_session: Session
+):
+    same_series_item = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c1", priority=0
+    )
+    other_series_item = _seed_download(
+        db_session, source="mangadex", series_id="series-2", chapter_id="c1", priority=1
+    )
+
+    response = client.post(
+        f"/downloads/{same_series_item.id}/move", json={"direction": "down"}
+    )
+
+    assert response.status_code == 200
+    # No sibling in the same series to swap with -- untouched, and the
+    # unrelated series-2 item is never touched either.
+    assert _priorities(db_session, [same_series_item.id, other_series_item.id]) == [0, 1]
+
+
+def test_move_rejects_a_download_that_is_not_queued(
+    client: TestClient, db_session: Session
+):
+    paused = _seed_download(
+        db_session,
+        source="mangadex",
+        series_id="series-1",
+        chapter_id="c1",
+        status="paused",
+        queue_state="paused",
+    )
+
+    response = client.post(f"/downloads/{paused.id}/move", json={"direction": "up"})
+
+    assert response.status_code == 400
+    assert response.json()["code"] == "invalid_state"
+
+
+def test_move_rejects_an_invalid_direction(client: TestClient, db_session: Session):
+    download = _seed_download(
+        db_session, source="mangadex", series_id="series-1", chapter_id="c1"
+    )
+
+    response = client.post(f"/downloads/{download.id}/move", json={"direction": "sideways"})
+
+    assert response.status_code == 422
+    assert response.json()["code"] == "invalid_direction"
+
+
 def test_process_download_imports_chapter(
     db_session: Session,
     download_manager: DownloadManager,
@@ -494,7 +615,7 @@ def test_process_download_imports_chapter(
     chapter_dir = downloads_root / "Solo Leveling" / "Chapter 1"
     assert (chapter_dir / "001.jpg").exists()
     assert (chapter_dir / "002.webp").exists()
-    assert (chapter_dir / ".aistudio-download.json").exists()
+    assert (chapter_dir / ".manhwamaniacs-download.json").exists()
 
     link = (
         db_session.query(SourceChapterLink)

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from core.time_utils import utcnow
 from pathlib import Path
 from threading import Lock
 from typing import Annotated
@@ -177,7 +177,7 @@ class LibraryService:
         history = ImportHistory(
             folder_path=str(path.resolve()),
             status="running",
-            started_at=datetime.utcnow(),
+            started_at=utcnow(),
         )
         self._db.add(history)
         self._db.commit()
@@ -194,7 +194,7 @@ class LibraryService:
             history.series_count = scan.series_count
             history.chapter_count = scan.chapter_count
             history.page_count = scan.page_count
-            history.finished_at = datetime.utcnow()
+            history.finished_at = utcnow()
             self._db.commit()
             _scan_status.finish(scan)
             return {
@@ -208,7 +208,7 @@ class LibraryService:
         except Exception as exc:
             self._db.rollback()
             history.status = "failed"
-            history.finished_at = datetime.utcnow()
+            history.finished_at = utcnow()
             self._db.add(history)
             self._db.commit()
             _scan_status.fail(str(exc))
@@ -259,7 +259,7 @@ class LibraryService:
                 series.library_id = library.id
                 series.title = scanned_series.title
                 series.sort_title = self._compute_sort_title(scanned_series.title)
-                series.updated_at = datetime.utcnow()
+                series.updated_at = utcnow()
 
             progress = (
                 self._db.query(ReadingProgress)
@@ -302,11 +302,11 @@ class LibraryService:
                     chapter.title = chapter_data.title
                     chapter.number = chapter_data.number
                     chapter.sort_key = self._compute_sort_key(chapter_data.number)
-                    chapter.scanned_at = datetime.utcnow()
+                    chapter.scanned_at = utcnow()
                     self._clear_chapter_page_data(chapter.id)
 
                 chapter.page_count = len(chapter_data.pages)
-                chapter.scanned_at = datetime.utcnow()
+                chapter.scanned_at = utcnow()
                 if chapter_data.pages and not series.cover_path:
                     series.cover_path = chapter_data.pages[0].file_path
 
@@ -317,6 +317,16 @@ class LibraryService:
                         file_path=page_data.file_path,
                     )
                     self._db.add(page)
+                # Flush this chapter's new pages now, right after its old ones
+                # were bulk-deleted above. Pages have no AUTOINCREMENT, so
+                # SQLite can reuse a rowid freed by that delete; batching many
+                # chapters' deletes and inserts into one flush at the end of
+                # the scan let a later chapter's new Page collide with an
+                # earlier chapter's still identity-mapped (but deleted) Page,
+                # which is what emitted the "Identity map already had an
+                # identity for Page" SAWarning. Flushing per-chapter keeps
+                # each chapter's delete+insert pair settled before the next.
+                self._db.flush()
 
                 total_chapters += 1
                 total_pages += chapter.page_count

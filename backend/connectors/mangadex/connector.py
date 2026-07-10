@@ -38,7 +38,7 @@ class MangaDexConnector(SourceConnector):
     DISPLAY_NAME = "MangaDex"
     DESCRIPTION = (
         "Browse and read manga, manhwa, and manhua from MangaDex. "
-        "Images are proxied through AIStudio to comply with MangaDex hotlinking rules."
+        "Images are proxied through ManhwaManiacs to comply with MangaDex hotlinking rules."
     )
     BROWSABLE = True
     SUPPORTS_IMPORT = False
