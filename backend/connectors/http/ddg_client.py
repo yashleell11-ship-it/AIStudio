@@ -230,5 +230,55 @@ class DdgSyncHttpClient:
         )
         raise ConnectorHttpError(message, status_code=status_code) from last_error
 
+    def get_bytes(
+        self,
+        url: str,
+        *,
+        extra_headers: dict[str, str] | None = None,
+    ) -> tuple[str, bytes]:
+        """GET a binary resource (e.g. CDN image) and return content-type + body."""
+        if not url.startswith("http://") and not url.startswith("https://"):
+            url = self._resolve_url(url)
+        last_error: Exception | None = None
+        headers = dict(self._headers)
+        headers["Accept"] = "image/avif,image/webp,image/apng,image/*,*/*;q=0.8"
+        if extra_headers:
+            headers.update(extra_headers)
+
+        for attempt in range(self._max_retries):
+            self._rate_limit()
+            try:
+                response = self._session.get(
+                    url,
+                    headers=headers,
+                    timeout=self._timeout,
+                    allow_redirects=False,
+                )
+                if response.status_code in RETRYABLE_STATUS:
+                    raise ConnectorHttpError(
+                        f"Retryable HTTP {response.status_code}",
+                        status_code=response.status_code,
+                    )
+                if response.status_code >= 400:
+                    raise ConnectorHttpError(
+                        f"Client error '{response.status_code} {response.reason}' for url '{url}'",
+                        status_code=response.status_code,
+                    )
+                media_type = response.headers.get("content-type", "image/jpeg").split(";")[0]
+                return media_type, response.content
+            except (ConnectorHttpError, OSError) as exc:
+                last_error = exc
+                if attempt + 1 >= self._max_retries:
+                    break
+                time.sleep(0.5 * (2**attempt))
+
+        message = str(last_error) if last_error else "Unknown HTTP error"
+        status_code = (
+            last_error.status_code
+            if isinstance(last_error, ConnectorHttpError)
+            else None
+        )
+        raise ConnectorHttpError(message, status_code=status_code) from last_error
+
     def close(self) -> None:
         self._session.close()

@@ -161,3 +161,20 @@ def test_mapper_unit_helpers():
     series = parse_series_detail(detail, gallery_id=GALLERY_ID)
     assert series is not None
     assert series.title
+
+
+def test_fetch_proxied_image_uses_ddg_client(akuma_connector: AkumaConnector):
+    image_bytes = b"\x89PNG\r\n"
+
+    with patch.object(
+        akuma_connector._http,
+        "get_bytes",
+        return_value=("image/png", image_bytes),
+    ) as mock_get_bytes:
+        media_type, data = akuma_connector.fetch_proxied_image(
+            "https://s2.akuma.moe/4045018/page.png"
+        )
+
+    assert media_type == "image/png"
+    assert data == image_bytes
+    mock_get_bytes.assert_called_once()

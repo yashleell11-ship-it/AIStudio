@@ -103,7 +103,6 @@ def get_source_chapter_pages(
 
 
 @router.get("/{source_id}/pages/{page_id:path}/image")
-@limiter.limit(sources_limit)
 def get_source_page_image(
     source_id: str,
     page_id: str,

@@ -69,6 +69,14 @@ class SourceConnector(ABC):
         """
         return {}
 
+    def fetch_proxied_image(self, url: str) -> tuple[str, bytes] | None:
+        """Fetch an image when plain httpx is insufficient (DDoS-Guard, etc.).
+
+        Return ``(content_type, body)`` when this connector handles the fetch
+        itself; return ``None`` to let ``BrowseService`` use its default client.
+        """
+        return None
+
     def list_browse_modes(self) -> list[BrowseMode]:
         """Return catalog views this connector supports (popular, latest, etc.)."""
         return [BrowseMode(id="default", label="Browse")]
