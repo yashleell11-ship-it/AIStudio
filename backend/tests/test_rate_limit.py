@@ -78,3 +78,27 @@ def test_rate_limiting_is_off_for_unmarked_tests(client):
     codes = [_login(client, "203.0.113.9").status_code for _ in range(6)]
     assert 429 not in codes
     assert set(codes) == {401}
+
+
+@pytest.mark.rate_limit
+def test_sources_browse_with_rate_limit_enabled(client):
+    """Rate-limited source browse must not 500 when slowapi injects headers."""
+    from unittest.mock import patch
+
+    from connectors.asurascans.connector import AsuraScansConnector
+    from tests.test_asurascans_connector import _load as _load_asura
+
+    listing_payload = _load_asura("series_list.json")
+    connector = AsuraScansConnector()
+    try:
+        with patch.object(connector._http, "get_json", return_value=listing_payload):
+            with patch("services.browse_service.create_connector", return_value=connector):
+                response = client.get(
+                    "/sources/asurascans/series",
+                    headers={"X-Forwarded-For": "203.0.113.50"},
+                )
+    finally:
+        connector._http.close()
+
+    assert response.status_code == 200
+    assert response.json()["total"] == 333
