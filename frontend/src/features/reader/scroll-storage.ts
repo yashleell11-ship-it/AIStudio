@@ -1,4 +1,4 @@
-const SCROLL_PREFIX = "aistudio-reader-scroll:";
+const SCROLL_PREFIX = "manhwamaniacs-reader-scroll:";
 
 function storageKey(chapterKey: string | number): string {
   return `${SCROLL_PREFIX}${chapterKey}`;

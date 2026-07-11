@@ -323,7 +323,7 @@ async function leaveReader(page) {
 }
 
 async function testScrollPersistence(page, { scrollKey, openChapter, chapterId }) {
-  await page.evaluate((key) => localStorage.removeItem(`aistudio-reader-scroll:${key}`), scrollKey);
+  await page.evaluate((key) => localStorage.removeItem(`manhwamaniacs-reader-scroll:${key}`), scrollKey);
 
   await openChapter(page, chapterId, { seedStale: true });
   await waitForReaderImages(page);
@@ -345,7 +345,7 @@ async function testScrollPersistence(page, { scrollKey, openChapter, chapterId }
 
   const restoredScroll = await page.evaluate(() => document.querySelector("main")?.scrollTop ?? 0);
   const savedScroll = await page.evaluate(
-    (key) => Number(localStorage.getItem(`aistudio-reader-scroll:${key}`)),
+    (key) => Number(localStorage.getItem(`manhwamaniacs-reader-scroll:${key}`)),
     scrollKey,
   );
 
@@ -408,7 +408,7 @@ async function main() {
   );
 
   // 4. Refresh while inside a chapter
-  await page.evaluate((key) => localStorage.removeItem(`aistudio-reader-scroll:${key}`), "501");
+  await page.evaluate((key) => localStorage.removeItem(`manhwamaniacs-reader-scroll:${key}`), "501");
   await openLocalChapter(page, 501);
   const refreshTargetScroll = await page.evaluate(() => {
     const main = document.querySelector("main");
@@ -517,7 +517,7 @@ async function main() {
   );
 
   // 11. Browser Back button restores chapter and scroll
-  await page.evaluate((key) => localStorage.setItem(`aistudio-reader-scroll:${key}`, "1800"), "777");
+  await page.evaluate((key) => localStorage.setItem(`manhwamaniacs-reader-scroll:${key}`, "1800"), "777");
   await seedStaleScroll(page);
   await gotoLocalChapter(page, 777);
   await waitForReaderImages(page);

@@ -16,7 +16,7 @@ frontend/   Next.js 16 / React 19 web app   (npm run dev|build|start)
 mobile/     Flutter app                     (pubspec.yaml)
 docs/       project documentation
 ```
-Runtime/local dirs `library/`, `memory/`, `config/` are gitignored (local data, not source).
+Runtime/local dirs `library/` and `config/` are gitignored (local data, not source).
 
 ## Remotes
 ```
