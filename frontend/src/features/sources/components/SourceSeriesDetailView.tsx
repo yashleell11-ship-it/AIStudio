@@ -277,7 +277,18 @@ export function SourceSeriesDetailView({
               </Button>
             </div>
           ) : chapters.length === 0 ? (
-            <p className="text-sm text-muted">No chapters available.</p>
+            <div className="flex flex-col gap-2">
+              <p className="text-sm text-muted">
+                {series.chapter_count > 0
+                  ? "Chapters could not be loaded right now."
+                  : "No chapters available."}
+              </p>
+              {series.chapter_count > 0 && (
+                <Button variant="secondary" size="sm" onClick={() => chaptersQuery.refetch()}>
+                  Retry loading chapters
+                </Button>
+              )}
+            </div>
           ) : (
             chapters.map((chapter) => {
               const selected = selectedChapterIds.has(chapter.id);
