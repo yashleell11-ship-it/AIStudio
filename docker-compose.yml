@@ -15,6 +15,8 @@ services:
     image: ${MM_IMAGE:-local/manhwamaniacs:production}-backend
     container_name: ${MM_CONTAINER:-manhwamaniacs-production}-backend
     restart: ${MM_RESTART:-unless-stopped}
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
     environment:
       - APP_ENV=${APP_ENV:-production}
       - MM_DB_PATH=/data/manhwamaniacs.db
@@ -52,6 +54,8 @@ services:
     image: ${MM_IMAGE:-local/manhwamaniacs:production}
     container_name: ${MM_CONTAINER:-manhwamaniacs-production}
     restart: ${MM_RESTART:-unless-stopped}
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
     environment:
       - NODE_ENV=production
       - APP_ENV=${APP_ENV:-production}
