@@ -1,6 +1,6 @@
-# AIStudio Source System
+# ManhwaManiacs Source System
 
-AIStudio supports pluggable **source connectors** for browsing and reading online catalogs, similar to Mihon/Tachiyomi. The rest of the application never depends on a specific website — only on normalized connector data.
+ManhwaManiacs supports pluggable **source connectors** for browsing and reading online catalogs, similar to Mihon/Tachiyomi. The rest of the application never depends on a specific website — only on normalized connector data.
 
 ## Architecture
 
@@ -60,7 +60,7 @@ Located at `connectors/mangadex/`. Uses the official MangaDex API with:
 - 30s timeouts
 - ~4.8 requests/second rate limiting
 - TTL metadata caches (series, chapters, at-home page URLs)
-- Image URLs proxied through AIStudio (required by MangaDex hotlink policy)
+- Image URLs proxied through ManhwaManiacs (required by MangaDex hotlink policy)
 
 ## HTTP API
 
