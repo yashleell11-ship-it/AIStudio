@@ -1,4 +1,11 @@
 # Production pipeline — push to `main` deploys https://manhwamaniacs.xyz
+#
+# GATE (intentional): `main` does NOT exist yet. The repo trunk is `master` and
+# `develop` auto-deploys to staging; production stays dark until someone
+# deliberately creates/pushes `main`. Do NOT "fix" this to `master` — that would
+# auto-publish every trunk merge to the public apex. Hold the cutover until
+# multi-user auth (P1) ships; the app is currently unauthenticated.
+#
 # All deploy logic lives in ops/deploy.sh (single source, reused by every workflow).
 # The self-hosted runner is on the internal `edge` network, so we clone directly from
 # the in-cluster Forgejo (no external action marketplace, no Access-gated public URL).
