@@ -54,6 +54,7 @@ def init_db() -> None:
     # (stamp only — no destructive re-create), and applies later revisions such
     # as the multi-user ownership migration.
     run_alembic_migrations(engine)
+    _ensure_auth_tables(engine)
     _init_fts5(engine)
 
 
@@ -94,12 +95,33 @@ def run_alembic_migrations(engine: Engine) -> None:
             if _schema_matches_head(conn):
                 stamp_target = script.get_current_head()
             else:
+                # Pre-auth databases have library tables but not users/sessions.
+                # Create the auth tables before stamping baseline so later
+                # revisions that reference users.id can apply cleanly.
+                if not inspect(conn).has_table("users"):
+                    _ensure_auth_tables(engine)
                 stamp_target = script.get_base()
 
     if stamp_target is not None:
         command.stamp(cfg, stamp_target)
         logger.info("Adopted existing database into Alembic at %s", stamp_target)
     command.upgrade(cfg, "head")
+
+
+def _ensure_auth_tables(engine: Engine) -> None:
+    """Create auth tables missing from a pre-auth database.
+
+    A legacy database can be stamped at the Alembic baseline without ever
+    running the baseline ``users``/``sessions`` CREATEs (library tables already
+    existed). Downstream revisions then advance to head while auth tables are
+    still absent, which breaks session cleanup at startup."""
+    inspector = inspect(engine)
+    missing = [name for name in ("users", "sessions") if not inspector.has_table(name)]
+    if not missing:
+        return
+    logger.warning("Creating missing auth tables: %s", ", ".join(missing))
+    for name in missing:
+        Base.metadata.tables[name].create(engine, checkfirst=True)
 
 
 def _schema_matches_head(conn) -> bool:
