@@ -15,7 +15,7 @@ import { cn } from "@/lib/cn";
 import { useSearch } from "@/features/library/hooks";
 import { SearchResultCard, SearchResultCardSkeleton } from "./SearchResultCard";
 
-const RECENT_SEARCHES_KEY = "aistudio:recent-searches";
+const RECENT_SEARCHES_KEY = "manhwamaniacs:recent-searches";
 const MAX_RECENT_SEARCHES = 4;
 
 const TRENDING_SUGGESTIONS = [
@@ -58,15 +58,15 @@ function writeRecentSearch(term: string) {
   );
   const next = [trimmed, ...existing].slice(0, MAX_RECENT_SEARCHES);
   window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-  window.dispatchEvent(new Event("aistudio:recent-searches"));
+  window.dispatchEvent(new Event("manhwamaniacs:recent-searches"));
 }
 
 function subscribeRecentSearches(onStoreChange: () => void) {
   const handler = () => onStoreChange();
-  window.addEventListener("aistudio:recent-searches", handler);
+  window.addEventListener("manhwamaniacs:recent-searches", handler);
   window.addEventListener("storage", handler);
   return () => {
-    window.removeEventListener("aistudio:recent-searches", handler);
+    window.removeEventListener("manhwamaniacs:recent-searches", handler);
     window.removeEventListener("storage", handler);
   };
 }

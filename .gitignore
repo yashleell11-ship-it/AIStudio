@@ -6,8 +6,10 @@
 
 # Local library and runtime data
 /library/
-memory/
-config/
+# Backend runtime config (settings.json) lives at the repo root. Anchor the
+# rule so it does NOT swallow source dirs named `config/` (e.g.
+# frontend/src/config, mobile/lib/core/config).
+/config/
 
 # Connector probe scratch output
 backend/scripts/toonily_probe_out/

@@ -175,8 +175,6 @@ Reading Progress
 
 Import History
 
-AI Metadata
-
 Downloads
 
 ---
