@@ -82,6 +82,11 @@ def main() -> None:
         action="store_true",
         help="Re-probe only sources marked DEAD in the last results file",
     )
+    parser.add_argument(
+        "--ids",
+        nargs="*",
+        help="Probe only these source_ids",
+    )
     args = parser.parse_args()
 
     descriptors = list_installed_connectors(include_mature=True)
@@ -89,7 +94,10 @@ def main() -> None:
     madara_ids = {cfg.source_id for cfg in MADARA_SITES}
     handcrafted = [sid for sid in source_ids if sid not in madara_ids]
 
-    if args.retry_dead and RESULTS_PATH.exists():
+    if args.ids:
+        wanted = set(args.ids)
+        source_ids = [sid for sid in source_ids if sid in wanted]
+    elif args.retry_dead and RESULTS_PATH.exists():
         prev = json.loads(RESULTS_PATH.read_text(encoding="utf-8"))
         dead_ids = {r["source_id"] for r in prev["results"] if r["status"] == "DEAD"}
         source_ids = [sid for sid in source_ids if sid in dead_ids]
