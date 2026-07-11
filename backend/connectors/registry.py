@@ -12,6 +12,7 @@ from connectors.base import SourceConnector
 from connectors.coffeemanga.connector import CoffeeMangaConnector
 from connectors.eightmuses.connector import EightMusesConnector
 from connectors.local_filesystem.connector import LocalFilesystemConnector
+from connectors.excluded import EXCLUDED_CONNECTORS
 from connectors.madara.factory import madara_connector_classes
 from connectors.madara.sites import MADARA_SITES
 from connectors.mangadex.connector import MangaDexConnector
@@ -95,11 +96,18 @@ def _register_builtin_connectors() -> None:
         (PornComic18Connector.SOURCE_TYPE, PornComic18Connector),
         (ThreeHentaiConnector.SOURCE_TYPE, ThreeHentaiConnector),
         (EightMusesConnector.SOURCE_TYPE, EightMusesConnector),
-        (FirstKissMangaConnector.SOURCE_TYPE, FirstKissMangaConnector),
         *((cls.SOURCE_TYPE, cls) for cls in _MADARA_CONNECTOR_CLASSES),
     )
+    if "1stkissmanga" not in EXCLUDED_CONNECTORS:
+        builtins = (
+            *builtins[: builtins.index((EightMusesConnector.SOURCE_TYPE, EightMusesConnector)) + 1],
+            (FirstKissMangaConnector.SOURCE_TYPE, FirstKissMangaConnector),
+            *builtins[builtins.index((EightMusesConnector.SOURCE_TYPE, EightMusesConnector)) + 1 :],
+        )
     failures: list[str] = []
     for source_type, connector_cls in builtins:
+        if source_type in EXCLUDED_CONNECTORS:
+            continue
         try:
             register_connector(source_type, connector_cls)
         except Exception as exc:

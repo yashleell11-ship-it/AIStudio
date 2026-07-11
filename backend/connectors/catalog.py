@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 from connectors.madara.config import MadaraSiteConfig
+from connectors.excluded import EXCLUDED_CONNECTORS
 
 
 def _site(
@@ -207,4 +208,4 @@ HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
     "18porncomic", "3hentai", "8muses", "akuma", "1stkissmanga",
 })
 
-EXCLUDED_CONNECTORS: frozenset[str] = frozenset({"comick"})
+from connectors.excluded import EXCLUDED_CONNECTORS
