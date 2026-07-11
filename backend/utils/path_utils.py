@@ -47,11 +47,11 @@ def validate_path_under_roots(path: Path, roots: list[Path]) -> None:
             return
         except ValueError:
             continue
+    # Do not surface the absolute resolved server path to the client.
     raise AppError(
         "Path is outside registered library roots.",
         code="path_traversal",
         status_code=403,
-        details={"path": str(resolved)},
     )
 
 

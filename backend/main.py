@@ -72,12 +72,17 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
             ocr_manager.stop()
             update_manager.stop()
 
+    # Interactive API docs + the OpenAPI schema publish the full endpoint map
+    # (including admin backup/import ops) to anonymous callers, so gate them
+    # behind debug for the public, currently-unauthenticated deployment.
+    _docs_enabled = bool(getattr(settings, "debug", False))
     app = FastAPI(
         title="ManhwaManiacs Backend",
         version=settings.version,
         description="ManhwaManiacs backend API for manhwa library management",
-        docs_url="/docs",
-        redoc_url="/redoc",
+        docs_url="/docs" if _docs_enabled else None,
+        redoc_url="/redoc" if _docs_enabled else None,
+        openapi_url="/openapi.json" if _docs_enabled else None,
         lifespan=lifespan,
     )
 

@@ -46,11 +46,11 @@ class ImageService:
 
         validate_path_under_roots(file_path, roots)
         if not file_path.is_file():
+            # Do not surface the absolute server path to the client.
             raise AppError(
                 "Image file not found on disk.",
                 code="file_not_found",
                 status_code=404,
-                details={"path": str(file_path)},
             )
         media_type = mimetypes.guess_type(file_path.name)[0] or "image/jpeg"
         return file_path, media_type, None
