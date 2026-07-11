@@ -4,10 +4,11 @@
 # and logs. The deploy engine (ops/deploy.sh) writes a per-environment .env and runs
 # `docker compose -p manhwamaniacs-<slug> up -d --build`.
 #
-# Topology: `frontend` is the only edge-facing service (Caddy proxies to it on :3000)
-# and reverse-proxies /api/* to `backend` over a private per-project network. `backend`
-# is never on `edge` and never exposes a host port. Persistent state (SQLite DB +
-# downloaded pages) lives on the `data` volume mounted into the backend.
+# Topology: `frontend` is edge-facing (Caddy proxies the apex to it on :3000) and
+# reverse-proxies /api/* to `backend` over a private per-project network. `backend`
+# also joins `edge` so Caddy can serve it directly on the app.<host> subdomain (the
+# Android APK landing page + download); it still never exposes a host port. Persistent
+# state (SQLite DB + downloaded pages) lives on the `data` volume mounted into backend.
 services:
   backend:
     build:
@@ -33,11 +34,19 @@ services:
       # Empty ⇒ only the downloads path is importable. Set this (and mount the
       # dir) to import an existing on-disk library.
       - MM_IMPORT_ROOTS=${MM_IMPORT_ROOTS:-}
+      # Latest Android APK served at app.<host>/app/download. The deploy populates
+      # ./apk/app-release.apk (see ops/deploy.sh); mounted read-only below.
+      - MM_APK_PATH=${MM_APK_PATH:-/app/apk/app-release.apk}
     expose:
       - "8000"
-    networks: [internal]
+    networks: [internal, edge]
     volumes:
       - data:/data
+      # Read-only APK drop + live pubspec (for the version label on the landing
+      # page). The ./apk dir is created by the deploy even when empty, so a missing
+      # APK reads as "not built yet" instead of a broken bind mount.
+      - ./apk:/app/apk:ro
+      - ./mobile/pubspec.yaml:/app/mobile/pubspec.yaml:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"]
       interval: 30s

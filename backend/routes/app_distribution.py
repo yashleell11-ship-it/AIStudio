@@ -17,6 +17,7 @@ LAN with no CDN.
 
 from __future__ import annotations
 
+import os
 from html import escape
 from pathlib import Path
 
@@ -28,18 +29,30 @@ from core.config import REPO_ROOT
 
 router = APIRouter(tags=["app"])
 
-# Latest Flutter release build output. Flutter overwrites this exact file each
-# `flutter build apk --release`, so this constant never needs to change.
-APK_PATH: Path = (
-    REPO_ROOT
-    / "mobile"
-    / "build"
-    / "app"
-    / "outputs"
-    / "flutter-apk"
-    / "app-release.apk"
+# Latest release APK. In the container this is a read-only bind mount populated
+# by the deploy (see ops/deploy.sh + docker-compose.yml); ``MM_APK_PATH`` points
+# at it. Locally it falls back to the Flutter build output, which Flutter
+# overwrites each `flutter build apk --release`, so the path never needs editing.
+APK_PATH: Path = Path(
+    os.environ.get(
+        "MM_APK_PATH",
+        str(
+            REPO_ROOT
+            / "mobile"
+            / "build"
+            / "app"
+            / "outputs"
+            / "flutter-apk"
+            / "app-release.apk"
+        ),
+    )
 )
-PUBSPEC_PATH: Path = REPO_ROOT / "mobile" / "pubspec.yaml"
+# Read live so bumping the app version needs no code change. Overridable via
+# ``MM_PUBSPEC_PATH`` since the backend image doesn't ship the mobile project;
+# the deploy mounts the pubspec at the default in-container location.
+PUBSPEC_PATH: Path = Path(
+    os.environ.get("MM_PUBSPEC_PATH", str(REPO_ROOT / "mobile" / "pubspec.yaml"))
+)
 
 # Curated marketing screenshots that ship with the mobile project. Served
 # read-only under /app/media so the landing page can show the real app.
@@ -566,7 +579,7 @@ def _render_footer(info: AppVersion) -> str:
 def render_landing_html() -> str:
     """Full, self-contained product landing + APK install page."""
     info = read_app_version()
-    apk_ready = APK_PATH.exists()
+    apk_ready = APK_PATH.is_file()
     size_label = _format_size(APK_PATH.stat().st_size) if apk_ready else None
 
     body = (
@@ -899,7 +912,7 @@ def app_media(name: str) -> FileResponse:
 @router.get("/app/download")
 def app_download() -> FileResponse:
     """Serve the latest release APK as a download."""
-    if not APK_PATH.exists():
+    if not APK_PATH.is_file():
         raise HTTPException(
             status_code=404,
             detail="APK not built yet. Run `flutter build apk --release`.",
