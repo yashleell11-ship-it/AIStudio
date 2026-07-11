@@ -22,7 +22,14 @@ from connectors.registry import create_connector, list_installed_connectors
 from core.config import get_settings
 from core.errors import AppError
 from core.time_utils import utcnow
-from database.models import Download, SeriesTracker, UpdateNotification, UpdateRun, UpdateSettings
+from database.models import (
+    Download,
+    SeriesTracker,
+    UpdateNotification,
+    UpdateRun,
+    UpdateSettings,
+    User,
+)
 from database.session import SessionLocal
 
 logger = logging.getLogger(__name__)
@@ -62,8 +69,12 @@ def _dump_known_ids(ids: set[str]) -> str:
 class UpdateService:
     """Business logic for the automatic update subsystem."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, user_id: int | None = None) -> None:
         self._db = db
+        # Follows and notifications are per-user. The background scheduler runs
+        # with user_id=None but never uses it to scope — it checks every user's
+        # trackers and stamps each notification with the tracker's own owner.
+        self._user_id = user_id
 
     # ------------------------------------------------------------------
     # Settings
@@ -134,7 +145,11 @@ class UpdateService:
         track_kind: str | None = None,
         source: str | None = None,
     ) -> list[dict[str, object]]:
-        query = self._db.query(SeriesTracker).order_by(SeriesTracker.series_title)
+        query = (
+            self._db.query(SeriesTracker)
+            .filter(SeriesTracker.user_id == self._user_id)
+            .order_by(SeriesTracker.series_title)
+        )
         if track_kind:
             query = query.filter(SeriesTracker.track_kind == track_kind)
         if source:
@@ -147,7 +162,9 @@ class UpdateService:
         track_kind: str | None = None,
         source: str | None = None,
     ) -> int:
-        query = self._db.query(SeriesTracker)
+        query = self._db.query(SeriesTracker).filter(
+            SeriesTracker.user_id == self._user_id
+        )
         if track_kind:
             query = query.filter(SeriesTracker.track_kind == track_kind)
         if source:
@@ -186,6 +203,7 @@ class UpdateService:
         existing = (
             self._db.query(SeriesTracker)
             .filter(
+                SeriesTracker.user_id == self._user_id,
                 SeriesTracker.source == source,
                 SeriesTracker.series_id == series_id,
                 SeriesTracker.track_kind == "followed",
@@ -196,6 +214,7 @@ class UpdateService:
             return self.serialize_tracker(existing)
 
         row = SeriesTracker(
+            user_id=self._user_id,
             source=source,
             series_id=series_id,
             series_title=series_title,
@@ -241,7 +260,10 @@ class UpdateService:
                 Download.series_id,
                 func.max(Download.series_title).label("series_title"),
             )
-            .filter(Download.status == "completed")
+            .filter(
+                Download.status == "completed",
+                Download.user_id == self._user_id,
+            )
             .group_by(Download.source, Download.series_id)
             .all()
         )
@@ -251,6 +273,7 @@ class UpdateService:
             tracker = (
                 self._db.query(SeriesTracker)
                 .filter(
+                    SeriesTracker.user_id == self._user_id,
                     SeriesTracker.source == source,
                     SeriesTracker.series_id == series_id,
                     SeriesTracker.track_kind == "downloaded",
@@ -260,6 +283,7 @@ class UpdateService:
             if tracker is None:
                 self._db.add(
                     SeriesTracker(
+                        user_id=self._user_id,
                         source=source,
                         series_id=series_id,
                         series_title=series_title or series_id,
@@ -283,14 +307,20 @@ class UpdateService:
         unread_only: bool = False,
         limit: int = 100,
     ) -> list[dict[str, object]]:
-        query = self._db.query(UpdateNotification).order_by(UpdateNotification.created_at.desc())
+        query = (
+            self._db.query(UpdateNotification)
+            .filter(UpdateNotification.user_id == self._user_id)
+            .order_by(UpdateNotification.created_at.desc())
+        )
         if unread_only:
             query = query.filter(UpdateNotification.is_read.is_(False))
         rows = query.limit(max(1, min(limit, 500))).all()
         return [self.serialize_notification(row) for row in rows]
 
     def count_notifications(self, *, unread_only: bool = False) -> int:
-        query = self._db.query(UpdateNotification)
+        query = self._db.query(UpdateNotification).filter(
+            UpdateNotification.user_id == self._user_id
+        )
         if unread_only:
             query = query.filter(UpdateNotification.is_read.is_(False))
         return query.count()
@@ -298,7 +328,10 @@ class UpdateService:
     def unread_count(self) -> int:
         return (
             self._db.query(UpdateNotification)
-            .filter(UpdateNotification.is_read.is_(False))
+            .filter(
+                UpdateNotification.user_id == self._user_id,
+                UpdateNotification.is_read.is_(False),
+            )
             .count()
         )
 
@@ -318,7 +351,14 @@ class UpdateService:
         }
 
     def mark_notification_read(self, notification_id: int) -> dict[str, object]:
-        row = self._db.query(UpdateNotification).filter(UpdateNotification.id == notification_id).first()
+        row = (
+            self._db.query(UpdateNotification)
+            .filter(
+                UpdateNotification.id == notification_id,
+                UpdateNotification.user_id == self._user_id,
+            )
+            .first()
+        )
         if row is None:
             raise AppError("Notification not found", status_code=404)
         row.is_read = True
@@ -328,7 +368,10 @@ class UpdateService:
     def mark_all_notifications_read(self) -> dict[str, int]:
         count = (
             self._db.query(UpdateNotification)
-            .filter(UpdateNotification.is_read.is_(False))
+            .filter(
+                UpdateNotification.user_id == self._user_id,
+                UpdateNotification.is_read.is_(False),
+            )
             .update({UpdateNotification.is_read: True})
         )
         return {"marked_read": count}
@@ -470,6 +513,7 @@ class UpdateService:
             for chapter in new_chapters:
                 self._db.add(
                     UpdateNotification(
+                        user_id=tracker.user_id,
                         tracker_id=tracker.id,
                         source=tracker.source,
                         series_id=tracker.series_id,
@@ -495,7 +539,14 @@ class UpdateService:
         return len(new_chapters)
 
     def _require_tracker(self, tracker_id: int) -> SeriesTracker:
-        row = self._db.query(SeriesTracker).filter(SeriesTracker.id == tracker_id).first()
+        row = (
+            self._db.query(SeriesTracker)
+            .filter(
+                SeriesTracker.id == tracker_id,
+                SeriesTracker.user_id == self._user_id,
+            )
+            .first()
+        )
         if row is None:
             raise AppError("Tracker not found", status_code=404)
         return row
@@ -521,8 +572,8 @@ def _chapter_sort_key(chapter: ConnectorChapter) -> tuple[float, str]:
     return (10**9, chapter.title)
 
 
-def get_update_service(db: Session) -> UpdateService:
-    return UpdateService(db)
+def get_update_service(db: Session, user_id: int | None = None) -> UpdateService:
+    return UpdateService(db, user_id=user_id)
 
 
 def run_check_in_new_session(

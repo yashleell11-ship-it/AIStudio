@@ -9,7 +9,9 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.errors import AppError
+from database.models import User
 from database.session import get_db
+from services.auth_service import get_optional_user
 from services.update_scheduler import get_update_manager
 from services.update_service import UpdateService, get_update_service
 from utils.api_pagination import set_list_total_header
@@ -17,8 +19,11 @@ from utils.api_pagination import set_list_total_header
 router = APIRouter(prefix="/updates", tags=["updates"])
 
 
-def _service(db: Session = Depends(get_db)) -> UpdateService:
-    return get_update_service(db)
+def _service(
+    db: Session = Depends(get_db),
+    user: User | None = Depends(get_optional_user),
+) -> UpdateService:
+    return get_update_service(db, user_id=user.id if user else None)
 
 
 UpdateDep = Annotated[UpdateService, Depends(_service)]
