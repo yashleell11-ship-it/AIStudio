@@ -15,7 +15,15 @@ from pydantic import BaseModel
 
 # backend/core/config.py -> parents[2] == repo root
 REPO_ROOT = Path(__file__).resolve().parents[2]
-SETTINGS_PATH = REPO_ROOT / "config" / "settings.json"
+# Where user preferences (download/mature settings) are persisted. Overridable
+# via MM_SETTINGS_PATH so the container can write to its /data volume: the
+# packaged app lives at /app, where the repo-relative default resolves outside
+# the writable tree (parents[2] == "/").
+SETTINGS_PATH = (
+    Path(os.environ["MM_SETTINGS_PATH"])
+    if os.getenv("MM_SETTINGS_PATH")
+    else REPO_ROOT / "config" / "settings.json"
+)
 
 APP_VERSION = "0.1.0"
 
