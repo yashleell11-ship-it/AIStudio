@@ -148,7 +148,6 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     _site("bato", "Bato.to", "bato.to", mature=True),
     _site("bbato", "Bbato", "bbato.com", mature=True),
     _site("allporncomic", "AllPornComic", "allporncomic.com", mature=True, use_cf=False),
-    _site("8muses", "8Muses", "8muses.com", mature=True, use_cf=False),
     _site("multporn", "Multporn", "multporn.net", mature=True, use_cf=False),
     _site("svscomics", "SVSComics", "svscomics.com", mature=True, use_cf=False),
     _site("xyzcomics", "XYZ Comics", "xyzcomics.com", mature=True, use_cf=False),
@@ -186,7 +185,6 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     _site("yaoimangaonline", "Yaoi Manga Online", "yaoimangaonline.com", mature=True, use_cf=False),
     _site("lilymanga", "LilyManga", "lilymanga.net", mature=True, use_cf=False),
     _site("mangadistrict", "MangaDistrict", "mangadistrict.com", mature=True, use_cf=False),
-    _site("3hentai", "3Hentai", "3hentai.net", mature=True, use_cf=False),
     _site("hentaicity", "HentaiCity", "hentaicity.com", mature=True, use_cf=False),
     _site("hentaiyes", "HentaiYes", "hentaiyes.com", mature=True, use_cf=False),
     _site("beehentai", "BeeHentai", "beehentai.com", mature=True, use_cf=False),
@@ -208,7 +206,7 @@ MADARA_LIVE: frozenset[str] = frozenset({
 
 HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
     "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga", "nhentai",
-    "18porncomic",
+    "18porncomic", "3hentai", "8muses",
 })
 
 EXCLUDED_CONNECTORS: frozenset[str] = frozenset({"comick"})
