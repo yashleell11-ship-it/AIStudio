@@ -1,7 +1,9 @@
-"""HTTP client for Cloudflare-protected HTML sources."""
+"""HTTP client for DDoS-Guard-protected HTML sources."""
 
 from __future__ import annotations
 
+import json
+import secrets
 import time
 from typing import Any
 from urllib.parse import urljoin
@@ -21,29 +23,16 @@ def _serialize_params(params: dict[str, Any] | None) -> dict[str, str] | None:
     return serialized or None
 
 
-def is_cloudflare_challenge(html: str) -> bool:
-    """Return True when HTML is a Cloudflare interstitial rather than site content."""
-    lowered = html.lower()
-    if "page-item-detail" in lowered or "wp-manga" in lowered:
-        return False
-    if "post-loop" in lowered or "entry-title" in lowered:
-        return False
-    return (
-        "just a moment" in lowered
-        or "enable javascript and cookies to continue" in lowered
-    )
-
-
 def is_ddos_guard_challenge(html: str) -> bool:
     """Return True when HTML is a DDoS-Guard interstitial rather than site content."""
     lowered = html.lower()
-    if "post-loop" in lowered or "entry-title" in lowered:
+    if "post-loop" in lowered or "entry-content" in lowered:
         return False
     return "ddos-guard" in lowered and "checking your browser" in lowered
 
 
-class CfSyncHttpClient:
-    """Sync client using curl_cffi browser TLS impersonation."""
+class DdgSyncHttpClient:
+    """Sync client using curl_cffi browser TLS impersonation and DDoS-Guard bypass."""
 
     def __init__(
         self,
@@ -69,6 +58,13 @@ class CfSyncHttpClient:
             request_headers.update(headers)
         self._headers = request_headers
         self._session = Session(impersonate=impersonate)
+        domain = self._base_url.removeprefix("https://").removeprefix("http://").split("/")[0]
+        # gallery-dl/kemono pattern: any __ddg2_ value satisfies the JS check screen.
+        self._session.cookies.set(
+            "__ddg2_",
+            secrets.token_hex(8),
+            domain=f".{domain.lstrip('.')}",
+        )
 
     def _rate_limit(self) -> None:
         now = time.monotonic()
@@ -112,11 +108,6 @@ class CfSyncHttpClient:
                         status_code=response.status_code,
                     )
                 html = response.text
-                if is_cloudflare_challenge(html):
-                    raise ConnectorHttpError(
-                        "Cloudflare challenge blocked the request.",
-                        status_code=403,
-                    )
                 if is_ddos_guard_challenge(html):
                     raise ConnectorHttpError(
                         "DDoS-Guard challenge blocked the request.",
@@ -144,10 +135,12 @@ class CfSyncHttpClient:
         data: dict[str, str] | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> str:
-        """POST form data and return the response text (used for AJAX endpoints)."""
+        """POST form data and return the response text."""
         url = self._resolve_url(path)
         last_error: Exception | None = None
         headers = dict(self._headers)
+        headers.setdefault("Accept", "application/json, text/javascript, */*; q=0.01")
+        headers.setdefault("X-Requested-With", "XMLHttpRequest")
         if extra_headers:
             headers.update(extra_headers)
 
@@ -173,6 +166,57 @@ class CfSyncHttpClient:
                     )
                 return response.text
             except (ConnectorHttpError, OSError) as exc:
+                last_error = exc
+                if attempt + 1 >= self._max_retries:
+                    break
+                time.sleep(0.5 * (2**attempt))
+
+        message = str(last_error) if last_error else "Unknown HTTP error"
+        status_code = (
+            last_error.status_code
+            if isinstance(last_error, ConnectorHttpError)
+            else None
+        )
+        raise ConnectorHttpError(message, status_code=status_code) from last_error
+
+    def post_json(
+        self,
+        path: str,
+        *,
+        data: dict[str, str] | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> Any:
+        """POST form data and return the decoded JSON body."""
+        url = self._resolve_url(path)
+        last_error: Exception | None = None
+        headers = dict(self._headers)
+        headers.setdefault("Accept", "application/json, text/javascript, */*; q=0.01")
+        headers.setdefault("X-Requested-With", "XMLHttpRequest")
+        if extra_headers:
+            headers.update(extra_headers)
+
+        for attempt in range(self._max_retries):
+            self._rate_limit()
+            try:
+                response = self._session.post(
+                    url,
+                    data=data or {},
+                    headers=headers,
+                    timeout=self._timeout,
+                    allow_redirects=True,
+                )
+                if response.status_code in RETRYABLE_STATUS:
+                    raise ConnectorHttpError(
+                        f"Retryable HTTP {response.status_code}",
+                        status_code=response.status_code,
+                    )
+                if response.status_code >= 400:
+                    raise ConnectorHttpError(
+                        f"Client error '{response.status_code} {response.reason}' for url '{url}'",
+                        status_code=response.status_code,
+                    )
+                return json.loads(response.text)
+            except (ConnectorHttpError, OSError, json.JSONDecodeError) as exc:
                 last_error = exc
                 if attempt + 1 >= self._max_retries:
                     break
