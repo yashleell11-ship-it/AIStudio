@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 from collections.abc import Generator
 from functools import lru_cache
+from pathlib import Path
 
 from sqlalchemy import MetaData, create_engine, event, inspect, text
 from sqlalchemy.engine import Engine
@@ -43,10 +44,51 @@ SessionLocal = sessionmaker(
 
 def init_db() -> None:
     engine = get_engine()
+    # Legacy idempotent migrations bring any pre-Alembic database up to the
+    # baseline schema BEFORE Alembic adopts it. Both are no-ops on a fresh or
+    # already-current database (they guard on table existence / column type).
     _migrate_intelligence_columns(engine)
     _migrate_chapter_number_to_float(engine)
-    Base.metadata.create_all(bind=engine)
+    # Alembic is the schema authority from the baseline onward: it creates every
+    # table on a fresh database, adopts a pre-Alembic database at the baseline
+    # (stamp only — no destructive re-create), and applies later revisions such
+    # as the multi-user ownership migration.
+    run_alembic_migrations(engine)
     _init_fts5(engine)
+
+
+def run_alembic_migrations(engine: Engine) -> None:
+    """Bring the database schema to the latest Alembic revision.
+
+    - Fresh database (no tables, no version): runs every revision from the
+      baseline, creating the full schema.
+    - Pre-Alembic database (app tables exist, no ``alembic_version``): adopts it
+      at the baseline via ``stamp`` (the tables already match the baseline), then
+      applies any later revisions.
+    - Already-tracked database: applies outstanding revisions (no-op at head).
+    """
+    from alembic import command
+    from alembic.config import Config
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+
+    backend_root = Path(__file__).resolve().parents[1]
+    cfg = Config(str(backend_root / "alembic.ini"))
+    # Absolute path so migrations resolve regardless of the process CWD (the
+    # container runs from /app; the CLI may run from anywhere).
+    cfg.set_main_option("script_location", str(backend_root / "alembic"))
+    # Point Alembic at this very database (env.py reads this override).
+    cfg.attributes["db_url"] = engine.url.render_as_string(hide_password=False)
+
+    with engine.connect() as conn:
+        current = MigrationContext.configure(conn).get_current_revision()
+        has_app_tables = inspect(conn).has_table("series")
+
+    if current is None and has_app_tables:
+        baseline = ScriptDirectory.from_config(cfg).get_base()
+        command.stamp(cfg, baseline)
+        logger.info("Adopted existing database into Alembic at baseline %s", baseline)
+    command.upgrade(cfg, "head")
 
 
 def _ensure_sqlite_columns(
