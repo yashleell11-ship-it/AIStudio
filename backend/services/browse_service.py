@@ -156,6 +156,10 @@ class BrowseService:
         connector = self._get_connector(source_id)
         return [{"id": mode.id, "label": mode.label} for mode in connector.list_browse_modes()]
 
+    def list_genres(self, source_id: str) -> list[dict[str, str]]:
+        connector = self._get_connector(source_id)
+        return [{"id": mode.id, "label": mode.label} for mode in connector.list_genres()]
+
     def list_series(
         self,
         source_id: str,
@@ -163,13 +167,34 @@ class BrowseService:
         page: int = 1,
         query: str | None = None,
         sort: str | None = None,
+        genre: str | None = None,
     ) -> dict[str, object]:
         connector = self._get_connector(source_id)
         normalized_query = query.strip() if query else None
         normalized_sort = sort.strip() if sort else None
+        normalized_genre = genre.strip() if genre else None
         if normalized_sort == "default":
             normalized_sort = None
-        if normalized_query:
+
+        if normalized_genre and normalized_query:
+            listing = connector.search_series(
+                f"{normalized_genre} {normalized_query}",
+                page,
+                sort=normalized_sort,
+            )
+            operation = "genre_search"
+        elif normalized_genre:
+            try:
+                listing = connector.browse_by_genre(
+                    normalized_genre,
+                    page,
+                    sort=normalized_sort,
+                )
+                operation = "genre_browse"
+            except NotImplementedError:
+                listing = connector.search_series(normalized_genre, page, sort=normalized_sort)
+                operation = "genre_search"
+        elif normalized_query:
             listing = connector.search_series(normalized_query, page, sort=normalized_sort)
             operation = "search"
         else:
@@ -177,12 +202,13 @@ class BrowseService:
             operation = "browse"
 
         logger.info(
-            "%s source=%s page=%d sort=%r query=%r parsed=%d total=%d total_pages=%d has_more=%s",
+            "%s source=%s page=%d sort=%r query=%r genre=%r parsed=%d total=%d total_pages=%d has_more=%s",
             operation,
             source_id,
             page,
             normalized_sort,
             normalized_query,
+            normalized_genre,
             len(listing.items),
             listing.total,
             listing.total_pages,

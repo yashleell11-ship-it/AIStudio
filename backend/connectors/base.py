@@ -73,6 +73,20 @@ class SourceConnector(ABC):
         """Return catalog views this connector supports (popular, latest, etc.)."""
         return [BrowseMode(id="default", label="Browse")]
 
+    def list_genres(self) -> list[BrowseMode]:
+        """Return genre/tag filters this source supports in the browse UI."""
+        return []
+
+    def browse_by_genre(
+        self,
+        genre: str,
+        page: int,
+        *,
+        sort: str | None = None,
+    ) -> PaginatedSeriesList:
+        """Browse a genre-specific catalog view when the source supports it."""
+        raise NotImplementedError(f"{type(self).__name__} does not support genre browse.")
+
     @abstractmethod
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         """Return a paginated list of series available from this source."""

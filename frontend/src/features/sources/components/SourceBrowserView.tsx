@@ -1,67 +1,114 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useScrollContainer } from "@/lib/scroll-container";
+import { useLoadMoreOnScroll } from "@/lib/use-load-more-on-scroll";
 import { useShortcut } from "@/lib/keyboard";
-import { useSourceBrowseModes, useSourceSeries, useSources } from "../hooks";
+import {
+  useInfiniteSourceSeries,
+  useSourceBrowseModes,
+  useSourceGenres,
+  useSources,
+} from "../hooks";
 import { SourceSeriesGrid } from "./SourceSeriesGrid";
 
 interface SourceBrowserViewProps {
   sourceId: string;
 }
 
-function pageNumbers(current: number, total: number): number[] {
-  if (total <= 7) {
-    return Array.from({ length: total }, (_, index) => index + 1);
-  }
-  const pages = new Set<number>([1, total, current, current - 1, current + 1]);
-  return [...pages].filter((page) => page >= 1 && page <= total).sort((a, b) => a - b);
-}
-
 export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const sourcesQuery = useSources();
   const browseModesQuery = useSourceBrowseModes(sourceId);
+  const genresQuery = useSourceGenres(sourceId);
   const sourceName =
     sourcesQuery.data?.find((source) => source.id === sourceId)?.name ?? sourceId;
+
+  const initialGenre = searchParams.get("genre") ?? "";
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("default");
-  const [page, setPage] = useState(1);
+  const [genre, setGenre] = useState(initialGenre);
   const searchRef = useRef<HTMLInputElement>(null);
-  const scrollContainer = useScrollContainer();
+
+  useEffect(() => {
+    setGenre(initialGenre);
+  }, [initialGenre]);
 
   const browseModes = browseModesQuery.data ?? [{ id: "default", label: "Browse" }];
   const activeSort = browseModes.some((mode) => mode.id === sort) ? sort : browseModes[0]?.id ?? "default";
 
-  const seriesQuery = useSourceSeries(sourceId, {
-    page,
-    query: query || undefined,
-    sort: activeSort !== "default" ? activeSort : undefined,
-  });
+  const connectorGenres = genresQuery.data ?? [];
+  const genreOptions = useMemo(() => {
+    const options = [...connectorGenres];
+    if (genre && !options.some((item) => item.id === genre || item.label === genre)) {
+      options.unshift({ id: genre.toLowerCase().replace(/\s+/g, "-"), label: genre });
+    }
+    return options;
+  }, [connectorGenres, genre]);
 
-  const data = seriesQuery.data;
-  const items = data?.items ?? [];
-  const totalPages = data?.total_pages ?? 1;
-  const total = data?.total ?? 0;
+  const selectedGenreValue = useMemo(() => {
+    if (!genre) {
+      return "";
+    }
+    const match = genreOptions.find(
+      (item) =>
+        item.id === genre ||
+        item.label === genre ||
+        item.label.toLowerCase() === genre.toLowerCase(),
+    );
+    return match?.id ?? genre;
+  }, [genre, genreOptions]);
+
+  const seriesQuery = useInfiniteSourceSeries(
+    sourceId,
+    query,
+    activeSort !== "default" ? activeSort : undefined,
+    genre || undefined,
+  );
+
+  const items = useMemo(
+    () => seriesQuery.data?.pages.flatMap((page) => page.items) ?? [],
+    [seriesQuery.data?.pages],
+  );
+  const total = seriesQuery.data?.pages[0]?.total ?? items.length;
+
+  const updateGenre = useCallback(
+    (nextGenreId: string) => {
+      const match = genreOptions.find((item) => item.id === nextGenreId);
+      const nextLabel = match?.label ?? nextGenreId;
+      setGenre(nextLabel);
+      const params = new URLSearchParams(searchParams.toString());
+      if (nextGenreId) {
+        params.set("genre", nextLabel);
+      } else {
+        params.delete("genre");
+      }
+      const suffix = params.toString();
+      router.replace(suffix ? `/sources/${sourceId}?${suffix}` : `/sources/${sourceId}`, {
+        scroll: false,
+      });
+    },
+    [genreOptions, router, searchParams, sourceId],
+  );
 
   const submitSearch = useCallback(() => {
     setQuery(search.trim());
-    setPage(1);
   }, [search]);
 
-  const goToPage = useCallback(
-    (nextPage: number) => {
-      if (nextPage < 1 || nextPage > totalPages) {
-        return;
-      }
-      setPage(nextPage);
-      if (scrollContainer) {
-        scrollContainer.scrollTo({ top: 0, behavior: "smooth" });
-      }
-    },
-    [scrollContainer, totalPages],
+  const loadMore = useCallback(() => {
+    if (seriesQuery.hasNextPage && !seriesQuery.isFetchingNextPage) {
+      void seriesQuery.fetchNextPage();
+    }
+  }, [seriesQuery]);
+
+  const sentinelRef = useLoadMoreOnScroll(
+    Boolean(seriesQuery.hasNextPage),
+    loadMore,
+    seriesQuery.isFetchingNextPage || seriesQuery.isLoading,
   );
 
   useShortcut({
@@ -74,8 +121,6 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
     }, []),
   });
 
-  const visiblePages = pageNumbers(page, totalPages);
-
   return (
     <div className="p-6">
       <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
@@ -87,28 +132,51 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
           </p>
           {!seriesQuery.isLoading && items.length > 0 ? (
             <p className="mt-1 text-xs text-muted">
-              Page {page} of {totalPages} · {total} series
+              Showing {items.length}
+              {total > items.length ? ` of ${total}` : ""} series
+              {genre ? ` in ${genre}` : ""}
               {query ? ` matching "${query}"` : ""}
             </p>
           ) : null}
         </div>
         <form
-          className="flex w-full max-w-md gap-2"
+          className="flex w-full max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"
           onSubmit={(event) => {
             event.preventDefault();
             submitSearch();
           }}
         >
-          <Input
-            ref={searchRef}
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            placeholder="Search this source…"
-            aria-label="Search source"
-          />
-          <Button type="submit" className="shrink-0">
-            Search
-          </Button>
+          <label className="flex w-full min-w-0 flex-1 flex-col gap-1 sm:max-w-[11rem]">
+            <span className="text-xs text-muted">Genre</span>
+            <select
+              value={selectedGenreValue}
+              onChange={(event) => updateGenre(event.target.value)}
+              className="h-10 w-full rounded-lg border border-border bg-surface-2 px-3 text-sm text-fg"
+              aria-label="Filter by genre"
+            >
+              <option value="">All genres</option>
+              {genreOptions.map((option) => (
+                <option key={option.id} value={option.id}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex min-w-0 flex-1 flex-col gap-1">
+            <span className="text-xs text-muted">Search</span>
+            <div className="flex gap-2">
+              <Input
+                ref={searchRef}
+                value={search}
+                onChange={(event) => setSearch(event.target.value)}
+                placeholder="Search this source…"
+                aria-label="Search source"
+              />
+              <Button type="submit" className="shrink-0">
+                Search
+              </Button>
+            </div>
+          </label>
         </form>
       </div>
 
@@ -120,10 +188,7 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
               type="button"
               size="sm"
               variant={activeSort === mode.id ? "primary" : "secondary"}
-              onClick={() => {
-                setSort(mode.id);
-                setPage(1);
-              }}
+              onClick={() => setSort(mode.id)}
             >
               {mode.label}
             </Button>
@@ -141,42 +206,14 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
         }
       />
 
-      {totalPages > 1 && !seriesQuery.isLoading && !seriesQuery.isError ? (
-        <div className="mt-8 flex flex-wrap items-center justify-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page <= 1 || seriesQuery.isFetching}
-            onClick={() => goToPage(page - 1)}
-          >
-            Previous
-          </Button>
-          {visiblePages.map((pageNumber, index) => {
-            const previous = visiblePages[index - 1];
-            const showEllipsis = previous !== undefined && pageNumber - previous > 1;
-            return (
-              <span key={pageNumber} className="flex items-center gap-2">
-                {showEllipsis ? <span className="px-1 text-muted">…</span> : null}
-                <Button
-                  variant={pageNumber === page ? "primary" : "secondary"}
-                  size="sm"
-                  disabled={seriesQuery.isFetching}
-                  onClick={() => goToPage(pageNumber)}
-                >
-                  {pageNumber}
-                </Button>
-              </span>
-            );
-          })}
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page >= totalPages || seriesQuery.isFetching}
-            onClick={() => goToPage(page + 1)}
-          >
-            Next
-          </Button>
-        </div>
+      <div ref={sentinelRef} className="h-8" aria-hidden />
+
+      {seriesQuery.isFetchingNextPage ? (
+        <p className="mt-4 text-center text-sm text-muted">Loading more…</p>
+      ) : null}
+
+      {!seriesQuery.hasNextPage && items.length > 0 && !seriesQuery.isLoading ? (
+        <p className="mt-4 text-center text-sm text-muted">End of results</p>
       ) : null}
     </div>
   );

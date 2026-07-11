@@ -45,3 +45,5 @@ export interface SourceBrowseMode {
   id: string;
   label: string;
 }
+
+export type SourceGenre = SourceBrowseMode;
