@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
 
 void main() {
   group('LibraryQuery', () {
@@ -54,7 +54,7 @@ void main() {
         'date_added',
       );
       expect(
-        const LibraryQuery(sort: LibrarySort.recent).sortParam,
+        const LibraryQuery().sortParam,
         'recent',
       );
       expect(

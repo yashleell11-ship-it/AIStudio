@@ -1,28 +1,27 @@
 import 'dart:async';
 
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/library/screens/bookmarks_screen.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/library/screens/bookmarks_screen.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 /// Fake used only by the Bookmark Manager screen tests. All other methods
 /// throw so a stray call surfaces loudly rather than passing silently with
@@ -176,13 +175,12 @@ Bookmark _bookmark({int id = 1, int page = 3}) => Bookmark(
       chapterTitle: 'Chapter 1',
       page: page,
       note: 'Great scene',
-      createdAt: DateTime(2026, 1, 1),
+      createdAt: DateTime(2026),
     );
 
 Future<void> _pumpScreen(
   WidgetTester tester, {
   required _FakeLibraryRepository repo,
-  String? navigatedLocation,
   void Function(String)? onNavigate,
 }) async {
   final router = GoRouter(
@@ -225,7 +223,7 @@ void main() {
     testWidgets('renders bookmark cards with series, chapter, and page', (tester) async {
       await _pumpScreen(
         tester,
-        repo: _FakeLibraryRepository(bookmarks: [_bookmark(id: 1, page: 3)]),
+        repo: _FakeLibraryRepository(bookmarks: [_bookmark()]),
       );
 
       expect(find.text('Solo Leveling'), findsOneWidget);
@@ -238,7 +236,7 @@ void main() {
       String? navigated;
       await _pumpScreen(
         tester,
-        repo: _FakeLibraryRepository(bookmarks: [_bookmark(id: 1, page: 3)]),
+        repo: _FakeLibraryRepository(bookmarks: [_bookmark()]),
         onNavigate: (location) => navigated = location,
       );
 
@@ -253,7 +251,7 @@ void main() {
 
     testWidgets('removing a bookmark calls deleteBookmark and updates the list',
         (tester) async {
-      final repo = _FakeLibraryRepository(bookmarks: [_bookmark(id: 1)]);
+      final repo = _FakeLibraryRepository(bookmarks: [_bookmark()]);
       await _pumpScreen(tester, repo: repo);
 
       expect(find.text('Solo Leveling'), findsOneWidget);
@@ -267,7 +265,7 @@ void main() {
     });
 
     testWidgets('disables the delete button while a removal is pending', (tester) async {
-      final repo = _FakeLibraryRepository(bookmarks: [_bookmark(id: 1)])
+      final repo = _FakeLibraryRepository(bookmarks: [_bookmark()])
         ..deleteGate = Completer<void>();
       await _pumpScreen(tester, repo: repo);
 

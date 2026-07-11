@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_queue_status.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_queue_status.dart';
 
 DownloadItem _item({
   required int id,
@@ -21,8 +21,8 @@ DownloadItem _item({
       pagesDone: pagesDone,
       pagesTotal: pagesTotal,
       bytesDownloaded: 1024,
-      createdAt: DateTime.utc(2024, 1, 1),
-      updatedAt: DateTime.utc(2024, 1, 1),
+      createdAt: DateTime.utc(2024),
+      updatedAt: DateTime.utc(2024),
       priority: 0,
       retryCount: 0,
     );
@@ -55,7 +55,6 @@ void main() {
             id: 5,
             status: 'downloading',
             pagesDone: 10,
-            pagesTotal: 10,
             progress: 100,
           ),
         ),
@@ -70,7 +69,6 @@ void main() {
             id: 6,
             status: 'downloading',
             pagesDone: 9,
-            pagesTotal: 10,
             progress: 95,
           ),
         ),
@@ -111,7 +109,6 @@ void main() {
           id: 3,
           status: 'downloading',
           pagesDone: 10,
-          pagesTotal: 10,
           progress: 100,
         ),
         _item(id: 4, status: 'failed'),

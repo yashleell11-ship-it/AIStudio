@@ -1,34 +1,34 @@
 import 'dart:async';
 
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
-import 'package:aistudio_mobile/features/reader/screens/reader_screen.dart';
-import 'package:aistudio_mobile/features/sources/providers/source_reader_provider.dart';
-import 'package:aistudio_mobile/features/sources/screens/source_reader_screen.dart';
-import '../../support/test_overrides.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/screens/reader_screen.dart';
+import 'package:manhwamaniacs/features/sources/providers/source_reader_provider.dart';
+import 'package:manhwamaniacs/features/sources/screens/source_reader_screen.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../support/test_overrides.dart';
 
 ReaderChapter _onlineChapter({
   String? previousChapterId,
@@ -152,7 +152,7 @@ class _LocalReaderRepository implements LibraryRepository {
           chapterId: chapterId,
           lastPage: lastPage,
           progressPct: 50,
-          lastReadAt: DateTime.utc(2024, 1, 1),
+          lastReadAt: DateTime.utc(2024),
         ),
       );
 
@@ -169,7 +169,7 @@ class _LocalReaderRepository implements LibraryRepository {
           seriesId: seriesId,
           chapterId: chapterId,
           page: page,
-          createdAt: DateTime.utc(2024, 1, 1),
+          createdAt: DateTime.utc(2024),
         ),
       );
 
@@ -307,7 +307,7 @@ void main() {
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
-            )).overrideWith((ref) => completer.future),
+            ),).overrideWith((ref) => completer.future),
           ],
           const SourceReaderScreen(
             sourceId: 'mangadex',
@@ -338,7 +338,7 @@ void main() {
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
-            )).overrideWith((ref) async => _onlineChapter()),
+            ),).overrideWith((ref) async => _onlineChapter()),
           ],
           const SourceReaderScreen(
             sourceId: 'mangadex',
@@ -352,8 +352,8 @@ void main() {
 
       expect(find.text('Chapter 1'), findsOneWidget);
       expect(find.textContaining('Page 1 / 2'), findsOneWidget);
-      // Online reader never offers bookmarks.
-      expect(find.text('Save'), findsNothing);
+      // Online reader never offers bookmarks (not visible in main overlay or sheet).
+      expect(find.text('Save bookmark'), findsNothing);
     });
 
     testWidgets('enables prev/next buttons when payload provides chapter ids',
@@ -372,7 +372,7 @@ void main() {
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
-            )).overrideWith(
+            ),).overrideWith(
               (ref) async => _onlineChapter(
                 previousChapterId: 'manga-1:0',
                 nextChapterId: 'manga-1:2',
@@ -389,16 +389,21 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final prevButton = tester.widget<TextButton>(
+      // Open more-options sheet to inspect chapter-nav buttons.
+      await tester.tap(find.byTooltip('Reader settings'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      final prevButton = tester.widget<OutlinedButton>(
         find.ancestor(
           of: find.text('Prev'),
-          matching: find.byType(TextButton),
+          matching: find.byType(OutlinedButton),
         ),
       );
-      final nextButton = tester.widget<TextButton>(
+      final nextButton = tester.widget<OutlinedButton>(
         find.ancestor(
           of: find.text('Next'),
-          matching: find.byType(TextButton),
+          matching: find.byType(OutlinedButton),
         ),
       );
       expect(prevButton.enabled, isTrue);
@@ -417,7 +422,7 @@ void main() {
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
-            )).overrideWith((ref) async {
+            ),).overrideWith((ref) async {
               throw Exception('network failure');
             }),
           ],
@@ -478,7 +483,7 @@ void main() {
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
-            )).overrideWith((ref) async => _localChapter()),
+            ),).overrideWith((ref) async => _localChapter()),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),
@@ -489,12 +494,18 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump();
       expect(navigatedLocation, '/library/7/chapters/42/read');
-      expect(find.text('Save'), findsOneWidget);
 
-      final nextButton = tester.widget<TextButton>(
+      // Open the more-options sheet to verify bookmark and next-chapter availability.
+      await tester.tap(find.byTooltip('Reader settings'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.text('Save bookmark'), findsOneWidget);
+
+      final nextButton = tester.widget<OutlinedButton>(
         find.ancestor(
           of: find.text('Next'),
-          matching: find.byType(TextButton),
+          matching: find.byType(OutlinedButton),
         ),
       );
       expect(nextButton.enabled, isTrue);

@@ -1,9 +1,9 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
-import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
 import 'package:dio/dio.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 
 class UpdatesRepositoryImpl implements UpdatesRepository {
   const UpdatesRepositoryImpl(this._dio);

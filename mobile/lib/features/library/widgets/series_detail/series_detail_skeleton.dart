@@ -1,20 +1,19 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class SeriesDetailSkeleton extends StatelessWidget {
   const SeriesDetailSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
+    return const CustomScrollView(
       slivers: [
-        const SliverToBoxAdapter(
+        SliverToBoxAdapter(
           child: SkeletonBox(width: double.infinity, height: 280),
         ),
         SliverPadding(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
+          padding: EdgeInsets.all(AppSpacing.xl2),
           sliver: SliverToBoxAdapter(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

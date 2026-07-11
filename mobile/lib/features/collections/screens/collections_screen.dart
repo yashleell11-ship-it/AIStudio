@@ -1,17 +1,17 @@
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/collections/providers/collection_sort_provider.dart';
-import 'package:aistudio_mobile/features/collections/providers/collections_provider.dart';
-import 'package:aistudio_mobile/features/collections/utils/collection_sorting.dart';
-import 'package:aistudio_mobile/features/collections/widgets/collection_widgets.dart';
-import 'package:aistudio_mobile/features/collections/widgets/collections_skeleton.dart';
-import 'package:aistudio_mobile/shared/widgets/empty_state.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/collections/providers/collection_sort_provider.dart';
+import 'package:manhwamaniacs/features/collections/providers/collections_provider.dart';
+import 'package:manhwamaniacs/features/collections/utils/collection_sorting.dart';
+import 'package:manhwamaniacs/features/collections/widgets/collection_widgets.dart';
+import 'package:manhwamaniacs/features/collections/widgets/collections_skeleton.dart';
+import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 
 class CollectionsScreen extends ConsumerStatefulWidget {
   const CollectionsScreen({super.key});

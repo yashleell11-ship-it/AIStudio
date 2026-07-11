@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
 
 /// Display phases shown in the downloads queue UI.
 ///

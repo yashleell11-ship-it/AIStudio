@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
-const recentSearchesKey = 'aistudio:recent-searches';
+const recentSearchesKey = 'manhwamaniacs:recent-searches';
 const maxRecentSearches = 4;
 
 const trendingSearchSuggestions = [

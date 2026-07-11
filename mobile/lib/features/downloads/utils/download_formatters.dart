@@ -1,7 +1,10 @@
 String formatDownloadBytes(int value) {
   if (value < 1024) return '$value B';
   if (value < 1024 * 1024) return '${(value / 1024).toStringAsFixed(1)} KB';
-  return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
+  if (value < 1024 * 1024 * 1024) {
+    return '${(value / (1024 * 1024)).toStringAsFixed(1)} MB';
+  }
+  return '${(value / (1024 * 1024 * 1024)).toStringAsFixed(2)} GB';
 }
 
 String formatDownloadSpeed(double? speedBps, double? speedMbps) {

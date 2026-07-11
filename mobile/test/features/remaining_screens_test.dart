@@ -1,38 +1,42 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/library/screens/recommendations_screen.dart';
-import 'package:aistudio_mobile/features/library/screens/reading_history_screen.dart';
-import 'package:aistudio_mobile/features/library/screens/statistics_screen.dart';
-import 'package:aistudio_mobile/features/settings/screens/settings_screen.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/sources/models/source.dart';
-import 'package:aistudio_mobile/features/sources/models/source_series.dart';
-import 'package:aistudio_mobile/features/sources/repositories/sources_repository.dart';
-import 'package:aistudio_mobile/features/sources/screens/sources_list_screen.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
-import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
-import 'package:aistudio_mobile/features/updates/screens/updates_screen.dart';
-import '../support/test_overrides.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/library/screens/reading_history_screen.dart';
+import 'package:manhwamaniacs/features/library/screens/recommendations_screen.dart';
+import 'package:manhwamaniacs/features/library/screens/statistics_screen.dart';
+import 'package:manhwamaniacs/features/more/screens/more_screen.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/settings/models/app_version.dart';
+import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
+import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_series.dart';
+import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
+import 'package:manhwamaniacs/features/sources/screens/sources_list_screen.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
+import 'package:manhwamaniacs/features/updates/screens/updates_screen.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../support/test_overrides.dart';
 
 SeriesSummary _series({required int id, required String title}) {
   return SeriesSummary(
@@ -50,8 +54,8 @@ SeriesSummary _series({required int id, required String title}) {
     pageCount: 200,
     totalChapters: 10,
     totalPages: 200,
-    createdAt: DateTime(2024, 1, 1),
-    updatedAt: DateTime(2024, 6, 1),
+    createdAt: DateTime(2024),
+    updatedAt: DateTime(2024, 6),
   );
 }
 
@@ -61,7 +65,7 @@ class _FakeIntelligenceRepository implements LibraryRepository {
       Ok([_series(id: 1, title: 'Recommended Title')]);
 
   @override
-  Future<Result<LibraryStatistics>> statistics() async => Ok(
+  Future<Result<LibraryStatistics>> statistics() async => const Ok(
         LibraryStatistics(
           totalSeries: 10,
           totalChapters: 100,
@@ -88,13 +92,13 @@ class _FakeIntelligenceRepository implements LibraryRepository {
           startPage: 1,
           endPage: 12,
           pagesRead: 12,
-          startedAt: DateTime(2024, 6, 1),
+          startedAt: DateTime(2024, 6),
         ),
       ]);
 
   @override
   Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) async =>
-      Ok([
+      const Ok([
         ReadingCalendarDay(day: '2024-06-01', sessions: 1, pagesRead: 12, hasActivity: true),
       ]);
 
@@ -227,7 +231,7 @@ class _FakeUpdatesRepository implements UpdatesRepository {
           chapterId: 'ch-1',
           chapterTitle: 'Chapter 1',
           isRead: false,
-          createdAt: DateTime(2024, 6, 1),
+          createdAt: DateTime(2024, 6),
         ),
       ]);
 
@@ -241,7 +245,7 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   Future<Result<void>> markAllRead() async => const Ok(null);
 
   @override
-  Future<Result<List<SeriesTracker>>> listTrackers() async => Ok([
+  Future<Result<List<SeriesTracker>>> listTrackers() async => const Ok([
         SeriesTracker(
           id: 1,
           source: 'test',
@@ -279,8 +283,8 @@ class _FakeUpdatesRepository implements UpdatesRepository {
 
 class _FakeSourcesRepository implements SourcesRepository {
   @override
-  Future<Result<List<SourceSummary>>> listSources() async => Ok([
-        const SourceSummary(
+  Future<Result<List<SourceSummary>>> listSources() async => const Ok([
+        SourceSummary(
           id: 'asura',
           name: 'Asura Scans',
           description: 'Test source connector',
@@ -413,7 +417,9 @@ void main() {
 
     testWidgets('SettingsScreen renders tabs', (tester) async {
       await tester.pumpWidget(
-        await _wrap(const SettingsScreen(), overrides: []),
+        await _wrap(const SettingsScreen(), overrides: [
+          appUpdateProvider.overrideWith((ref) async => null),
+        ],),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -421,6 +427,50 @@ void main() {
       expect(find.text('General'), findsOneWidget);
       expect(find.text('Server'), findsOneWidget);
       expect(find.text('About'), findsOneWidget);
+    });
+
+    testWidgets('MoreScreen renders navigation tiles', (tester) async {
+      await tester.pumpWidget(
+        await _wrap(
+          const MoreScreen(),
+          overrides: [
+            updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+            appUpdateProvider.overrideWith((ref) async => null),
+          ],
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Updates'), findsWidgets);
+      expect(find.text('Collections'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
+    });
+
+    testWidgets('MoreScreen shows update banner when update available',
+        (tester) async {
+      const updateInfo = AppVersionInfo(
+        localVersion: '1.0.0',
+        localBuild: 1,
+        remoteVersion: '1.1.0',
+        remoteBuild: 2,
+        downloadUrl: 'http://localhost:8000/app/download',
+      );
+      final widget = await _wrap(
+        const MoreScreen(),
+        overrides: [
+          updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+          appUpdateProvider.overrideWith((ref) async => updateInfo),
+        ],
+      );
+      await tester.pumpWidget(widget);
+      // runAsync lets the Dart event loop drain so FutureProvider resolves.
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Update Available', skipOffstage: false), findsOneWidget);
+      expect(find.text('1.0.0 → 1.1.0', skipOffstage: false), findsOneWidget);
     });
   });
 }

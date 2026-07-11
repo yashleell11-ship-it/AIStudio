@@ -1,15 +1,15 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
-import 'package:aistudio_mobile/features/downloads/widgets/downloads_skeleton.dart';
-import 'package:aistudio_mobile/features/downloads/widgets/downloads_widgets.dart';
-import 'package:aistudio_mobile/features/reader/utils/local_reader_handoff.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_grouping.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/downloads_skeleton.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/downloads_widgets.dart';
+import 'package:manhwamaniacs/features/reader/utils/local_reader_handoff.dart';
 
 class DownloadsScreen extends ConsumerStatefulWidget {
   const DownloadsScreen({super.key});
@@ -180,6 +180,7 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
           onResumeItem: notifier.resumeItem,
           onCancelItem: notifier.cancelItem,
           onRetryItem: notifier.retryItem,
+          onMoveItem: notifier.moveItem,
         ),
         const SizedBox(height: AppSpacing.lg),
       ],

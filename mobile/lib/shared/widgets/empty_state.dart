@@ -1,6 +1,7 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -20,27 +21,40 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(AppSpacing.xl3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 56, color: AppColors.muted),
-            const SizedBox(height: 16),
+            // Icon in a glowing circle
+            Container(
+              width: 80,
+              height: 80,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.muted.withAlpha(18),
+                border: Border.all(color: AppColors.border.withAlpha(80)),
+              ),
+              child: Icon(icon, size: 36, color: AppColors.muted.withAlpha(160)),
+            ),
+            const SizedBox(height: AppSpacing.xl2),
             Text(
               message,
               style: AppTypography.h4,
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...[
-              const SizedBox(height: 8),
+              const SizedBox(height: AppSpacing.sm),
               Text(
                 subtitle!,
-                style: AppTypography.body.copyWith(color: AppColors.muted),
+                style: AppTypography.body.copyWith(
+                  color: AppColors.muted,
+                  height: 1.6,
+                ),
                 textAlign: TextAlign.center,
               ),
             ],
             if (action != null) ...[
-              const SizedBox(height: 24),
+              const SizedBox(height: AppSpacing.xl2),
               action!,
             ],
           ],

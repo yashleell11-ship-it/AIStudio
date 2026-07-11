@@ -1,22 +1,22 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/collections/providers/collections_provider.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/collections/providers/collections_provider.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 class _CollectionsRepo implements LibraryRepository {
   _CollectionsRepo(this.items);
@@ -35,11 +35,10 @@ class _CollectionsRepo implements LibraryRepository {
       id: items.length + 1,
       name: name,
       description: description,
-      coverPath: null,
       seriesCount: 0,
       sortOrder: items.length + 1,
-      createdAt: DateTime(2024, 1, 1),
-      updatedAt: DateTime(2024, 6, 1),
+      createdAt: DateTime(2024),
+      updatedAt: DateTime(2024, 6),
     );
     items.add(created);
     return Ok(created);
@@ -194,12 +193,10 @@ void main() {
         Collection(
           id: 1,
           name: 'Action Picks',
-          description: null,
-          coverPath: null,
           seriesCount: 0,
           sortOrder: 1,
-          createdAt: DateTime(2024, 1, 1),
-          updatedAt: DateTime(2024, 6, 1),
+          createdAt: DateTime(2024),
+          updatedAt: DateTime(2024, 6),
         ),
       ]);
       final container = ProviderContainer(

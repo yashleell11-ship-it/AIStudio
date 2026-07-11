@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
 
 class LibraryToolbar extends StatefulWidget {
   const LibraryToolbar({
@@ -13,6 +13,8 @@ class LibraryToolbar extends StatefulWidget {
     required this.onSortChanged,
     required this.onFilterChanged,
     required this.onViewModeChanged,
+    this.coverScale,
+    this.onCoverScaleChanged,
   });
 
   final LibraryQuery query;
@@ -21,6 +23,10 @@ class LibraryToolbar extends StatefulWidget {
   final ValueChanged<LibrarySort> onSortChanged;
   final ValueChanged<LibraryFilter> onFilterChanged;
   final ValueChanged<LibraryViewMode> onViewModeChanged;
+
+  /// When provided (grid mode), shows a cover-size slider.
+  final double? coverScale;
+  final ValueChanged<double>? onCoverScaleChanged;
 
   @override
   State<LibraryToolbar> createState() => _LibraryToolbarState();
@@ -107,7 +113,7 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
         ),
         const SizedBox(height: AppSpacing.lg),
         DropdownButtonFormField<LibrarySort>(
-          value: widget.query.sort,
+          initialValue: widget.query.sort,
           decoration: const InputDecoration(
             labelText: 'Sort',
             isDense: true,
@@ -124,6 +130,33 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
             if (value != null) widget.onSortChanged(value);
           },
         ),
+        if (widget.coverScale != null &&
+            widget.onCoverScaleChanged != null &&
+            widget.query.viewMode == LibraryViewMode.grid) ...[
+          const SizedBox(height: AppSpacing.sm),
+          Row(
+            children: [
+              const Icon(
+                Icons.photo_size_select_small,
+                size: 18,
+                color: AppColors.muted,
+              ),
+              Expanded(
+                child: Slider(
+                  value: widget.coverScale!,
+                  min: 0.7,
+                  max: 1.6,
+                  onChanged: widget.onCoverScaleChanged,
+                ),
+              ),
+              const Icon(
+                Icons.photo_size_select_large,
+                size: 18,
+                color: AppColors.muted,
+              ),
+            ],
+          ),
+        ],
       ],
     );
   }
@@ -204,15 +237,11 @@ class _FilterChip extends StatelessWidget {
     required this.label,
     required this.selected,
     required this.onTap,
-    this.selectedColor,
-    this.selectedTextColor,
   });
 
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  final Color? selectedColor;
-  final Color? selectedTextColor;
 
   @override
   Widget build(BuildContext context) {
@@ -220,12 +249,10 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: selectedColor ?? AppColors.primary,
-      checkmarkColor: selectedTextColor ?? AppColors.primaryFg,
+      selectedColor: AppColors.primary,
+      checkmarkColor: AppColors.primaryFg,
       labelStyle: AppTypography.label.copyWith(
-        color: selected
-            ? (selectedTextColor ?? AppColors.primaryFg)
-            : AppColors.muted,
+        color: selected ? AppColors.primaryFg : AppColors.muted,
       ),
       backgroundColor: AppColors.fg.withAlpha(13),
       side: BorderSide(color: AppColors.border.withAlpha(128)),

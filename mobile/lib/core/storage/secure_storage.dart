@@ -2,7 +2,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 /// Keys for secure storage entries.
 abstract final class _Keys {
-  static const String apiUrl = 'aistudio_api_url';
+  static const String apiUrl = 'manhwamaniacs_api_url';
 }
 
 /// Wrapper around FlutterSecureStorage.

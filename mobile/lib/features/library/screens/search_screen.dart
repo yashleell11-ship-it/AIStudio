@@ -1,24 +1,24 @@
-import 'dart:async';
+﻿import 'dart:async';
 
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/library/models/library_list_state.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
-import 'package:aistudio_mobile/features/library/utils/recent_searches.dart';
-import 'package:aistudio_mobile/features/library/widgets/library/library_skeleton.dart';
-import 'package:aistudio_mobile/features/library/widgets/library/series_grid.dart';
-import 'package:aistudio_mobile/features/library/widgets/search/search_result_card.dart';
-import 'package:aistudio_mobile/features/library/widgets/search/search_suggestions.dart';
-import 'package:aistudio_mobile/features/library/widgets/search/search_toolbar.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
+import 'package:manhwamaniacs/features/library/utils/recent_searches.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
+import 'package:manhwamaniacs/features/library/widgets/search/search_result_card.dart';
+import 'package:manhwamaniacs/features/library/widgets/search/search_suggestions.dart';
+import 'package:manhwamaniacs/features/library/widgets/search/search_toolbar.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});

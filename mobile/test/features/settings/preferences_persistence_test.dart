@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/core/storage/preferences.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/storage/preferences.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<PreferencesService> _freshService() async {
@@ -68,6 +68,40 @@ void main() {
       expect(service.readerFitMode, 'height');
       expect(service.keepScreenAwake, isTrue);
       expect(service.autoNextChapter, isFalse);
+    });
+
+    test('reader refresh rate defaults to null and round-trips', () async {
+      final service = await _freshService();
+
+      expect(service.readerRefreshRate, isNull);
+
+      await service.setReaderRefreshRate('fps120');
+      expect(service.readerRefreshRate, 'fps120');
+    });
+
+    test('reader display filter prefs default and round-trip', () async {
+      final service = await _freshService();
+
+      expect(service.readerBrightness, 1.0);
+      expect(service.readerWarmth, 0.0);
+      expect(service.readerBackground, isNull);
+
+      await service.setReaderBrightness(0.4);
+      await service.setReaderWarmth(0.5);
+      await service.setReaderBackground('black');
+
+      expect(service.readerBrightness, 0.4);
+      expect(service.readerWarmth, 0.5);
+      expect(service.readerBackground, 'black');
+    });
+
+    test('library cover scale defaults to 1.0 and round-trips', () async {
+      final service = await _freshService();
+
+      expect(service.libraryCoverScale, 1.0);
+
+      await service.setLibraryCoverScale(1.3);
+      expect(service.libraryCoverScale, 1.3);
     });
   });
 

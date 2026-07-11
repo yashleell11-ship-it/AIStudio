@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
 
 void main() {
   group('PaginationParams', () {

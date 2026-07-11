@@ -1,7 +1,7 @@
-name: aistudio_mobile
-description: AIStudio mobile client — manga/manhwa reader
+name: manhwamaniacs
+description: ManhwaManiacs mobile client — manga/manhwa reader
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.2.0+3
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -13,7 +13,6 @@ dependencies:
 
   # State management + DI
   flutter_riverpod: ^2.5.1
-  riverpod_annotation: ^2.3.5
 
   # Navigation
   go_router: ^14.0.0
@@ -44,16 +43,18 @@ dependencies:
   # Reader — keep screen awake while reading
   wakelock_plus: ^1.2.8
 
+  # Reader — request high refresh-rate display modes on Android
+  flutter_displaymode: ^0.6.0
+
+  # External URL launcher (APK update download)
+  url_launcher: ^6.3.0
+
+  # Backup & restore — pick a backup file from device storage to upload
+  file_picker: ^8.1.2
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-
-  # Code-gen (used when building features, not needed for foundation)
-  build_runner: ^2.4.11
-  riverpod_generator: ^2.4.3
-  json_serializable: ^6.8.0
-  freezed: ^2.5.2
-  freezed_annotation: ^2.4.4
 
   # Testing
   mocktail: ^1.0.4
@@ -65,3 +66,22 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+  fonts:
+    - family: Inter
+      fonts:
+        - asset: assets/fonts/Inter-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Inter-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/Inter-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Inter-Bold.ttf
+          weight: 700
+    - family: BebasNeue
+      fonts:
+        - asset: assets/fonts/BebasNeue-Regular.ttf
+          weight: 700
+    - family: SpaceMono
+      fonts:
+        - asset: assets/fonts/SpaceMono-Regular.ttf
+          weight: 400

@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 final statisticsProvider = FutureProvider.autoDispose<LibraryStatistics>((ref) async {
   final repo = ref.watch(libraryRepositoryProvider);
@@ -32,8 +32,8 @@ class ReadingHistoryData {
 final readingHistoryProvider =
     FutureProvider.autoDispose<ReadingHistoryData>((ref) async {
   final repo = ref.watch(libraryRepositoryProvider);
-  final sessionsResult = await repo.readingHistory(limit: 50);
-  final calendarResult = await repo.readingCalendar(days: 30);
+  final sessionsResult = await repo.readingHistory();
+  final calendarResult = await repo.readingCalendar();
   if (sessionsResult.isErr) throw sessionsResult.error;
   if (calendarResult.isErr) throw calendarResult.error;
   return ReadingHistoryData(

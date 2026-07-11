@@ -1,15 +1,15 @@
 import 'dart:async';
 
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
-import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
-import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
+import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 class _RefreshRepo implements DownloadsRepository {
   _RefreshRepo(this.items);
@@ -37,7 +37,6 @@ class _RefreshRepo implements DownloadsRepository {
           storageFreeBytes: 0,
           overallSpeedBps: 0,
           overallSpeedMbps: 0,
-          overallEtaSeconds: null,
           workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
         ),
       );
@@ -78,6 +77,10 @@ class _RefreshRepo implements DownloadsRepository {
 
   @override
   Future<Result<void>> retryDownload(int downloadId) async => const Ok(null);
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) async =>
+      const Ok(null);
 
   @override
   Future<Result<int>> pauseAll() async => const Ok(0);
@@ -122,8 +125,8 @@ DownloadItem _downloadingItem({double progress = 45}) => DownloadItem(
       pagesDone: 9,
       pagesTotal: 20,
       bytesDownloaded: 4096,
-      createdAt: DateTime.utc(2024, 1, 1),
-      updatedAt: DateTime.utc(2024, 1, 1),
+      createdAt: DateTime.utc(2024),
+      updatedAt: DateTime.utc(2024),
       priority: 0,
       retryCount: 0,
     );

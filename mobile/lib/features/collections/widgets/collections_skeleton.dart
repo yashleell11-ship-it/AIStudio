@@ -1,7 +1,7 @@
-import 'package:aistudio_mobile/app/theme/app_radius.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class CollectionsSkeleton extends StatelessWidget {
   const CollectionsSkeleton({super.key});

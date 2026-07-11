@@ -1,9 +1,9 @@
-import 'dart:typed_data';
+﻿import 'dart:typed_data';
 
-import 'package:aistudio_mobile/features/reader/widgets/reader_page_image.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_page_image.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 
 /// Builds an uncompressed PNG of [width] x [height] black pixels.
 ///

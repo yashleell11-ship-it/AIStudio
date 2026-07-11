@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// AIStudio v2 color palette — dark-only.
+/// ManhwaManiacs v2 color palette — dark-only.
 ///
 /// All hex values are taken directly from frontend/src/app/globals.css @theme.
 abstract final class AppColors {
@@ -62,9 +62,25 @@ abstract final class AppColors {
   static const Color success = Color(0xFF10b981);
   static const Color warning = Color(0xFFf59e0b);
 
+  // ── Extended accent palette ────────────────────────────────────────────────
+  static const Color violet300 = Color(0xFFc4b5fd);
+  static const Color amber400 = Color(0xFFfbbf24);
+  static const Color emerald400 = Color(0xFF34d399);
+  static const Color rose400 = Color(0xFFfb7185);
+
+  // ── Glass / Elevation ─────────────────────────────────────────────────────
+  /// Top-edge highlight on glass cards (simulates light reflection).
+  static const Color glassEdge = Color(0xFF26334a);
+
+  /// Surface elevated above panel — used for modal sheets, overlays.
+  static const Color surfaceElevated = Color(0xFF1d2b3a);
+
   // ── Overlay / Scrim ───────────────────────────────────────────────────────
   static const Color scrim = Color(0xCC000000);
 
   /// Violet glow used for glassy effects — matches CSS `--shadow-glow`.
   static const Color violetGlow = Color(0x338b5cf6);
+
+  /// Cyan glow for accent highlights.
+  static const Color cyanGlow = Color(0x2206b6d4);
 }

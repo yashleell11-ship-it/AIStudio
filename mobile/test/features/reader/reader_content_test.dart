@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_content.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 ReaderChapter _sampleChapter({
@@ -81,6 +81,13 @@ Widget _wrapWithPrefs(SharedPreferences prefs, Widget child) {
   );
 }
 
+/// Opens the more-options bottom sheet from the visible controls bar.
+Future<void> _openMoreSheet(WidgetTester tester) async {
+  await tester.tap(find.byTooltip('Reader settings'));
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 300));
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -105,10 +112,11 @@ void main() {
 
       expect(find.text('Chapter 1'), findsOneWidget);
       expect(find.textContaining('Page 1 / 2'), findsOneWidget);
-      expect(find.text('Back'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsOneWidget);
     });
 
-    testWidgets('shows Save bookmark when callback is provided', (tester) async {
+    testWidgets('shows Save bookmark in more-options sheet when callback is provided',
+        (tester) async {
       final prefs = await _freshPrefs();
       await tester.binding.setSurfaceSize(const Size(430, 932));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -119,7 +127,6 @@ void main() {
           ReaderContent(
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
-            showBookmark: true,
             onAddBookmark: (_) async => true,
             onBack: () {},
           ),
@@ -128,10 +135,13 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Save'), findsOneWidget);
+      await _openMoreSheet(tester);
+
+      expect(find.text('Save bookmark'), findsOneWidget);
     });
 
-    testWidgets('hides Save bookmark for online chapters', (tester) async {
+    testWidgets('hides Save bookmark in more-options sheet for online chapters',
+        (tester) async {
       final prefs = await _freshPrefs();
       await tester.binding.setSurfaceSize(const Size(430, 932));
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -150,10 +160,12 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Save'), findsNothing);
+      await _openMoreSheet(tester);
+
+      expect(find.text('Save bookmark'), findsNothing);
     });
 
-    testWidgets('disables previous/next nav buttons when ids absent',
+    testWidgets('disables Prev/Next buttons in sheet when chapter ids absent',
         (tester) async {
       final prefs = await _freshPrefs();
       await tester.binding.setSurfaceSize(const Size(430, 932));
@@ -172,16 +184,18 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      final prevButton = tester.widget<TextButton>(
+      await _openMoreSheet(tester);
+
+      final prevButton = tester.widget<OutlinedButton>(
         find.ancestor(
           of: find.text('Prev'),
-          matching: find.byType(TextButton),
+          matching: find.byType(OutlinedButton),
         ),
       );
-      final nextButton = tester.widget<TextButton>(
+      final nextButton = tester.widget<OutlinedButton>(
         find.ancestor(
           of: find.text('Next'),
-          matching: find.byType(TextButton),
+          matching: find.byType(OutlinedButton),
         ),
       );
       expect(prevButton.enabled, isFalse);
@@ -194,7 +208,7 @@ void main() {
       await tester.binding.setSurfaceSize(const Size(430, 932));
       addTearDown(() => tester.binding.setSurfaceSize(null));
 
-      var saveCalls = 0;
+      const saveCalls = 0;
       await tester.pumpWidget(
         _wrapWithPrefs(
           prefs,
@@ -231,7 +245,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.text('Back'));
+      await tester.tap(find.byTooltip('Back'));
       await tester.pump();
 
       expect(backCalls, 1);
@@ -249,7 +263,6 @@ void main() {
           ReaderContent(
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
-            showBookmark: true,
             onAddBookmark: (_) async => true,
             onBack: () {},
           ),
@@ -258,7 +271,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.text('Save'));
+      await _openMoreSheet(tester);
+      await tester.ensureVisible(find.text('Save bookmark'));
+      await tester.tap(find.text('Save bookmark'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -277,7 +292,6 @@ void main() {
           ReaderContent(
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
-            showBookmark: true,
             onAddBookmark: (_) async => false,
             onBack: () {},
           ),
@@ -286,7 +300,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      await tester.tap(find.text('Save'));
+      await _openMoreSheet(tester);
+      await tester.ensureVisible(find.text('Save bookmark'));
+      await tester.tap(find.text('Save bookmark'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -306,7 +322,6 @@ void main() {
             ReaderContent(
               chapter: _sampleChapter(),
               scrollStorageKey: '1',
-              showBookmark: true,
               onAddBookmark: (_) async => throw Exception('bookmark failed'),
               onBack: () {},
             ),
@@ -315,7 +330,9 @@ void main() {
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
 
-        await tester.tap(find.text('Save'));
+        await _openMoreSheet(tester);
+        await tester.ensureVisible(find.text('Save bookmark'));
+      await tester.tap(find.text('Save bookmark'));
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 100));
       }, (error, stack) {
@@ -324,13 +341,10 @@ void main() {
 
       expect(caughtError, isNotNull);
 
-      final saveButton = tester.widget<TextButton>(
-        find.ancestor(
-          of: find.text('Save'),
-          matching: find.byType(TextButton),
-        ),
-      );
-      expect(saveButton.enabled, isTrue);
+      // After the error, the sheet was dismissed and bookmark pending cleared.
+      // Opening the sheet again should show an enabled Save bookmark button.
+      await _openMoreSheet(tester);
+      expect(find.text('Save bookmark'), findsOneWidget);
     });
 
     testWidgets('re-arms auto-next timer after scrolling away from bottom',

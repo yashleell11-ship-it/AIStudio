@@ -1,39 +1,39 @@
-import 'package:aistudio_mobile/core/storage/secure_storage.dart';
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/dashboard_data.dart';
-import 'package:aistudio_mobile/features/library/models/library_list_state.dart';
-import 'package:aistudio_mobile/features/library/providers/bookmarks_provider.dart';
-import 'package:aistudio_mobile/features/library/providers/dashboard_providers.dart';
-import 'package:aistudio_mobile/features/library/providers/intelligence_providers.dart';
-import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
-import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
-import 'package:aistudio_mobile/features/settings/screens/settings_screen.dart';
-import 'package:aistudio_mobile/features/settings/services/image_cache_service.dart';
-import '../../support/test_overrides.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/storage/secure_storage.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/dashboard_data.dart';
+import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
+import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
+import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
+import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
+import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
+import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../support/test_overrides.dart';
 
 class _FakeSecureStorageService extends SecureStorageService {
   String? _storedUrl;
@@ -260,20 +260,6 @@ class _FakeDownloadsRepository implements DownloadsRepository {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
-class _FakeImageCacheService implements ImageCacheService {
-  var clearCallCount = 0;
-  var sizeBytes = 2 * 1024 * 1024;
-
-  @override
-  Future<int> getCacheSizeBytes() async => sizeBytes;
-
-  @override
-  Future<void> clear() async {
-    clearCallCount++;
-    sizeBytes = 0;
-  }
-}
-
 DownloadSettings _sampleDownloadSettings() => const DownloadSettings(
       concurrentChapters: 2,
       pageConcurrency: 4,
@@ -284,16 +270,13 @@ DownloadSettings _sampleDownloadSettings() => const DownloadSettings(
     );
 
 final _testPackageInfo = PackageInfo(
-  appName: 'AIStudio',
-  packageName: 'com.aistudio.mobile',
+  appName: 'ManhwaManiacs',
+  packageName: 'com.manhwamaniacs.app',
   version: '1.0.0',
   buildNumber: '1',
 );
 
-Future<ProviderContainer> _pumpSettings(
-  WidgetTester tester, {
-  ImageCacheService? imageCache,
-}) async {
+Future<ProviderContainer> _pumpSettings(WidgetTester tester) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
@@ -307,9 +290,10 @@ Future<ProviderContainer> _pumpSettings(
       // mocked in widget tests, so override the provider directly instead
       // of introducing a wrapper interface just for this.
       packageInfoProvider.overrideWith((ref) async => _testPackageInfo),
+      // Suppress network call in tests — update check should not hit the server.
+      appUpdateProvider.overrideWith((ref) async => null),
       secureStorageProvider.overrideWithValue(_FakeSecureStorageService()),
       ..._metadataCacheProviderOverrides(),
-      if (imageCache != null) imageCacheServiceProvider.overrideWithValue(imageCache),
     ],
   );
   await tester.pumpWidget(
@@ -354,7 +338,7 @@ void main() {
       expect(find.text('About'), findsOneWidget);
     });
 
-    testWidgets('General tab is shown by default with theme/reader/cache sections',
+    testWidgets('General tab is shown by default with theme/reader sections',
         (tester) async {
       await _pumpSettings(tester);
 
@@ -366,9 +350,6 @@ void main() {
 
       await _scrollToText(tester, 'Download preferences');
       expect(find.text('Download preferences'), findsOneWidget);
-
-      await _scrollToText(tester, 'Cache');
-      expect(find.text('Cache'), findsOneWidget);
     });
 
     testWidgets('tapping the Server tab shows the server URL field', (tester) async {
@@ -381,6 +362,22 @@ void main() {
       expect(find.byType(TextField), findsOneWidget);
     });
 
+    testWidgets('search jumps to the tab a result lives on', (tester) async {
+      await _pumpSettings(tester);
+
+      await tester.tap(find.byIcon(Icons.search));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField), 'server connection');
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Server connection').first);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(TextField), findsOneWidget);
+      expect(find.text('Server connection'), findsOneWidget);
+    });
+
     testWidgets('tapping the About tab shows version info and licenses button',
         (tester) async {
       await _pumpSettings(tester);
@@ -388,8 +385,8 @@ void main() {
       await tester.tap(find.text('About'));
       await tester.pumpAndSettle();
 
-      expect(find.text('App version'), findsOneWidget);
-      expect(find.text('Build number'), findsOneWidget);
+      expect(find.text('Version'), findsOneWidget);
+      expect(find.text('Build'), findsOneWidget);
       expect(find.text('Open source licenses'), findsOneWidget);
     });
   });
@@ -451,43 +448,6 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Download settings saved.'), findsOneWidget);
-    });
-  });
-
-  group('SettingsScreen cache actions', () {
-    testWidgets('shows formatted cache usage from the injected service', (tester) async {
-      await _pumpSettings(tester, imageCache: _FakeImageCacheService());
-
-      await _scrollToText(tester, '2.0 MB');
-      expect(find.text('2.0 MB'), findsOneWidget);
-    });
-
-    testWidgets('tapping Clear image cache clears it and refreshes the usage display',
-        (tester) async {
-      final fakeCache = _FakeImageCacheService();
-      await _pumpSettings(tester, imageCache: fakeCache);
-
-      await _scrollToText(tester, '2.0 MB');
-      expect(find.text('2.0 MB'), findsOneWidget);
-
-      await _scrollToText(tester, 'Clear image cache');
-      await tester.tap(find.text('Clear image cache'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(fakeCache.clearCallCount, 1);
-      expect(find.text('Image cache cleared.'), findsOneWidget);
-      expect(find.text('0 B'), findsOneWidget);
-    });
-
-    testWidgets('tapping Clear metadata cache shows a confirmation', (tester) async {
-      await _pumpSettings(tester, imageCache: _FakeImageCacheService());
-
-      await _scrollToText(tester, 'Clear metadata cache');
-      await tester.tap(find.text('Clear metadata cache'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Metadata cache cleared.'), findsOneWidget);
     });
   });
 }

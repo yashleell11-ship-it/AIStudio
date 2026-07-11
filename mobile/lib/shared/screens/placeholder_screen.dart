@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
 
 /// Temporary screen shown for routes whose feature screen has not been built yet.
 class PlaceholderScreen extends StatelessWidget {

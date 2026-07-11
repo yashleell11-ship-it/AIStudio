@@ -1,7 +1,7 @@
-import 'package:aistudio_mobile/core/config/env.dart';
-import 'package:aistudio_mobile/core/network/interceptors/error_interceptor.dart';
-import 'package:aistudio_mobile/core/network/interceptors/logging_interceptor.dart';
 import 'package:dio/dio.dart';
+import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/core/network/interceptors/error_interceptor.dart';
+import 'package:manhwamaniacs/core/network/interceptors/logging_interceptor.dart';
 
 /// Factory that constructs a fully-configured Dio instance.
 ///
@@ -18,7 +18,6 @@ Dio createDioClient({String? baseUrl}) {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
-      responseType: ResponseType.json,
     ),
   );
 

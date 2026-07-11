@@ -1,19 +1,19 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_radius.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/utils/cover_url.dart';
-import 'package:aistudio_mobile/features/library/utils/series_display.dart';
-import 'package:aistudio_mobile/features/library/widgets/library/library_skeleton.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
-import 'package:aistudio_mobile/shared/widgets/series_cover_image.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
+import 'package:manhwamaniacs/features/library/utils/series_display.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class SearchResultCard extends ConsumerWidget {
   const SearchResultCard({
@@ -95,7 +95,7 @@ class SearchResultCard extends ConsumerWidget {
                 ],
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  series.description?.trim().isNotEmpty == true
+                  series.description?.trim().isNotEmpty ?? false
                       ? series.description!.trim()
                       : '${series.chapterCount} chapters · ${series.pageCount} pages',
                   maxLines: 2,
@@ -195,11 +195,11 @@ class SearchResultCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
+    return const GlassCard(
+      padding: EdgeInsets.all(AppSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: const [
+        children: [
           SkeletonBox(width: 80, height: 120, borderRadius: AppRadius.lg),
           SizedBox(width: AppSpacing.lg),
           Expanded(

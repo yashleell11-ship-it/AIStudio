@@ -1,4 +1,4 @@
-/// Unified error type for the AIStudio mobile client.
+/// Unified error type for the ManhwaManiacs mobile client.
 ///
 /// Maps 1-to-1 with the backend's `{ code, message, details? }` contract,
 /// and covers network/parsing failures too.
@@ -8,7 +8,7 @@ sealed class AppError implements Exception {
   String get userMessage;
 }
 
-/// 4xx / 5xx response from the AIStudio API.
+/// 4xx / 5xx response from the ManhwaManiacs API.
 final class ApiError extends AppError {
   const ApiError({
     required this.statusCode,

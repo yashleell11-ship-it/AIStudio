@@ -1,11 +1,11 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
-import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
 import 'package:dio/dio.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
 
 class DownloadsRepositoryImpl implements DownloadsRepository {
   const DownloadsRepositoryImpl(this._dio);
@@ -85,6 +85,15 @@ class DownloadsRepositoryImpl implements DownloadsRepository {
   @override
   Future<Result<void>> retryDownload(int downloadId) =>
       _void(() => _dio.post<dynamic>('/downloads/$downloadId/retry'));
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) =>
+      _void(
+        () => _dio.post<dynamic>(
+          '/downloads/$downloadId/move',
+          data: {'direction': direction},
+        ),
+      );
 
   @override
   Future<Result<int>> pauseAll() =>

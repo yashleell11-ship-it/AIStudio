@@ -1,27 +1,25 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/collections/providers/collection_detail_provider.dart';
-import 'package:aistudio_mobile/features/collections/providers/collections_provider.dart';
-import 'package:aistudio_mobile/features/collections/screens/collection_detail_screen.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import '../../support/test_overrides.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/collections/screens/collection_detail_screen.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
+import '../../support/test_overrides.dart';
 
 SeriesSummary _series(int id, String title) => SeriesSummary(
       id: id,
@@ -38,8 +36,8 @@ SeriesSummary _series(int id, String title) => SeriesSummary(
       pageCount: 100,
       totalChapters: 10,
       totalPages: 100,
-      createdAt: DateTime(2024, 1, 1),
-      updatedAt: DateTime(2024, 6, 1),
+      createdAt: DateTime(2024),
+      updatedAt: DateTime(2024, 6),
     );
 
 class _MutableCollectionsRepository implements LibraryRepository {
@@ -52,7 +50,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
 
   final List<Collection> collections;
   final Map<int, CollectionDetail> _details;
-  List<SeriesSummary> _pickerSeries;
+  final List<SeriesSummary> _pickerSeries;
 
   int renameCalls = 0;
   int deleteCalls = 0;
@@ -66,7 +64,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
   Future<Result<CollectionDetail>> getCollection(int collectionId) async {
     final detail = _details[collectionId];
     if (detail == null) {
-      return Err(UnknownError(message: 'missing collection'));
+      return const Err(UnknownError(message: 'missing collection'));
     }
     return Ok(detail);
   }
@@ -286,11 +284,10 @@ CollectionDetail _detail({
       id: id,
       name: name,
       description: 'Curated picks',
-      coverPath: null,
       seriesCount: series.length,
       sortOrder: 0,
-      createdAt: DateTime(2024, 1, 1),
-      updatedAt: DateTime(2024, 6, 1),
+      createdAt: DateTime(2024),
+      updatedAt: DateTime(2024, 6),
       series: PagedResult(
         items: series,
         total: series.length,
@@ -331,11 +328,10 @@ void main() {
             id: 1,
             name: 'Action Picks',
             description: 'Curated picks',
-            coverPath: null,
             seriesCount: 0,
             sortOrder: 0,
-            createdAt: DateTime(2024, 1, 1),
-            updatedAt: DateTime(2024, 6, 1),
+            createdAt: DateTime(2024),
+            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {1: _detail(id: 1, name: 'Action Picks')},
@@ -354,11 +350,10 @@ void main() {
             id: 1,
             name: 'Action Picks',
             description: 'Curated picks',
-            coverPath: null,
             seriesCount: 1,
             sortOrder: 0,
-            createdAt: DateTime(2024, 1, 1),
-            updatedAt: DateTime(2024, 6, 1),
+            createdAt: DateTime(2024),
+            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {
@@ -389,12 +384,10 @@ void main() {
           Collection(
             id: 1,
             name: 'Action Picks',
-            description: null,
-            coverPath: null,
             seriesCount: 0,
             sortOrder: 0,
-            createdAt: DateTime(2024, 1, 1),
-            updatedAt: DateTime(2024, 6, 1),
+            createdAt: DateTime(2024),
+            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {1: _detail(id: 1, name: 'Action Picks')},
@@ -416,12 +409,10 @@ void main() {
           Collection(
             id: 1,
             name: 'Action Picks',
-            description: null,
-            coverPath: null,
             seriesCount: 1,
             sortOrder: 0,
-            createdAt: DateTime(2024, 1, 1),
-            updatedAt: DateTime(2024, 6, 1),
+            createdAt: DateTime(2024),
+            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {

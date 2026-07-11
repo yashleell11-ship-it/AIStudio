@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/features/library/models/statistics_detail.dart';
+import 'package:manhwamaniacs/features/library/models/statistics_detail.dart';
 
 class LibraryStatistics {
   const LibraryStatistics({

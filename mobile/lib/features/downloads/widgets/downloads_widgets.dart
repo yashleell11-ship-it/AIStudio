@@ -1,15 +1,15 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_radius.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/series_download_group.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_formatters.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_queue_status.dart';
-import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/series_download_group.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_formatters.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_grouping.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_queue_status.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 
 class DownloadsMetricsPanel extends StatelessWidget {
   const DownloadsMetricsPanel({super.key, required this.metrics});
@@ -212,6 +212,8 @@ class DownloadRow extends StatelessWidget {
     required this.onResume,
     required this.onCancel,
     required this.onRetry,
+    this.onMoveUp,
+    this.onMoveDown,
   });
 
   final DownloadItem item;
@@ -220,6 +222,11 @@ class DownloadRow extends StatelessWidget {
   final VoidCallback onResume;
   final VoidCallback onCancel;
   final VoidCallback onRetry;
+
+  /// Reorder within the series' queue. `null` hides the up/down controls
+  /// entirely (item isn't reorderable or is already first/last).
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
 
   @override
   Widget build(BuildContext context) {
@@ -259,6 +266,12 @@ class DownloadRow extends StatelessWidget {
                         ],
                       ),
                     ),
+                    if (onMoveUp != null || onMoveDown != null)
+                      _ReorderButtons(
+                        onMoveUp: onMoveUp,
+                        onMoveDown: onMoveDown,
+                        busy: busy,
+                      ),
                     _StatusBadge(item: item),
                   ],
                 ),
@@ -425,6 +438,7 @@ class SeriesGroupCard extends StatefulWidget {
     required this.onResumeItem,
     required this.onCancelItem,
     required this.onRetryItem,
+    this.onMoveItem,
   });
 
   final SeriesDownloadGroup group;
@@ -437,6 +451,10 @@ class SeriesGroupCard extends StatefulWidget {
   final ValueChanged<int> onResumeItem;
   final ValueChanged<int> onCancelItem;
   final ValueChanged<int> onRetryItem;
+
+  /// Reorder a queued item within this series' own queue. `id, direction`.
+  /// `null` disables reordering entirely (no up/down controls shown).
+  final void Function(int id, String direction)? onMoveItem;
 
   @override
   State<SeriesGroupCard> createState() => _SeriesGroupCardState();
@@ -530,20 +548,50 @@ class _SeriesGroupCardState extends State<SeriesGroupCard> {
         ),
         if (_expanded) ...[
           const SizedBox(height: AppSpacing.md),
-          for (final item in rows) ...[
+          for (final entry in _reorderableRows(rows)) ...[
             DownloadRow(
-              item: item,
+              item: entry.item,
               busy: widget.busy,
-              onPause: () => widget.onPauseItem(item.id),
-              onResume: () => widget.onResumeItem(item.id),
-              onCancel: () => widget.onCancelItem(item.id),
-              onRetry: () => widget.onRetryItem(item.id),
+              onPause: () => widget.onPauseItem(entry.item.id),
+              onResume: () => widget.onResumeItem(entry.item.id),
+              onCancel: () => widget.onCancelItem(entry.item.id),
+              onRetry: () => widget.onRetryItem(entry.item.id),
+              onMoveUp: entry.canMoveUp
+                  ? () => widget.onMoveItem!(entry.item.id, 'up')
+                  : null,
+              onMoveDown: entry.canMoveDown
+                  ? () => widget.onMoveItem!(entry.item.id, 'down')
+                  : null,
             ),
             const SizedBox(height: AppSpacing.md),
           ],
         ],
       ],
     );
+  }
+
+  /// Pairs each row with whether it can move up/down within this series'
+  /// own queue -- scoped to *queued* items only (paused/downloading/etc.
+  /// aren't part of the dispatch order the backend reorders), matching
+  /// exactly what the backend itself considers eligible.
+  List<({DownloadItem item, bool canMoveUp, bool canMoveDown})> _reorderableRows(
+    List<DownloadItem> rows,
+  ) {
+    if (widget.onMoveItem == null) {
+      return [for (final item in rows) (item: item, canMoveUp: false, canMoveDown: false)];
+    }
+    final queuedIds = rows.where((item) => item.isQueued).map((item) => item.id).toList();
+    return [
+      for (final item in rows)
+        if (item.isQueued)
+          (
+            item: item,
+            canMoveUp: queuedIds.indexOf(item.id) > 0,
+            canMoveDown: queuedIds.indexOf(item.id) < queuedIds.length - 1,
+          )
+        else
+          (item: item, canMoveUp: false, canMoveDown: false),
+    ];
   }
 }
 
@@ -575,6 +623,70 @@ class _GroupBadge extends StatelessWidget {
       child: Text(
         label,
         style: AppTypography.caption.copyWith(color: color),
+      ),
+    );
+  }
+}
+
+class _ReorderButtons extends StatelessWidget {
+  const _ReorderButtons({
+    required this.onMoveUp,
+    required this.onMoveDown,
+    required this.busy,
+  });
+
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(left: AppSpacing.xs),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _ReorderButton(
+            icon: Icons.keyboard_arrow_up,
+            tooltip: 'Move up in queue',
+            onPressed: busy ? null : onMoveUp,
+          ),
+          _ReorderButton(
+            icon: Icons.keyboard_arrow_down,
+            tooltip: 'Move down in queue',
+            onPressed: busy ? null : onMoveDown,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ReorderButton extends StatelessWidget {
+  const _ReorderButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 28,
+      height: 22,
+      child: IconButton(
+        padding: EdgeInsets.zero,
+        iconSize: 18,
+        tooltip: tooltip,
+        onPressed: onPressed,
+        icon: Icon(
+          icon,
+          color: onPressed == null ? AppColors.muted.withAlpha(77) : AppColors.muted,
+        ),
       ),
     );
   }

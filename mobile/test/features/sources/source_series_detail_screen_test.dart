@@ -1,31 +1,31 @@
 import 'dart:async';
 
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
-import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
-import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/sources/models/source.dart';
-import 'package:aistudio_mobile/features/sources/models/source_series.dart';
-import 'package:aistudio_mobile/features/sources/repositories/sources_repository.dart';
-import 'package:aistudio_mobile/features/sources/screens/source_series_detail_screen.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
-import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
-import '../../support/test_overrides.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
+import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_series.dart';
+import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
+import 'package:manhwamaniacs/features/sources/screens/source_series_detail_screen.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../support/test_overrides.dart';
 
 /// Minimal fake — only the series-detail + chapters paths are exercised; the
 /// remaining methods throw so a stray call surfaces loudly rather than passing
@@ -184,7 +184,7 @@ class _FakeDownloadsNotifier extends DownloadsNotifier {
   Future<DownloadsState> build() async {
     return DownloadsState(
       items: items,
-      metrics: DownloadMetrics(
+      metrics: const DownloadMetrics(
         total: 0,
         completed: 0,
         failed: 0,
@@ -196,8 +196,7 @@ class _FakeDownloadsNotifier extends DownloadsNotifier {
         storageFreeBytes: 0,
         overallSpeedBps: 0,
         overallSpeedMbps: 0,
-        overallEtaSeconds: null,
-        workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
+        workers: DownloadWorkers(configured: 1, active: 0, running: 0),
       ),
     );
   }
@@ -283,7 +282,7 @@ class _RecordingDownloadsRepository implements DownloadsRepository {
   Future<Result<List<DownloadItem>>> listDownloads() async => const Ok([]);
 
   @override
-  Future<Result<DownloadMetrics>> getMetrics() async => Ok(
+  Future<Result<DownloadMetrics>> getMetrics() async => const Ok(
         DownloadMetrics(
           total: 0,
           completed: 0,
@@ -296,8 +295,7 @@ class _RecordingDownloadsRepository implements DownloadsRepository {
           storageFreeBytes: 0,
           overallSpeedBps: 0,
           overallSpeedMbps: 0,
-          overallEtaSeconds: null,
-          workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
+          workers: DownloadWorkers(configured: 1, active: 0, running: 0),
         ),
       );
 
@@ -319,6 +317,10 @@ class _RecordingDownloadsRepository implements DownloadsRepository {
 
   @override
   Future<Result<void>> retryDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<int>> pauseAll() => throw UnimplementedError();
@@ -679,7 +681,7 @@ void main() {
         tester,
         updatesRepo: fakeUpdates,
         chapters: [
-          _chapter(id: 'manga-1:1', number: 1, title: 'Chapter 1'),
+          _chapter(id: 'manga-1:1', number: 1),
           _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
         ],
       );
@@ -711,14 +713,14 @@ void main() {
         chaptersResponse: const Ok(QueueDownloadResponse(
           queued: [1, 2],
           skipped: ['manga-1:3'],
-        )),
+        ),),
       );
       await _pumpScreen(
         tester,
         updatesRepo: fakeUpdates,
         downloadsRepo: fakeDownloads,
         chapters: [
-          _chapter(id: 'manga-1:1', number: 1, title: 'Chapter 1'),
+          _chapter(id: 'manga-1:1', number: 1),
           _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
         ],
       );
@@ -756,7 +758,7 @@ void main() {
         seriesResponse: const Ok(QueueDownloadResponse(
           queued: [1, 2, 3],
           skipped: [],
-        )),
+        ),),
       );
       await _pumpScreen(
         tester,
@@ -810,7 +812,7 @@ void main() {
         seriesResponse: const Ok(QueueDownloadResponse(
           queued: [1],
           skipped: [],
-        )),
+        ),),
       );
 
       String? navigatedLocation;
@@ -910,7 +912,7 @@ void main() {
           statusCode: 500,
           code: 'queue_failed',
           message: 'Queue failed',
-        )),
+        ),),
       );
 
       await _pumpScreen(
@@ -961,7 +963,7 @@ void main() {
   });
 
   group('SourceSeriesDetailScreen download status', () {
-    DownloadItem _statusItem({
+    DownloadItem statusItem({
       required String chapterId,
       required String status,
     }) =>
@@ -977,13 +979,13 @@ void main() {
           pagesDone: 5,
           pagesTotal: 10,
           bytesDownloaded: 1024,
-          createdAt: DateTime.utc(2024, 1, 1),
+          createdAt: DateTime.utc(2024),
           updatedAt: DateTime.utc(2024, 1, 2),
           priority: 0,
           retryCount: 0,
         );
 
-    Future<void> _scrollToChapterWidget(
+    Future<void> scrollToChapterWidget(
       WidgetTester tester,
       Finder finder,
     ) async {
@@ -995,7 +997,7 @@ void main() {
       await tester.pump();
     }
 
-    Future<void> _pumpWithStatuses(
+    Future<void> pumpWithStatuses(
       WidgetTester tester,
       List<DownloadItem> downloadItems,
     ) async {
@@ -1003,7 +1005,7 @@ void main() {
         tester,
         updatesRepo: _FakeUpdatesRepository(),
         chapters: [
-          _chapter(id: 'manga-1:1', number: 1, title: 'Chapter 1'),
+          _chapter(id: 'manga-1:1', number: 1),
           _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
           _chapter(id: 'manga-1:3', number: 3, title: 'Chapter 3'),
           _chapter(id: 'manga-1:4', number: 4, title: 'Chapter 4'),
@@ -1015,15 +1017,15 @@ void main() {
     }
 
     testWidgets('shows chapter download badges from downloads state', (tester) async {
-      await _pumpWithStatuses(tester, [
-        _statusItem(chapterId: 'manga-1:1', status: 'queued'),
-        _statusItem(chapterId: 'manga-1:2', status: 'downloading'),
-        _statusItem(chapterId: 'manga-1:3', status: 'completed'),
-        _statusItem(chapterId: 'manga-1:4', status: 'failed'),
+      await pumpWithStatuses(tester, [
+        statusItem(chapterId: 'manga-1:1', status: 'queued'),
+        statusItem(chapterId: 'manga-1:2', status: 'downloading'),
+        statusItem(chapterId: 'manga-1:3', status: 'completed'),
+        statusItem(chapterId: 'manga-1:4', status: 'failed'),
       ]);
 
       for (final label in ['Queued', 'Downloading', 'Completed', 'Failed']) {
-        await _scrollToChapterWidget(tester, find.text(label));
+        await scrollToChapterWidget(tester, find.text(label));
       }
 
       expect(find.text('Queued'), findsOneWidget);
@@ -1034,24 +1036,24 @@ void main() {
 
     testWidgets('disables download for queued, downloading, and completed chapters',
         (tester) async {
-      await _pumpWithStatuses(tester, [
-        _statusItem(chapterId: 'manga-1:1', status: 'queued'),
-        _statusItem(chapterId: 'manga-1:2', status: 'downloading'),
-        _statusItem(chapterId: 'manga-1:3', status: 'completed'),
-        _statusItem(chapterId: 'manga-1:4', status: 'failed'),
-        _statusItem(chapterId: 'manga-1:5', status: 'cancelled'),
+      await pumpWithStatuses(tester, [
+        statusItem(chapterId: 'manga-1:1', status: 'queued'),
+        statusItem(chapterId: 'manga-1:2', status: 'downloading'),
+        statusItem(chapterId: 'manga-1:3', status: 'completed'),
+        statusItem(chapterId: 'manga-1:4', status: 'failed'),
+        statusItem(chapterId: 'manga-1:5', status: 'cancelled'),
       ]);
 
       final disabledChapterIds = ['manga-1:1', 'manga-1:2', 'manga-1:3'];
       for (final chapterId in disabledChapterIds) {
         final finder = find.byKey(Key('download-$chapterId'));
-        await _scrollToChapterWidget(tester, finder);
+        await scrollToChapterWidget(tester, finder);
         expect(tester.widget<IconButton>(finder).onPressed, isNull);
       }
 
       for (final chapterId in ['manga-1:4', 'manga-1:5']) {
         final finder = find.byKey(Key('download-$chapterId'));
-        await _scrollToChapterWidget(tester, finder);
+        await scrollToChapterWidget(tester, finder);
         expect(tester.widget<IconButton>(finder).onPressed, isNotNull);
       }
     });
@@ -1076,7 +1078,7 @@ void main() {
             pagesDone: 2,
             pagesTotal: 10,
             bytesDownloaded: 512,
-            createdAt: DateTime.utc(2024, 1, 1),
+            createdAt: DateTime.utc(2024),
             updatedAt: DateTime.utc(2024, 1, 2),
             priority: 0,
             retryCount: 1,
@@ -1087,7 +1089,7 @@ void main() {
       await tester.pumpAndSettle();
 
       final buttonFinder = find.byKey(const Key('download-manga-1:4'));
-      await _scrollToChapterWidget(tester, buttonFinder);
+      await scrollToChapterWidget(tester, buttonFinder);
       expect(tester.widget<IconButton>(buttonFinder).onPressed, isNotNull);
 
       await tester.tap(buttonFinder);

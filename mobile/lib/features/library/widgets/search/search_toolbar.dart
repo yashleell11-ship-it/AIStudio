@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
 
 class SearchToolbar extends StatefulWidget {
   const SearchToolbar({
@@ -171,7 +171,7 @@ class _SearchToolbarState extends State<SearchToolbar> {
           ),
           const SizedBox(height: AppSpacing.lg),
           DropdownButtonFormField<LibrarySort>(
-            value: widget.query.sort,
+            initialValue: widget.query.sort,
             decoration: const InputDecoration(
               labelText: 'Sort',
               isDense: true,

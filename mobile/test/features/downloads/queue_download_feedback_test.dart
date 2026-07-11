@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
-import 'package:aistudio_mobile/features/downloads/utils/queue_download_feedback.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/utils/queue_download_feedback.dart';
 
 void main() {
   group('queueDownloadFeedbackMessage', () {

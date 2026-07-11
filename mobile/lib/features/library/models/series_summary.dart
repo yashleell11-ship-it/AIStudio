@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 
 class SeriesSummary {
   const SeriesSummary({

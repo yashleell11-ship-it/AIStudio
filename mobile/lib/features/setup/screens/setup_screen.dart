@@ -1,12 +1,12 @@
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/config/env.dart';
-import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 
 class SetupScreen extends ConsumerStatefulWidget {
   const SetupScreen({super.key});
@@ -61,10 +61,10 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
         child: ListView(
           padding: const EdgeInsets.all(AppSpacing.xl2),
           children: [
-            Text('Welcome to AIStudio', style: AppTypography.h2),
+            Text('Welcome to ManhwaManiacs', style: AppTypography.h2),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Connect to your AIStudio backend to browse, download, and read.',
+              'Connect to your ManhwaManiacs backend to browse, download, and read.',
               style: AppTypography.body.copyWith(color: AppColors.muted),
             ),
             const SizedBox(height: AppSpacing.xl2),

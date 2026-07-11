@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 
 void main() {
   final json = {

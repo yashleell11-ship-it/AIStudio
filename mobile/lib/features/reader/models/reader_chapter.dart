@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 
 enum ReaderMode { local, remote }
 

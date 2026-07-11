@@ -1,0 +1,16 @@
+Fonts bundled in this directory are distributed under the SIL Open Font
+License, Version 1.1 (https://scripts.sil.org/OFL), which permits bundling,
+embedding and redistribution as part of a larger software product.
+
+- Inter (Inter-Regular.ttf, Inter-Medium.ttf, Inter-SemiBold.ttf, Inter-Bold.ttf)
+  Copyright The Inter Project Authors (https://github.com/rsms/inter)
+
+- Bebas Neue (BebasNeue-Regular.ttf)
+  Copyright Dharma Type (Ryoichi Tsunekawa)
+
+- Space Mono (SpaceMono-Regular.ttf)
+  Copyright Colophon Foundry
+
+All files were obtained via the Google Fonts distribution
+(https://fonts.google.com), which serves the same OFL-licensed binaries
+published by each font's respective foundry.

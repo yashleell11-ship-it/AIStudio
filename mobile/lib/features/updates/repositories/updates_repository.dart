@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 
 abstract interface class UpdatesRepository {
   Future<Result<List<UpdateNotification>>> listNotifications({

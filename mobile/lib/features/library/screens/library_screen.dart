@@ -1,20 +1,22 @@
-import 'dart:async';
+﻿import 'dart:async';
 
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/library/models/library_list_state.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
-import 'package:aistudio_mobile/features/library/widgets/library/library_skeleton.dart';
-import 'package:aistudio_mobile/features/library/widgets/library/library_toolbar.dart';
-import 'package:aistudio_mobile/features/library/widgets/library/series_grid.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/providers/library_display_provider.dart';
+import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
+import 'package:manhwamaniacs/features/library/providers/library_selection_provider.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/library_toolbar.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -61,26 +63,114 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     });
   }
 
+  void _showSeriesActions(SeriesSummary series) {
+    showModalBottomSheet<void>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheetCtx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                AppSpacing.xl2,
+                0,
+                AppSpacing.xl2,
+                AppSpacing.sm,
+              ),
+              child: Text(
+                series.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.h4,
+              ),
+            ),
+            ListTile(
+              leading: const Icon(Icons.open_in_new),
+              title: const Text('Open'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                context.push(RoutePaths.seriesDetail(series.id));
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                series.isFavorite ? Icons.star : Icons.star_border,
+                color: series.isFavorite ? AppColors.warning : null,
+              ),
+              title: Text(
+                series.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+              ),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                ref.read(libraryListProvider.notifier).toggleFavorite(series.id);
+              },
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmBatchFavorite(Set<int> ids, {required bool favorite}) async {
+    await ref
+        .read(libraryListProvider.notifier)
+        .batchSetFavorite(ids, favorite: favorite);
+    if (mounted) {
+      ref.read(librarySelectionProvider.notifier).exitSelectionMode();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(libraryQueryProvider);
     final listAsync = ref.watch(libraryListProvider);
+    final coverScale = ref.watch(libraryCoverScaleProvider);
+    final selection = ref.watch(librarySelectionProvider);
+    final selectionController = ref.read(librarySelectionProvider.notifier);
+    void onCoverScaleChanged(double value) =>
+        ref.read(libraryCoverScaleProvider.notifier).setScale(value);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Browse Library'),
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.canPop() ? context.pop() : context.go(Routes.library),
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.bookmark_outline),
-            tooltip: 'Bookmarks',
-            onPressed: () => context.push(Routes.bookmarks),
-          ),
-        ],
-      ),
+      appBar: selection.active
+          ? AppBar(
+              title: Text('${selection.selectedIds.length} selected'),
+              leading: IconButton(
+                icon: const Icon(Icons.close),
+                tooltip: 'Cancel selection',
+                onPressed: selectionController.exitSelectionMode,
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.select_all),
+                  tooltip: 'Select all',
+                  onPressed: () => selectionController.selectAll(
+                    listAsync.valueOrNull?.items.map((s) => s.id) ?? const [],
+                  ),
+                ),
+              ],
+            )
+          : AppBar(
+              title: const Text('Browse Library'),
+              leading: IconButton(
+                icon: const Icon(Icons.arrow_back),
+                onPressed: () =>
+                    context.canPop() ? context.pop() : context.go(Routes.library),
+              ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.checklist),
+                  tooltip: 'Select series',
+                  onPressed: selectionController.enterSelectionMode,
+                ),
+                IconButton(
+                  icon: const Icon(Icons.bookmark_outline),
+                  tooltip: 'Bookmarks',
+                  onPressed: () => context.push(Routes.bookmarks),
+                ),
+              ],
+            ),
       body: listAsync.when(
         loading: () => _LibraryScrollView(
           scrollController: _scrollController,
@@ -93,6 +183,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 LibraryToolbar(
                   query: query,
                   seriesCount: 0,
+                  coverScale: coverScale,
+                  onCoverScaleChanged: onCoverScaleChanged,
                   onSearchChanged: _onSearchChanged,
                   onSortChanged: (sort) =>
                       _updateQuery((q) => q.copyWith(sort: sort)),
@@ -117,6 +209,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           query: query,
           state: state,
           scrollController: _scrollController,
+          coverScale: coverScale,
+          onCoverScaleChanged: onCoverScaleChanged,
           onRefresh: () => ref.read(libraryListProvider.notifier).refresh(),
           onSearchChanged: _onSearchChanged,
           onSortChanged: (sort) => _updateQuery((q) => q.copyWith(sort: sort)),
@@ -124,9 +218,68 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               _updateQuery((q) => q.copyWith(filter: filter)),
           onViewModeChanged: (viewMode) =>
               _updateQuery((q) => q.copyWith(viewMode: viewMode)),
-          onSeriesTap: (series) => context.push(RoutePaths.seriesDetail(series.id)),
+          onSeriesTap: selection.active
+              ? (series) => selectionController.toggle(series.id)
+              : (series) => context.push(RoutePaths.seriesDetail(series.id)),
+          onSeriesLongPress: selection.active ? null : _showSeriesActions,
           onToggleFavorite: (seriesId) =>
               ref.read(libraryListProvider.notifier).toggleFavorite(seriesId),
+          selectionMode: selection.active,
+          selectedIds: selection.selectedIds,
+        ),
+      ),
+      bottomNavigationBar: selection.active && selection.selectedIds.isNotEmpty
+          ? _SelectionActionBar(
+              count: selection.selectedIds.length,
+              onFavorite: () =>
+                  _confirmBatchFavorite(selection.selectedIds, favorite: true),
+              onUnfavorite: () =>
+                  _confirmBatchFavorite(selection.selectedIds, favorite: false),
+            )
+          : null,
+    );
+  }
+}
+
+class _SelectionActionBar extends StatelessWidget {
+  const _SelectionActionBar({
+    required this.count,
+    required this.onFavorite,
+    required this.onUnfavorite,
+  });
+
+  final int count;
+  final VoidCallback onFavorite;
+  final VoidCallback onUnfavorite;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.lg,
+          AppSpacing.sm,
+          AppSpacing.lg,
+          AppSpacing.sm,
+        ),
+        child: Row(
+          children: [
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onFavorite,
+                icon: const Icon(Icons.star, size: 18, color: AppColors.warning),
+                label: Text('Favorite ($count)'),
+              ),
+            ),
+            const SizedBox(width: AppSpacing.md),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: onUnfavorite,
+                icon: const Icon(Icons.star_border, size: 18),
+                label: const Text('Unfavorite'),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -138,25 +291,35 @@ class _LibraryBody extends StatelessWidget {
     required this.query,
     required this.state,
     required this.scrollController,
+    required this.coverScale,
+    required this.onCoverScaleChanged,
     required this.onRefresh,
     required this.onSearchChanged,
     required this.onSortChanged,
     required this.onFilterChanged,
     required this.onViewModeChanged,
     required this.onSeriesTap,
+    required this.onSeriesLongPress,
     required this.onToggleFavorite,
+    this.selectionMode = false,
+    this.selectedIds = const {},
   });
 
   final LibraryQuery query;
   final LibraryListState state;
   final ScrollController scrollController;
+  final double coverScale;
+  final ValueChanged<double> onCoverScaleChanged;
   final Future<void> Function() onRefresh;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<LibrarySort> onSortChanged;
   final ValueChanged<LibraryFilter> onFilterChanged;
   final ValueChanged<LibraryViewMode> onViewModeChanged;
   final ValueChanged<SeriesSummary> onSeriesTap;
+  final ValueChanged<SeriesSummary>? onSeriesLongPress;
   final ValueChanged<int> onToggleFavorite;
+  final bool selectionMode;
+  final Set<int> selectedIds;
 
   @override
   Widget build(BuildContext context) {
@@ -171,10 +334,12 @@ class _LibraryBody extends StatelessWidget {
             LibraryToolbar(
               query: query,
               seriesCount: state.total,
+              coverScale: coverScale,
+              onCoverScaleChanged: onCoverScaleChanged,
               onSearchChanged: onSearchChanged,
               onSortChanged: onSortChanged,
-          onFilterChanged: onFilterChanged,
-          onViewModeChanged: onViewModeChanged,
+              onFilterChanged: onFilterChanged,
+              onViewModeChanged: onViewModeChanged,
             ),
             if (state.error != null) ...[
               const SizedBox(height: AppSpacing.lg),
@@ -187,8 +352,12 @@ class _LibraryBody extends StatelessWidget {
               SeriesGrid(
                 items: state.items,
                 viewMode: query.viewMode,
+                coverScale: coverScale,
                 onSeriesTap: onSeriesTap,
+                onSeriesLongPress: onSeriesLongPress,
                 onToggleFavorite: onToggleFavorite,
+                selectionMode: selectionMode,
+                selectedIds: selectedIds,
               ),
             if (state.isLoadingMore) ...[
               const SizedBox(height: AppSpacing.xl2),
@@ -199,7 +368,8 @@ class _LibraryBody extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: AppSpacing.xl3),
+            // Extra bottom padding for floating nav bar
+            const SizedBox(height: AppSpacing.xl7),
           ],
         ),
       ),

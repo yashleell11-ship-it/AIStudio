@@ -1,6 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// Breakpoints matching the AIStudio frontend Tailwind config.
+/// Breakpoints matching the ManhwaManiacs frontend Tailwind config.
 abstract final class Breakpoints {
   static const double mobile = 768;
   static const double tablet = 1024;

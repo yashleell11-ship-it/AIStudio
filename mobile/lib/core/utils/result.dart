@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 
 /// Lightweight Result type — avoids try/catch at call sites.
 sealed class Result<T> {

@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/core/logging/app_logger.dart';
 import 'package:dio/dio.dart';
+import 'package:manhwamaniacs/core/logging/app_logger.dart';
 
 /// Logs all outbound requests and inbound responses at debug level.
 class LoggingInterceptor extends Interceptor {

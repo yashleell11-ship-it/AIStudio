@@ -1,9 +1,9 @@
 import 'dart:convert';
 
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-const libraryQueryPrefsKey = 'aistudio:library-query';
+const libraryQueryPrefsKey = 'manhwamaniacs:library-query';
 
 LibraryQuery readLibraryQuery(SharedPreferences prefs) {
   final raw = prefs.getString(libraryQueryPrefsKey);

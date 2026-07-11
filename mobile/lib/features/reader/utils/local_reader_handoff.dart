@@ -1,10 +1,10 @@
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_skeleton.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 /// Navigates to the library reader route for a downloaded chapter.
 Future<void> openDownloadedChapter(

@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 final seriesDetailProvider =
     FutureProvider.autoDispose.family<SeriesDetail, int>((ref, seriesId) async {

@@ -1,7 +1,7 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
 
-/// Type scale matching the AIStudio v2 frontend (Inter sans-serif).
+/// Type scale matching the ManhwaManiacs v2 frontend (Inter sans-serif).
 ///
 /// Flutter ships with Roboto; Inter is loaded via pubspec assets if added later.
 /// The size/weight mapping mirrors the Tailwind prose scale used in the desktop UI.

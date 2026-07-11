@@ -1,9 +1,9 @@
-import 'package:aistudio_mobile/core/config/env.dart';
-import 'package:aistudio_mobile/core/network/dio_client.dart';
-import 'package:aistudio_mobile/core/storage/preferences.dart';
-import 'package:aistudio_mobile/core/storage/secure_storage.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/core/network/dio_client.dart';
+import 'package:manhwamaniacs/core/storage/preferences.dart';
+import 'package:manhwamaniacs/core/storage/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // ── Secure Storage ─────────────────────────────────────────────────────────

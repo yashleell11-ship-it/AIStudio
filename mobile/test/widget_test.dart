@@ -1,9 +1,9 @@
-import 'package:aistudio_mobile/app/app.dart';
-import 'package:aistudio_mobile/core/config/env.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/app/app.dart';
+import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'support/test_overrides.dart';
@@ -11,7 +11,7 @@ import 'support/test_overrides.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('AiStudioApp loads with ProviderScope overrides', (tester) async {
+  testWidgets('ManhwaManiacsApp loads with ProviderScope overrides', (tester) async {
     SharedPreferences.setMockInitialValues(testPrefsDefaults());
     final prefs = await SharedPreferences.getInstance();
 
@@ -21,7 +21,7 @@ void main() {
           apiBaseUrlOverride(Env.defaultApiUrl),
           sharedPrefsProvider.overrideWithValue(prefs),
         ],
-        child: const AiStudioApp(),
+        child: const ManhwaManiacsApp(),
       ),
     );
     await tester.pump();
