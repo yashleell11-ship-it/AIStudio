@@ -334,7 +334,7 @@ class MadaraHtml:
                     id=self.make_page_id(chapter_id, index),
                     chapter_id=chapter_id,
                     number=index,
-                    remote_url=remote_url,
+                    remote_url=self._upgrade_https(remote_url),
                 )
             )
         return pages
@@ -388,13 +388,24 @@ class MadaraHtml:
             return 2
         return 1
 
+    @staticmethod
+    def _upgrade_https(url: str) -> str:
+        """Force HTTPS so the image proxy SSRF allowlist accepts Madara CDNs.
+
+        Many Madara themes still emit ``http://`` media URLs even though the
+        same path is available over TLS.
+        """
+        if url.startswith("http://"):
+            return "https://" + url[len("http://") :]
+        return url
+
     def _extract_image_url(self, tag: str) -> str | None:
         for pattern in (self._img_data_src, self._img_src):
             match = pattern.search(tag)
             if match:
                 url = match.group(1).strip()
                 if url.startswith("http"):
-                    return url
+                    return self._upgrade_https(url)
         return None
 
     def _card_cover_url(self, segment: str) -> str | None:
