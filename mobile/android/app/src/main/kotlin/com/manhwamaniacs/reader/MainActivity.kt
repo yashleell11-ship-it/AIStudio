@@ -1,4 +1,4 @@
-package com.manhwamaniacs.app
+package com.manhwamaniacs.reader
 
 import android.app.ActivityManager
 import android.content.Context
@@ -15,7 +15,7 @@ import io.flutter.plugin.common.MethodChannel
  *    the device instead of a single fixed budget for every phone.
  */
 class MainActivity : FlutterActivity() {
-    private val channelName = "com.manhwamaniacs.app/native"
+    private val channelName = "com.manhwamaniacs.reader/native"
     private var methodChannel: MethodChannel? = null
 
     // Only intercept volume keys while the reader is open and the user has

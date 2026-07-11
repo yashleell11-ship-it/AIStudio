@@ -271,7 +271,7 @@ DownloadSettings _sampleDownloadSettings() => const DownloadSettings(
 
 final _testPackageInfo = PackageInfo(
   appName: 'ManhwaManiacs',
-  packageName: 'com.manhwamaniacs.app',
+  packageName: 'com.manhwamaniacs.reader',
   version: '1.0.0',
   buildNumber: '1',
 );

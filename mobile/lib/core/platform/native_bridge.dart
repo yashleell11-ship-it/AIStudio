@@ -51,7 +51,7 @@ class PlatformNativeBridge implements NativeBridge {
     }
   }
 
-  static const _channel = MethodChannel('com.manhwamaniacs.app/native');
+  static const _channel = MethodChannel('com.manhwamaniacs.reader/native');
 
   bool get _supported => !kIsWeb && Platform.isAndroid;
 
