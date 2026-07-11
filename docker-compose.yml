@@ -35,18 +35,24 @@ services:
       # dir) to import an existing on-disk library.
       - MM_IMPORT_ROOTS=${MM_IMPORT_ROOTS:-}
       # Latest Android APK served at app.<host>/app/download. The deploy populates
-      # ./apk/app-release.apk (see ops/deploy.sh); mounted read-only below.
+      # ./apk/app-release.apk (see ops/deploy.sh); mounted read-only below. The
+      # pubspec (version label) and screenshots (landing imagery) are addressed by
+      # absolute in-container paths, not REPO_ROOT — the backend image root resolves
+      # to "/", so REPO_ROOT-relative defaults would miss the mounts below.
       - MM_APK_PATH=${MM_APK_PATH:-/app/apk/app-release.apk}
+      - MM_PUBSPEC_PATH=${MM_PUBSPEC_PATH:-/app/mobile/pubspec.yaml}
+      - MM_SCREENSHOTS_DIR=${MM_SCREENSHOTS_DIR:-/app/mobile/docs/screenshots}
     expose:
       - "8000"
     networks: [internal, edge]
     volumes:
       - data:/data
-      # Read-only APK drop + live pubspec (for the version label on the landing
-      # page). The ./apk dir is created by the deploy even when empty, so a missing
-      # APK reads as "not built yet" instead of a broken bind mount.
+      # Read-only APK drop + live pubspec (version label) + marketing screenshots
+      # (landing imagery). The ./apk dir is created by the deploy even when empty, so
+      # a missing APK reads as "not built yet" instead of a broken bind mount.
       - ./apk:/app/apk:ro
       - ./mobile/pubspec.yaml:/app/mobile/pubspec.yaml:ro
+      - ./mobile/docs/screenshots:/app/mobile/docs/screenshots:ro
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"]
       interval: 30s

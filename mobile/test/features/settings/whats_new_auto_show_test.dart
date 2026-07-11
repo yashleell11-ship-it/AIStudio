@@ -16,7 +16,7 @@ void main() {
     // "latest" entry below).
     PackageInfo.setMockInitialValues(
       appName: 'ManhwaManiacs',
-      packageName: 'com.manhwamaniacs.app',
+      packageName: 'com.manhwamaniacs.reader',
       version: '1.2.0',
       buildNumber: '3',
       buildSignature: '',

@@ -55,8 +55,14 @@ PUBSPEC_PATH: Path = Path(
 )
 
 # Curated marketing screenshots that ship with the mobile project. Served
-# read-only under /app/media so the landing page can show the real app.
-SCREENSHOTS_DIR: Path = REPO_ROOT / "mobile" / "docs" / "screenshots"
+# read-only under /app/media so the landing page can show the real app. Path is
+# env-overridable (``MM_SCREENSHOTS_DIR``) because the backend image doesn't ship
+# the mobile project — the deploy mounts the screenshots into the container.
+SCREENSHOTS_DIR: Path = Path(
+    os.environ.get(
+        "MM_SCREENSHOTS_DIR", str(REPO_ROOT / "mobile" / "docs" / "screenshots")
+    )
+)
 _ALLOWED_MEDIA_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 _DEFAULT_VERSION = "1.0.0"
@@ -84,6 +90,15 @@ class Changelog(BaseModel):
 # available as JSON at /app/changelog so the mobile "What's new" screen can
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
+    ChangelogEntry(
+        version="1.2.1",
+        build=4,
+        date="July 2026",
+        highlights=[
+            "Fresh install identity so the app installs cleanly without "
+            "uninstalling any earlier build first",
+        ],
+    ),
     ChangelogEntry(
         version="1.2.0",
         build=3,
@@ -328,7 +343,7 @@ def _render_hero(info: AppVersion, apk_ready: bool, size_label: str | None) -> s
         if apk_ready
         else '<span class="chip"><span class="chip-dot"></span>Build pending</span>'
     )
-    hero_shot = f"/app/media/{_SHOWCASE[0][0]}"
+    hero_shot = f"/app/media/{_SHOWCASE[0][0]}?v={info.version}.{info.build}"
     return f"""
   <section class="hero" id="top">
     <div class="aurora" aria-hidden="true">
@@ -387,12 +402,12 @@ def _render_features() -> str:
   </section>"""
 
 
-def _render_showcase() -> str:
+def _render_showcase(ver: str) -> str:
     shots = "".join(
         f"""
         <figure class="shot reveal">
           <div class="shot-frame">
-            <img src="/app/media/{escape(fname)}" alt="{escape(title)}"
+            <img src="/app/media/{escape(fname)}?v={escape(ver)}" alt="{escape(title)}"
                  loading="lazy" decoding="async" />
           </div>
           <figcaption>
@@ -586,7 +601,7 @@ def render_landing_html() -> str:
         _render_nav(info)
         + _render_hero(info, apk_ready, size_label)
         + _render_features()
-        + _render_showcase()
+        + _render_showcase(f"{info.version}.{info.build}")
         + _render_changelog()
         + _render_download(info, apk_ready, size_label)
         + _render_faq()
