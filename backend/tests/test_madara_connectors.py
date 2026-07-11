@@ -374,3 +374,28 @@ def test_madara_image_proxy_sends_referer():
     connector = create_connector("manhwaclub")
     headers = connector.image_fetch_headers()
     assert headers.get("Referer") == "https://manhwaclub.net/"
+
+def test_madara_upgrades_http_image_urls_to_https():
+    """Madara page/cover URLs that arrive as http:// are upgraded to https://."""
+    from connectors.madara.config import MadaraSiteConfig
+    from connectors.madara.mappers import MadaraHtml
+
+    cfg = MadaraSiteConfig(
+        source_id="manhwaclub",
+        display_name="ManhwaClub",
+        base_url="https://manhwaclub.net",
+        url_segment="manga",
+    )
+    parser = MadaraHtml(cfg)
+    assert parser._upgrade_https("http://cdn.example/a.jpg") == "https://cdn.example/a.jpg"
+    assert parser._upgrade_https("https://cdn.example/a.jpg") == "https://cdn.example/a.jpg"
+
+    html = """
+    <div class="reading-content">
+      <img src="http://manhwaclub.net/wp-content/uploads/page1.jpg" />
+    </div>
+    """
+    pages = parser.parse_chapter_pages(html, "series/chapter-1")
+    assert pages
+    assert pages[0].remote_url.startswith("https://")
+
