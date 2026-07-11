@@ -4,11 +4,13 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from connectors.base import SourceConnector
+from connectors.http.client import ConnectorHttpError
+from connectors.madara.mappers import MadaraHtml
 from connectors.madara.sites import MADARA_SITES
 from connectors.registry import create_connector
 from tests.connector_validation import ConnectorContractCase, validate_connector_contract
@@ -183,3 +185,192 @@ def test_manhuaplus_live_fixture_contract() -> None:
 
         found = connector.find_page(pages[0].id)
         assert found == pages[0]
+
+
+# ---------------------------------------------------------------------------
+# AJAX chapter fallback tests
+# ---------------------------------------------------------------------------
+
+AJAX_SERIES_ID = "test-series-ajax"
+AJAX_CHAPTER_FRAGMENT = """
+<ul class="main version-chap">
+    <li class="wp-manga-chapter  ">
+        <a href="https://example-madara.com/manga/test-series-ajax/chapter-3/">
+            Chapter 3
+        </a>
+    </li>
+    <li class="wp-manga-chapter  ">
+        <a href="https://example-madara.com/manga/test-series-ajax/chapter-2/">
+            Chapter 2
+        </a>
+    </li>
+    <li class="wp-manga-chapter  ">
+        <a href="https://example-madara.com/manga/test-series-ajax/chapter-1/">
+            Chapter 1
+        </a>
+    </li>
+</ul>
+"""
+
+SERIES_HTML_WITH_MANGA_ID = f"""
+<html>
+<body>
+<div class="post-title"><h1>Test Series</h1></div>
+<div class="tab-summary">
+    <div class="tab-thumb c-image-hover">
+        <div class="summary_image">
+            <a class="a-h" href="/manga/{AJAX_SERIES_ID}/" data-id="99999">
+            </a>
+        </div>
+    </div>
+</div>
+<div class="listing-chapters_wrap">
+    <!-- No chapter list items – they come from AJAX -->
+</div>
+</body>
+</html>
+"""
+
+SERIES_HTML_WITHOUT_MANGA_ID = f"""
+<html>
+<body>
+<div class="post-title"><h1>Test Series</h1></div>
+<div class="listing-chapters_wrap">
+    <li class="wp-manga-chapter  ">
+        <a href="https://example-madara.com/manga/{AJAX_SERIES_ID}/chapter-1/">Chapter 1</a>
+    </li>
+</div>
+</body>
+</html>
+"""
+
+
+def test_madara_parse_manga_id_from_data_attribute():
+    """parse_manga_id extracts the post ID from a data-id attribute."""
+    from connectors.madara.config import MadaraSiteConfig
+
+    cfg = MadaraSiteConfig(
+        source_id="test",
+        display_name="Test",
+        base_url="https://example-madara.com",
+        url_segment="manga",
+    )
+    parser = MadaraHtml(cfg)
+    assert parser.parse_manga_id(SERIES_HTML_WITH_MANGA_ID) == "99999"
+
+
+def test_madara_parse_manga_id_returns_none_when_absent():
+    """parse_manga_id returns None when no data-id is in the HTML."""
+    from connectors.madara.config import MadaraSiteConfig
+
+    cfg = MadaraSiteConfig(
+        source_id="test",
+        display_name="Test",
+        base_url="https://example-madara.com",
+        url_segment="manga",
+    )
+    parser = MadaraHtml(cfg)
+    assert parser.parse_manga_id("<html><body>No manga id here</body></html>") is None
+
+
+def _fresh_madara_connector():
+    """Create a fresh MadaraConnector instance for manhwaclub (bypasses the singleton cache)."""
+    from connectors.madara.factory import madara_connector_classes
+    from connectors.madara.sites import MADARA_SITES
+
+    cfg = next(c for c in MADARA_SITES if c.source_id == "manhwaclub")
+    cls = next(c for c in madara_connector_classes((cfg,)))
+    return cls()
+
+
+def test_madara_ajax_chapter_fallback():
+    """Connector falls back to AJAX when HTML has no chapter links."""
+    connector = _fresh_madara_connector()
+
+    def fake_get_text(path, *, params=None):
+        return SERIES_HTML_WITH_MANGA_ID
+
+    def fake_post_text(path, *, data=None, extra_headers=None):
+        assert data == {"action": "manga_get_chapters", "manga": "99999"}
+        return AJAX_CHAPTER_FRAGMENT
+
+    with (
+        patch.object(connector._http, "get_text", side_effect=fake_get_text),
+        patch.object(connector._http, "post_text", side_effect=fake_post_text),
+    ):
+        chapters = connector.get_chapters(AJAX_SERIES_ID)
+
+    assert len(chapters) == 3
+    assert chapters[0].id == f"{AJAX_SERIES_ID}/chapter-1"
+    assert chapters[-1].id == f"{AJAX_SERIES_ID}/chapter-3"
+
+
+def test_madara_ajax_fallback_skipped_when_html_has_chapters():
+    """Connector does NOT call AJAX when HTML chapters are already present."""
+    connector = _fresh_madara_connector()
+
+    post_called = []
+
+    def fake_get_text(path, *, params=None):
+        return SERIES_HTML_WITHOUT_MANGA_ID
+
+    def fake_post_text(path, *, data=None, extra_headers=None):
+        post_called.append(path)
+        return ""
+
+    with (
+        patch.object(connector._http, "get_text", side_effect=fake_get_text),
+        patch.object(connector._http, "post_text", side_effect=fake_post_text),
+    ):
+        chapters = connector.get_chapters(AJAX_SERIES_ID)
+
+    assert len(chapters) == 1
+    assert not post_called, "post_text should not be called when HTML has chapters"
+
+
+def test_madara_ajax_fallback_skipped_when_no_manga_id():
+    """Connector does NOT call AJAX when the HTML has no data-id."""
+    connector = _fresh_madara_connector()
+
+    post_called = []
+
+    def fake_get_text(path, *, params=None):
+        return "<html><body><div class='post-title'><h1>X</h1></div></body></html>"
+
+    def fake_post_text(path, *, data=None, extra_headers=None):
+        post_called.append(path)
+        return ""
+
+    with (
+        patch.object(connector._http, "get_text", side_effect=fake_get_text),
+        patch.object(connector._http, "post_text", side_effect=fake_post_text),
+    ):
+        connector.get_chapters(AJAX_SERIES_ID)
+
+    assert not post_called, "post_text should not be called when no manga_id"
+
+
+def test_madara_ajax_fallback_on_http_error_returns_empty():
+    """Connector returns empty list gracefully when AJAX endpoint fails."""
+    connector = _fresh_madara_connector()
+
+    def fake_get_text(path, *, params=None):
+        return SERIES_HTML_WITH_MANGA_ID
+
+    def fake_post_text(path, *, data=None, extra_headers=None):
+        raise ConnectorHttpError("400 Bad Request", status_code=400)
+
+    with (
+        patch.object(connector._http, "get_text", side_effect=fake_get_text),
+        patch.object(connector._http, "post_text", side_effect=fake_post_text),
+    ):
+        chapters = connector.get_chapters(AJAX_SERIES_ID)
+
+    assert chapters == []
+
+
+def test_madara_image_proxy_sends_referer():
+    """MadaraConnector.image_fetch_headers returns the site Referer for CDN hotlink protection."""
+    connector = create_connector("manhwaclub")
+    headers = connector.image_fetch_headers()
+    assert headers.get("Referer") == "https://manhwaclub.net/"
