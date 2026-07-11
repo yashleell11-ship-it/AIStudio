@@ -21,8 +21,15 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final preferences = PreferencesService(prefs);
-  if (!preferences.setupCompleted && savedUrl != null && savedUrl.isNotEmpty) {
-    await preferences.setSetupCompleted(true);
+  if (!preferences.setupCompleted) {
+    if (savedUrl != null && savedUrl.isNotEmpty) {
+      await preferences.setSetupCompleted(true);
+    } else if (Env.hasBakedProductionUrl) {
+      // Production APK with a baked-in server URL — skip the setup form entirely.
+      await storage.setApiUrl(apiUrl);
+      await preferences.setSetupCompleted(true);
+      appLogger.i('Auto-configured server URL from build: $apiUrl');
+    }
   }
 
   runApp(

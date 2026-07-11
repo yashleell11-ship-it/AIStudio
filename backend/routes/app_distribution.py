@@ -91,6 +91,15 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.2.2",
+        build=5,
+        date="July 2026",
+        highlights=[
+            "Fresh installs from the official download page connect "
+            "automatically — no server URL setup screen",
+        ],
+    ),
+    ChangelogEntry(
         version="1.2.1",
         build=4,
         date="July 2026",

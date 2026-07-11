@@ -18,6 +18,15 @@ abstract final class Env {
   static bool get isDev => flavor == 'dev';
   static bool get isProd => flavor == 'prod';
 
+  /// True when this release build ships a non-local https API URL via
+  /// `--dart-define=API_URL=...` (e.g. production APK from app.manhwamaniacs.xyz).
+  /// Such builds skip the manual setup screen on first launch.
+  static bool get hasBakedProductionUrl =>
+      isProd &&
+      defaultApiUrl.startsWith('https://') &&
+      !defaultApiUrl.contains('127.0.0.1') &&
+      !defaultApiUrl.contains('localhost');
+
   /// Whether an insecure `http://` API base URL is permitted.
   ///
   /// Only dev builds may talk to a plain-http backend (local testing);
