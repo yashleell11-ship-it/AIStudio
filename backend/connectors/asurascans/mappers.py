@@ -141,6 +141,12 @@ def series_list_to_paginated(
 
 
 def series_detail_to_series(payload: dict[str, Any], *, chapter_count: int | None = None) -> Series | None:
+    # AsuraScans' detail API is inconsistent: some series come wrapped in a
+    # top-level {"data": {...}} envelope, others return the object directly.
+    # Unwrap so the series object is found either way (an unhandled wrapped
+    # response otherwise makes get_series() return None for those titles).
+    if "series" not in payload and isinstance(payload.get("data"), dict):
+        payload = payload["data"]
     series = payload.get("series")
     if not isinstance(series, dict):
         return None
