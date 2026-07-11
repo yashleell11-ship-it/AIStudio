@@ -159,6 +159,9 @@ class EightMusesConnector(SourceConnector):
             total=len(publishers) * PAGE_SIZE,
             api_has_more=listing.has_more,
         )
+        for item in items:
+            if item.cover_url:
+                self._series_cache.set(item.id, item)
         logger.info(
             "8muses browse publisher=%r page=%d count=%d has_more=%s",
             publisher_id,
@@ -177,6 +180,9 @@ class EightMusesConnector(SourceConnector):
 
         document = self._fetch_html(search_path(normalized))
         listing = parse_search_results(document, page=page, query=normalized)
+        for item in listing.items:
+            if item.cover_url:
+                self._series_cache.set(item.id, item)
         logger.info(
             "8muses search query=%r page=%d count=%d",
             normalized,
