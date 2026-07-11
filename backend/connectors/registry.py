@@ -6,6 +6,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
+from connectors.akuma.connector import AkumaConnector
 from connectors.asurascans.connector import AsuraScansConnector
 from connectors.base import SourceConnector
 from connectors.coffeemanga.connector import CoffeeMangaConnector
@@ -16,6 +17,7 @@ from connectors.madara.sites import MADARA_SITES
 from connectors.mangadex.connector import MangaDexConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
 from connectors.demonicscans.connector import DemonicScansConnector
+from connectors.firstkissmanga.connector import FirstKissMangaConnector
 from connectors.nhentai.connector import NHentaiConnector
 from connectors.porncomic18.connector import PornComic18Connector
 from connectors.threehentai.connector import ThreeHentaiConnector
@@ -30,6 +32,7 @@ _MADARA_CONNECTOR_CLASSES: tuple[type[SourceConnector], ...] = tuple(
 )
 
 _CONFIGLESS_CONNECTORS: set[str] = {
+    AkumaConnector.SOURCE_TYPE,
     AsuraScansConnector.SOURCE_TYPE,
     CoffeeMangaConnector.SOURCE_TYPE,
     MangaDexConnector.SOURCE_TYPE,
@@ -40,6 +43,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     PornComic18Connector.SOURCE_TYPE,
     ThreeHentaiConnector.SOURCE_TYPE,
     EightMusesConnector.SOURCE_TYPE,
+    FirstKissMangaConnector.SOURCE_TYPE,
     *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
 }
 
@@ -79,6 +83,7 @@ def register_connector(source_type: str, connector_cls: type[SourceConnector]) -
 def _register_builtin_connectors() -> None:
     """Register all built-in connectors. Fail loudly on any error."""
     builtins: tuple[tuple[str, type[SourceConnector]], ...] = (
+        (AkumaConnector.SOURCE_TYPE, AkumaConnector),
         (AsuraScansConnector.SOURCE_TYPE, AsuraScansConnector),
         (CoffeeMangaConnector.SOURCE_TYPE, CoffeeMangaConnector),
         (LocalFilesystemConnector.SOURCE_TYPE, LocalFilesystemConnector),
@@ -90,6 +95,7 @@ def _register_builtin_connectors() -> None:
         (PornComic18Connector.SOURCE_TYPE, PornComic18Connector),
         (ThreeHentaiConnector.SOURCE_TYPE, ThreeHentaiConnector),
         (EightMusesConnector.SOURCE_TYPE, EightMusesConnector),
+        (FirstKissMangaConnector.SOURCE_TYPE, FirstKissMangaConnector),
         *((cls.SOURCE_TYPE, cls) for cls in _MADARA_CONNECTOR_CLASSES),
     )
     failures: list[str] = []
