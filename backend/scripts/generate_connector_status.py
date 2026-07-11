@@ -14,6 +14,7 @@ OUTPUT = REPO / "docs" / "CONNECTOR_STATUS.md"
 
 HANDCRAFTED = frozenset({
     "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga",
+    "nhentai", "18porncomic", "3hentai", "8muses", "akuma", "1stkissmanga",
 })
 
 
