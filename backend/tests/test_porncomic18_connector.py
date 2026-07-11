@@ -46,10 +46,22 @@ def test_get_chapters_and_pages(porncomic18_connector: PornComic18Connector):
 
     assert series is not None
     assert series.title == "Secret Class"
-    assert len(chapters) == 242
+    assert len(chapters) == 243
     assert len(pages) == 35
     assert pages[0].remote_url.endswith("/01.jpg")
     assert porncomic18_connector.find_page(pages[0].id) == pages[0]
+
+
+def test_english_chapter_link_is_parsed():
+    from connectors.porncomic18.mappers import parse_chapters
+
+    html = """
+    <a title="Sample English" href="/comic/sample-doujin/english" class="chapter_num"># English</a>
+    """
+    chapters = parse_chapters(html, series_id="sample-doujin")
+    assert len(chapters) == 1
+    assert chapters[0].id == "sample-doujin/english"
+    assert chapters[0].title == "English"
 
 
 def test_create_18porncomic_connector():

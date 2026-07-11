@@ -30,10 +30,12 @@ STORY_TITLE_RE = re.compile(
 PAGINATION_RE = re.compile(r"/list-manga/(\d+)", re.I)
 
 CHAPTER_LINK_RE = re.compile(
-    r'href="(?:https?://[^"]+)?/comic/([^/]+)/(chapter-\d+)"[^>]*class="chapter_num"[^>]*>'
-    r"\s*#\s*Chapter\s+(\d+)",
+    r'<a[^>]+href="(?:https?://[^"]+)?/comic/([^/]+)/([^"#?]+)"[^>]*class="chapter_num"[^>]*>'
+    r"\s*#\s*([^<]+)</a>",
     re.I | re.S,
 )
+CHAPTER_SEGMENT_NUMBER_RE = re.compile(r"chapter-(\d+)", re.I)
+CHAPTER_LABEL_NUMBER_RE = re.compile(r"chapter\s+(\d+)", re.I)
 
 SLIDES_PATH_RE = re.compile(r"slides_p_path\s*=\s*\[(.*?)\];", re.S)
 ENCODED_URL_RE = re.compile(r'"([A-Za-z0-9+/=]+)"')
@@ -185,30 +187,51 @@ def parse_series_detail(document: str, *, series_id: str) -> Series | None:
     )
 
 
+def _chapter_number(segment: str, label: str) -> float | None:
+    segment_match = CHAPTER_SEGMENT_NUMBER_RE.search(segment)
+    if segment_match:
+        return float(segment_match.group(1))
+    if segment.isdigit():
+        return float(segment)
+    label_match = CHAPTER_LABEL_NUMBER_RE.search(label)
+    if label_match:
+        return float(label_match.group(1))
+    if segment.lower() == "english":
+        return 1.0
+    return None
+
+
 def parse_chapters(document: str, *, series_id: str) -> list[Chapter]:
     chapters: list[Chapter] = []
     seen: set[str] = set()
-    for slug, segment, number_text in CHAPTER_LINK_RE.findall(document):
+    for slug, segment, label in CHAPTER_LINK_RE.findall(document):
         if slug != series_id:
+            continue
+        segment = segment.strip().strip("/")
+        if not segment:
             continue
         chapter_id = f"{slug}/{segment}"
         if chapter_id in seen:
             continue
         seen.add(chapter_id)
-        try:
-            number = float(number_text)
-        except ValueError:
-            number = None
+        clean_label = _clean_text(label)
+        number = _chapter_number(segment, clean_label)
         chapters.append(
             Chapter(
                 id=chapter_id,
                 series_id=series_id,
-                title=normalize_chapter_title(f"Chapter {number_text}"),
+                title=normalize_chapter_title(clean_label or segment),
                 number=number,
                 page_count=0,
             )
         )
-    chapters.sort(key=lambda item: item.number or 0.0, reverse=True)
+    chapters.sort(
+        key=lambda item: (
+            item.number is None,
+            -(item.number or 0.0),
+            item.title.casefold(),
+        ),
+    )
     return chapters
 
 
