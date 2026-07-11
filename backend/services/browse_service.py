@@ -8,6 +8,7 @@ from urllib.parse import quote
 from core.config import get_settings
 from core.errors import AppError
 from connectors.base import SourceConnector
+from connectors.http.client import ConnectorHttpError
 from connectors.ids import fully_unquote
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
 from connectors.registry import (
@@ -96,6 +97,25 @@ def _serialize_paginated(
 class BrowseService:
     """Source-agnostic facade for browsing online catalogs."""
 
+    @staticmethod
+    def _raise_source_connector_error(source_id: str, exc: Exception) -> None:
+        """Map upstream connector failures to client-facing browse errors."""
+        if isinstance(exc, ConnectorHttpError):
+            raise AppError(
+                str(exc) or "Could not load source catalog.",
+                code="source_unreachable",
+                status_code=502,
+                details={"source_id": source_id},
+            ) from exc
+        if isinstance(exc, OSError):
+            raise AppError(
+                "Could not reach the source site (network timeout).",
+                code="source_unreachable",
+                status_code=502,
+                details={"source_id": source_id},
+            ) from exc
+        raise exc
+
     def list_sources(self) -> list[dict[str, object]]:
         snapshot = registry_snapshot()
         descriptors = list_installed_connectors(
@@ -176,30 +196,35 @@ class BrowseService:
         if normalized_sort == "default":
             normalized_sort = None
 
-        if normalized_genre and normalized_query:
-            listing = connector.search_series(
-                f"{normalized_genre} {normalized_query}",
-                page,
-                sort=normalized_sort,
-            )
-            operation = "genre_search"
-        elif normalized_genre:
-            try:
-                listing = connector.browse_by_genre(
-                    normalized_genre,
+        try:
+            if normalized_genre and normalized_query:
+                listing = connector.search_series(
+                    f"{normalized_genre} {normalized_query}",
                     page,
                     sort=normalized_sort,
                 )
-                operation = "genre_browse"
-            except NotImplementedError:
-                listing = connector.search_series(normalized_genre, page, sort=normalized_sort)
                 operation = "genre_search"
-        elif normalized_query:
-            listing = connector.search_series(normalized_query, page, sort=normalized_sort)
-            operation = "search"
-        else:
-            listing = connector.get_series_list(page, sort=normalized_sort)
-            operation = "browse"
+            elif normalized_genre:
+                try:
+                    listing = connector.browse_by_genre(
+                        normalized_genre,
+                        page,
+                        sort=normalized_sort,
+                    )
+                    operation = "genre_browse"
+                except NotImplementedError:
+                    listing = connector.search_series(
+                        normalized_genre, page, sort=normalized_sort
+                    )
+                    operation = "genre_search"
+            elif normalized_query:
+                listing = connector.search_series(normalized_query, page, sort=normalized_sort)
+                operation = "search"
+            else:
+                listing = connector.get_series_list(page, sort=normalized_sort)
+                operation = "browse"
+        except (ConnectorHttpError, OSError) as exc:
+            self._raise_source_connector_error(source_id, exc)
 
         logger.info(
             "%s source=%s page=%d sort=%r query=%r genre=%r parsed=%d total=%d total_pages=%d has_more=%s",

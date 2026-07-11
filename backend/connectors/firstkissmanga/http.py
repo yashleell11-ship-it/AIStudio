@@ -91,13 +91,19 @@ class FirstKissHttpClient(CfSyncHttpClient):
     ) -> tuple[str, str]:
         url = self._resolve_url(path)
         self._rate_limit()
-        response = self._session.get(
-            url,
-            params=params,
-            headers=self._headers,
-            timeout=self._timeout,
-            allow_redirects=True,
-        )
+        try:
+            response = self._session.get(
+                url,
+                params=params,
+                headers=self._headers,
+                timeout=self._timeout,
+                allow_redirects=True,
+            )
+        except OSError as exc:
+            raise ConnectorHttpError(
+                "1stkissmanga.io is unreachable or timed out.",
+                status_code=503,
+            ) from exc
         if response.status_code >= 400:
             raise ConnectorHttpError(
                 f"Client error '{response.status_code} {response.reason}' for url '{url}'",
@@ -154,12 +160,18 @@ class FirstKissHttpClient(CfSyncHttpClient):
 
     def _fetch_html_url(self, url: str) -> tuple[str, str]:
         self._rate_limit()
-        response = self._session.get(
-            url,
-            headers=self._headers,
-            timeout=self._timeout,
-            allow_redirects=True,
-        )
+        try:
+            response = self._session.get(
+                url,
+                headers=self._headers,
+                timeout=self._timeout,
+                allow_redirects=True,
+            )
+        except OSError as exc:
+            raise ConnectorHttpError(
+                "1stkissmanga.io is unreachable or timed out.",
+                status_code=503,
+            ) from exc
         if response.status_code >= 400:
             raise ConnectorHttpError(
                 f"Anti-bot bypass failed with HTTP {response.status_code}.",
