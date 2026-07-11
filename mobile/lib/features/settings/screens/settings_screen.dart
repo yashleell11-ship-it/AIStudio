@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
+import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
@@ -95,6 +98,10 @@ class _GeneralSettingsPanel extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl2),
       children: const [
+        _SectionHeading('Account'),
+        SizedBox(height: AppSpacing.sm),
+        _AccountSection(),
+        SizedBox(height: AppSpacing.xl2),
         _SectionHeading('Theme'),
         SizedBox(height: AppSpacing.sm),
         _ThemeSelector(),
@@ -126,6 +133,107 @@ class _SectionHeading extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(text, style: AppTypography.h3);
+}
+
+class _AccountSection extends ConsumerWidget {
+  const _AccountSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final state = ref.watch(authControllerProvider);
+    if (state is! AuthAuthenticated) return const SizedBox.shrink();
+    final user = state.user;
+    final initial =
+        user.label.isNotEmpty ? user.label.substring(0, 1).toUpperCase() : '?';
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              CircleAvatar(
+                backgroundColor: AppColors.primary,
+                child: Text(
+                  initial,
+                  style: AppTypography.labelLg
+                      .copyWith(color: AppColors.primaryFg),
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(user.label, style: AppTypography.labelLg),
+                    Text(
+                      '@${user.username}',
+                      style: AppTypography.bodySm
+                          .copyWith(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              if (user.isAdmin) const _AdminBadge(),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          OutlinedButton.icon(
+            onPressed: () => _confirmSignOut(context, ref),
+            icon: const Icon(Icons.logout, size: 18),
+            label: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmSignOut(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Sign out?'),
+        content: const Text('You will need to sign in again to use the app.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Sign out'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    // The router (watching authControllerProvider) redirects to login once the
+    // controller drops to unauthenticated, so no manual navigation is needed.
+    await ref.read(authControllerProvider.notifier).logout();
+  }
+}
+
+class _AdminBadge extends StatelessWidget {
+  const _AdminBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: AppSpacing.xxs,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withAlpha(36),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: AppColors.primary.withAlpha(90)),
+      ),
+      child: Text(
+        'Admin',
+        style: AppTypography.labelSm.copyWith(color: AppColors.violet400),
+      ),
+    );
+  }
 }
 
 class _ThemeSelector extends ConsumerWidget {

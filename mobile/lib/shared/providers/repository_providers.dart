@@ -1,4 +1,6 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/auth/repositories/auth_repository.dart';
+import 'package:manhwamaniacs/features/auth/repositories/auth_repository_impl.dart';
 import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
 import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository_impl.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
@@ -10,6 +12,11 @@ import 'package:manhwamaniacs/features/sources/repositories/sources_repository_i
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository_impl.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+
+final authRepositoryProvider = Provider<AuthRepository>(
+  (ref) => AuthRepositoryImpl(ref.watch(dioProvider)),
+  name: 'authRepository',
+);
 
 final libraryRepositoryProvider = Provider<LibraryRepository>(
   (ref) => LibraryRepositoryImpl(ref.watch(dioProvider)),

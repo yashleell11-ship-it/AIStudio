@@ -257,23 +257,9 @@ def test_cancel_pending_restore_clears_the_staged_file(client, tmp_path):
     assert response.json() == {"restore_pending": False}
 
 
-# ── admin guard (P0 security fix) ─────────────────────────────────────────────
-
-
-def test_export_rejects_a_wrong_admin_token(client):
-    response = client.get("/backup/export", headers={"X-Admin-Token": "nope"})
-    assert response.status_code == 401
-    assert response.json()["code"] == "admin_unauthorized"
-
-
-def test_import_is_disabled_when_no_admin_token_configured(client, tmp_path, monkeypatch):
-    monkeypatch.delenv("MM_ADMIN_TOKEN", raising=False)
-    upload = tmp_path / "uploaded.db"
-    _make_real_db(upload)
-    with upload.open("rb") as handle:
-        response = client.post(
-            "/backup/import",
-            files={"file": ("backup.db", handle, "application/octet-stream")},
-        )
-    assert response.status_code == 503
-    assert response.json()["code"] == "admin_disabled"
+# Admin gating for the backup routes now goes through the session-based
+# require_admin_user dependency (not the old MM_ADMIN_TOKEN header). Those
+# authorization paths — unauthenticated → 401, non-admin → 403, admin → 200 —
+# are covered against the full app in tests/test_auth_enforcement.py. The tests
+# above run under the suite's default-admin auto-auth and exercise backup
+# *mechanics* only.

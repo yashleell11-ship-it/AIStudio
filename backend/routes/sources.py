@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import Response
 
+from core.rate_limit import limiter, sources_limit
 from services.browse_service import BrowseService, get_browse_service
 from services.reading_service import ReadingService, get_reading_service
 from utils.api_pagination import set_list_total_header
@@ -31,9 +32,11 @@ def list_browse_modes(source_id: str, service: BrowseDep) -> list[dict[str, str]
 
 
 @router.get("/{source_id}/series")
+@limiter.limit(sources_limit)
 def list_source_series(
     source_id: str,
     service: BrowseDep,
+    request: Request,
     page: int = Query(1, ge=1),
     query: str | None = Query(None),
     sort: str | None = Query(None),
@@ -66,10 +69,12 @@ def get_source_chapters(
 
 
 @router.get("/{source_id}/series/{series_id}/cover")
+@limiter.limit(sources_limit)
 def get_source_series_cover(
     source_id: str,
     series_id: str,
     service: BrowseDep,
+    request: Request,
 ) -> Response:
     """Proxy a series cover image from an online source."""
     media_type, data = service.resolve_series_cover(source_id, series_id)
@@ -91,10 +96,12 @@ def get_source_chapter_pages(
 
 
 @router.get("/{source_id}/pages/{page_id:path}/image")
+@limiter.limit(sources_limit)
 def get_source_page_image(
     source_id: str,
     page_id: str,
     service: BrowseDep,
+    request: Request,
 ) -> Response:
     """Proxy a page image from an online source."""
     media_type, data = service.resolve_page_image(source_id, page_id)

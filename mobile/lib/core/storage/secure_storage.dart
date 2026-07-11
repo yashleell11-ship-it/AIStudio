@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 /// Keys for secure storage entries.
 abstract final class _Keys {
   static const String apiUrl = 'manhwamaniacs_api_url';
+  static const String authToken = 'manhwamaniacs_auth_token';
 }
 
 /// Wrapper around FlutterSecureStorage.
@@ -24,4 +25,14 @@ class SecureStorageService {
 
   /// Removes the custom API URL (reverts to compile-time default).
   Future<void> clearApiUrl() => _storage.delete(key: _Keys.apiUrl);
+
+  /// Returns the persisted bearer session token, or null if not logged in.
+  Future<String?> getAuthToken() => _storage.read(key: _Keys.authToken);
+
+  /// Persists the bearer session token returned by login / register.
+  Future<void> setAuthToken(String token) =>
+      _storage.write(key: _Keys.authToken, value: token);
+
+  /// Removes the persisted bearer token (on logout / session expiry).
+  Future<void> clearAuthToken() => _storage.delete(key: _Keys.authToken);
 }

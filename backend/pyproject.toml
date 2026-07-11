@@ -19,6 +19,7 @@ dependencies = [
     "curl_cffi==0.15.0",
     "pytesseract==0.3.13",
     "argon2-cffi==25.1.0",
+    "slowapi==0.1.10",
 ]
 
 [project.optional-dependencies]
@@ -43,4 +44,6 @@ testpaths = ["tests"]
 addopts = "-m 'not integration'"
 markers = [
     "integration: live network tests against external APIs",
+    "real_auth: opt out of the default-admin test auth; exercise real auth/401",
+    "rate_limit: enable the inbound rate limiter for this test (off elsewhere)",
 ]

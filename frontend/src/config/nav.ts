@@ -19,6 +19,8 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
+  /** Hidden from non-admins. Settings is instance-wide configuration. */
+  adminOnly?: boolean;
 }
 
 /** Primary pillars of the app, in sidebar order. */
@@ -39,5 +41,5 @@ export const primaryNav: NavItem[] = [
 
 /** Pinned to the bottom of the sidebar. */
 export const secondaryNav: NavItem[] = [
-  { href: "/settings", label: "Settings", icon: Settings },
+  { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
 ];

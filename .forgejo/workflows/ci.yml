@@ -1,0 +1,93 @@
+# Application CI — runs the backend, frontend, and mobile test suites on every
+# push to a mainline branch and on every pull request. This is the correctness
+# gate that keeps the trunk releasable; it is separate from the deploy pipelines
+# (staging/production/preview), which only run ops/deploy.sh.
+#
+# Runner conventions (identical to the deploy workflows):
+#   * runs-on: docker — the self-hosted runner on the internal `edge` network.
+#   * No external action marketplace is reachable (no actions/checkout), and the
+#     public Forgejo URL is Access-gated, so every job checks out the code by
+#     cloning the in-cluster Forgejo directly — exactly like ops deploys do.
+#   * Toolchains come from public container images (pulled the same way the
+#     deploy build pulls its base images); each job pins the image it needs.
+name: ci
+on:
+  push:
+    branches: [master, develop, main]
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: docker
+    container:
+      image: python:3.13
+    steps:
+      - name: Checkout (manual clone — no marketplace actions on this runner)
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          git clone -q "http://${{ github.actor }}:${{ github.token }}@forgejo:3000/${REPO}.git" /tmp/src
+          git -C /tmp/src checkout -q "$SHA"
+      - name: Install backend dependencies
+        working-directory: /tmp/src/backend
+        run: |
+          set -e
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest==9.1.1
+      - name: Run backend tests (pytest)
+        working-directory: /tmp/src/backend
+        run: pytest -q
+
+  frontend:
+    runs-on: docker
+    container:
+      image: node:22
+    steps:
+      - name: Checkout (manual clone — no marketplace actions on this runner)
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          git clone -q "http://${{ github.actor }}:${{ github.token }}@forgejo:3000/${REPO}.git" /tmp/src
+          git -C /tmp/src checkout -q "$SHA"
+      - name: Install frontend dependencies
+        working-directory: /tmp/src/frontend
+        run: npm ci
+      - name: Typecheck (tsc)
+        working-directory: /tmp/src/frontend
+        run: npm run typecheck
+      - name: Lint (eslint)
+        working-directory: /tmp/src/frontend
+        run: npm run lint
+      - name: Unit tests (vitest)
+        working-directory: /tmp/src/frontend
+        run: npm run test
+      - name: Production build (next build)
+        working-directory: /tmp/src/frontend
+        run: npm run build
+
+  mobile:
+    runs-on: docker
+    container:
+      # Flutter stable satisfies the pubspec constraint (flutter >= 3.22).
+      image: ghcr.io/cirruslabs/flutter:stable
+    steps:
+      - name: Checkout (manual clone — no marketplace actions on this runner)
+        run: |
+          set -e
+          REPO="${{ github.repository }}"
+          SHA="${{ github.event.pull_request.head.sha || github.sha }}"
+          git clone -q "http://${{ github.actor }}:${{ github.token }}@forgejo:3000/${REPO}.git" /tmp/src
+          git -C /tmp/src checkout -q "$SHA"
+          git config --global --add safe.directory /tmp/src
+      - name: Resolve packages
+        working-directory: /tmp/src/mobile
+        run: flutter pub get
+      - name: Static analysis (flutter analyze)
+        working-directory: /tmp/src/mobile
+        run: flutter analyze
+      - name: Unit/widget tests (flutter test)
+        working-directory: /tmp/src/mobile
+        run: flutter test

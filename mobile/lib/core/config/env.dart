@@ -17,4 +17,11 @@ abstract final class Env {
 
   static bool get isDev => flavor == 'dev';
   static bool get isProd => flavor == 'prod';
+
+  /// Whether an insecure `http://` API base URL is permitted.
+  ///
+  /// Only dev builds may talk to a plain-http backend (local testing);
+  /// production/release builds require `https://` so the bearer token is never
+  /// transmitted in clear text.
+  static bool get allowInsecureBaseUrl => isDev;
 }

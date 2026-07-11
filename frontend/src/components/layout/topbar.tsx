@@ -4,6 +4,7 @@ import { useSyncExternalStore } from "react";
 import { PanelLeft, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/features/updates";
+import { UserMenu } from "@/features/auth/components/user-menu";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
 
@@ -68,6 +69,8 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
           <Wifi className="size-3.5" aria-hidden />
           <time className="font-mono tabular-nums">{time}</time>
         </div>
+        <div className="h-6 w-px bg-border/50" aria-hidden />
+        <UserMenu />
       </div>
     </header>
   );

@@ -6,6 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
+import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
+import 'package:manhwamaniacs/features/auth/screens/login_screen.dart';
+import 'package:manhwamaniacs/features/auth/screens/register_screen.dart';
+import 'package:manhwamaniacs/features/auth/screens/splash_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collection_detail_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collections_screen.dart';
 import 'package:manhwamaniacs/features/downloads/screens/downloads_screen.dart';
@@ -37,18 +42,52 @@ final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
 /// Application router — all screens registered here.
 final appRouterProvider = Provider<GoRouter>((ref) {
   final setupCompleted = ref.watch(setupCompletedProvider);
+  // Recreated whenever auth transitions (unknown → un/authenticated, login,
+  // logout) so the redirect below re-runs from the initial location — exactly
+  // the moments where a full navigation reset is desired.
+  final authState = ref.watch(authControllerProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.home,
     debugLogDiagnostics: true,
     redirect: (context, state) {
-      final onSetup = state.uri.path == Routes.setup;
-      if (!setupCompleted && !onSetup) return Routes.setup;
-      if (setupCompleted && onSetup) return Routes.library;
-      return null;
+      final path = state.uri.path;
+
+      // 1) Setup (server URL) gate — must resolve before auth.
+      if (!setupCompleted) {
+        return path == Routes.setup ? null : Routes.setup;
+      }
+
+      // 2) Auth gate.
+      final onAuthRoute = path == Routes.login || path == Routes.register;
+      final onSplash = path == Routes.splash;
+      final onSetup = path == Routes.setup;
+
+      return switch (authState) {
+        // Cold start: hold on the splash while the stored token is validated.
+        AuthUnknown() => onSplash ? null : Routes.splash,
+        // No session: force the login/register flow.
+        AuthUnauthenticated() => onAuthRoute ? null : Routes.login,
+        // Signed in: never strand the user on splash/setup/auth screens.
+        AuthAuthenticated() =>
+          (onAuthRoute || onSplash || onSetup) ? Routes.home : null,
+      };
     },
     routes: [
+      // ── Authentication (full-screen, outside the tab shell) ────────────────
+      GoRoute(
+        path: Routes.splash,
+        builder: (context, state) => const SplashScreen(),
+      ),
+      GoRoute(
+        path: Routes.login,
+        builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: Routes.register,
+        builder: (context, state) => const RegisterScreen(),
+      ),
       // ── Shell with bottom-nav ──────────────────────────────────────────────
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) =>

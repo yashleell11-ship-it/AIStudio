@@ -33,7 +33,11 @@ from services.auth_service import get_optional_user
 from services.import_cleanup import ImportCleanupService, normalize_folder_path
 from services.source_service import SourceService
 from utils.mobile_urls import page_image_url, series_cover_url
-from utils.path_utils import natural_sort_key, validate_absolute_path
+from utils.path_utils import (
+    natural_sort_key,
+    validate_absolute_path,
+    validate_path_under_roots,
+)
 from connectors.local_filesystem.scanner import ScanResult
 from database.models import ChapterProgress
 
@@ -130,6 +134,23 @@ class LibraryService:
         libraries = self._db.query(Library).all()
         return [Path(library.root_path).resolve() for library in libraries]
 
+    def _allowed_import_roots(self) -> list[Path]:
+        """Directories a folder import is permitted to read from.
+
+        The allowlist is the union of: operator-configured roots
+        (``MM_IMPORT_ROOTS`` / settings.import_roots), every already-registered
+        library root (so rescans of a known library keep working), and the
+        downloads path (imports of downloaded content are always in-scope). Any
+        import target that does not resolve under one of these is rejected with
+        403 — an admin cannot mount an arbitrary host path such as ``/`` or
+        ``/etc``. On a fresh instance with nothing configured, only the downloads
+        path is allowed until the operator sets ``MM_IMPORT_ROOTS``.
+        """
+        roots: list[Path] = [Path(root) for root in self._settings.import_roots]
+        roots.extend(Path(library.root_path) for library in self._db.query(Library).all())
+        roots.append(Path(self._settings.downloads_path))
+        return roots
+
     def _get_or_create_library(self, folder_path: Path) -> Library:
         resolved = str(folder_path.resolve())
         library = self._db.query(Library).filter(Library.root_path == resolved).first()
@@ -169,6 +190,7 @@ class LibraryService:
             )
 
         path = validate_absolute_path(folder_path)
+        validate_path_under_roots(path, self._allowed_import_roots())
         if not path.is_dir():
             raise AppError(
                 "Folder does not exist or is not a directory.",

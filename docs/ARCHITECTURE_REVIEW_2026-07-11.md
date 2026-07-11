@@ -6,6 +6,17 @@
 
 > **Naming note.** The repo directory is `aistudio` (an internal codename for an abandoned "AI creation studio" direction). The shipping product is **ManhwaManiacs**, a manga/manhwa reader + multi-source aggregator, deployed publicly at manhwamaniacs.xyz. This report uses "ManhwaManiacs" for the product and `aistudio` only for the path.
 
+> **⚠️ STATUS UPDATE (post-review): the Critical security findings are RESOLVED.**
+> This report is a point-in-time snapshot from 2026-07-11 and is preserved as
+> written. Since then, **Phase 3 (public-safe baseline) has shipped** and closed
+> the top findings: the whole API is behind authentication (global gate + public
+> allowlist), `/library/import` is admin-only and path-contained, backup
+> export/import are admin-only, the `MM_ADMIN_TOKEN` stop-gap is gone, application
+> CI exists (`.forgejo/workflows/ci.yml`), and inbound rate limiting is in place.
+> Where §8/§9 below say "zero auth / unauthenticated", read it as the *pre-Phase-3*
+> state. See **[AUTH.md](AUTH.md)** for the current model and **[ROADMAP.md](ROADMAP.md)**
+> for what remains (per-user read authorization is Phase 4).
+
 ---
 
 ## 1. Executive summary

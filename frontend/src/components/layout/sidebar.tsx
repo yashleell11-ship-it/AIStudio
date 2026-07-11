@@ -4,8 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { primaryNav, secondaryNav, type NavItem } from "@/config/nav";
+import { useCurrentUser } from "@/features/auth/hooks";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
+
+/** Admin-only entries are hidden from non-admins; everything else is visible. */
+function visibleNav(items: NavItem[], isAdmin: boolean): NavItem[] {
+  return items.filter((item) => !item.adminOnly || isAdmin);
+}
 
 function isNavActive(pathname: string, href: string): boolean {
   if (href === "/") {
@@ -68,6 +74,11 @@ export function Sidebar() {
   const mobileSidebarOpen = useUiStore((s) => s.mobileSidebarOpen);
   const closeMobileSidebar = useUiStore((s) => s.closeMobileSidebar);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const { data: user } = useCurrentUser();
+
+  const isAdmin = user?.is_admin ?? false;
+  const primaryItems = visibleNav(primaryNav, isAdmin);
+  const secondaryItems = visibleNav(secondaryNav, isAdmin);
 
   const isMobileDrawer = mobileSidebarOpen;
   const showCollapsed = collapsed && !isMobileDrawer;
@@ -109,7 +120,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2" aria-label="Primary">
-        {primaryNav.map((item) => (
+        {primaryItems.map((item) => (
           <NavLink
             key={item.href}
             item={item}
@@ -120,7 +131,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border/50 p-2" aria-label="Secondary navigation">
-        {secondaryNav.map((item) => (
+        {secondaryItems.map((item) => (
           <NavLink
             key={item.href}
             item={item}
