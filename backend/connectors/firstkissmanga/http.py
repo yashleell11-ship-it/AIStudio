@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import re
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlsplit
 
 from connectors.http.cf_client import CfSyncHttpClient, is_cloudflare_challenge
 from connectors.http.client import ConnectorHttpError
@@ -66,7 +66,10 @@ def is_parking_page(html: str, *, url: str) -> bool:
 class FirstKissHttpClient(CfSyncHttpClient):
     """curl_cffi client that clears the site's anti-bot redirect gates."""
 
-    _GATE_FP = "-7"
+    # fp=-7 is the JS timeout fallback and routes bots to ww16 parking; fp=-3 is
+    # the manual bypass token exposed in the Cheq interstitial hidden link.
+    _GATE_FP = "-3"
+    _MAX_GATE_HOPS = 4
 
     def get_text(
         self,
@@ -118,18 +121,41 @@ class FirstKissHttpClient(CfSyncHttpClient):
                 status_code=403,
             )
         bypass_url = match.group(1)
-        if "fp=" not in bypass_url:
-            bypass_url = f"{bypass_url}fp={self._GATE_FP}"
+        bypass_url = self._with_gate_fp(bypass_url, self._GATE_FP)
         if bypass_url.startswith("http://"):
             bypass_url = "https://" + bypass_url.removeprefix("http://")
         return bypass_url
 
-    def _pass_bot_gate(self, gate_html: str) -> tuple[str, str]:
-        bypass_url = self._bypass_url_from_gate(gate_html)
+    @staticmethod
+    def _with_gate_fp(url: str, fp: str) -> str:
+        if "fp=" in url:
+            return re.sub(r"fp=[^&'\"]*", f"fp={fp}", url, count=1)
+        return f"{url}fp={fp}"
 
+    def _pass_bot_gate(self, gate_html: str) -> tuple[str, str]:
+        html = gate_html
+        final_url = self._base_url
+        for _ in range(self._MAX_GATE_HOPS):
+            if not is_bot_gate(html):
+                break
+            bypass_url = self._bypass_url_from_gate(html)
+            html, final_url = self._fetch_html_url(bypass_url)
+            if is_parking_page(html, url=final_url):
+                raise ConnectorHttpError(
+                    "1stkissmanga.io redirected to a parking page instead of catalog content.",
+                    status_code=403,
+                )
+        if is_bot_gate(html):
+            raise ConnectorHttpError(
+                "Anti-bot gate still active after bypass attempt.",
+                status_code=403,
+            )
+        return html, final_url
+
+    def _fetch_html_url(self, url: str) -> tuple[str, str]:
         self._rate_limit()
         response = self._session.get(
-            bypass_url,
+            url,
             headers=self._headers,
             timeout=self._timeout,
             allow_redirects=True,
@@ -139,14 +165,18 @@ class FirstKissHttpClient(CfSyncHttpClient):
                 f"Anti-bot bypass failed with HTTP {response.status_code}.",
                 status_code=response.status_code,
             )
-        html = response.text
         final_url = str(response.url)
-        if is_bot_gate(html):
+        if self._is_parking_host(final_url):
             raise ConnectorHttpError(
-                "Anti-bot gate still active after bypass attempt.",
+                "1stkissmanga.io redirected to a parking page instead of catalog content.",
                 status_code=403,
             )
-        return html, final_url
+        return response.text, final_url
+
+    @staticmethod
+    def _is_parking_host(url: str) -> bool:
+        host = urlsplit(url).netloc.casefold()
+        return any(host.startswith(prefix) for prefix in _PARKING_HOST_PREFIXES)
 
     def _validate_catalog_html(self, html: str, *, url: str) -> None:
         if is_parking_page(html, url=url):

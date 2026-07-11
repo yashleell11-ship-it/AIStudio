@@ -69,7 +69,17 @@ def test_cheq_bypass_url_includes_fp():
     client = FirstKissHttpClient("https://1stkissmanga.io")
     bypass_url = client._bypass_url_from_gate(_load("cheq_gate.html"))
     assert bypass_url.startswith("https://1stkissmanga.io/manga/")
-    assert "fp=-7" in bypass_url
+    assert "fp=-3" in bypass_url
+
+
+def test_fingerprint_bypass_url_uses_manual_fp_token():
+    gate_html = """
+    <script src="fingerprintjs"></script>
+    <script>var redirect_link = 'http://1stkissmanga.io/manga/?tr_uuid=test&';</script>
+    """
+    client = FirstKissHttpClient("https://1stkissmanga.io")
+    bypass_url = client._bypass_url_from_gate(gate_html)
+    assert bypass_url == "https://1stkissmanga.io/manga/?tr_uuid=test&fp=-3"
 
 
 def test_unrecognized_html_raises():
