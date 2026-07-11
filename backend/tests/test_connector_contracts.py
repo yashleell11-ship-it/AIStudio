@@ -179,6 +179,39 @@ def _mock_demonicscans(connector: SourceConnector):
         yield
 
 
+@contextmanager
+def _mock_coffeemanga(connector: SourceConnector):
+    fixtures = ROOT / "coffeemanga"
+
+    browse_latest = (fixtures / "browse_latest.html").read_text(encoding="utf-8")
+    browse_popular = (fixtures / "browse_popular.html").read_text(encoding="utf-8")
+    browse_page2 = (fixtures / "browse_page2.html").read_text(encoding="utf-8")
+    search = (fixtures / "search.html").read_text(encoding="utf-8")
+    series_detail = (fixtures / "series_detail.html").read_text(encoding="utf-8")
+    chapter_reader = (fixtures / "chapter_reader.html").read_text(encoding="utf-8")
+
+    series_id = "the-abandoned-princes-ghost-bride"
+    chapter_id = f"{series_id}/chapter-1"
+
+    def fake_get_text(path: str, *, params=None):
+        if path == "/":
+            return search
+        if path == f"/manga/{series_id}/":
+            return series_detail
+        if path == f"/manga/{chapter_id}/":
+            return chapter_reader
+        if path.startswith("/manga/page/2"):
+            return browse_page2
+        if path.startswith("/manga"):
+            if params and params.get("m_orderby") == "views":
+                return browse_popular
+            return browse_latest
+        return browse_latest
+
+    with patch.object(connector._http, "get_text", side_effect=fake_get_text):
+        yield
+
+
 CASES: list[ConnectorContractCase] = [
     ConnectorContractCase(
         source_type="asurascans",
@@ -276,6 +309,36 @@ CASES: list[ConnectorContractCase] = [
         ordering_probe_ids=("Tales-of-Demons-and-Gods:521.1", "Tales-of-Demons-and-Gods:521.6", "Tales-of-Demons-and-Gods:522.1"),
         adjacent_pairs=(("Tales-of-Demons-and-Gods:521.6", "Tales-of-Demons-and-Gods:522.1"),),
         mock=lambda c: _mock_demonicscans(c),
+    ),
+    ConnectorContractCase(
+        source_type="coffeemanga",
+        fixtures_dir=ROOT / "coffeemanga",
+        search_query="abandoned",
+        series_id="the-abandoned-princes-ghost-bride",
+        reader_chapter_id="the-abandoned-princes-ghost-bride/chapter-1",
+        expected_title_substring="Abandoned Prince",
+        expected_image_host_substring="coffeemanga.ink",
+        expected_latest_first_id="the-abandoned-princes-ghost-bride",
+        expected_popular_first_id="solo-leveling-cf01",
+        expected_page2_first_id="tower-of-god-cf02",
+        expected_search_ids=("the-abandoned-princes-ghost-bride",),
+        decimal_chapter_ids=("the-abandoned-princes-ghost-bride/chapter-10-5",),
+        ordering_probe_ids=(
+            "the-abandoned-princes-ghost-bride/chapter-10",
+            "the-abandoned-princes-ghost-bride/chapter-10-5",
+            "the-abandoned-princes-ghost-bride/chapter-11",
+        ),
+        adjacent_pairs=(
+            (
+                "the-abandoned-princes-ghost-bride/chapter-10",
+                "the-abandoned-princes-ghost-bride/chapter-10-5",
+            ),
+            (
+                "the-abandoned-princes-ghost-bride/chapter-10-5",
+                "the-abandoned-princes-ghost-bride/chapter-11",
+            ),
+        ),
+        mock=_mock_coffeemanga,
     ),
 ]
 

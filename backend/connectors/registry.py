@@ -8,6 +8,7 @@ from typing import Any
 
 from connectors.asurascans.connector import AsuraScansConnector
 from connectors.base import SourceConnector
+from connectors.coffeemanga.connector import CoffeeMangaConnector
 from connectors.local_filesystem.connector import LocalFilesystemConnector
 from connectors.mangadex.connector import MangaDexConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
@@ -20,6 +21,7 @@ REQUIRED_BROWSABLE_CONNECTORS = frozenset({"asurascans", "mangadex"})
 
 _CONFIGLESS_CONNECTORS = {
     AsuraScansConnector.SOURCE_TYPE,
+    CoffeeMangaConnector.SOURCE_TYPE,
     MangaDexConnector.SOURCE_TYPE,
     MangaKatanaConnector.SOURCE_TYPE,
     DemonicScansConnector.SOURCE_TYPE,
@@ -63,6 +65,7 @@ def _register_builtin_connectors() -> None:
     """Register all built-in connectors. Fail loudly on any error."""
     builtins: tuple[tuple[str, type[SourceConnector]], ...] = (
         (AsuraScansConnector.SOURCE_TYPE, AsuraScansConnector),
+        (CoffeeMangaConnector.SOURCE_TYPE, CoffeeMangaConnector),
         (LocalFilesystemConnector.SOURCE_TYPE, LocalFilesystemConnector),
         (MangaDexConnector.SOURCE_TYPE, MangaDexConnector),
         (MangaKatanaConnector.SOURCE_TYPE, MangaKatanaConnector),
