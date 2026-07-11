@@ -575,3 +575,57 @@ class UpdateRun(Base):
     error: Mapped[str | None] = mapped_column(Text)
     started_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     finished_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class User(Base):
+    """An account. The first user created is the admin/owner (household model)."""
+
+    __tablename__ = "users"
+    __table_args__ = (
+        UniqueConstraint("username", name="uq_users_username"),
+        Index("ix_users_username", "username"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    username: Mapped[str] = mapped_column(String(64), nullable=False)
+    # Email is optional metadata only — there is no email verification/reset flow
+    # (rejected in the locked auth design).
+    email: Mapped[str | None] = mapped_column(String(255))
+    display_name: Mapped[str | None] = mapped_column(String(255))
+    password_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    is_admin: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    is_active: Mapped[bool] = mapped_column(Integer, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow
+    )
+    last_login_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+    sessions: Mapped[list[UserSession]] = relationship(
+        back_populates="user", cascade="all, delete-orphan"
+    )
+
+
+class UserSession(Base):
+    """An opaque bearer/cookie session. Only the SHA-256 of the token is stored;
+    revocation = delete the row (per the locked auth design)."""
+
+    __tablename__ = "sessions"
+    __table_args__ = (
+        UniqueConstraint("token_hash", name="uq_sessions_token_hash"),
+        Index("ix_sessions_user_id", "user_id"),
+        Index("ix_sessions_token_hash", "token_hash"),
+        Index("ix_sessions_expires_at", "expires_at"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    # SHA-256 hex of the opaque token; the raw token is never persisted.
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_used_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+    user_agent: Mapped[str | None] = mapped_column(String(512))
+    ip_address: Mapped[str | None] = mapped_column(String(64))
+
+    user: Mapped[User] = relationship(back_populates="sessions")

@@ -80,6 +80,15 @@ class Settings(BaseModel):
     update_workers: int = 1
     update_check_interval_minutes: int = 60
 
+    # Authentication (P1). Runtime-only; overridable via env for deployment.
+    # registration_enabled gates self-service signup *after* the bootstrap
+    # admin exists (the very first account is always allowed, so the instance
+    # can be claimed). Cookie flags default to secure/lax for production behind
+    # HTTPS; local http dev sets MM_COOKIE_SECURE=false so the cookie is sent.
+    registration_enabled: bool = True
+    session_cookie_secure: bool = True
+    session_cookie_samesite: str = "lax"
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -100,6 +109,14 @@ def get_settings() -> Settings:
     downloads_override = os.getenv("MM_DOWNLOADS_PATH")
     if downloads_override:
         data["downloads_path"] = downloads_override
+
+    # Auth deployment overrides.
+    reg_override = os.getenv("MM_REGISTRATION_ENABLED")
+    if reg_override is not None:
+        data["registration_enabled"] = reg_override.strip().lower() in {"1", "true", "yes", "on"}
+    cookie_secure_override = os.getenv("MM_COOKIE_SECURE")
+    if cookie_secure_override is not None:
+        data["session_cookie_secure"] = cookie_secure_override.strip().lower() in {"1", "true", "yes", "on"}
 
     return Settings(**data)
 
