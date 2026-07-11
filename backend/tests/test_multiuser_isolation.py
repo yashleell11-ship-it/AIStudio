@@ -12,10 +12,20 @@ import pytest
 from unittest.mock import MagicMock
 
 from core.errors import AppError
-from database.models import Chapter, Download, Library, Page, Series, User
+from database.models import (
+    Chapter,
+    Download,
+    Library,
+    Page,
+    Series,
+    SeriesTracker,
+    UpdateNotification,
+    User,
+)
 from services.download_service import DownloadService
 from services.library_service import LibraryService
 from services.reader_service import ReaderService
+from services.update_service import UpdateService
 
 
 @pytest.fixture
@@ -131,3 +141,44 @@ def test_download_queue_is_isolated_between_users(db_session, catalog):
     with pytest.raises(AppError) as exc:
         bob.pause(alice_rows[0]["id"])
     assert exc.value.status_code == 404
+
+
+def test_trackers_and_notifications_are_isolated(db_session, catalog):
+    # Both users follow the same remote series (composite unique permits it).
+    for uid in (catalog["alice"], catalog["bob"]):
+        db_session.add(
+            SeriesTracker(
+                user_id=uid, source="mangadex", series_id="remote-1",
+                series_title="Remote", track_kind="followed",
+            )
+        )
+    db_session.flush()
+    alice_tracker = (
+        db_session.query(SeriesTracker)
+        .filter(SeriesTracker.user_id == catalog["alice"])
+        .one()
+    )
+    # A notification for Alice's tracker only.
+    db_session.add(
+        UpdateNotification(
+            user_id=catalog["alice"], tracker_id=alice_tracker.id, source="mangadex",
+            series_id="remote-1", series_title="Remote", chapter_id="c1",
+            chapter_title="New Chapter",
+        )
+    )
+    db_session.commit()
+
+    alice = UpdateService(db_session, user_id=catalog["alice"])
+    bob = UpdateService(db_session, user_id=catalog["bob"])
+
+    assert alice.count_trackers() == 1 and bob.count_trackers() == 1  # separate rows
+    assert alice.unread_count() == 1
+    assert bob.unread_count() == 0  # Bob never sees Alice's notification
+    assert len(bob.list_notifications()) == 0
+
+    # Bob cannot mark Alice's notification read.
+    notif_id = alice.list_notifications()[0]["id"]
+    with pytest.raises(AppError) as exc:
+        bob.mark_notification_read(notif_id)
+    assert exc.value.status_code == 404
+    assert alice.unread_count() == 1  # untouched
