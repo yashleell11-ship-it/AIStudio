@@ -174,7 +174,8 @@ def parse_series_detail(html_text: str, series_id: str) -> Series | None:
 
 
 CHAPTER_LINK_RE = re.compile(
-    r'<a[^>]+href="(?:https?://[^"]+/)?chaptered\.php\?manga=(?P<manga>\d+)&chapter=(?P<num>[0-9.]+)"[^>]*>\s*(?P<title>[^<]*)</a>',
+    r'href="(?:https?://[^"/]+)?/?chaptered\.php\?manga=(?P<manga>\d+)&chapter=(?P<num>[0-9.]+)"'
+    r'[^>]*(?:title="(?P<title_attr>[^"]*)")?',
     re.I,
 )
 
@@ -192,7 +193,10 @@ def parse_chapters(html_text: str, series_id: str) -> list[Chapter]:
         if chapter_id in seen:
             continue
         seen.add(chapter_id)
-        raw_title = _clean_text(match.group("title")) or f"Chapter {chapter_num}"
+        raw_title = (
+            _clean_text(match.group("title_attr") or "")
+            or f"Chapter {chapter_num}"
+        )
         title = normalize_chapter_title(raw_title) or raw_title
         chapters.append(
             Chapter(
