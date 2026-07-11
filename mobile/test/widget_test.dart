@@ -20,6 +20,7 @@ void main() {
         overrides: [
           apiBaseUrlOverride(Env.defaultApiUrl),
           sharedPrefsProvider.overrideWithValue(prefs),
+          authenticatedAuthOverride(),
         ],
         child: const ManhwaManiacsApp(),
       ),

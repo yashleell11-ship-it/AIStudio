@@ -48,6 +48,10 @@ export async function request<T>(
     response = await fetch(buildUrl(path, query), {
       method,
       signal,
+      // Send the httpOnly `mm_session` cookie on every request so authenticated
+      // routes see the session. The web client holds no token — the cookie is
+      // the credential.
+      credentials: "include",
       headers: {
         Accept: "application/json",
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),

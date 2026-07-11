@@ -14,14 +14,15 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, UploadFile
+from fastapi import APIRouter, Depends, Request, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
 from core.backup_restore import has_pending_restore
 from core.errors import AppError
-from core.security import require_admin
+from core.rate_limit import import_limit, limiter
+from services.auth_service import require_admin_user
 from services.backup_service import (
     backup_filename,
     clear_pending_restore,
@@ -41,7 +42,7 @@ class RestoreStaged(BaseModel):
     message: str
 
 
-@router.get("/export", dependencies=[Depends(require_admin)])
+@router.get("/export", dependencies=[Depends(require_admin_user)])
 def export_backup() -> FileResponse:
     """Download a consistent snapshot of the current database."""
     snapshot_path = create_backup_snapshot()
@@ -60,8 +61,9 @@ def backup_status() -> BackupStatus:
     return BackupStatus(restore_pending=has_pending_restore())
 
 
-@router.post("/import", response_model=RestoreStaged, dependencies=[Depends(require_admin)])
-def import_backup(file: UploadFile) -> RestoreStaged:
+@router.post("/import", response_model=RestoreStaged, dependencies=[Depends(require_admin_user)])
+@limiter.limit(import_limit)
+def import_backup(file: UploadFile, request: Request) -> RestoreStaged:
     """Validate an uploaded backup and stage it for restore on next start."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
         shutil.copyfileobj(file.file, tmp)
@@ -79,7 +81,7 @@ def import_backup(file: UploadFile) -> RestoreStaged:
     )
 
 
-@router.delete("/pending", response_model=BackupStatus, dependencies=[Depends(require_admin)])
+@router.delete("/pending", response_model=BackupStatus, dependencies=[Depends(require_admin_user)])
 def cancel_pending_restore() -> BackupStatus:
     """Cancel a staged restore before it's applied on next start."""
     clear_pending_restore()

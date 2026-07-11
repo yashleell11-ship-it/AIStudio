@@ -58,6 +58,22 @@ final class TimeoutError extends AppError {
   String toString() => 'TimeoutError';
 }
 
+/// Client-side validation failure (e.g. a malformed or disallowed input).
+///
+/// Unlike [UnknownError], its [userMessage] is the specific [message] so the UI
+/// can tell the user exactly what to fix.
+final class ValidationError extends AppError {
+  const ValidationError(this.message);
+
+  final String message;
+
+  @override
+  String get userMessage => message;
+
+  @override
+  String toString() => 'ValidationError: $message';
+}
+
 /// JSON decoding or model mapping failure.
 final class ParseError extends AppError {
   const ParseError({required this.message, this.cause});

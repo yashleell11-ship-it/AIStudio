@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/network/base_url.dart';
 import 'package:manhwamaniacs/core/network/dio_client.dart';
 import 'package:manhwamaniacs/core/utils/haptics.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
@@ -185,10 +186,9 @@ class SettingsActions {
   final Ref ref;
 
   Future<AppError?> saveApiUrl(String url) async {
+    final policyError = BaseUrl.validate(url);
+    if (policyError != null) return policyError;
     final trimmed = url.trim();
-    if (trimmed.isEmpty) {
-      return const UnknownError(message: 'Server URL cannot be empty.');
-    }
     await ref.read(secureStorageProvider).setApiUrl(trimmed);
     ref.read(apiBaseUrlProvider.notifier).state = trimmed;
     ref.invalidate(dioProvider);
@@ -197,10 +197,10 @@ class SettingsActions {
   }
 
   Future<AppError?> validateAndSaveApiUrl(String url) async {
+    // Enforce the https-in-release policy before touching the network.
+    final policyError = BaseUrl.validate(url);
+    if (policyError != null) return policyError;
     final trimmed = url.trim();
-    if (trimmed.isEmpty) {
-      return const UnknownError(message: 'Server URL cannot be empty.');
-    }
 
     final validationError = await ref.read(serverValidationProvider)(trimmed);
     if (validationError != null) return validationError;

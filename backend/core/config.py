@@ -51,6 +51,14 @@ class Settings(BaseModel):
         "http://127.0.0.1:3000",
     ]
     downloads_path: str = str(REPO_ROOT / "library" / "downloads")
+    # Absolute directories a library import is permitted to read from. A folder
+    # import (admin-only) is rejected unless it resolves under one of these
+    # roots (or an already-registered library root / the downloads path) — this
+    # prevents mounting arbitrary host paths like "/" or "/etc". Set via
+    # MM_IMPORT_ROOTS (comma-separated). Empty by default: on a fresh instance an
+    # admin must configure it (or import under the downloads path) before the
+    # first import.
+    import_roots: list[str] = []
     # How many chapters may download at once, across all series. User-
     # configurable from Settings -> Downloads; defaults to fully sequential.
     download_concurrent_chapters: int = 1
@@ -89,6 +97,17 @@ class Settings(BaseModel):
     session_cookie_secure: bool = True
     session_cookie_samesite: str = "lax"
 
+    # Inbound rate limiting (slowapi). Protects expensive/abusable endpoints
+    # from brute force and abuse: auth (login/register), library/backup imports,
+    # and source proxying (browse/search/image). Values are slowapi rate strings
+    # ("10/minute", "100/hour"); override each bucket via its env var. Disable
+    # entirely with MM_RATE_LIMIT_ENABLED=false (e.g. for load tests). Limits are
+    # keyed by client IP (X-Forwarded-For aware, since we run behind Caddy).
+    rate_limit_enabled: bool = True
+    rate_limit_auth: str = "10/minute"
+    rate_limit_import: str = "5/minute"
+    rate_limit_sources: str = "60/minute"
+
 
 @lru_cache
 def get_settings() -> Settings:
@@ -109,6 +128,11 @@ def get_settings() -> Settings:
     downloads_override = os.getenv("MM_DOWNLOADS_PATH")
     if downloads_override:
         data["downloads_path"] = downloads_override
+    import_roots_override = os.getenv("MM_IMPORT_ROOTS")
+    if import_roots_override is not None:
+        data["import_roots"] = [
+            p.strip() for p in import_roots_override.split(",") if p.strip()
+        ]
 
     # Auth deployment overrides.
     reg_override = os.getenv("MM_REGISTRATION_ENABLED")
@@ -117,6 +141,19 @@ def get_settings() -> Settings:
     cookie_secure_override = os.getenv("MM_COOKIE_SECURE")
     if cookie_secure_override is not None:
         data["session_cookie_secure"] = cookie_secure_override.strip().lower() in {"1", "true", "yes", "on"}
+
+    # Rate-limit deployment overrides.
+    rate_limit_enabled_override = os.getenv("MM_RATE_LIMIT_ENABLED")
+    if rate_limit_enabled_override is not None:
+        data["rate_limit_enabled"] = rate_limit_enabled_override.strip().lower() in {"1", "true", "yes", "on"}
+    for env_key, field in (
+        ("MM_RATE_LIMIT_AUTH", "rate_limit_auth"),
+        ("MM_RATE_LIMIT_IMPORT", "rate_limit_import"),
+        ("MM_RATE_LIMIT_SOURCES", "rate_limit_sources"),
+    ):
+        value = os.getenv(env_key)
+        if value and value.strip():
+            data[field] = value.strip()
 
     return Settings(**data)
 

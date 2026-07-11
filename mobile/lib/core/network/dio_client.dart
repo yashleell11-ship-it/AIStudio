@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/core/network/interceptors/auth_interceptor.dart';
 import 'package:manhwamaniacs/core/network/interceptors/error_interceptor.dart';
 import 'package:manhwamaniacs/core/network/interceptors/logging_interceptor.dart';
 
@@ -7,7 +8,12 @@ import 'package:manhwamaniacs/core/network/interceptors/logging_interceptor.dart
 ///
 /// [baseUrl] defaults to the compile-time default from [Env.defaultApiUrl]
 /// but can be overridden at runtime (user sets their server address).
-Dio createDioClient({String? baseUrl}) {
+///
+/// [authInterceptor], when supplied, attaches the bearer token and reacts to
+/// session-expiry (401). It is added first so it can inspect the 401 before
+/// [ErrorInterceptor] maps and rejects the error. The throwaway client used to
+/// validate a server URL omits it (that probe only hits the public `/health`).
+Dio createDioClient({String? baseUrl, AuthInterceptor? authInterceptor}) {
   final dio = Dio(
     BaseOptions(
       baseUrl: baseUrl ?? Env.defaultApiUrl,
@@ -22,6 +28,7 @@ Dio createDioClient({String? baseUrl}) {
   );
 
   dio.interceptors.addAll([
+    if (authInterceptor != null) authInterceptor,
     ErrorInterceptor(),
     if (Env.isDev) LoggingInterceptor(),
   ]);

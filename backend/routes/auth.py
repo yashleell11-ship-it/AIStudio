@@ -16,6 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from core.config import get_settings
 from core.errors import AppError
+from core.rate_limit import auth_limit, limiter
 from database.models import User
 from services.auth_service import (
     REMEMBER_ME_TTL,
@@ -86,6 +87,14 @@ class SessionOut(BaseModel):
     current: bool = False
 
 
+class BootstrapStatus(BaseModel):
+    # True while zero accounts exist: the client shows "create the first admin"
+    # instead of a login form. Public — carries no user data.
+    needs_bootstrap: bool
+    # Whether self-service registration is open once an admin exists.
+    registration_enabled: bool
+
+
 # --- helpers -----------------------------------------------------------------
 
 
@@ -129,7 +138,18 @@ def _client_meta(request: Request) -> tuple[str | None, str | None]:
 # --- routes ------------------------------------------------------------------
 
 
+@router.get("/bootstrap-status", response_model=BootstrapStatus)
+def bootstrap_status(auth: AuthDep) -> BootstrapStatus:
+    """Public: report whether the instance still needs its first (admin) account,
+    so the client can show a bootstrap form instead of a login form."""
+    return BootstrapStatus(
+        needs_bootstrap=auth.user_count() == 0,
+        registration_enabled=get_settings().registration_enabled,
+    )
+
+
 @router.post("/register", response_model=AuthResponse, status_code=201)
+@limiter.limit(auth_limit)
 def register(
     body: RegisterRequest,
     request: Request,
@@ -162,6 +182,7 @@ def register(
 
 
 @router.post("/login", response_model=AuthResponse)
+@limiter.limit(auth_limit)
 def login(
     body: LoginRequest,
     request: Request,

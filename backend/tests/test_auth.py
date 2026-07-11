@@ -18,6 +18,10 @@ from services.auth_service import (
     require_admin_user,
 )
 
+# These tests drive real registration/login and assert 401/403 behaviour, so
+# they must NOT get the suite's default-admin auto-auth.
+pytestmark = pytest.mark.real_auth
+
 
 # --- primitives (core/auth.py) ----------------------------------------------
 

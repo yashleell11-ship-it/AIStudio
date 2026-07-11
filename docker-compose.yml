@@ -22,9 +22,17 @@ services:
       - MM_DB_PATH=/data/manhwamaniacs.db
       - MM_DOWNLOADS_PATH=/data/downloads
       - MM_SETTINGS_PATH=/data/settings.json
-      # Admin-only endpoints (backup export/import) are disabled unless a token
-      # is provided; leave unset to keep them off in staging/preview.
-      - MM_ADMIN_TOKEN=${MM_ADMIN_TOKEN:-}
+      # Auth (see docs/AUTH.md). Admin-only endpoints are gated by the session
+      # user's is_admin, not a token — the first registered account bootstraps as
+      # admin. Cookies are Secure by default (all envs are HTTPS behind Caddy).
+      - MM_COOKIE_SECURE=${MM_COOKIE_SECURE:-true}
+      # Allow self-service signup after the bootstrap admin exists. Set false for
+      # an invite-only / single-household instance.
+      - MM_REGISTRATION_ENABLED=${MM_REGISTRATION_ENABLED:-true}
+      # Absolute host dirs a library import may read from (comma-separated).
+      # Empty ⇒ only the downloads path is importable. Set this (and mount the
+      # dir) to import an existing on-disk library.
+      - MM_IMPORT_ROOTS=${MM_IMPORT_ROOTS:-}
     expose:
       - "8000"
     networks: [internal]

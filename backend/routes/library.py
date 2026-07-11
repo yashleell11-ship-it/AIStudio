@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
-from core.security import require_admin
+from core.rate_limit import import_limit, limiter
+from services.auth_service import require_admin_user
 from services.image_service import ImageService, get_image_service
 from services.library_intelligence_service import (
     LibraryIntelligenceService,
@@ -314,8 +315,11 @@ def statistics(intel: IntelDep) -> dict[str, object]:
     return intel.get_statistics()
 
 
-@router.post("/import", response_model=ImportResponse, dependencies=[Depends(require_admin)])
-def import_library(body: ImportRequest, service: ServiceDep) -> ImportResponse:
+@router.post("/import", response_model=ImportResponse, dependencies=[Depends(require_admin_user)])
+@limiter.limit(import_limit)
+def import_library(
+    body: ImportRequest, request: Request, service: ServiceDep
+) -> ImportResponse:
     """Scan a folder and import series, chapters, and pages into the database."""
     result = service.import_folder(body.folder_path)
     return ImportResponse(**result)

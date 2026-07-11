@@ -1,0 +1,80 @@
+"""Inbound rate limiting (slowapi).
+
+The abusable endpoints reject request floods with a 429 rendered in the standard
+``{code, message, details}`` envelope, keyed per client IP (X-Forwarded-For
+aware). The limiter is off for the rest of the suite (see the ``rate_limit_
+toggle`` fixture in conftest); these tests opt in with ``@pytest.mark.rate_limit``.
+"""
+
+from __future__ import annotations
+
+import pytest
+from fastapi.testclient import TestClient
+from sqlalchemy.orm import sessionmaker
+
+from core.config import get_settings
+from database.session import get_db
+from main import create_app
+
+
+@pytest.fixture
+def client(db_engine, monkeypatch):
+    monkeypatch.setenv("MM_COOKIE_SECURE", "false")
+    monkeypatch.setenv("MM_RATE_LIMIT_AUTH", "3/minute")  # tiny bucket for the test
+    get_settings.cache_clear()
+
+    session_factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+
+    def override_get_db():
+        db = session_factory()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    app = create_app(run_migrations=False, run_workers=False)
+    app.dependency_overrides[get_db] = override_get_db
+    with TestClient(app) as test_client:
+        yield test_client
+    get_settings.cache_clear()
+
+
+def _login(client: TestClient, ip: str):
+    return client.post(
+        "/auth/login",
+        json={"username": "ghost", "password": "whatever"},
+        headers={"X-Forwarded-For": ip},
+    )
+
+
+@pytest.mark.rate_limit
+def test_login_flood_is_rejected_with_429_envelope(client):
+    # 3/minute: the first three requests get normal handling (401, no such user),
+    # the fourth trips the limit.
+    codes = [_login(client, "203.0.113.5").status_code for _ in range(3)]
+    assert codes == [401, 401, 401]
+
+    limited = _login(client, "203.0.113.5")
+    assert limited.status_code == 429
+    body = limited.json()
+    assert body["code"] == "rate_limited"
+    assert "message" in body
+    # slowapi advertises when the caller may retry
+    assert "retry-after" in {k.lower() for k in limited.headers}
+
+
+@pytest.mark.rate_limit
+def test_rate_limit_is_keyed_per_client_ip(client):
+    for _ in range(4):
+        _login(client, "198.51.100.7")  # exhaust this client's budget
+    # a different forwarded client IP still has its full budget
+    other = _login(client, "198.51.100.8")
+    assert other.status_code == 401
+
+
+def test_rate_limiting_is_off_for_unmarked_tests(client):
+    # Not marked @pytest.mark.rate_limit → the limiter is disabled, so a flood
+    # that would blow the 3/minute bucket sails through as ordinary 401s.
+    codes = [_login(client, "203.0.113.9").status_code for _ in range(6)]
+    assert 429 not in codes
+    assert set(codes) == {401}

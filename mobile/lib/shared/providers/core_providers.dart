@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
 import 'package:manhwamaniacs/core/network/dio_client.dart';
+import 'package:manhwamaniacs/core/network/interceptors/auth_interceptor.dart';
 import 'package:manhwamaniacs/core/storage/preferences.dart';
 import 'package:manhwamaniacs/core/storage/secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -11,6 +12,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 final secureStorageProvider = Provider<SecureStorageService>(
   (_) => SecureStorageService(),
   name: 'secureStorage',
+);
+
+// ── Auth token store ───────────────────────────────────────────────────────
+
+/// Long-lived in-memory holder for the bearer token, read synchronously by the
+/// Dio auth interceptor. Kept in sync with secure storage by the auth
+/// controller, which also installs its session-expiry handler on it.
+final authTokenStoreProvider = Provider<AuthTokenStore>(
+  (_) => AuthTokenStore(),
+  name: 'authTokenStore',
 );
 
 // ── Shared Preferences ────────────────────────────────────────────────────
@@ -39,6 +50,15 @@ final apiBaseUrlProvider = StateProvider<String>(
 // ── Dio ───────────────────────────────────────────────────────────────────
 
 final dioProvider = Provider<Dio>(
-  (ref) => createDioClient(baseUrl: ref.watch(apiBaseUrlProvider)),
+  (ref) {
+    final tokenStore = ref.watch(authTokenStoreProvider);
+    return createDioClient(
+      baseUrl: ref.watch(apiBaseUrlProvider),
+      authInterceptor: AuthInterceptor(
+        tokenStore: tokenStore,
+        onUnauthorized: () => tokenStore.onUnauthorized(),
+      ),
+    );
+  },
   name: 'dio',
 );

@@ -1,20 +1,42 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useShortcut } from "@/lib/keyboard";
 import { ScrollContainerProvider } from "@/lib/scroll-container";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
+import { isPublicAuthPath } from "@/features/auth/access";
+import { useCurrentUser } from "@/features/auth/hooks";
+import { AuthPending } from "@/features/auth/components/auth-pending";
 import { Sidebar } from "./sidebar";
 import { Topbar } from "./topbar";
 
 /**
- * The persistent application frame: sidebar + topbar + scrollable content.
- * Owns app-global shortcuts that act on the shell itself.
+ * Top-level frame selector. Auth screens (login/register) render full-bleed and
+ * without a session; every other route renders the authenticated app frame,
+ * gated by the route guard in `AuthenticatedShell`.
  */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+
+  if (isPublicAuthPath(pathname)) {
+    return <>{children}</>;
+  }
+
+  return <AuthenticatedShell>{children}</AuthenticatedShell>;
+}
+
+/**
+ * The persistent application frame: sidebar + topbar + scrollable content.
+ * Owns app-global shortcuts that act on the shell itself, and guards every
+ * route it wraps — an unauthenticated visitor is redirected to /login and only
+ * a resolved, signed-in session renders the frame.
+ */
+function AuthenticatedShell({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const router = useRouter();
+  const { data: user, isLoading } = useCurrentUser();
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const mobileSidebarOpen = useUiStore((s) => s.mobileSidebarOpen);
   const closeMobileSidebar = useUiStore((s) => s.closeMobileSidebar);
@@ -52,6 +74,20 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     group: "General",
     handler: useCallback(() => toggleSidebar(), [toggleSidebar]),
   });
+
+  // Route guard: once the /auth/me probe settles, send unauthenticated visitors
+  // to /login. `useCurrentUser` reports 401 as `null` (not an error), so a
+  // missing session is `!user` here.
+  useEffect(() => {
+    if (!isLoading && !user) {
+      router.replace("/login");
+    }
+  }, [isLoading, user, router]);
+
+  // Resolving the session, or redirecting an unauthenticated visitor.
+  if (isLoading || !user) {
+    return <AuthPending />;
+  }
 
   return (
     <div className="flex h-dvh w-full overflow-hidden bg-bg">

@@ -19,7 +19,10 @@ from api.router import api_router
 from connectors.registry import log_registered_connectors, validate_registry
 from core.config import get_settings
 from core.errors import register_error_handlers
+from core.rate_limit import limiter, rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 from database.session import SessionLocal, init_db
+from services.auth_service import AuthService
 from services.download_manager import get_download_manager
 from services.ocr_pipeline import get_ocr_manager
 from services.update_auto_download import auto_download_new_chapters
@@ -41,6 +44,21 @@ def run_startup_migrations() -> None:
         db.close()
 
 
+def prune_expired_sessions() -> None:
+    """Opportunistically delete expired auth sessions at startup. Individual
+    tokens are also pruned lazily when resolved, but this clears in one pass any
+    backlog that accumulated while the process was down."""
+    db = SessionLocal()
+    try:
+        removed = AuthService(db).cleanup_expired()
+        if removed:
+            logging.getLogger("uvicorn.error").info(
+                "Pruned %d expired auth session(s) at startup.", removed
+            )
+    finally:
+        db.close()
+
+
 def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> FastAPI:
     settings = get_settings()
     register_new_chapters_callback(auto_download_new_chapters)
@@ -53,6 +71,7 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
             )
         if run_migrations:
             run_startup_migrations()
+            prune_expired_sessions()
         else:
             init_db()
         manager = get_download_manager()
@@ -101,6 +120,10 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
     )
 
     register_error_handlers(app)
+    # Inbound rate limiting: the limiter is referenced by the per-route
+    # decorators via app.state, and a 429 is rendered in our standard envelope.
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.include_router(api_router)
     return app
 

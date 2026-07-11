@@ -399,6 +399,19 @@ python -m pytest
 
 All four must pass. Zero tolerance for failures.
 
+### Continuous integration
+
+`.forgejo/workflows/ci.yml` runs on every push to `master`/`develop`/`main` and
+on every pull request. It has three jobs that mirror the checklist above:
+
+- **backend** — `pip install -r requirements.txt` then `pytest`.
+- **frontend** — `npm ci`, then `npm run typecheck`, `lint`, `test`, `build`.
+- **mobile** — `flutter pub get`, `flutter analyze`, `flutter test`.
+
+CI is the correctness gate that keeps the trunk releasable; it is independent of
+the deploy pipelines (staging/production/preview). Get your change green locally
+before opening a PR — CI should confirm, not discover.
+
 ### Writing tests
 
 **Backend tests** go in `backend/tests/`. Use `pytest`. Use `tmp_path` for file

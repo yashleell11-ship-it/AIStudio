@@ -11,7 +11,7 @@ import re
 from datetime import timedelta
 from typing import Annotated
 
-from fastapi import Cookie, Depends, Header
+from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
@@ -317,3 +317,55 @@ def require_admin_user(
             "Administrator access required.", code="forbidden", status_code=403
         )
     return user
+
+
+# --- global API authentication gate ------------------------------------------
+
+# The ONLY routes reachable without a session. Everything else on the API
+# requires authentication (see enforce_authentication, wired on api_router).
+#   GET  /            landing page (HTML) / JSON status probe — no library data
+#   GET  /health      deploy + Caddy health probe
+#   GET  /auth/bootstrap-status  whether the first admin still needs creating
+#   POST /auth/login  + /auth/register  entry points (register self-gates:
+#                     always allowed while zero users exist; then honours
+#                     registration_enabled)
+# The /app/* distribution surface (APK download, version, changelog, landing
+# assets) is public by design so new users can install the app before they have
+# an account; it exposes no library or user data. Decision recorded in docs/AUTH.md.
+_PUBLIC_ROUTES: frozenset[tuple[str, str]] = frozenset(
+    {
+        ("GET", "/"),
+        ("HEAD", "/"),
+        ("GET", "/health"),
+        ("HEAD", "/health"),
+        ("GET", "/auth/bootstrap-status"),
+        ("POST", "/auth/login"),
+        ("POST", "/auth/register"),
+    }
+)
+_PUBLIC_PREFIXES: tuple[str, ...] = ("/app/",)
+
+
+def _is_public_route(method: str, path: str) -> bool:
+    if method == "OPTIONS":  # CORS preflight carries no credentials
+        return True
+    if path.startswith(_PUBLIC_PREFIXES):
+        return True
+    return (method, path) in _PUBLIC_ROUTES
+
+
+def enforce_authentication(
+    request: Request,
+    user: Annotated[User | None, Depends(get_optional_user)],
+) -> None:
+    """Global gate applied to every API route: allow the public allowlist,
+    otherwise require a valid session. Attaches the resolved user to
+    ``request.state.user`` for downstream use."""
+    if _is_public_route(request.method, request.url.path):
+        request.state.user = user
+        return
+    if user is None:
+        raise AppError(
+            "Authentication required.", code="not_authenticated", status_code=401
+        )
+    request.state.user = user

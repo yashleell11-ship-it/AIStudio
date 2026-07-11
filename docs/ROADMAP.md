@@ -52,20 +52,38 @@ architecture review.
 
 ---
 
-## Phase 3 — Public-safe baseline 🔴 Next milestone
+## Phase 3 — Public-safe baseline ✅ Complete
 
-The product is deployed publicly at manhwamaniacs.xyz but the code assumes
-single-user/no-auth. This milestone closes that gap. It is the recommended next
-unit of work (details and file:line findings in the architecture review §9):
+The product is deployed publicly at manhwamaniacs.xyz but the code assumed
+single-user/no-auth. This milestone closed that gap and made the public instance
+defensible. Full details of the auth model live in **[docs/AUTH.md](AUTH.md)**.
 
-- **Authentication in front of the whole API** (first step toward multi-user).
-- **Fix the unauthenticated arbitrary-path library import** and gate the
-  backup export/import endpoints.
-- **Add application CI** (pytest · tsc/eslint/vitest · flutter test on push).
-- **Inbound rate limiting.**
-- **Deploy hardening:** remove `reload=True`, require `CORS_ORIGINS`, serve the
-  APK from a stable path, enforce HTTPS for the mobile client.
-- **Finish reconciling docs** with reality (this reset is the start).
+- ✅ **Authentication in front of the whole API.** A single global gate
+  (`enforce_authentication`, wired on `api_router`) requires a valid session on
+  every route except a small public allowlist (landing/health, `/auth/login`,
+  `/auth/register`, `/auth/bootstrap-status`, and the `/app/*` APK distribution
+  surface). Opaque sessions: httpOnly cookie for web, `Authorization: Bearer`
+  for mobile.
+- ✅ **Destructive/admin ops require an admin session.** The `MM_ADMIN_TOKEN`
+  header stop-gap and `core/security.py` are gone; `/library/import`,
+  `/backup/export`, `/backup/import`, `/backup/pending` now depend on
+  `require_admin_user`. The first registered account bootstraps as admin.
+- ✅ **Library import path containment.** Imports are constrained to an
+  allowlist (`MM_IMPORT_ROOTS` ∪ registered library roots ∪ the downloads
+  path); arbitrary host paths such as `/` or `/etc` are rejected with 403.
+- ✅ **Application CI** (`.forgejo/workflows/ci.yml`): backend pytest,
+  frontend tsc/eslint/vitest/build, and mobile `flutter analyze`/`flutter test`
+  on every push to a mainline branch and every pull request.
+- ✅ **Inbound rate limiting** (slowapi) on the abusable endpoints — auth,
+  library/backup imports, and source browse/search/image — keyed per client IP.
+- ✅ **Client auth integration:** web (Next.js) login/register/guard with 401
+  handling and first-admin bootstrap UX; mobile (Flutter) bearer-token storage,
+  401 redirect, and HTTPS-only base URL enforcement in release builds.
+- ✅ **Docs reconciled** with reality (this section + docs/AUTH.md).
+
+Deliberately **not** in this milestone (tracked for Phase 4): per-user
+authorization on every read (rows are still visible to any authenticated user;
+only ownership *writes* are scoped), connector expansion, and new sources.
 
 ## Phase 4 — Multi-user foundation 🟠
 

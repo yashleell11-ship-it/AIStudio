@@ -1,5 +1,10 @@
 /// Named route constants — single source of truth for all deep links.
 abstract final class Routes {
+  // ── Authentication ─────────────────────────────────────────────────────────
+  static const String splash = '/splash';
+  static const String login = '/login';
+  static const String register = '/register';
+
   // ── Dashboard ──────────────────────────────────────────────────────────────
   static const String home = '/';
 
