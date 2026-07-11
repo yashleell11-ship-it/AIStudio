@@ -1,6 +1,6 @@
-# AIStudio — Contribution Guide
+# ManhwaManiacs — Contribution Guide
 
-This document establishes how contributions are made to AIStudio — by humans and AI
+This document establishes how contributions are made to ManhwaManiacs — by humans and AI
 agents alike. Read it before writing any code.
 
 Cross-references: [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md) ·
@@ -25,7 +25,7 @@ you will modify before modifying them.
 ## 2. Repository Structure
 
 ```
-AIStudio/
+aistudio/
 ├─ frontend/        Next.js 16 application (TypeScript, Tailwind v4)
 ├─ backend/         FastAPI application (Python 3.11+)
 ├─ config/
