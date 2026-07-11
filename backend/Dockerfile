@@ -29,7 +29,8 @@ RUN useradd -u 1000 -m app \
 USER app
 
 ENV MM_DB_PATH=/data/manhwamaniacs.db \
-    MM_DOWNLOADS_PATH=/data/downloads
+    MM_DOWNLOADS_PATH=/data/downloads \
+    MM_SETTINGS_PATH=/data/settings.json
 
 EXPOSE 8000
 CMD ["python", "main.py"]

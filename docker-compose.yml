@@ -19,6 +19,7 @@ services:
       - APP_ENV=${APP_ENV:-production}
       - MM_DB_PATH=/data/manhwamaniacs.db
       - MM_DOWNLOADS_PATH=/data/downloads
+      - MM_SETTINGS_PATH=/data/settings.json
       # Admin-only endpoints (backup export/import) are disabled unless a token
       # is provided; leave unset to keep them off in staging/preview.
       - MM_ADMIN_TOKEN=${MM_ADMIN_TOKEN:-}
