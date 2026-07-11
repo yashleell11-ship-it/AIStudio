@@ -171,13 +171,18 @@ class Page(Base):
 class ReadingProgress(Base):
     __tablename__ = "reading_progress"
     __table_args__ = (
+        # Per-user: one progress row per (user, series). Nullable user_id for
+        # legacy rows claimed on first-admin registration.
+        UniqueConstraint("user_id", "series_id", name="uq_reading_progress_user_series"),
         Index("ix_reading_progress_series_id", "series_id"),
+        Index("ix_reading_progress_user_id", "user_id"),
         # Production: powers "continue reading" strip and activity feeds
         Index("ix_reading_progress_last_read", "last_read_at"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False, unique=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False)
     chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
     last_page: Mapped[int] = mapped_column(Integer, default=1)
     # Library Intelligence fields
@@ -194,9 +199,13 @@ class ReadingProgress(Base):
 
 class Bookmark(Base):
     __tablename__ = "bookmarks"
-    __table_args__ = (Index("ix_bookmarks_series_id", "series_id"),)
+    __table_args__ = (
+        Index("ix_bookmarks_series_id", "series_id"),
+        Index("ix_bookmarks_user_id", "user_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False)
     chapter_id: Mapped[int] = mapped_column(ForeignKey("chapters.id"), nullable=False)
     page: Mapped[int] = mapped_column(Integer, nullable=False)
@@ -230,9 +239,13 @@ class Download(Base):
     __table_args__ = (
         Index("ix_downloads_source_series_chapter", "source", "series_id", "chapter_id"),
         Index("ix_downloads_status", "status"),
+        Index("ix_downloads_user_id", "user_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Who queued this download. Background workers read ownership off the row
+    # (they have no request/user context). Nullable for legacy rows.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     series_id: Mapped[str] = mapped_column(String(128), nullable=False)
     chapter_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -290,12 +303,16 @@ class SourceChapterLink(Base):
 class Collection(Base):
     __tablename__ = "collections"
     __table_args__ = (
+        # Per-user: collection names are unique within a user, not globally.
+        UniqueConstraint("user_id", "name", name="uq_collections_user_name"),
+        Index("ix_collections_user_id", "user_id"),
         # Production: fast ordering for collection grid
         Index("ix_collection_sort_order", "sort_order"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text)
     cover_path: Mapped[str | None] = mapped_column(String(1024))
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -364,12 +381,15 @@ class SeriesTag(Base):
 class ChapterProgress(Base):
     __tablename__ = "chapter_progress"
     __table_args__ = (
+        UniqueConstraint("user_id", "chapter_id", name="uq_chapter_progress_user_chapter"),
         Index("ix_chapter_progress_chapter_id", "chapter_id"),
+        Index("ix_chapter_progress_user_id", "user_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     chapter_id: Mapped[int] = mapped_column(
-        ForeignKey("chapters.id"), nullable=False, unique=True
+        ForeignKey("chapters.id"), nullable=False
     )
     last_page: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
     scroll_offset_px: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
@@ -390,11 +410,13 @@ class ReadingSession(Base):
         Index("ix_reading_sessions_series_id", "series_id"),
         Index("ix_reading_sessions_chapter_id", "chapter_id"),
         Index("ix_reading_sessions_started_at", "started_at"),
+        Index("ix_reading_sessions_user_id", "user_id"),
         # Production: compound index for history aggregation and per-series lookups
         Index("ix_reading_sessions_started_series", "started_at", "series_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     series_id: Mapped[int] = mapped_column(
         ForeignKey("series.id"), nullable=False
     )
@@ -508,13 +530,19 @@ class SeriesTracker(Base):
 
     __tablename__ = "series_trackers"
     __table_args__ = (
-        UniqueConstraint("source", "series_id", "track_kind", name="uq_series_tracker"),
+        # Per-user follow: two users may each follow the same remote series.
+        UniqueConstraint(
+            "user_id", "source", "series_id", "track_kind", name="uq_series_tracker"
+        ),
         Index("ix_series_trackers_source", "source"),
         Index("ix_series_trackers_enabled", "enabled"),
         Index("ix_series_trackers_track_kind", "track_kind"),
+        Index("ix_series_trackers_user_id", "user_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Owner of this follow/tracker. Background scheduler reads it off the row.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     series_id: Mapped[str] = mapped_column(String(128), nullable=False)
     series_title: Mapped[str] = mapped_column(String(512), nullable=False)
@@ -545,9 +573,13 @@ class UpdateNotification(Base):
         Index("ix_update_notifications_is_read", "is_read"),
         Index("ix_update_notifications_created_at", "created_at"),
         Index("ix_update_notifications_tracker_id", "tracker_id"),
+        Index("ix_update_notifications_user_id", "user_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Denormalised owner (inherited from the tracker) so notification lists can
+    # scope by user without a join, and workers can set it off the tracker row.
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
     tracker_id: Mapped[int] = mapped_column(ForeignKey("series_trackers.id"), nullable=False)
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     series_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -629,3 +661,36 @@ class UserSession(Base):
     ip_address: Mapped[str | None] = mapped_column(String(64))
 
     user: Mapped[User] = relationship(back_populates="sessions")
+
+
+class UserSeriesState(Base):
+    """Per-user state for a shared catalog series (household model).
+
+    The catalog (``series``) is shared across the household; a user's own
+    favourite flag, reading status, and read-chapter count live here, one row
+    per (user, series). ``user_id`` is nullable so a pre-multi-user database can
+    be migrated with the owner unknown — the first admin registration claims all
+    NULL-owned rows (see AuthService.register). Supersedes the legacy
+    ``series.is_favorite`` / ``series.reading_status`` / ``series.read_chapters``
+    columns, which remain until a later contract migration drops them.
+    """
+
+    __tablename__ = "user_series_state"
+    __table_args__ = (
+        UniqueConstraint("user_id", "series_id", name="uq_user_series_state"),
+        Index("ix_user_series_state_user", "user_id"),
+        Index("ix_user_series_state_series", "series_id"),
+        Index("ix_user_series_state_user_favorite", "user_id", "is_favorite"),
+        Index("ix_user_series_state_user_status", "user_id", "reading_status"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False)
+    is_favorite: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
+    reading_status: Mapped[str] = mapped_column(String(64), nullable=False, default="unread")
+    read_chapters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow
+    )

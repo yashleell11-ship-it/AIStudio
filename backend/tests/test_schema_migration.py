@@ -4,7 +4,10 @@ import pytest
 from sqlalchemy import create_engine, inspect, text
 
 from database.models import Series
-from database.session import _migrate_intelligence_columns, init_db
+from database.session import (
+    _migrate_chapter_number_to_float,
+    _migrate_intelligence_columns,
+)
 
 
 def test_migrate_intelligence_columns_adds_sort_title(tmp_path):
@@ -65,8 +68,12 @@ def test_migrate_intelligence_columns_adds_sort_title(tmp_path):
         assert sort_title == "Tower of God"
 
 
-def test_init_db_upgrades_legacy_schema_with_integer_chapters(tmp_path, monkeypatch):
-    """init_db must add intelligence columns before rebuilding chapters.number."""
+def test_legacy_migrations_upgrade_integer_chapters_in_place(tmp_path):
+    """The pre-Alembic bring-up migrations must add intelligence columns and
+    widen chapters.number (INTEGER -> REAL) on a legacy database, preserving
+    data. These run in init_db() before Alembic adopts the (now baseline)
+    schema; here they are exercised directly since a partial legacy schema is
+    not a complete baseline Alembic can adopt."""
     db_path = tmp_path / "legacy.db"
     engine = create_engine(f"sqlite:///{db_path}")
 
@@ -131,22 +138,12 @@ def test_init_db_upgrades_legacy_schema_with_integer_chapters(tmp_path, monkeypa
             )
         )
 
-    monkeypatch.setenv("DB_PATH", str(db_path))
+    # Order matters: intelligence columns (adds sort_key) before the chapters
+    # rebuild, exactly as init_db() sequences them.
+    _migrate_intelligence_columns(engine)
+    _migrate_chapter_number_to_float(engine)
 
-    from core.config import Settings, get_settings
-
-    original = get_settings()
-    patched = Settings(**{**original.model_dump(), "db_path": str(db_path)})
-    get_settings.cache_clear()
-
-    import database.session as session_module
-
-    monkeypatch.setattr(session_module, "get_settings", lambda: patched)
-    session_module.get_engine.cache_clear()
-
-    init_db()
-
-    inspector = inspect(session_module.get_engine())
+    inspector = inspect(engine)
     series_columns = {column["name"] for column in inspector.get_columns("series")}
     chapter_columns = {column["name"] for column in inspector.get_columns("chapters")}
     assert "sort_title" in series_columns
@@ -157,13 +154,13 @@ def test_init_db_upgrades_legacy_schema_with_integer_chapters(tmp_path, monkeypa
 
     from sqlalchemy.orm import sessionmaker
 
-    db = sessionmaker(bind=session_module.get_engine(), autoflush=False)()
+    db = sessionmaker(bind=engine, autoflush=False)()
     try:
         row = db.query(Series).first()
         assert row is not None
         assert row.sort_title == "Legacy Series"
+        # data preserved across the INTEGER -> REAL rebuild
+        chapter = db.execute(text("SELECT number FROM chapters WHERE id = 1")).scalar_one()
+        assert chapter == 1
     finally:
         db.close()
-
-    get_settings.cache_clear()
-    session_module.get_engine.cache_clear()
