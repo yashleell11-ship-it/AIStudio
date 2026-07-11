@@ -10,6 +10,8 @@ from connectors.asurascans.connector import AsuraScansConnector
 from connectors.base import SourceConnector
 from connectors.coffeemanga.connector import CoffeeMangaConnector
 from connectors.local_filesystem.connector import LocalFilesystemConnector
+from connectors.madara.factory import madara_connector_classes
+from connectors.madara.sites import MADARA_SITES
 from connectors.mangadex.connector import MangaDexConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
 from connectors.demonicscans.connector import DemonicScansConnector
@@ -19,13 +21,18 @@ logger = logging.getLogger(__name__)
 
 REQUIRED_BROWSABLE_CONNECTORS = frozenset({"asurascans", "mangadex"})
 
-_CONFIGLESS_CONNECTORS = {
+_MADARA_CONNECTOR_CLASSES: tuple[type[SourceConnector], ...] = tuple(
+    madara_connector_classes(MADARA_SITES)
+)
+
+_CONFIGLESS_CONNECTORS: set[str] = {
     AsuraScansConnector.SOURCE_TYPE,
     CoffeeMangaConnector.SOURCE_TYPE,
     MangaDexConnector.SOURCE_TYPE,
     MangaKatanaConnector.SOURCE_TYPE,
     DemonicScansConnector.SOURCE_TYPE,
     ToonilyConnector.SOURCE_TYPE,
+    *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
 }
 
 _INSTANCE_CACHE: dict[str, SourceConnector] = {}
@@ -71,6 +78,7 @@ def _register_builtin_connectors() -> None:
         (MangaKatanaConnector.SOURCE_TYPE, MangaKatanaConnector),
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
+        *((cls.SOURCE_TYPE, cls) for cls in _MADARA_CONNECTOR_CLASSES),
     )
     failures: list[str] = []
     for source_type, connector_cls in builtins:
