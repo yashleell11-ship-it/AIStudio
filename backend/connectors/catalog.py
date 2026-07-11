@@ -163,7 +163,6 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     _site("comicasura", "ComicAsura", "comicasura.net", mature=True),
     _site("hentai20", "Hentai20", "hentai20.io", mature=True, use_cf=False),
     _site("allhenscan", "AllHenScan", "allhenscan.com", mature=True, use_cf=False),
-    _site("18porncomic", "18PornComic", "18porncomic.com", mature=True, use_cf=False),
     _site("akuma", "Akuma", "akuma.moe", mature=True, use_cf=False),
     _site("apcomics", "APComics", "apcomics.org", mature=True, use_cf=False),
     _site("cocomic", "CoComic", "cocomic.co", mature=True, use_cf=False),
@@ -209,6 +208,7 @@ MADARA_LIVE: frozenset[str] = frozenset({
 
 HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
     "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga", "nhentai",
+    "18porncomic",
 })
 
 EXCLUDED_CONNECTORS: frozenset[str] = frozenset({"comick"})
