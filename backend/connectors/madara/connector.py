@@ -20,6 +20,9 @@ logger = logging.getLogger(__name__)
 HTML_HEADERS = {"Accept": "text/html,application/xhtml+xml"}
 BROWSER_IMPERSONATE = "chrome131"
 
+# Alternate url_segment values when the configured one returns an empty listing.
+LISTING_FALLBACKS = ("manga", "serie")
+
 
 class MadaraConnector(SourceConnector):
     """Browse/read any WordPress Madara-theme catalog via site config."""
@@ -113,10 +116,43 @@ class MadaraConnector(SourceConnector):
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         if page < 1:
             page = 1
-        path = self._html.listing_path(page)
-        params = self._html.listing_params(sort=sort)
-        html = self._http.get_text(path, params=params)
-        return self._html.parse_series_list(html, page=page)
+        segments = [self.CONFIG.url_segment]
+        for alt in LISTING_FALLBACKS:
+            if alt not in segments:
+                segments.append(alt)
+
+        last_error: Exception | None = None
+        for seg in segments:
+            cfg = self.CONFIG if seg == self.CONFIG.url_segment else replace(
+                self.CONFIG, url_segment=seg
+            )
+            html_parser = MadaraHtml(cfg) if seg != self.CONFIG.url_segment else self._html
+            path = html_parser.listing_path(page)
+            params = html_parser.listing_params(sort=sort)
+            try:
+                html = self._http.get_text(path, params=params)
+            except ConnectorHttpError as exc:
+                last_error = exc
+                continue
+            listing = html_parser.parse_series_list(html, page=page)
+            if listing.items:
+                if seg != self.CONFIG.url_segment:
+                    logger.info(
+                        "%s browse via alternate segment %r (%d items)",
+                        self.DISPLAY_NAME,
+                        seg,
+                        len(listing.items),
+                    )
+                return listing
+        if last_error is not None:
+            raise last_error
+        return PaginatedSeriesList(
+            items=[],
+            page=page,
+            page_size=self.CONFIG.page_size,
+            total=0,
+            api_has_more=False,
+        )
 
     def search_series(
         self, query: str, page: int, *, sort: str | None = None
