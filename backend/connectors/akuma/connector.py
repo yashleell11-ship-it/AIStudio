@@ -84,6 +84,9 @@ class AkumaConnector(SourceConnector):
     def image_fetch_headers(self) -> dict[str, str]:
         return {"Referer": f"{SITE_BASE}/"}
 
+    def fetch_proxied_image(self, url: str) -> tuple[str, bytes] | None:
+        return self._http.get_bytes(url, extra_headers=self.image_fetch_headers())
+
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
             BrowseMode(id="latest", label="Latest"),
@@ -134,6 +137,9 @@ class AkumaConnector(SourceConnector):
             page = 1
         query = ENGLISH_LANGUAGE_QUERY if sort == "english" else None
         listing = self._fetch_listing(page, query=query)
+        for item in listing.items:
+            if item.cover_url:
+                self._series_cache.set(item.id, item)
         logger.info(
             "Akuma browse sort=%r page=%d count=%d has_more=%s",
             sort,

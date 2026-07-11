@@ -386,6 +386,18 @@ class BrowseService:
         self._validate_outbound_url(url, connector)
 
         try:
+            proxied = connector.fetch_proxied_image(url)
+        except ConnectorHttpError as exc:
+            raise AppError(
+                "Failed to fetch remote image.",
+                code="remote_fetch_failed",
+                status_code=502,
+                details={"url": url, "reason": str(exc)},
+            ) from exc
+        if proxied is not None:
+            return proxied
+
+        try:
             # Redirects are not followed automatically: a redirect target
             # could point off the approved allowlist, silently bypassing it.
             # Connector headers (e.g. Referer) are required for CDNs that
