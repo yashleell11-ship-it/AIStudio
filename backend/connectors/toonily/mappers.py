@@ -27,7 +27,7 @@ RELATED_ITEM_RE = re.compile(
 
 CHAPTER_LINK_RE = re.compile(
     r'<li class="wp-manga-chapter[^"]*">\s*'
-    r'<a href="https?://[^"]+/serie/([^"]+)/">\s*([^<]+)</a>',
+    r'<a[^>]+href="(?:https?://[^"]+)?/serie/([^"]+)/"[^>]*>\s*([^<]+)</a>',
     re.S | re.I,
 )
 

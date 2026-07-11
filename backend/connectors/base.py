@@ -60,6 +60,15 @@ class SourceConnector(ABC):
         """
         return frozenset()
 
+    def image_fetch_headers(self) -> dict[str, str]:
+        """Optional headers for outbound cover/page image GETs.
+
+        CDNs that enforce hotlink protection (e.g. Toonily's ``tnlycdn.com``)
+        require a site ``Referer``. Override on connectors that need it; the
+        image proxy and download pipeline merge these into every image request.
+        """
+        return {}
+
     def list_browse_modes(self) -> list[BrowseMode]:
         """Return catalog views this connector supports (popular, latest, etc.)."""
         return [BrowseMode(id="default", label="Browse")]

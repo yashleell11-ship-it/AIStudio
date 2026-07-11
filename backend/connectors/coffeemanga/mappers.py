@@ -47,7 +47,7 @@ CARD_IMG_TAG_RE = re.compile(r"<img\b[^>]*>", re.I)
 
 CHAPTER_LINK_RE = re.compile(
     r'<li class="wp-manga-chapter[^"]*">\s*'
-    r'<a href="https?://[^"]+/manga/([^"]+)/">\s*([^<]+)</a>',
+    r'<a[^>]+href="(?:https?://[^"]+)?/manga/([^"]+)/"[^>]*>\s*([^<]+)</a>',
     re.S | re.I,
 )
 

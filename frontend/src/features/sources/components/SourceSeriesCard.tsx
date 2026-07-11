@@ -14,7 +14,7 @@ interface SourceSeriesCardProps {
 
 export function SourceSeriesCard({ sourceId, series }: SourceSeriesCardProps) {
   return (
-    <Link href={`/sources/${sourceId}/series/${series.id}`}>
+    <Link href={`/sources/${sourceId}/series/${encodeURIComponent(series.id)}`}>
       <Card className="group overflow-hidden transition-colors hover:border-primary/40">
         <div className="relative aspect-[2/3] w-full overflow-hidden bg-surface-2">
           <Image

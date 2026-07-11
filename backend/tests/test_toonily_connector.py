@@ -279,3 +279,7 @@ def test_list_browse_modes(toonily_connector: ToonilyConnector):
 def test_allowed_image_hosts(toonily_connector: ToonilyConnector):
     hosts = toonily_connector.allowed_image_hosts
     assert "tnlycdn.com" in hosts
+
+
+def test_image_fetch_headers_include_toonily_referer(toonily_connector: ToonilyConnector):
+    assert toonily_connector.image_fetch_headers()["Referer"] == "https://toonily.com/"

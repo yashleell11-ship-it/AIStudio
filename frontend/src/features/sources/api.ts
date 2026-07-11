@@ -41,21 +41,34 @@ export const sourcesApi = {
   listSources: () => http.get<SourceSummary[]>("/sources"),
 
   browseModes: (sourceId: string) =>
-    http.get<SourceBrowseMode[]>(`/sources/${sourceId}/browse-modes`),
+    http.get<SourceBrowseMode[]>(`/sources/${encodeURIComponent(sourceId)}/browse-modes`),
 
   listSeries: (
     sourceId: string,
     params: { page?: number; query?: string; sort?: string },
-  ) => http.get<PaginatedSourceSeries>(`/sources/${sourceId}/series`, { query: params }),
+  ) =>
+    http.get<PaginatedSourceSeries>(
+      `/sources/${encodeURIComponent(sourceId)}/series`,
+      { query: params },
+    ),
 
   getSeries: (sourceId: string, seriesId: string) =>
-    http.get<SourceSeriesDetail>(`/sources/${sourceId}/series/${seriesId}`),
+    http.get<SourceSeriesDetail>(
+      `/sources/${encodeURIComponent(sourceId)}/series/${encodeURIComponent(seriesId)}`,
+    ),
 
   getChapters: (sourceId: string, seriesId: string) =>
-    http.get<SourceChapterSummary[]>(`/sources/${sourceId}/series/${seriesId}/chapters`),
+    http.get<SourceChapterSummary[]>(
+      `/sources/${encodeURIComponent(sourceId)}/series/${encodeURIComponent(seriesId)}/chapters`,
+    ),
 
   getReaderChapter: (sourceId: string, seriesId: string, chapterId: string) =>
     http.get<SourceReaderChapterResponse>(
-      `/sources/${sourceId}/series/${seriesId}/chapters/${chapterId}/reader`,
+      // Chapter ids may contain `/` (Madara/Toonily). Encode each segment so
+      // the backend `:path` converter still sees the slash-separated form.
+      `/sources/${encodeURIComponent(sourceId)}/series/${encodeURIComponent(seriesId)}/chapters/${chapterId
+        .split("/")
+        .map(encodeURIComponent)
+        .join("/")}/reader`,
     ),
 };

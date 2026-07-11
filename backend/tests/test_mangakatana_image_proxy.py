@@ -73,7 +73,12 @@ def test_mangakatana_cover_proxy_fetches_approved_host(
 
     assert media_type == "image/jpeg"
     assert data == MINIMAL_PNG
-    mock_get.assert_called_once_with(cover_url, timeout=30.0, follow_redirects=False)
+    mock_get.assert_called_once_with(
+        cover_url,
+        timeout=30.0,
+        follow_redirects=False,
+        headers=mangakatana_connector.image_fetch_headers(),
+    )
 
 
 def test_mangakatana_reader_proxy_fetches_cdn_host(
