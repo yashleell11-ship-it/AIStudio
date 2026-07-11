@@ -318,7 +318,7 @@ def statistics(intel: IntelDep) -> dict[str, object]:
 @router.post("/import", response_model=ImportResponse, dependencies=[Depends(require_admin_user)])
 @limiter.limit(import_limit)
 def import_library(
-    body: ImportRequest, request: Request, service: ServiceDep
+    body: ImportRequest, request: Request, response: Response, service: ServiceDep
 ) -> ImportResponse:
     """Scan a folder and import series, chapters, and pages into the database."""
     result = service.import_folder(body.folder_path)

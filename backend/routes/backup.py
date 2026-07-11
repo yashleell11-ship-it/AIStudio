@@ -14,7 +14,7 @@ import shutil
 import tempfile
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, Request, UploadFile
+from fastapi import APIRouter, Depends, Request, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
@@ -63,7 +63,7 @@ def backup_status() -> BackupStatus:
 
 @router.post("/import", response_model=RestoreStaged, dependencies=[Depends(require_admin_user)])
 @limiter.limit(import_limit)
-def import_backup(file: UploadFile, request: Request) -> RestoreStaged:
+def import_backup(file: UploadFile, request: Request, response: Response) -> RestoreStaged:
     """Validate an uploaded backup and stage it for restore on next start."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
         shutil.copyfileobj(file.file, tmp)

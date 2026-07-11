@@ -37,6 +37,7 @@ def list_source_series(
     source_id: str,
     service: BrowseDep,
     request: Request,
+    response: Response,
     page: int = Query(1, ge=1),
     query: str | None = Query(None),
     sort: str | None = Query(None),
