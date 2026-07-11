@@ -33,6 +33,14 @@ class MadaraHtml:
             rf'<a href="https?://[^"]+/{seg}/([^"/]+)/"[^>]*title="([^"]*)"',
             re.I,
         )
+        self._card_anchor_rel = re.compile(
+            rf'<a href="/{seg}/([^"/]+)/"[^>]*title="([^"]*)"',
+            re.I,
+        )
+        self._card_anchor_loose = re.compile(
+            rf'href="(?:https?://[^"]+)?/{seg}/([a-z0-9-]+)/"[^>]*>([^<{{]+)',
+            re.I,
+        )
         self._card_img_tag = re.compile(r"<img\b[^>]*>", re.I)
         self._chapter_link = re.compile(
             r'<li class="wp-manga-chapter[^"]*">\s*'
@@ -376,7 +384,11 @@ class MadaraHtml:
         for segment in split_re.split(html_text):
             if marker not in segment[:80]:
                 continue
-            anchor = self._card_anchor.search(segment)
+            anchor = (
+                self._card_anchor.search(segment)
+                or self._card_anchor_rel.search(segment)
+                or self._card_anchor_loose.search(segment)
+            )
             if anchor is None:
                 continue
             slug, title = anchor.group(1), anchor.group(2)
