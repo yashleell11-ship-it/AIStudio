@@ -1,10 +1,12 @@
-"""Madara-theme site registration — live-probed production subset."""
+"""Madara-theme site registration."""
 
 from __future__ import annotations
 
 from connectors.catalog import MADARA_CATALOG, MADARA_LIVE
 
-# Production: only register connectors confirmed live by probe (2026-07-11).
-MADARA_SITES: tuple = tuple(
-    cfg for cfg in MADARA_CATALOG if cfg.source_id in MADARA_LIVE
-)
+# Rollout phase: register the full catalog (155) so probes can attempt every source.
+# Production deploys may filter to ``MADARA_LIVE`` until custom connectors land.
+MADARA_SITES: tuple = MADARA_CATALOG
+
+# Confirmed-live subset for ``rebuild_live_sites.py`` / production pruning.
+MADARA_LIVE_IDS = MADARA_LIVE
