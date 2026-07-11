@@ -15,6 +15,7 @@ from connectors.madara.sites import MADARA_SITES
 from connectors.mangadex.connector import MangaDexConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
 from connectors.demonicscans.connector import DemonicScansConnector
+from connectors.nhentai.connector import NHentaiConnector
 from connectors.toonily.connector import ToonilyConnector
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     MangaKatanaConnector.SOURCE_TYPE,
     DemonicScansConnector.SOURCE_TYPE,
     ToonilyConnector.SOURCE_TYPE,
+    NHentaiConnector.SOURCE_TYPE,
     *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
 }
 
@@ -78,6 +80,7 @@ def _register_builtin_connectors() -> None:
         (MangaKatanaConnector.SOURCE_TYPE, MangaKatanaConnector),
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
+        (NHentaiConnector.SOURCE_TYPE, NHentaiConnector),
         *((cls.SOURCE_TYPE, cls) for cls in _MADARA_CONNECTOR_CLASSES),
     )
     failures: list[str] = []

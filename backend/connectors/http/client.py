@@ -106,6 +106,40 @@ class SyncConnectorHttpClient:
         )
         raise ConnectorHttpError(message, status_code=status_code) from last_error
 
+    def get_json_value(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+    ) -> Any:
+        """Like ``get_json`` but accepts arrays and scalars."""
+        last_error: Exception | None = None
+
+        for attempt in range(self._max_retries):
+            self._rate_limit()
+            try:
+                response = self._client.get(path, params=_serialize_params(params))
+                if response.status_code in RETRYABLE_STATUS:
+                    raise ConnectorHttpError(
+                        f"Retryable HTTP {response.status_code}",
+                        status_code=response.status_code,
+                    )
+                response.raise_for_status()
+                return response.json()
+            except (httpx.HTTPError, ConnectorHttpError) as exc:
+                last_error = exc
+                if attempt + 1 >= self._max_retries:
+                    break
+                time.sleep(0.5 * (2**attempt))
+
+        message = str(last_error) if last_error else "Unknown HTTP error"
+        status_code = (
+            last_error.status_code
+            if isinstance(last_error, ConnectorHttpError)
+            else None
+        )
+        raise ConnectorHttpError(message, status_code=status_code) from last_error
+
     def get_text(
         self,
         path: str,

@@ -170,7 +170,6 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     _site("comicland", "ComicLand", "comicland.org", mature=True, use_cf=False),
 
     # --- Manga 18+ (hentai / doujin) ----------------------------------------
-    _site("nhentai", "nHentai", "nhentai.net", mature=True, use_cf=False),
     _site("ehentai", "E-Hentai", "e-hentai.org", mature=True, use_cf=False),
     _site("hentai2read", "Hentai2Read", "hentai2read.com", mature=True, use_cf=False),
     _site("hentaifox", "HentaiFox", "hentaifox.com", mature=True, use_cf=False),
@@ -209,7 +208,7 @@ MADARA_LIVE: frozenset[str] = frozenset({
 })
 
 HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
-    "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga",
+    "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga", "nhentai",
 })
 
 EXCLUDED_CONNECTORS: frozenset[str] = frozenset({"comick"})

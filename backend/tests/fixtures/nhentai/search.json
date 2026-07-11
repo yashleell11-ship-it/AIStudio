@@ -1,0 +1,18 @@
+{
+  "result": [
+    {
+      "id": 663284,
+      "media_id": "4042966",
+      "english_title": "[Coconut Milk (Ciel)] Sample Gallery [English]",
+      "japanese_title": "[ココナッツみるく (Ciel)] サンプル [英訳]",
+      "thumbnail": "galleries/4042966/thumb.webp",
+      "num_pages": 42,
+      "num_favorites": 3,
+      "tag_ids": [33172, 17249],
+      "blacklisted": false
+    }
+  ],
+  "num_pages": 1,
+  "per_page": 25,
+  "total": 1
+}
