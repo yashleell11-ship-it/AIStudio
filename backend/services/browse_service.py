@@ -101,8 +101,14 @@ class BrowseService:
     def _raise_source_connector_error(source_id: str, exc: Exception) -> None:
         """Map upstream connector failures to client-facing browse errors."""
         if isinstance(exc, ConnectorHttpError):
+            if exc.status_code == 403:
+                message = (
+                    "Access blocked (403). This source may use Cloudflare or bot protection."
+                )
+            else:
+                message = str(exc) or "Could not load source catalog."
             raise AppError(
-                str(exc) or "Could not load source catalog.",
+                message,
                 code="source_unreachable",
                 status_code=502,
                 details={"source_id": source_id},
