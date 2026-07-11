@@ -8,6 +8,7 @@ from typing import Any
 from urllib.parse import urljoin
 from urllib.parse import urlparse
 
+from connectors.ids import fully_unquote
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
 from connectors.titles import normalize_chapter_title
 
@@ -27,15 +28,25 @@ def _clean_text(value: str) -> str:
     return html.unescape(re.sub(r"\s+", " ", value)).strip()
 
 
-SERIES_LINK_RE = re.compile(
-    r'<a[^>]+href="(?P<href>/manga/[^"]+)"[^>]*>(?P<title>[^<]+)</a>',
-    re.I,
+def _series_id_from_href(href: str) -> str:
+    raw = _clean_text(href).removeprefix("/manga/").strip().strip("/")
+    return fully_unquote(raw)
+
+
+# Thumb cards on latest/popular: cover lives inside ``div.thumb > a > img``.
+# Matching any manga ``<a>`` then the next ``<img>`` incorrectly pairs the
+# title link from one card with the next card's cover.
+THUMB_CARD_RE = re.compile(
+    r'<div class="thumb">\s*'
+    r'<a href="(?P<href>/manga/[^"]+)"[^>]*?\btitle="(?P<title>[^"]*)"[^>]*>\s*'
+    r'<img[^>]+src="(?P<cover>[^"]+)"',
+    re.I | re.S,
 )
 
-SERIES_CARD_IMG_RE = re.compile(
-    r'<a[^>]+href="(?P<href>/manga/[^"]+)"[^>]*>.*?'
-    r'<img[^>]+(?:data-src|data-lazy-src|src)="(?P<cover>[^"]+)"',
-    re.I | re.S,
+SERIES_LINK_RE = re.compile(
+    r'<a[^>]+href="(?P<href>/manga/[^"]+)"[^>]*(?:\btitle="(?P<title_attr>[^"]*)")?[^>]*>'
+    r'(?P<title>[^<]+)</a>',
+    re.I,
 )
 
 
@@ -43,16 +54,16 @@ def parse_series_cards(html_text: str) -> list[Series]:
     items: list[Series] = []
     seen: set[str] = set()
 
-    for match in SERIES_CARD_IMG_RE.finditer(html_text):
-        href = _clean_text(match.group("href"))
-        series_id = href.removeprefix("/manga/").strip().strip("/")
+    for match in THUMB_CARD_RE.finditer(html_text):
+        series_id = _series_id_from_href(match.group("href"))
         if not series_id or series_id in seen:
             continue
         seen.add(series_id)
+        title = _clean_text(match.group("title")) or series_id.replace("-", " ")
         items.append(
             Series(
                 id=series_id,
-                title=series_id.replace("-", " "),
+                title=title,
                 cover_url=urljoin(SITE_BASE, _clean_text(match.group("cover"))),
                 canonical_path=f"/manga/{series_id}",
             )
@@ -60,16 +71,17 @@ def parse_series_cards(html_text: str) -> list[Series]:
 
     # Fallback: links without images
     for match in SERIES_LINK_RE.finditer(html_text):
-        href = _clean_text(match.group("href"))
-        series_id = href.removeprefix("/manga/").strip().strip("/")
+        series_id = _series_id_from_href(match.group("href"))
         if not series_id or series_id in seen:
             continue
         seen.add(series_id)
-        title = _clean_text(match.group("title"))
+        title = _clean_text(match.group("title_attr") or "") or _clean_text(
+            match.group("title")
+        )
         items.append(
             Series(
                 id=series_id,
-                title=title,
+                title=title or series_id.replace("-", " "),
                 canonical_path=f"/manga/{series_id}",
             )
         )
@@ -96,6 +108,24 @@ def parse_series_list(html_text: str, *, page: int, page_size: int = PAGE_SIZE) 
     )
 
 
+def _detail_cover_url(html_text: str) -> str | None:
+    """Resolve cover art from current DemonicScans detail markup.
+
+    The site dropped ``#manga-cover``; covers now live on ``readermc.org`` via
+    ``og:image`` / the primary series thumbnail ``<img>``.
+    """
+    for pattern in (
+        r'<meta[^>]+property="og:image"[^>]+content="([^"]+)"',
+        r'<img[^>]+id="manga-cover"[^>]+src="([^"]+)"',
+        r'<img[^>]+class="[^"]*border-box[^"]*"[^>]+src="(https?://[^"]+thumbnails[^"]+)"',
+        r'src="(https?://(?:www\.)?readermc\.org/images/thumbnails/[^"]+)"',
+    ):
+        match = re.search(pattern, html_text, re.I)
+        if match:
+            return urljoin(SITE_BASE, _clean_text(match.group(1)))
+    return None
+
+
 def parse_series_detail(html_text: str, series_id: str) -> Series | None:
     title_match = re.search(r"<h1[^>]*big-fat-titles[^>]*>([^<]+)</h1>", html_text, re.I)
     if not title_match:
@@ -104,8 +134,7 @@ def parse_series_detail(html_text: str, series_id: str) -> Series | None:
         return None
     title = _clean_text(title_match.group(1))
 
-    cover_match = re.search(r'<img[^>]+id="manga-cover"[^>]+src="([^"]+)"', html_text, re.I)
-    cover_url = urljoin(SITE_BASE, cover_match.group(1)) if cover_match else None
+    cover_url = _detail_cover_url(html_text)
 
     def _stat(label: str) -> str | None:
         m = re.search(

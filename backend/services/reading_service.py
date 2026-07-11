@@ -3,12 +3,11 @@
 from __future__ import annotations
 
 from typing import Annotated
-from urllib.parse import unquote
 
 from fastapi import Depends
 from sqlalchemy.orm import Session
 
-from core.errors import AppError
+from connectors.ids import fully_unquote
 from database.models import SourceChapterLink
 from database.session import get_db
 from services.browse_service import BrowseService, get_browse_service
@@ -30,7 +29,7 @@ class ReadingService:
         chapter_id: str,
     ) -> dict[str, object]:
         """Read from a local copy when available, otherwise stream from the source."""
-        normalized_chapter_id = unquote(chapter_id).strip().strip("/")
+        normalized_chapter_id = fully_unquote(chapter_id).strip().strip("/")
         local_chapter_id = self._find_local_chapter(source_id, series_id, normalized_chapter_id)
         if local_chapter_id is not None:
             return self._local_reader_payload(local_chapter_id)

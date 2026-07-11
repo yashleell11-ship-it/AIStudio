@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from typing import Any
-from urllib.parse import unquote
+from connectors.ids import fully_unquote
 
 from connectors.asurascans.mappers import (
     API_BASE,
@@ -118,7 +118,7 @@ class AsuraScansConnector(SourceConnector):
         return params
 
     def _normalize_series_id(self, series_id: str) -> str:
-        return series_id_to_api_key(unquote(series_id))
+        return series_id_to_api_key(fully_unquote(series_id))
 
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         if page < 1:

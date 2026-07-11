@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import logging
-from urllib.parse import quote, unquote
+from urllib.parse import quote
 
 from core.config import get_settings
 from core.errors import AppError
 from connectors.base import SourceConnector
+from connectors.ids import fully_unquote
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
 from connectors.registry import (
     create_connector,
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 def _normalize_source_chapter_id(chapter_id: str) -> str:
     """Decode chapter IDs from URL paths (may contain ``/`` for some sources)."""
-    return unquote(chapter_id).strip().strip("/")
+    return fully_unquote(chapter_id).strip().strip("/")
 
 
 def _serialize_series(series: Series, source_id: str) -> dict[str, object]:
@@ -180,7 +181,7 @@ class BrowseService:
 
     def get_series(self, source_id: str, series_id: str) -> dict[str, object]:
         connector = self._get_connector(source_id)
-        series = connector.get_series(series_id)
+        series = connector.get_series(fully_unquote(series_id))
         if series is None:
             raise AppError(
                 "Series not found.",
@@ -192,6 +193,7 @@ class BrowseService:
 
     def get_chapters(self, source_id: str, series_id: str) -> list[dict[str, object]]:
         connector = self._get_connector(source_id)
+        series_id = fully_unquote(series_id)
         series = connector.get_series(series_id)
         if series is None:
             raise AppError(
@@ -223,6 +225,7 @@ class BrowseService:
     ) -> dict[str, object]:
         connector = self._get_connector(source_id)
         normalized_chapter_id = _normalize_source_chapter_id(chapter_id)
+        series_id = fully_unquote(series_id)
         series = connector.get_series(series_id)
         if series is None:
             raise AppError(
@@ -263,7 +266,7 @@ class BrowseService:
 
     def resolve_page_image(self, source_id: str, page_id: str) -> tuple[str, bytes]:
         connector = self._get_connector(source_id)
-        normalized_page_id = unquote(page_id).strip()
+        normalized_page_id = fully_unquote(page_id).strip()
         page = connector.find_page(normalized_page_id)
         if page is None:
             raise AppError(
@@ -276,7 +279,7 @@ class BrowseService:
 
     def resolve_series_cover(self, source_id: str, series_id: str) -> tuple[str, bytes]:
         connector = self._get_connector(source_id)
-        series = connector.get_series(series_id)
+        series = connector.get_series(fully_unquote(series_id))
         if series is None or not series.cover_url:
             raise AppError(
                 "Cover not found.",

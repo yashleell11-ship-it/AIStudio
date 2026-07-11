@@ -5,12 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from typing import Any
-from urllib.parse import unquote
-
 from connectors.base import SourceConnector
-from connectors.http.cache import TTLCache
-from connectors.http.client import ConnectorHttpError, SyncConnectorHttpClient
-from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Series
 from connectors.demonicscans.mappers import (
     PAGE_SIZE,
     SITE_BASE,
@@ -22,6 +17,11 @@ from connectors.demonicscans.mappers import (
     parse_series_detail,
     parse_series_list,
 )
+from connectors.http.cache import TTLCache
+from connectors.http.client import ConnectorHttpError, SyncConnectorHttpClient
+from connectors.ids import fully_unquote
+from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Series
+
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,11 @@ class DemonicScansConnector(SourceConnector):
 
     @property
     def allowed_image_hosts(self) -> frozenset[str]:
-        return frozenset({"demonicscans.org", "demoniclibs.com"})
+        # Cover thumbnails are hosted on readermc.org; reader pages on demoniclibs.
+        return frozenset({"demonicscans.org", "demoniclibs.com", "readermc.org"})
+
+    def image_fetch_headers(self) -> dict[str, str]:
+        return {"Referer": f"{SITE_BASE}/"}
 
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
@@ -102,10 +106,10 @@ class DemonicScansConnector(SourceConnector):
         logger.info(message)
 
     def _normalize_series_id(self, series_id: str) -> str:
-        return unquote(series_id).strip().strip("/").removeprefix("manga/")
+        return fully_unquote(series_id).strip().strip("/").removeprefix("manga/")
 
     def _normalize_chapter_id(self, chapter_id: str) -> str:
-        return unquote(chapter_id).strip().strip("/")
+        return fully_unquote(chapter_id).strip().strip("/")
 
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         if page < 1:

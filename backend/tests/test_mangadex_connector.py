@@ -38,6 +38,40 @@ def test_list_series_uses_mangadex_api(mangadex_connector: MangaDexConnector):
     assert listing.total == 2
     assert len(listing.items) == 2
     assert listing.items[0].title == "Solo Leveling"
+    assert listing.items[0].cover_url == (
+        "https://uploads.mangadex.org/covers/32dce569-8fcc-46b6-853c-f956e16ee0bc/cover.jpg"
+    )
+
+
+def test_embedded_cover_art_attributes_without_included(mangadex_connector: MangaDexConnector):
+    """MangaDex may embed cover_art attributes on relationships with empty included."""
+    payload = {
+        "result": "ok",
+        "response": "collection",
+        "data": [
+            {
+                "id": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee",
+                "type": "manga",
+                "attributes": {"title": {"en": "Embedded Cover Manga"}, "status": "ongoing"},
+                "relationships": [
+                    {
+                        "id": "cover-1",
+                        "type": "cover_art",
+                        "attributes": {"fileName": "embedded.jpg"},
+                    }
+                ],
+            }
+        ],
+        "limit": 1,
+        "offset": 0,
+        "total": 1,
+        "included": [],
+    }
+    with patch.object(mangadex_connector._http, "get_json", return_value=payload):
+        listing = mangadex_connector.get_series_list(1)
+    assert listing.items[0].cover_url == (
+        "https://uploads.mangadex.org/covers/aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee/embedded.jpg"
+    )
 
 
 def test_search_series_uses_title_param(mangadex_connector: MangaDexConnector):
