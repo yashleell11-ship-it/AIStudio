@@ -9,8 +9,11 @@ from __future__ import annotations
 
 import pytest
 
+from unittest.mock import MagicMock
+
 from core.errors import AppError
-from database.models import Chapter, Library, Page, Series, User
+from database.models import Chapter, Download, Library, Page, Series, User
+from services.download_service import DownloadService
 from services.library_service import LibraryService
 from services.reader_service import ReaderService
 
@@ -97,3 +100,34 @@ def test_delete_progress_is_owner_scoped(db_session, catalog):
     with pytest.raises(AppError):
         bob.delete_progress(catalog["series"])
     assert alice.get_progress(catalog["series"]) is not None
+
+
+def test_download_queue_is_isolated_between_users(db_session, catalog):
+    db_session.add(
+        Download(
+            user_id=catalog["alice"], source="mangadex", series_id="s1", chapter_id="c1",
+            series_title="A", chapter_title="A1", status="queued",
+        )
+    )
+    db_session.add(
+        Download(
+            user_id=catalog["bob"], source="mangadex", series_id="s1", chapter_id="c2",
+            series_title="A", chapter_title="A2", status="queued",
+        )
+    )
+    db_session.commit()
+
+    manager = MagicMock()
+    manager.get_speed_snapshot.return_value = (0, None, 0.0)  # (bps, eta, mbps)
+    alice = DownloadService(db_session, manager, user_id=catalog["alice"])
+    bob = DownloadService(db_session, manager, user_id=catalog["bob"])
+
+    alice_rows = alice.list_downloads()
+    bob_rows = bob.list_downloads()
+    assert len(alice_rows) == 1 and alice_rows[0]["chapter_id"] == "c1"
+    assert len(bob_rows) == 1 and bob_rows[0]["chapter_id"] == "c2"
+
+    # Bob cannot pause/act on Alice's download (ownership scoped → 404).
+    with pytest.raises(AppError) as exc:
+        bob.pause(alice_rows[0]["id"])
+    assert exc.value.status_code == 404

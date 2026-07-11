@@ -13,8 +13,9 @@ from connectors.registry import create_connector
 from core.config import get_settings, update_persisted_settings
 from core.errors import AppError
 from core.time_utils import utcnow
-from database.models import Download, DownloadQueue, SourceChapterLink
+from database.models import Download, DownloadQueue, SourceChapterLink, User
 from database.session import get_db
+from services.auth_service import get_optional_user
 from services.download_manager import DownloadManager, get_download_manager
 from services.download_support import DiskSpaceError, infer_queue_priority
 
@@ -35,14 +36,21 @@ _FLOAT_SETTINGS = {"download_retry_delay_seconds", "download_timeout_seconds"}
 
 
 class DownloadService:
-    def __init__(self, db: Session, manager: DownloadManager) -> None:
+    def __init__(
+        self, db: Session, manager: DownloadManager, user_id: int | None = None
+    ) -> None:
         self._db = db
         self._manager = manager
         self._settings = get_settings()
+        # The queue is owned per user (who requested each download); the shared
+        # worker still processes everyone's queue, and de-dup stays global so a
+        # chapter already in the shared library is never re-fetched.
+        self._user_id = user_id
 
     def list_downloads(self) -> list[dict[str, Any]]:
         rows = (
             self._db.query(Download)
+            .filter(Download.user_id == self._user_id)
             .options(joinedload(Download.queue))
             .order_by(Download.created_at.desc())
             .all()
@@ -167,6 +175,7 @@ class DownloadService:
             chapter = chapter_map.get(chapter_id)
             chapter_title = titles.get(chapter_id) or (chapter.title if chapter else chapter_id)
             download = Download(
+                user_id=self._user_id,
                 source=source_id,
                 series_id=series_id,
                 chapter_id=chapter_id,
@@ -297,7 +306,11 @@ class DownloadService:
     # ------------------------------------------------------------------
 
     def _bulk_query(self, *, source_id: str | None, series_id: str | None):
-        query = self._db.query(Download).options(joinedload(Download.queue))
+        query = (
+            self._db.query(Download)
+            .filter(Download.user_id == self._user_id)
+            .options(joinedload(Download.queue))
+        )
         if source_id is not None:
             query = query.filter(Download.source == source_id)
         if series_id is not None:
@@ -460,7 +473,7 @@ class DownloadService:
         download = (
             self._db.query(Download)
             .options(joinedload(Download.queue))
-            .filter(Download.id == download_id)
+            .filter(Download.id == download_id, Download.user_id == self._user_id)
             .first()
         )
         if download is None:
@@ -538,5 +551,6 @@ class DownloadService:
 
 def get_download_service(
     db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User | None, Depends(get_optional_user)],
 ) -> DownloadService:
-    return DownloadService(db, get_download_manager())
+    return DownloadService(db, get_download_manager(), user_id=user.id if user else None)
