@@ -64,6 +64,17 @@ def _serialize_page(page: Page, source_id: str) -> dict[str, object]:
     }
 
 
+def _invalidate_series_caches(connector: SourceConnector, series_id: str) -> None:
+    """Drop per-series connector caches after a transient upstream miss."""
+    api_key = fully_unquote(series_id).strip().strip("/")
+    if api_key.startswith("serie/"):
+        api_key = api_key.removeprefix("serie/")
+    for cache_name in ("_series_cache", "_chapter_list_cache"):
+        cache = getattr(connector, cache_name, None)
+        if cache is not None and hasattr(cache, "pop"):
+            cache.pop(api_key)
+
+
 def _serialize_paginated(
     listing: PaginatedSeriesList,
     source_id: str,
@@ -202,7 +213,25 @@ class BrowseService:
                 status_code=404,
                 details={"source_id": source_id, "series_id": series_id},
             )
-        return [_serialize_chapter(chapter, source_id) for chapter in connector.get_chapters(series_id)]
+        chapters = connector.get_chapters(series_id)
+        if not chapters and series.chapter_count > 0:
+            logger.warning(
+                "Chapters empty despite chapter_count=%d source=%s series=%s; retrying after cache bust",
+                series.chapter_count,
+                source_id,
+                series_id,
+            )
+            _invalidate_series_caches(connector, series_id)
+            series = connector.get_series(series_id)
+            if series is None:
+                raise AppError(
+                    "Series not found.",
+                    code="series_not_found",
+                    status_code=404,
+                    details={"source_id": source_id, "series_id": series_id},
+                )
+            chapters = connector.get_chapters(series_id)
+        return [_serialize_chapter(chapter, source_id) for chapter in chapters]
 
     def get_chapter_pages(self, source_id: str, chapter_id: str) -> list[dict[str, object]]:
         connector = self._get_connector(source_id)

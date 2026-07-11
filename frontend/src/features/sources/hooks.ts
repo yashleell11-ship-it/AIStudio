@@ -116,6 +116,9 @@ export function useSourceChapters(sourceId: string, seriesId: string) {
     queryKey: sourceChaptersQueryKey(sourceId, seriesId),
     queryFn: () => sourcesApi.getChapters(sourceId, seriesId),
     enabled: Boolean(sourceId) && Boolean(seriesId),
+    // Chapter lists must reflect upstream changes quickly; a stale empty
+    // response (e.g. after a transient scrape miss) otherwise sticks for 30s.
+    staleTime: 0,
   });
 }
 

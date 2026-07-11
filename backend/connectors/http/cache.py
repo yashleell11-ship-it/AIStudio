@@ -27,6 +27,10 @@ class TTLCache(Generic[T]):
     def set(self, key: str, value: T) -> None:
         self._entries[key] = (time.monotonic() + self._ttl, value)
 
+    def pop(self, key: str) -> None:
+        """Drop a cached entry so the next lookup refetches."""
+        self._entries.pop(key, None)
+
     def get_or_set(self, key: str, factory: Callable[[], T]) -> T:
         cached = self.get(key)
         if cached is not None:

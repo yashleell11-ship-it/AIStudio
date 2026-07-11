@@ -283,3 +283,27 @@ def test_allowed_image_hosts(toonily_connector: ToonilyConnector):
 
 def test_image_fetch_headers_include_toonily_referer(toonily_connector: ToonilyConnector):
     assert toonily_connector.image_fetch_headers()["Referer"] == "https://toonily.com/"
+
+
+def test_pull_yourself_fixture_chapter_count():
+    html = _load("pull_yourself_series_detail.html")
+    chapters = parse_chapters(html, "pull-yourself-together-team-leader-04cfa291")
+    assert len(chapters) == 17
+    assert chapters[0].number == 1.0
+    assert chapters[-1].number == 18.0
+
+
+def test_get_chapters_pull_yourself_via_connector(toonily_connector: ToonilyConnector):
+    html = _load("pull_yourself_series_detail.html")
+    series_id = "pull-yourself-together-team-leader-04cfa291"
+
+    def fake_get_text(path: str, *, params=None):
+        if path == f"/serie/{series_id}/":
+            return html
+        raise AssertionError(path)
+
+    with patch.object(toonily_connector._http, "get_text", side_effect=fake_get_text):
+        chapters = toonily_connector.get_chapters(series_id)
+
+    assert len(chapters) == 17
+    assert chapters[0].title == "Chapter 1"
