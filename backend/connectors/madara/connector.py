@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from typing import Any
-from urllib.parse import unquote
+from connectors.ids import fully_unquote
 
 from connectors.base import SourceConnector
 from connectors.http.cache import TTLCache
@@ -93,7 +93,7 @@ class MadaraConnector(SourceConnector):
 
     def _normalize_series_id(self, series_id: str) -> str:
         seg = self.CONFIG.url_segment
-        value = unquote(series_id).strip().strip("/")
+        value = fully_unquote(series_id).strip().strip("/")
         if value.startswith(f"{seg}/"):
             value = value.removeprefix(f"{seg}/")
         return value

@@ -48,7 +48,12 @@ def _relationship_map(payload: dict[str, Any]) -> dict[str, list[dict[str, Any]]
         rel_id = str(relation.get("id") or "")
         item = included_by_type_id.get((rel_type, rel_id))
         if item is None:
-            continue
+            # MangaDex often embeds attributes on the relationship itself
+            # (``included`` may be empty even when ``includes[]`` was requested).
+            if isinstance(relation.get("attributes"), dict):
+                item = relation
+            else:
+                continue
         grouped.setdefault(rel_type, []).append(item)
     return grouped
 

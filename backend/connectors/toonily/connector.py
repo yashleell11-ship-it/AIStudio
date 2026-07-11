@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from dataclasses import replace
 from typing import Any
-from urllib.parse import unquote
+from connectors.ids import fully_unquote
 
 from connectors.base import SourceConnector
 from connectors.http.cache import TTLCache
@@ -116,13 +116,13 @@ class ToonilyConnector(SourceConnector):
         logger.info(message)
 
     def _normalize_series_id(self, series_id: str) -> str:
-        value = unquote(series_id).strip().strip("/")
+        value = fully_unquote(series_id).strip().strip("/")
         if value.startswith("serie/"):
             value = value.removeprefix("serie/")
         return value
 
     def _normalize_chapter_id(self, chapter_id: str) -> str:
-        value = unquote(chapter_id).strip().strip("/")
+        value = fully_unquote(chapter_id).strip().strip("/")
         if value.startswith("serie/"):
             value = value.removeprefix("serie/")
         return value
