@@ -9,6 +9,7 @@ from typing import Any
 from connectors.asurascans.connector import AsuraScansConnector
 from connectors.base import SourceConnector
 from connectors.coffeemanga.connector import CoffeeMangaConnector
+from connectors.eightmuses.connector import EightMusesConnector
 from connectors.local_filesystem.connector import LocalFilesystemConnector
 from connectors.madara.factory import madara_connector_classes
 from connectors.madara.sites import MADARA_SITES
@@ -17,6 +18,7 @@ from connectors.mangakatana.connector import MangaKatanaConnector
 from connectors.demonicscans.connector import DemonicScansConnector
 from connectors.nhentai.connector import NHentaiConnector
 from connectors.porncomic18.connector import PornComic18Connector
+from connectors.threehentai.connector import ThreeHentaiConnector
 from connectors.toonily.connector import ToonilyConnector
 
 logger = logging.getLogger(__name__)
@@ -36,6 +38,8 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     ToonilyConnector.SOURCE_TYPE,
     NHentaiConnector.SOURCE_TYPE,
     PornComic18Connector.SOURCE_TYPE,
+    ThreeHentaiConnector.SOURCE_TYPE,
+    EightMusesConnector.SOURCE_TYPE,
     *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
 }
 
@@ -84,6 +88,8 @@ def _register_builtin_connectors() -> None:
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
         (NHentaiConnector.SOURCE_TYPE, NHentaiConnector),
         (PornComic18Connector.SOURCE_TYPE, PornComic18Connector),
+        (ThreeHentaiConnector.SOURCE_TYPE, ThreeHentaiConnector),
+        (EightMusesConnector.SOURCE_TYPE, EightMusesConnector),
         *((cls.SOURCE_TYPE, cls) for cls in _MADARA_CONNECTOR_CLASSES),
     )
     failures: list[str] = []
