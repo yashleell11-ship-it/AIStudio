@@ -122,5 +122,54 @@ class CfSyncHttpClient:
         )
         raise ConnectorHttpError(message, status_code=status_code) from last_error
 
+    def post_text(
+        self,
+        path: str,
+        *,
+        data: dict[str, str] | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> str:
+        """POST form data and return the response text (used for AJAX endpoints)."""
+        url = self._resolve_url(path)
+        last_error: Exception | None = None
+        headers = dict(self._headers)
+        if extra_headers:
+            headers.update(extra_headers)
+
+        for attempt in range(self._max_retries):
+            self._rate_limit()
+            try:
+                response = self._session.post(
+                    url,
+                    data=data or {},
+                    headers=headers,
+                    timeout=self._timeout,
+                    allow_redirects=True,
+                )
+                if response.status_code in RETRYABLE_STATUS:
+                    raise ConnectorHttpError(
+                        f"Retryable HTTP {response.status_code}",
+                        status_code=response.status_code,
+                    )
+                if response.status_code >= 400:
+                    raise ConnectorHttpError(
+                        f"Client error '{response.status_code} {response.reason}' for url '{url}'",
+                        status_code=response.status_code,
+                    )
+                return response.text
+            except (ConnectorHttpError, OSError) as exc:
+                last_error = exc
+                if attempt + 1 >= self._max_retries:
+                    break
+                time.sleep(0.5 * (2**attempt))
+
+        message = str(last_error) if last_error else "Unknown HTTP error"
+        status_code = (
+            last_error.status_code
+            if isinstance(last_error, ConnectorHttpError)
+            else None
+        )
+        raise ConnectorHttpError(message, status_code=status_code) from last_error
+
     def close(self) -> None:
         self._session.close()

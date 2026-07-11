@@ -43,7 +43,12 @@ class MadaraHtml:
         )
         self._card_img_tag = re.compile(r"<img\b[^>]*>", re.I)
         self._chapter_link = re.compile(
-            r'<li class="wp-manga-chapter[^"]*">\s*'
+            r'<li class="wp-manga-chapter[^"]*">.*?'
+            rf'<a[^>]+href="(?:https?://[^"]+)?/{seg}/([^"]+)/"[^>]*>\s*([^<]+)</a>',
+            re.S | re.I,
+        )
+        self._chapter_item_link = re.compile(
+            r'<div class="chapter-item[^"]*">.*?'
             rf'<a[^>]+href="(?:https?://[^"]+)?/{seg}/([^"]+)/"[^>]*>\s*([^<]+)</a>',
             re.S | re.I,
         )
@@ -61,7 +66,7 @@ class MadaraHtml:
             re.S | re.I,
         )
         self._plain_img_src = re.compile(
-            r'<img\b[^>]+src="\s*(https?://[^"]+\.(?:jpg|jpeg|png|webp)[^"]*)"',
+            r'<img\b[^>]+src="\s*(https?://[^"]+\.(?:avif|jpg|jpeg|png|webp)[^"]*)"',
             re.I,
         )
         self._listing_page_re = re.compile(rf"/{seg}/page/(\d+)/")
@@ -251,17 +256,33 @@ class MadaraHtml:
             genres=genres,
         )
 
+    def parse_manga_id(self, html_text: str) -> str | None:
+        """Extract the WordPress post ID used for AJAX chapter requests.
+
+        Madara sites that load chapters via AJAX embed the post ID in a
+        ``data-id`` attribute on the chapter tab element or in a JavaScript
+        variable (``manga_id``).  Return the first hit or ``None`` if the page
+        does not expose one (i.e. chapters are already in the HTML).
+        """
+        m = re.search(r'data-id=["\'](\d+)["\']', html_text, re.I)
+        if m:
+            return m.group(1)
+        m = re.search(r'"manga_id"\s*:\s*"(\d+)"', html_text, re.I)
+        if m:
+            return m.group(1)
+        return None
+
     def parse_chapters(self, html_text: str, series_id: str) -> list[Chapter]:
         prefix = f"{series_id}/"
         chapters: list[Chapter] = []
         seen: set[str] = set()
-        for chapter_id, title in self._chapter_link.findall(html_text):
+
+        def _add(chapter_id: str, title: str) -> None:
             if not chapter_id.startswith(prefix):
-                continue
+                return
             if chapter_id in seen:
-                continue
+                return
             seen.add(chapter_id)
-            number = self.parse_chapter_number(chapter_id)
             normalized_title = (
                 normalize_chapter_title(self._clean_text(title))
                 or self._clean_text(title)
@@ -271,10 +292,16 @@ class MadaraHtml:
                     id=chapter_id,
                     series_id=series_id,
                     title=normalized_title,
-                    number=number,
+                    number=self.parse_chapter_number(chapter_id),
                     page_count=0,
                 )
             )
+
+        for chapter_id, title in self._chapter_link.findall(html_text):
+            _add(chapter_id, title)
+        if not chapters:
+            for chapter_id, title in self._chapter_item_link.findall(html_text):
+                _add(chapter_id, title)
         chapters.sort(key=lambda ch: self.chapter_id_sort_key(ch.id))
         return chapters
 
@@ -338,10 +365,11 @@ class MadaraHtml:
 
     def _parse_chapter_segment_parts(self, segment: str) -> tuple[int, int, int] | None:
         value = segment.strip().strip("/")
-        if not value.startswith("chapter-"):
-            return None
-        body = value.removeprefix("chapter-")
-        match = re.fullmatch(r"(\d+)(?:-(\d+))?(?:_(\d+))?", body)
+        match = re.search(
+            r"(?:^|[/-])(?:chapter|chap)-(\d+)(?:-(\d+))?(?:_(\d+))?",
+            value,
+            re.I,
+        )
         if not match:
             return None
         major = int(match.group(1))

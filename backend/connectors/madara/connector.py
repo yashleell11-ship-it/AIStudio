@@ -189,10 +189,10 @@ class MadaraConnector(SourceConnector):
             return None
 
         chapters = self._html.parse_chapters(html, api_key)
+        if chapters and self._chapter_list_cache.get(api_key) is None:
+            self._chapter_list_cache.set(api_key, chapters)
         if not chapters:
             chapters = self.get_chapters(api_key)
-        elif self._chapter_list_cache.get(api_key) is None:
-            self._chapter_list_cache.set(api_key, chapters)
 
         if chapters:
             series = Series(
@@ -211,6 +211,54 @@ class MadaraConnector(SourceConnector):
         self._series_cache.set(api_key, series)
         return series
 
+    def _fetch_ajax_chapters(self, manga_id: str, series_id: str, referer: str) -> list[Chapter]:
+        """Load chapters via Madara AJAX when they are not embedded in the HTML.
+
+        Older Madara builds POST to ``admin-ajax.php?action=manga_get_chapters``.
+        Newer builds POST to ``{series_url}ajax/chapters/``.  Try both.
+        """
+        chapters = self._fetch_admin_ajax_chapters(manga_id, series_id, referer)
+        if chapters:
+            return chapters
+        return self._fetch_relative_ajax_chapters(series_id, referer)
+
+    def _fetch_admin_ajax_chapters(
+        self, manga_id: str, series_id: str, referer: str
+    ) -> list[Chapter]:
+        try:
+            html_fragment = self._http.post_text(
+                "/wp-admin/admin-ajax.php",
+                data={"action": "manga_get_chapters", "manga": manga_id},
+                extra_headers={
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": referer,
+                    "Accept": "*/*",
+                },
+            )
+        except ConnectorHttpError:
+            return []
+        if not html_fragment.strip() or html_fragment.strip() in {"0", "-1"}:
+            return []
+        return self._html.parse_chapters(html_fragment, series_id)
+
+    def _fetch_relative_ajax_chapters(
+        self, series_id: str, referer: str
+    ) -> list[Chapter]:
+        path = f"{self._html.series_id_to_path(series_id)}ajax/chapters/"
+        try:
+            html_fragment = self._http.post_text(
+                path,
+                data={},
+                extra_headers={
+                    "X-Requested-With": "XMLHttpRequest",
+                    "Referer": referer,
+                    "Accept": "*/*",
+                },
+            )
+        except ConnectorHttpError:
+            return []
+        return self._html.parse_chapters(html_fragment, series_id)
+
     def get_chapters(self, series_id: str) -> list[Chapter]:
         api_key = self._normalize_series_id(series_id)
         cached = self._chapter_list_cache.get(api_key)
@@ -224,6 +272,26 @@ class MadaraConnector(SourceConnector):
             return []
 
         chapters = self._html.parse_chapters(html, api_key)
+        manga_id = self._html.parse_manga_id(html)
+        if manga_id:
+            referer = f"{self.CONFIG.base_url.rstrip('/')}{path}"
+            ajax_chapters = self._fetch_ajax_chapters(manga_id, api_key, referer)
+            if len(ajax_chapters) > len(chapters):
+                logger.info(
+                    "%s AJAX chapters series=%s inline=%d ajax=%d",
+                    self.DISPLAY_NAME,
+                    api_key,
+                    len(chapters),
+                    len(ajax_chapters),
+                )
+                chapters = ajax_chapters
+        elif not chapters:
+            logger.info(
+                "%s no inline chapters and no manga_id for series=%s",
+                self.DISPLAY_NAME,
+                api_key,
+            )
+
         if chapters:
             self._chapter_list_cache.set(api_key, chapters)
         return self._enrich_chapters(chapters)
