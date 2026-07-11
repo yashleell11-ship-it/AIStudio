@@ -196,7 +196,10 @@ class MangaDexConnector(SourceConnector):
                     "translatedLanguage[]": ["en"],
                     "order[chapter]": "asc",
                     "includeFuturePublishAt": "0",
-                    "includeEmptyPages": "0",
+                    # NOTE: do NOT send includeEmptyPages=0. Officially-licensed
+                    # series (e.g. Solo Leveling) host no page images on MangaDex,
+                    # so every chapter counts as "empty" and that filter drops the
+                    # entire feed -> get_chapters() returns []. Include them.
                 },
             )
             data = payload.get("data") or []
