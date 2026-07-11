@@ -1,8 +1,8 @@
 {
-  "probed_at": "2026-07-11T14:24:26.152809+00:00",
-  "total": 21,
-  "live": 21,
-  "dead": 0,
+  "probed_at": "2026-07-11T14:38:25.810621+00:00",
+  "total": 161,
+  "live": 20,
+  "dead": 141,
   "error": 0,
   "results": [
     {
@@ -67,7 +67,7 @@
       "items": 24,
       "mature": false,
       "detail": "",
-      "sample_title": "Stray Eden"
+      "sample_title": "Tomodachi no Nee-chan ni Koishita Hanashi"
     },
     {
       "source_id": "mangakatana",
@@ -108,14 +108,6 @@
       "mature": true,
       "detail": "",
       "sample_title": "Paranoid Mage"
-    },
-    {
-      "source_id": "manhuaplus",
-      "status": "LIVE",
-      "items": 12,
-      "mature": false,
-      "detail": "",
-      "sample_title": "Magic Emperor"
     },
     {
       "source_id": "manhwaclub",
@@ -172,6 +164,1134 @@
       "mature": true,
       "detail": "",
       "sample_title": "The Shepherd Wizard"
+    },
+    {
+      "source_id": "18porncomic",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "1stkissmanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "3hentai",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://3hentai.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "8muses",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "akuma",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://akuma.moe/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "allhenscan",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: [Errno -2] Name or service not known",
+      "sample_title": ""
+    },
+    {
+      "source_id": "allporncomic",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "asiatoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://asiatoon.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "asmhentai",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://asmhentai.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "aurorascans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://aurorascans.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "baozimh",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "bato",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Failed to perform, curl: (28) Connection timed out after 30001 milliseconds. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "sample_title": ""
+    },
+    {
+      "source_id": "bbato",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http 404: Client error '404 ' for url 'https://bbato.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "beehentai",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://toondex.io/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "cartoonmad",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "cmanhua",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://cmanhua.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "comicasura",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http 404: Client error '404 ' for url 'https://comicasura.net/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "comicland",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "comicsvalley",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://comicsvalley.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "comix_to",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://comix.to/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "doujins",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "dragontea",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 403: Client error '403 ' for url 'https://dragontea.ink/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "ehentai",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://e-hentai.org/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "elftoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://elftoon.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "flamescans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://flamecomics.xyz/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "freeadultcomix",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: timed out",
+      "sample_title": ""
+    },
+    {
+      "source_id": "galaxymanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://galaxymanga.io/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "gingertoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "harimanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: [Errno -3] Temporary failure in name resolution",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentai20",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://hentai20.io/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentai2read",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://hentai2read.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentai3z",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentai4free",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://hentai4free.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentaicity",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.hentaicity.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentaiera",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://hentaiera.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentaifox",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://hentaifox.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentaihand",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentaihere",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hentaiyes",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "heytoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hiperdex",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "hitomi",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://hitomi.la/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "honeytoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://honeytoon.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "kingcomix",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://kingcomix.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "kingofshojo",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://kingofshojo.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "lezhin",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.lezhin.com/ko/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "likemanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "lilymanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://lilymanga.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "luminousscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://luminousscans.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "lunatoons",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://lunatoons.org/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "luscious",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.luscious.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "lustoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://lustoon.com/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangabat",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangabuddy",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 502: Retryable HTTP 502",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangaclash",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangacute",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 502: Retryable HTTP 502",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangadass",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://mangadass.com/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangademon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangadistrict",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://mangadistrict.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangafire",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangafreak",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://mangafreak.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangago",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://mangago.me/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangahere",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangahub",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://mangahub.io/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangajar",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: timed out",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangakakalot",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangakakalotfun",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Failed to perform, curl: (6) Could not resolve host: mangakakalotfun.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangakiss",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Server error '523 <none>' for url 'https://mangakiss.org/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/523",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangakomi",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manganato",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://natomanga.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manganelo",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manganelo_link",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Failed to perform, curl: (6) Could not resolve host: manganelo.link. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangapark",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Failed to perform, curl: (60) SSL certificate problem: unable to get local issuer certificate. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangapill",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://mangapill.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangareader_to",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 522: Client error '522 ' for url 'https://mangareader.to/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangasect",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://mangasect.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangasee",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangatoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "mangatx",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuabox",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: [Errno 111] Connection refused",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuafans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.manhuafans.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuafast",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 403: Client error '403 ' for url 'https://manhuafast.net/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuagui",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.manhuagui.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuaplus",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://manhuaplus.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuaren",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhuaren.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuarmtl",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhuarmtl.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuascan",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuasite",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhuasite.com/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuatop",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhuatop.org/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuaus",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://manhuaus.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhuazonghe",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.manhuazonghe.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhwa18",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhwa18.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhwa18net",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhwa18.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhwa68",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http 503: Retryable HTTP 503",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhwa_raw",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://manhwa-raw.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhwahub",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhwahub.net/public/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhwatoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: Hostname mismatch, certificate is not valid for 'manhwatoon.me'. (_ssl.c:1029)",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manhwazone",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://manhwazone.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "manytoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://stripchatgirls.com/girls?affiliateId=110726wzhhajm7ijksrwuz6as3g9kmfj03uabwu1y0qj9yg6odqycdbvcwu3wud5&campaignId=1f2e37304cf88d60d1e6679d5ab8ba778791685ef0f3f41a5c5e41f8152313c0&landing=goToTheTag&realDomain=go.mayzaent.com&schemeType=mediabuyer&sound=off&trafficType=popunder&userId=318ae1f319b6a0ba51fa7159f8746cd6117d63c82ab61b791acc5d52009b130d&variationId=35315'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "multporn",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://multporn.net/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "myhentaicomics",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://myhentaicomics.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "myhentaigallery",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://myhentaigallery.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "nhentai",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://nhentai.net/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "nhentai_com",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "nhscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: [Errno -2] Name or service not known",
+      "sample_title": ""
+    },
+    {
+      "source_id": "nightscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "novelmic",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "olympusbiblioteca",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "omega_scans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://omega-scans.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "palcomix",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://palcomix.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "paradisescans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 403: Client error '403 ' for url 'https://paradisescans.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "pururin",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: [Errno -3] Temporary failure in name resolution",
+      "sample_title": ""
+    },
+    {
+      "source_id": "readmanganato",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "reaperscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 502: Retryable HTTP 502",
+      "sample_title": ""
+    },
+    {
+      "source_id": "resetscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Failed to perform, curl: (60) SSL certificate problem: unable to get local issuer certificate. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "sample_title": ""
+    },
+    {
+      "source_id": "rizzcomic",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 500: Retryable HTTP 500",
+      "sample_title": ""
+    },
+    {
+      "source_id": "s2manga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: [Errno -2] Name or service not known",
+      "sample_title": ""
+    },
+    {
+      "source_id": "sectscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "setsuscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://setsuscans.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "shibamanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://shibamanga.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "simplyhentai",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.simply-hentai.com/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "skymanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: [SSL: CERTIFICATE_VERIFY_FAILED] certificate verify failed: unable to get local issuer certificate (_ssl.c:1029)",
+      "sample_title": ""
+    },
+    {
+      "source_id": "svscomics",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "tapas",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 ' for url 'https://tapas.io/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "tappytoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '404 Not Found' for url 'https://www.tappytoon.com/en/serie'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "templescan",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 ' for url 'https://templescan.net/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "thunderscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http 404: Client error '404 Not Found' for url 'https://en-thunderscans.com/serie/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "toomics",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "toonclash",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Failed to perform, curl: (6) Could not resolve host: toonclash.com. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.",
+      "sample_title": ""
+    },
+    {
+      "source_id": "toongod",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http 403: Client error '403 ' for url 'https://toongod.org/manga/'",
+      "sample_title": ""
+    },
+    {
+      "source_id": "topton",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "tsumino",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "utoon",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "voidscans",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "vymanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "http None: Client error '403 Forbidden' for url 'https://vymanga.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": ""
+    },
+    {
+      "source_id": "webtoons",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "weebcentral",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "wfwf",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: [Errno -2] Name or service not known",
+      "sample_title": ""
+    },
+    {
+      "source_id": "xyzcomics",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "empty listing",
+      "sample_title": ""
+    },
+    {
+      "source_id": "yaoimangaonline",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "http None: Client error '404 Not Found' for url 'https://yaoimangaonline.com/serie/'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/404",
+      "sample_title": ""
+    },
+    {
+      "source_id": "zinmanga",
+      "status": "DEAD",
+      "items": 0,
+      "mature": false,
+      "detail": "empty listing",
+      "sample_title": ""
     }
   ]
 }
