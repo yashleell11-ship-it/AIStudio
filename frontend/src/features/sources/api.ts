@@ -3,6 +3,7 @@ import { http } from "@/services/http";
 import type {
   PaginatedSourceSeries,
   SourceBrowseMode,
+  SourceGenre,
   SourceChapterSummary,
   SourceSeriesDetail,
   SourceSummary,
@@ -43,9 +44,12 @@ export const sourcesApi = {
   browseModes: (sourceId: string) =>
     http.get<SourceBrowseMode[]>(`/sources/${encodeURIComponent(sourceId)}/browse-modes`),
 
+  genres: (sourceId: string) =>
+    http.get<SourceGenre[]>(`/sources/${encodeURIComponent(sourceId)}/genres`),
+
   listSeries: (
     sourceId: string,
-    params: { page?: number; query?: string; sort?: string },
+    params: { page?: number; query?: string; sort?: string; genre?: string },
   ) =>
     http.get<PaginatedSourceSeries>(
       `/sources/${encodeURIComponent(sourceId)}/series`,

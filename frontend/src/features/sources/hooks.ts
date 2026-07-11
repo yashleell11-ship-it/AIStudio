@@ -66,9 +66,17 @@ export function useSourceBrowseModes(sourceId: string) {
   });
 }
 
+export function useSourceGenres(sourceId: string) {
+  return useQuery({
+    queryKey: [...SOURCES_KEY, sourceId, "genres"],
+    queryFn: () => sourcesApi.genres(sourceId),
+    enabled: Boolean(sourceId),
+  });
+}
+
 export function useSourceSeries(
   sourceId: string,
-  params: { page?: number; query?: string; sort?: string },
+  params: { page?: number; query?: string; sort?: string; genre?: string },
 ) {
   return useQuery({
     queryKey: [...SOURCES_KEY, sourceId, "series", params],
@@ -82,16 +90,27 @@ export function useInfiniteSourceSeries(
   sourceId: string,
   query: string,
   sort?: string,
+  genre?: string,
 ) {
   const normalizedQuery = query.trim();
   const normalizedSort = sort && sort !== "default" ? sort : undefined;
+  const normalizedGenre = genre?.trim() || undefined;
   return useInfiniteQuery({
-    queryKey: [...SOURCES_KEY, sourceId, "series", "infinite", normalizedQuery, normalizedSort ?? ""],
+    queryKey: [
+      ...SOURCES_KEY,
+      sourceId,
+      "series",
+      "infinite",
+      normalizedQuery,
+      normalizedSort ?? "",
+      normalizedGenre ?? "",
+    ],
     queryFn: ({ pageParam }) =>
       sourcesApi.listSeries(sourceId, {
         page: pageParam,
         query: normalizedQuery || undefined,
         sort: normalizedSort,
+        genre: normalizedGenre,
       }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.has_more ? lastPage.page + 1 : undefined),

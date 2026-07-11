@@ -64,6 +64,16 @@ def test_english_chapter_link_is_parsed():
     assert chapters[0].title == "English"
 
 
+def test_browse_by_genre_uses_manga_list(porncomic18_connector: PornComic18Connector):
+    listing_html = (FIXTURES / "listing.html").read_text(encoding="utf-8")
+
+    with patch.object(porncomic18_connector, "_fetch_html", return_value=listing_html) as mock_fetch:
+        listing = porncomic18_connector.browse_by_genre("yuri", 1)
+
+    mock_fetch.assert_called_once_with("/manga-list/yuri")
+    assert len(listing.items) == 20
+
+
 def test_create_18porncomic_connector():
     connector = create_connector("18porncomic")
     assert connector.source_type == "18porncomic"

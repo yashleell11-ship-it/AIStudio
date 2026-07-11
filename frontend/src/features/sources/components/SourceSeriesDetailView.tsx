@@ -205,9 +205,17 @@ export function SourceSeriesDetailView({
           {series.genres.length > 0 && (
             <div className="mt-3 flex flex-wrap gap-2">
               {series.genres.map((genre) => (
-                <Badge key={genre} variant="default">
-                  {genre}
-                </Badge>
+                <Link
+                  key={genre}
+                  href={`/sources/${encodeURIComponent(sourceId)}?genre=${encodeURIComponent(genre)}`}
+                >
+                  <Badge
+                    variant="default"
+                    className="cursor-pointer transition-colors hover:border-primary/50 hover:bg-primary/10"
+                  >
+                    {genre}
+                  </Badge>
+                </Link>
               ))}
             </div>
           )}

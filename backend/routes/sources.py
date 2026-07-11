@@ -31,6 +31,12 @@ def list_browse_modes(source_id: str, service: BrowseDep) -> list[dict[str, str]
     return service.list_browse_modes(source_id)
 
 
+@router.get("/{source_id}/genres")
+def list_source_genres(source_id: str, service: BrowseDep) -> list[dict[str, str]]:
+    """Return genre filters supported by a source."""
+    return service.list_genres(source_id)
+
+
 @router.get("/{source_id}/series")
 @limiter.limit(sources_limit)
 def list_source_series(
@@ -41,9 +47,10 @@ def list_source_series(
     page: int = Query(1, ge=1),
     query: str | None = Query(None),
     sort: str | None = Query(None),
+    genre: str | None = Query(None),
 ) -> dict[str, object]:
     """List or search series from an online source."""
-    return service.list_series(source_id, page=page, query=query, sort=sort)
+    return service.list_series(source_id, page=page, query=query, sort=sort, genre=genre)
 
 
 @router.get("/{source_id}/series/{series_id}")

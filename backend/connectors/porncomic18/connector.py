@@ -14,6 +14,7 @@ from connectors.porncomic18.mappers import (
     PAGE_SIZE,
     SITE_BASE,
     chapter_id_to_path,
+    genre_listing_path,
     listing_path,
     page_id_chapter_id,
     parse_chapter_pages,
@@ -21,6 +22,7 @@ from connectors.porncomic18.mappers import (
     parse_series_detail,
     parse_series_list,
     series_id_to_path,
+    GENRE_CATALOG,
 )
 
 logger = logging.getLogger(__name__)
@@ -103,6 +105,31 @@ class PornComic18Connector(SourceConnector):
         if value.startswith("comic/"):
             value = value.removeprefix("comic/")
         return value
+
+    def list_genres(self) -> list[BrowseMode]:
+        return [BrowseMode(id=genre_id, label=label) for genre_id, label in GENRE_CATALOG]
+
+    def browse_by_genre(
+        self,
+        genre: str,
+        page: int,
+        *,
+        sort: str | None = None,
+    ) -> PaginatedSeriesList:
+        if page < 1:
+            page = 1
+        path = genre_listing_path(genre, page)
+        document = self._fetch_html(path)
+        listing = parse_series_list(document, page=page)
+        logger.info(
+            "18PornComic genre=%r path=%s page=%d count=%d has_more=%s",
+            genre,
+            path,
+            page,
+            len(listing.items),
+            listing.has_more,
+        )
+        return listing
 
     def _fetch_html(self, path: str) -> str:
         return self._http.get_text(path)

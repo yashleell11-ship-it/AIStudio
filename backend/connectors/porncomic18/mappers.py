@@ -27,7 +27,30 @@ STORY_TITLE_RE = re.compile(
     re.I | re.S,
 )
 
-PAGINATION_RE = re.compile(r"/list-manga/(\d+)", re.I)
+PAGINATION_RE = re.compile(r"/(?:list-manga|manga-list/[^/]+)/(\d+)", re.I)
+
+GENRE_CATALOG: tuple[tuple[str, str], ...] = (
+    ("western", "Western"),
+    ("mature", "Mature"),
+    ("hentai", "Hentai/Doujin"),
+    ("3d", "3D"),
+    ("uncensored", "Uncensored"),
+    ("yuri", "Yuri"),
+    ("bondage", "Bondage"),
+    ("femdom", "Femdom"),
+    ("harem", "Harem"),
+    ("romance", "Romance"),
+    ("drama", "Drama"),
+    ("seinen", "Seinen"),
+    ("milf", "MILF"),
+    ("netorare", "Netorare"),
+    ("incest", "Incest"),
+    ("lolicon", "Lolicon"),
+    ("shotacon", "Shotacon"),
+    ("ahegao", "Ahegao"),
+    ("anal", "Anal"),
+    ("blowjob", "Blowjob"),
+)
 
 CHAPTER_LINK_RE = re.compile(
     r'<a[^>]+href="(?:https?://[^"]+)?/comic/([^/]+)/([^"#?]+)"[^>]*class="chapter_num"[^>]*>'
@@ -51,6 +74,13 @@ INFO_VALUE_RE = re.compile(
     re.S | re.I,
 )
 GENRE_LINK_RE = re.compile(r'href="https?://[^"]+/manga-list/[^"]+">([^<]+)</a>', re.I)
+
+
+def genre_listing_path(genre: str, page: int) -> str:
+    slug = genre.strip().lower().replace(" ", "-")
+    if page <= 1:
+        return f"/manga-list/{slug}"
+    return f"/manga-list/{slug}/{page}"
 
 
 def listing_path(page: int, *, sort: str | None = None, query: str | None = None) -> str:
