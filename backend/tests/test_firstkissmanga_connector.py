@@ -6,7 +6,13 @@ from unittest.mock import patch
 import pytest
 
 from connectors.firstkissmanga.connector import FirstKissMangaConnector
-from connectors.firstkissmanga.http import is_fingerprint_gate, is_parking_page
+from connectors.firstkissmanga.http import (
+    FirstKissHttpClient,
+    is_bot_gate,
+    is_cheq_gate,
+    is_fingerprint_gate,
+    is_parking_page,
+)
 from connectors.firstkissmanga.mappers import (
     parse_chapter_pages,
     parse_chapters,
@@ -44,9 +50,32 @@ def test_fingerprint_gate_detection():
     assert not is_fingerprint_gate(catalog_html)
 
 
+def test_cheq_gate_detection():
+    gate_html = _load("cheq_gate.html")
+    catalog_html = _load("browse_latest.html")
+    assert is_cheq_gate(gate_html)
+    assert not is_cheq_gate(catalog_html)
+    assert is_bot_gate(gate_html)
+    assert not is_bot_gate(catalog_html)
+
+
 def test_parking_page_detection():
     assert is_parking_page("<title>parklogic.com</title>", url="https://ww16.1stkissmanga.io/")
+    assert is_parking_page(_load("parking_page.html"), url="http://ww16.1stkissmanga.io/manga/")
     assert not is_parking_page(_load("browse_latest.html"), url="https://1stkissmanga.io/manga/")
+
+
+def test_cheq_bypass_url_includes_fp():
+    client = FirstKissHttpClient("https://1stkissmanga.io")
+    bypass_url = client._bypass_url_from_gate(_load("cheq_gate.html"))
+    assert bypass_url.startswith("https://1stkissmanga.io/manga/")
+    assert "fp=-7" in bypass_url
+
+
+def test_unrecognized_html_raises():
+    client = FirstKissHttpClient("https://1stkissmanga.io")
+    with pytest.raises(Exception, match="unrecognized HTML"):
+        client._validate_catalog_html("<html><body>empty</body></html>", url="https://1stkissmanga.io/manga/")
 
 
 def test_parse_series_list_from_fixture():
