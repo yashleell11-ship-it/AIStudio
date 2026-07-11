@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 
 void main() {
   group('LibraryStatistics.fromJson', () {

@@ -1,15 +1,22 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/config/env.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
-import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
-import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
+import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
+import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/features/settings/utils/settings_search_index.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -26,7 +33,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -41,12 +48,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Settings'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.search),
+            tooltip: 'Search settings',
+            onPressed: () => showSearch(
+              context: context,
+              delegate: SettingsSearchDelegate(
+                onSelectTab: _tabController.animateTo,
+              ),
+            ),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
+          isScrollable: true,
+          tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'General'),
             Tab(text: 'Server'),
             Tab(text: 'About'),
+            Tab(text: 'Debug'),
           ],
         ),
       ),
@@ -56,6 +78,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           const _GeneralSettingsPanel(),
           _ServerSettingsPanel(controller: _apiUrlController),
           const _AboutPanel(),
+          const _DebugPanel(),
         ],
       ),
     );
@@ -80,6 +103,10 @@ class _GeneralSettingsPanel extends StatelessWidget {
         SizedBox(height: AppSpacing.sm),
         _LanguageSelector(),
         SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('Feedback'),
+        SizedBox(height: AppSpacing.sm),
+        _HapticsToggle(),
+        SizedBox(height: AppSpacing.xl2),
         _SectionHeading('Default reader preferences'),
         SizedBox(height: AppSpacing.sm),
         _ReaderDefaultsSection(),
@@ -87,10 +114,6 @@ class _GeneralSettingsPanel extends StatelessWidget {
         _SectionHeading('Download preferences'),
         SizedBox(height: AppSpacing.sm),
         _DownloadPreferencesSection(),
-        SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('Cache'),
-        SizedBox(height: AppSpacing.sm),
-        _CacheSection(),
       ],
     );
   }
@@ -157,13 +180,42 @@ class _LanguageSelector extends ConsumerWidget {
         initialValue: language,
         decoration: const InputDecoration(labelText: 'App language'),
         items: AppLanguage.values
-            .map((lang) => DropdownMenuItem(value: lang, child: Text(lang.label)))
+            .map(
+              (lang) => DropdownMenuItem(value: lang, child: Text(lang.label)),
+            )
             .toList(),
         onChanged: (value) {
           if (value != null) {
             ref.read(languageProvider.notifier).setLanguage(value);
           }
         },
+      ),
+    );
+  }
+}
+
+class _HapticsToggle extends ConsumerWidget {
+  const _HapticsToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(hapticFeedbackProvider);
+
+    return GlassCard(
+      // SwitchListTile paints its splash on the nearest Material ancestor;
+      // GlassCard only supplies one when onTap is set.
+      child: Material(
+        color: Colors.transparent,
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Haptic feedback'),
+          subtitle: const Text(
+            'Subtle vibrations on page turns, chapter changes and actions',
+          ),
+          value: enabled,
+          onChanged: (value) =>
+              ref.read(hapticFeedbackProvider.notifier).setEnabled(value),
+        ),
       ),
     );
   }
@@ -190,7 +242,8 @@ class _ReaderDefaultsSection extends ConsumerWidget {
                 .map((d) => ButtonSegment(value: d, label: Text(d.label)))
                 .toList(),
             selected: {defaults.direction},
-            onSelectionChanged: (selection) => notifier.setDirection(selection.first),
+            onSelectionChanged: (selection) =>
+                notifier.setDirection(selection.first),
           ),
           const SizedBox(height: AppSpacing.lg),
           Padding(
@@ -202,7 +255,31 @@ class _ReaderDefaultsSection extends ConsumerWidget {
                 .map((f) => ButtonSegment(value: f, label: Text(f.label)))
                 .toList(),
             selected: {defaults.fitMode},
-            onSelectionChanged: (selection) => notifier.setFitMode(selection.first),
+            onSelectionChanged: (selection) =>
+                notifier.setFitMode(selection.first),
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+            child: Text('Refresh rate', style: AppTypography.labelLg),
+          ),
+          Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+            child: Text(
+              'Auto uses the highest rate your screen supports.',
+              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+            ),
+          ),
+          Wrap(
+            spacing: AppSpacing.sm,
+            runSpacing: AppSpacing.xs,
+            children: ReaderRefreshRate.values.map((rate) {
+              return ChoiceChip(
+                label: Text(rate.label),
+                selected: defaults.refreshRate == rate,
+                onSelected: (_) => notifier.setRefreshRate(rate),
+              );
+            }).toList(),
           ),
           const SizedBox(height: AppSpacing.sm),
           // SwitchListTile paints on the nearest Material ancestor; GlassCard
@@ -222,6 +299,24 @@ class _ReaderDefaultsSection extends ConsumerWidget {
                   title: const Text('Auto next chapter'),
                   value: defaults.autoNextChapter,
                   onChanged: notifier.setAutoNextChapter,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Lock reader controls'),
+                  subtitle: const Text(
+                    'Tap center 5× to unlock during reading',
+                  ),
+                  value: defaults.lockControls,
+                  onChanged: notifier.setLockControls,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Volume key navigation'),
+                  subtitle: const Text(
+                    'Turn pages with the volume buttons (Android)',
+                  ),
+                  value: defaults.volumeKeyNavigation,
+                  onChanged: notifier.setVolumeKeyNavigation,
                 ),
               ],
             ),
@@ -261,10 +356,12 @@ class _DownloadPreferencesSectionState
             child: SwitchListTile(
               contentPadding: EdgeInsets.zero,
               title: const Text('Wi-Fi only'),
-              subtitle: const Text('Only download chapters while connected to Wi-Fi'),
+              subtitle:
+                  const Text('Only download chapters while connected to Wi-Fi'),
               value: wifiOnly,
-              onChanged: (value) =>
-                  ref.read(wifiOnlyDownloadsProvider.notifier).setEnabled(value),
+              onChanged: (value) => ref
+                  .read(wifiOnlyDownloadsProvider.notifier)
+                  .setEnabled(value),
             ),
           ),
         ),
@@ -272,7 +369,9 @@ class _DownloadPreferencesSectionState
         settingsAsync.when(
           loading: () => const SkeletonBox(width: double.infinity, height: 180),
           error: (error, _) => Text(
-            error is AppError ? error.userMessage : 'Failed to load download settings.',
+            error is AppError
+                ? error.userMessage
+                : 'Failed to load download settings.',
             style: AppTypography.body.copyWith(color: AppColors.danger),
           ),
           data: (settings) {
@@ -346,7 +445,9 @@ class _DownloadPreferencesSectionState
                             setState(() => _saving = false);
                             if (error == null) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Download settings saved.')),
+                                const SnackBar(
+                                  content: Text('Download settings saved.'),
+                                ),
                               );
                             } else {
                               ScaffoldMessenger.of(context).showSnackBar(
@@ -363,64 +464,6 @@ class _DownloadPreferencesSectionState
         ),
       ],
     );
-  }
-}
-
-class _CacheSection extends ConsumerWidget {
-  const _CacheSection();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final usageAsync = ref.watch(cacheUsageProvider);
-
-    return GlassCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Image cache usage', style: AppTypography.labelLg),
-          const SizedBox(height: AppSpacing.xs),
-          usageAsync.when(
-            loading: () => const SkeletonBox(width: 120, height: 20),
-            error: (_, __) => Text(
-              'Unable to read cache size',
-              style: AppTypography.body.copyWith(color: AppColors.muted),
-            ),
-            data: (bytes) => Text(
-              _formatBytes(bytes),
-              style: AppTypography.body.copyWith(color: AppColors.muted),
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          OutlinedButton(
-            onPressed: () async {
-              await ref.read(settingsActionsProvider).clearImageCache();
-              if (context.mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Image cache cleared.')),
-                );
-              }
-            },
-            child: const Text('Clear image cache'),
-          ),
-          const SizedBox(height: AppSpacing.sm),
-          OutlinedButton(
-            onPressed: () {
-              ref.read(settingsActionsProvider).clearMetadataCache();
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Metadata cache cleared.')),
-              );
-            },
-            child: const Text('Clear metadata cache'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatBytes(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
   }
 }
 
@@ -449,13 +492,13 @@ class _ServerSettingsPanel extends ConsumerWidget {
             ),
             const SizedBox(height: AppSpacing.sm),
             Text(
-              'Configure the AIStudio backend URL for this device.',
+              'Configure the ManhwaManiacs backend URL for this device.',
               style: AppTypography.body.copyWith(color: AppColors.muted),
             ),
             const SizedBox(height: AppSpacing.xl2),
             TextField(
               controller: controller,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'API base URL',
                 hintText: Env.defaultApiUrl,
               ),
@@ -551,6 +594,7 @@ class _AboutPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final infoAsync = ref.watch(packageInfoProvider);
+    final updateAsync = ref.watch(appUpdateProvider);
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -567,21 +611,130 @@ class _AboutPanel extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('AIStudio', style: AppTypography.h3),
+                Text('ManhwaManiacs', style: AppTypography.h3),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Local-first manga & manhwa reader',
                   style: AppTypography.bodySm.copyWith(color: AppColors.muted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
-                _InfoRow(label: 'App name', value: info.appName),
+                _InfoRow(label: 'Version', value: info.version),
                 const SizedBox(height: AppSpacing.sm),
-                _InfoRow(label: 'App version', value: info.version),
-                const SizedBox(height: AppSpacing.sm),
-                _InfoRow(label: 'Build number', value: info.buildNumber),
+                _InfoRow(label: 'Build', value: info.buildNumber),
               ],
             ),
           ),
+        ),
+        const SizedBox(height: AppSpacing.lg),
+        // Update check
+        Text('Updates', style: AppTypography.h3),
+        const SizedBox(height: AppSpacing.sm),
+        updateAsync.when(
+          loading: () => const SkeletonBox(width: double.infinity, height: 64),
+          error: (_, __) => GlassCard(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.cloud_off_outlined,
+                  color: AppColors.muted,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Could not check for updates',
+                  style: AppTypography.body.copyWith(color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+          data: (info) {
+            if (info == null) {
+              return GlassCard(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.cloud_off_outlined,
+                      color: AppColors.muted,
+                      size: 18,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'Server unreachable',
+                      style:
+                          AppTypography.body.copyWith(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              );
+            }
+            if (!info.hasUpdate) {
+              return GlassCard(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.check_circle_outline,
+                      color: AppColors.success,
+                      size: 18,
+                    ),
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'Up to date — v${info.localVersion}',
+                      style: AppTypography.body,
+                    ),
+                  ],
+                ),
+              );
+            }
+            return GlassCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(
+                        Icons.system_update_outlined,
+                        color: AppColors.violet400,
+                        size: 18,
+                      ),
+                      const SizedBox(width: AppSpacing.sm),
+                      Text(
+                        'Update available',
+                        style: AppTypography.labelLg.copyWith(
+                          color: AppColors.violet400,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    'v${info.localVersion} → v${info.remoteVersion}',
+                    style:
+                        AppTypography.bodySm.copyWith(color: AppColors.muted),
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final uri = Uri.tryParse(info.downloadUrl);
+                      if (uri == null) return;
+                      final launched = await launchUrl(
+                        uri,
+                        mode: LaunchMode.externalApplication,
+                      );
+                      if (!launched && context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Could not open: ${info.downloadUrl}'),
+                          ),
+                        );
+                      }
+                    },
+                    icon: const Icon(Icons.download_outlined, size: 16),
+                    label: const Text('Download Update'),
+                  ),
+                ],
+              ),
+            );
+          },
         ),
         const SizedBox(height: AppSpacing.lg),
         OutlinedButton(
@@ -589,7 +742,7 @@ class _AboutPanel extends ConsumerWidget {
             final info = infoAsync.valueOrNull;
             showLicensePage(
               context: context,
-              applicationName: info?.appName ?? 'AIStudio',
+              applicationName: info?.appName ?? 'ManhwaManiacs',
               applicationVersion: info?.version,
             );
           },
@@ -610,10 +763,116 @@ class _InfoRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(label, style: AppTypography.body.copyWith(color: AppColors.muted)),
-        Text(value, style: AppTypography.labelLg),
+        const SizedBox(width: AppSpacing.md),
+        Flexible(
+          child: Text(
+            value,
+            style: AppTypography.labelLg,
+            textAlign: TextAlign.right,
+          ),
+        ),
       ],
     );
+  }
+}
+
+// ── Debug ────────────────────────────────────────────────────────────────
+
+class _DebugPanel extends ConsumerWidget {
+  const _DebugPanel();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xl2),
+      children: [
+        Text('Diagnostics', style: AppTypography.h3),
+        const SizedBox(height: AppSpacing.sm),
+        GlassCard(
+          onTap: () => context.push(Routes.diagnostics),
+          child: Row(
+            children: [
+              const Icon(Icons.speed_rounded, color: AppColors.violet400),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Performance & display', style: AppTypography.labelLg),
+                    const SizedBox(height: AppSpacing.xxs),
+                    Text(
+                      'Refresh rate, FPS, frame timing, device info, cache',
+                      style: AppTypography.bodySm
+                          .copyWith(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppSpacing.xl2),
+        Text('Reset', style: AppTypography.h3),
+        const SizedBox(height: AppSpacing.sm),
+        GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Restore reader defaults',
+                style: AppTypography.labelLg,
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'Resets direction, fit, brightness, warmth, background, color '
+                'mode and refresh rate. Server URL and library are untouched.',
+                style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: () => _confirmResetReader(context, ref),
+                icon: const Icon(Icons.restart_alt, size: 18),
+                label: const Text('Reset reader settings'),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _confirmResetReader(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Reset reader settings?'),
+        content: const Text(
+          'This restores all reader preferences to their defaults.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('Reset'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(preferencesProvider).resetReaderPreferences();
+    ref.invalidate(readerDefaultsProvider);
+    ref.invalidate(readerFilterProvider);
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Reader settings reset to defaults.')),
+      );
+    }
   }
 }

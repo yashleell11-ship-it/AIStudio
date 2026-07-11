@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_grouping.dart';
 
 DownloadItem _item({
   required int id,
@@ -20,8 +20,8 @@ DownloadItem _item({
     pagesDone: 1,
     pagesTotal: 10,
     bytesDownloaded: 1000,
-    createdAt: DateTime.utc(2024, 1, 1),
-    updatedAt: DateTime.utc(2024, 1, 1),
+    createdAt: DateTime.utc(2024),
+    updatedAt: DateTime.utc(2024),
     priority: 0,
     retryCount: 0,
   );

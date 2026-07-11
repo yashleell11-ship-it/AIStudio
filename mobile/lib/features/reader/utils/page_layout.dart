@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 
 const double defaultContainerWidth = 768;
 const double maxContentWidth = 768;

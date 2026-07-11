@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
 
 Color readingStatusColor(String status) {
   return switch (status) {

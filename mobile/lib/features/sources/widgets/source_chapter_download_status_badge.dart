@@ -1,7 +1,7 @@
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/features/downloads/utils/source_chapter_download_status.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/downloads/utils/source_chapter_download_status.dart';
 
 class SourceChapterDownloadStatusBadge extends StatelessWidget {
   const SourceChapterDownloadStatusBadge({

@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/sources/utils/source_reader_offline.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/sources/utils/source_reader_offline.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 typedef SourceReaderChapterKey = ({String sourceId, String seriesId, String chapterId});
 

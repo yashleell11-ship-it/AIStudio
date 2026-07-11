@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/utils/source_chapter_download_status.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/utils/source_chapter_download_status.dart';
 
 DownloadItem _item({
   required String chapterId,
@@ -19,8 +19,8 @@ DownloadItem _item({
       pagesDone: 5,
       pagesTotal: 10,
       bytesDownloaded: 1024,
-      createdAt: DateTime.utc(2024, 1, 1),
-      updatedAt: updatedAt ?? DateTime.utc(2024, 1, 1),
+      createdAt: DateTime.utc(2024),
+      updatedAt: updatedAt ?? DateTime.utc(2024),
       priority: 0,
       retryCount: 0,
     );
@@ -69,7 +69,7 @@ void main() {
           _item(
             chapterId: 'manga-1:1',
             status: 'completed',
-            updatedAt: DateTime.utc(2024, 1, 1),
+            updatedAt: DateTime.utc(2024),
           ),
           _item(
             chapterId: 'manga-1:1',

@@ -1,13 +1,13 @@
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/sources/providers/source_reader_provider.dart';
-import 'package:aistudio_mobile/features/sources/utils/source_reader_offline.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/sources/providers/source_reader_provider.dart';
+import 'package:manhwamaniacs/features/sources/utils/source_reader_offline.dart';
 
 DownloadItem _completedDownload({
   required String chapterId,
   required int localChapterId,
 }) {
-  final now = DateTime.utc(2026, 1, 1);
+  final now = DateTime.utc(2026);
   return DownloadItem(
     id: 1,
     source: 'mangadex',
@@ -46,7 +46,7 @@ void main() {
         bytesDownloaded: older.bytesDownloaded,
         localChapterId: 11,
         createdAt: older.createdAt,
-        updatedAt: DateTime.utc(2026, 2, 1),
+        updatedAt: DateTime.utc(2026, 2),
         priority: older.priority,
         retryCount: older.retryCount,
       );
@@ -62,7 +62,7 @@ void main() {
     });
 
     test('findCompletedSourceDownload ignores non-completed items', () {
-      final now = DateTime.utc(2026, 1, 1);
+      final now = DateTime.utc(2026);
       final queued = DownloadItem(
         id: 3,
         source: 'mangadex',

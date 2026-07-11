@@ -1,9 +1,9 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_radius.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class ReaderSkeleton extends StatelessWidget {
   const ReaderSkeleton({super.key});
@@ -20,8 +20,8 @@ class ReaderSkeleton extends StatelessWidget {
             children: [
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: Column(
-                  children: const [
+                child: const Column(
+                  children: [
                     SkeletonBox(width: double.infinity, height: 360, borderRadius: AppRadius.lg),
                     SizedBox(height: AppSpacing.md),
                     SkeletonBox(width: double.infinity, height: 360, borderRadius: AppRadius.lg),

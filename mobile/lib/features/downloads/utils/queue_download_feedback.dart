@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 
 String queueDownloadFeedbackMessage(QueueDownloadResponse response) {
   final queued = response.queued.length;

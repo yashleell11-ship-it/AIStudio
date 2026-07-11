@@ -1,10 +1,10 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/utils/responsive.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/utils/responsive.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class LibrarySkeleton extends StatelessWidget {
   const LibrarySkeleton({
@@ -79,7 +79,6 @@ class LibraryEmptyPanel extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
           color: AppColors.border,
-          strokeAlign: BorderSide.strokeAlignInside,
         ),
       ),
       child: Column(

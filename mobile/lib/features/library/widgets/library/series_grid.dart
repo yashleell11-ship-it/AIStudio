@@ -1,16 +1,17 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/utils/responsive.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/utils/cover_url.dart';
-import 'package:aistudio_mobile/features/library/utils/series_display.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
-import 'package:aistudio_mobile/shared/widgets/series_cover_image.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/utils/responsive.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
+import 'package:manhwamaniacs/features/library/utils/series_display.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/pressable.dart';
+import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 
 class SeriesCard extends ConsumerWidget {
   const SeriesCard({
@@ -19,20 +20,30 @@ class SeriesCard extends ConsumerWidget {
     required this.onTap,
     required this.onToggleFavorite,
     this.onRemove,
+    this.onLongPress,
+    this.selectionMode = false,
+    this.selected = false,
   });
 
   final SeriesSummary series;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onRemove;
+  final VoidCallback? onLongPress;
+
+  /// Whether the library is in multi-select mode. When true, every card
+  /// shows a checkbox circle instead of its usual favorite/remove buttons.
+  final bool selectionMode;
+  final bool selected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseUrl = ref.watch(apiBaseUrlProvider);
     final progress = series.readingProgress;
 
-    return GestureDetector(
+    return Pressable(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -43,19 +54,37 @@ class SeriesCard extends ConsumerWidget {
               child: Stack(
                 fit: StackFit.expand,
                 children: [
-                  SeriesCoverImage(
-                    url: seriesCoverUrl(baseUrl, series.id),
-                    borderRadius: AppRadius.xl,
+                  Hero(
+                    tag: seriesCoverHeroTag(series.id),
+                    child: SeriesCoverImage(
+                      url: seriesCoverUrl(baseUrl, series.id),
+                      borderRadius: AppRadius.xl,
+                    ),
                   ),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.transparent,
-                          AppColors.bg.withAlpha(230),
-                        ],
+                  if (selected)
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withAlpha(60),
+                        border: Border.all(color: AppColors.primary, width: 3),
+                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                      ),
+                    ),
+                  // Bottom gradient for text legibility
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    height: 110,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
+                          colors: [
+                            Colors.transparent,
+                            AppColors.bg.withAlpha(240),
+                          ],
+                        ),
                       ),
                     ),
                   ),
@@ -66,38 +95,46 @@ class SeriesCard extends ConsumerWidget {
                       child: Container(
                         padding: const EdgeInsets.symmetric(
                           horizontal: AppSpacing.sm,
-                          vertical: 2,
+                          vertical: AppSpacing.xxs,
                         ),
                         decoration: BoxDecoration(
                           color: readingStatusColor(series.readingStatus)
-                              .withAlpha(204),
+                              .withAlpha(220),
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
                         child: Text(
                           readingStatusLabel(series.readingStatus).toUpperCase(),
                           style: AppTypography.caption.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
                             color: Colors.white,
-                            letterSpacing: 0.5,
+                            letterSpacing: 0.6,
                           ),
                         ),
                       ),
                     ),
-                  Positioned(
-                    right: AppSpacing.sm,
-                    top: AppSpacing.sm,
-                    child: _FavoriteButton(
-                      isFavorite: series.isFavorite,
-                      onPressed: onToggleFavorite,
-                    ),
-                  ),
-                  if (onRemove != null)
+                  if (selectionMode)
                     Positioned(
-                      left: AppSpacing.sm,
-                      top: AppSpacing.sm,
-                      child: _RemoveButton(onPressed: onRemove!),
+                      right: AppSpacing.xs,
+                      top: AppSpacing.xs,
+                      child: _SelectionCheckbox(selected: selected),
+                    )
+                  else ...[
+                    Positioned(
+                      right: AppSpacing.xs,
+                      top: AppSpacing.xs,
+                      child: _FavoriteButton(
+                        isFavorite: series.isFavorite,
+                        onPressed: onToggleFavorite,
+                      ),
                     ),
+                    if (onRemove != null)
+                      Positioned(
+                        left: AppSpacing.xs,
+                        top: AppSpacing.xs,
+                        child: _RemoveButton(onPressed: onRemove!),
+                      ),
+                  ],
                   Positioned(
                     left: AppSpacing.md,
                     right: AppSpacing.md,
@@ -109,15 +146,18 @@ class SeriesCard extends ConsumerWidget {
                           series.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTypography.labelLg.copyWith(
+                          style: AppTypography.label.copyWith(
                             color: Colors.white,
                             height: 1.2,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
+                        const SizedBox(height: AppSpacing.xxs),
                         Text(
-                          '${series.chapterCount} chapters',
+                          '${series.chapterCount} ch',
                           style: AppTypography.caption.copyWith(
-                            color: Colors.white.withAlpha(179),
+                            color: Colors.white.withAlpha(160),
+                            fontSize: 10,
                           ),
                         ),
                       ],
@@ -127,30 +167,10 @@ class SeriesCard extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
-          Row(
-            children: [
-              Expanded(
-                child: _ProgressLabel(
-                  series: series,
-                  progressPct: progress?.progressPct,
-                ),
-              ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 6,
-                  vertical: 2,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.fg.withAlpha(13),
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                ),
-                child: Text(
-                  languageLabel(series.language).toUpperCase(),
-                  style: AppTypography.caption.copyWith(fontSize: 10),
-                ),
-              ),
-            ],
+          const SizedBox(height: AppSpacing.xs),
+          _ProgressLabel(
+            series: series,
+            progressPct: progress?.progressPct,
           ),
         ],
       ),
@@ -165,27 +185,38 @@ class SeriesListTile extends ConsumerWidget {
     required this.onTap,
     required this.onToggleFavorite,
     this.onRemove,
+    this.onLongPress,
+    this.selectionMode = false,
+    this.selected = false,
   });
 
   final SeriesSummary series;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onRemove;
+  final VoidCallback? onLongPress;
+  final bool selectionMode;
+  final bool selected;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseUrl = ref.watch(apiBaseUrlProvider);
     final progress = series.readingProgress;
 
-    return GlassCard(
+    return GestureDetector(
+      onLongPress: onLongPress,
+      child: GlassCard(
       onTap: onTap,
       padding: const EdgeInsets.all(AppSpacing.md),
       child: Row(
         children: [
-          SeriesCoverImage(
-            url: seriesCoverUrl(baseUrl, series.id),
-            width: 64,
-            height: 64,
+          Hero(
+            tag: seriesCoverHeroTag(series.id),
+            child: SeriesCoverImage(
+              url: seriesCoverUrl(baseUrl, series.id),
+              width: 64,
+              height: 64,
+            ),
           ),
           const SizedBox(width: AppSpacing.lg),
           Expanded(
@@ -242,16 +273,21 @@ class SeriesListTile extends ConsumerWidget {
               ],
             ),
           ),
-          _FavoriteButton(
-            isFavorite: series.isFavorite,
-            onPressed: onToggleFavorite,
-            compact: true,
-          ),
-          if (onRemove != null) ...[
-            const SizedBox(width: AppSpacing.sm),
-            _RemoveButton(onPressed: onRemove!),
+          if (selectionMode)
+            _SelectionCheckbox(selected: selected)
+          else ...[
+            _FavoriteButton(
+              isFavorite: series.isFavorite,
+              onPressed: onToggleFavorite,
+              compact: true,
+            ),
+            if (onRemove != null) ...[
+              const SizedBox(width: AppSpacing.sm),
+              _RemoveButton(onPressed: onRemove!),
+            ],
           ],
         ],
+      ),
       ),
     );
   }
@@ -286,6 +322,34 @@ class _FavoriteButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// Selection-mode checkbox circle. The whole card's `onTap` toggles it
+/// (wired by the parent screen), so this is purely a visual indicator, not
+/// an interactive widget itself.
+class _SelectionCheckbox extends StatelessWidget {
+  const _SelectionCheckbox({required this.selected});
+
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 26,
+      height: 26,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selected ? AppColors.primary : AppColors.bg.withAlpha(150),
+        border: Border.all(
+          color: selected ? AppColors.primary : AppColors.fg.withAlpha(150),
+          width: 1.5,
+        ),
+      ),
+      child: selected
+          ? const Icon(Icons.check, size: 16, color: Colors.white)
+          : null,
     );
   }
 }
@@ -372,6 +436,10 @@ class SeriesGrid extends ConsumerWidget {
     required this.onSeriesTap,
     required this.onToggleFavorite,
     this.onRemoveSeries,
+    this.onSeriesLongPress,
+    this.coverScale = 1.0,
+    this.selectionMode = false,
+    this.selectedIds = const {},
   });
 
   final List<SeriesSummary> items;
@@ -379,6 +447,15 @@ class SeriesGrid extends ConsumerWidget {
   final ValueChanged<SeriesSummary> onSeriesTap;
   final ValueChanged<int> onToggleFavorite;
   final ValueChanged<int>? onRemoveSeries;
+  final ValueChanged<SeriesSummary>? onSeriesLongPress;
+
+  /// Cover-size multiplier; higher = larger covers / fewer columns.
+  final double coverScale;
+
+  /// Library multi-select: shows a checkbox on every card instead of the
+  /// usual favorite/remove buttons when true.
+  final bool selectionMode;
+  final Set<int> selectedIds;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -390,7 +467,12 @@ class SeriesGrid extends ConsumerWidget {
               series: series,
               onTap: () => onSeriesTap(series),
               onToggleFavorite: () => onToggleFavorite(series.id),
+              onLongPress: onSeriesLongPress == null
+                  ? null
+                  : () => onSeriesLongPress!(series),
               onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
+              selectionMode: selectionMode,
+              selected: selectedIds.contains(series.id),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -398,15 +480,17 @@ class SeriesGrid extends ConsumerWidget {
       );
     }
 
-    final columns = context.seriesGridColumns;
+    // Fewer columns as covers scale up; clamp to a sensible range.
+    final base = context.seriesGridColumns;
+    final columns = (base / coverScale).round().clamp(2, 6);
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        crossAxisSpacing: AppSpacing.lg,
-        mainAxisSpacing: AppSpacing.lg,
+        crossAxisSpacing: AppSpacing.md,
+        mainAxisSpacing: AppSpacing.xl,
         childAspectRatio: 0.52,
       ),
       itemCount: items.length,
@@ -416,7 +500,12 @@ class SeriesGrid extends ConsumerWidget {
           series: series,
           onTap: () => onSeriesTap(series),
           onToggleFavorite: () => onToggleFavorite(series.id),
+          onLongPress: onSeriesLongPress == null
+              ? null
+              : () => onSeriesLongPress!(series),
           onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
+          selectionMode: selectionMode,
+          selected: selectedIds.contains(series.id),
         );
       },
     );

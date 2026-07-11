@@ -1,4 +1,4 @@
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
 
 class SeriesDownloadGroup {
   const SeriesDownloadGroup({

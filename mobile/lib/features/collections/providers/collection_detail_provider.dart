@@ -1,9 +1,9 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/collections/providers/collections_provider.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/collections/providers/collections_provider.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 final collectionDetailProvider = AsyncNotifierProvider.autoDispose
     .family<CollectionDetailNotifier, CollectionDetail, int>(
@@ -78,7 +78,7 @@ class CollectionDetailNotifier
 final librarySeriesPickerProvider =
     FutureProvider.autoDispose<List<SeriesSummary>>((ref) async {
   final repo = ref.watch(libraryRepositoryProvider);
-  final result = await repo.listSeries(page: 1, perPage: 200);
+  final result = await repo.listSeries(perPage: 200);
   if (result.isErr) throw result.error;
   return result.value.items;
 });

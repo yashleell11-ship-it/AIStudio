@@ -1,11 +1,11 @@
-import 'package:aistudio_mobile/app/app.dart';
-import 'package:aistudio_mobile/core/config/env.dart';
-import 'package:aistudio_mobile/core/logging/app_logger.dart';
-import 'package:aistudio_mobile/core/storage/preferences.dart';
-import 'package:aistudio_mobile/core/storage/secure_storage.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/app/app.dart';
+import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/core/logging/app_logger.dart';
+import 'package:manhwamaniacs/core/storage/preferences.dart';
+import 'package:manhwamaniacs/core/storage/secure_storage.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<void> main() async {
@@ -28,7 +28,7 @@ Future<void> main() async {
         apiBaseUrlProvider.overrideWith((ref) => apiUrl),
         sharedPrefsProvider.overrideWithValue(prefs),
       ],
-      child: const AiStudioApp(),
+      child: const ManhwaManiacsApp(),
     ),
   );
 }

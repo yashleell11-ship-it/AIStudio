@@ -1,31 +1,31 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
-import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
-import 'package:aistudio_mobile/features/downloads/screens/downloads_screen.dart';
-import 'package:aistudio_mobile/features/downloads/widgets/downloads_skeleton.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
+import 'package:manhwamaniacs/features/downloads/screens/downloads_screen.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/downloads_skeleton.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 class _FakeDownloadsRepository implements DownloadsRepository {
   @override
@@ -45,15 +45,15 @@ class _FakeDownloadsRepository implements DownloadsRepository {
           speedBps: 512000,
           speedMbps: 0.5,
           etaSeconds: 22,
-          createdAt: DateTime.utc(2024, 1, 1),
-          updatedAt: DateTime.utc(2024, 1, 1),
+          createdAt: DateTime.utc(2024),
+          updatedAt: DateTime.utc(2024),
           priority: 0,
           retryCount: 0,
         ),
       ]);
 
   @override
-  Future<Result<DownloadMetrics>> getMetrics() async => Ok(
+  Future<Result<DownloadMetrics>> getMetrics() async => const Ok(
         DownloadMetrics(
           total: 1,
           completed: 0,
@@ -67,7 +67,7 @@ class _FakeDownloadsRepository implements DownloadsRepository {
           overallSpeedBps: 512000,
           overallSpeedMbps: 0.5,
           overallEtaSeconds: 22,
-          workers: const DownloadWorkers(configured: 2, active: 1, running: 1),
+          workers: DownloadWorkers(configured: 2, active: 1, running: 1),
         ),
       );
 
@@ -107,6 +107,10 @@ class _FakeDownloadsRepository implements DownloadsRepository {
 
   @override
   Future<Result<void>> retryDownload(int downloadId) async => const Ok(null);
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) async =>
+      const Ok(null);
 
   @override
   Future<Result<int>> pauseAll() async => const Ok(1);
@@ -155,15 +159,15 @@ class _CompletedDownloadsRepository implements DownloadsRepository {
           pagesTotal: 10,
           bytesDownloaded: 4096,
           localChapterId: 42,
-          createdAt: DateTime.utc(2024, 1, 1),
-          updatedAt: DateTime.utc(2024, 1, 1),
+          createdAt: DateTime.utc(2024),
+          updatedAt: DateTime.utc(2024),
           priority: 0,
           retryCount: 0,
         ),
       ]);
 
   @override
-  Future<Result<DownloadMetrics>> getMetrics() async => Ok(
+  Future<Result<DownloadMetrics>> getMetrics() async => const Ok(
         DownloadMetrics(
           total: 1,
           completed: 1,
@@ -176,8 +180,7 @@ class _CompletedDownloadsRepository implements DownloadsRepository {
           storageFreeBytes: 0,
           overallSpeedBps: 0,
           overallSpeedMbps: 0,
-          overallEtaSeconds: null,
-          workers: const DownloadWorkers(configured: 2, active: 0, running: 0),
+          workers: DownloadWorkers(configured: 2, active: 0, running: 0),
         ),
       );
 
@@ -217,6 +220,10 @@ class _CompletedDownloadsRepository implements DownloadsRepository {
 
   @override
   Future<Result<void>> retryDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<int>> pauseAll() => throw UnimplementedError();
@@ -696,8 +703,8 @@ DownloadItem _queueItem({
       pagesTotal: pagesTotal,
       bytesDownloaded: 4096,
       error: error,
-      createdAt: DateTime.utc(2024, 1, 1),
-      updatedAt: DateTime.utc(2024, 1, 1),
+      createdAt: DateTime.utc(2024),
+      updatedAt: DateTime.utc(2024),
       priority: 0,
       retryCount: status == 'failed' ? 1 : 0,
     );
@@ -731,7 +738,7 @@ class _EmptyDownloadsRepository implements DownloadsRepository {
   Future<Result<List<DownloadItem>>> listDownloads() async => const Ok([]);
 
   @override
-  Future<Result<DownloadMetrics>> getMetrics() async => Ok(
+  Future<Result<DownloadMetrics>> getMetrics() async => const Ok(
         DownloadMetrics(
           total: 0,
           completed: 0,
@@ -744,8 +751,7 @@ class _EmptyDownloadsRepository implements DownloadsRepository {
           storageFreeBytes: 0,
           overallSpeedBps: 0,
           overallSpeedMbps: 0,
-          overallEtaSeconds: null,
-          workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
+          workers: DownloadWorkers(configured: 1, active: 0, running: 0),
         ),
       );
 
@@ -785,6 +791,10 @@ class _EmptyDownloadsRepository implements DownloadsRepository {
 
   @override
   Future<Result<void>> retryDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<int>> pauseAll() => throw UnimplementedError();
@@ -839,14 +849,13 @@ class _ItemsDownloadsRepository extends _EmptyDownloadsRepository {
           storageFreeBytes: 0,
           overallSpeedBps: 0,
           overallSpeedMbps: 0,
-          overallEtaSeconds: null,
           workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
         ),
       );
 }
 
 class _ActionTrackingDownloadsRepository extends _ItemsDownloadsRepository {
-  _ActionTrackingDownloadsRepository(List<DownloadItem> items) : super(items);
+  _ActionTrackingDownloadsRepository(super.items);
 
   final pausedIds = <int>[];
   final resumedIds = <int>[];
@@ -903,7 +912,6 @@ class _CancelledAfterRefreshRepository extends _EmptyDownloadsRepository {
           storageFreeBytes: 0,
           overallSpeedBps: 0,
           overallSpeedMbps: 0,
-          overallEtaSeconds: null,
           workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
         ),
       );
@@ -922,7 +930,7 @@ class _RefreshableDownloadsRepository extends _EmptyDownloadsRepository {
   }
 
   @override
-  Future<Result<DownloadMetrics>> getMetrics() async => Ok(
+  Future<Result<DownloadMetrics>> getMetrics() async => const Ok(
         DownloadMetrics(
           total: 1,
           completed: 0,
@@ -936,7 +944,7 @@ class _RefreshableDownloadsRepository extends _EmptyDownloadsRepository {
           overallSpeedBps: 512000,
           overallSpeedMbps: 0.5,
           overallEtaSeconds: 22,
-          workers: const DownloadWorkers(configured: 2, active: 1, running: 1),
+          workers: DownloadWorkers(configured: 2, active: 1, running: 1),
         ),
       );
 }
@@ -944,11 +952,11 @@ class _RefreshableDownloadsRepository extends _EmptyDownloadsRepository {
 class _FailingDownloadsRepository implements DownloadsRepository {
   @override
   Future<Result<List<DownloadItem>>> listDownloads() async =>
-      Err(UnknownError(message: 'network failure'));
+      const Err(UnknownError(message: 'network failure'));
 
   @override
   Future<Result<DownloadMetrics>> getMetrics() async =>
-      Err(UnknownError(message: 'network failure'));
+      const Err(UnknownError(message: 'network failure'));
 
   @override
   Future<Result<DownloadSettings>> getSettings() => throw UnimplementedError();
@@ -986,6 +994,10 @@ class _FailingDownloadsRepository implements DownloadsRepository {
 
   @override
   Future<Result<void>> retryDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<int>> pauseAll() => throw UnimplementedError();

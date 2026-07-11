@@ -1,14 +1,14 @@
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/reader/utils/local_reader_handoff.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_content.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_error_state.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_skeleton.dart';
-import 'package:aistudio_mobile/features/sources/providers/source_reader_provider.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/utils/local_reader_handoff.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
+import 'package:manhwamaniacs/features/sources/providers/source_reader_provider.dart';
 
 /// Online source chapter reader.
 ///
@@ -33,11 +33,9 @@ class SourceReaderScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chapterAsync = ref.watch(
-      sourceReaderChapterProvider((
-        sourceId: sourceId,
-        seriesId: seriesId,
-        chapterId: chapterId,
-      )),
+      sourceReaderChapterProvider(
+        (sourceId: sourceId, seriesId: seriesId, chapterId: chapterId),
+      ),
     );
 
     return chapterAsync.when(
@@ -49,11 +47,9 @@ class SourceReaderScreen extends ConsumerWidget {
         return ReaderErrorState(
           error: appError,
           onRetry: () => ref.invalidate(
-            sourceReaderChapterProvider((
-              sourceId: sourceId,
-              seriesId: seriesId,
-              chapterId: chapterId,
-            )),
+            sourceReaderChapterProvider(
+              (sourceId: sourceId, seriesId: seriesId, chapterId: chapterId),
+            ),
           ),
           onBack: () => context.go(
             RoutePaths.sourceSeriesDetail(sourceId, seriesId),
@@ -83,7 +79,7 @@ class SourceReaderScreen extends ConsumerWidget {
                 sourceId: sourceId,
                 seriesId: seriesId,
                 chapterId: chapterId,
-              )),
+              ),),
             ),
             onBack: () => context.go(
               RoutePaths.sourceSeriesDetail(sourceId, seriesId),

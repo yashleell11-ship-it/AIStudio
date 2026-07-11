@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_grouping.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_wifi_guard.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_grouping.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_wifi_guard.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 class DownloadsState {
   const DownloadsState({
@@ -54,6 +54,17 @@ final downloadsProvider =
   DownloadsNotifier.new,
   name: 'downloads',
 );
+
+/// Lightweight, standalone fetch of just [DownloadMetrics] (storage used,
+/// free space, queue counts) — for surfaces like the Storage screen that
+/// only need the numbers, not the full downloads list/queue machinery.
+final storageMetricsProvider =
+    FutureProvider.autoDispose<DownloadMetrics>((ref) async {
+  final repo = ref.watch(downloadsRepositoryProvider);
+  final result = await repo.getMetrics();
+  if (result.isErr) throw result.error;
+  return result.value;
+});
 
 class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
   Timer? _pollTimer;
@@ -223,6 +234,13 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
 
   Future<void> retryItem(int id) => _runAction(() async {
         final result = await ref.read(downloadsRepositoryProvider).retryDownload(id);
+        if (result.isErr) throw result.error;
+      });
+
+  Future<void> moveItem(int id, String direction) => _runAction(() async {
+        final result = await ref
+            .read(downloadsRepositoryProvider)
+            .moveDownload(id, direction: direction);
         if (result.isErr) throw result.error;
       });
 

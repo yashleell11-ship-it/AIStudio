@@ -1,14 +1,14 @@
 import 'dart:async';
 
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
-import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
-import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 /// Repository fake whose [deleteTracker] and [followSeries] can be held
 /// pending via a [Completer], so tests can observe the notifier's state

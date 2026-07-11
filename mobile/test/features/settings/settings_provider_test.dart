@@ -1,34 +1,34 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/providers/bookmarks_provider.dart';
-import 'package:aistudio_mobile/features/library/providers/dashboard_providers.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
-import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
-import 'package:aistudio_mobile/features/settings/services/image_cache_service.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
-import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
-import 'package:aistudio_mobile/features/updates/repositories/updates_repository.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
+import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
+import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/features/settings/services/image_cache_service.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Empty-data fake — every list method returns an empty success so the
@@ -303,16 +303,32 @@ void main() {
       await notifier.setFitMode(ReaderFitMode.screen);
       await notifier.setKeepScreenAwake(true);
       await notifier.setAutoNextChapter(false);
+      await notifier.setLockControls(true);
+      await notifier.setRefreshRate(ReaderRefreshRate.fps90);
 
       final state = container.read(readerDefaultsProvider);
       expect(state.direction, ReadingDirection.rightToLeft);
       expect(state.fitMode, ReaderFitMode.screen);
       expect(state.keepScreenAwake, isTrue);
       expect(state.autoNextChapter, isFalse);
+      expect(state.lockControls, isTrue);
+      expect(state.refreshRate, ReaderRefreshRate.fps90);
 
       final prefs = container.read(preferencesProvider);
       expect(prefs.readingDirection, 'rightToLeft');
       expect(prefs.readerFitMode, 'screen');
+      expect(prefs.lockReaderControls, isTrue);
+      expect(prefs.readerRefreshRate, 'fps90');
+    });
+
+    test('defaults refresh rate to auto when nothing is persisted', () async {
+      final container = await _container();
+      addTearDown(container.dispose);
+
+      expect(
+        container.read(readerDefaultsProvider).refreshRate,
+        ReaderRefreshRate.auto,
+      );
     });
   });
 

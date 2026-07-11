@@ -8,10 +8,7 @@ class AppLogger {
   late final Logger _logger = Logger(
     printer: PrettyPrinter(
       methodCount: 1,
-      errorMethodCount: 8,
       lineLength: 100,
-      colors: true,
-      printEmojis: true,
       dateTimeFormat: DateTimeFormat.onlyTimeAndSinceStart,
     ),
     level: Level.debug,

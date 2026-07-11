@@ -1,16 +1,16 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
-import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
-import 'package:aistudio_mobile/shared/widgets/empty_state.dart';
-import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class UpdatesScreen extends ConsumerWidget {
   const UpdatesScreen({super.key});
@@ -26,7 +26,7 @@ class UpdatesScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Check now',
-            onPressed: () => notifier.triggerCheck(),
+            onPressed: notifier.triggerCheck,
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -57,20 +57,20 @@ class UpdatesScreen extends ConsumerWidget {
                 runSpacing: AppSpacing.sm,
                 children: [
                   FilledButton.icon(
-                    onPressed: () => notifier.triggerCheck(),
+                    onPressed: notifier.triggerCheck,
                     icon: const Icon(Icons.sync, size: 16),
                     label: const Text('Check all now'),
                   ),
                   if (state.unreadCount > 0)
                     OutlinedButton.icon(
-                      onPressed: () => notifier.markAllRead(),
+                      onPressed: notifier.markAllRead,
                       icon: const Icon(Icons.done_all, size: 16),
                       label: const Text('Mark all read'),
                     ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl2),
-              _SectionHeader(title: 'Notifications'),
+              const _SectionHeader(title: 'Notifications'),
               const SizedBox(height: AppSpacing.md),
               if (state.notifications.isEmpty)
                 const EmptyState(
@@ -91,7 +91,7 @@ class UpdatesScreen extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: AppSpacing.xl2),
-              _SectionHeader(title: 'Tracked series'),
+              const _SectionHeader(title: 'Tracked series'),
               const SizedBox(height: AppSpacing.md),
               if (state.trackers.isEmpty)
                 const EmptyState(

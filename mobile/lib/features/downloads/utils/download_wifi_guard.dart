@@ -1,7 +1,7 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/network/network_connectivity.dart';
-import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/network/network_connectivity.dart';
+import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 
 const wifiRequiredDownloadError = ApiError(
   statusCode: 403,

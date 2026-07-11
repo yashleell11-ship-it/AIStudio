@@ -1,12 +1,12 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_radius.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/collections/utils/collection_sorting.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/utils/cover_url.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/collections/utils/collection_sorting.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 
 class CollectionBannerCard extends StatelessWidget {
   const CollectionBannerCard({
@@ -50,8 +50,6 @@ class CollectionBannerCard extends StatelessWidget {
                   DecoratedBox(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        begin: Alignment.centerLeft,
-                        end: Alignment.centerRight,
                         colors: [
                           AppColors.bg.withAlpha(242),
                           AppColors.bg.withAlpha(179),

@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/series_download_group.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/series_download_group.dart';
 
 const hiddenFromQueue = {'completed', 'cancelled'};
 

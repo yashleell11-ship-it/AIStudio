@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 
 class CollectionDetail {
   const CollectionDetail({

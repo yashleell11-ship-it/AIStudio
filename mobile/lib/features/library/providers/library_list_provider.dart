@@ -1,10 +1,10 @@
-import 'package:aistudio_mobile/features/library/models/library_list_state.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/utils/library_preferences.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 const _listPageSize = 20;
 const _searchPageSize = 40;
@@ -112,12 +112,42 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
     state = AsyncData(current.copyWith(items: updatedItems, clearError: true));
   }
 
+  /// Batch favorite/unfavorite a multi-selected set of series. Only calls
+  /// the API for items whose current state actually needs to change (so
+  /// "Favorite selected" on an already-mixed selection doesn't needlessly
+  /// re-toggle series that are already favorited), and only flips items in
+  /// local state whose API call actually succeeded.
+  Future<void> batchSetFavorite(Set<int> seriesIds, {required bool favorite}) async {
+    final current = state.valueOrNull;
+    if (current == null) return;
+
+    final targets = current.items
+        .where((series) => seriesIds.contains(series.id) && series.isFavorite != favorite)
+        .toList();
+    if (targets.isEmpty) return;
+
+    final repo = ref.read(libraryRepositoryProvider);
+    final results = await Future.wait(targets.map((series) => repo.toggleFavorite(series.id)));
+
+    final succeededIds = <int>{
+      for (var i = 0; i < targets.length; i++)
+        if (results[i].isOk) targets[i].id,
+    };
+    if (succeededIds.isEmpty) return;
+
+    final updatedItems = current.items.map((series) {
+      if (!succeededIds.contains(series.id)) return series;
+      return series.copyWith(isFavorite: favorite);
+    }).toList();
+
+    state = AsyncData(current.copyWith(items: updatedItems, clearError: true));
+  }
+
   Future<LibraryListState> _fetchFirstPage(LibraryQuery query) async {
     final page = await _fetchPage(query, 1);
     return LibraryListState(
       items: page.items,
       total: page.total,
-      page: 1,
       hasNext: page.hasNext,
     );
   }
@@ -134,7 +164,7 @@ class SearchListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
   Future<LibraryListState> build() async {
     final query = ref.watch(searchQueryProvider);
     if (!query.isSearching) {
-      return const LibraryListState(items: [], total: 0, page: 1, hasNext: false);
+      return const LibraryListState();
     }
     return _fetchFirstPage(query);
   }
@@ -143,7 +173,7 @@ class SearchListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
     final query = ref.read(searchQueryProvider);
     if (!query.isSearching) {
       state = const AsyncData(
-        LibraryListState(items: [], total: 0, page: 1, hasNext: false),
+        LibraryListState(),
       );
       return;
     }
@@ -203,7 +233,6 @@ class SearchListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
     return LibraryListState(
       items: page.items,
       total: page.total,
-      page: 1,
       hasNext: page.hasNext,
     );
   }

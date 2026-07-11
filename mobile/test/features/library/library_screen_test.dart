@@ -1,28 +1,28 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/library/screens/library_screen.dart';
-import 'package:aistudio_mobile/features/library/utils/library_preferences.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import '../../support/test_overrides.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/library/screens/library_screen.dart';
+import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../support/test_overrides.dart';
 
 class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository(this._items);
@@ -206,14 +206,14 @@ Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
                 pageCount: 3580,
                 totalChapters: 179,
                 totalPages: 3580,
-                createdAt: DateTime(2024, 1, 1),
-                updatedAt: DateTime(2024, 6, 1),
+                createdAt: DateTime(2024),
+                updatedAt: DateTime(2024, 6),
                 readingProgress: ReadingProgress(
                   seriesId: 1,
                   chapterId: 150,
                   lastPage: 10,
                   progressPct: 27.9,
-                  lastReadAt: DateTime(2024, 6, 1),
+                  lastReadAt: DateTime(2024, 6),
                 ),
               ),
               SeriesSummary(
@@ -231,8 +231,8 @@ Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
                 pageCount: 2400,
                 totalChapters: 120,
                 totalPages: 2400,
-                createdAt: DateTime(2024, 2, 1),
-                updatedAt: DateTime(2024, 7, 1),
+                createdAt: DateTime(2024, 2),
+                updatedAt: DateTime(2024, 7),
               ),
             ]),
       ),
@@ -281,8 +281,8 @@ void main() {
           pageCount: 100,
           totalChapters: 10,
           totalPages: 100,
-          createdAt: DateTime(2024, 1, 1),
-          updatedAt: DateTime(2024, 6, 1),
+          createdAt: DateTime(2024),
+          updatedAt: DateTime(2024, 6),
         ),
         SeriesSummary(
           id: 2,
@@ -299,8 +299,8 @@ void main() {
           pageCount: 100,
           totalChapters: 10,
           totalPages: 100,
-          createdAt: DateTime(2024, 2, 1),
-          updatedAt: DateTime(2024, 7, 1),
+          createdAt: DateTime(2024, 2),
+          updatedAt: DateTime(2024, 7),
         ),
       ]);
 
@@ -333,8 +333,8 @@ void main() {
           pageCount: 100,
           totalChapters: 10,
           totalPages: 100,
-          createdAt: DateTime(2024, 2, 1),
-          updatedAt: DateTime(2024, 7, 1),
+          createdAt: DateTime(2024, 2),
+          updatedAt: DateTime(2024, 7),
         ),
       ]);
 
@@ -370,6 +370,88 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(readLibraryQuery(prefs).sort, LibrarySort.dateAdded);
+    });
+  });
+
+  group('LibraryScreen multi-select', () {
+    testWidgets('Select icon enters selection mode with an empty count',
+        (tester) async {
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+
+      expect(find.text('0 selected'), findsOneWidget);
+      expect(find.byIcon(Icons.close), findsOneWidget);
+    });
+
+    testWidgets('tapping a card in selection mode toggles it and updates the count',
+        (tester) async {
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Solo Leveling').first);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Solo Leveling').first);
+      await tester.pump();
+
+      expect(find.text('1 selected'), findsOneWidget);
+
+      // Tapping the same card again deselects it.
+      await tester.tap(find.text('Solo Leveling').first);
+      await tester.pump();
+
+      expect(find.text('0 selected'), findsOneWidget);
+    });
+
+    testWidgets('Select all selects every currently-loaded series', (tester) async {
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      expect(find.text('2 selected'), findsOneWidget);
+    });
+
+    testWidgets('Cancel exits selection mode back to the normal AppBar',
+        (tester) async {
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.close));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Browse Library'), findsOneWidget);
+      expect(find.byIcon(Icons.checklist), findsOneWidget);
+    });
+
+    testWidgets(
+        'Favorite (N) batch-favorites only the unfavorited selection and exits',
+        (tester) async {
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      // Solo Leveling starts favorited, Tower of God does not.
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      await tester.tap(find.textContaining('Favorite (2)'));
+      await tester.pumpAndSettle();
+
+      // Selection mode exits automatically once the batch action completes.
+      expect(find.text('Browse Library'), findsOneWidget);
+      expect(find.byIcon(Icons.checklist), findsOneWidget);
     });
   });
 }

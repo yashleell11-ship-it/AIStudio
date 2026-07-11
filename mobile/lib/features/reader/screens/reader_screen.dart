@@ -1,19 +1,18 @@
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
-import 'package:aistudio_mobile/features/reader/providers/reader_chapter_provider.dart';
-import 'package:aistudio_mobile/features/reader/utils/page_image_url.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_content.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_error_state.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_skeleton.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
+import 'package:manhwamaniacs/features/reader/utils/page_image_url.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 class ReaderScreen extends ConsumerWidget {
   const ReaderScreen({
@@ -111,7 +110,6 @@ class _LocalReaderBody extends ConsumerWidget {
       chapter: readerChapter,
       scrollStorageKey: chapterId.toString(),
       initialPage: initialPage,
-      showBookmark: true,
       onBack: () => context.pop(),
       onPreviousChapter: previousChapter != null
           ? () => context.go(RoutePaths.reader(seriesId, previousChapter.id))

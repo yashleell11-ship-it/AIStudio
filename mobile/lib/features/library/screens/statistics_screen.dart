@@ -1,17 +1,17 @@
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/providers/intelligence_providers.dart';
-import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
-import 'package:aistudio_mobile/shared/widgets/skeleton_box.dart';
-import 'package:aistudio_mobile/shared/widgets/stat_card.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
+import 'package:manhwamaniacs/shared/widgets/stat_card.dart';
 
 class StatisticsScreen extends ConsumerWidget {
   const StatisticsScreen({super.key});
@@ -122,6 +122,23 @@ class StatisticsScreen extends ConsumerWidget {
                     label: 'Pages This Week',
                     accent: StatAccent.violet,
                   ),
+                  StatCard(
+                    icon: Icons.speed_outlined,
+                    value: stats.readingVelocityPagesPerHour > 0
+                        ? numberFormat
+                            .format(stats.readingVelocityPagesPerHour.round())
+                        : '—',
+                    label: 'Pages / Hour',
+                    accent: StatAccent.cyan,
+                  ),
+                  StatCard(
+                    icon: Icons.hourglass_bottom_outlined,
+                    value: _formatReadingTime(
+                      stats.totalReadingTimeEstimateMinutes,
+                    ),
+                    label: 'Time Read',
+                    accent: StatAccent.amber,
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.xl2),
@@ -144,6 +161,15 @@ class StatisticsScreen extends ConsumerWidget {
       ),
     );
   }
+}
+
+/// Formats a reading-time estimate (minutes) into a compact "Xh Ym" / "Xm".
+String _formatReadingTime(int minutes) {
+  if (minutes <= 0) return '—';
+  if (minutes < 60) return '${minutes}m';
+  final hours = minutes ~/ 60;
+  final rem = minutes % 60;
+  return rem == 0 ? '${hours}h' : '${hours}h ${rem}m';
 }
 
 class _CompletionCard extends StatelessWidget {

@@ -1,4 +1,4 @@
-# AIStudio Mobile — Setup
+# ManhwaManiacs Mobile — Setup
 
 ## Prerequisites
 

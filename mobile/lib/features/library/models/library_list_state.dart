@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 
 class LibraryListState {
   const LibraryListState({

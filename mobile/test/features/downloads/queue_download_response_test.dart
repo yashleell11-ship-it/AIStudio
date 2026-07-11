@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 
 void main() {
   group('QueueDownloadResponse.fromJson', () {

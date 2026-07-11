@@ -1,22 +1,22 @@
-import 'package:aistudio_mobile/app/router/routes.dart';
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/providers/series_detail_provider.dart';
-import 'package:aistudio_mobile/features/library/utils/cover_url.dart';
-import 'package:aistudio_mobile/features/library/utils/series_display.dart';
-import 'package:aistudio_mobile/features/library/widgets/series_detail/series_detail_skeleton.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
-import 'package:aistudio_mobile/shared/widgets/glass_card.dart';
-import 'package:aistudio_mobile/shared/widgets/series_cover_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
+import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
+import 'package:manhwamaniacs/features/library/utils/series_display.dart';
+import 'package:manhwamaniacs/features/library/widgets/series_detail/series_detail_skeleton.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 
 class SeriesDetailScreen extends ConsumerWidget {
   const SeriesDetailScreen({super.key, required this.seriesId});
@@ -101,11 +101,10 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
           child: Stack(
             children: [
               SizedBox(
-                height: 280,
+                height: 320,
                 width: double.infinity,
                 child: SeriesCoverImage(
                   url: coverUrl,
-                  fit: BoxFit.cover,
                   borderRadius: 0,
                 ),
               ),
@@ -115,9 +114,10 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
                     gradient: LinearGradient(
                       begin: Alignment.topCenter,
                       end: Alignment.bottomCenter,
+                      stops: const [0.0, 0.4, 1.0],
                       colors: [
-                        AppColors.bg.withAlpha(153),
-                        AppColors.bg.withAlpha(204),
+                        AppColors.bg.withAlpha(100),
+                        AppColors.bg.withAlpha(160),
                         AppColors.bg,
                       ],
                     ),
@@ -131,9 +131,9 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
                   onPressed: () => context.canPop()
                       ? context.pop()
                       : context.go(Routes.libraryBrowse),
-                  icon: const Icon(Icons.arrow_back),
+                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
                   style: IconButton.styleFrom(
-                    backgroundColor: AppColors.bg.withAlpha(128),
+                    backgroundColor: AppColors.sidebar.withAlpha(200),
                     foregroundColor: AppColors.fg,
                   ),
                 ),
@@ -151,19 +151,34 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
           sliver: SliverList(
             delegate: SliverChildListDelegate([
               Transform.translate(
-                offset: const Offset(0, -48),
+                offset: const Offset(0, -60),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Center(
-                      child: SeriesCoverImage(
-                        url: coverUrl,
-                        width: 180,
-                        height: 270,
-                        borderRadius: AppRadius.xl,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(AppRadius.xl),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(100),
+                              blurRadius: 24,
+                              offset: const Offset(0, 8),
+                            ),
+                          ],
+                        ),
+                        child: Hero(
+                          tag: seriesCoverHeroTag(_series.id),
+                          child: SeriesCoverImage(
+                            url: coverUrl,
+                            width: 160,
+                            height: 240,
+                            borderRadius: AppRadius.xl,
+                          ),
+                        ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl2),
+                    const SizedBox(height: AppSpacing.xl3),
                     Text(_series.title, style: AppTypography.h1),
                     if (_series.originalTitle != null) ...[
                       const SizedBox(height: AppSpacing.xs),
@@ -273,7 +288,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
                           label: Text(tag.name),
                           backgroundColor: tag.color?.withAlpha(38) ??
                               AppColors.fg.withAlpha(13),
-                          side: BorderSide(color: AppColors.border),
+                          side: const BorderSide(color: AppColors.border),
                         ),
                       )
                       .toList(),
@@ -308,8 +323,11 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
               const SizedBox(height: AppSpacing.xl3),
               Row(
                 children: [
-                  const Icon(Icons.menu_book_outlined,
-                      size: 16, color: AppColors.cyan400),
+                  const Icon(
+                      Icons.menu_book_outlined,
+                      size: 16,
+                      color: AppColors.cyan400,
+                    ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     'CHAPTERS (${_series.chapters.length})',
@@ -409,25 +427,43 @@ class _ChapterRow extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
+        splashColor: AppColors.primary.withAlpha(15),
+        highlightColor: AppColors.primary.withAlpha(8),
         child: Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.md,
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.lg,
           ),
           child: Row(
             children: [
               Container(
-                width: 36,
-                height: 36,
+                width: 38,
+                height: 38,
                 alignment: Alignment.center,
                 decoration: BoxDecoration(
-                  color: AppColors.fg.withAlpha(13),
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      isCurrent
+                          ? AppColors.primary.withAlpha(50)
+                          : AppColors.fg.withAlpha(13),
+                      isCurrent
+                          ? AppColors.primary.withAlpha(20)
+                          : AppColors.fg.withAlpha(6),
+                    ],
+                  ),
                   borderRadius: BorderRadius.circular(AppRadius.md),
+                  border: isCurrent
+                      ? Border.all(color: AppColors.primary.withAlpha(80))
+                      : null,
                 ),
                 child: Text(
                   '$chapterNumber',
                   style: AppTypography.caption.copyWith(
                     fontFeatures: const [FontFeature.tabularFigures()],
+                    color: isCurrent ? AppColors.primary : AppColors.muted,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
@@ -436,7 +472,13 @@ class _ChapterRow extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(chapter.title, style: AppTypography.labelLg),
+                    Text(
+                      chapter.title,
+                      style: AppTypography.labelLg.copyWith(
+                        color: isCurrent ? AppColors.fg : AppColors.fg.withAlpha(220),
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacing.xxs),
                     Text(
                       '${chapter.pageCount} pages',
                       style: AppTypography.caption,
@@ -447,23 +489,25 @@ class _ChapterRow extends StatelessWidget {
               if (isCurrent)
                 Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: 2,
+                    horizontal: AppSpacing.md,
+                    vertical: AppSpacing.xxs,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(51),
+                    color: AppColors.primary.withAlpha(40),
                     borderRadius: BorderRadius.circular(AppRadius.full),
+                    border: Border.all(color: AppColors.primary.withAlpha(80)),
                   ),
                   child: Text(
-                    'In progress',
+                    'Reading',
                     style: AppTypography.caption.copyWith(
                       color: AppColors.primary,
-                      fontWeight: FontWeight.w600,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.4,
                     ),
                   ),
                 )
               else
-                const Icon(Icons.chevron_right, color: AppColors.muted),
+                const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 20),
             ],
           ),
         ),

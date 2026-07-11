@@ -33,8 +33,14 @@ abstract final class Routes {
   // ── Search ────────────────────────────────────────────────────────────────
   static const String search = '/search';
 
+  // ── More ──────────────────────────────────────────────────────────────────
+  static const String more = '/more';
+
   // ── Settings ──────────────────────────────────────────────────────────────
   static const String settings = '/settings';
+  static const String diagnostics = '/settings/diagnostics';
+  static const String backup = '/settings/backup';
+  static const String storage = '/settings/storage';
 
   // ── First-run setup ───────────────────────────────────────────────────────
   static const String setup = '/setup';

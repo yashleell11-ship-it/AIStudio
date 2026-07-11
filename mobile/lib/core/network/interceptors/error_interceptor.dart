@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
 import 'package:dio/dio.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 
 /// Converts DioException into domain AppError and re-throws.
 ///

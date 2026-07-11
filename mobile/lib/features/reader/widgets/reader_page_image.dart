@@ -1,11 +1,12 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_radius.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
-import 'package:aistudio_mobile/features/reader/utils/page_layout.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 
 /// Renders a fully loaded page using the configured fit mode.
 ///
@@ -123,6 +124,14 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
 
   @override
   Widget build(BuildContext context) {
+    // Decode pages at display size, not the source's native resolution — the
+    // key memory/GC win for tall webtoon strips. Kept consistent with the
+    // prefetch provider so both share one ImageCache entry (single decode).
+    final decodeWidth = readerDecodeWidth(
+      widget.viewportWidth,
+      MediaQuery.devicePixelRatioOf(context),
+    );
+
     return DecoratedBox(
       decoration: BoxDecoration(
         color: Colors.black,
@@ -141,6 +150,7 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
           key: ValueKey('${widget.imageUrl}:$_retryToken'),
           imageUrl: widget.imageUrl,
           fit: _boxFit,
+          memCacheWidth: decodeWidth,
           width: widget.layoutAxis == Axis.vertical &&
                   widget.fitMode == ReaderFitMode.width
               ? double.infinity
@@ -188,8 +198,11 @@ class _ReaderPageImageState extends State<ReaderPageImage> {
           ),
           imageBuilder: (context, imageProvider) {
             WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
+            // Wrap with the same ResizeImage the widget's memCacheWidth uses so
+            // this render reuses the already-decoded, downsampled bitmap
+            // instead of decoding the page a second time at full resolution.
             return ReaderLoadedPageImage(
-              image: imageProvider,
+              image: ResizeImage.resizeIfNeeded(decodeWidth, null, imageProvider),
               fitMode: widget.fitMode,
               layoutAxis: widget.layoutAxis,
               viewportWidth: widget.viewportWidth,

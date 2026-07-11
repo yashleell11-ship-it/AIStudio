@@ -1,16 +1,16 @@
-import 'package:aistudio_mobile/core/network/network_connectivity.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
-import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
-import 'package:aistudio_mobile/features/downloads/repositories/downloads_repository.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_wifi_guard.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/network/network_connectivity.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
+import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_wifi_guard.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../support/test_overrides.dart';
@@ -59,7 +59,7 @@ class _QueueDownloadsRepository implements DownloadsRepository {
   }
 
   @override
-  Future<Result<DownloadMetrics>> getMetrics() async => Ok(
+  Future<Result<DownloadMetrics>> getMetrics() async => const Ok(
         DownloadMetrics(
           total: 0,
           completed: 0,
@@ -72,8 +72,7 @@ class _QueueDownloadsRepository implements DownloadsRepository {
           storageFreeBytes: 0,
           overallSpeedBps: 0,
           overallSpeedMbps: 0,
-          overallEtaSeconds: null,
-          workers: const DownloadWorkers(configured: 1, active: 0, running: 0),
+          workers: DownloadWorkers(configured: 1, active: 0, running: 0),
         ),
       );
 
@@ -95,6 +94,10 @@ class _QueueDownloadsRepository implements DownloadsRepository {
 
   @override
   Future<Result<void>> retryDownload(int downloadId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> moveDownload(int downloadId, {required String direction}) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<int>> pauseAll() => throw UnimplementedError();

@@ -1,21 +1,18 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
-import 'package:aistudio_mobile/app/theme/app_typography.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
 
 // Re-export spacing + radius so callers can import just app_theme.dart.
-export 'package:aistudio_mobile/app/theme/app_colors.dart';
-export 'package:aistudio_mobile/app/theme/app_spacing.dart';
-export 'package:aistudio_mobile/app/theme/app_typography.dart';
+export 'package:manhwamaniacs/app/theme/app_colors.dart';
+export 'package:manhwamaniacs/app/theme/app_spacing.dart';
+export 'package:manhwamaniacs/app/theme/app_typography.dart';
 
-/// AIStudio v2 Material dark theme.
-///
-/// Dark-only: no light theme is provided — AIStudio is always dark.
+/// ManhwaManiacs v2 Material dark theme — dark-only.
 abstract final class AppTheme {
   static ThemeData get dark {
     const colorScheme = ColorScheme.dark(
-      brightness: Brightness.dark,
       surface: AppColors.panel,
       onSurface: AppColors.fg,
       primary: AppColors.primary,
@@ -42,33 +39,34 @@ abstract final class AppTheme {
 
       // ── AppBar ────────────────────────────────────────────────────────────
       appBarTheme: const AppBarTheme(
-        backgroundColor: AppColors.sidebar,
+        backgroundColor: Colors.transparent,
         foregroundColor: AppColors.fg,
         elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
+        surfaceTintColor: Colors.transparent,
         systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: AppColors.bg,
+          statusBarColor: Colors.transparent,
           statusBarIconBrightness: Brightness.light,
-          systemNavigationBarColor: AppColors.bg,
+          systemNavigationBarColor: Colors.transparent,
           systemNavigationBarIconBrightness: Brightness.light,
         ),
-      ),
-
-      // ── Bottom Navigation ─────────────────────────────────────────────────
-      bottomNavigationBarTheme: const BottomNavigationBarThemeData(
-        backgroundColor: AppColors.sidebar,
-        selectedItemColor: AppColors.primary,
-        unselectedItemColor: AppColors.muted,
-        type: BottomNavigationBarType.fixed,
-        elevation: 0,
       ),
 
       // ── Navigation Bar (M3) ───────────────────────────────────────────────
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: AppColors.sidebar,
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        elevation: 0,
+        height: 68,
         indicatorColor: AppColors.violetGlow,
+        indicatorShape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+        ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
+            size: 22,
             color: states.contains(WidgetState.selected)
                 ? AppColors.primary
                 : AppColors.muted,
@@ -76,6 +74,8 @@ abstract final class AppTheme {
         ),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => AppTypography.labelSm.copyWith(
+            fontSize: 10,
+            fontWeight: FontWeight.w600,
             color: states.contains(WidgetState.selected)
                 ? AppColors.primary
                 : AppColors.muted,
@@ -88,10 +88,11 @@ abstract final class AppTheme {
         color: AppColors.panel,
         elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          side: const BorderSide(color: AppColors.border, width: 1),
+          borderRadius: BorderRadius.circular(AppRadius.xl),
+          side: const BorderSide(color: AppColors.border),
         ),
         margin: EdgeInsets.zero,
+        clipBehavior: Clip.antiAlias,
       ),
 
       // ── Buttons ───────────────────────────────────────────────────────────
@@ -103,6 +104,11 @@ abstract final class AppTheme {
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           textStyle: AppTypography.labelLg,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.md,
+          ),
+          elevation: 0,
         ),
       ),
 
@@ -114,6 +120,10 @@ abstract final class AppTheme {
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
           textStyle: AppTypography.labelLg,
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.xl,
+            vertical: AppSpacing.md,
+          ),
         ),
       ),
 
@@ -177,12 +187,25 @@ abstract final class AppTheme {
 
       // ── SnackBar ──────────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surface2,
+        backgroundColor: AppColors.surfaceElevated,
         contentTextStyle: AppTypography.body,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         behavior: SnackBarBehavior.floating,
+        elevation: 4,
+      ),
+
+      // ── Bottom Sheet ──────────────────────────────────────────────────────
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColors.panel,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(
+            top: Radius.circular(AppRadius.xl),
+          ),
+        ),
+        elevation: 0,
       ),
 
       // ── Dialog ────────────────────────────────────────────────────────────
@@ -190,7 +213,7 @@ abstract final class AppTheme {
         backgroundColor: AppColors.panel,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          borderRadius: BorderRadius.circular(AppRadius.xl2),
           side: const BorderSide(color: AppColors.border),
         ),
       ),
@@ -202,6 +225,10 @@ abstract final class AppTheme {
         selectedColor: AppColors.primary,
         iconColor: AppColors.muted,
         textColor: AppColors.fg,
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.xl2,
+          vertical: AppSpacing.xs,
+        ),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
@@ -220,16 +247,22 @@ abstract final class AppTheme {
           (s) => s.contains(WidgetState.selected) ? AppColors.primary : AppColors.muted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? AppColors.violetGlow : AppColors.surface2,
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.violetGlow
+              : AppColors.surface2,
         ),
       ),
 
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? AppColors.primary : AppColors.surface2,
+          (s) => s.contains(WidgetState.selected)
+              ? AppColors.primary
+              : AppColors.surface2,
         ),
         checkColor: WidgetStateProperty.all(AppColors.primaryFg),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(AppRadius.xs),
+        ),
         side: const BorderSide(color: AppColors.border),
       ),
 
@@ -242,9 +275,9 @@ abstract final class AppTheme {
 
       // ── Scrollbar ─────────────────────────────────────────────────────────
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(AppColors.muted.withAlpha(100)),
+        thumbColor: WidgetStateProperty.all(AppColors.muted.withAlpha(80)),
         radius: const Radius.circular(AppRadius.full),
-        thickness: WidgetStateProperty.all(4),
+        thickness: WidgetStateProperty.all(3),
       ),
     );
   }

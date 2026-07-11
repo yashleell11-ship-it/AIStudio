@@ -1,19 +1,19 @@
-import 'package:aistudio_mobile/core/config/env.dart';
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/network/dio_client.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/library/providers/bookmarks_provider.dart';
-import 'package:aistudio_mobile/features/library/providers/dashboard_providers.dart';
-import 'package:aistudio_mobile/features/library/providers/intelligence_providers.dart';
-import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
-import 'package:aistudio_mobile/features/settings/services/image_cache_service.dart';
-import 'package:aistudio_mobile/features/updates/providers/updates_provider.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/network/dio_client.dart';
+import 'package:manhwamaniacs/core/utils/haptics.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
+import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
+import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
+import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
+import 'package:manhwamaniacs/features/settings/services/image_cache_service.dart';
+import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 final downloadSettingsProvider =
@@ -49,7 +49,8 @@ final themeModeProvider =
 
 class LanguageController extends Notifier<AppLanguage> {
   @override
-  AppLanguage build() => AppLanguage.fromCode(ref.watch(preferencesProvider).language);
+  AppLanguage build() =>
+      AppLanguage.fromCode(ref.watch(preferencesProvider).language);
 
   Future<void> setLanguage(AppLanguage language) async {
     state = language;
@@ -71,6 +72,9 @@ class ReaderDefaultsController extends Notifier<ReaderDefaults> {
       fitMode: ReaderFitMode.fromStorageValue(prefs.readerFitMode),
       keepScreenAwake: prefs.keepScreenAwake,
       autoNextChapter: prefs.autoNextChapter,
+      lockControls: prefs.lockReaderControls,
+      refreshRate: ReaderRefreshRate.fromStorageValue(prefs.readerRefreshRate),
+      volumeKeyNavigation: prefs.volumeKeyNavigation,
     );
   }
 
@@ -92,6 +96,21 @@ class ReaderDefaultsController extends Notifier<ReaderDefaults> {
   Future<void> setAutoNextChapter(bool value) async {
     state = state.copyWith(autoNextChapter: value);
     await ref.read(preferencesProvider).setAutoNextChapter(value);
+  }
+
+  Future<void> setLockControls(bool value) async {
+    state = state.copyWith(lockControls: value);
+    await ref.read(preferencesProvider).setLockReaderControls(value);
+  }
+
+  Future<void> setVolumeKeyNavigation(bool value) async {
+    state = state.copyWith(volumeKeyNavigation: value);
+    await ref.read(preferencesProvider).setVolumeKeyNavigation(value);
+  }
+
+  Future<void> setRefreshRate(ReaderRefreshRate rate) async {
+    state = state.copyWith(refreshRate: rate);
+    await ref.read(preferencesProvider).setReaderRefreshRate(rate.name);
   }
 }
 
@@ -115,6 +134,30 @@ class WifiOnlyDownloadsController extends Notifier<bool> {
 final wifiOnlyDownloadsProvider =
     NotifierProvider<WifiOnlyDownloadsController, bool>(
   WifiOnlyDownloadsController.new,
+);
+
+// ── Haptic feedback (app-wide interaction preference) ──────────────────────
+
+class HapticFeedbackController extends Notifier<bool> {
+  @override
+  bool build() => ref.watch(preferencesProvider).hapticFeedback;
+
+  Future<void> setEnabled(bool value) async {
+    state = value;
+    await ref.read(preferencesProvider).setHapticFeedback(value);
+  }
+}
+
+final hapticFeedbackProvider =
+    NotifierProvider<HapticFeedbackController, bool>(
+  HapticFeedbackController.new,
+);
+
+/// Resolved [Haptics] helper — muted automatically when the user turns
+/// interaction feedback off. Read it fresh at each gesture with `ref.read`.
+final hapticsProvider = Provider<Haptics>(
+  (ref) => Haptics(enabled: ref.watch(hapticFeedbackProvider)),
+  name: 'haptics',
 );
 
 // ── Cache ────────────────────────────────────────────────────────────────

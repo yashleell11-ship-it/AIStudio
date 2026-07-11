@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/collections/utils/collection_sorting.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/collections/utils/collection_sorting.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
 
 Collection _collection({
   required int id,
@@ -14,7 +14,6 @@ Collection _collection({
     id: id,
     name: name,
     description: description,
-    coverPath: null,
     seriesCount: seriesCount,
     sortOrder: id,
     createdAt: timestamp,
@@ -37,9 +36,9 @@ void main() {
 
     test('sorts by name, series count, and updated date', () {
       final items = [
-        _collection(id: 1, name: 'Zeta', seriesCount: 2, updatedAt: DateTime(2024, 1, 1)),
-        _collection(id: 2, name: 'Alpha', seriesCount: 5, updatedAt: DateTime(2024, 6, 1)),
-        _collection(id: 3, name: 'Beta', seriesCount: 5, updatedAt: DateTime(2024, 3, 1)),
+        _collection(id: 1, name: 'Zeta', seriesCount: 2, updatedAt: DateTime(2024)),
+        _collection(id: 2, name: 'Alpha', seriesCount: 5, updatedAt: DateTime(2024, 6)),
+        _collection(id: 3, name: 'Beta', seriesCount: 5, updatedAt: DateTime(2024, 3)),
       ];
 
       expect(

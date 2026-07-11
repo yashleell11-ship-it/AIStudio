@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/downloads/providers/downloads_provider.dart';
-import 'package:aistudio_mobile/features/downloads/utils/source_chapter_download_status.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
+import 'package:manhwamaniacs/features/downloads/utils/source_chapter_download_status.dart';
 
 typedef SourceSeriesDownloadStatusKey = ({String sourceId, String seriesId});
 

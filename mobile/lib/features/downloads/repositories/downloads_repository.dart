@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_item.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_metrics.dart';
-import 'package:aistudio_mobile/features/downloads/models/download_settings.dart';
-import 'package:aistudio_mobile/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 
 abstract interface class DownloadsRepository {
   Future<Result<List<DownloadItem>>> listDownloads();
@@ -28,6 +28,10 @@ abstract interface class DownloadsRepository {
   Future<Result<void>> resumeDownload(int downloadId);
   Future<Result<void>> cancelDownload(int downloadId);
   Future<Result<void>> retryDownload(int downloadId);
+
+  /// Reorder a queued download within its own series' dispatch queue.
+  /// [direction] is `"up"` (dispatched sooner) or `"down"` (later).
+  Future<Result<void>> moveDownload(int downloadId, {required String direction});
 
   Future<Result<int>> pauseAll();
   Future<Result<int>> resumeAll();

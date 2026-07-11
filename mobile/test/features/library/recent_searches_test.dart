@@ -1,5 +1,5 @@
-import 'package:aistudio_mobile/features/library/utils/recent_searches.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/library/utils/recent_searches.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

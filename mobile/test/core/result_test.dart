@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
 
 void main() {
   group('Result', () {

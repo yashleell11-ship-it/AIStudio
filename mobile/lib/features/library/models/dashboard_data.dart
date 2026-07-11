@@ -1,6 +1,6 @@
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 
 class DashboardData {
   const DashboardData({

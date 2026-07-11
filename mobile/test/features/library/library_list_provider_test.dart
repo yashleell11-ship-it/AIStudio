@@ -1,25 +1,25 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/models/library_query.dart';
-import 'package:aistudio_mobile/features/library/providers/library_list_provider.dart';
-import 'package:aistudio_mobile/features/library/utils/library_preferences.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeLibraryRepository implements LibraryRepository {
@@ -185,14 +185,14 @@ SeriesSummary _series(int id) {
     pageCount: 100,
     totalChapters: 10,
     totalPages: 100,
-    createdAt: DateTime(2024, 1, 1),
-    updatedAt: DateTime(2024, 6, 1),
+    createdAt: DateTime(2024),
+    updatedAt: DateTime(2024, 6),
   );
 }
 
 void main() {
   group('LibraryListNotifier', () {
-    Future<ProviderContainer> _container(_FakeLibraryRepository fakeRepo) async {
+    Future<ProviderContainer> container0(_FakeLibraryRepository fakeRepo) async {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final container = ProviderContainer(
@@ -223,7 +223,7 @@ void main() {
         ),
       });
 
-      final container = await _container(fakeRepo);
+      final container = await container0(fakeRepo);
 
       final state = await container.read(libraryListProvider.future);
       expect(state.items, hasLength(2));
@@ -247,12 +247,11 @@ void main() {
         ),
       });
 
-      final container = await _container(fakeRepo);
+      final container = await container0(fakeRepo);
 
       container.read(libraryQueryProvider.notifier).updateQuery(
             const LibraryQuery(
               filter: LibraryFilter.completed,
-              sort: LibrarySort.recent,
             ),
           );
       await container.read(libraryListProvider.future);
@@ -279,7 +278,7 @@ void main() {
         ),
       });
 
-      final container = await _container(fakeRepo);
+      final container = await container0(fakeRepo);
 
       container.read(libraryQueryProvider.notifier).updateQuery(
             const LibraryQuery(filter: LibraryFilter.downloaded),
@@ -316,7 +315,7 @@ void main() {
               perPage: 20,
               hasNext: false,
             ),
-          })),
+          }),),
           sharedPrefsProvider.overrideWithValue(prefs),
         ],
       );
@@ -345,7 +344,7 @@ void main() {
               perPage: 20,
               hasNext: false,
             ),
-          })),
+          }),),
           sharedPrefsProvider.overrideWithValue(prefs),
         ],
       );
@@ -376,8 +375,8 @@ void main() {
           pageCount: 0,
           totalChapters: 0,
           totalPages: 0,
-          createdAt: DateTime(2024, 1, 1),
-          updatedAt: DateTime(2024, 6, 1),
+          createdAt: DateTime(2024),
+          updatedAt: DateTime(2024, 6),
         ),
       ];
 
@@ -408,8 +407,8 @@ void main() {
           pageCount: 0,
           totalChapters: 0,
           totalPages: 0,
-          createdAt: DateTime(2024, 1, 1),
-          updatedAt: DateTime(2024, 6, 1),
+          createdAt: DateTime(2024),
+          updatedAt: DateTime(2024, 6),
         ),
       ];
 
@@ -424,7 +423,7 @@ void main() {
   });
 
   group('SearchListNotifier', () {
-    Future<ProviderContainer> _searchContainer(
+    Future<ProviderContainer> searchContainer(
       _FakeLibraryRepository fakeRepo,
     ) async {
       final container = ProviderContainer(
@@ -454,11 +453,10 @@ void main() {
         ),
       });
 
-      final container = await _searchContainer(fakeRepo);
+      final container = await searchContainer(fakeRepo);
       container.read(searchQueryProvider.notifier).state = const LibraryQuery(
         search: 'solo',
         filter: LibraryFilter.downloaded,
-        sort: LibrarySort.recent,
         viewMode: LibraryViewMode.list,
       );
 

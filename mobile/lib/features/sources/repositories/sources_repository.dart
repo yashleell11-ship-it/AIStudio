@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/sources/models/source.dart';
-import 'package:aistudio_mobile/features/sources/models/source_series.dart';
+﻿import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 
 abstract interface class SourcesRepository {
   Future<Result<List<SourceSummary>>> listSources();

@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
-import 'package:aistudio_mobile/features/reader/utils/page_layout.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 
 void main() {
   group('page_layout', () {

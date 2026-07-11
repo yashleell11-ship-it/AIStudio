@@ -1,10 +1,8 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/network/network_connectivity.dart';
-import 'package:aistudio_mobile/features/downloads/utils/download_wifi_guard.dart';
-import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/network/network_connectivity.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_wifi_guard.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../support/test_overrides.dart';

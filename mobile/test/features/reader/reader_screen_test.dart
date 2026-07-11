@@ -1,27 +1,27 @@
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/library/models/chapter.dart';
-import 'package:aistudio_mobile/features/library/models/collection.dart';
-import 'package:aistudio_mobile/features/library/models/collection_detail.dart';
-import 'package:aistudio_mobile/features/library/models/continue_reading_item.dart';
-import 'package:aistudio_mobile/features/library/models/library_statistics.dart';
-import 'package:aistudio_mobile/features/library/models/reading_history_item.dart';
-import 'package:aistudio_mobile/features/library/models/reading_progress.dart';
-import 'package:aistudio_mobile/features/library/models/series_detail.dart';
-import 'package:aistudio_mobile/features/library/models/series_summary.dart';
-import 'package:aistudio_mobile/features/library/models/tag.dart';
-import 'package:aistudio_mobile/features/library/repositories/library_repository.dart';
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/features/reader/models/adjacent_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/bookmark.dart';
-import 'package:aistudio_mobile/features/reader/providers/reader_chapter_provider.dart';
-import 'package:aistudio_mobile/features/reader/screens/reader_screen.dart';
-import '../../support/test_overrides.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/library/models/chapter.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
+import 'package:manhwamaniacs/features/reader/screens/reader_screen.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../../support/test_overrides.dart';
 
 class _FakeReaderRepository implements LibraryRepository {
   _FakeReaderRepository(this.chapter);
@@ -58,7 +58,7 @@ class _FakeReaderRepository implements LibraryRepository {
         chapterId: chapterId,
         lastPage: lastPage,
         progressPct: 10,
-        lastReadAt: DateTime.utc(2024, 1, 1),
+        lastReadAt: DateTime.utc(2024),
       ),
     );
   }
@@ -76,7 +76,7 @@ class _FakeReaderRepository implements LibraryRepository {
           seriesId: seriesId,
           chapterId: chapterId,
           page: page,
-          createdAt: DateTime.utc(2024, 1, 1),
+          createdAt: DateTime.utc(2024),
         ),
       );
 
@@ -183,12 +183,12 @@ class _FakeReaderRepository implements LibraryRepository {
 }
 
 ChapterDetail _sampleChapter() {
-  return ChapterDetail(
+  return const ChapterDetail(
     id: 1,
     seriesId: 1,
     title: 'Chapter 1',
     pageCount: 2,
-    pages: const [
+    pages: [
       PageInfo(
         id: 101,
         chapterId: 1,
@@ -229,7 +229,7 @@ void main() {
             apiBaseUrlOverride('http://127.0.0.1:8000'),
           ],
           child: const MaterialApp(
-            home: ReaderScreen(seriesId: 1, chapterId: 1, initialPage: 1),
+            home: ReaderScreen(seriesId: 1, chapterId: 1),
           ),
         ),
       );
@@ -239,8 +239,13 @@ void main() {
 
       expect(find.text('Chapter 1'), findsOneWidget);
       expect(find.textContaining('Page 1 / 2'), findsOneWidget);
-      expect(find.text('Back'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsOneWidget);
+
+      // Save bookmark is in the reader settings sheet.
+      await tester.tap(find.byTooltip('Reader settings'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('Save bookmark'), findsOneWidget);
     });
 
     testWidgets('shows retry state on chapter load failure', (tester) async {

@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/core/utils/result.dart';
-import 'package:aistudio_mobile/features/library/models/dashboard_data.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/library/models/dashboard_data.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 final dashboardProvider = FutureProvider.autoDispose<DashboardData>((ref) async {
   final repo = ref.watch(libraryRepositoryProvider);

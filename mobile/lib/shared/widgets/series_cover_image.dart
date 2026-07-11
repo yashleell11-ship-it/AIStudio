@@ -1,7 +1,7 @@
-import 'package:aistudio_mobile/app/theme/app_colors.dart';
-import 'package:aistudio_mobile/app/theme/app_spacing.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 
 /// Cover image for a library series or source series.
 ///
@@ -31,6 +31,7 @@ class SeriesCoverImage extends StatelessWidget {
         width: width,
         height: height,
         fit: fit,
+        fadeInDuration: const Duration(milliseconds: 250),
         placeholder: (_, __) => _Placeholder(width: width, height: height),
         errorWidget: (_, __, ___) => _ErrorPlaceholder(width: width, height: height),
       ),
@@ -49,9 +50,12 @@ class _Placeholder extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: AppColors.surface2,
-      child: const Center(
-        child: Icon(Icons.image_outlined, color: AppColors.muted, size: 24),
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [AppColors.surface2, AppColors.panel],
+        ),
       ),
     );
   }

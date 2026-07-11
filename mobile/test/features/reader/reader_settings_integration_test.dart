@@ -1,16 +1,15 @@
-import 'dart:async';
 
-import 'package:aistudio_mobile/features/reader/models/reader_chapter.dart';
-import 'package:aistudio_mobile/features/reader/models/reader_page.dart';
-import 'package:aistudio_mobile/features/reader/utils/reader_wakelock.dart';
-import 'package:aistudio_mobile/features/reader/widgets/reader_content.dart';
-import 'package:aistudio_mobile/features/settings/models/reader_defaults.dart';
-import 'package:aistudio_mobile/features/settings/providers/settings_provider.dart';
-import 'package:aistudio_mobile/shared/providers/core_providers.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
+import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 const _readingDirectionKey = 'settings_reading_direction';

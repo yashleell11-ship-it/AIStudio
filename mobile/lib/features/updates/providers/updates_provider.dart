@@ -1,8 +1,8 @@
-import 'package:aistudio_mobile/core/error/app_error.dart';
-import 'package:aistudio_mobile/features/updates/models/series_tracker.dart';
-import 'package:aistudio_mobile/features/updates/models/update_notification.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 class UpdatesState {
   const UpdatesState({
@@ -48,7 +48,7 @@ class UpdatesNotifier extends AutoDisposeAsyncNotifier<UpdatesState> {
 
   Future<UpdatesState> _fetch() async {
     final repo = ref.read(updatesRepositoryProvider);
-    final notifications = await repo.listNotifications(limit: 100);
+    final notifications = await repo.listNotifications();
     final unread = await repo.getUnreadCount();
     final trackers = await repo.listTrackers();
     if (notifications.isErr) throw notifications.error;

@@ -1,6 +1,6 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
-const _scrollPrefix = 'aistudio-reader-scroll:';
+const _scrollPrefix = 'manhwamaniacs-reader-scroll:';
 
 /// Per-chapter scroll position keyed by an opaque string.
 ///

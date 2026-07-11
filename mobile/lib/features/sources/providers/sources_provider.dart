@@ -1,8 +1,36 @@
-import 'package:aistudio_mobile/core/utils/pagination.dart';
-import 'package:aistudio_mobile/features/sources/models/source.dart';
-import 'package:aistudio_mobile/features/sources/models/source_series.dart';
-import 'package:aistudio_mobile/shared/providers/repository_providers.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_series.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
+
+final pinnedSourcesProvider =
+    NotifierProvider<PinnedSourcesNotifier, List<String>>(
+  PinnedSourcesNotifier.new,
+);
+
+class PinnedSourcesNotifier extends Notifier<List<String>> {
+  @override
+  List<String> build() {
+    final prefs = ref.watch(preferencesProvider);
+    return prefs.pinnedSources;
+  }
+
+  Future<void> toggle(String sourceId) async {
+    final current = state.toList();
+    if (current.contains(sourceId)) {
+      current.remove(sourceId);
+    } else {
+      current.insert(0, sourceId);
+    }
+    state = current;
+    await ref.read(preferencesProvider).setPinnedSources(current);
+  }
+
+  bool isPinned(String sourceId) => state.contains(sourceId);
+}
 
 final sourcesListProvider = FutureProvider.autoDispose<List<SourceSummary>>((ref) async {
   final repo = ref.watch(sourcesRepositoryProvider);
@@ -14,24 +42,20 @@ final sourcesListProvider = FutureProvider.autoDispose<List<SourceSummary>>((ref
 class SourceBrowseQuery {
   const SourceBrowseQuery({
     required this.sourceId,
-    this.page = 1,
     this.search = '',
     this.sort = 'default',
   });
 
   final String sourceId;
-  final int page;
   final String search;
   final String sort;
 
   SourceBrowseQuery copyWith({
-    int? page,
     String? search,
     String? sort,
   }) =>
       SourceBrowseQuery(
         sourceId: sourceId,
-        page: page ?? this.page,
         search: search ?? this.search,
         sort: sort ?? this.sort,
       );
@@ -50,21 +74,122 @@ final sourceBrowseModesProvider =
   return result.value;
 });
 
-final sourceBrowseProvider =
-    FutureProvider.autoDispose.family<PagedResult<SourceSeriesSummary>, String>(
-  (ref, sourceId) async {
+/// Accumulated, infinite-scrollable browse results for one source. Mirrors
+/// [LibraryListNotifier]'s accumulate-on-loadMore pattern rather than the
+/// page-by-page replace the source browser originally used.
+class SourceBrowseState {
+  const SourceBrowseState({
+    this.items = const [],
+    this.total = 0,
+    this.page = 1,
+    this.hasNext = false,
+    this.isLoadingMore = false,
+  });
+
+  final List<SourceSeriesSummary> items;
+  final int total;
+  final int page;
+  final bool hasNext;
+  final bool isLoadingMore;
+
+  bool get isEmpty => items.isEmpty;
+
+  SourceBrowseState copyWith({
+    List<SourceSeriesSummary>? items,
+    int? total,
+    int? page,
+    bool? hasNext,
+    bool? isLoadingMore,
+  }) =>
+      SourceBrowseState(
+        items: items ?? this.items,
+        total: total ?? this.total,
+        page: page ?? this.page,
+        hasNext: hasNext ?? this.hasNext,
+        isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      );
+}
+
+final sourceBrowseProvider = AsyncNotifierProvider.autoDispose
+    .family<SourceBrowseNotifier, SourceBrowseState, String>(
+  SourceBrowseNotifier.new,
+  name: 'sourceBrowse',
+);
+
+class SourceBrowseNotifier
+    extends AutoDisposeFamilyAsyncNotifier<SourceBrowseState, String> {
+  @override
+  Future<SourceBrowseState> build(String sourceId) async {
+    // Re-fetches from page 1 whenever search/sort changes -- matching
+    // LibraryListNotifier/SearchListNotifier, which don't carry a `page`
+    // field in their query either; a fresh query always restarts pagination.
     final query = ref.watch(sourceBrowseQueryProvider(sourceId));
-    final repo = ref.watch(sourcesRepositoryProvider);
-    final result = await repo.listSeries(
+    final page = await _fetchPage(sourceId, query, 1);
+    return SourceBrowseState(
+      items: page.items,
+      total: page.total,
+      page: page.page,
+      hasNext: page.hasNext,
+    );
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || !current.hasNext || current.isLoadingMore) return;
+
+    state = AsyncData(current.copyWith(isLoadingMore: true));
+
+    final query = ref.read(sourceBrowseQueryProvider(arg));
+    final nextPage = current.page + 1;
+    final result = await _fetchPageResult(arg, query, nextPage);
+
+    if (result.isErr) {
+      // Leave existing items in place; just stop showing the loading spinner
+      // so the user can retry by scrolling again.
+      state = AsyncData(current.copyWith(isLoadingMore: false));
+      return;
+    }
+
+    final page = result.value;
+    state = AsyncData(
+      current.copyWith(
+        items: [...current.items, ...page.items],
+        page: page.page,
+        hasNext: page.hasNext,
+        isLoadingMore: false,
+      ),
+    );
+  }
+
+  Future<void> refresh() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() => build(arg));
+  }
+
+  Future<PagedResult<SourceSeriesSummary>> _fetchPage(
+    String sourceId,
+    SourceBrowseQuery query,
+    int page,
+  ) async {
+    final result = await _fetchPageResult(sourceId, query, page);
+    if (result.isErr) throw result.error;
+    return result.value;
+  }
+
+  Future<Result<PagedResult<SourceSeriesSummary>>> _fetchPageResult(
+    String sourceId,
+    SourceBrowseQuery query,
+    int page,
+  ) {
+    final repo = ref.read(sourcesRepositoryProvider);
+    return repo.listSeries(
       sourceId,
-      page: query.page,
+      page: page,
       query: query.search.isEmpty ? null : query.search,
       sort: query.sort == 'default' ? null : query.sort,
     );
-    if (result.isErr) throw result.error;
-    return result.value;
-  },
-);
+  }
+}
 
 class SourceSeriesDetailData {
   const SourceSeriesDetailData({
