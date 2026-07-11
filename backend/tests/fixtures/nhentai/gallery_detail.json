@@ -1,0 +1,65 @@
+{
+  "id": 663284,
+  "media_id": "4042966",
+  "title": {
+    "english": "[Coconut Milk (Ciel)] Sample Gallery [English]",
+    "japanese": "[ココナッツみるく (Ciel)] サンプル [英訳]",
+    "pretty": "Sample Gallery"
+  },
+  "cover": {
+    "path": "galleries/4042966/cover.webp",
+    "width": 350,
+    "height": 486
+  },
+  "thumbnail": {
+    "path": "galleries/4042966/thumb.webp",
+    "width": 250,
+    "height": 347
+  },
+  "scanlator": "",
+  "upload_date": 1783780733,
+  "tags": [
+    {
+      "id": 33172,
+      "type": "category",
+      "name": "doujinshi",
+      "slug": "doujinshi"
+    },
+    {
+      "id": 17249,
+      "type": "language",
+      "name": "translated",
+      "slug": "translated"
+    },
+    {
+      "id": 90671,
+      "type": "parody",
+      "name": "original",
+      "slug": "original"
+    },
+    {
+      "id": 12345,
+      "type": "artist",
+      "name": "Ciel",
+      "slug": "ciel"
+    }
+  ],
+  "num_pages": 2,
+  "num_favorites": 3,
+  "pages": [
+    {
+      "number": 1,
+      "path": "galleries/4042966/1.webp",
+      "width": 1280,
+      "height": 1776,
+      "thumbnail": "galleries/4042966/1t.webp"
+    },
+    {
+      "number": 2,
+      "path": "galleries/4042966/2.jpg",
+      "width": 1280,
+      "height": 1807,
+      "thumbnail": "galleries/4042966/2t.jpg.webp"
+    }
+  ]
+}
