@@ -18,6 +18,15 @@ export function SourceSeriesGrid({
   query,
   errorMessage,
 }: SourceSeriesGridProps) {
+  if (errorMessage) {
+    return (
+      <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
+        <p className="text-lg font-medium text-fg">Could not load source catalog</p>
+        <p className="mt-2 text-sm text-muted">{errorMessage}</p>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
@@ -27,15 +36,6 @@ export function SourceSeriesGrid({
             className="aspect-[2/3] animate-pulse rounded-xl bg-surface-2"
           />
         ))}
-      </div>
-    );
-  }
-
-  if (errorMessage) {
-    return (
-      <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
-        <p className="text-lg font-medium text-fg">Could not load source catalog</p>
-        <p className="mt-2 text-sm text-muted">{errorMessage}</p>
       </div>
     );
   }

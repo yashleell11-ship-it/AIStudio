@@ -53,6 +53,8 @@ class FirstKissMangaConnector(SourceConnector):
             SITE_BASE,
             headers=HTML_HEADERS,
             impersonate=BROWSER_IMPERSONATE,
+            timeout=8.0,
+            max_retries=1,
         )
         self._series_cache: TTLCache[Series] = TTLCache(ttl_seconds=300.0)
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
