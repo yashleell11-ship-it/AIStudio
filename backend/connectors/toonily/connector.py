@@ -86,6 +86,10 @@ class ToonilyConnector(SourceConnector):
     def allowed_image_hosts(self) -> frozenset[str]:
         return frozenset({"toonily.com", "tnlycdn.com"})
 
+    def image_fetch_headers(self) -> dict[str, str]:
+        # data.tnlycdn.com / read.tnlycdn.com return 403 without a Toonily Referer.
+        return {"Referer": f"{SITE_BASE}/"}
+
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
             BrowseMode(id="default", label="Latest"),
@@ -211,7 +215,14 @@ class ToonilyConnector(SourceConnector):
             self._log_request("detail", path, status="error", detail="parse failed")
             return None
 
-        chapters = self.get_chapters(api_key)
+        # Prefer chapters embedded in this HTML; only refetch when absent
+        # (some Madara sites lazy-load the list via admin-ajax).
+        chapters = parse_chapters(html, api_key)
+        if not chapters:
+            chapters = self.get_chapters(api_key)
+        elif self._chapter_list_cache.get(api_key) is None:
+            self._chapter_list_cache.set(api_key, chapters)
+
         if chapters:
             series = Series(
                 id=series.id,

@@ -44,7 +44,7 @@ class MadaraHtml:
         self._card_img_tag = re.compile(r"<img\b[^>]*>", re.I)
         self._chapter_link = re.compile(
             r'<li class="wp-manga-chapter[^"]*">\s*'
-            rf'<a href="https?://[^"]+/{seg}/([^"]+)/">\s*([^<]+)</a>',
+            rf'<a[^>]+href="(?:https?://[^"]+)?/{seg}/([^"]+)/"[^>]*>\s*([^<]+)</a>',
             re.S | re.I,
         )
         self._chapter_img_tag = re.compile(

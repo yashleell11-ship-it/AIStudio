@@ -144,11 +144,17 @@ def test_fetch_url_succeeds_for_approved_host(service: BrowseService):
     fake_response.raise_for_status = MagicMock()
 
     with patch("services.outbound_security.is_public_address", return_value=True):
-        with patch("httpx.get", return_value=fake_response):
+        with patch("httpx.get", return_value=fake_response) as mock_get:
             media_type, data = service._fetch_url("https://example.com/x.png", connector)
 
     assert media_type == "image/png"
     assert data == b"fake-bytes"
+    mock_get.assert_called_once_with(
+        "https://example.com/x.png",
+        timeout=30.0,
+        follow_redirects=False,
+        headers={},
+    )
 
 
 def test_connector_with_no_allowed_hosts_blocks_everything(service: BrowseService):

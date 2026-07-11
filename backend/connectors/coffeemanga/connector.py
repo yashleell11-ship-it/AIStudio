@@ -91,6 +91,9 @@ class CoffeeMangaConnector(SourceConnector):
         # Covers and reader pages are both self-hosted on coffeemanga.ink.
         return frozenset({"coffeemanga.ink"})
 
+    def image_fetch_headers(self) -> dict[str, str]:
+        return {"Referer": f"{SITE_BASE}/"}
+
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
             BrowseMode(id="default", label="Latest"),
@@ -216,7 +219,12 @@ class CoffeeMangaConnector(SourceConnector):
             self._log_request("detail", path, status="error", detail="parse failed")
             return None
 
-        chapters = self.get_chapters(api_key)
+        chapters = parse_chapters(html, api_key)
+        if not chapters:
+            chapters = self.get_chapters(api_key)
+        elif self._chapter_list_cache.get(api_key) is None:
+            self._chapter_list_cache.set(api_key, chapters)
+
         if chapters:
             series = Series(
                 id=series.id,

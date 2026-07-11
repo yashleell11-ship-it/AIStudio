@@ -77,6 +77,9 @@ class MadaraConnector(SourceConnector):
     def allowed_image_hosts(self) -> frozenset[str]:
         return self.CONFIG.image_hosts
 
+    def image_fetch_headers(self) -> dict[str, str]:
+        return {"Referer": f"{self.CONFIG.base_url.rstrip('/')}/"}
+
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
             BrowseMode(id="default", label="Latest"),
@@ -185,7 +188,12 @@ class MadaraConnector(SourceConnector):
         if series is None:
             return None
 
-        chapters = self.get_chapters(api_key)
+        chapters = self._html.parse_chapters(html, api_key)
+        if not chapters:
+            chapters = self.get_chapters(api_key)
+        elif self._chapter_list_cache.get(api_key) is None:
+            self._chapter_list_cache.set(api_key, chapters)
+
         if chapters:
             series = Series(
                 id=series.id,

@@ -305,7 +305,14 @@ class BrowseService:
         try:
             # Redirects are not followed automatically: a redirect target
             # could point off the approved allowlist, silently bypassing it.
-            response = httpx.get(url, timeout=30.0, follow_redirects=False)
+            # Connector headers (e.g. Referer) are required for CDNs that
+            # enforce hotlink protection — bare GETs often return 403.
+            response = httpx.get(
+                url,
+                timeout=30.0,
+                follow_redirects=False,
+                headers=connector.image_fetch_headers(),
+            )
             if response.is_redirect:
                 raise AppError(
                     "Remote host returned a redirect, which is not permitted.",

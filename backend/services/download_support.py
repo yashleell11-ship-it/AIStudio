@@ -271,7 +271,7 @@ def _fetch_image_attempt(
         raise PermanentDownloadError(str(exc)) from exc
 
     existing = partial_path.stat().st_size if partial_path.is_file() else 0
-    headers: dict[str, str] = {}
+    headers: dict[str, str] = dict(connector.image_fetch_headers())
     if existing > 0:
         headers["Range"] = f"bytes={existing}-"
 
@@ -295,6 +295,7 @@ def _fetch_image_attempt(
                     url,
                     timeout=timeout,
                     follow_redirects=False,
+                    headers=dict(connector.image_fetch_headers()),
                 ) as retry_response:
                     if retry_response.is_redirect:
                         raise PermanentDownloadError(
