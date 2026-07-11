@@ -151,3 +151,20 @@ def test_download_serves_latest_apk(client: TestClient, tmp_path: Path, monkeypa
     assert response.content == b"PK\x03\x04 latest build"
     assert "application/vnd.android.package-archive" in response.headers["content-type"]
     assert ".apk" in response.headers.get("content-disposition", "")
+
+
+def test_download_treats_directory_path_as_not_built(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # In production the APK is a read-only bind mount; when no APK has been built
+    # the mount surfaces as an (empty) directory, not a file. That must read as
+    # "not built yet" (404), never a 500 from trying to stream a directory.
+    apk_dir = tmp_path / "apk" / "app-release.apk"
+    apk_dir.mkdir(parents=True)
+    monkeypatch.setattr("routes.app_distribution.APK_PATH", apk_dir)
+
+    assert client.get("/app/download").status_code == 404
+    # The landing page still renders (in its build-pending state).
+    landing = client.get("/", headers={"accept": "text/html"})
+    assert landing.status_code == 200
+    assert "APK not built yet" in landing.text

@@ -46,13 +46,18 @@ logline(){ mkdir -p "$LOGDIR"; echo "$(date '+%Y-%m-%d %H:%M:%S') [$1] ${*:2}" >
 resolve_env(){
   local kind="$1" pr="${2:-}"
   IS_APEX=0
+  # APP_HOST: the Android-app subdomain served by the backend directly (landing
+  # page + APK download). Only production and staging get one; previews don't.
+  APP_HOST=""
   case "$kind" in
     production)
       SLUG=production; HOST="$DOMAIN"; APP_ENV=production; BRANCH=main
-      RESTART=unless-stopped; DIR="$ROOT/production"; IS_APEX=1 ;;
+      RESTART=unless-stopped; DIR="$ROOT/production"; IS_APEX=1
+      APP_HOST="app.$DOMAIN" ;;
     staging)
       SLUG=staging; HOST="staging.$DOMAIN"; APP_ENV=staging; BRANCH=develop
-      RESTART=unless-stopped; DIR="$ROOT/staging" ;;
+      RESTART=unless-stopped; DIR="$ROOT/staging"
+      APP_HOST="app.staging.$DOMAIN" ;;
     preview)
       [ -n "$pr" ] || { err "preview requires a PR number"; exit 2; }
       SLUG="preview-$pr"; HOST="pr-$pr.$DOMAIN"; APP_ENV=preview; BRANCH="${PREVIEW_BRANCH:-pr-$pr}"
@@ -64,6 +69,62 @@ resolve_env(){
   IMAGE="local/$APP:$SLUG"
   VOLUME="$APP-$SLUG-data"
   VHOST="$CADDY_CONF/$APP-$SLUG.caddy"
+  APP_VHOST="$CADDY_CONF/$APP-$SLUG-app.caddy"
+}
+
+# ---------------------------------------------------------------------------
+# build_apk — produce the latest Android APK into $DIR/apk so the backend serves
+# it at app.<host>/app/download. Best-effort: never fails the deploy.
+#   1. Build fresh with Flutter if the toolchain is present (always-latest).
+#   2. Otherwise fall back to a prebuilt APK carried in the source tree.
+# Only production and staging (which have an app subdomain) build one.
+# ---------------------------------------------------------------------------
+build_apk(){
+  [ -n "${APP_HOST:-}" ] || return 0          # previews have no app subdomain
+  mkdir -p "$DIR/apk"
+  local out="$DIR/apk/app-release.apk"
+  local built="$DIR/mobile/build/app/outputs/flutter-apk/app-release.apk"
+
+  # Locate the Flutter toolchain — the deploy host may not have it on PATH.
+  local fl=""
+  if command -v flutter >/dev/null 2>&1; then fl="$(command -v flutter)"
+  elif [ -x /home/yash/flutter/bin/flutter ]; then fl="/home/yash/flutter/bin/flutter"
+  elif [ -n "${FLUTTER_HOME:-}" ] && [ -x "$FLUTTER_HOME/bin/flutter" ]; then fl="$FLUTTER_HOME/bin/flutter"
+  fi
+  local sdk="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/home/yash/Android/Sdk}}"
+  local jdk="${JAVA_HOME:-/home/yash/jdk17}"
+
+  if [ -n "$fl" ] && [ -d "$sdk" ] && [ -d "$jdk" ]; then
+    local flroot; flroot="$(cd "$(dirname "$fl")/.." && pwd)"
+    say "building Android APK for $APP_HOST (flutter build apk --release)"
+    ( cd "$DIR/mobile" \
+        && printf 'sdk.dir=%s\nflutter.sdk=%s\n' "$sdk" "$flroot" > android/local.properties \
+        && ANDROID_SDK_ROOT="$sdk" ANDROID_HOME="$sdk" JAVA_HOME="$jdk" \
+           PATH="$jdk/bin:$sdk/platform-tools:$PATH" \
+           XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$DIR/.flutterconfig}" \
+           "$fl" pub get \
+        && ANDROID_SDK_ROOT="$sdk" ANDROID_HOME="$sdk" JAVA_HOME="$jdk" \
+           PATH="$jdk/bin:$sdk/platform-tools:$PATH" \
+           XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$DIR/.flutterconfig}" \
+           "$fl" build apk --release \
+             --dart-define=FLAVOR=prod \
+             --dart-define=API_URL="https://$APP_HOST" ) 2>&1 | sed 's/^/   /'
+    [ -f "$built" ] && cp "$built" "$out"
+  else
+    warn "Flutter/Android toolchain not found — falling back to a prebuilt APK if present"
+  fi
+
+  # Fallback: a prebuilt APK carried in the source tree (mobile/build/...).
+  if [ ! -f "$out" ] && [ -f "$built" ]; then
+    cp "$built" "$out"; say "using prebuilt APK from the source tree"
+  fi
+
+  if [ -f "$out" ]; then
+    chown -R 1000:1000 "$DIR/apk" 2>/dev/null || true
+    say "APK ready: $out ($(du -h "$out" | cut -f1))"
+  else
+    warn "no APK produced — https://$APP_HOST/app/download will 404 until one is built"
+  fi
 }
 
 # ---------------------------------------------------------------------------
@@ -101,6 +162,22 @@ $HOST {
 	reverse_proxy $CONTAINER:3000
 }
 CADDY
+  fi
+
+  # app.<host> — the Android app front door, served by the backend directly
+  # (landing page + APK download). Production + staging only; previews skip it.
+  if [ -n "${APP_HOST:-}" ]; then
+    cat > "$APP_VHOST" <<CADDY
+$APP_HOST {
+	tls internal
+	import sec
+	import zip
+	import logroll $APP-$SLUG-app
+	reverse_proxy $CONTAINER-backend:8000
+}
+CADDY
+  else
+    rm -f "$APP_VHOST"
   fi
 }
 
@@ -152,6 +229,10 @@ do_deploy(){
     --exclude '.git' --exclude '.forgejo' --exclude 'node_modules' --exclude '.next' \
     "$SRC"/ "$DIR"/
   chown -R 1000:1000 "$DIR" 2>/dev/null || true
+
+  # 1b) build the latest Android APK into $DIR/apk (mounted read-only into the
+  #     backend). Best-effort — never fails the deploy.
+  build_apk
 
   # 2) per-environment .env (isolation: compose reads this for build args + runtime env)
   cat > "$DIR/.env" <<ENV
@@ -258,7 +339,7 @@ do_destroy_preview(){
     docker rm -f "$CONTAINER" >/dev/null 2>&1 || true
   docker volume rm "$VOLUME" >/dev/null 2>&1 || true
   docker image rm -f "$IMAGE" "$IMAGE-previous" >/dev/null 2>&1 || true
-  rm -f "$VHOST"; reload_caddy
+  rm -f "$VHOST" "$APP_VHOST"; reload_caddy
   rm -rf "$DIR"
   logline "preview-$pr" "destroyed"
   homepage_sync
@@ -290,6 +371,15 @@ homepage_sync(){
   local B="# <<< manhwamaniacs <<<"
   local tmp; tmp=$(mktemp)
   { echo "$A"; echo "- ManhwaManiacs:"; } >> "$tmp"
+  # Product front door: the Android app landing + APK download (served by the
+  # production backend on the app.<domain> subdomain).
+  cat >> "$tmp" <<ITEM
+    - Android app:
+        icon: mdi-android
+        href: https://app.$DOMAIN
+        description: Install the latest APK
+        siteMonitor: http://$APP-production-backend:8000/health
+ITEM
   # Order: production, staging, then previews (natural sort).
   local slugs; slugs=$(docker ps --filter "name=^$APP-" --format '{{.Names}}' \
     | sed "s/^$APP-//" | awk '{o=2; if($0=="production")o=0; else if($0=="staging")o=1; print o"\t"$0}' \
