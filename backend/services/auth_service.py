@@ -12,7 +12,7 @@ from datetime import timedelta
 from typing import Annotated
 
 from fastapi import Cookie, Depends, Header
-from sqlalchemy import delete, select
+from sqlalchemy import delete, select, text
 from sqlalchemy.orm import Session
 
 from core.auth import (
@@ -38,6 +38,21 @@ _USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.\-]{2,63}$")
 # A fixed valid Argon2 hash used to equalize timing when a username does not
 # exist, so login response time does not leak account existence.
 _DUMMY_HASH = hash_password("mm-timing-equalizer-not-a-real-password")
+
+# Per-user-state tables whose pre-multi-user rows are NULL-owned until the first
+# admin registers and claims them (see register()). Fixed table names, not user
+# input — safe to interpolate.
+_OWNED_TABLES = (
+    "user_series_state",
+    "reading_progress",
+    "chapter_progress",
+    "reading_sessions",
+    "bookmarks",
+    "collections",
+    "series_trackers",
+    "update_notifications",
+    "downloads",
+)
 
 
 class AuthService:
@@ -102,7 +117,20 @@ class AuthService:
         self.db.add(user)
         self.db.commit()
         self.db.refresh(user)
+        # The household owner inherits all pre-multi-user (NULL-owned) state, so
+        # their existing library/progress/bookmarks survive the migration.
+        if is_admin:
+            self._claim_unowned_data(user.id)
         return user
+
+    def _claim_unowned_data(self, user_id: int) -> None:
+        """Assign every NULL-owned per-user row to ``user_id`` (idempotent)."""
+        for table in _OWNED_TABLES:
+            self.db.execute(
+                text(f"UPDATE {table} SET user_id = :uid WHERE user_id IS NULL"),
+                {"uid": user_id},
+            )
+        self.db.commit()
 
     def authenticate(self, username: str, password: str) -> User:
         """Return the user on valid credentials, else raise 401 (no enumeration)."""

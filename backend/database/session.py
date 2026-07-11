@@ -83,12 +83,36 @@ def run_alembic_migrations(engine: Engine) -> None:
     with engine.connect() as conn:
         current = MigrationContext.configure(conn).get_current_revision()
         has_app_tables = inspect(conn).has_table("series")
+        stamp_target: str | None = None
+        if current is None and has_app_tables:
+            # Adopt an untracked database at the revision that matches its actual
+            # schema: head if the schema already equals the models (e.g. one
+            # built by create_all), otherwise the baseline (a pre-ownership
+            # production database) so the upgrade below applies the outstanding
+            # revisions. Stamping avoids re-running CREATEs against live tables.
+            script = ScriptDirectory.from_config(cfg)
+            if _schema_matches_head(conn):
+                stamp_target = script.get_current_head()
+            else:
+                stamp_target = script.get_base()
 
-    if current is None and has_app_tables:
-        baseline = ScriptDirectory.from_config(cfg).get_base()
-        command.stamp(cfg, baseline)
-        logger.info("Adopted existing database into Alembic at baseline %s", baseline)
+    if stamp_target is not None:
+        command.stamp(cfg, stamp_target)
+        logger.info("Adopted existing database into Alembic at %s", stamp_target)
     command.upgrade(cfg, "head")
+
+
+def _schema_matches_head(conn) -> bool:
+    """True if the live schema already equals the ORM models (ignoring the FTS5
+    virtual tables, which live outside Alembic in _init_fts5)."""
+    from alembic.autogenerate import compare_metadata
+    from alembic.runtime.migration import MigrationContext
+
+    ctx = MigrationContext.configure(
+        conn, opts={"compare_type": True, "render_as_batch": True}
+    )
+    diffs = [d for d in compare_metadata(ctx, Base.metadata) if "series_fts" not in repr(d)]
+    return not diffs
 
 
 def _ensure_sqlite_columns(

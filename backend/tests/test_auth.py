@@ -233,6 +233,56 @@ def test_get_current_user_requires_authentication():
     assert exc.value.status_code == 401
 
 
+# --- claim-on-registration (multi-user data migration) -----------------------
+
+
+def test_first_admin_claims_unowned_legacy_data(db_session):
+    """Pre-multi-user (NULL-owned) rows are adopted by the first admin, so the
+    household owner keeps their existing library state — and later users don't
+    steal them."""
+    from database.models import (
+        Chapter,
+        Library,
+        ReadingProgress,
+        Series,
+        UserSeriesState,
+    )
+
+    lib = Library(name="M", root_path="/l")
+    db_session.add(lib)
+    db_session.flush()
+    sr = Series(library_id=lib.id, title="S", folder_path="/l/s", sort_title="s")
+    db_session.add(sr)
+    db_session.flush()
+    ch = Chapter(series_id=sr.id, title="c", sort_key="0001")
+    db_session.add(ch)
+    db_session.flush()
+    db_session.add(ReadingProgress(user_id=None, series_id=sr.id, chapter_id=ch.id))
+    db_session.add(
+        UserSeriesState(
+            user_id=None, series_id=sr.id, is_favorite=True, reading_status="reading"
+        )
+    )
+    db_session.commit()
+
+    svc = AuthService(db_session)
+    admin = svc.register("owner", "supersecret")
+
+    assert db_session.query(ReadingProgress).one().user_id == admin.id
+    assert db_session.query(UserSeriesState).one().user_id == admin.id
+
+    # A NULL-owned row created after the owner exists is NOT claimed by the next
+    # user (claim is gated to the bootstrap admin only).
+    db_session.add(ReadingProgress(user_id=None, series_id=sr.id, chapter_id=ch.id))
+    db_session.commit()
+    reader = svc.register("reader", "supersecret")
+    assert bool(reader.is_admin) is False
+    unclaimed = (
+        db_session.query(ReadingProgress).filter(ReadingProgress.user_id.is_(None)).count()
+    )
+    assert unclaimed == 1  # the second NULL row remains unowned
+
+
 # --- HTTP integration (full app) --------------------------------------------
 
 
