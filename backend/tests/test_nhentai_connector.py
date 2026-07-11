@@ -77,11 +77,13 @@ def test_get_chapters_and_pages(nhentai_connector: NHentaiConnector):
     config_payload = _load("config.json")
     gallery_payload = _load("gallery_detail.json")
     gallery_id = "663284"
+    gallery_calls = {"count": 0}
 
     def fake_json(path: str, *, params=None):
         if path == "/api/v2/config":
             return config_payload
         if path == f"/api/v2/galleries/{gallery_id}":
+            gallery_calls["count"] += 1
             return gallery_payload
         raise AssertionError(f"Unexpected get_json path: {path}")
 
@@ -90,6 +92,7 @@ def test_get_chapters_and_pages(nhentai_connector: NHentaiConnector):
         chapters = nhentai_connector.get_chapters(gallery_id)
         pages = nhentai_connector.get_chapter_pages(gallery_id)
 
+    assert gallery_calls["count"] == 1
     assert series is not None
     assert series.author == "Ciel"
     assert "doujinshi" in series.genres
@@ -104,3 +107,40 @@ def test_create_nhentai_connector():
     connector = create_connector("nhentai")
     assert connector.source_type == "nhentai"
     assert connector.is_mature is True
+
+
+def test_english_browse_mode_uses_language_filter(nhentai_connector: NHentaiConnector):
+    config_payload = _load("config.json")
+    search_payload = _load("search.json")
+
+    def fake_json(path: str, *, params=None):
+        if path == "/api/v2/config":
+            return config_payload
+        if path == "/api/v2/search":
+            assert params == {"query": "language:english", "page": 1}
+            return search_payload
+        raise AssertionError(f"Unexpected get_json path: {path}")
+
+    with patch.object(nhentai_connector._http, "get_json", side_effect=fake_json):
+        listing = nhentai_connector.get_series_list(1, sort="english")
+
+    assert listing.total == 1
+    assert listing.items[0].id == "663284"
+
+
+def test_english_search_combines_user_query(nhentai_connector: NHentaiConnector):
+    config_payload = _load("config.json")
+    search_payload = _load("search.json")
+
+    def fake_json(path: str, *, params=None):
+        if path == "/api/v2/config":
+            return config_payload
+        if path == "/api/v2/search":
+            assert params == {"query": "language:english elf", "page": 1}
+            return search_payload
+        raise AssertionError(f"Unexpected get_json path: {path}")
+
+    with patch.object(nhentai_connector._http, "get_json", side_effect=fake_json):
+        listing = nhentai_connector.search_series("elf", 1, sort="english")
+
+    assert listing.total == 1

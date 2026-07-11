@@ -70,6 +70,19 @@ class SyncConnectorHttpClient:
             time.sleep(self._min_interval - elapsed)
         self._last_request = time.monotonic()
 
+    def _retry_sleep(self, attempt: int, response: httpx.Response | None = None) -> None:
+        if response is not None and response.status_code == 429:
+            retry_after = response.headers.get("Retry-After")
+            if retry_after:
+                try:
+                    time.sleep(max(float(retry_after), 1.0))
+                    return
+                except ValueError:
+                    pass
+            time.sleep(min(8.0, 1.5 * (2**attempt)))
+            return
+        time.sleep(0.5 * (2**attempt))
+
     def get_json(
         self,
         path: str,
@@ -83,6 +96,8 @@ class SyncConnectorHttpClient:
             try:
                 response = self._client.get(path, params=_serialize_params(params))
                 if response.status_code in RETRYABLE_STATUS:
+                    if attempt + 1 < self._max_retries:
+                        self._retry_sleep(attempt, response)
                     raise ConnectorHttpError(
                         f"Retryable HTTP {response.status_code}",
                         status_code=response.status_code,
@@ -96,7 +111,8 @@ class SyncConnectorHttpClient:
                 last_error = exc
                 if attempt + 1 >= self._max_retries:
                     break
-                time.sleep(0.5 * (2**attempt))
+                if not isinstance(exc, ConnectorHttpError) or exc.status_code not in RETRYABLE_STATUS:
+                    self._retry_sleep(attempt)
 
         message = str(last_error) if last_error else "Unknown HTTP error"
         status_code = (
@@ -120,6 +136,8 @@ class SyncConnectorHttpClient:
             try:
                 response = self._client.get(path, params=_serialize_params(params))
                 if response.status_code in RETRYABLE_STATUS:
+                    if attempt + 1 < self._max_retries:
+                        self._retry_sleep(attempt, response)
                     raise ConnectorHttpError(
                         f"Retryable HTTP {response.status_code}",
                         status_code=response.status_code,
@@ -130,7 +148,8 @@ class SyncConnectorHttpClient:
                 last_error = exc
                 if attempt + 1 >= self._max_retries:
                     break
-                time.sleep(0.5 * (2**attempt))
+                if not isinstance(exc, ConnectorHttpError) or exc.status_code not in RETRYABLE_STATUS:
+                    self._retry_sleep(attempt)
 
         message = str(last_error) if last_error else "Unknown HTTP error"
         status_code = (

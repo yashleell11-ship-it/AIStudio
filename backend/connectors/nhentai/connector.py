@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 from typing import Any
 
 from connectors.base import SourceConnector
@@ -11,6 +12,7 @@ from connectors.http.client import SyncConnectorHttpClient
 from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Series
 from connectors.nhentai.mappers import (
     API_BASE,
+    ENGLISH_LANGUAGE_QUERY,
     PAGE_SIZE,
     gallery_detail_to_series,
     gallery_pages_to_pages,
@@ -42,11 +44,19 @@ class NHentaiConnector(SourceConnector):
     MATURE = True
 
     def __init__(self) -> None:
-        self._http = SyncConnectorHttpClient(API_BASE)
+        # nHentai rate-limits aggressively; keep a generous gap between API calls.
+        self._http = SyncConnectorHttpClient(
+            API_BASE,
+            min_interval=1.25,
+            max_retries=5,
+        )
         self._config_cache: TTLCache[dict[str, list[str]]] = TTLCache(ttl_seconds=3600.0)
+        self._gallery_cache: TTLCache[dict[str, Any]] = TTLCache(ttl_seconds=300.0)
         self._series_cache: TTLCache[Series] = TTLCache(ttl_seconds=300.0)
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
         self._page_cache: TTLCache[list[Page]] = TTLCache(ttl_seconds=600.0)
+        self._gallery_locks_guard = threading.Lock()
+        self._gallery_locks: dict[str, threading.Lock] = {}
 
     @property
     def source_type(self) -> str:
@@ -76,6 +86,7 @@ class NHentaiConnector(SourceConnector):
         return [
             BrowseMode(id="latest", label="Latest"),
             BrowseMode(id="popular", label="Popular"),
+            BrowseMode(id="english", label="English Only"),
         ]
 
     def _cdn_servers(self) -> tuple[list[str], list[str]]:
@@ -101,6 +112,21 @@ class NHentaiConnector(SourceConnector):
         self._config_cache.set("cdn", {"image": image_servers, "thumb": thumb_servers})
         return image_servers, thumb_servers
 
+    def _fetch_search(self, query: str, page: int) -> PaginatedSeriesList:
+        if page < 1:
+            page = 1
+        _, thumb_servers = self._cdn_servers()
+        payload = self._http.get_json(
+            "/api/v2/search",
+            params={"query": query, "page": page},
+        )
+        return listing_to_paginated(
+            payload,
+            page=page,
+            page_size=PAGE_SIZE,
+            thumb_servers=thumb_servers,
+        )
+
     def _fetch_listing(self, path: str, page: int) -> PaginatedSeriesList:
         if page < 1:
             page = 1
@@ -114,11 +140,14 @@ class NHentaiConnector(SourceConnector):
         )
 
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
-        path = _LIST_PATHS.get(sort or "default", _LIST_PATHS["default"])
-        listing = self._fetch_listing(path, page)
+        if sort == "english":
+            listing = self._fetch_search(ENGLISH_LANGUAGE_QUERY, page)
+        else:
+            path = _LIST_PATHS.get(sort or "default", _LIST_PATHS["default"])
+            listing = self._fetch_listing(path, page)
         logger.info(
-            "nHentai browse %s page=%d count=%d total=%d has_more=%s",
-            path,
+            "nHentai browse sort=%r page=%d count=%d total=%d has_more=%s",
+            sort,
             page,
             len(listing.items),
             listing.total,
@@ -130,35 +159,56 @@ class NHentaiConnector(SourceConnector):
         if page < 1:
             page = 1
         normalized = query.strip()
-        if not normalized:
+        if sort == "english":
+            combined = (
+                f"{ENGLISH_LANGUAGE_QUERY} {normalized}".strip()
+                if normalized
+                else ENGLISH_LANGUAGE_QUERY
+            )
+            listing = self._fetch_search(combined, page)
+        elif not normalized:
             return self.get_series_list(page, sort=sort)
-
-        _, thumb_servers = self._cdn_servers()
-        payload = self._http.get_json(
-            "/api/v2/search",
-            params={"query": normalized, "page": page},
-        )
-        listing = listing_to_paginated(
-            payload,
-            page=page,
-            page_size=PAGE_SIZE,
-            thumb_servers=thumb_servers,
-        )
+        else:
+            listing = self._fetch_search(normalized, page)
         logger.info(
-            "nHentai search page=%d count=%d total=%d query=%r",
+            "nHentai search page=%d count=%d total=%d sort=%r query=%r",
             page,
             len(listing.items),
             listing.total,
+            sort,
             normalized,
         )
         return listing
 
-    def _fetch_gallery(self, gallery_id: str) -> dict[str, Any] | None:
+    def _gallery_lock(self, gallery_id: str) -> threading.Lock:
+        with self._gallery_locks_guard:
+            lock = self._gallery_locks.get(gallery_id)
+            if lock is None:
+                lock = threading.Lock()
+                self._gallery_locks[gallery_id] = lock
+            return lock
+
+    def _fetch_gallery_uncached(self, gallery_id: str) -> dict[str, Any] | None:
         try:
             payload = self._http.get_json(f"/api/v2/galleries/{gallery_id}")
-        except Exception:
+        except Exception as exc:
+            logger.warning("nHentai gallery %s fetch failed: %s", gallery_id, exc)
             return None
         return payload if isinstance(payload, dict) else None
+
+    def _fetch_gallery(self, gallery_id: str) -> dict[str, Any] | None:
+        cached = self._gallery_cache.get(gallery_id)
+        if cached is not None:
+            return cached
+
+        with self._gallery_lock(gallery_id):
+            cached = self._gallery_cache.get(gallery_id)
+            if cached is not None:
+                return cached
+            payload = self._fetch_gallery_uncached(gallery_id)
+            if payload is not None:
+                self._gallery_cache.set(gallery_id, payload)
+            return payload
 
     def get_series(self, series_id: str) -> Series | None:
         cached = self._series_cache.get(series_id)

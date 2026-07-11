@@ -69,7 +69,7 @@ def _invalidate_series_caches(connector: SourceConnector, series_id: str) -> Non
     api_key = fully_unquote(series_id).strip().strip("/")
     if api_key.startswith("serie/"):
         api_key = api_key.removeprefix("serie/")
-    for cache_name in ("_series_cache", "_chapter_list_cache"):
+    for cache_name in ("_series_cache", "_chapter_list_cache", "_gallery_cache", "_page_cache"):
         cache = getattr(connector, cache_name, None)
         if cache is not None and hasattr(cache, "pop"):
             cache.pop(api_key)

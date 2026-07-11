@@ -9,6 +9,7 @@ from connectors.models import Chapter, Page, PaginatedSeriesList, Series
 
 API_BASE = "https://nhentai.net"
 PAGE_SIZE = 25
+ENGLISH_LANGUAGE_QUERY = "language:english"
 
 
 def _pick_title(item: dict[str, Any]) -> str:
