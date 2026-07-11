@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import TypeVar
 
 from connectors.base import SourceConnector
+from connectors.excluded import EXCLUDED_CONNECTORS
 from connectors.madara.config import MadaraSiteConfig
 from connectors.madara.connector import MadaraConnector
 
@@ -51,6 +52,8 @@ def madara_connector_classes(
     classes: list[type[SourceConnector]] = []
     for config in configs:
         if config.source_id in seen:
+            continue
+        if config.source_id in EXCLUDED_CONNECTORS:
             continue
         seen.add(config.source_id)
         classes.append(build_madara_connector_class(config))

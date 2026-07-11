@@ -120,10 +120,13 @@ def test_madara_factory_connector_contract(source_id: str) -> None:
 
 
 def test_madara_sites_registered() -> None:
+    from connectors.excluded import EXCLUDED_CONNECTORS
     from connectors.registry import list_connector_types
 
     registered = set(list_connector_types())
     for cfg in MADARA_SITES:
+        if cfg.source_id in EXCLUDED_CONNECTORS:
+            continue
         assert cfg.source_id in registered, f"{cfg.source_id} missing from registry"
 
 
