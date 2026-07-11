@@ -8,8 +8,9 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from core.errors import AppError
 from core.time_utils import utcnow
-from database.models import Bookmark, Chapter, Page, ReadingProgress, Series
+from database.models import Bookmark, Chapter, Page, ReadingProgress, Series, User
 from database.session import get_db
+from services.auth_service import get_optional_user
 from utils.path_utils import natural_sort_key
 
 
@@ -19,8 +20,11 @@ def _chapter_sort_key(chapter: Chapter) -> tuple[float, list[int | str]]:
 
 
 class ReaderService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, user_id: int | None = None) -> None:
         self._db = db
+        # Reading progress and bookmarks are per-user; None scopes to the
+        # anonymous/legacy (unclaimed) rows.
+        self._user_id = user_id
 
     def save_progress(
         self,
@@ -61,11 +65,15 @@ class ReaderService:
 
         progress = (
             self._db.query(ReadingProgress)
-            .filter(ReadingProgress.series_id == series_id)
+            .filter(
+                ReadingProgress.series_id == series_id,
+                ReadingProgress.user_id == self._user_id,
+            )
             .first()
         )
         if not progress:
             progress = ReadingProgress(
+                user_id=self._user_id,
                 series_id=series_id,
                 chapter_id=chapter_id,
                 last_page=last_page,
@@ -95,7 +103,10 @@ class ReaderService:
     def get_progress(self, series_id: int) -> dict[str, object] | None:
         progress = (
             self._db.query(ReadingProgress)
-            .filter(ReadingProgress.series_id == series_id)
+            .filter(
+                ReadingProgress.series_id == series_id,
+                ReadingProgress.user_id == self._user_id,
+            )
             .first()
         )
         if not progress:
@@ -112,7 +123,10 @@ class ReaderService:
     def delete_progress(self, series_id: int) -> None:
         progress = (
             self._db.query(ReadingProgress)
-            .filter(ReadingProgress.series_id == series_id)
+            .filter(
+                ReadingProgress.series_id == series_id,
+                ReadingProgress.user_id == self._user_id,
+            )
             .first()
         )
         if not progress:
@@ -152,6 +166,7 @@ class ReaderService:
         )
 
         bookmark = Bookmark(
+            user_id=self._user_id,
             series_id=series_id,
             chapter_id=chapter_id,
             page=page,
@@ -177,6 +192,7 @@ class ReaderService:
         useful list without a lookup per row."""
         bookmarks = (
             self._db.query(Bookmark)
+            .filter(Bookmark.user_id == self._user_id)
             .options(
                 selectinload(Bookmark.series),
                 selectinload(Bookmark.chapter),
@@ -203,7 +219,10 @@ class ReaderService:
     def list_bookmarks(self, series_id: int) -> list[dict[str, object]]:
         bookmarks = (
             self._db.query(Bookmark)
-            .filter(Bookmark.series_id == series_id)
+            .filter(
+                Bookmark.series_id == series_id,
+                Bookmark.user_id == self._user_id,
+            )
             .order_by(Bookmark.created_at.desc())
             .all()
         )
@@ -221,7 +240,11 @@ class ReaderService:
         ]
 
     def delete_bookmark(self, bookmark_id: int) -> None:
-        bookmark = self._db.query(Bookmark).filter(Bookmark.id == bookmark_id).first()
+        bookmark = (
+            self._db.query(Bookmark)
+            .filter(Bookmark.id == bookmark_id, Bookmark.user_id == self._user_id)
+            .first()
+        )
         if not bookmark:
             raise AppError(
                 "Bookmark not found.",
@@ -267,5 +290,8 @@ class ReaderService:
         }
 
 
-def get_reader_service(db: Annotated[Session, Depends(get_db)]) -> ReaderService:
-    return ReaderService(db)
+def get_reader_service(
+    db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User | None, Depends(get_optional_user)],
+) -> ReaderService:
+    return ReaderService(db, user_id=user.id if user else None)

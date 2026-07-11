@@ -6,7 +6,7 @@ from threading import Lock
 from typing import Annotated
 
 from fastapi import Depends
-from sqlalchemy import func, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from core.config import get_settings
@@ -26,8 +26,10 @@ from database.models import (
     Series,
     SeriesTag,
     Tag,
+    User,
 )
 from database.session import get_db
+from services.auth_service import get_optional_user
 from services.import_cleanup import ImportCleanupService, normalize_folder_path
 from services.source_service import SourceService
 from utils.mobile_urls import page_image_url, series_cover_url
@@ -115,9 +117,11 @@ _scan_status = ScanStatus()
 
 
 class LibraryService:
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, user_id: int | None = None) -> None:
         self._db = db
         self._settings = get_settings()
+        # Reading progress is per-user; None scopes to anonymous/legacy rows.
+        self._user_id = user_id
 
     def get_scan_status(self) -> dict[str, object]:
         return _scan_status.snapshot()
@@ -401,10 +405,18 @@ class LibraryService:
                 or_(Series.title.ilike(term), Series.author.ilike(term))
             )
 
+        # Join the current user's progress rows only, so "reading"/"unread"/
+        # "recent" reflect this user — not anyone else in the household.
+        progress_on = and_(
+            ReadingProgress.series_id == Series.id,
+            ReadingProgress.user_id == self._user_id,
+        )
         if status == "reading":
-            query = query.join(ReadingProgress)
+            query = query.join(ReadingProgress, progress_on)
         elif status == "unread":
-            query = query.outerjoin(ReadingProgress).filter(ReadingProgress.id.is_(None))
+            query = query.outerjoin(ReadingProgress, progress_on).filter(
+                ReadingProgress.id.is_(None)
+            )
 
         if reading_status is not None:
             query = query.filter(Series.reading_status == reading_status)
@@ -431,7 +443,7 @@ class LibraryService:
         if sort == "updated":
             query = query.order_by(Series.updated_at.desc())
         elif sort == "recent":
-            query = query.outerjoin(ReadingProgress).order_by(
+            query = query.outerjoin(ReadingProgress, progress_on).order_by(
                 ReadingProgress.last_read_at.desc().nullslast()
             ).distinct()
         elif sort == "date_added":
@@ -616,6 +628,7 @@ class LibraryService:
     def get_continue_reading(self, limit: int = 10) -> list[dict[str, object]]:
         rows = (
             self._db.query(ReadingProgress)
+            .filter(ReadingProgress.user_id == self._user_id)
             .options(
                 joinedload(ReadingProgress.series),
                 joinedload(ReadingProgress.chapter),
@@ -758,5 +771,6 @@ class LibraryService:
 
 def get_library_service(
     db: Annotated[Session, Depends(get_db)],
+    user: Annotated[User | None, Depends(get_optional_user)],
 ) -> LibraryService:
-    return LibraryService(db)
+    return LibraryService(db, user_id=user.id if user else None)
