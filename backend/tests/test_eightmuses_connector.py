@@ -45,7 +45,11 @@ def test_browse_lists_comics_for_first_publisher(eightmuses_connector: EightMuse
     assert len(listing.items) >= 60
     assert listing.items[0].id == "JAB-Comics/Ay-Papi"
     assert listing.items[0].title == "Ay Papi"
+    assert listing.items[0].cover_url is not None
     assert listing.has_more is True
+    cached = eightmuses_connector.get_series("JAB-Comics/Ay-Papi")
+    assert cached is not None
+    assert cached.cover_url == listing.items[0].cover_url
 
 
 def test_get_chapters_and_pages(eightmuses_connector: EightMusesConnector):

@@ -76,8 +76,7 @@ def get_source_chapters(
     return items
 
 
-@router.get("/{source_id}/series/{series_id}/cover")
-@limiter.limit(sources_limit)
+@router.get("/{source_id}/series/{series_id:path}/cover")
 def get_source_series_cover(
     source_id: str,
     series_id: str,
