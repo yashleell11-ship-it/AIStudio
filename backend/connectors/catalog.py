@@ -147,7 +147,15 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     # --- Mixed 18+ ----------------------------------------------------------
     _site("bato", "Bato.to", "bato.to", mature=True),
     _site("bbato", "Bbato", "bbato.com", mature=True),
-    _site("allporncomic", "AllPornComic", "allporncomic.com", mature=True, use_cf=False),
+    _site(
+        "allporncomic",
+        "AllPornComic",
+        "allporncomic.com",
+        url_segment="porncomic",
+        mature=True,
+        use_cf=False,
+        extra_image_hosts=frozenset({"cdn.allporncomic.com"}),
+    ),
     _site("multporn", "Multporn", "multporn.net", mature=True, use_cf=False),
     _site("svscomics", "SVSComics", "svscomics.com", mature=True, use_cf=False),
     _site("xyzcomics", "XYZ Comics", "xyzcomics.com", mature=True, use_cf=False),
@@ -205,7 +213,5 @@ MADARA_LIVE: frozenset[str] = frozenset({
 
 HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
     "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga", "nhentai",
-    "18porncomic", "3hentai", "8muses", "akuma", "1stkissmanga",
+    "18porncomic", "3hentai", "8muses", "akuma",
 })
-
-from connectors.excluded import EXCLUDED_CONNECTORS

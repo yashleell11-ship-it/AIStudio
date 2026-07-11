@@ -23,10 +23,10 @@ class MadaraSiteConfig:
     extra_image_hosts: frozenset[str] = field(default_factory=frozenset)
 
     def __post_init__(self) -> None:
-        if self.url_segment not in {"manga", "serie"}:
-            raise ValueError(
-                f"url_segment must be 'manga' or 'serie', got {self.url_segment!r}"
-            )
+        segment = self.url_segment.strip().strip("/")
+        if not segment or "/" in segment:
+            raise ValueError(f"url_segment must be a single path segment, got {self.url_segment!r}")
+        object.__setattr__(self, "url_segment", segment)
 
     @property
     def site_host(self) -> str:
