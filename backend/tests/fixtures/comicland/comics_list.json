@@ -1,0 +1,28 @@
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "list": [
+      {
+        "id": 1,
+        "slug": "my-kingdom-silent-war",
+        "title": "My Kingdom (Silent War)",
+        "description": "Hyun\u2019s life isn\u2019t what he expected and one day gets too close to someone he shouldn\u2019t\u2026",
+        "cover_url": "https://cdn.comicland.org/my-kingdom-silent-war/cover.jpg",
+        "rating": 4.3,
+        "rating_count": 112,
+        "source": "mangadna"
+      },
+      {
+        "id": 2,
+        "slug": "what-do-you-take-me-for",
+        "title": "What do you take me For?",
+        "description": "Tim and Hailey grew up together and now they live alone in Seoul. Denise is Hailey\u2019s best friend who comes over so often that the three practically live together. things are good until Tim bluffs to his friend Chuck.",
+        "cover_url": "https://cdn.comicland.org/what-do-you-take-me-for/cover.jpg",
+        "rating": 3.61,
+        "rating_count": 73,
+        "source": "mangadna"
+      }
+    ]
+  }
+}

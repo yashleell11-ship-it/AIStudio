@@ -1,0 +1,1161 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8" /><meta http-equiv="content-language" content="zh-CN" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="robots" content="&lt;%= GetRobotsMeta() %>" /><link rel="canonical" href="MasterPages/%3C%25=%20GetCanonicalUrl()%20%25%3E" /><title>
+	CManhua - 漫画在线阅读
+</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/Content/bootstrap.min.css" />
+    <link rel="stylesheet" href="/Content/Site.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- ✅ SEO riêng từng page sẽ inject vào đây -->
+    
+
+    <!-- SEO -->
+    <meta name="description" content="最新漫画更新，热门漫画排行榜，新漫画推荐，尽在CManhua。" />
+
+    <meta property="og:title" content="漫画更新 - 最新章节与热门漫画" />
+    <meta property="og:description" content="查看最新更新漫画、热门漫画和新发布漫画" />
+    <meta property="og:type" content="website" />
+
+    <!-- CSS giữ nguyên -->
+    <link rel="stylesheet" href="/Content/mangaUpdate.css" />
+
+
+    <!-- ✅ Schema global -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "CManhua",
+      "url": "https://zh.cmanhua.com"
+    }
+    </script>
+
+</head>
+<body>
+<form method="post" action="./MangaUpdate" id="ctl01">
+<div class="aspNetHidden">
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__LASTFOCUS" id="__LASTFOCUS" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="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" />
+</div>
+
+<script type="a2c6c009dcd0afcba7c804df-text/javascript">
+//<![CDATA[
+var theForm = document.forms['ctl01'];
+if (!theForm) {
+    theForm = document.ctl01;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<div class="aspNetHidden">
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="5E01506B" />
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="xN/Ze8GteDBNIZwg2/offT3LO1fBri2zmT6vVK2WGD9InNPiOZth3VUrM6Y5pLcuV3aG9wt8b3M1vtxv8on6u0WCfkP+u5oQQOM5vwBzROXk+j2Acs5PxcVHhK0+Qp2ncbwCWQGCevd0mA4DdMDWsLKi9i4tMdjTg+SV2jXQJkyWKnkizbpbRRPVcT9x++7Lu/oPkCkPvT6yOoHgN024Thu36jLoK5vHd6j9NJIjQUTnSpi5wwNxcUgG12GA11Q9o7rXTRC5IwcJEEOYpgT4XNUsS1+35h60e9MANQliDVo=" />
+</div>
+    <header class="main-header">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+            <div class="container">
+
+                <!-- Logo -->
+                <a id="lnkHome" class="navbar-brand d-flex align-items-center" href="./">
+                <img src='/Assets/images/logo_200x200-removebg-preview.png'
+                     alt="CManhua 漫画 在线阅读" class="site-logo"/>
+                </a>
+
+                <!-- MOBILE RIGHT -->
+                <div class="mobile-icons d-lg-none">
+
+                    <a href="javascript:void(0)" id="btnOpenSearch" class="mobile-icon">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </a>
+
+                    <a href="/MangaUpdate" class="mobile-icon">
+                        <i class="fa-solid fa-book"></i>
+                    </a>
+
+                    <a href="/Browse" class="mobile-icon">
+                        <i class="fa-solid fa-compass"></i>
+                    </a>
+
+                    <!-- Toggle -->
+                    <button class="navbar-toggler"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#mobileMenu">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
+                </div>
+
+                <!-- DESKTOP MENU -->
+                <div class="collapse navbar-collapse" id="mobileMenu">
+
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 fw-semibold desktop-menu">
+
+                        <li class="nav-item">
+                            <a href="javascript:void(0)" id="btnOpenSearchDesktop" class="nav-link">
+                                <i class="fa-solid fa-magnifying-glass me-1"></i>
+                                搜索
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a id="lnkMangaUpdates" class="nav-link" href="MangaUpdate">
+                            <i class="fa-solid fa-book me-1"></i>
+                            漫画更新</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a id="lnkBrowse" class="nav-link" href="Browse">
+                            <i class="fa-solid fa-compass me-1"></i>
+                            浏览</a>
+                        </li>
+
+                    </ul>
+
+                    <!-- RIGHT SIDE -->
+                    <div class="header-right d-lg-flex align-items-center">
+
+                        <select name="ctl00$langSelect" id="langSelect" class="form-select form-select-sm lang-select">
+	<option value="en">English</option>
+	<option selected="selected" value="zh">中文</option>
+</select>
+
+                        <div id="authArea" class="auth-area">
+                            
+                    <a href='/Login' 
+                       class='btn btn-primary btn-sm h-100' style='font-weight:600; width:100px;'>
+                       登录
+                    </a>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </nav>
+    </header>
+
+    <!-- ✅ SEARCH DROPDOWN OVERLAY (không che header) -->
+    <div id="searchDropdown" class="search-dropdown">
+        <div class="search-dropdown-inner container" style="max-width: 920px;">
+
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass text-muted"></i>
+
+                <input id="searchModalInput"
+                    class="form-control form-control-lg border-0 shadow-none"
+                    type="text"
+                    placeholder="搜索漫画..."
+                    autocomplete="off" />
+
+                <button type="button" id="btnCloseSearch" class="btn btn-link text-muted">
+                    <i class="fa-solid fa-xmark fs-5"></i>
+                </button>
+            </div>
+
+            <div id="searchModalResults" class="list-group search-modal-list"></div>
+
+            <div id="searchEmptyHint" class="text-muted mt-3" style="display: none;">
+                未找到漫画。
+            </div>
+
+        </div>
+    </div>
+
+
+    
+    <div class="container-xl py-4">
+        <h1 class="visually-hidden">
+            漫画更新 - 最新章节与热门漫画推荐
+        </h1>
+        <h3 class="fw-bold mb-3">
+            <i class="fa-solid fa-rotate me-2 text-primary"></i>
+            漫画更新
+        </h3>
+
+        <p class="visually-hidden">
+            本页面提供最新漫画更新、热门漫画排行榜以及新发布漫画，方便用户快速找到最新内容。
+        </p>
+
+        <p>
+            新章节在翻译完成后会立即在我们的网站上更新
+        </p>
+
+        <h4 class="text-warning">
+            如果图片无法加载，请使用VPN或将DNS更改为1.1.1.1。
+        </h4>
+
+        <h4 class="text-success">
+            我们正在移除部分浮动广告，以改善阅读体验。
+        </h4>
+
+        <hr />
+
+        <!-- =========================
+             SECTION 1: MOST VIEWED
+             ========================= -->
+        <section class="py-5 bg-light rounded-4 shadow-sm mb-4">
+            <div class="container">
+
+                <h3 class="fw-bold text-center mb-4">
+                    <i class="fa-solid fa-eye me-2 text-primary"></i>
+                    最多浏览
+                </h3>
+
+                <div class="row g-3">
+                    
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/weilemeishaonvyouhunvzhuangyeshibukebimiande'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/weilemeishaonvyouhunvzhuangyeshibukebimiande/cover.webp'
+                                             alt='为了美少女游戏，女装也是不可避免的 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">为了美少女游戏，女装也是不可避免的</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/wanmeiaidoulunxianshouce'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/wanmeiaidoulunxianshouce/cover.webp'
+                                             alt='完美爱豆沦陷手册 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">完美爱豆沦陷手册</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/qingzhangzuijinshangchilaile'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/qingzhangzuijinshangchilaile/cover.webp'
+                                             alt='请张嘴，金汤匙来了 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">请张嘴，金汤匙来了</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/tundanliudeshe'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/tundanliudeshe/cover.webp'
+                                             alt='吞石榴的蛇 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">吞石榴的蛇</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/bulaobusidewoqulegexieshenlaopo'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/bulaobusidewoqulegexieshenlaopo/cover.webp'
+                                             alt='不老不死的我娶了个邪神老婆 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">不老不死的我娶了个邪神老婆</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/guifeijintianyeyaoyishensidi'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/guifeijintianyeyaoyishensidi/cover.webp'
+                                             alt='贵妃今天也要以身饲敌 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">贵妃今天也要以身饲敌</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/kuaichuannvpeilengjingdian'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/kuaichuannvpeilengjingdian/cover.webp'
+                                             alt='快穿女配冷静点 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">快穿女配冷静点</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/wobeikunzaitongyitianshimonian'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/wobeikunzaitongyitianshimonian/cover.webp'
+                                             alt='我被困在同一天十万年 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">我被困在同一天十万年</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/fangsi'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/fangsi/cover.webp'
+                                             alt='放肆 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">放肆</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/jingjizhixin'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/jingjizhixin/cover.webp'
+                                             alt='荆棘之心 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">荆棘之心</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/tongyoudashengwozhangtongyouhaolingguishen'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/tongyoudashengwozhangtongyouhaolingguishen-1/cover.webp'
+                                             alt='通幽大圣（我掌通幽号令鬼神） 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">通幽大圣（我掌通幽号令鬼神）</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/wocaibujiafanpahuangzi'>
+                                    <div class="card h-100">
+                                        <img src='/pictures/wocaibujiafanpahuangzi/cover.webp'
+                                             alt='我才不嫁反派皇子 漫画 在线阅读'
+                                            loading="lazy"  
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">我才不嫁反派皇子</h6>
+                                        </div>
+                                    </div>
+                                </a>
+                            </div>
+                        
+                </div>
+
+            </div>
+        </section>
+
+
+        <!-- =========================
+             SECTION 2: NEW COMICS
+             ========================= -->
+        <section class="py-5 bg-light rounded-4 shadow-sm mb-4">
+            <div class="container">
+
+                <h3 class="fw-bold text-center mb-4">
+                    <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>
+                    新漫画
+                </h3>
+
+                <div class="row g-3">
+                    
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/guifeijintianyeyaoyishensidi'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/guifeijintianyeyaoyishensidi/cover.webp'
+                                             alt='贵妃今天也要以身饲敌 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">贵妃今天也要以身饲敌</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/jingjizhixin'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/jingjizhixin/cover.webp'
+                                             alt='荆棘之心 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">荆棘之心</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/wocaibujiafanpahuangzi'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/wocaibujiafanpahuangzi/cover.webp'
+                                             alt='我才不嫁反派皇子 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">我才不嫁反派皇子</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/wanmeiaidoulunxianshouce'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/wanmeiaidoulunxianshouce/cover.webp'
+                                             alt='完美爱豆沦陷手册 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">完美爱豆沦陷手册</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/fangsi'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/fangsi/cover.webp'
+                                             alt='放肆 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">放肆</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/wangliangzhihua'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/wangliangzhihua/cover.webp'
+                                             alt='魍魉之花 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">魍魉之花</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/jingjinvwang'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/jingjinvwang-1/cover.webp'
+                                             alt='荆棘女王 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">荆棘女王</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/bulaobusidewoqulegexieshenlaopo'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/bulaobusidewoqulegexieshenlaopo/cover.webp'
+                                             alt='不老不死的我娶了个邪神老婆 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">不老不死的我娶了个邪神老婆</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/tongyoudashengwozhangtongyouhaolingguishen'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/tongyoudashengwozhangtongyouhaolingguishen-1/cover.webp'
+                                             alt='通幽大圣（我掌通幽号令鬼神） 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">通幽大圣（我掌通幽号令鬼神）</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/weilemeishaonvyouhunvzhuangyeshibukebimiande'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/weilemeishaonvyouhunvzhuangyeshibukebimiande/cover.webp'
+                                             alt='为了美少女游戏，女装也是不可避免的 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">为了美少女游戏，女装也是不可避免的</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/qingzhangzuijinshangchilaile'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/qingzhangzuijinshangchilaile/cover.webp'
+                                             alt='请张嘴，金汤匙来了 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">请张嘴，金汤匙来了</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                            <div class="col-6 col-md-4 col-lg-2">
+                                <a class="text-decoration-none text-black"
+                                   href='/comic/tundanliudeshe'>
+
+                                    <div class="card h-100">
+                                        <img src='/pictures/tundanliudeshe/cover.webp'
+                                             alt='吞石榴的蛇 漫画 在线阅读'
+                                             loading="lazy"
+                                             class="card-img-top mu-comic-cover" />
+
+                                        <div class="card-body p-2">
+                                            <h6 class="card-title text-truncate">吞石榴的蛇</h6>
+                                        </div>
+                                    </div>
+
+                                </a>
+                            </div>
+                        
+                </div>
+
+            </div>
+        </section>
+
+        <!-- =========================
+         SECTION 3: LATEST UPDATED CHAPTERS (2 columns + filter + paging)
+         ========================= -->
+        <section class="py-5 bg-light rounded-4 shadow-sm mt-4">
+            <div class="container">
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <h3 class="fw-bold mb-0">
+                        <i class="fa-solid fa-book-open me-2 text-primary"></i>
+                        漫画更新
+                    </h3>
+
+                    <!-- FILTERS -->
+                    <div class="d-flex align-items-center gap-2">
+                        <!-- filter language -->
+                        <select name="ctl00$MainContent$ddlLang" onchange="if (!window.__cfRLUnblockHandlers) return false; javascript:setTimeout(&#39;__doPostBack(\&#39;ctl00$MainContent$ddlLang\&#39;,\&#39;\&#39;)&#39;, 0)" id="MainContent_ddlLang" class="form-select form-select-sm" style="min-width: 150px;" data-cf-modified-a2c6c009dcd0afcba7c804df-="">
+	<option selected="selected" value="">All</option>
+	<option value="en">English</option>
+	<option value="zh">中文</option>
+
+</select>
+
+                        <!-- sort -->
+                        <select name="ctl00$MainContent$ddlSort" onchange="if (!window.__cfRLUnblockHandlers) return false; javascript:setTimeout(&#39;__doPostBack(\&#39;ctl00$MainContent$ddlSort\&#39;,\&#39;\&#39;)&#39;, 0)" id="MainContent_ddlSort" class="form-select form-select-sm" style="min-width: 170px;" data-cf-modified-a2c6c009dcd0afcba7c804df-="">
+	<option selected="selected" value="all">Sorting By All</option>
+	<option value="latest_update">Latest Update</option>
+	<option value="views_desc">Most Viewed</option>
+
+</select>
+                    </div>
+                </div>
+
+                <!-- LIST -->
+                <div class="row row-cols-1 row-cols-md-2 g-3">
+                    
+                            <div class="col">
+                                <a href='/comic/guifeijintianyeyaoyishensidi' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/guifeijintianyeyaoyishensidi/cover.webp' 
+                                             alt='贵妃今天也要以身饲敌 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">贵妃今天也要以身饲敌</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                Fire工作室, 顾我, 白三文化
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 48</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:20
+                                            </div>
+
+                                            <div class="comic-desc">【娇蛮没头脑】X【闷骚不高兴】“我与死对头身体互换，然后发现她身怀六甲？！”被迫替宁贵人带球跑的乔贵妃，每天都在气冲冲。更离谱的是：这阴险狡诈的贵人，竟然暗恋本宫？</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/jingjizhixin' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/jingjizhixin/cover.webp' 
+                                             alt='荆棘之心 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">荆棘之心</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                橘姬社, 狐泥
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 144</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:20
+                                            </div>
+
+                                            <div class="comic-desc">某天，刘海意外拥有了一本破旧的魔法书，她在模仿魔法书中的法师制造魔法阵时，阴差阳错召唤出了名为池小榴的妖怪少女。小榴是池之国的力量源泉，一直被囚禁，她计划了很久出逃，终于成功逃走，正巧人类世界的刘海正在试验魔法阵……二人就此相遇了。</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/wocaibujiafanpahuangzi' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/wocaibujiafanpahuangzi/cover.webp' 
+                                             alt='我才不嫁反派皇子 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">我才不嫁反派皇子</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                三福动漫
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 196</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:20
+                                            </div>
+
+                                            <div class="comic-desc">【每周四、周日更新，粉丝群：187515143】杀神皇子颜曦剿灭敌国却带回一个亡国小公主，五岁萌娃桃小薇搅得王府上下鸡犬不宁，冷血王爷首次体验养娃体验，数年征战回国，小娃娃已倾国倾城，从此颜曦灭敌国，斩情敌，眼里再容不下其他人。</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/wanmeiaidoulunxianshouce' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/wanmeiaidoulunxianshouce/cover.webp' 
+                                             alt='完美爱豆沦陷手册 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">完美爱豆沦陷手册</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                聆风漫画
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 22</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:19
+                                            </div>
+
+                                            <div class="comic-desc">成团三年依旧不温不火的女团Mystyle，在三周年时却公布了要拆团的消息，以性感火辣为风格的团队队长是原队长windy，而以甜美活泼为风格的团队却是空降的队长望舒，望舒看似乖巧懂事，每日粘着windy不放，事实上对这位姐姐，似乎怀着别样的情愫…</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/fangsi' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/fangsi/cover.webp' 
+                                             alt='放肆 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">放肆</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                橘姬社, 原著: 玄笺, 晋江文学城, 主笔: 盛夏的土豆
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 31</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:18
+                                            </div>
+
+                                            <div class="comic-desc">年仅22岁的唐若遥摘下影后桂冠,隔天媒体铺天盖地发通稿,盛誉其为小秦意浓。有好事记者分别采访了二人对于彼此的印象。秦意浓笑得像狐狸：不熟。唐若遥公式化口吻,淡淡道：秦影后是我非常尊重的前辈,希望有机会能合作。</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/wangliangzhihua' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/wangliangzhihua/cover.webp' 
+                                             alt='魍魉之花 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">魍魉之花</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                Nagy
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 86</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:18
+                                            </div>
+
+                                            <div class="comic-desc">人类与异兽妖精共存，郡国林立的世界。少年君王在王室斗争中遇到了美丽的鸟族异兽。</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/jingjinvwang' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/jingjinvwang-1/cover.webp' 
+                                             alt='荆棘女王 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">荆棘女王</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                Lim lina
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 188</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:18
+                                            </div>
+
+                                            <div class="comic-desc">即使是吸血鬼纵横的地狱，我也会义无反顾的毁掉它！朴夏妍作为天生的吸血鬼，有着比普通吸血鬼更强的力量，却梦想成为普通人类。有一天，她发现一位神秘帅哥故意接近她，还能听到她心里的声音。这个人究竟是谁？又会有怎样的事情发生？</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/bulaobusidewoqulegexieshenlaopo' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/bulaobusidewoqulegexieshenlaopo/cover.webp' 
+                                             alt='不老不死的我娶了个邪神老婆 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">不老不死的我娶了个邪神老婆</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                二三玖陆工作室, 哔哩哔哩漫画
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 87</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:17
+                                            </div>
+
+                                            <div class="comic-desc">不老不死的穿越者林泽，召唤了个触手系的邪神老婆，来陪伴自己度过漫长的生命……本该过上没羞没臊的幸福生活，但这两个拥有无限永恒生命的角色，好像都有自己各自目的呢……</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/tongyoudashengwozhangtongyouhaolingguishen' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/tongyoudashengwozhangtongyouhaolingguishen-1/cover.webp' 
+                                             alt='通幽大圣（我掌通幽号令鬼神） 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">通幽大圣（我掌通幽号令鬼神）</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                比格熊动漫
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 199</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:17
+                                            </div>
+
+                                            <div class="comic-desc">顾诚穿越到了一个仙侠志怪世界，成为了大乾忠勇侯府的大公子。为了躲避姨娘的暗杀，离开京城，加入了惩治天地魍魉的靖夜司。诡秘江湖，妖异频出，朝堂腐朽，武林世家，群雄并起。这是一个没有神佛、妖鬼横行的世界，至强者被称作‘大圣’。“我叫顾诚，诚信的诚。”“既然这世界没有神佛，那我，便是神佛！”</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/weilemeishaonvyouhunvzhuangyeshibukebimiande' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/weilemeishaonvyouhunvzhuangyeshibukebimiande/cover.webp' 
+                                             alt='为了美少女游戏，女装也是不可避免的 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">为了美少女游戏，女装也是不可避免的</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                作者: 二三玖陆工作室, 编剧: 宇宙（欲言文化）, 主笔: 枫雨木木
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 93</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:16
+                                            </div>
+
+                                            <div class="comic-desc">励志成为最强宝可梦训练家黄油制作大师的白几，决心要做出一部一鸣惊人的黄油作为毕业设计，却没想在开始就与画手席鲨鲨意见不合，在女主人设阶段就快结束游戏开发提早进阶摆烂大师时，遇上了完全戳中她xp理想人设的同学——三川。但更大的麻烦随之而来，三川居然是…？！</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/qingzhangzuijinshangchilaile' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/qingzhangzuijinshangchilaile/cover.webp' 
+                                             alt='请张嘴，金汤匙来了 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">请张嘴，金汤匙来了</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                Sin Yu Seong, Portofino
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 110</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:15
+                                            </div>
+
+                                            <div class="comic-desc">穿越到小说里成为伯爵家长女阿黛尔莱德，前世太穷这辈子一心赚钱的她发现要想继承商团必须要结婚才行。但是一直以为会和自己结婚的那个男人竟然跑去向自己的妹妹求婚去了？！果然，不能小看身为小说中恶女角色的妹妹呢。为了继续赚钱，顺利继承商团，那么只能找个人来跟自己结婚了！这个圣骑士团长看起来就不错的样子，帅哥，哪里逃！</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                            <div class="col">
+                                <a href='/comic/tundanliudeshe' class="text-decoration-none">
+                                    <div class="comic-card">
+                                        <img src='/pictures/tundanliudeshe/cover.webp' 
+                                             alt='吞石榴的蛇 漫画 在线阅读'
+                                             loading="lazy" />  
+
+                                        <div class="comic-info">
+                                            <div class="comic-title">吞石榴的蛇</div>
+
+                                            <div class="comic-meta">
+                                                <strong>
+                                                    作者:
+                                                </strong>
+                                                CarpeXD
+                                            </div>
+
+                                            <div class="comic-meta text-primary">章节 42</div>
+
+                                            <div class="comic-meta">
+                                                <i class="fa-regular fa-clock me-1"></i>
+                                                07/04/2026 - 17:15
+                                            </div>
+
+                                            <div class="comic-desc">大陆最富饶广袤的土地，统治它的是全能之神埃蒙与他的伴侣奈因。这里如同完美的天堂，但奈因的日子却是寂静又空虚。某日，拥有粉色头发与眼眸的男人入宫，罕见地夺走了埃蒙的目光。被嫉妒吞噬的奈因偷偷前去找他，却很快发现，这名青年与他所认识的任何人都截然不同……</div>
+                                        </div>
+
+                                    </div>
+                                </a>
+                            </div>
+                        
+                </div>
+
+                <!-- PAGING -->
+                <div class="d-flex justify-content-start align-items-center gap-2 mt-4 paging-bar">
+
+                    <a id="MainContent_btnPrevPage" class="aspNetDisabled btn btn-outline-secondary btn-sm px-3">
+                <i class="fa-solid fa-chevron-left"></i>
+                    </a>
+
+                    <span class="paging-text">
+                        <span id="MainContent_lblPageInfo">1 / 950</span>
+                    </span>
+
+                    <a id="MainContent_btnNextPage" class="btn btn-outline-secondary btn-sm px-3" href="javascript:__doPostBack(&#39;ctl00$MainContent$btnNextPage&#39;,&#39;&#39;)">
+                <i class="fa-solid fa-chevron-right"></i>
+                    </a>
+
+                </div>
+
+            </div>
+        </section>
+
+    </div>
+
+
+    <!-- Footer -->
+    <footer class="text-center text-lg-start bg-light text-dark pt-4 mt-5">
+    <div class="container text-md-start">
+        <div class="row mt-3">
+
+            <div class="col-6 col-md-6 col-lg-3 col-xl-3 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    <img src='/Assets/images/logo_200x200-removebg-preview.png'
+                         alt="logo" width="80" height="80" class="me-2" />
+                </h6>
+                <p>免费在线观看漫画。更新快，质量高，使用方便。</p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-2 col-xl-2 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    快速链接
+                </h6>
+                <p><a class="text-dark text-decoration-none" href="./">首页</a></p>
+                <p><a class="text-dark text-decoration-none" href="MangaUpdate">漫画更新</a></p>
+                <p><a class="text-dark text-decoration-none" href="Browse">浏览</a></p>
+                <p><a class="text-dark text-decoration-none" href="Login">登录</a></p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-2 col-xl-2 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    政策
+                </h6>
+                <p><a id="lnkPrivacy" class="text-dark text-decoration-none" href="MasterPages/#">隐私政策</a></p>
+                <p><a id="lnkTerms" class="text-dark text-decoration-none" href="MasterPages/#">条款与条件</a></p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-3 col-xl-3 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    联系我们
+                </h6>
+                <p><i class="fa-solid fa-envelope me-2"></i><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="6f1c1a1f1f001d1b2f02080a0400410c0c">[email&#160;protected]</a></p>
+                <p><i class="fa-solid fa-phone me-2"></i>+84 123 456 789</p>
+                <p><i class="fa-solid fa-location-dot me-2"></i>Hanoi, Vietnam</p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-2 col-xl-2 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    关注我们
+                </h6>
+                <a href="#" class="btn btn-outline-dark btn-sm me-2"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="btn btn-outline-dark btn-sm me-2"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="btn btn-outline-dark btn-sm me-2"><i class="fab fa-instagram"></i></a>
+                <a href="#" class="btn btn-outline-dark btn-sm"><i class="fab fa-discord"></i></a>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="text-center py-3 mt-3 border-top border-secondary">
+        © 2025 Mgeko.cc - 版权所有
+    </div>
+</footer>
+</form>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/Scripts/bootstrap.bundle.min.js" type="a2c6c009dcd0afcba7c804df-text/javascript"></script>
+
+<!-- Global site script -->
+<script src="/Scripts/Site.js" type="a2c6c009dcd0afcba7c804df-text/javascript"></script>
+
+<script type="a2c6c009dcd0afcba7c804df-text/javascript">
+    window.__site = window.__site || {};
+    window.__site.langSelectId = "langSelect";
+    window.__site.comicDetailUrl = "/ComicDetail";
+
+</script>
+
+<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="a2c6c009dcd0afcba7c804df-|49" defer></script><script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1994bf01f615f9f',t:'MTc4Mzc4ODUxNQ=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"3e8362d9a1b04ec3a970aebb0e884ee3","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+</body>
+</html>

@@ -1,0 +1,30 @@
+{
+  "success": true,
+  "data": {
+    "chapters": [
+      {
+        "id": "LDgV74Yv",
+        "url": "/sister-neighbors/chapter-160",
+        "name": "Chapter 160",
+        "slug": "chapter-160",
+        "views": 1,
+        "comments_count": 0,
+        "updated_at": "2022-01-23T03:00:23.000Z",
+        "number": 161,
+        "cv": 1642906807000
+      },
+      {
+        "id": "RDxQZp21",
+        "url": "/sister-neighbors/chapter-159",
+        "name": "Chapter 159",
+        "slug": "chapter-159",
+        "views": 0,
+        "comments_count": 0,
+        "updated_at": "2022-01-16T13:00:16.000Z",
+        "number": 160,
+        "cv": 1642906807000
+      }
+    ]
+  },
+  "message": "Chapter list retrieved successfully"
+}

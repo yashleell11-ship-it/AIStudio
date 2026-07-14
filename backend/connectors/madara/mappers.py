@@ -25,7 +25,9 @@ class MadaraHtml:
         self._cfg = config
         seg = config.url_segment
         self._seg = seg
-        self._browse_card_split = re.compile(r'(?=<div class="page-item-detail)', re.I)
+        self._browse_card_split = re.compile(
+            r'(?=<(?:div|article) class="page-item-detail)', re.I
+        )
         self._search_card_split = re.compile(
             r'(?=<div class="row c-tabs-item__content")', re.I
         )
@@ -41,22 +43,28 @@ class MadaraHtml:
             rf'href="(?:https?://[^"]+)?/{seg}/([a-z0-9-]+)/"[^>]*>([^<{{]+)',
             re.I,
         )
+        # Some Madara installs omit quotes around href (e.g. harimanga.vip).
+        self._card_anchor_unquoted = re.compile(
+            rf'<a\s+href=(?:https?://[^\s>]+)?/{seg}/([a-z0-9-]+)(?:/)?(?:\s|>)'
+            rf'[^>]*title="([^"]*)"',
+            re.I,
+        )
         self._card_img_tag = re.compile(r"<img\b[^>]*>", re.I)
         self._chapter_link = re.compile(
             r'<li class="wp-manga-chapter[^"]*">.*?'
-            rf'<a[^>]+href="(?:https?://[^"]+)?/{seg}/([^"]+)/"[^>]*>\s*([^<]+)</a>',
+            rf'<a[^>]+href="(?:https?://[^"]+)?/{seg}/([^"]+?)/?"[^>]*>\s*([^<]+)</a>',
             re.S | re.I,
         )
         self._chapter_item_link = re.compile(
             r'<div class="chapter-item[^"]*">.*?'
-            rf'<a[^>]+href="(?:https?://[^"]+)?/{seg}/([^"]+)/"[^>]*>\s*([^<]+)</a>',
+            rf'<a[^>]+href="(?:https?://[^"]+)?/{seg}/([^"]+?)/?"[^>]*>\s*([^<]+)</a>',
             re.S | re.I,
         )
         self._chapter_img_tag = re.compile(
             r"<img\b[^>]*wp-manga-chapter-img[^>]*>", re.I
         )
-        self._img_data_src = re.compile(r'data-src="\s*([^"]+?)\s*"', re.I)
-        self._img_src = re.compile(r'(?<!-)\bsrc="\s*([^"]+?)\s*"', re.I)
+        self._img_data_src = re.compile(r"""data-src=['"]\s*([^'"]+?)\s*['"]""", re.I)
+        self._img_src = re.compile(r"""(?<!-)src=['"]\s*([^'"]+?)\s*['"]""", re.I)
         self._preloaded_images = re.compile(
             r"chapter_preloaded_images\s*=\s*\[(.*?)\];", re.S
         )
@@ -94,15 +102,22 @@ class MadaraHtml:
         return chapter_id or None
 
     def listing_path(self, page: int) -> str:
+        if self._cfg.listing_post_type:
+            return "/"
         if page <= 1:
             return f"/{self._seg}/"
         return f"/{self._seg}/page/{page}/"
 
-    def listing_params(self, *, sort: str | None = None) -> dict[str, Any]:
+    def listing_params(self, *, sort: str | None = None, page: int = 1) -> dict[str, Any]:
+        params: dict[str, Any] = {}
+        if self._cfg.listing_post_type:
+            params["post_type"] = self._cfg.listing_post_type
+            if page > 1:
+                params["paged"] = page
         order = self.normalize_sort(sort)
-        if order == SORT_TO_ORDER["default"]:
-            return {}
-        return {"m_orderby": order}
+        if order != SORT_TO_ORDER["default"]:
+            params["m_orderby"] = order
+        return params
 
     def search_params(self, query: str, *, page: int) -> dict[str, Any]:
         params: dict[str, Any] = {"s": query.strip(), "post_type": "wp-manga"}
@@ -270,6 +285,9 @@ class MadaraHtml:
         m = re.search(r'"manga_id"\s*:\s*"(\d+)"', html_text, re.I)
         if m:
             return m.group(1)
+        m = re.search(r"\bpostid-(\d+)\b", html_text, re.I)
+        if m:
+            return m.group(1)
         return None
 
     def parse_chapters(self, html_text: str, series_id: str) -> list[Chapter]:
@@ -426,6 +444,7 @@ class MadaraHtml:
             anchor = (
                 self._card_anchor.search(segment)
                 or self._card_anchor_rel.search(segment)
+                or self._card_anchor_unquoted.search(segment)
                 or self._card_anchor_loose.search(segment)
             )
             if anchor is None:

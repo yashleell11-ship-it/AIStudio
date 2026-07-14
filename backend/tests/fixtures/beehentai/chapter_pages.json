@@ -1,0 +1,24 @@
+{
+  "success": true,
+  "data": {
+    "content_type": "manga",
+    "chapter": {
+      "id": "vKY5z4D9",
+      "url": "/sister-neighbors/chapter-1",
+      "name": "Chapter 1",
+      "slug": "chapter-1",
+      "number": 1,
+      "updated_at": "2020-10-01T00:00:00.000Z",
+      "images": [
+        "https://rx.toondex.io/r/p/a98fe0c0/9075c172/6fc94c9c61dc.webp",
+        "https://rx.toondex.io/r/p/a98fe0c0/9075c172/c71cb5dfcccb.webp",
+        "https://rx.toondex.io/r/p/a98fe0c0/9075c172/17b666479cb3.webp"
+      ]
+    },
+    "title": {
+      "id": "6p2968GW",
+      "slug": "sister-neighbors",
+      "name": "Sister Neighbors"
+    }
+  }
+}

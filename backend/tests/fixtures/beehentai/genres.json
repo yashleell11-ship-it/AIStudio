@@ -1,0 +1,32 @@
+{
+  "success": true,
+  "message": "Genres fetched successfully",
+  "data": {
+    "items": [
+      {
+        "id": "vZ8al2dy",
+        "name": "Action",
+        "slug": "action",
+        "titles_count": 209,
+        "created_at": "2021-08-21T15:42:47.000Z",
+        "updated_at": "2021-08-21T15:42:47.000Z"
+      },
+      {
+        "id": "aEDVk2vB",
+        "name": "Adult",
+        "slug": "adult",
+        "titles_count": 830,
+        "created_at": "2021-08-21T15:27:19.000Z",
+        "updated_at": "2021-08-21T15:27:19.000Z"
+      },
+      {
+        "id": "Rg8j92MV",
+        "name": "Adventure",
+        "slug": "adventure",
+        "titles_count": 109,
+        "created_at": "2021-08-21T16:30:06.000Z",
+        "updated_at": "2021-08-21T16:30:06.000Z"
+      }
+    ]
+  }
+}

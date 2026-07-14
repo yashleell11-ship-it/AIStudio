@@ -4,7 +4,15 @@ from pathlib import Path
 
 from sqlalchemy.orm import Session
 
-from database.models import Bookmark, Chapter, Page, ReadingProgress, Series
+from database.models import (
+    Bookmark,
+    Chapter,
+    Page,
+    ReadingProgress,
+    Series,
+    SeriesTracker,
+    SourceChapterLink,
+)
 from utils.scanner import ScanResult, _extract_chapter_number
 
 
@@ -70,6 +78,24 @@ def find_parent_series_path(series_path: str, scanned_paths: set[str]) -> str | 
 class ImportCleanupService:
     def __init__(self, db: Session) -> None:
         self._db = db
+
+    def _is_source_linked(self, series_id: int) -> bool:
+        """True if the series is imported/downloaded from an online source and
+        should therefore render the real source cover at serve time."""
+        tracker = (
+            self._db.query(SeriesTracker.id)
+            .filter(SeriesTracker.local_series_id == series_id)
+            .first()
+        )
+        if tracker is not None:
+            return True
+        link = (
+            self._db.query(SourceChapterLink.id)
+            .join(Chapter, Chapter.id == SourceChapterLink.local_chapter_id)
+            .filter(Chapter.series_id == series_id)
+            .first()
+        )
+        return link is not None
 
     def cleanup_after_import(self, library_id: int, scan: ScanResult) -> int:
         removed = self.merge_all_orphans_global()
@@ -175,7 +201,14 @@ class ImportCleanupService:
                 )
             chapter.page_count = len(pages)
 
-        if not parent.cover_path and chapter.page_count > 0:
+        # Source-linked series render the real source cover at serve time; do
+        # not bake a chapter's first page (often a credits/title page) in as the
+        # cover for them. Purely local series still get a page-based fallback.
+        if (
+            not parent.cover_path
+            and chapter.page_count > 0
+            and not self._is_source_linked(parent.id)
+        ):
             first_page = (
                 self._db.query(Page)
                 .filter(Page.chapter_id == chapter.id)

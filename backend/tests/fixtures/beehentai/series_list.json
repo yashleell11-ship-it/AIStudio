@@ -1,0 +1,104 @@
+{
+  "success": true,
+  "data": {
+    "items": [
+      {
+        "id": "oYOGV4Ya",
+        "url": "/onsaemiro",
+        "name": "Onsaemiro",
+        "slug": "onsaemiro",
+        "cover": "https://rx.toondex.io/covers/d514b51f3b5f.webp",
+        "status": "ongoing",
+        "rating": 0,
+        "summary": "Summary of Onsaemiro Manhwa\nTo prepare for her audition to cast in the upcoming historical drama, \u201cMuyoung Tower,\u201d would",
+        "stats": {
+          "views": 0,
+          "bookmarks_count": 0,
+          "comments_count": 0,
+          "chapters_count": 30,
+          "ratings_count": 0,
+          "reviews_count": 0
+        },
+        "updated_at": "2026-07-11T16:48:33.000Z",
+        "latest_chapters": [
+          {
+            "id": "EDV94KdY",
+            "url": "/onsaemiro/chapter-29",
+            "name": "Chapter 29",
+            "slug": "chapter-29",
+            "created_at": "2026-07-11T16:48:17.000Z",
+            "updated_at": "2026-07-11T16:48:17.000Z",
+            "number": 30,
+            "cv": 1783788513629
+          }
+        ],
+        "genres": [
+          {
+            "name": "Romance",
+            "slug": "romance"
+          },
+          {
+            "name": "Supernatural",
+            "slug": "supernatural"
+          }
+        ]
+      },
+      {
+        "id": "bDMAxbDw",
+        "url": "/billiard-club-love",
+        "name": "Billiard Club Love",
+        "slug": "billiard-club-love",
+        "cover": "https://rx.toondex.io/covers/72f57d1be0ee.webp",
+        "status": "completed",
+        "rating": 0,
+        "summary": "Summary of Billiard Club Love Manhwa\n\u201cHow about a billiard bet with your sister?\u201d The shabby billiard room in front of t",
+        "stats": {
+          "views": 0,
+          "bookmarks_count": 0,
+          "comments_count": 0,
+          "chapters_count": 38,
+          "ratings_count": 0,
+          "reviews_count": 0
+        },
+        "updated_at": "2026-07-11T16:46:02.000Z",
+        "latest_chapters": [
+          {
+            "id": "g8j4eORD",
+            "url": "/billiard-club-love/chapter-38",
+            "name": "Chapter 38",
+            "slug": "chapter-38",
+            "created_at": "2026-07-11T16:45:45.000Z",
+            "updated_at": "2026-07-11T16:45:45.000Z",
+            "number": 38,
+            "cv": 1783788362047
+          }
+        ],
+        "genres": [
+          {
+            "name": "Drama",
+            "slug": "drama"
+          },
+          {
+            "name": "Mature",
+            "slug": "mature"
+          },
+          {
+            "name": "Romance",
+            "slug": "romance"
+          }
+        ]
+      }
+    ],
+    "pagination": {
+      "total": 3247,
+      "page": 1,
+      "limit": 2,
+      "total_pages": 1624,
+      "has_next": true,
+      "has_previous": false,
+      "next_cursor": "WzE3ODM3ODgzNjIwMDAsMjE3MDhd",
+      "total_relation": "eq"
+    }
+  },
+  "message": "Search completed successfully"
+}

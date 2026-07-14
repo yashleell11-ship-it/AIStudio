@@ -1,0 +1,23 @@
+{
+  "id": 1267,
+  "slug": "the-artist-who-paints-dungeon",
+  "title": "The Artist Who Paints Dungeon",
+  "alternativeTitles": "던전을 그리는 화가",
+  "description": "<p>In a world transformed by the Great Cataclysm...</p>",
+  "author": "Osot",
+  "artist": "Glee",
+  "cover": "https://media.qimanga.com/file/qiscans/upload/2026/07/06/1783353714140-Enz_9Q-xxlarge.webp",
+  "type": "MANHWA",
+  "status": "ONGOING",
+  "publishStatus": "PUBLIC",
+  "genres": [
+    {"id": 3, "name": "Fantasy", "slug": "fantasy"},
+    {"id": 18, "name": "Supernatural", "slug": "supernatural"}
+  ],
+  "stats": {
+    "averageRating": 2.33,
+    "reviewCount": 3,
+    "chapterCount": 8,
+    "commentCount": 0
+  }
+}

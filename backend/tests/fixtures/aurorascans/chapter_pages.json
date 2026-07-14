@@ -1,0 +1,27 @@
+{
+  "id": 60319,
+  "slug": "chapter-10",
+  "number": 10,
+  "title": null,
+  "content": null,
+  "cover": null,
+  "publishStatus": "PUBLIC",
+  "price": 0,
+  "isFree": true,
+  "becameFreeAt": null,
+  "requiresPurchase": false,
+  "images": [
+    {
+      "url": "https://media.qimanga.com/file/qiscans/upload/series/the-artist-who-paints-dungeon/OWCSJvbhMX/yLlsui/00.webp",
+      "order": 0,
+      "width": 800,
+      "height": 14178
+    },
+    {
+      "url": "https://media.qimanga.com/file/qiscans/upload/series/the-artist-who-paints-dungeon/X9oYwJRijQ/tZqMW2/01.webp",
+      "order": 1,
+      "width": 800,
+      "height": 11050
+    }
+  ]
+}

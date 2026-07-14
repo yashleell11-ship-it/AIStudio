@@ -1,0 +1,38 @@
+{
+  "code": 0,
+  "message": "ok",
+  "data": {
+    "items": [
+      {
+        "id": 1325,
+        "slug": "secret-workshop",
+        "title": "Secret Workshop",
+        "cover_url": "https://cdn.comicland.org/secret-workshop/cover.jpg",
+        "description": "The temptation of middle-aged women reach out to a man who thought sex was boring.",
+        "rating": 5,
+        "rating_count": 3,
+        "alt_titles": null,
+        "updated_ts": "0001-01-01T00:00:00Z",
+        "status": "",
+        "chapter_count": 0,
+        "source": ""
+      },
+      {
+        "id": 8465,
+        "slug": "the-secrets-of-a-eunuch",
+        "title": "The Secrets of A Eunuch",
+        "cover_url": "https://cdn.comicland.org/the-secrets-of-a-eunuch/cover.jpg",
+        "description": "To protect her brother, Hari enters the royal palace disguised as a eunuch. Despite her worries, life as a male court attendant turns out to be surprisingly peaceful. At least, until she is suddenly assigned to serve Prince Sohyeon, Lee Ryeong, known for his striking beauty and well known attraction to men, in his private chambers. \u201cFrom now on, you will attend to the prince at night.\u201d That very evening, Hari is ordered to help arouse the prince, a task she has no way of fulfilling. Her panic spirals, and in the chaos, her greatest fear comes true, her true identity as a woman is exposed. \u201cYou, you are a girl.\u201d Now discovered in the most dangerous place possible, Hari must find a way to survive the palace, its secrets, and the gaze of the prince who holds her life in his hands.",
+        "rating": 5,
+        "rating_count": 2,
+        "alt_titles": null,
+        "updated_ts": "0001-01-01T00:00:00Z",
+        "status": "",
+        "chapter_count": 0,
+        "source": ""
+      }
+    ],
+    "total": 60,
+    "has_more": true
+  }
+}

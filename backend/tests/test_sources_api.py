@@ -24,6 +24,7 @@ def test_list_sources():
     source_ids = {item["id"] for item in payload}
     assert source_ids >= {"asurascans", "mangadex", "mangakatana"}
     assert all(item["browsable"] is True for item in payload)
+    assert all("icon_url" in item for item in payload)
 
 
 def test_list_mangadex_series():
