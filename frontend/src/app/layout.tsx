@@ -1,24 +1,21 @@
 import type { Metadata } from "next";
-import { Bebas_Neue, Inter, Space_Mono } from "next/font/google";
+import { Syne, DM_Sans } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { Providers } from "./providers";
 import "./globals.css";
 
-const inter = Inter({
-  variable: "--font-inter",
+const syne = Syne({
   subsets: ["latin"],
+  weight: ["400", "500", "600", "700", "800"],
+  variable: "--font-syne",
+  display: "swap",
 });
 
-const spaceMono = Space_Mono({
-  variable: "--font-space-mono",
+const dmSans = DM_Sans({
   subsets: ["latin"],
-  weight: ["400", "700"],
-});
-
-const bebasNeue = Bebas_Neue({
-  variable: "--font-bebas",
-  subsets: ["latin"],
-  weight: "400",
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-dm-sans",
+  display: "swap",
 });
 
 export const metadata: Metadata = {
@@ -32,7 +29,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${inter.variable} ${spaceMono.variable} ${bebasNeue.variable} antialiased`}
+      className={`${syne.variable} ${dmSans.variable} antialiased`}
     >
       <body>
         <Providers>

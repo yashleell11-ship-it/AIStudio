@@ -1,4 +1,3 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,12 +7,14 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/sources/utils/source_branding.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/pressable.dart';
-import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
+import 'package:manhwamaniacs/shared/widgets/scroll_reveal.dart';
+import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 
 class SourceBrowserScreen extends ConsumerStatefulWidget {
   const SourceBrowserScreen({super.key, required this.sourceId});
@@ -78,20 +79,38 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
         ?.firstWhereOrNull((s) => s.id == widget.sourceId);
     final sourceName = source?.name ?? prettifySourceId(widget.sourceId);
 
+    // Subtle confirmation the moment the catalog resolves (success or error),
+    // honouring the user's interaction-feedback preference via hapticsProvider.
+    ref.listen<AsyncValue<SourceBrowseState>>(
+      sourceBrowseProvider(widget.sourceId),
+      (previous, next) {
+        if (previous != null && previous.isLoading && !next.isLoading) {
+          ref.read(hapticsProvider).light();
+        }
+      },
+    );
+
     return Scaffold(
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
-          onPressed: () => context.go(Routes.sources),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go(Routes.sources),
         ),
         title: Row(
           children: [
-            SourceLogo(id: widget.sourceId, name: sourceName, size: 28),
+            SourceLogo(
+              id: widget.sourceId,
+              name: sourceName,
+              iconUrl: source?.iconUrl,
+              size: 28,
+            ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
                 sourceName,
-                style: AppTypography.h4,
+                style: AppTypography.h4.copyWith(color: AppColors.primary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -179,29 +198,51 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                 },
               ),
               Expanded(
-                child: browseAsync.when(
-                  loading: _buildLoadingGrid,
-                  error: (error, _) => _buildError(error),
-                  data: (state) {
-                    if (state.isEmpty) {
-                      return EmptyState(
-                        icon: Icons.search_off,
-                        message: query.search.isEmpty
-                            ? 'No series found'
-                            : 'No results for "${query.search}"',
-                        subtitle: query.search.isEmpty
-                            ? 'This source returned no browse results.'
-                            : 'Try a different search term.',
-                      );
-                    }
+                child: AnimatedSwitcher(
+                  duration: MediaQuery.disableAnimationsOf(context)
+                      ? Duration.zero
+                      : const Duration(milliseconds: 450),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  child: browseAsync.when(
+                    skipLoadingOnReload: true,
+                    loading: () => KeyedSubtree(
+                      key: const ValueKey('source-browse-loading'),
+                      child: _SourceOpeningState(
+                        sourceId: widget.sourceId,
+                        sourceName: sourceName,
+                        iconUrl: source?.iconUrl,
+                      ),
+                    ),
+                    error: (error, _) => KeyedSubtree(
+                      key: const ValueKey('source-browse-error'),
+                      child: _buildError(error),
+                    ),
+                    data: (state) {
+                      if (state.isEmpty) {
+                        return KeyedSubtree(
+                          key: const ValueKey('source-browse-empty'),
+                          child: EmptyState(
+                            icon: Icons.search_off,
+                            message: query.search.isEmpty
+                                ? 'No series found'
+                                : 'No results for "${query.search}"',
+                            subtitle: query.search.isEmpty
+                                ? 'This source returned no browse results.'
+                                : 'Try a different search term.',
+                          ),
+                        );
+                      }
 
-                    return RefreshIndicator(
-                      color: AppColors.primary,
-                      onRefresh: () =>
-                          ref.read(sourceBrowseProvider(widget.sourceId).notifier).refresh(),
-                      child: CustomScrollView(
-                        controller: _scrollController,
-                        slivers: [
+                      return RefreshIndicator(
+                        key: const ValueKey('source-browse-data'),
+                        color: AppColors.primary,
+                        onRefresh: () => ref
+                            .read(sourceBrowseProvider(widget.sourceId).notifier)
+                            .refresh(),
+                        child: CustomScrollView(
+                          controller: _scrollController,
+                          slivers: [
                           // Result count header
                           SliverPadding(
                             padding: const EdgeInsets.fromLTRB(
@@ -233,12 +274,15 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                               itemCount: state.items.length,
                               itemBuilder: (context, index) {
                                 final series = state.items[index];
-                                return _DenseSeriesCard(
-                                  series: series,
-                                  onTap: () => context.go(
-                                    RoutePaths.sourceSeriesDetail(
-                                      widget.sourceId,
-                                      series.id,
+                                return ScrollReveal(
+                                  index: index,
+                                  child: _DenseSeriesCard(
+                                    series: series,
+                                    onTap: () => context.go(
+                                      RoutePaths.sourceSeriesDetail(
+                                        widget.sourceId,
+                                        series.id,
+                                      ),
                                     ),
                                   ),
                                 );
@@ -263,6 +307,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                     );
                   },
                 ),
+                ),
               ),
             ],
           ),
@@ -284,23 +329,6 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
               ),
             ),
         ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingGrid() {
-    return GridView.builder(
-      padding: const EdgeInsets.all(AppSpacing.sm),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        crossAxisSpacing: AppSpacing.xs,
-        mainAxisSpacing: AppSpacing.xs,
-        childAspectRatio: 0.56,
-      ),
-      itemCount: 12,
-      itemBuilder: (_, __) => const SkeletonBox(
-        width: double.infinity,
-        height: double.infinity,
       ),
     );
   }
@@ -396,6 +424,58 @@ class _NavPill extends StatelessWidget {
   }
 }
 
+// ── Catalog opening state ─────────────────────────────────────────────────────
+
+/// Shown while a source catalog is being fetched: the source logo, an
+/// "Opening {name}…" line, and a warm amber spinner. Deliberately minimal — the
+/// app bar already names the source, so this never duplicates the heading.
+class _SourceOpeningState extends StatelessWidget {
+  const _SourceOpeningState({
+    required this.sourceId,
+    required this.sourceName,
+    this.iconUrl,
+  });
+
+  final String sourceId;
+  final String sourceName;
+  final String? iconUrl;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl2),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SourceLogo(
+              id: sourceId,
+              name: sourceName,
+              iconUrl: iconUrl,
+              size: 72,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            Text(
+              'Opening $sourceName…',
+              textAlign: TextAlign.center,
+              style: AppTypography.h4,
+            ),
+            const SizedBox(height: AppSpacing.xl),
+            const SizedBox(
+              width: 28,
+              height: 28,
+              child: CircularProgressIndicator(
+                strokeWidth: 2.5,
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 // ── Dense cover-focused card ──────────────────────────────────────────────────
 
 class _DenseSeriesCard extends StatelessWidget {
@@ -409,18 +489,22 @@ class _DenseSeriesCard extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(AppRadius.md),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.panel,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            border: Border.all(color: AppColors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Expanded(
                 flex: 6,
-                child: _CoverImage(url: series.coverUrl),
+                child: SeriesCoverImage(
+                  url: series.coverUrl,
+                  borderRadius: 0,
+                ),
               ),
               Expanded(
                 child: Padding(
@@ -443,26 +527,6 @@ class _DenseSeriesCard extends StatelessWidget {
             ],
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _CoverImage extends StatelessWidget {
-  const _CoverImage({required this.url});
-
-  final String url;
-
-  @override
-  Widget build(BuildContext context) {
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      fadeInDuration: const Duration(milliseconds: 180),
-      placeholder: (_, __) => const ColoredBox(color: AppColors.surface2),
-      errorWidget: (_, __, ___) => const ColoredBox(
-        color: AppColors.surface2,
-        child: Icon(Icons.broken_image_outlined, color: AppColors.muted, size: 24),
       ),
     );
   }

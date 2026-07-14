@@ -11,6 +11,8 @@ import 'package:manhwamaniacs/features/library/providers/intelligence_providers.
 import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class RecommendationsScreen extends ConsumerWidget {
@@ -62,9 +64,9 @@ class RecommendationsScreen extends ConsumerWidget {
               icon: Icons.auto_awesome_outlined,
               message: 'No recommendations yet',
               subtitle: 'Start reading some series to get personalized recommendations.',
-              action: FilledButton(
+              action: PrimaryPillButton(
+                label: 'Browse Library',
                 onPressed: () => context.go(Routes.libraryBrowse),
-                child: const Text('Browse Library'),
               ),
             );
           }
@@ -75,7 +77,7 @@ class RecommendationsScreen extends ConsumerWidget {
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.xl2),
               children: [
-                Text('Recommendations', style: AppTypography.displayMd),
+                const HeroHeading(text: 'Recommendations'),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Based on your reading history, tags, and authors.',

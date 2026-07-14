@@ -68,10 +68,14 @@ final storageMetricsProvider =
 
 class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
   Timer? _pollTimer;
+  bool _disposed = false;
 
   @override
   Future<DownloadsState> build() async {
-    ref.onDispose(() => _pollTimer?.cancel());
+    ref.onDispose(() {
+      _disposed = true;
+      _pollTimer?.cancel();
+    });
     final data = await _fetch();
     _schedulePolling(data.items);
     return data;
@@ -118,6 +122,10 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
 
     try {
       final data = await _fetch();
+      // The notifier can autoDispose while `_fetch` is in flight; its
+      // onDispose already ran and cancelled the timer, so rescheduling here
+      // would leak a zombie Timer firing on a disposed notifier forever.
+      if (_disposed) return;
       _schedulePolling(data.items);
       state = AsyncData(
         current.copyWith(
@@ -181,6 +189,7 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
         current.copyWith(
           actionPending: false,
           actionError: appError,
+          clearFeedback: true,
         ),
       );
     }
@@ -200,7 +209,11 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
     final result = await action();
     if (result.isErr) {
       state = AsyncData(
-        current.copyWith(actionPending: false, actionError: result.error),
+        current.copyWith(
+          actionPending: false,
+          actionError: result.error,
+          clearFeedback: true,
+        ),
       );
       return;
     }

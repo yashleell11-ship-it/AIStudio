@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 import 'package:manhwamaniacs/shared/widgets/stat_card.dart';
 
@@ -59,7 +60,7 @@ class StatisticsScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
             children: [
-              Text('Reading Statistics', style: AppTypography.displayMd),
+              const HeroHeading(text: 'Reading Statistics'),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Your library and reading activity at a glance.',
@@ -78,13 +79,13 @@ class StatisticsScreen extends ConsumerWidget {
                     icon: Icons.menu_book_outlined,
                     value: numberFormat.format(stats.totalSeries),
                     label: 'Total Series',
-                    accent: StatAccent.violet,
+                    accent: StatAccent.amber,
                   ),
                   StatCard(
                     icon: Icons.schedule,
                     value: numberFormat.format(stats.totalChapters),
                     label: 'Total Chapters',
-                    accent: StatAccent.cyan,
+                    accent: StatAccent.amber,
                   ),
                   StatCard(
                     icon: Icons.storage_outlined,
@@ -102,7 +103,7 @@ class StatisticsScreen extends ConsumerWidget {
                     icon: Icons.play_circle_outline,
                     value: '${stats.inProgress}',
                     label: 'In Progress',
-                    accent: StatAccent.cyan,
+                    accent: StatAccent.amber,
                   ),
                   StatCard(
                     icon: Icons.star_outline,
@@ -120,7 +121,7 @@ class StatisticsScreen extends ConsumerWidget {
                     icon: Icons.calendar_today_outlined,
                     value: '${stats.pagesReadThisWeek}',
                     label: 'Pages This Week',
-                    accent: StatAccent.violet,
+                    accent: StatAccent.amber,
                   ),
                   StatCard(
                     icon: Icons.speed_outlined,
@@ -129,7 +130,7 @@ class StatisticsScreen extends ConsumerWidget {
                             .format(stats.readingVelocityPagesPerHour.round())
                         : '—',
                     label: 'Pages / Hour',
-                    accent: StatAccent.cyan,
+                    accent: StatAccent.amber,
                   ),
                   StatCard(
                     icon: Icons.hourglass_bottom_outlined,
@@ -196,7 +197,15 @@ class _CompletionCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppSpacing.sm),
-          LinearProgressIndicator(value: stats.completionRatePct / 100),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            child: LinearProgressIndicator(
+              value: stats.completionRatePct / 100,
+              minHeight: 8,
+              color: AppColors.primary,
+              backgroundColor: AppColors.fg.withAlpha(20),
+            ),
+          ),
         ],
       ),
     );

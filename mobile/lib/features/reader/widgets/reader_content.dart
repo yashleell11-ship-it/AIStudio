@@ -7,8 +7,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/core/platform/native_bridge.dart';
 import 'package:manhwamaniacs/core/utils/haptics.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
@@ -127,6 +129,15 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   var _lastSavedPage = 0;
   var _pendingPage = 0;
   var _initialScrollApplied = false;
+
+  // Deferred scroll-restore state. On a long webtoon the ListView.builder has
+  // only laid out the viewport + cache extent on the first frame, so the true
+  // maxScrollExtent is far smaller than a deep saved offset. We jump toward the
+  // target across successive frames (each jump forces more pages to lay out and
+  // grows maxScrollExtent) until we can land on it, and suppress scroll saves in
+  // the meantime so a clamped-short interim offset never overwrites the saved one.
+  double? _pendingRestoreOffset;
+  double _lastRestoreMaxExtent = -1;
   var _autoNextTriggered = false;
   var _wakelockEnabled = false;
   var _lockInitialized = false;
@@ -174,6 +185,14 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       }
       // Start the auto-hide timer for the initial controls display
       _scheduleHideControls();
+      // readerUiProvider is app-scoped, so autoScrollEnabled survives a
+      // chapter transition (context.go rebuilds a fresh state). The build-time
+      // listener only fires on a change, never on this initial mount, so
+      // without this the toggle would read ON while scrolling had silently
+      // stopped. Resume it here so the persisted state and behaviour agree.
+      if (ref.read(readerUiProvider).autoScrollEnabled) {
+        _startAutoScroll();
+      }
     });
   }
 
@@ -193,7 +212,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     if (_scrollController.hasClients && _prefs != null) {
       writeReaderScrollPositionByKey(
         _prefs!,
-        widget.scrollStorageKey,
+        _scrollKey,
         _scrollController.offset,
       );
     }
@@ -207,6 +226,14 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   }
 
   SharedPreferences _resolvedPrefs() => _prefs ?? ref.read(sharedPrefsProvider);
+
+  /// Scroll-resume key namespaced by the active profile. This is a household /
+  /// multi-profile app, so persisting under the bare chapter key leaked one
+  /// persona's reading position into another's session (both readers shared a
+  /// single SharedPreferences entry per chapter). Prefixing with the active
+  /// profile id keeps each persona's position private.
+  String get _scrollKey =>
+      '${ref.read(activeProfileProvider)?.id ?? 'none'}:${widget.scrollStorageKey}';
 
   ReaderDefaults get _defaults => ref.read(readerDefaultsProvider);
 
@@ -273,8 +300,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     final defaults = _defaults;
     final width = _containerWidth ?? MediaQuery.sizeOf(context).width;
     final height = _containerHeight ?? MediaQuery.sizeOf(context).height;
-    final savedScroll =
-        readReaderScrollPositionByKey(prefs, widget.scrollStorageKey);
+    final savedScroll = readReaderScrollPositionByKey(prefs, _scrollKey);
     final targetPage = widget.initialPage.clamp(1, widget.chapter.pages.length);
     final estimatedOffset = estimateScrollOffsetToPage(
       widget.chapter.pages,
@@ -291,13 +317,48 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       estimatedOffsetToPage: estimatedOffset,
     );
 
-    if (initialOffset > 0) {
-      _scrollController.jumpTo(
-        initialOffset.clamp(0, _scrollController.position.maxScrollExtent),
-      );
+    if (initialOffset <= 0) {
+      _initialScrollApplied = true;
+      _handleScroll();
+      return;
     }
-    _initialScrollApplied = true;
-    _handleScroll();
+
+    // Defer the jump: the target offset may exceed the still-growing
+    // maxScrollExtent on this first frame. _attemptRestoreJump nudges the list
+    // forward frame by frame until it can land exactly on [initialOffset].
+    _pendingRestoreOffset = initialOffset;
+    _lastRestoreMaxExtent = -1;
+    _attemptRestoreJump();
+  }
+
+  /// Drive the deferred scroll-restore. Called once per frame while a restore is
+  /// pending. Each interim jump extends the ListView.builder's laid-out range,
+  /// so [maxScrollExtent] grows until it reaches the saved offset — at which
+  /// point we land exactly on it. If the list stops growing before reaching the
+  /// target (chapter genuinely shorter than the estimate), we settle at the real
+  /// end. Only once landed do we mark [_initialScrollApplied] and let scroll
+  /// saves resume, so a clamped-short interim offset can never be persisted.
+  void _attemptRestoreJump() {
+    final target = _pendingRestoreOffset;
+    if (target == null || !mounted || !_scrollController.hasClients) return;
+
+    final maxExtent = _scrollController.position.maxScrollExtent;
+    final reachedTarget = maxExtent >= target;
+    final stoppedGrowing = maxExtent <= _lastRestoreMaxExtent;
+
+    if (reachedTarget || stoppedGrowing) {
+      _scrollController.jumpTo(target.clamp(0.0, maxExtent));
+      _pendingRestoreOffset = null;
+      _initialScrollApplied = true;
+      _handleScroll();
+      return;
+    }
+
+    // Still growing and not yet there: jump as far as we can now to force more
+    // pages to lay out, then re-check next frame.
+    _lastRestoreMaxExtent = maxExtent;
+    _scrollController.jumpTo(target.clamp(0.0, maxExtent));
+    WidgetsBinding.instance.addPostFrameCallback((_) => _attemptRestoreJump());
   }
 
   void _handleScroll() {
@@ -363,11 +424,15 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       _containerWidth,
       MediaQuery.devicePixelRatioOf(context),
     );
+    final headers = apiImageHttpHeaders(ref.read(authTokenStoreProvider).token);
     for (var i = _prefetchedThrough; i < target; i++) {
       final provider = ResizeImage.resizeIfNeeded(
         decodeWidth,
         null,
-        CachedNetworkImageProvider(pages[i].imageUrl),
+        CachedNetworkImageProvider(
+          pages[i].imageUrl,
+          headers: headers,
+        ),
       );
       // Fire and forget; swallow errors so a bad page never crashes reading.
       precacheImage(provider, context, onError: (_, __) {});
@@ -376,13 +441,18 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   }
 
   void _scheduleScrollSave(double scrollTop) {
+    // While a deferred restore is still homing in on the saved offset, the
+    // controller sits at a clamped-short interim position. Persisting it would
+    // overwrite the very offset we are trying to restore, so hold off until the
+    // restore has landed.
+    if (_pendingRestoreOffset != null) return;
     _scrollSaveTimer?.cancel();
     _scrollSaveTimer = Timer(const Duration(milliseconds: _scrollSaveMs), () {
       final prefs = _prefs;
       if (prefs == null) return;
       writeReaderScrollPositionByKey(
         prefs,
-        widget.scrollStorageKey,
+        _scrollKey,
         scrollTop,
       );
     });
@@ -646,11 +716,15 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _hideControlsTimer?.cancel();
     showModalBottomSheet<void>(
       context: context,
-      backgroundColor: AppColors.panel,
+      // Elevated surface (#181818) so the sheet lifts off the reader's near-
+      // black page backdrop.
+      backgroundColor: AppColors.surfaceElevated,
       // Scroll-controlled so the settings sheet is never clipped and its
       // actions stay reachable regardless of content height.
       isScrollControlled: true,
-      showDragHandle: false,
+      // Swipe-down-to-dismiss with a visible grab handle (system back alone was
+      // not discoverable). enableDrag defaults to true.
+      showDragHandle: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
       ),
@@ -678,6 +752,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     required double zoom,
     required double viewportWidth,
     required double viewportHeight,
+    required Color backgroundColor,
   }) {
     final page = widget.chapter.pages[index];
     final pageNumber = index + 1;
@@ -693,6 +768,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       alt: '${widget.chapter.title} page $pageNumber',
       aspectRatio: aspectRatio,
       fitMode: fitMode,
+      backgroundColor: backgroundColor,
       layoutAxis: direction.scrollAxis,
       viewportWidth: viewportWidth,
       viewportHeight: viewportHeight,
@@ -721,16 +797,16 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       );
     }
 
+    // Vertical (webtoon) mode: no inter-page padding so pages sit flush
+    // edge-to-edge. Any earlier gap rendered the backdrop as a seam between
+    // pages; letterboxing now uses the backdrop colour inside the page itself.
     return RepaintBoundary(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-        child: Align(
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: FractionallySizedBox(
-              widthFactor: contentWidthFactor,
-              child: pageImage,
-            ),
+      child: Align(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: maxWidth),
+          child: FractionallySizedBox(
+            widthFactor: contentWidthFactor,
+            child: pageImage,
           ),
         ),
       ),
@@ -830,6 +906,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
           zoom: zoomLevel,
           viewportWidth: mediaSize.width,
           viewportHeight: mediaSize.height,
+          backgroundColor: readerBackground.color,
         ),
       ),
     );
@@ -859,7 +936,9 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
                 // hard-cuts behind the letterboxed pages.
                 Positioned.fill(
                   child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 300),
+                    duration: MediaQuery.disableAnimationsOf(context)
+                        ? Duration.zero
+                        : const Duration(milliseconds: 300),
                     curve: Curves.easeOut,
                     color: readerBackground.color,
                   ),
@@ -1022,6 +1101,7 @@ class _ReaderControlsLayer extends ConsumerWidget {
                   hasNext: hasNext,
                   onPreviousChapter: onPreviousChapter,
                   onNextChapter: onNextChapter,
+                  onSettings: onMoreOptions,
                 ),
               ),
             ),
@@ -1042,14 +1122,17 @@ class _AnimatedEdgePrompt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return IgnorePointer(
       ignoring: !visible,
       child: AnimatedScale(
         scale: visible ? 1.0 : 0.9,
-        duration: const Duration(milliseconds: 240),
+        duration:
+            reduceMotion ? Duration.zero : const Duration(milliseconds: 240),
         curve: Curves.easeOutBack,
         child: AnimatedOpacity(
-          duration: const Duration(milliseconds: 200),
+          duration:
+              reduceMotion ? Duration.zero : const Duration(milliseconds: 200),
           opacity: visible ? 1.0 : 0.0,
           child: child,
         ),

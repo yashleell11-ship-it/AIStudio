@@ -1,12 +1,17 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/core/network/api_image.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 
 /// Cover image for a library series or source series.
 ///
 /// Uses CachedNetworkImage with a shimmer placeholder and graceful fallback.
-class SeriesCoverImage extends StatelessWidget {
+/// Attaches the session bearer token so proxied `/library/covers/*` and
+/// `/sources/*/cover` routes succeed (they require authentication).
+class SeriesCoverImage extends ConsumerWidget {
   const SeriesCoverImage({
     super.key,
     required this.url,
@@ -23,11 +28,14 @@ class SeriesCoverImage extends StatelessWidget {
   final BoxFit fit;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final headers = apiImageHttpHeaders(ref.watch(authTokenStoreProvider).token);
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),
       child: CachedNetworkImage(
         imageUrl: url,
+        httpHeaders: headers,
         width: width,
         height: height,
         fit: fit,

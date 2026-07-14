@@ -28,14 +28,13 @@ final sourceReaderChapterProvider = FutureProvider.autoDispose
     chapterId: key.chapterId,
   );
   if (offline != null) {
-    final chapterResult =
-        await ref.read(libraryRepositoryProvider).getChapter(offline.chapterId);
-    if (chapterResult.isOk) {
-      return readerChapterFromLibraryDetail(
-        chapterResult.value,
-        ref.read(apiBaseUrlProvider),
-      );
-    }
+    // The handoff already fetched the ChapterDetail while resolving the local
+    // ids; map it straight through instead of a redundant second getChapter on
+    // exactly this dead/blocked-source failure path.
+    return readerChapterFromLibraryDetail(
+      offline.chapter,
+      ref.read(apiBaseUrlProvider),
+    );
   }
 
   throw result.error;

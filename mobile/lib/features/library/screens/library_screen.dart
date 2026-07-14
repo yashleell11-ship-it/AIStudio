@@ -17,6 +17,8 @@ import 'package:manhwamaniacs/features/library/providers/library_selection_provi
 import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/library_toolbar.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
   const LibraryScreen({super.key});
@@ -152,7 +154,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ],
             )
           : AppBar(
-              title: const Text('Browse Library'),
+              backgroundColor: Colors.transparent,
               leading: IconButton(
                 icon: const Icon(Icons.arrow_back),
                 onPressed: () =>
@@ -180,6 +182,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                const FadeIn(child: HeroHeading(text: 'Library')),
+                const SizedBox(height: AppSpacing.xl2),
                 LibraryToolbar(
                   query: query,
                   seriesCount: 0,
@@ -331,6 +335,8 @@ class _LibraryBody extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            const FadeIn(child: HeroHeading(text: 'Library')),
+            const SizedBox(height: AppSpacing.xl2),
             LibraryToolbar(
               query: query,
               seriesCount: state.total,

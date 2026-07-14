@@ -430,7 +430,8 @@ void main() {
       await tester.tap(find.byIcon(Icons.close));
       await tester.pumpAndSettle();
 
-      expect(find.text('Browse Library'), findsOneWidget);
+      // Normal AppBar shows the HeroHeading title, which uppercases to "LIBRARY".
+      expect(find.text('LIBRARY'), findsOneWidget);
       expect(find.byIcon(Icons.checklist), findsOneWidget);
     });
 
@@ -450,7 +451,8 @@ void main() {
       await tester.pumpAndSettle();
 
       // Selection mode exits automatically once the batch action completes.
-      expect(find.text('Browse Library'), findsOneWidget);
+      // Normal AppBar shows the HeroHeading title, which uppercases to "LIBRARY".
+      expect(find.text('LIBRARY'), findsOneWidget);
       expect(find.byIcon(Icons.checklist), findsOneWidget);
     });
   });

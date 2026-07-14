@@ -72,7 +72,7 @@ export function RegisterScreen() {
 
   return (
     <AuthCard
-      title={isBootstrap ? "Create the first account" : "Create your account"}
+      title={isBootstrap ? "Create the first account" : "Join ManhwaManiacs"}
       subtitle={
         isBootstrap
           ? "This first account becomes the administrator."
@@ -81,7 +81,10 @@ export function RegisterScreen() {
       footer={
         <>
           Already have an account?{" "}
-          <Link href="/login" className="font-medium text-violet-400 hover:text-violet-300">
+          <Link
+            href="/login"
+            className="font-medium text-primary transition-colors hover:text-primary-hover"
+          >
             Sign in
           </Link>
         </>

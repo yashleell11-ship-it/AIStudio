@@ -64,7 +64,7 @@ export function UserMenu() {
         className="flex items-center gap-2 rounded-lg py-1 pl-1 pr-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
       >
         <span
-          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-semibold text-white"
+          className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary to-accent text-xs font-semibold text-white"
           aria-hidden
         >
           {initials(label)}
@@ -89,7 +89,7 @@ export function UserMenu() {
               <p className="mt-0.5 truncate text-xs text-muted">{user.email}</p>
             ) : null}
             {user.is_admin ? (
-              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-violet-500/30 bg-violet-500/15 px-2 py-0.5 text-xs font-medium text-violet-400">
+              <span className="mt-2 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
                 <ShieldCheck className="size-3" aria-hidden />
                 Administrator
               </span>

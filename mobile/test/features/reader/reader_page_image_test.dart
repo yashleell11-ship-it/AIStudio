@@ -1,6 +1,7 @@
 ﻿import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_page_image.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
@@ -100,10 +101,12 @@ int _crc32(Uint8List data) {
 }
 
 Widget _harness({required double width, required Widget child}) {
-  return MaterialApp(
-    home: SingleChildScrollView(
-      child: Center(
-        child: SizedBox(width: width, child: child),
+  return ProviderScope(
+    child: MaterialApp(
+      home: SingleChildScrollView(
+        child: Center(
+          child: SizedBox(width: width, child: child),
+        ),
       ),
     ),
   );

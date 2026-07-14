@@ -43,19 +43,32 @@ export interface SeriesListResponse {
 }
 
 export interface ChapterSummary {
-  id: number;
+  /** Local chapter id. Null for remote-only chapters not yet downloaded. */
+  id: number | null;
   series_id: number;
   title: string;
   number: number | null;
   page_count: number;
   folder_path: string | null;
   archive_path: string | null;
+  /** Same as id when a local copy exists; null otherwise. */
+  local_chapter_id?: number | null;
+  /** Whether a downloaded local copy exists. */
+  is_downloaded?: boolean;
+  /** Whether the chapter is marked read. */
+  is_read?: boolean;
+  /** Source chapter id (e.g. 'killer-pietro-a80d257e:2'). Null when unknown. */
+  source_chapter_id?: string | null;
 }
 
 export interface SeriesDetail extends SeriesSummary {
   chapters: ChapterSummary[];
   tags: Tag[];
   collections: CollectionRef[];
+  /** Online source id this series is linked to, or null. */
+  source_id?: string | null;
+  /** The source's series id, or null. */
+  source_series_id?: string | null;
 }
 
 export interface PageInfo {

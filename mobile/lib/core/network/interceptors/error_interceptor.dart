@@ -31,6 +31,7 @@ class ErrorInterceptor extends Interceptor {
         return NetworkError(
           message: err.message ?? 'Connection failed',
           cause: err.error,
+          host: _hostOf(err),
         );
 
       case DioExceptionType.badResponse:
@@ -47,12 +48,21 @@ class ErrorInterceptor extends Interceptor {
         return NetworkError(
           message: 'TLS certificate error',
           cause: err.error,
+          host: _hostOf(err),
         );
 
       case DioExceptionType.unknown:
         if (err.error is AppError) return err.error! as AppError;
         return UnknownError(message: err.message ?? 'Unknown error', cause: err.error);
     }
+  }
+
+  /// Best-effort host for the failed request, for a user-facing message that
+  /// names the unreachable server. Falls back to the configured base URL.
+  String? _hostOf(DioException err) {
+    final host = err.requestOptions.uri.host;
+    if (host.isNotEmpty) return host;
+    return Uri.tryParse(err.requestOptions.baseUrl)?.host;
   }
 
   AppError _mapApiResponse(Response<dynamic> response) {

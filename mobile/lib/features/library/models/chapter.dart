@@ -1,15 +1,21 @@
 class ChapterSummary {
   const ChapterSummary({
-    required this.id,
+    this.id,
     required this.seriesId,
     required this.title,
     this.number,
     required this.pageCount,
     this.folderPath,
     this.archivePath,
+    this.localChapterId,
+    this.isDownloaded = true,
+    this.isRead = false,
+    this.sourceChapterId,
   });
 
-  final int id;
+  /// Local chapter id. Null for remote-only chapters that exist in the source
+  /// catalog but have not been downloaded.
+  final int? id;
   final int seriesId;
   final String title;
   final double? number;
@@ -17,14 +23,30 @@ class ChapterSummary {
   final String? folderPath;
   final String? archivePath;
 
+  /// Same as [id] when a local copy exists; null otherwise.
+  final int? localChapterId;
+
+  /// Whether a local (downloaded) copy of this chapter exists.
+  final bool isDownloaded;
+
+  /// Whether the chapter has been marked read.
+  final bool isRead;
+
+  /// Source chapter id (e.g. 'killer-pietro-a80d257e:2'). Null when unknown.
+  final String? sourceChapterId;
+
   factory ChapterSummary.fromJson(Map<String, dynamic> json) => ChapterSummary(
-        id: json['id'] as int,
+        id: json['id'] as int?,
         seriesId: json['series_id'] as int,
         title: json['title'] as String,
         number: json['number'] != null ? (json['number'] as num).toDouble() : null,
-        pageCount: json['page_count'] as int,
+        pageCount: (json['page_count'] as int?) ?? 0,
         folderPath: json['folder_path'] as String?,
         archivePath: json['archive_path'] as String?,
+        localChapterId: json['local_chapter_id'] as int?,
+        isDownloaded: (json['is_downloaded'] as bool?) ?? (json['id'] != null),
+        isRead: (json['is_read'] as bool?) ?? false,
+        sourceChapterId: json['source_chapter_id'] as String?,
       );
 }
 

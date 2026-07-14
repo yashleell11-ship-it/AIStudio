@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_error.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_header.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 
 /// Sign-in screen. When the backend reports it still needs its first account
 /// (`needs_bootstrap`) this instead guides the user to create the first
@@ -64,6 +70,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _copyServerUrl(String baseUrl) async {
+    await Clipboard.setData(ClipboardData(text: baseUrl));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Copied $baseUrl')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final bootstrap = ref.watch(bootstrapStatusProvider);
@@ -78,9 +92,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             padding: const EdgeInsets.all(AppSpacing.xl2),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: needsBootstrap
-                  ? _buildBootstrapPrompt(context)
-                  : _buildLoginForm(context, registrationEnabled),
+              child: GlassPanel(
+                padding: const EdgeInsets.all(AppSpacing.xl2),
+                child: needsBootstrap
+                    ? _buildBootstrapPrompt(context)
+                    : _buildLoginForm(context, registrationEnabled),
+              ),
             ),
           ),
         ),
@@ -98,9 +115,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               '— it becomes the administrator.',
         ),
         const SizedBox(height: AppSpacing.xl2),
-        FilledButton(
+        PrimaryPillButton(
+          label: 'Create the first account',
+          expanded: true,
           onPressed: () => context.go(Routes.register),
-          child: const Text('Create the first account'),
         ),
       ],
     );
@@ -108,6 +126,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildLoginForm(BuildContext context, bool registrationEnabled) {
     final errorMessage = _errorMessage;
+    final baseUrl = ref.watch(apiBaseUrlProvider);
+    final serverHost = Uri.tryParse(baseUrl)?.host;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -116,6 +136,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           title: 'Welcome back',
           subtitle: 'Sign in to your ManhwaManiacs account to continue.',
         ),
+        if (serverHost != null) ...[
+          const SizedBox(height: AppSpacing.sm),
+          // Tap to copy the full base URL — lets users share it with support
+          // when a connection fails.
+          GestureDetector(
+            onTap: () => _copyServerUrl(baseUrl),
+            behavior: HitTestBehavior.opaque,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Flexible(
+                  child: Text(
+                    'Server: $serverHost',
+                    style:
+                        AppTypography.caption.copyWith(color: AppColors.muted),
+                  ),
+                ),
+                const SizedBox(width: AppSpacing.xs),
+                const Icon(
+                  Icons.copy_outlined,
+                  size: 14,
+                  color: AppColors.muted,
+                ),
+              ],
+            ),
+          ),
+        ],
         const SizedBox(height: AppSpacing.xl2),
         TextField(
           controller: _usernameController,
@@ -164,15 +211,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           AuthError(message: errorMessage),
         ],
         const SizedBox(height: AppSpacing.lg),
-        FilledButton(
-          onPressed: _pending ? null : _submit,
-          child: _pending
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : const Text('Sign in'),
+        // Warm CTA pill. `_submit` already no-ops while pending; the
+        // IgnorePointer + dimming just makes that visually clear.
+        IgnorePointer(
+          ignoring: _pending,
+          child: Opacity(
+            opacity: _pending ? 0.6 : 1,
+            child: PrimaryPillButton(
+              label: _pending ? 'Signing in…' : 'Sign in',
+              expanded: true,
+              onPressed: _submit,
+            ),
+          ),
         ),
         if (registrationEnabled) ...[
           const SizedBox(height: AppSpacing.sm),

@@ -29,8 +29,8 @@ Dio createDioClient({String? baseUrl, AuthInterceptor? authInterceptor}) {
 
   dio.interceptors.addAll([
     if (authInterceptor != null) authInterceptor,
-    ErrorInterceptor(),
     if (Env.isDev) LoggingInterceptor(),
+    ErrorInterceptor(),
   ]);
 
   return dio;

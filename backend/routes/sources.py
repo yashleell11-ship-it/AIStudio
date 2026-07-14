@@ -7,6 +7,10 @@ from fastapi.responses import Response
 
 from core.rate_limit import limiter, sources_limit
 from services.browse_service import BrowseService, get_browse_service
+from services.library_intelligence_service import (
+    LibraryIntelligenceService,
+    get_library_intelligence_service,
+)
 from services.reading_service import ReadingService, get_reading_service
 from utils.api_pagination import set_list_total_header
 
@@ -15,6 +19,9 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 
 BrowseDep = Annotated[BrowseService, Depends(get_browse_service)]
 ReadingDep = Annotated[ReadingService, Depends(get_reading_service)]
+IntelDep = Annotated[
+    LibraryIntelligenceService, Depends(get_library_intelligence_service)
+]
 
 
 @router.get("")
@@ -23,6 +30,50 @@ def list_sources(service: BrowseDep, response: Response) -> list[dict[str, objec
     items = service.list_sources()
     set_list_total_header(response, len(items))
     return items
+
+
+# NOTE: this literal ``/search`` route MUST be declared before the
+# ``/{source_id}/...`` routes below so "search" is never captured as a
+# ``source_id`` path parameter.
+@router.get("/search")
+async def federated_search(
+    request: Request,
+    service: BrowseDep,
+    intel: IntelDep,
+    q: str = Query("", description="Search query"),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(40, ge=1, le=200),
+) -> dict[str, object]:
+    """Search the local library and every browsable source in parallel."""
+    base_url = str(request.base_url)
+    query = q.strip()
+
+    # Local library hits (kind:"local"). Skip on empty query -- the library
+    # search rejects blank input -- but still report sources as queried.
+    local_items: list[dict[str, object]] = []
+    if query:
+        local_result = intel.search_series(query, page=page, per_page=per_page)
+        for summary in local_result.get("items", []):
+            local_items.append(
+                {
+                    "kind": "local",
+                    "source": None,
+                    "series_id": str(summary["id"]),
+                    "title": summary["title"],
+                    "cover_url": f"{base_url.rstrip('/')}/library/covers/{summary['id']}",
+                    "author": summary.get("author"),
+                    "extra": None,
+                }
+            )
+
+    return await service.federated_search(
+        query,
+        page=page,
+        per_page=per_page,
+        include_mature=intel.mature_content_enabled,
+        local_items=local_items,
+        base_url=base_url,
+    )
 
 
 @router.get("/{source_id}/browse-modes")

@@ -22,7 +22,15 @@ class StorageScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Storage')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(Routes.settings),
+        ),
+        title: const Text('Storage'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl2),
         children: [
@@ -155,7 +163,7 @@ class _ImageCacheCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.image_outlined, color: AppColors.violet400, size: 20),
+              const Icon(Icons.image_outlined, color: AppColors.primary, size: 20),
               const SizedBox(width: AppSpacing.sm),
               Text('Image cache', style: AppTypography.h4),
             ],
@@ -208,7 +216,7 @@ class _MetadataCacheCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.refresh_outlined, color: AppColors.cyan400, size: 20),
+              const Icon(Icons.refresh_outlined, color: AppColors.accent, size: 20),
               const SizedBox(width: AppSpacing.sm),
               Text('Metadata cache', style: AppTypography.h4),
             ],

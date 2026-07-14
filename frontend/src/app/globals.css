@@ -1,53 +1,69 @@
 @import "tailwindcss";
 
 /*
- * Kimi-inspired design tokens. Tailwind v4 turns each `--color-*` into utilities.
- * Dark-first palette with violet primary and cyan accent.
+ * Eclipse Warm design tokens. Tailwind v4 turns each `--color-*` into utilities.
+ * Dark-first palette with amber primary and warm rose accent.
  */
 @theme {
-  --color-bg: #030507;
-  --color-obsidian: #030507;
-  --color-abyss: #080c10;
-  --color-void: #0d1117;
-  --color-panel: #111820;
-  --color-surface: #111820;
-  --color-surface-2: #1a2332;
-  --color-border: #1e293b;
-  --color-sidebar: #0f1419;
+  --color-bg: #0A0A0A;
+  --color-obsidian: #0A0A0A;
+  --color-abyss: #0A0A0A;
+  --color-void: #111111;
+  --color-panel: #111111;
+  --color-surface: #111111;
+  --color-surface-2: #181818;
+  --color-border: rgba(221, 228, 234, 0.12);
+  --color-sidebar: #111111;
 
-  --color-fg: #f1f5f9;
-  --color-muted: #64748b;
-  --color-muted-foreground: #64748b;
-  --color-background: #030507;
+  --color-fg: #DDE4EA;
+  --color-muted: #9AA8B4;
+  --color-muted-foreground: #9AA8B4;
+  --color-background: #0A0A0A;
 
-  --color-primary: #8b5cf6;
-  --color-primary-hover: #7c3aed;
-  --color-primary-fg: #ffffff;
-  --color-primary-foreground: #ffffff;
-  --color-accent: #06b6d4;
-  --color-accent-fg: #ffffff;
+  --color-primary: #F59E0B;
+  --color-primary-hover: #C2410C;
+  --color-primary-fg: #0C0C0C;
+  --color-primary-foreground: #0C0C0C;
+  --color-accent: #BE4C00;
+  --color-accent-fg: #FFFFFF;
 
   --color-danger: #ef4444;
   --color-success: #10b981;
-  --color-warning: #f59e0b;
+  --color-warning: #F59E0B;
 
-  --color-violet-400: #a78bfa;
-  --color-violet-500: #8b5cf6;
-  --color-violet-600: #7c3aed;
-  --color-cyan-400: #22d3ee;
-  --color-cyan-500: #06b6d4;
+  --color-violet-400: #F6C177;
+  --color-violet-500: #F59E0B;
+  --color-violet-600: #C2410C;
+  --color-cyan-400: #F6C177;
+  --color-cyan-500: #BE4C00;
+
+  /* Eclipse Warm — new semantic tokens for page agents */
+  --color-bg-void: #0A0A0A;
+  --color-bg-surface: #111111;
+  --color-bg-elevated: #181818;
+  --color-bg-light: #FFFFFF;
+  --color-text-primary: #DDE4EA;
+  --color-text-muted: #9AA8B4;
+  --color-text-dark: #0C0C0C;
+  --color-accent-amber: #F59E0B;
+  --color-accent-rose: #BE4C00;
+  --color-accent-warm: #C2410C;
+  --color-border-subtle: rgba(221, 228, 234, 0.12);
+  --color-border-light: rgba(12, 12, 12, 0.12);
 
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-lg: 0.625rem;
-  --radius-xl: 1rem;
+  --radius-xl: 1.5rem;
   --radius-2xl: 1rem;
+  --radius-3xl: 2.5rem;
+  --radius-4xl: 3.75rem;
 
-  --font-sans: var(--font-inter), system-ui, sans-serif;
-  --font-mono: var(--font-space-mono), ui-monospace, monospace;
-  --font-display: var(--font-bebas), Impact, sans-serif;
+  --font-sans: var(--font-dm-sans), system-ui, sans-serif;
+  --font-mono: var(--font-dm-sans), ui-monospace, monospace;
+  --font-display: var(--font-syne), Impact, sans-serif;
 
-  --shadow-glow: 0 0 20px rgba(139, 92, 246, 0.2);
+  --shadow-glow: 0 0 24px rgba(245, 158, 11, 0.22);
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.37);
 }
 
@@ -56,7 +72,7 @@ html {
 }
 
 body {
-  background-color: var(--color-bg);
+  background-color: #0A0A0A;
   color: var(--color-fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -64,24 +80,50 @@ body {
   overflow: hidden;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+main {
+  overflow-x: clip;
+}
+
+.hero-heading {
+  background: linear-gradient(180deg, #9A8B7A 0%, #E8DFD0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+}
+
+.cta-gradient {
+  background: linear-gradient(123deg, #1A0A00 7%, #BE4C00 37%, #C2410C 72%, #F59E0B 100%);
+  box-shadow: 0px 4px 4px rgba(190, 76, 0, 0.25), 4px 4px 12px #C2410C inset;
+  outline: 2px solid white;
+  outline-offset: -3px;
+  color: #fff;
+}
+
 .font-display {
   font-family: var(--font-display);
 }
 
 .glass-panel {
-  background: rgba(13, 17, 23, 0.7);
+  background: rgba(17, 17, 17, 0.7);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(221, 228, 234, 0.1);
 }
 
 .glass-card {
-  background: rgba(17, 24, 32, 0.6);
+  background: rgba(24, 24, 24, 0.6);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(221, 228, 234, 0.1);
 }
 
 .text-glow {
-  text-shadow: 0 0 20px rgba(139, 92, 246, 0.3);
+  text-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
 }
 
 .shadow-glow {
@@ -127,7 +169,7 @@ body {
 .empty-state {
   border-radius: 1rem;
   border: 1px dashed color-mix(in srgb, var(--color-border) 50%, transparent);
-  background: rgba(13, 17, 23, 0.7);
+  background: rgba(17, 17, 17, 0.7);
   backdrop-filter: blur(20px);
   padding: 3rem;
   text-align: center;

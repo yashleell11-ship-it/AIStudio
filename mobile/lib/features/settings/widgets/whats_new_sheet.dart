@@ -141,7 +141,7 @@ class _ReleaseCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   gradient: const LinearGradient(
-                    colors: [AppColors.primary, AppColors.violet600],
+                    colors: [AppColors.accentAmber, AppColors.accentRose],
                   ),
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
@@ -167,7 +167,7 @@ class _ReleaseCard extends StatelessWidget {
                   child: Text(
                     'Latest',
                     style: AppTypography.labelSm.copyWith(
-                      color: AppColors.cyan400,
+                      color: AppColors.accentAmber,
                     ),
                   ),
                 ),

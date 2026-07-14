@@ -51,6 +51,15 @@ abstract final class Routes {
   static const String setup = '/setup';
 }
 
+/// True only on the five primary tab roots — not browse, series detail, etc.
+bool isMainTabRoute(String path) {
+  return path == Routes.library ||
+      path == Routes.sources ||
+      path == Routes.downloads ||
+      path == Routes.search ||
+      path == Routes.more;
+}
+
 /// Helper for building concrete paths with parameters filled in.
 abstract final class RoutePaths {
   static String seriesDetail(int seriesId) => '/library/$seriesId';

@@ -29,7 +29,7 @@ function ToggleRow({
   onCheckedChange: (checked: boolean) => void;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-white/[0.02] px-4 py-3 transition-colors hover:border-violet-500/20">
+    <div className="flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-white/[0.02] px-4 py-3 transition-colors hover:border-primary/30">
       <div className="min-w-0">
         <p className="text-sm font-medium text-fg">{label}</p>
         {description ? <p className="mt-0.5 text-xs text-muted">{description}</p> : null}
@@ -106,7 +106,7 @@ function UpdateSettingsForm({ settings }: { settings: UpdateSettings }) {
         <label className="flex flex-col gap-3 text-sm">
           <div className="flex items-center justify-between gap-3">
             <span className="font-medium text-fg">Check interval</span>
-            <span className="font-mono text-sm tabular-nums text-violet-400">
+            <span className="font-mono text-sm tabular-nums text-primary">
               {draft.check_interval_minutes} min
             </span>
           </div>
@@ -152,7 +152,7 @@ export function UpdateSettingsPanel({
   return (
     <section className="glass-card rounded-2xl p-5 md:p-6">
       <div className="mb-6 flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-500/20 to-violet-500/10 text-cyan-400">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 text-primary">
           <RefreshCw className="size-5" aria-hidden />
         </div>
         <div>

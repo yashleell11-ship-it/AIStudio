@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,8 @@ import {
   useSourceGenres,
   useSources,
 } from "../hooks";
+import { SourceBrowseLoading } from "./SourceBrowseLoading";
+import { SourceLogo } from "./SourceLogo";
 import { SourceSeriesGrid } from "./SourceSeriesGrid";
 
 interface SourceBrowserViewProps {
@@ -26,29 +28,35 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
   const genresQuery = useSourceGenres(sourceId);
   const sourceName =
     sourcesQuery.data?.find((source) => source.id === sourceId)?.name ?? sourceId;
+  const sourceIconUrl =
+    sourcesQuery.data?.find((source) => source.id === sourceId)?.icon_url ?? null;
 
   const initialGenre = searchParams.get("genre") ?? "";
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState("default");
   const [genre, setGenre] = useState(initialGenre);
+  const [prevInitialGenre, setPrevInitialGenre] = useState(initialGenre);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
+  // Sync genre state when the URL-derived genre changes (e.g. back/forward
+  // navigation). Adjusting state during render is React's recommended pattern
+  // and avoids a setState-in-effect.
+  if (initialGenre !== prevInitialGenre) {
+    setPrevInitialGenre(initialGenre);
     setGenre(initialGenre);
-  }, [initialGenre]);
+  }
 
   const browseModes = browseModesQuery.data ?? [{ id: "default", label: "Browse" }];
   const activeSort = browseModes.some((mode) => mode.id === sort) ? sort : browseModes[0]?.id ?? "default";
 
-  const connectorGenres = genresQuery.data ?? [];
   const genreOptions = useMemo(() => {
-    const options = [...connectorGenres];
+    const options = [...(genresQuery.data ?? [])];
     if (genre && !options.some((item) => item.id === genre || item.label === genre)) {
       options.unshift({ id: genre.toLowerCase().replace(/\s+/g, "-"), label: genre });
     }
     return options;
-  }, [connectorGenres, genre]);
+  }, [genresQuery.data, genre]);
 
   const selectedGenreValue = useMemo(() => {
     if (!genre) {
@@ -123,21 +131,28 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
 
   return (
     <div className="p-6">
-      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-fg">{sourceName}</h1>
-          <p className="mt-1 text-sm text-muted">
-            Browse and search this online source. Results come from the connector, not your
-            local library.
-          </p>
-          {!seriesQuery.isLoading && items.length > 0 ? (
-            <p className="mt-1 text-xs text-muted">
-              Showing {items.length}
-              {total > items.length ? ` of ${total}` : ""} series
-              {genre ? ` in ${genre}` : ""}
-              {query ? ` matching "${query}"` : ""}
-            </p>
-          ) : null}
+      <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="group flex items-center gap-3">
+            <SourceLogo
+              id={sourceId}
+              name={sourceName}
+              iconUrl={sourceIconUrl}
+              size={48}
+            />
+            <div className="min-w-0">
+              <h1 className="truncate font-display text-3xl text-fg transition-colors group-hover:text-primary">
+                {sourceName}
+              </h1>
+              {!seriesQuery.isLoading && items.length > 0 ? (
+                <p className="mt-0.5 text-xs text-muted">
+                  {items.length}
+                  {total > items.length ? ` of ${total}` : ""} series
+                  {query ? ` · “${query}”` : ""}
+                </p>
+              ) : null}
+            </div>
+          </div>
         </div>
         <form
           className="flex w-full max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"
@@ -180,7 +195,7 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
         </form>
       </div>
 
-      {!query ? (
+      {!query && browseModes.length > 1 ? (
         <div className="mb-6 flex flex-wrap gap-2">
           {browseModes.map((mode) => (
             <Button
@@ -196,15 +211,23 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
         </div>
       ) : null}
 
-      <SourceSeriesGrid
-        sourceId={sourceId}
-        items={items}
-        isLoading={seriesQuery.isLoading}
-        query={query}
-        errorMessage={
-          seriesQuery.error instanceof Error ? seriesQuery.error.message : undefined
-        }
-      />
+      <div className="relative">
+        <SourceSeriesGrid
+          sourceId={sourceId}
+          items={items}
+          isLoading={seriesQuery.isLoading}
+          query={query}
+          errorMessage={
+            seriesQuery.error instanceof Error ? seriesQuery.error.message : undefined
+          }
+        />
+        <SourceBrowseLoading
+          active={seriesQuery.isLoading}
+          sourceId={sourceId}
+          sourceName={sourceName}
+          iconUrl={sourceIconUrl}
+        />
+      </div>
 
       <div ref={sentinelRef} className="h-8" aria-hidden />
 

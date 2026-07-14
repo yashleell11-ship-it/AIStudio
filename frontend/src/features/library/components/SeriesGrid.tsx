@@ -45,7 +45,7 @@ export function SeriesGrid({
       return (
         <div aria-busy="true" aria-label="Loading library" className="space-y-3">
           {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="h-20 animate-pulse rounded-xl bg-surface-2" />
+            <div key={index} className="h-20 animate-pulse rounded-2xl bg-surface-2" />
           ))}
         </div>
       );
@@ -60,7 +60,7 @@ export function SeriesGrid({
         {Array.from({ length: 12 }).map((_, index) => (
           <div
             key={index}
-            className="aspect-[2/3] animate-pulse rounded-xl bg-surface-2"
+            className="aspect-[2/3] animate-pulse rounded-2xl bg-surface-2"
           />
         ))}
       </div>
@@ -70,7 +70,7 @@ export function SeriesGrid({
   if (items.length === 0) {
     const copy = emptyCopy(emptyState);
     return (
-      <div className="glass-panel rounded-xl border border-dashed border-border/50 p-12 text-center">
+      <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
         <p className="text-lg font-medium text-fg">{copy.title}</p>
         <p className="mt-2 text-sm text-muted">{copy.description}</p>
       </div>

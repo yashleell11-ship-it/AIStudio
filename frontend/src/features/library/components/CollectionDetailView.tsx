@@ -103,7 +103,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
               unoptimized
             />
           ) : (
-            <div className="h-full w-full bg-gradient-to-br from-violet-600/30 via-void to-cyan-600/20" />
+            <div className="h-full w-full bg-gradient-to-br from-accent/30 via-void to-primary/20" />
           )}
           <div className="absolute inset-0 bg-gradient-to-b from-void/40 via-void/80 to-bg" />
         </div>
@@ -111,7 +111,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
         <div className="relative mx-auto max-w-7xl px-6 py-6 md:px-10">
           <Link
             href="/library/collections"
-            className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-violet-400"
+            className="mb-6 inline-flex items-center gap-1.5 text-sm text-muted transition-colors hover:text-primary"
           >
             <ArrowLeft className="size-3.5" aria-hidden />
             Back to collections
@@ -124,7 +124,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                 <p className="mt-2 max-w-2xl text-sm text-muted">{collection.description}</p>
               )}
               <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted">
-                <BookOpen className="size-4 text-cyan-400" aria-hidden />
+                <BookOpen className="size-4 text-primary" aria-hidden />
                 {collection.series.total} series
               </p>
             </div>
@@ -156,9 +156,9 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
 
       <div className="mx-auto max-w-7xl px-6 py-8 md:px-10">
         {collection.series.items.length === 0 ? (
-          <div className="glass-panel rounded-2xl border border-dashed border-border/50 p-12 text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-violet-500/10">
-              <BookOpen className="size-8 text-violet-400" />
+          <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
+              <BookOpen className="size-8 text-primary" />
             </div>
             <p className="text-lg font-medium text-fg">This collection is empty</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">
@@ -227,7 +227,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                   disabled={addSeries.isPending}
                   className={cn(
                     "flex w-full items-center gap-3 rounded-xl border border-border/50 bg-white/[0.02] px-3 py-2.5 text-left transition-all duration-200",
-                    "hover:border-violet-500/30 hover:bg-violet-500/5",
+                    "hover:border-primary/30 hover:bg-primary/5",
                     addSeries.isPending && "opacity-60",
                   )}
                 >

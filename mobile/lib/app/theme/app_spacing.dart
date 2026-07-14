@@ -14,7 +14,7 @@ abstract final class AppSpacing {
   static const double xl7 = 80;
 }
 
-/// Border radius constants.
+/// Border radius constants — Eclipse Warm uses pills + large soft cards.
 abstract final class AppRadius {
   static const double xs = 4;
   static const double sm = 6;
@@ -22,5 +22,14 @@ abstract final class AppRadius {
   static const double lg = 14;
   static const double xl = 20;
   static const double xl2 = 28;
+
+  /// Large card radius (40px) — matches web large-card intent.
+  static const double xl3 = 40;
+
+  /// Extra-large hero/card radius (60px).
+  static const double xl4 = 60;
+
+  /// Fully rounded pill (999) — buttons, chips, tags.
+  static const double pill = 999;
   static const double full = 9999;
 }

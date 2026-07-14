@@ -10,6 +10,10 @@ import { ApiError } from "@/types/api";
 import { useLogin } from "../hooks";
 import { PasswordInput } from "./password-input";
 
+/** Dark surface field with an amber focus ring, matching the Eclipse Warm auth inputs. */
+const authInputClass =
+  "bg-surface border-border focus-visible:border-primary/40 focus-visible:ring-primary";
+
 /** Username + password sign-in. Redirects home on success; errors inline. */
 export function LoginForm() {
   const router = useRouter();
@@ -52,6 +56,7 @@ export function LoginForm() {
           onChange={(event) => setUsername(event.target.value)}
           placeholder="yourname"
           disabled={login.isPending}
+          className={authInputClass}
           required
         />
       </div>
@@ -68,6 +73,7 @@ export function LoginForm() {
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Your password"
           disabled={login.isPending}
+          className={authInputClass}
           required
         />
       </div>
@@ -91,7 +97,12 @@ export function LoginForm() {
         </p>
       ) : null}
 
-      <Button type="submit" size="lg" className="w-full" disabled={!canSubmit}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full rounded-full uppercase tracking-wide text-white cta-gradient hover:brightness-110"
+        disabled={!canSubmit}
+      >
         {login.isPending ? (
           "Signing in…"
         ) : (

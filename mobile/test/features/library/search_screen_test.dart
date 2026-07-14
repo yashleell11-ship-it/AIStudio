@@ -1,232 +1,186 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
-import 'package:manhwamaniacs/features/library/models/collection.dart';
-import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
-import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
-import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
-import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
-import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
-import 'package:manhwamaniacs/features/library/models/tag.dart';
-import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
+import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
+import 'package:manhwamaniacs/features/library/repositories/global_search_repository.dart';
 import 'package:manhwamaniacs/features/library/screens/search_screen.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-class _FakeSearchRepository implements LibraryRepository {
+/// Fake federated-search repo. Returns [result] for a non-empty query, or an
+/// [error] when configured to fail.
+class _FakeGlobalSearchRepository implements GlobalSearchRepository {
+  _FakeGlobalSearchRepository({this.result, this.error});
+
+  final GlobalSearchResult? result;
+  final AppError? error;
+
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) async {
-    return Ok([
-      SeriesSummary(
-        id: 1,
-        libraryId: 1,
-        title: 'Solo Leveling',
-        sortTitle: 'solo leveling',
-        author: 'Chugong',
-        description: 'The weakest hunter becomes the strongest.',
-        contentRating: 'teen',
-        language: 'ko',
-        folderPath: '/library/solo-leveling',
-        isFavorite: true,
-        readingStatus: 'reading',
-        chapterCount: 179,
-        readChapters: 50,
-        pageCount: 3580,
-        totalChapters: 179,
-        totalPages: 3580,
-        createdAt: DateTime(2024),
-        updatedAt: DateTime(2024, 6),
-        readingProgress: ReadingProgress(
-          seriesId: 1,
-          chapterId: 150,
-          lastPage: 10,
-          progressPct: 27.9,
-          lastReadAt: DateTime(2024, 6),
+  Future<Result<GlobalSearchResult>> search(
+    String query, {
+    int page = 1,
+    int perPage = 40,
+  }) async {
+    if (error != null) return Err(error!);
+    return Ok(result ?? const GlobalSearchResult());
+  }
+}
+
+Future<void> _pumpSearch(
+  WidgetTester tester,
+  GlobalSearchRepository repo,
+) async {
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
+
+  final router = GoRouter(
+    initialLocation: '/',
+    routes: [
+      GoRoute(path: '/', builder: (_, __) => const SearchScreen()),
+      GoRoute(
+        path: '/library/:seriesId',
+        builder: (_, state) =>
+            Scaffold(body: Text('LOCAL ${state.pathParameters['seriesId']}')),
+      ),
+      GoRoute(
+        path: '/sources/:sourceId/series/:seriesId',
+        builder: (_, state) => Scaffold(
+          body: Text(
+            'SOURCE ${state.pathParameters['sourceId']} '
+            '${state.pathParameters['seriesId']}',
+          ),
         ),
       ),
-    ]);
-  }
+    ],
+  );
 
-  @override
-  Future<Result<void>> toggleFavorite(int seriesId) async => const Ok(null);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        sharedPrefsProvider.overrideWithValue(prefs),
+        globalSearchRepositoryProvider.overrideWithValue(repo),
+      ],
+      child: MaterialApp.router(routerConfig: router),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
 
-  @override
-  Future<Result<PagedResult<SeriesSummary>>> listSeries({
-    int page = 1,
-    int perPage = 20,
-    String? sort,
-    String? search,
-    String? status,
-    String? readingStatus,
-    int? collectionId,
-    int? tagId,
-    bool? isFavorite,
-    bool? hasChapters,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<SeriesSummary>>> recentlyAdded({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<SeriesSummary>>> recentlyUpdated({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<SeriesSummary>>> recommendations({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<Collection>>> listCollections() => throw UnimplementedError();
-
-  @override
-  Future<Result<CollectionDetail>> getCollection(int collectionId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Collection>> createCollection({
-    required String name,
-    String? description,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Collection>> updateCollection(
-    int collectionId, {
-    String? name,
-    String? description,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
-
-  @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
-
-  @override
-  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
-    required int page,
-    String? note,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
-
-  @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
-
-  @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
-  }) =>
-      throw UnimplementedError();
+Future<void> _search(WidgetTester tester, String term) async {
+  await tester.enterText(find.byType(TextField), term);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 350));
+  await tester.pumpAndSettle();
 }
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('SearchScreen', () {
+  group('SearchScreen (federated)', () {
     testWidgets('shows suggestions before searching', (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sharedPrefsProvider.overrideWithValue(prefs),
-            libraryRepositoryProvider.overrideWithValue(_FakeSearchRepository()),
-          ],
-          child: const MaterialApp(home: SearchScreen()),
-        ),
-      );
-
-      await tester.pumpAndSettle();
+      await _pumpSearch(tester, _FakeGlobalSearchRepository());
 
       expect(find.text('Start typing to search'), findsOneWidget);
       expect(find.text('TRENDING'), findsOneWidget);
       expect(find.text('fantasy'), findsOneWidget);
     });
 
-    testWidgets('renders search results with progress badge', (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sharedPrefsProvider.overrideWithValue(prefs),
-            libraryRepositoryProvider.overrideWithValue(_FakeSearchRepository()),
-          ],
-          child: const MaterialApp(home: SearchScreen()),
+    testWidgets('renders merged local + source results with badges',
+        (tester) async {
+      await _pumpSearch(
+        tester,
+        _FakeGlobalSearchRepository(
+          result: const GlobalSearchResult(
+            items: [
+              GlobalSearchItem(
+                kind: 'local',
+                seriesId: '1',
+                title: 'One Piece (Library)',
+              ),
+              GlobalSearchItem(
+                kind: 'source',
+                source: 'mangadex',
+                seriesId: 'md-1',
+                title: 'One Piece (MangaDex)',
+              ),
+            ],
+            sourcesQueried: 12,
+            sourcesFailed: 1,
+          ),
         ),
       );
 
-      await tester.enterText(find.byType(TextField), 'solo');
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 350));
+      await _search(tester, 'one piece');
+
+      expect(find.text('One Piece (Library)'), findsOneWidget);
+      expect(find.text('One Piece (MangaDex)'), findsOneWidget);
+      // Badges: LIBRARY for the local hit, MANGADEX for the source hit.
+      expect(find.text('LIBRARY'), findsOneWidget);
+      expect(find.text('MANGADEX'), findsOneWidget);
+      // Status line reflects sources queried, and flags failures subtly.
+      expect(find.textContaining('2 results found'), findsOneWidget);
+      expect(find.text('Some sources unavailable'), findsOneWidget);
+    });
+
+    testWidgets('empty result shows "No results found", not a spinner',
+        (tester) async {
+      await _pumpSearch(
+        tester,
+        _FakeGlobalSearchRepository(
+          result: const GlobalSearchResult(sourcesQueried: 12),
+        ),
+      );
+
+      await _search(tester, 'nonexistent title');
+
+      expect(find.text('No results found'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('repository error shows error state with retry', (tester) async {
+      await _pumpSearch(
+        tester,
+        _FakeGlobalSearchRepository(
+          error: const NetworkError(message: 'offline'),
+        ),
+      );
+
+      await _search(tester, 'one piece');
+
+      expect(find.text('Search failed'), findsOneWidget);
+      expect(find.text('TRY AGAIN'), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('tapping a source result navigates to source detail',
+        (tester) async {
+      await _pumpSearch(
+        tester,
+        _FakeGlobalSearchRepository(
+          result: const GlobalSearchResult(
+            items: [
+              GlobalSearchItem(
+                kind: 'source',
+                source: 'mangadex',
+                seriesId: 'md-1',
+                title: 'One Piece (MangaDex)',
+              ),
+            ],
+            sourcesQueried: 1,
+          ),
+        ),
+      );
+
+      await _search(tester, 'one piece');
+
+      await tester.tap(find.text('One Piece (MangaDex)'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Solo Leveling'), findsOneWidget);
-      expect(find.textContaining('28%'), findsOneWidget);
-      expect(find.text('1 result found'), findsOneWidget);
+      expect(find.text('SOURCE mangadex md-1'), findsOneWidget);
     });
   });
 }

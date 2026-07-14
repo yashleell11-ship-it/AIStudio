@@ -27,7 +27,7 @@ export function Progress({
         className={cn(
           "h-full rounded-full transition-all duration-500 ease-out",
           variant === "gradient"
-            ? "bg-gradient-to-r from-violet-500 to-cyan-400"
+            ? "bg-gradient-to-r from-accent to-primary"
             : "bg-primary",
         )}
         style={{ width: `${clamped}%` }}

@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/storage/secure_storage.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
@@ -11,6 +12,7 @@ import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
 import 'package:manhwamaniacs/features/library/models/dashboard_data.dart';
+import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
@@ -25,8 +27,10 @@ import 'package:manhwamaniacs/features/library/providers/library_list_provider.d
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -73,7 +77,7 @@ class _EmptyLibraryListNotifier extends LibraryListNotifier {
 
 class _EmptySearchListNotifier extends SearchListNotifier {
   @override
-  Future<LibraryListState> build() async => const LibraryListState();
+  Future<GlobalSearchResult> build() async => const GlobalSearchResult();
 }
 
 class _EmptyBookmarksNotifier extends BookmarksNotifier {
@@ -276,7 +280,27 @@ final _testPackageInfo = PackageInfo(
   buildNumber: '1',
 );
 
-Future<ProviderContainer> _pumpSettings(WidgetTester tester) async {
+class _StubMatureRepo implements MatureSettingsRepository {
+  @override
+  Future<Result<bool>> getMatureEnabled() async => const Ok(false);
+
+  @override
+  Future<Result<bool>> setMatureEnabled(bool enabled) async => Ok(enabled);
+}
+
+/// Mature controller whose initial load always fails — used to prove the
+/// Content section degrades to its own retry card rather than red-outing the
+/// General tab.
+class _ThrowingMatureController extends MatureContentController {
+  @override
+  Future<bool> build() async =>
+      throw const UnknownError(message: 'boom');
+}
+
+Future<ProviderContainer> _pumpSettings(
+  WidgetTester tester, {
+  List<Override> extraOverrides = const [],
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
@@ -293,7 +317,11 @@ Future<ProviderContainer> _pumpSettings(WidgetTester tester) async {
       // Suppress network call in tests — update check should not hit the server.
       appUpdateProvider.overrideWith((ref) async => null),
       secureStorageProvider.overrideWithValue(_FakeSecureStorageService()),
+      // The Content section's 18+ toggle builds on the General tab and would
+      // otherwise fire a real GET /settings; stub the repo so tests stay offline.
+      matureSettingsRepositoryProvider.overrideWithValue(_StubMatureRepo()),
       ..._metadataCacheProviderOverrides(),
+      ...extraOverrides,
     ],
   );
   await tester.pumpWidget(
@@ -342,14 +370,20 @@ void main() {
         (tester) async {
       await _pumpSettings(tester);
 
-      expect(find.text('Theme'), findsOneWidget);
-      expect(find.text('Language'), findsOneWidget);
+      // Section headings are rendered by _SectionHeading, which uppercases.
+      // The Content (18+) section now sits near the top, so Theme/Language are
+      // further down the General tab — scroll to each before asserting.
+      await _scrollToText(tester, 'THEME');
+      expect(find.text('THEME'), findsOneWidget);
 
-      await _scrollToText(tester, 'Default reader preferences');
-      expect(find.text('Default reader preferences'), findsOneWidget);
+      await _scrollToText(tester, 'LANGUAGE');
+      expect(find.text('LANGUAGE'), findsOneWidget);
 
-      await _scrollToText(tester, 'Download preferences');
-      expect(find.text('Download preferences'), findsOneWidget);
+      await _scrollToText(tester, 'DEFAULT READER PREFERENCES');
+      expect(find.text('DEFAULT READER PREFERENCES'), findsOneWidget);
+
+      await _scrollToText(tester, 'DOWNLOAD PREFERENCES');
+      expect(find.text('DOWNLOAD PREFERENCES'), findsOneWidget);
     });
 
     testWidgets('tapping the Server tab shows the server URL field', (tester) async {
@@ -358,7 +392,8 @@ void main() {
       await tester.tap(find.text('Server'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Server connection'), findsOneWidget);
+      // Section heading is uppercased by _SectionHeading.
+      expect(find.text('SERVER CONNECTION'), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
     });
 
@@ -374,8 +409,9 @@ void main() {
       await tester.tap(find.text('Server connection').first);
       await tester.pumpAndSettle();
 
+      // After navigating to the Server tab the section heading is uppercased.
       expect(find.byType(TextField), findsOneWidget);
-      expect(find.text('Server connection'), findsOneWidget);
+      expect(find.text('SERVER CONNECTION'), findsOneWidget);
     });
 
     testWidgets('tapping the About tab shows version info and licenses button',
@@ -389,6 +425,81 @@ void main() {
       expect(find.text('Build'), findsOneWidget);
       expect(find.text('Open source licenses'), findsOneWidget);
     });
+
+    testWidgets('tapping the Debug tab shows diagnostics and reset sections',
+        (tester) async {
+      await _pumpSettings(tester);
+
+      await tester.tap(find.text('Debug'));
+      await tester.pumpAndSettle();
+
+      // Section headings are uppercased by _SectionHeading.
+      expect(find.text('DIAGNOSTICS'), findsOneWidget);
+      expect(find.text('RESET'), findsOneWidget);
+      expect(find.text('Reset reader settings'), findsOneWidget);
+    });
+
+    testWidgets(
+        'General tab survives a failed download + mature load with per-section '
+        'retries and no global error', (tester) async {
+      await _pumpSettings(
+        tester,
+        extraOverrides: [
+          // Both network-backed General sections fail to load.
+          downloadSettingsProvider
+              .overrideWith((ref) async => throw const UnknownError(message: 'boom')),
+          matureContentProvider.overrideWith(_ThrowingMatureController.new),
+        ],
+      );
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The whole-tab "Something went wrong" red-out must be gone: neither
+      // failing section renders UnknownError.userMessage.
+      expect(find.text('Something went wrong — please try again.'), findsNothing);
+
+      // Assert top-to-bottom (scrollUntilVisible only scrolls downward): the
+      // Content section (near the top) shows its own isolated retry card…
+      await _scrollToText(tester, "Couldn't load the mature content setting.");
+      expect(
+        find.text("Couldn't load the mature content setting."),
+        findsOneWidget,
+      );
+
+      // …the local Theme/Language sections still render (never network-backed)…
+      await _scrollToText(tester, 'THEME');
+      expect(find.text('THEME'), findsOneWidget);
+      await _scrollToText(tester, 'LANGUAGE');
+      expect(find.text('LANGUAGE'), findsOneWidget);
+
+      // …the local Wi-Fi toggle still renders even though the download settings
+      // call below it failed…
+      await _scrollToText(tester, 'Wi-Fi only');
+      expect(find.text('Wi-Fi only'), findsOneWidget);
+
+      // …and the Download preferences section shows its own isolated retry card.
+      await _scrollToText(tester, "Couldn't load download preferences.");
+      expect(
+        find.text("Couldn't load download preferences."),
+        findsOneWidget,
+      );
+
+      // Each failed section carries its own Retry affordance.
+      expect(find.widgetWithText(TextButton, 'Retry'), findsWidgets);
+    });
+
+    testWidgets('every tab opens without throwing during build',
+        (tester) async {
+      await _pumpSettings(tester);
+
+      for (final tab in const ['General', 'Server', 'About', 'Debug']) {
+        await tester.tap(find.text(tab));
+        await tester.pumpAndSettle();
+        // A build-time throw in any panel would have surfaced as a test
+        // failure by now; assert the screen is still intact.
+        expect(tester.takeException(), isNull);
+        expect(find.byType(SettingsScreen), findsOneWidget);
+      }
+    });
   });
 
   group('SettingsScreen widgets', () {
@@ -399,6 +510,30 @@ void main() {
       expect(find.text('Light'), findsOneWidget);
       expect(find.text('Dark'), findsOneWidget);
       expect(find.byType(RadioListTile<ThemeMode>), findsNWidgets(3));
+    });
+
+    testWidgets(
+        'language dropdown renders its current value as a valid item and opens',
+        (tester) async {
+      final container = await _pumpSettings(tester);
+
+      // The selected value (English by default) must be present exactly once in
+      // the dropdown's items, otherwise DropdownButton throws
+      // "There should be exactly one item with [DropdownButton]'s value".
+      await _scrollToText(tester, 'App language');
+      expect(find.byType(DropdownButtonFormField<AppLanguage>), findsOneWidget);
+      expect(container.read(languageProvider), AppLanguage.english);
+      // Selected label is shown in the closed field.
+      expect(find.text('English'), findsWidgets);
+      expect(tester.takeException(), isNull);
+
+      // Opening the menu builds every item without throwing.
+      await tester.tap(find.byType(DropdownButtonFormField<AppLanguage>));
+      await tester.pumpAndSettle();
+      for (final lang in AppLanguage.values) {
+        expect(find.text(lang.label), findsWidgets);
+      }
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('selecting Dark updates the persisted theme preference', (tester) async {

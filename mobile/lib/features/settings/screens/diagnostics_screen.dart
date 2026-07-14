@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
@@ -31,6 +33,7 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       final monitor = ref.read(performanceMonitorProvider);
       monitor.start();
       _monitor = monitor;
@@ -59,7 +62,15 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Diagnostics')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(Routes.settings),
+        ),
+        title: const Text('Diagnostics'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl2),
         children: [
@@ -84,13 +95,41 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
   }
 }
 
+/// Premium section eyebrow: warm amber accent bar beside an uppercase Syne
+/// label, matching the Settings screen section groups.
 class _SectionHeading extends StatelessWidget {
   const _SectionHeading(this.text);
 
   final String text;
 
   @override
-  Widget build(BuildContext context) => Text(text, style: AppTypography.h3);
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 15,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadius.full),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            text.toUpperCase(),
+            style: AppTypography.h1.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2,
+              color: AppColors.fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// Live FPS / frame-timing readout. Rebuilds only itself, driven by the
@@ -134,7 +173,7 @@ class _PerformanceCard extends StatelessWidget {
                     child: _Metric(
                       label: 'FPS',
                       value: s.fps.toStringAsFixed(0),
-                      accent: AppColors.violet400,
+                      accent: AppColors.primary,
                     ),
                   ),
                   Expanded(
@@ -148,7 +187,7 @@ class _PerformanceCard extends StatelessWidget {
                     child: _Metric(
                       label: 'Worst',
                       value: '${s.worstFrameMs.toStringAsFixed(1)}ms',
-                      accent: AppColors.cyan400,
+                      accent: AppColors.accent,
                     ),
                   ),
                 ],

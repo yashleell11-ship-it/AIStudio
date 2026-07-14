@@ -1,6 +1,8 @@
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
@@ -133,7 +135,15 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
     final restorePending = statusAsync.valueOrNull?.restorePending ?? false;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Backup & Restore')),
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(Routes.settings),
+        ),
+        title: const Text('Backup & Restore'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl2),
         children: [

@@ -76,7 +76,7 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('CONTINUE'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
@@ -104,7 +104,7 @@ void main() {
       await tester.pumpAndSettle();
 
       await tester.enterText(find.byType(TextField), 'http://192.168.0.10:8000');
-      await tester.tap(find.text('Continue'));
+      await tester.tap(find.text('CONTINUE'));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pumpAndSettle();

@@ -12,6 +12,7 @@ import 'package:manhwamaniacs/features/collections/utils/collection_sorting.dart
 import 'package:manhwamaniacs/features/collections/widgets/collection_widgets.dart';
 import 'package:manhwamaniacs/features/collections/widgets/collections_skeleton.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 
 class CollectionsScreen extends ConsumerStatefulWidget {
   const CollectionsScreen({super.key});
@@ -46,6 +47,12 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
 
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(Routes.more),
+        ),
         title: const Text('Collections'),
         actions: [
           IconButton(
@@ -91,10 +98,7 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          'Collections',
-                          style: AppTypography.displayMd,
-                        ),
+                        const HeroHeading(text: 'Collections'),
                         const SizedBox(height: AppSpacing.xs),
                         Text(
                           collections.isEmpty

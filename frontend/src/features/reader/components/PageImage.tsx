@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { memo, useEffect, useState } from "react";
+import { cn } from "@/lib/cn";
 import { readerDebug } from "../debug";
 import { pageContainerStyle } from "../page-layout";
 
@@ -11,6 +12,7 @@ interface PageImageProps {
   width?: number | null;
   height?: number | null;
   priority?: boolean;
+  seamless?: boolean;
   onLoad?: () => void;
 }
 
@@ -20,6 +22,7 @@ export const PageImage = memo(function PageImage({
   width,
   height,
   priority,
+  seamless = true,
   onLoad,
 }: PageImageProps) {
   const [loaded, setLoaded] = useState(false);
@@ -36,7 +39,14 @@ export const PageImage = memo(function PageImage({
 
   return (
     <div
-      className="relative w-full overflow-hidden rounded-sm bg-black shadow-lg shadow-black/40"
+      className={cn(
+        // Letterboxing / placeholder fill uses the reader backdrop so any
+        // aspect mismatch blends into the page flow instead of a harsh black seam.
+        "relative w-full overflow-hidden bg-bg",
+        seamless
+          ? "block"
+          : "rounded-sm shadow-lg shadow-black/40",
+      )}
       style={pageContainerStyle(loaded, width, height)}
     >
       <Image

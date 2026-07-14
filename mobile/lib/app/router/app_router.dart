@@ -23,6 +23,13 @@ import 'package:manhwamaniacs/features/library/screens/search_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/series_detail_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/statistics_screen.dart';
 import 'package:manhwamaniacs/features/more/screens/more_screen.dart';
+import 'package:manhwamaniacs/features/profiles/models/mood.dart';
+import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
+import 'package:manhwamaniacs/features/profiles/screens/profile_create_screen.dart';
+import 'package:manhwamaniacs/features/profiles/screens/profile_edit_screen.dart';
+import 'package:manhwamaniacs/features/profiles/screens/profile_picker_screen.dart';
+import 'package:manhwamaniacs/features/profiles/widgets/mood_backdrop.dart';
 import 'package:manhwamaniacs/features/reader/screens/reader_screen.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/settings/screens/backup_screen.dart';
@@ -46,6 +53,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   // logout) so the redirect below re-runs from the initial location — exactly
   // the moments where a full navigation reset is desired.
   final authState = ref.watch(authControllerProvider);
+  // Recreate when the profile session gate opens/closes so cold starts land on
+  // the picker until a profile is chosen for this session.
+  final profileSessionReady = ref.watch(profileSessionReadyProvider);
+  // Keep the X-Profile-Id header in sync with the active profile for the app's
+  // lifetime; watching it here means it is always installed while the router is.
+  ref.watch(profileHeaderSyncProvider);
 
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
@@ -63,13 +76,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final onAuthRoute = path == Routes.login || path == Routes.register;
       final onSplash = path == Routes.splash;
       final onSetup = path == Routes.setup;
+      // The profile picker/create/edit surface (the post-auth persona gate).
+      final onProfileRoute = path == ProfileRoutes.picker ||
+          path.startsWith('${ProfileRoutes.picker}/');
 
       return switch (authState) {
         // Cold start: hold on the splash while the stored token is validated.
         AuthUnknown() => onSplash ? null : Routes.splash,
         // No session: force the login/register flow.
         AuthUnauthenticated() => onAuthRoute ? null : Routes.login,
-        // Signed in: never strand the user on splash/setup/auth screens.
+        // Signed in: show the profile picker once per app session (Netflix-style)
+        // before the main shell. Create/edit routes stay reachable mid-gate.
+        AuthAuthenticated() when !profileSessionReady =>
+          onProfileRoute ? null : ProfileRoutes.picker,
         AuthAuthenticated() =>
           (onAuthRoute || onSplash || onSetup) ? Routes.home : null,
       };
@@ -234,6 +253,22 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
 
+      // ── Reading profiles (full-screen, outside the tab shell) ──────────────
+      GoRoute(
+        path: ProfileRoutes.picker,
+        builder: (context, state) => const ProfilePickerScreen(),
+      ),
+      GoRoute(
+        path: ProfileRoutes.create,
+        builder: (context, state) => const ProfileCreateScreen(),
+      ),
+      GoRoute(
+        path: ProfileRoutes.editPattern,
+        builder: (context, state) => ProfileEditScreen(
+          profileId: int.parse(state.pathParameters['id']!),
+        ),
+      ),
+
       // ── Top-level non-tab screens ──────────────────────────────────────────
       GoRoute(
         path: Routes.home,
@@ -297,58 +332,111 @@ CustomTransitionPage<void> _immersiveReaderPage(Widget child) {
 }
 
 /// Floating glass navigation shell.
-class _AppShell extends StatelessWidget {
+class _AppShell extends ConsumerWidget {
   const _AppShell({required this.navigationShell});
 
   final StatefulNavigationShell navigationShell;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final location = GoRouterState.of(context).uri.path;
+    final showBottomNav = isMainTabRoute(location);
     final bottomPad = MediaQuery.paddingOf(context).bottom;
+    // The active profile's mood tints the whole app for the session; it sits
+    // behind every tab and bleeds through the frosted nav bar. The reader
+    // renders outside this shell (rootNavigatorKey) so it stays black.
+    final mood = ref.watch(activeProfileProvider)?.mood ?? Mood.neutral;
 
-    return Scaffold(
-      extendBody: true,
-      body: navigationShell,
-      bottomNavigationBar: Padding(
+    return MoodBackdrop(
+      mood: mood,
+      // variant defaults to MoodBackdropVariant.shell
+      // Make the tab screens transparent (scoped to this subtree only) so the
+      // mood backdrop shows through them. The theme's opaque scaffold colour
+      // still applies outside the shell — reader, auth, setup, profile picker.
+      child: Theme(
+        data: Theme.of(context)
+            .copyWith(scaffoldBackgroundColor: Colors.transparent),
+        child: Scaffold(
+        extendBody: showBottomNav,
+        backgroundColor: Colors.transparent,
+        body: navigationShell,
+      bottomNavigationBar: showBottomNav
+          ? Padding(
         padding: EdgeInsets.fromLTRB(
-          AppSpacing.xl2,
+          AppSpacing.lg,
           0,
-          AppSpacing.xl2,
-          (bottomPad > 0 ? bottomPad : AppSpacing.lg),
+          AppSpacing.lg,
+          bottomPad > 0 ? bottomPad : AppSpacing.sm,
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl2),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(110),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
+                blurRadius: 20,
+                offset: const Offset(0, 6),
               ),
               BoxShadow(
                 color: AppColors.primary.withAlpha(24),
-                blurRadius: 36,
-                offset: const Offset(0, 6),
+                blurRadius: 24,
+                offset: const Offset(0, 4),
               ),
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.xl2),
+            borderRadius: BorderRadius.circular(AppRadius.xl),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: AppColors.sidebar.withAlpha(214),
-                  borderRadius: BorderRadius.circular(AppRadius.xl2),
-                  border: Border.all(color: AppColors.glassEdge),
+                  // Eclipse Warm frosted glass: near-black surface at ~0.85
+                  // alpha over the mood backdrop, with the subtle warm-neutral
+                  // border edge.
+                  color: AppColors.surface.withAlpha(217),
+                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  border: Border.all(color: AppColors.border),
                 ),
-                child: NavigationBar(
-                  selectedIndex: navigationShell.currentIndex,
-                  onDestinationSelected: navigationShell.goBranch,
-                  backgroundColor: Colors.transparent,
-                  surfaceTintColor: Colors.transparent,
-                  shadowColor: Colors.transparent,
-                  destinations: const [
+                child: NavigationBarTheme(
+                  // Active = amber (primary); inactive = muted. Icon colour on a
+                  // NavigationBar is driven through its theme, not per-item.
+                  data: NavigationBarThemeData(
+                    iconTheme: WidgetStateProperty.resolveWith(
+                      (states) => IconThemeData(
+                        color: states.contains(WidgetState.selected)
+                            ? AppColors.primary
+                            : AppColors.muted,
+                      ),
+                    ),
+                    labelTextStyle: WidgetStateProperty.resolveWith(
+                      (states) {
+                        // Inherit the DM Sans label style from the theme; only
+                        // recolour + weight it per selection state.
+                        final base = Theme.of(context).textTheme.labelMedium ??
+                            const TextStyle();
+                        final selected =
+                            states.contains(WidgetState.selected);
+                        return base.copyWith(
+                          color: selected
+                              ? AppColors.primary
+                              : AppColors.muted,
+                          fontWeight:
+                              selected ? FontWeight.w600 : FontWeight.w500,
+                        );
+                      },
+                    ),
+                  ),
+                  child: NavigationBar(
+                    selectedIndex: navigationShell.currentIndex,
+                    onDestinationSelected: navigationShell.goBranch,
+                    backgroundColor: Colors.transparent,
+                    surfaceTintColor: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    // Warm amber wash behind the active destination.
+                    indicatorColor: AppColors.primary.withAlpha(30),
+                    labelBehavior:
+                        NavigationDestinationLabelBehavior.onlyShowSelected,
+                    destinations: const [
                     NavigationDestination(
                       icon: Icon(Icons.menu_book_outlined),
                       selectedIcon: Icon(Icons.menu_book),
@@ -374,13 +462,17 @@ class _AppShell extends StatelessWidget {
                       selectedIcon: Icon(Icons.more_horiz),
                       label: 'More',
                     ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      )
+          : null,
+    ),
+    ),
+  );
   }
 }

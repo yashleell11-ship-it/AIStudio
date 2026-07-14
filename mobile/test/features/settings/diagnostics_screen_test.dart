@@ -18,9 +18,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.text('Diagnostics'), findsOneWidget);
-    expect(find.text('Rendering performance'), findsOneWidget);
-    expect(find.text('Display'), findsOneWidget);
-    expect(find.text('Device'), findsOneWidget);
-    expect(find.text('Image cache'), findsOneWidget);
+    expect(find.text('RENDERING PERFORMANCE'), findsOneWidget);
+    expect(find.text('DISPLAY'), findsOneWidget);
+    expect(find.text('DEVICE'), findsOneWidget);
+    expect(find.text('IMAGE CACHE'), findsOneWidget);
   });
 }

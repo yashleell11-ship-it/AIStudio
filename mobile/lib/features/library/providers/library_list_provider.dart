@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/models/series_summary.dart';
@@ -40,9 +41,17 @@ LibraryQuery _normalizeBrowseQuery(LibraryQuery query) {
   return query;
 }
 
-final searchQueryProvider = StateProvider<LibraryQuery>(
-  (ref) => const LibraryQuery(viewMode: LibraryViewMode.list),
+/// The raw federated-search query text. Empty means "not searching".
+final searchQueryProvider = StateProvider<String>(
+  (ref) => '',
   name: 'searchQuery',
+);
+
+/// Grid/list toggle for the search results (federated search has no server
+/// sort/filter, so this is the only presentation control it carries).
+final searchViewModeProvider = StateProvider<LibraryViewMode>(
+  (ref) => LibraryViewMode.list,
+  name: 'searchViewMode',
 );
 
 final libraryListProvider =
@@ -51,8 +60,11 @@ final libraryListProvider =
   name: 'libraryList',
 );
 
-final searchListProvider =
-    AsyncNotifierProvider.autoDispose<SearchListNotifier, LibraryListState>(
+/// Federated search results (local library + every enabled remote source),
+/// keyed off [searchQueryProvider]. Always resolves to data or error — never
+/// an indefinite loading state.
+final searchListProvider = AsyncNotifierProvider.autoDispose<SearchListNotifier,
+    GlobalSearchResult>(
   SearchListNotifier.new,
   name: 'searchList',
 );
@@ -159,81 +171,76 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
       fetchLibraryListPage(ref, query, page);
 }
 
-class SearchListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
+/// Drives federated search via [GlobalSearchRepository].
+///
+/// Loading always resolves: `build` returns an empty result for a blank query
+/// and otherwise returns data or throws (→ AsyncError). Staleness is handled on
+/// two fronts — Riverpod re-runs `build` whenever [searchQueryProvider] changes
+/// and only the latest build's future is applied to state (so a slow response
+/// for an old query is discarded), and an explicit request token guards the
+/// imperative `loadMore`/`refresh` paths. The UI additionally debounces
+/// keystrokes before mutating [searchQueryProvider].
+class SearchListNotifier
+    extends AutoDisposeAsyncNotifier<GlobalSearchResult> {
+  var _requestId = 0;
+
   @override
-  Future<LibraryListState> build() async {
-    final query = ref.watch(searchQueryProvider);
-    if (!query.isSearching) {
-      return const LibraryListState();
+  Future<GlobalSearchResult> build() async {
+    final query = ref.watch(searchQueryProvider).trim();
+    if (query.isEmpty) {
+      return const GlobalSearchResult();
     }
-    return _fetchFirstPage(query);
+    final requestId = ++_requestId;
+    final result =
+        await ref.read(globalSearchRepositoryProvider).search(query);
+    // Guard against a superseded query resolving late.
+    if (requestId != _requestId) {
+      return state.valueOrNull ?? const GlobalSearchResult();
+    }
+    if (result.isErr) throw result.error;
+    return result.value;
   }
 
   Future<void> refresh() async {
-    final query = ref.read(searchQueryProvider);
-    if (!query.isSearching) {
-      state = const AsyncData(
-        LibraryListState(),
-      );
-      return;
-    }
-    state = const AsyncLoading();
-    state = await AsyncValue.guard(() => _fetchFirstPage(query));
+    ref.invalidateSelf();
+    await future;
   }
 
   Future<void> loadMore() async {
     final current = state.valueOrNull;
-    if (current == null || !current.hasNext || current.isLoadingMore) return;
+    if (current == null || !current.hasMore || current.isLoadingMore) return;
 
-    final query = ref.read(searchQueryProvider);
-    state = AsyncData(current.copyWith(isLoadingMore: true, clearError: true));
+    final query = ref.read(searchQueryProvider).trim();
+    if (query.isEmpty) return;
+
+    final requestId = ++_requestId;
+    state = AsyncData(current.copyWith(isLoadingMore: true));
 
     final nextPage = current.page + 1;
-    final result = await fetchLibraryListPage(ref, query, nextPage);
+    final result = await ref
+        .read(globalSearchRepositoryProvider)
+        .search(query, page: nextPage);
 
-    state = AsyncData(
-      current.copyWith(
-        items: [...current.items, ...result.items],
-        page: nextPage,
-        hasNext: result.hasNext,
-        total: query.usesListSeriesFetch
-            ? result.total
-            : current.items.length + result.items.length,
-        isLoadingMore: false,
-      ),
-    );
-  }
+    // Ignore if a newer query/refresh superseded this page request.
+    if (requestId != _requestId) return;
 
-  Future<void> toggleFavorite(int seriesId) async {
-    final current = state.valueOrNull;
-    if (current == null) return;
-
-    final repo = ref.read(libraryRepositoryProvider);
-    final result = await repo.toggleFavorite(seriesId);
+    final latest = state.valueOrNull ?? current;
     if (result.isErr) {
-      state = AsyncData(current.copyWith(error: result.error));
+      // Keep the results we already have; just stop the load-more spinner.
+      state = AsyncData(latest.copyWith(isLoadingMore: false));
       return;
     }
 
-    final updatedItems = current.items.map((series) {
-      if (series.id != seriesId) return series;
-      return series.copyWith(isFavorite: !series.isFavorite);
-    }).toList();
-
+    final next = result.value;
     state = AsyncData(
-      current.copyWith(
-        items: applySearchClientFilters(updatedItems, ref.read(searchQueryProvider)),
-        clearError: true,
+      latest.copyWith(
+        items: [...latest.items, ...next.items],
+        page: nextPage,
+        hasMore: next.hasMore,
+        sourcesQueried: next.sourcesQueried,
+        sourcesFailed: next.sourcesFailed,
+        isLoadingMore: false,
       ),
-    );
-  }
-
-  Future<LibraryListState> _fetchFirstPage(LibraryQuery query) async {
-    final page = await fetchLibraryListPage(ref, query, 1);
-    return LibraryListState(
-      items: page.items,
-      total: page.total,
-      hasNext: page.hasNext,
     );
   }
 }

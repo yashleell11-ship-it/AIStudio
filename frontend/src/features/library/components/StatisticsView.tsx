@@ -19,7 +19,7 @@ function StatCard({
     <Card>
       <CardContent className="p-4">
         <p className="text-sm text-muted">{label}</p>
-        <p className="mt-1 text-2xl font-bold text-fg">
+        <p className="mt-1 font-display text-3xl tabular-nums text-primary">
           {value}
           {unit && <span className="ml-1 text-sm font-normal text-muted">{unit}</span>}
         </p>
@@ -106,7 +106,7 @@ export function StatisticsView() {
         </CardHeader>
         <CardContent>
           <div className="flex items-center justify-between">
-            <span className="text-sm text-muted">{stats.completion_rate_pct}%</span>
+            <span className="text-sm font-semibold text-primary">{stats.completion_rate_pct}%</span>
             <span className="text-sm text-muted">
               {stats.completed_series} / {stats.total_series} series
             </span>

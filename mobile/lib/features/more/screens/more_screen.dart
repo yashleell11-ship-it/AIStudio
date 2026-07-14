@@ -6,10 +6,13 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
+import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/settings/widgets/whats_new_sheet.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class MoreScreen extends ConsumerWidget {
@@ -45,6 +48,14 @@ class MoreScreen extends ConsumerWidget {
             selectedIcon: Icons.collections_bookmark,
             label: 'Collections',
             onTap: () => context.go(Routes.collections),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _SectionHeader('Account'),
+          _MoreTile(
+            icon: Icons.person_outline,
+            selectedIcon: Icons.person,
+            label: 'Switch profile',
+            onTap: () => context.push(ProfileRoutes.picker),
           ),
           const SizedBox(height: AppSpacing.md),
           const _SectionHeader('Library'),
@@ -93,15 +104,16 @@ class MoreScreen extends ConsumerWidget {
             onTap: () => context.go(Routes.backup),
           ),
           updateAsync.when(
+            skipLoadingOnReload: true,
             loading: () => const SizedBox.shrink(),
             error: (_, __) => const SizedBox.shrink(),
             data: (info) {
+              // Hide whenever the installed build is at or ahead of the remote
+              // build (`hasUpdate == remoteBuild > localBuild`). After the user
+              // installs the new APK and returns, the resume refresh re-reads
+              // the now-current build and this collapses automatically.
               if (info == null || !info.hasUpdate) return const SizedBox.shrink();
-              return _UpdateBanner(
-                localVersion: info.localVersion,
-                remoteVersion: info.remoteVersion,
-                downloadUrl: info.downloadUrl,
-              );
+              return _UpdateBanner(info: info);
             },
           ),
           const SizedBox(height: AppSpacing.md),
@@ -112,7 +124,7 @@ class MoreScreen extends ConsumerWidget {
             label: "What's New",
             onTap: () => showWhatsNewSheet(context),
           ),
-          _AppInfoTile(ref: ref),
+          const _AppInfoTile(),
         ],
       ),
     );
@@ -165,7 +177,7 @@ class _MoreTile extends StatelessWidget {
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxs,
       ),
-      leading: Icon(icon, color: AppColors.violet400, size: 22),
+      leading: Icon(icon, color: AppColors.accentAmber, size: 22),
       title: Text(label, style: AppTypography.labelLg),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -200,64 +212,82 @@ class _MoreTile extends StatelessWidget {
 }
 
 class _UpdateBanner extends StatelessWidget {
-  const _UpdateBanner({
-    required this.localVersion,
-    required this.remoteVersion,
-    required this.downloadUrl,
-  });
+  const _UpdateBanner({required this.info});
 
-  final String localVersion;
-  final String remoteVersion;
-  final String downloadUrl;
+  final AppVersionInfo info;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              AppColors.primary.withAlpha(30),
-              AppColors.accent.withAlpha(15),
-            ],
+      child: GlassPanel(
+        borderRadius: AppRadius.lg,
+        padding: const EdgeInsets.all(AppSpacing.lg),
+        child: DecoratedBox(
+          // Warm amber wash + glow layered inside the frosted panel.
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                AppColors.accentAmber.withAlpha(28),
+                AppColors.accentRose.withAlpha(14),
+              ],
+            ),
+            borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.primary.withAlpha(80)),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  const Icon(
-                    Icons.system_update_outlined,
-                    color: AppColors.violet400,
-                    size: 18,
-                  ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    'Update Available',
-                    style: AppTypography.labelLg.copyWith(
-                      color: AppColors.violet400,
+          child: Padding(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(
+                      Icons.system_update_outlined,
+                      color: AppColors.accentAmber,
+                      size: 18,
                     ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '$localVersion → $remoteVersion',
-                style: AppTypography.bodySm.copyWith(color: AppColors.muted),
-              ),
-              const SizedBox(height: AppSpacing.md),
-              FilledButton.icon(
-                onPressed: () => _launchDownload(context, downloadUrl),
-                icon: const Icon(Icons.download_outlined, size: 16),
-                label: const Text('Download Update'),
-              ),
-            ],
+                    const SizedBox(width: AppSpacing.sm),
+                    Text(
+                      'Update available',
+                      style: AppTypography.labelLg.copyWith(
+                        color: AppColors.accentAmber,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: AppSpacing.sm),
+                _VersionRow(
+                  label: 'Installed',
+                  version: info.localVersion,
+                  buildNumber: info.localBuild,
+                  emphasized: false,
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                _VersionRow(
+                  label: 'Available',
+                  version: info.remoteVersion,
+                  buildNumber: info.remoteBuild,
+                  emphasized: true,
+                ),
+                const SizedBox(height: AppSpacing.md),
+                FilledButton.icon(
+                  onPressed: () => _launchDownload(context, info.downloadUrl),
+                  icon: const Icon(Icons.download_outlined, size: 16),
+                  label: const Text('Download update'),
+                ),
+                const SizedBox(height: AppSpacing.xs),
+                Text(
+                  'Downloading does not install automatically. Open the '
+                  'downloaded file to install, then return here.',
+                  style: AppTypography.caption.copyWith(color: AppColors.muted),
+                ),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'Updating from 1.2.x? Uninstall the old app first.',
+                  style: AppTypography.caption.copyWith(color: AppColors.muted),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -268,24 +298,164 @@ class _UpdateBanner extends StatelessWidget {
     final uri = Uri.tryParse(url);
     if (uri == null) return;
     final launched = await launchUrl(uri, mode: LaunchMode.externalApplication);
-    if (!launched && context.mounted) {
+    if (!context.mounted) return;
+    if (!launched) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not open: $url')),
       );
+      return;
     }
+    await _showInstallGuidance(context);
+  }
+
+  Future<void> _showInstallGuidance(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: Row(
+          children: [
+            const Icon(
+              Icons.install_mobile_outlined,
+              color: AppColors.accentAmber,
+              size: 20,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Expanded(
+              child: Text('Install now', style: AppTypography.h3),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'The new version is downloading to your device.',
+              style: AppTypography.body.copyWith(color: AppColors.fg),
+            ),
+            const SizedBox(height: AppSpacing.md),
+            const _Step(
+              number: '1',
+              text: 'Open the downloaded APK from your notification shade '
+                  'or Downloads.',
+            ),
+            const _Step(
+              number: '2',
+              text: 'Tap Install and confirm any prompt.',
+            ),
+            const _Step(
+              number: '3',
+              text: 'Return here — the version updates and this banner '
+                  'clears automatically.',
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Got it'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _VersionRow extends StatelessWidget {
+  const _VersionRow({
+    required this.label,
+    required this.version,
+    required this.buildNumber,
+    required this.emphasized,
+  });
+
+  final String label;
+  final String version;
+  final int buildNumber;
+  final bool emphasized;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        SizedBox(
+          width: 72,
+          child: Text(
+            label,
+            style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+          ),
+        ),
+        Text(
+          'v$version',
+          style: AppTypography.bodySm.copyWith(
+            color: emphasized ? AppColors.accentAmber : AppColors.fg,
+            fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
+          ),
+        ),
+        const SizedBox(width: AppSpacing.xs),
+        Text(
+          '(build $buildNumber)',
+          style: AppTypography.caption.copyWith(color: AppColors.muted),
+        ),
+      ],
+    );
+  }
+}
+
+class _Step extends StatelessWidget {
+  const _Step({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 20,
+            height: 20,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.accentAmber.withAlpha(36),
+              shape: BoxShape.circle,
+            ),
+            child: Text(
+              number,
+              style: AppTypography.caption.copyWith(
+                color: AppColors.accentAmber,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              text,
+              style: AppTypography.bodySm.copyWith(color: AppColors.fg),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
 class _AppInfoTile extends ConsumerWidget {
-  const _AppInfoTile({required this.ref});
-
-  final WidgetRef ref;
+  const _AppInfoTile();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final infoAsync = ref.watch(packageInfoProvider);
 
     return infoAsync.when(
+      // Keep the tile visible while the provider re-reads on resume so the
+      // version label swaps in place rather than blanking out.
+      skipLoadingOnReload: true,
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (info) => ListTile(
@@ -297,7 +467,7 @@ class _AppInfoTile extends ConsumerWidget {
             gradient: const LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppColors.primary, AppColors.violet600],
+              colors: [AppColors.accentAmber, AppColors.accentRose],
             ),
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),

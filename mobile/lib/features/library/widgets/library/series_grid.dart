@@ -11,6 +11,7 @@ import 'package:manhwamaniacs/features/library/utils/series_display.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/pressable.dart';
+import 'package:manhwamaniacs/shared/widgets/scroll_reveal.dart';
 import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 
 class SeriesCard extends ConsumerWidget {
@@ -462,17 +463,22 @@ class SeriesGrid extends ConsumerWidget {
     if (viewMode == LibraryViewMode.list) {
       return Column(
         children: [
-          for (final series in items) ...[
-            SeriesListTile(
-              series: series,
-              onTap: () => onSeriesTap(series),
-              onToggleFavorite: () => onToggleFavorite(series.id),
-              onLongPress: onSeriesLongPress == null
-                  ? null
-                  : () => onSeriesLongPress!(series),
-              onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
-              selectionMode: selectionMode,
-              selected: selectedIds.contains(series.id),
+          for (var i = 0; i < items.length; i++) ...[
+            ScrollReveal(
+              index: i,
+              child: SeriesListTile(
+                series: items[i],
+                onTap: () => onSeriesTap(items[i]),
+                onToggleFavorite: () => onToggleFavorite(items[i].id),
+                onLongPress: onSeriesLongPress == null
+                    ? null
+                    : () => onSeriesLongPress!(items[i]),
+                onRemove: onRemoveSeries == null
+                    ? null
+                    : () => onRemoveSeries!(items[i].id),
+                selectionMode: selectionMode,
+                selected: selectedIds.contains(items[i].id),
+              ),
             ),
             const SizedBox(height: AppSpacing.md),
           ],
@@ -496,16 +502,19 @@ class SeriesGrid extends ConsumerWidget {
       itemCount: items.length,
       itemBuilder: (context, index) {
         final series = items[index];
-        return SeriesCard(
-          series: series,
-          onTap: () => onSeriesTap(series),
-          onToggleFavorite: () => onToggleFavorite(series.id),
-          onLongPress: onSeriesLongPress == null
-              ? null
-              : () => onSeriesLongPress!(series),
-          onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
-          selectionMode: selectionMode,
-          selected: selectedIds.contains(series.id),
+        return ScrollReveal(
+          index: index,
+          child: SeriesCard(
+            series: series,
+            onTap: () => onSeriesTap(series),
+            onToggleFavorite: () => onToggleFavorite(series.id),
+            onLongPress: onSeriesLongPress == null
+                ? null
+                : () => onSeriesLongPress!(series),
+            onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
+            selectionMode: selectionMode,
+            selected: selectedIds.contains(series.id),
+          ),
         );
       },
     );

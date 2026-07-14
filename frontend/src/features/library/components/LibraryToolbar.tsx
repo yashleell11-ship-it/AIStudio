@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { HeroHeading } from "@/components/premium/HeroHeading";
 import { useShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
 import type { SeriesFilter, SeriesSort } from "../types";
@@ -88,8 +89,10 @@ export function LibraryToolbar({
     <div className="mb-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-fg">Library</h1>
-          <p className="mt-1 text-sm text-muted">
+          <HeroHeading className="text-[2.75rem] leading-none md:text-6xl">
+            Library
+          </HeroHeading>
+          <p className="mt-2 text-sm text-muted">
             {seriesCount.toLocaleString()} series
           </p>
         </div>
@@ -102,7 +105,7 @@ export function LibraryToolbar({
             onClick={() => setFiltersOpen((open) => !open)}
             className={cn(
               "border border-border/50 bg-white/5 hover:bg-white/10",
-              filtersOpen && "border-violet-500/30 bg-violet-500/10 text-violet-400",
+              filtersOpen && "border-primary/40 bg-primary/10 text-primary",
             )}
             aria-expanded={filtersOpen}
           >
@@ -113,7 +116,7 @@ export function LibraryToolbar({
           <select
             value={sort}
             onChange={(event) => onSortChange(event.target.value as SeriesSort)}
-            className="h-9 rounded-lg border border-border/50 bg-white/5 px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/30"
+            className="h-9 rounded-lg border border-border/50 bg-white/5 px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
             aria-label="Sort library"
           >
             {SORT_OPTIONS.map((option) => (
@@ -130,7 +133,7 @@ export function LibraryToolbar({
               className={cn(
                 "flex size-8 items-center justify-center rounded-md transition-colors",
                 viewMode === "grid"
-                  ? "bg-violet-600 text-white"
+                  ? "bg-primary text-primary-fg"
                   : "text-muted hover:text-fg",
               )}
               aria-label="Grid view"
@@ -144,7 +147,7 @@ export function LibraryToolbar({
               className={cn(
                 "flex size-8 items-center justify-center rounded-md transition-colors",
                 viewMode === "list"
-                  ? "bg-violet-600 text-white"
+                  ? "bg-primary text-primary-fg"
                   : "text-muted hover:text-fg",
               )}
               aria-label="List view"
@@ -166,7 +169,7 @@ export function LibraryToolbar({
           value={search}
           onChange={(event) => onSearchChange(event.target.value)}
           placeholder="Search by title, author, or tag..."
-          className="h-11 border-border/50 bg-white/[0.03] pl-11 focus-visible:ring-violet-500/30"
+          className="h-11 border-border/50 bg-white/[0.03] pl-11 focus-visible:ring-primary/40"
           aria-label="Search library"
         />
       </div>
@@ -187,7 +190,7 @@ export function LibraryToolbar({
               className={cn(
                 "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
                 active
-                  ? "bg-violet-600 text-white shadow-glow"
+                  ? "bg-primary text-primary-fg shadow-glow"
                   : "bg-white/5 text-muted hover:bg-white/10 hover:text-fg",
               )}
               aria-pressed={active}
@@ -202,7 +205,7 @@ export function LibraryToolbar({
           className={cn(
             "rounded-full px-4 py-1.5 text-sm font-medium transition-colors",
             favoritesOnly
-              ? "bg-amber-500/20 text-amber-400"
+              ? "bg-primary/20 text-primary"
               : "bg-white/5 text-muted hover:bg-white/10 hover:text-fg",
           )}
           aria-pressed={favoritesOnly}
@@ -213,11 +216,7 @@ export function LibraryToolbar({
 
       {filtersOpen ? (
         <div className="glass-panel flex flex-wrap items-center gap-3 rounded-xl p-4">
-          <Button
-            type="button"
-            onClick={onImportClick}
-            className="bg-violet-600 hover:bg-violet-500"
-          >
+          <Button type="button" onClick={onImportClick}>
             <Upload className="size-4" />
             Import Library
           </Button>

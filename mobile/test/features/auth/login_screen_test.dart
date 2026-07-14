@@ -10,6 +10,8 @@ import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/screens/login_screen.dart';
 import 'package:manhwamaniacs/features/auth/screens/register_screen.dart';
 
+import '../../support/test_overrides.dart';
+
 /// Stub controller that records login attempts and returns a canned result,
 /// without touching secure storage or the network.
 class _StubAuthController extends AuthController {
@@ -39,6 +41,7 @@ class _StubAuthController extends AuthController {
 Widget _wrap({
   required BootstrapStatus status,
   required _StubAuthController controller,
+  List<Override> extraOverrides = const [],
 }) {
   final router = GoRouter(
     initialLocation: Routes.login,
@@ -55,6 +58,7 @@ Widget _wrap({
     overrides: [
       authControllerProvider.overrideWith(() => controller),
       bootstrapStatusProvider.overrideWith((ref) => status),
+      ...extraOverrides,
     ],
     child: MaterialApp.router(routerConfig: router),
   );
@@ -75,7 +79,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      // Submit is now a PrimaryPillButton, which uppercases its label.
+      await tester.tap(find.text('SIGN IN'));
       await tester.pump();
 
       expect(find.text('Enter your username and password.'), findsOneWidget);
@@ -91,7 +96,8 @@ void main() {
 
       await tester.enterText(find.byType(TextField).at(0), 'reader');
       await tester.enterText(find.byType(TextField).at(1), 'password1');
-      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      // Submit is now a PrimaryPillButton, which uppercases its label.
+      await tester.tap(find.text('SIGN IN'));
       await tester.pump();
 
       expect(controller.loginCalls, 1);
@@ -114,11 +120,29 @@ void main() {
 
       await tester.enterText(find.byType(TextField).at(0), 'reader');
       await tester.enterText(find.byType(TextField).at(1), 'wrong');
-      await tester.tap(find.widgetWithText(FilledButton, 'Sign in'));
+      // Submit is now a PrimaryPillButton, which uppercases its label.
+      await tester.tap(find.text('SIGN IN'));
       await tester.pump();
       await tester.pump();
 
       expect(find.text('Invalid username or password.'), findsOneWidget);
+    });
+
+    testWidgets('shows the configured server host for diagnostics',
+        (tester) async {
+      final controller = _StubAuthController(null);
+      await tester.pumpWidget(
+        _wrap(
+          status: openStatus,
+          controller: controller,
+          extraOverrides: [
+            apiBaseUrlOverride('https://app.manhwamaniacs.xyz'),
+          ],
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Server: app.manhwamaniacs.xyz'), findsOneWidget);
     });
 
     testWidgets('guides to create the first account when bootstrapping',
@@ -135,7 +159,8 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Create the first account'), findsOneWidget);
+      // Bootstrap CTA is a PrimaryPillButton, which uppercases its label.
+      expect(find.text('CREATE THE FIRST ACCOUNT'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
     });
   });

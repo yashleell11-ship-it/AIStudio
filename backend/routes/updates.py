@@ -9,9 +9,12 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.errors import AppError
-from database.models import User
+from core.profile_context import (
+    ProfileContext,
+    require_profile_context,
+    resolve_profile_context,
+)
 from database.session import get_db
-from services.auth_service import get_optional_user
 from services.update_scheduler import get_update_manager
 from services.update_service import UpdateService, get_update_service
 from utils.api_pagination import set_list_total_header
@@ -21,9 +24,9 @@ router = APIRouter(prefix="/updates", tags=["updates"])
 
 def _service(
     db: Session = Depends(get_db),
-    user: User | None = Depends(get_optional_user),
+    ctx: ProfileContext = Depends(resolve_profile_context),
 ) -> UpdateService:
-    return get_update_service(db, user_id=user.id if user else None)
+    return get_update_service(db, user_id=ctx.user_id, profile_id=ctx.profile_id)
 
 
 UpdateDep = Annotated[UpdateService, Depends(_service)]
@@ -82,7 +85,10 @@ def list_trackers(
     return items
 
 
-@router.post("/trackers/follow")
+@router.post(
+    "/trackers/follow",
+    dependencies=[Depends(require_profile_context)],
+)
 def follow_series(body: FollowSeriesRequest, service: UpdateDep) -> dict[str, object]:
     return service.follow_series(
         source=body.source,

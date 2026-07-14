@@ -7,7 +7,11 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   BookOpen,
+  Check,
   ChevronRight,
+  Cloud,
+  Download,
+  DownloadCloud,
   Play,
   Sparkles,
   Star,
@@ -26,7 +30,10 @@ import {
   useToggleFavorite,
 } from "@/features/library/hooks";
 import { prefetchReaderChapter } from "@/features/reader/hooks";
+import { useQueueChapters } from "@/features/downloads/hooks";
+import { sourceReaderChapterPath } from "@/features/sources/hooks";
 import { ApiError } from "@/types/api";
+import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { cn } from "@/lib/cn";
 import { SeriesCard } from "./SeriesCard";
 
@@ -52,12 +59,12 @@ function languageLabel(language: string): string {
 function statusBadgeStyle(status: string): string {
   switch (status) {
     case "reading":
-      return "bg-violet-500/20 text-violet-400 border-violet-500/30";
+      return "bg-primary/15 text-primary border-primary/30";
     case "completed":
-      return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30";
+      return "bg-success/15 text-success border-success/30";
     case "on_hold":
     case "on-hold":
-      return "bg-amber-500/20 text-amber-400 border-amber-500/30";
+      return "bg-accent/15 text-accent border-accent/30";
     default:
       return "bg-white/5 text-muted border-border/50";
   }
@@ -74,6 +81,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const toggleFavorite = useToggleFavorite();
   const addTag = useAddTagToSeries();
   const removeTag = useRemoveTagFromSeries();
+  const queueChapters = useQueueChapters();
   const [showTagPicker, setShowTagPicker] = useState(false);
 
   useEffect(() => {
@@ -85,7 +93,9 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
       prefetchReaderChapter(queryClient, series.first_chapter_id);
     }
     for (const chapter of series.chapters.slice(0, 5)) {
-      prefetchReaderChapter(queryClient, chapter.id);
+      if (chapter.id != null) {
+        prefetchReaderChapter(queryClient, chapter.id);
+      }
     }
   }, [queryClient, series]);
 
@@ -117,7 +127,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
         <p className="text-danger">{message}</p>
         <Link
           href="/library"
-          className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-violet-600 px-4 text-sm font-medium text-white hover:bg-violet-500"
+          className="mt-4 inline-flex h-10 items-center justify-center rounded-full bg-primary px-5 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
         >
           Back to library
         </Link>
@@ -135,6 +145,19 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
 
   const prefetchChapter = (chapterId: number) => {
     prefetchReaderChapter(queryClient, chapterId);
+  };
+
+  const sourceId = series.source_id ?? null;
+  const sourceSeriesId = series.source_series_id ?? null;
+
+  const downloadChapter = (sourceChapterId: string) => {
+    if (!sourceId || !sourceSeriesId) return;
+    queueChapters.mutate({
+      source_id: sourceId,
+      series_id: sourceSeriesId,
+      chapter_ids: [sourceChapterId],
+      series_title: series.title,
+    });
   };
 
   const metadata = metadataQuery.data;
@@ -168,8 +191,8 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
       <div className="relative mx-auto max-w-6xl px-6 pb-10 md:px-10">
         <div className="-mt-36 grid gap-8 lg:grid-cols-[220px_1fr] lg:gap-10">
           {/* Cover */}
-          <div className="mx-auto w-full max-w-[220px] lg:mx-0">
-            <div className="relative aspect-[2/3] overflow-hidden rounded-2xl shadow-glow ring-1 ring-white/10">
+          <div className="mx-auto w-full max-w-[220px] lg:mx-0 lg:sticky lg:top-24 lg:self-start">
+            <div className="relative aspect-[2/3] overflow-hidden rounded-3xl shadow-glow ring-1 ring-white/10">
               <Image
                 src={coverUrl(series.id)}
                 alt={series.title}
@@ -198,14 +221,14 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                 onClick={() => toggleFavorite.mutate(series.id)}
                 aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
                 className={cn(
-                  "shrink-0",
+                  "shrink-0 rounded-full",
                   series.is_favorite
-                    ? "bg-amber-500/20 text-amber-400 hover:bg-amber-500/30"
+                    ? "bg-primary/20 text-primary hover:bg-primary/30"
                     : "border border-border/50 bg-white/5 hover:bg-white/10",
                 )}
               >
                 <Star
-                  className={cn("size-4", series.is_favorite && "fill-amber-400")}
+                  className={cn("size-4", series.is_favorite && "fill-primary")}
                 />
                 {series.is_favorite ? "Favorited" : "Add Favorite"}
               </Button>
@@ -243,20 +266,20 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
               <span>{series.chapter_count} chapters</span>
               <span>{series.page_count.toLocaleString()} pages</span>
               {progress != null ? (
-                <span className="text-cyan-400">
+                <span className="font-medium text-primary">
                   {Math.round(progress.progress_pct)}% read
                 </span>
               ) : null}
             </div>
 
             {continueHref ? (
-              <Link
+              <PrimaryPillButton
                 href={continueHref}
-                className="mt-6 inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-violet-600 px-6 text-sm font-semibold text-white shadow-glow transition-colors hover:bg-violet-500"
+                className="mt-6 shadow-glow"
+                icon={<Play className="size-4 fill-current" />}
               >
-                <Play className="size-4 fill-current" />
                 {progress ? "Continue Reading" : "Start Reading"}
-              </Link>
+              </PrimaryPillButton>
             ) : null}
 
             {/* Tags */}
@@ -289,7 +312,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                     <Badge
                       key={tag.id}
                       variant="default"
-                      className="cursor-pointer border-border/50 bg-white/5 hover:bg-violet-500/15"
+                      className="cursor-pointer border-border/50 bg-white/5 hover:bg-primary/15"
                       onClick={() => {
                         addTag.mutate({ seriesId: series.id, tagId: tag.id });
                         setShowTagPicker(false);
@@ -308,7 +331,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                   <span key={c.id}>
                     <Link
                       href={`/library/collections/${c.id}`}
-                      className="text-violet-400 hover:underline"
+                      className="text-primary hover:underline"
                     >
                       {c.name}
                     </Link>
@@ -328,10 +351,10 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
 
         {/* Metadata Quality */}
         {metadata ? (
-          <section className="glass-panel mt-10 rounded-2xl p-6">
+          <section className="glass-panel mt-10 rounded-3xl border border-border p-6">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-cyan-400" aria-hidden />
+                <Sparkles className="size-4 text-primary" aria-hidden />
                 <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
                   Metadata Quality
                 </h2>
@@ -342,7 +365,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
             </div>
             <Progress
               value={metadata.score}
-              className="mb-4 h-2 bg-white/10 [&>div]:bg-gradient-to-r [&>div]:from-violet-500 [&>div]:to-cyan-500"
+              className="mb-4 h-2 bg-white/10 [&>div]:bg-gradient-to-r [&>div]:from-accent [&>div]:to-primary"
             />
             {metadata.suggestions.length > 0 ? (
               <div className="space-y-1.5">
@@ -353,7 +376,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-emerald-400">All metadata fields complete!</p>
+              <p className="text-sm text-success">All metadata fields complete!</p>
             )}
           </section>
         ) : null}
@@ -361,44 +384,135 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
         {/* Chapters */}
         <section className="mt-10">
           <div className="mb-4 flex items-center gap-2">
-            <BookOpen className="size-4 text-cyan-400" aria-hidden />
+            <BookOpen className="size-4 text-primary" aria-hidden />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
               Chapters
             </h2>
             <span className="text-xs text-muted">({series.chapters.length})</span>
           </div>
 
-          <div className="glass-panel divide-y divide-border/30 overflow-hidden rounded-2xl">
+          <div className="glass-panel divide-y divide-border/60 overflow-hidden rounded-3xl border border-border">
             {series.chapters.length === 0 ? (
               <p className="p-6 text-sm text-muted">No chapters found for this series.</p>
             ) : (
               series.chapters.map((chapter, index) => {
-                const isCurrent = progress?.chapter_id === chapter.id;
-                return (
-                  <Link
-                    key={chapter.id}
-                    href={`/reader/${series.id}/${chapter.id}`}
-                    onMouseEnter={() => prefetchChapter(chapter.id)}
-                    onFocus={() => prefetchChapter(chapter.id)}
-                    className="group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-white/[0.03]"
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-white/5 font-mono text-xs tabular-nums text-muted group-hover:bg-violet-500/20 group-hover:text-violet-400">
-                      {chapter.number ?? index + 1}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium text-fg group-hover:text-violet-400">
-                        {chapter.title}
-                      </p>
-                      <p className="text-xs text-muted">{chapter.page_count} pages</p>
+                const isDownloaded = chapter.is_downloaded ?? chapter.id != null;
+                const isCurrent =
+                  chapter.id != null && progress?.chapter_id === chapter.id;
+                const rowKey =
+                  chapter.id != null
+                    ? `local-${chapter.id}`
+                    : `remote-${chapter.source_chapter_id ?? index}`;
+
+                const numberBadge = (
+                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/5 font-mono text-xs tabular-nums text-muted transition-colors group-hover:bg-primary/20 group-hover:text-primary">
+                    {chapter.number ?? index + 1}
+                  </span>
+                );
+
+                const chapterBody = (
+                  <div className="min-w-0 flex-1">
+                    <p
+                      className={cn(
+                        "truncate font-medium transition-colors group-hover:text-primary",
+                        chapter.is_read ? "text-muted" : "text-fg",
+                      )}
+                    >
+                      {chapter.title}
+                    </p>
+                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
+                      {chapter.page_count > 0 ? (
+                        <span>{chapter.page_count} pages</span>
+                      ) : null}
+                      {isDownloaded ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 px-1.5 py-0.5 text-success">
+                          <DownloadCloud className="size-3" aria-hidden />
+                          Downloaded
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-primary">
+                          <Cloud className="size-3" aria-hidden />
+                          Online
+                        </span>
+                      )}
+                      {chapter.is_read ? (
+                        <span className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-white/5 px-1.5 py-0.5">
+                          <Check className="size-3" aria-hidden />
+                          Read
+                        </span>
+                      ) : null}
                     </div>
-                    {isCurrent ? (
-                      <Badge variant="primary" className="shrink-0 bg-violet-500/20 text-violet-400">
-                        In progress
-                      </Badge>
-                    ) : (
-                      <ChevronRight className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                  </div>
+                );
+
+                if (isDownloaded && chapter.id != null) {
+                  const localId = chapter.id;
+                  return (
+                    <Link
+                      key={rowKey}
+                      href={`/reader/${series.id}/${localId}`}
+                      onMouseEnter={() => prefetchChapter(localId)}
+                      onFocus={() => prefetchChapter(localId)}
+                      className={cn(
+                        "group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-primary/[0.06]",
+                        chapter.is_read && "bg-black/25",
+                      )}
+                    >
+                      {numberBadge}
+                      {chapterBody}
+                      {isCurrent ? (
+                        <Badge variant="primary" className="shrink-0 bg-primary/20 text-primary">
+                          In progress
+                        </Badge>
+                      ) : (
+                        <ChevronRight className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                      )}
+                    </Link>
+                  );
+                }
+
+                // Remote-only chapter: offer Read Online + Download.
+                const canReadOnline =
+                  sourceId != null &&
+                  sourceSeriesId != null &&
+                  chapter.source_chapter_id != null;
+                return (
+                  <div
+                    key={rowKey}
+                    className={cn(
+                      "group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-primary/[0.06]",
+                      chapter.is_read && "bg-black/25",
                     )}
-                  </Link>
+                  >
+                    {numberBadge}
+                    {chapterBody}
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {canReadOnline ? (
+                        <Link
+                          href={sourceReaderChapterPath(
+                            sourceId!,
+                            sourceSeriesId!,
+                            chapter.source_chapter_id!,
+                          )}
+                        >
+                          <Button variant="ghost" size="sm">
+                            Read Online
+                          </Button>
+                        </Link>
+                      ) : null}
+                      {canReadOnline ? (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={queueChapters.isPending}
+                          onClick={() => downloadChapter(chapter.source_chapter_id!)}
+                        >
+                          <Download className="size-3.5" aria-hidden />
+                          Download
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
                 );
               })
             )}
@@ -409,7 +523,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
         {similar.length > 0 ? (
           <section className="mt-10">
             <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="size-4 text-cyan-400" aria-hidden />
+              <Sparkles className="size-4 text-primary" aria-hidden />
               <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
                 Similar Series
               </h2>

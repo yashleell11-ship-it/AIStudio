@@ -5,15 +5,19 @@ import 'package:manhwamaniacs/features/library/repositories/library_repository.d
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_image_url.dart';
-/// Resolved local library ids for a downloaded source chapter.
+/// Resolved local library ids for a downloaded source chapter, along with the
+/// [ChapterDetail] already fetched while resolving them — so callers on the
+/// failure path never re-fetch it.
 class SourceReaderOfflineHandoff {
   const SourceReaderOfflineHandoff({
     required this.seriesId,
     required this.chapterId,
+    required this.chapter,
   });
 
   final int seriesId;
   final int chapterId;
+  final ChapterDetail chapter;
 }
 
 DownloadItem? findCompletedSourceDownload({
@@ -89,5 +93,6 @@ Future<SourceReaderOfflineHandoff?> resolveSourceReaderOfflineHandoff({
   return SourceReaderOfflineHandoff(
     seriesId: chapterResult.value.seriesId,
     chapterId: localChapterId,
+    chapter: chapterResult.value,
   );
 }

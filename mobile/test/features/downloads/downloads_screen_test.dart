@@ -423,7 +423,7 @@ void main() {
 
       expect(find.text('Overall Progress'), findsOneWidget);
       expect(find.text('Solo Leveling'), findsWidgets);
-      expect(find.text('Pause All'), findsOneWidget);
+      expect(find.text('PAUSE ALL'), findsOneWidget);
       expect(find.textContaining('45%'), findsWidgets);
     });
 
@@ -441,7 +441,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Try Again'), findsOneWidget);
+      expect(find.text('TRY AGAIN'), findsOneWidget);
     });
 
     testWidgets('tapping completed download opens library reader', (tester) async {

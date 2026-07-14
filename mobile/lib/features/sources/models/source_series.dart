@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/network/api_image.dart';
+
 class SourceSeriesSummary {
   const SourceSeriesSummary({
     required this.id,
@@ -26,21 +28,21 @@ class SourceSeriesSummary {
   final String coverUrl;
 
   factory SourceSeriesSummary.fromJson(Map<String, dynamic> json, String apiBaseUrl) {
-    final rawCover = json['cover_url'] as String;
-    final coverUrl =
-        rawCover.startsWith('http') ? rawCover : '$apiBaseUrl$rawCover';
+    final rawCover = json['cover_url'] as String? ?? '';
     return SourceSeriesSummary(
       id: json['id'] as String,
       sourceId: json['source_id'] as String,
       title: json['title'] as String,
-      chapterCount: json['chapter_count'] as int,
+      chapterCount: (json['chapter_count'] as num?)?.toInt() ?? 0,
       description: json['description'] as String?,
       author: json['author'] as String?,
       artist: json['artist'] as String?,
       status: json['status'] as String?,
-      genres: (json['genres'] as List<dynamic>).cast<String>(),
+      genres: (json['genres'] as List<dynamic>?)?.cast<String>() ?? const [],
       latestChapter: json['latest_chapter'] as String?,
-      coverUrl: coverUrl,
+      coverUrl: rawCover.isEmpty
+          ? ''
+          : resolveApiResourceUrl(apiBaseUrl, rawCover),
     );
   }
 }

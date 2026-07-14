@@ -11,6 +11,12 @@ embedding and redistribution as part of a larger software product.
 - Space Mono (SpaceMono-Regular.ttf)
   Copyright Colophon Foundry
 
+- Syne (Syne.ttf — variable, wght 400–800; full text in Syne-OFL.txt)
+  Copyright The Syne Project Authors (https://github.com/bonjour-monde/syne-typeface)
+
+- DM Sans (DMSans.ttf — variable, opsz + wght; full text in DMSans-OFL.txt)
+  Copyright The DM Sans Project Authors (https://github.com/googlefonts/dm-fonts)
+
 All files were obtained via the Google Fonts distribution
 (https://fonts.google.com), which serves the same OFL-licensed binaries
 published by each font's respective foundry.

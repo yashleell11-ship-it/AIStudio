@@ -38,17 +38,17 @@ function languageLabel(language: string): string {
 function statusBadgeStyle(status: string): string {
   switch (status) {
     case "reading":
-      return "bg-violet-500/80 text-white";
+      return "bg-primary/85 text-primary-fg";
     case "completed":
-      return "bg-emerald-500/80 text-white";
+      return "bg-success/80 text-white";
     case "on_hold":
     case "on-hold":
-      return "bg-amber-500/80 text-white";
+      return "bg-accent/85 text-white";
     case "plan_to_read":
     case "plan":
-      return "bg-blue-500/80 text-white";
+      return "bg-white/20 text-white";
     case "unread":
-      return "bg-blue-500/60 text-white";
+      return "bg-white/15 text-white";
     default:
       return "bg-white/20 text-white";
   }
@@ -69,8 +69,8 @@ function SeriesCardContent({
   const toggleFavorite = useToggleFavorite();
 
   return (
-    <article className="group relative overflow-hidden rounded-xl transition-all duration-300 hover:shadow-glow">
-      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-surface-2">
+    <article className="group relative overflow-hidden rounded-2xl transition-all duration-300 hover:shadow-glow">
+      <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-white/5 transition-all duration-300 group-hover:ring-primary/30">
         <Image
           src={coverUrl(series.id)}
           alt={series.title}
@@ -183,7 +183,7 @@ export function SeriesListItem({ series }: SeriesCardProps) {
   const toggleFavorite = useToggleFavorite();
 
   const row = (
-    <div className="glass-card flex items-center gap-4 rounded-xl p-3 transition-colors hover:border-violet-500/30">
+    <div className="glass-card flex items-center gap-4 rounded-2xl p-3 transition-colors hover:border-primary/30">
       <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-surface-2">
         <Image
           src={coverUrl(series.id)}

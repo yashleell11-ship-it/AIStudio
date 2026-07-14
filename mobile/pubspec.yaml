@@ -1,7 +1,7 @@
 name: manhwamaniacs
 description: ManhwaManiacs mobile client — manga/manhwa reader
 publish_to: 'none'
-version: 1.2.2+5
+version: 1.3.2+17
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
@@ -67,6 +67,16 @@ flutter:
   assets:
     - assets/images/
   fonts:
+    # Syne (display / headings) and DM Sans (body / UI) are bundled as variable
+    # fonts so the app NEVER depends on runtime fetching from fonts.gstatic.com.
+    # Weights are driven per-style via FontVariation('wght', …) in
+    # AppTypography, so a single variable file covers every weight we use.
+    - family: Syne
+      fonts:
+        - asset: assets/fonts/Syne.ttf
+    - family: DMSans
+      fonts:
+        - asset: assets/fonts/DMSans.ttf
     - family: Inter
       fonts:
         - asset: assets/fonts/Inter-Regular.ttf

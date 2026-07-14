@@ -42,7 +42,11 @@ class UpdatesNotifier extends AutoDisposeAsyncNotifier<UpdatesState> {
   Future<UpdatesState> build() async => _fetch();
 
   Future<void> refresh() async {
-    state = const AsyncLoading();
+    // Keep the current data visible while re-fetching so action-driven reloads
+    // (mark read, check now, remove tracker, toggle auto-download) and
+    // pull-to-refresh don't blank the whole screen to a skeleton. The
+    // RefreshIndicator spinner and optimistic actionPending state provide the
+    // loading affordance; first load is covered by build().
     state = await AsyncValue.guard(_fetch);
   }
 

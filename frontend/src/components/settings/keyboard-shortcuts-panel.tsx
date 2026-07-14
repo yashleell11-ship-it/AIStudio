@@ -45,11 +45,11 @@ export function KeyboardShortcutsPanel() {
   return (
     <section className="glass-card rounded-2xl p-5 md:p-6">
       <div className="mb-5 flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/10 text-violet-400">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 text-primary">
           <Keyboard className="size-5" aria-hidden />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-fg">Keyboard Shortcuts</h2>
+          <h2 className="font-display text-lg tracking-wide text-fg">Keyboard Shortcuts</h2>
           <p className="mt-0.5 text-sm text-muted">
             Active shortcuts registered across the app. Shortcuts are disabled while typing in
             input fields unless noted.
@@ -66,13 +66,13 @@ export function KeyboardShortcutsPanel() {
               <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted">
                 {group}
               </h3>
-              <ul className="divide-y divide-border/40 rounded-xl border border-border/40 bg-white/[0.02]">
+              <ul className="divide-y divide-border rounded-xl border border-border bg-surface-2/40">
                 {items.map((shortcut) => {
                   const combos = Array.isArray(shortcut.keys) ? shortcut.keys : [shortcut.keys];
                   return (
                     <li
                       key={shortcut.id}
-                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-white/[0.02]"
+                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2/40"
                     >
                       <span className="text-sm text-fg">{shortcut.description}</span>
                       <div className="flex flex-wrap items-center gap-2">

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, Response
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
+from core.profile_context import require_profile_context
 from services.image_service import ImageService, get_image_service
 from services.library_service import LibraryService, get_library_service
 from services.reader_service import ReaderService, get_reader_service
@@ -60,7 +61,7 @@ def get_reader_page_image(
     )
 
 
-@router.post("/progress")
+@router.post("/progress", dependencies=[Depends(require_profile_context)])
 def save_progress(body: ProgressRequest, service: ReaderDep) -> dict[str, object]:
     """Save reading progress for a series."""
     return service.save_progress(
@@ -83,13 +84,17 @@ def get_progress(
     return progress
 
 
-@router.delete("/progress/{series_id}", status_code=204)
+@router.delete(
+    "/progress/{series_id}",
+    status_code=204,
+    dependencies=[Depends(require_profile_context)],
+)
 def delete_progress(series_id: int, service: ReaderDep) -> None:
     """Clear saved reading progress for a series."""
     service.delete_progress(series_id)
 
 
-@router.post("/bookmarks")
+@router.post("/bookmarks", dependencies=[Depends(require_profile_context)])
 def create_bookmark(body: BookmarkRequest, service: ReaderDep) -> dict[str, object]:
     """Bookmark the current page."""
     return service.add_bookmark(
@@ -124,7 +129,11 @@ def list_bookmarks(
     return items
 
 
-@router.delete("/bookmarks/{bookmark_id}", status_code=204)
+@router.delete(
+    "/bookmarks/{bookmark_id}",
+    status_code=204,
+    dependencies=[Depends(require_profile_context)],
+)
 def delete_bookmark(bookmark_id: int, service: ReaderDep) -> None:
     """Remove a bookmark."""
     service.delete_bookmark(bookmark_id)

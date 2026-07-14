@@ -1,3 +1,6 @@
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 
 String queueDownloadFeedbackMessage(QueueDownloadResponse response) {
@@ -15,4 +18,22 @@ String queueDownloadFeedbackMessage(QueueDownloadResponse response) {
     return 'No chapters queued';
   }
   return parts.join('\n');
+}
+
+void showQueueDownloadSnackBar(
+  BuildContext context,
+  QueueDownloadResponse response,
+) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(queueDownloadFeedbackMessage(response)),
+      action: SnackBarAction(
+        label: 'Downloads',
+        onPressed: () {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          context.go(Routes.downloads);
+        },
+      ),
+    ),
+  );
 }

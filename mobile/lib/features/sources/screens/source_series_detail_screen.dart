@@ -9,7 +9,10 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
 import 'package:manhwamaniacs/features/downloads/utils/queue_download_feedback.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
+import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
+import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
@@ -17,6 +20,11 @@ import 'package:manhwamaniacs/features/sources/widgets/source_chapter_download_s
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
+import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
+
+/// Chapter list ordering. Defaults to newest-first (highest chapter number).
+enum _ChapterSortOrder { newest, oldest }
 
 class SourceSeriesDetailScreen extends ConsumerWidget {
   const SourceSeriesDetailScreen({
@@ -38,7 +46,9 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
       appBar: AppBar(
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
-          onPressed: () => context.go(RoutePaths.sourceBrowse(sourceId)),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go(RoutePaths.sourceBrowse(sourceId)),
         ),
         title: const Text('Source Series'),
       ),
@@ -93,6 +103,36 @@ class _SeriesDetailBody extends ConsumerStatefulWidget {
 class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
   final Set<String> _selectedChapterIds = {};
   bool _downloadPending = false;
+  _ChapterSortOrder _sortOrder = _ChapterSortOrder.newest;
+
+  /// Returns a sorted copy of [chapters] by chapter number, nulls always last.
+  /// Newest = descending, oldest = ascending.
+  List<SourceChapterSummary> _sortedChapters(
+    List<SourceChapterSummary> chapters,
+    _ChapterSortOrder order,
+  ) {
+    final copy = [...chapters];
+    copy.sort((a, b) {
+      final an = a.number;
+      final bn = b.number;
+      if (an == null && bn == null) return 0;
+      if (an == null) return 1;
+      if (bn == null) return -1;
+      return order == _ChapterSortOrder.newest
+          ? bn.compareTo(an)
+          : an.compareTo(bn);
+    });
+    return copy;
+  }
+
+  /// Per-row progress line. Unread → "{n} pages"; reading → "{page}/{n} pages";
+  /// done → "{n}/{n} pages". Returns null when the page count is unknown.
+  String? _chapterProgressText(SourceChapterProgress? progress, int pageCount) {
+    if (pageCount <= 0) return null;
+    if (progress == null) return '$pageCount pages';
+    if (progress.completed) return '$pageCount/$pageCount pages';
+    return '${progress.page}/$pageCount pages';
+  }
 
   void _toggleChapter(String chapterId) {
     setState(() {
@@ -106,15 +146,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
 
   void _showQueueFeedback(QueueDownloadResponse response) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(queueDownloadFeedbackMessage(response)),
-        action: SnackBarAction(
-          label: 'Downloads',
-          onPressed: () => context.go(Routes.downloads),
-        ),
-      ),
-    );
+    showQueueDownloadSnackBar(context, response);
   }
 
   Future<void> _queueChapters(List<String> chapterIds) async {
@@ -186,19 +218,31 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         (sourceId: widget.sourceId, seriesId: widget.seriesId),
       ),
     );
+    final progressMap = ref.watch(sourceProgressProvider);
+    final sortedChapters = _sortedChapters(chapters, _sortOrder);
+    final latestRead = ref.read(sourceProgressProvider.notifier).latestForSeries(
+          sourceId: widget.sourceId,
+          seriesId: widget.seriesId,
+        );
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.fromLTRB(
+        AppSpacing.xl2,
+        AppSpacing.xl2,
+        AppSpacing.xl2,
+        AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
+      ),
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
           child: AspectRatio(
             aspectRatio: 2 / 3,
-            child: Image.network(
-              series.coverUrl,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const ColoredBox(color: AppColors.panel),
-            ),
+            child: series.coverUrl.isEmpty
+                ? const ColoredBox(color: AppColors.panel)
+                : SeriesCoverImage(
+                    url: series.coverUrl,
+                    borderRadius: 0,
+                  ),
           ),
         ),
         const SizedBox(height: AppSpacing.xl2),
@@ -210,6 +254,16 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         if (series.description != null && series.description!.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
           Text(series.description!, style: AppTypography.body),
+        ],
+        if (chapters.isNotEmpty) ...[
+          const SizedBox(height: AppSpacing.lg),
+          _ReadPrimaryButton(
+            sourceId: widget.sourceId,
+            seriesId: widget.seriesId,
+            latestRead: latestRead,
+            orderedChapters:
+                _sortedChapters(chapters, _ChapterSortOrder.oldest),
+          ),
         ],
         const SizedBox(height: AppSpacing.lg),
         _FollowButton(
@@ -239,7 +293,17 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
           ],
         ),
         const SizedBox(height: AppSpacing.xl2),
-        Text('Chapters', style: AppTypography.h3),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text('Chapters', style: AppTypography.h3),
+            if (chapters.isNotEmpty)
+              _SortToggle(
+                value: _sortOrder,
+                onChanged: (order) => setState(() => _sortOrder = order),
+              ),
+          ],
+        ),
         const SizedBox(height: AppSpacing.md),
         if (chapters.isEmpty)
           const EmptyState(
@@ -248,7 +312,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
             subtitle: 'This source did not return any chapters for this series.',
           )
         else
-          ...chapters.map(
+          ...sortedChapters.map(
             (chapter) {
               final label = chapterLabel(
                 number: chapter.number,
@@ -259,7 +323,21 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
               final downloadDisabled =
                   downloadBusy || downloadLookup.isDownloadDisabled(chapter.id);
               final retryable = downloadLookup.isRetryable(chapter.id);
-              return Padding(
+              final progress = progressMap[sourceProgressKey(
+                sourceId: widget.sourceId,
+                seriesId: widget.seriesId,
+                chapterId: chapter.id,
+              )];
+              final completed = progress?.completed ?? false;
+              // Prefer the page count captured while reading (authoritative for
+              // this reader), falling back to the source-provided count.
+              final storedCount = progress?.pageCount ?? 0;
+              final effectiveCount =
+                  storedCount > 0 ? storedCount : chapter.pageCount;
+              final progressText =
+                  _chapterProgressText(progress, effectiveCount);
+              final titleColor = completed ? AppColors.muted : null;
+              final card = Padding(
                 padding: const EdgeInsets.only(bottom: AppSpacing.sm),
                 child: GlassCard(
                   child: Row(
@@ -286,13 +364,24 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(label.primary, style: AppTypography.labelLg),
+                                Text(
+                                  label.primary,
+                                  style: AppTypography.labelLg
+                                      .copyWith(color: titleColor),
+                                ),
                                 if (label.secondary != null)
                                   Text(label.secondary!, style: AppTypography.bodySm),
-                                Text(
-                                  '${chapter.pageCount} pages',
-                                  style: AppTypography.caption.copyWith(color: AppColors.muted),
-                                ),
+                                if (progressText != null)
+                                  Text(
+                                    progressText,
+                                    style: AppTypography.caption.copyWith(
+                                      // In-progress reads glow warm amber;
+                                      // unread/completed stay muted.
+                                      color: (progress != null && !completed)
+                                          ? AppColors.primary
+                                          : AppColors.muted,
+                                    ),
+                                  ),
                                 SourceChapterDownloadStatusBadge(
                                   key: Key('chapter-status-${chapter.id}'),
                                   status: chapterStatus,
@@ -316,6 +405,9 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
                   ),
                 ),
               );
+              // Read chapters recede: dropping the whole card's opacity over the
+              // dark background reads as a darker, muted "already read" row.
+              return completed ? Opacity(opacity: 0.6, child: card) : card;
             },
           ),
       ],
@@ -370,7 +462,8 @@ class _FollowButton extends ConsumerWidget {
     return SizedBox(
       width: double.infinity,
       child: FilledButton.icon(
-        onPressed: busy ? null : () => _toggle(ref, isFollowed, tracker?.id),
+        onPressed:
+            busy ? null : () => _toggle(context, ref, isFollowed, tracker?.id),
         icon: isFollowed
             ? const Icon(Icons.notifications_off_outlined)
             : const Icon(Icons.notifications_active_outlined),
@@ -379,16 +472,159 @@ class _FollowButton extends ConsumerWidget {
     );
   }
 
-  Future<void> _toggle(WidgetRef ref, bool isFollowed, int? trackerId) async {
+  Future<void> _toggle(
+    BuildContext context,
+    WidgetRef ref,
+    bool isFollowed,
+    int? trackerId,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
     final notifier = ref.read(updatesProvider.notifier);
+    final AppError? error;
     if (isFollowed && trackerId != null) {
-      await notifier.deleteTracker(trackerId);
+      error = await notifier.deleteTracker(trackerId);
     } else {
-      await notifier.followSeries(
+      error = await notifier.followSeries(
         source: sourceId,
         seriesId: seriesId,
         seriesTitle: seriesTitle,
       );
     }
+    if (error == null) {
+      // The trackers cache was refreshed by the action, so the button label
+      // already reflects the new followed state; confirm it to the user.
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            isFollowed
+                ? 'Unfollowed'
+                : 'Following — you\'ll be notified of new chapters',
+          ),
+        ),
+      );
+      return;
+    }
+    // A per-profile guard rejection hands off to the picker instead of a raw
+    // error; anything else surfaces inline.
+    if (recoverFromProfileScopeError(ref, error)) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(error.userMessage)),
+    );
+  }
+}
+
+/// Primary read CTA. "Continue" when there is progress — resuming the
+/// latest-read chapter at its saved page while it is still in progress, or
+/// advancing to the next chapter at page 1 once that chapter is finished —
+/// otherwise "Read Online" from the earliest chapter at page 1.
+class _ReadPrimaryButton extends StatelessWidget {
+  const _ReadPrimaryButton({
+    required this.sourceId,
+    required this.seriesId,
+    required this.latestRead,
+    required this.orderedChapters,
+  });
+
+  final String sourceId;
+  final String seriesId;
+  final LatestSourceRead? latestRead;
+
+  /// Chapters in reading order (nulls-last ascending) — same comparator used
+  /// for the earliest-chapter / auto-queue-next logic. Never empty (the button
+  /// is only shown when the series has chapters).
+  final List<SourceChapterSummary> orderedChapters;
+
+  @override
+  Widget build(BuildContext context) {
+    final resume = latestRead;
+    final String target;
+    if (resume != null) {
+      final index =
+          orderedChapters.indexWhere((c) => c.id == resume.chapterId);
+      final nextChapter = resume.progress.completed &&
+              index != -1 &&
+              index + 1 < orderedChapters.length
+          ? orderedChapters[index + 1]
+          : null;
+      if (nextChapter != null) {
+        // The latest-read chapter is finished — advance to the next unread
+        // chapter at page 1 instead of reopening the completed one.
+        target = RoutePaths.sourceReader(sourceId, seriesId, nextChapter.id);
+      } else {
+        // Still mid-chapter (or nothing after a finished last chapter) —
+        // resume in place at the saved page.
+        final path =
+            RoutePaths.sourceReader(sourceId, seriesId, resume.chapterId);
+        target = '$path?page=${resume.progress.page}';
+      }
+    } else {
+      target =
+          RoutePaths.sourceReader(sourceId, seriesId, orderedChapters.first.id);
+    }
+    final isContinue = resume != null;
+
+    return PrimaryPillButton(
+      key: const Key('read-primary'),
+      expanded: true,
+      onPressed: () => context.go(target),
+      icon: isContinue ? Icons.play_arrow_rounded : Icons.menu_book_outlined,
+      label: isContinue ? 'Continue' : 'Read Online',
+    );
+  }
+}
+
+/// Compact Newest/Oldest segmented toggle for the chapter list header.
+class _SortToggle extends StatelessWidget {
+  const _SortToggle({required this.value, required this.onChanged});
+
+  final _ChapterSortOrder value;
+  final ValueChanged<_ChapterSortOrder> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final motion = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: 150);
+    return Container(
+      padding: const EdgeInsets.all(2),
+      decoration: BoxDecoration(
+        color: AppColors.surface2,
+        borderRadius: BorderRadius.circular(AppRadius.lg),
+        border: Border.all(color: AppColors.glassEdge),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          _segment('Newest', _ChapterSortOrder.newest, motion),
+          _segment('Oldest', _ChapterSortOrder.oldest, motion),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(String label, _ChapterSortOrder order, Duration motion) {
+    final selected = value == order;
+    return GestureDetector(
+      onTap: selected ? null : () => onChanged(order),
+      child: AnimatedContainer(
+        duration: motion,
+        curve: Curves.easeOut,
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppSpacing.md,
+          vertical: AppSpacing.xs,
+        ),
+        decoration: BoxDecoration(
+          color: selected ? AppColors.primary : Colors.transparent,
+          borderRadius: BorderRadius.circular(AppRadius.md),
+        ),
+        child: Text(
+          label,
+          style: AppTypography.caption.copyWith(
+            color: selected ? AppColors.primaryFg : AppColors.muted,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
   }
 }

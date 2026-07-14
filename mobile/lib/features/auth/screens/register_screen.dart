@@ -6,6 +6,8 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_error.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_header.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 
 /// Account creation screen. On a fresh instance (`needs_bootstrap`) the account
 /// created here becomes the administrator; otherwise it is a normal account and
@@ -102,9 +104,12 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             padding: const EdgeInsets.all(AppSpacing.xl2),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
-              child: registrationClosed
-                  ? _buildClosed(context)
-                  : _buildForm(context, needsBootstrap: needsBootstrap),
+              child: GlassPanel(
+                padding: const EdgeInsets.all(AppSpacing.xl2),
+                child: registrationClosed
+                    ? _buildClosed(context)
+                    : _buildForm(context, needsBootstrap: needsBootstrap),
+              ),
             ),
           ),
         ),
@@ -122,9 +127,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               'an administrator for access.',
         ),
         const SizedBox(height: AppSpacing.xl2),
-        FilledButton(
+        PrimaryPillButton(
+          label: 'Back to sign in',
+          expanded: true,
           onPressed: () => context.go(Routes.login),
-          child: const Text('Back to sign in'),
         ),
       ],
     );
@@ -137,7 +143,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AuthHeader(
-          title: needsBootstrap ? 'Create admin account' : 'Create account',
+          title: needsBootstrap ? 'Create admin account' : 'Join ManhwaManiacs',
           subtitle: needsBootstrap
               ? 'This is the first account on the server, so it will be the '
                   'administrator.'
@@ -206,15 +212,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           AuthError(message: errorMessage),
         ],
         const SizedBox(height: AppSpacing.lg),
-        FilledButton(
-          onPressed: _pending ? null : _submit,
-          child: _pending
-              ? const SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(needsBootstrap ? 'Create admin account' : 'Create account'),
+        // Warm CTA pill. `_submit` already no-ops while pending; the
+        // IgnorePointer + dimming just makes that visually clear.
+        IgnorePointer(
+          ignoring: _pending,
+          child: Opacity(
+            opacity: _pending ? 0.6 : 1,
+            child: PrimaryPillButton(
+              label: _pending
+                  ? 'Creating account…'
+                  : (needsBootstrap ? 'Create admin account' : 'Create account'),
+              expanded: true,
+              onPressed: _submit,
+            ),
+          ),
         ),
         const SizedBox(height: AppSpacing.sm),
         TextButton(

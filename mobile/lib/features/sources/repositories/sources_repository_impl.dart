@@ -88,7 +88,7 @@ class SourcesRepositoryImpl implements SourcesRepository {
   ) async {
     try {
       final r = await _dio.get<Map<String, dynamic>>(
-        '/sources/$sourceId/series/$seriesId',
+        '/sources/$sourceId/series/${Uri.encodeComponent(seriesId)}',
       );
       return Ok(SourceSeriesSummary.fromJson(r.data!, _apiBaseUrl));
     } on DioException catch (e) {
@@ -105,7 +105,7 @@ class SourcesRepositoryImpl implements SourcesRepository {
   ) async {
     try {
       final r = await _dio.get<List<dynamic>>(
-        '/sources/$sourceId/series/$seriesId/chapters',
+        '/sources/$sourceId/series/${Uri.encodeComponent(seriesId)}/chapters',
       );
       final items = (r.data ?? [])
           .map((e) => SourceChapterSummary.fromJson(e as Map<String, dynamic>))
@@ -128,7 +128,7 @@ class SourcesRepositoryImpl implements SourcesRepository {
       // chapterId is appended raw so slash-bearing ids (e.g. toonily's
       // ``series/chapter-1``) match the backend ``:path`` route converter.
       final r = await _dio.get<Map<String, dynamic>>(
-        '/sources/$sourceId/series/$seriesId/chapters/$chapterId/reader',
+        '/sources/$sourceId/series/${Uri.encodeComponent(seriesId)}/chapters/$chapterId/reader',
       );
       return Ok(ReaderChapter.fromJson(r.data!, _apiBaseUrl));
     } on DioException catch (e) {

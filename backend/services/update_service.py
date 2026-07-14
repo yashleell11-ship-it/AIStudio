@@ -69,12 +69,19 @@ def _dump_known_ids(ids: set[str]) -> str:
 class UpdateService:
     """Business logic for the automatic update subsystem."""
 
-    def __init__(self, db: Session, user_id: int | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        user_id: int | None = None,
+        profile_id: int | None = None,
+    ) -> None:
         self._db = db
-        # Follows and notifications are per-user. The background scheduler runs
-        # with user_id=None but never uses it to scope — it checks every user's
-        # trackers and stamps each notification with the tracker's own owner.
+        # Follows and notifications are per-(user, profile). The background
+        # scheduler runs with user_id=None/profile_id=None but never uses them to
+        # scope — it checks every user's trackers and stamps each notification
+        # with the tracker's own owner + profile.
         self._user_id = user_id
+        self._profile_id = profile_id
 
     # ------------------------------------------------------------------
     # Settings
@@ -122,6 +129,7 @@ class UpdateService:
         if "check_on_startup" in payload:
             row.check_on_startup = bool(payload["check_on_startup"])
         self._db.flush()
+        self._db.commit()
         return self.serialize_settings(row)
 
     def serialize_settings(self, row: UpdateSettings) -> dict[str, object]:
@@ -147,7 +155,10 @@ class UpdateService:
     ) -> list[dict[str, object]]:
         query = (
             self._db.query(SeriesTracker)
-            .filter(SeriesTracker.user_id == self._user_id)
+            .filter(
+                SeriesTracker.user_id == self._user_id,
+                SeriesTracker.profile_id == self._profile_id,
+            )
             .order_by(SeriesTracker.series_title)
         )
         if track_kind:
@@ -163,7 +174,8 @@ class UpdateService:
         source: str | None = None,
     ) -> int:
         query = self._db.query(SeriesTracker).filter(
-            SeriesTracker.user_id == self._user_id
+            SeriesTracker.user_id == self._user_id,
+            SeriesTracker.profile_id == self._profile_id,
         )
         if track_kind:
             query = query.filter(SeriesTracker.track_kind == track_kind)
@@ -200,10 +212,15 @@ class UpdateService:
         series_title: str,
     ) -> dict[str, object]:
         self._ensure_browsable_source(source)
+        # Scoped to this (user, profile): the composite unique now includes
+        # profile_id, so a second profile on the same account follows the same
+        # remote series as its OWN independent row rather than colliding on the
+        # first profile's tracker.
         existing = (
             self._db.query(SeriesTracker)
             .filter(
                 SeriesTracker.user_id == self._user_id,
+                SeriesTracker.profile_id == self._profile_id,
                 SeriesTracker.source == source,
                 SeriesTracker.series_id == series_id,
                 SeriesTracker.track_kind == "followed",
@@ -215,6 +232,7 @@ class UpdateService:
 
         row = SeriesTracker(
             user_id=self._user_id,
+            profile_id=self._profile_id,
             source=source,
             series_id=series_id,
             series_title=series_title,
@@ -222,6 +240,7 @@ class UpdateService:
         )
         self._db.add(row)
         self._db.flush()
+        self._db.commit()
         return self.serialize_tracker(row)
 
     def unfollow_tracker(self, tracker_id: int) -> None:
@@ -229,6 +248,7 @@ class UpdateService:
         if row.track_kind == "downloaded":
             raise AppError("Downloaded series trackers cannot be removed directly", status_code=400)
         self._db.delete(row)
+        self._db.commit()
 
     def update_tracker(self, tracker_id: int, payload: dict[str, Any]) -> dict[str, object]:
         row = self._require_tracker(tracker_id)
@@ -250,6 +270,7 @@ class UpdateService:
         if "series_title" in payload and payload["series_title"]:
             row.series_title = str(payload["series_title"])
         self._db.flush()
+        self._db.commit()
         return self.serialize_tracker(row)
 
     def sync_downloaded_trackers(self) -> dict[str, object]:
@@ -274,6 +295,7 @@ class UpdateService:
                 self._db.query(SeriesTracker)
                 .filter(
                     SeriesTracker.user_id == self._user_id,
+                    SeriesTracker.profile_id == self._profile_id,
                     SeriesTracker.source == source,
                     SeriesTracker.series_id == series_id,
                     SeriesTracker.track_kind == "downloaded",
@@ -284,6 +306,7 @@ class UpdateService:
                 self._db.add(
                     SeriesTracker(
                         user_id=self._user_id,
+                        profile_id=self._profile_id,
                         source=source,
                         series_id=series_id,
                         series_title=series_title or series_id,
@@ -295,6 +318,7 @@ class UpdateService:
                 tracker.series_title = series_title
                 updated += 1
         self._db.flush()
+        self._db.commit()
         return {"created": created, "updated": updated, "total": len(rows)}
 
     # ------------------------------------------------------------------
@@ -309,7 +333,10 @@ class UpdateService:
     ) -> list[dict[str, object]]:
         query = (
             self._db.query(UpdateNotification)
-            .filter(UpdateNotification.user_id == self._user_id)
+            .filter(
+                UpdateNotification.user_id == self._user_id,
+                UpdateNotification.profile_id == self._profile_id,
+            )
             .order_by(UpdateNotification.created_at.desc())
         )
         if unread_only:
@@ -319,7 +346,8 @@ class UpdateService:
 
     def count_notifications(self, *, unread_only: bool = False) -> int:
         query = self._db.query(UpdateNotification).filter(
-            UpdateNotification.user_id == self._user_id
+            UpdateNotification.user_id == self._user_id,
+            UpdateNotification.profile_id == self._profile_id,
         )
         if unread_only:
             query = query.filter(UpdateNotification.is_read.is_(False))
@@ -330,6 +358,7 @@ class UpdateService:
             self._db.query(UpdateNotification)
             .filter(
                 UpdateNotification.user_id == self._user_id,
+                UpdateNotification.profile_id == self._profile_id,
                 UpdateNotification.is_read.is_(False),
             )
             .count()
@@ -356,6 +385,7 @@ class UpdateService:
             .filter(
                 UpdateNotification.id == notification_id,
                 UpdateNotification.user_id == self._user_id,
+                UpdateNotification.profile_id == self._profile_id,
             )
             .first()
         )
@@ -363,6 +393,7 @@ class UpdateService:
             raise AppError("Notification not found", status_code=404)
         row.is_read = True
         self._db.flush()
+        self._db.commit()
         return self.serialize_notification(row)
 
     def mark_all_notifications_read(self) -> dict[str, int]:
@@ -370,10 +401,12 @@ class UpdateService:
             self._db.query(UpdateNotification)
             .filter(
                 UpdateNotification.user_id == self._user_id,
+                UpdateNotification.profile_id == self._profile_id,
                 UpdateNotification.is_read.is_(False),
             )
             .update({UpdateNotification.is_read: True})
         )
+        self._db.commit()
         return {"marked_read": count}
 
     # ------------------------------------------------------------------
@@ -514,6 +547,7 @@ class UpdateService:
                 self._db.add(
                     UpdateNotification(
                         user_id=tracker.user_id,
+                        profile_id=tracker.profile_id,
                         tracker_id=tracker.id,
                         source=tracker.source,
                         series_id=tracker.series_id,
@@ -544,6 +578,7 @@ class UpdateService:
             .filter(
                 SeriesTracker.id == tracker_id,
                 SeriesTracker.user_id == self._user_id,
+                SeriesTracker.profile_id == self._profile_id,
             )
             .first()
         )
@@ -572,8 +607,12 @@ def _chapter_sort_key(chapter: ConnectorChapter) -> tuple[float, str]:
     return (10**9, chapter.title)
 
 
-def get_update_service(db: Session, user_id: int | None = None) -> UpdateService:
-    return UpdateService(db, user_id=user_id)
+def get_update_service(
+    db: Session,
+    user_id: int | None = None,
+    profile_id: int | None = None,
+) -> UpdateService:
+    return UpdateService(db, user_id=user_id, profile_id=profile_id)
 
 
 def run_check_in_new_session(

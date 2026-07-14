@@ -11,6 +11,7 @@ import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class BookmarksScreen extends ConsumerWidget {
@@ -59,7 +60,7 @@ class BookmarksScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
             children: [
-              Text('Bookmarks', style: AppTypography.displayMd),
+              const HeroHeading(text: 'Bookmarks'),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Jump back into a saved page or remove ones you no longer need.',
