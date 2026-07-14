@@ -1,9 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { RefreshCw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { HeroHeading } from "@/components/premium/HeroHeading";
+import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
+import { GhostPillButton } from "@/components/premium/GhostPillButton";
 import { ApiError } from "@/types/api";
 import {
   useManualCheck,
@@ -41,7 +45,7 @@ function TrackerRow({
   busy: boolean;
 }) {
   return (
-    <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4 transition-colors hover:border-violet-500/20">
+    <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4 transition-colors hover:border-primary/30">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -91,7 +95,7 @@ function NotificationRow({
   busy: boolean;
 }) {
   return (
-    <div className={`rounded-xl border border-border/40 bg-white/[0.02] p-3 transition-colors hover:border-violet-500/20 ${item.is_read ? "opacity-70" : ""}`}>
+    <div className={`rounded-xl border border-border/40 bg-white/[0.02] p-3 transition-colors hover:border-primary/30 ${item.is_read ? "opacity-70" : ""}`}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <p className="font-medium">
@@ -151,24 +155,30 @@ export function UpdatesView() {
   return (
     <div className="page-shell">
       <div className="page-container mx-auto max-w-6xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="page-title">Updates</h1>
-          <p className="page-subtitle">
+          <HeroHeading className="text-[2.75rem] leading-none md:text-6xl">
+            Updates
+          </HeroHeading>
+          <p className="mt-2 text-sm text-muted">
             Track followed and downloaded series for new chapters.
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant="secondary"
+        <div className="flex flex-wrap gap-3">
+          <GhostPillButton
             disabled={busy}
             onClick={() => syncDownloaded.mutate()}
+            icon={<RefreshCw className="size-4" aria-hidden />}
           >
-            Sync downloaded
-          </Button>
-          <Button disabled={busy} onClick={() => manualCheck.mutate({})}>
-            Check all now
-          </Button>
+            Sync Downloaded
+          </GhostPillButton>
+          <PrimaryPillButton
+            disabled={busy}
+            onClick={() => manualCheck.mutate({})}
+            icon={<Search className="size-4" aria-hidden />}
+          >
+            Check All Now
+          </PrimaryPillButton>
         </div>
       </div>
 

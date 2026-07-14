@@ -8,7 +8,7 @@ interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 const variants: Record<BadgeVariant, string> = {
   default: "bg-white/[0.06] text-muted border-border/50",
-  primary: "bg-violet-500/15 text-violet-400 border-violet-500/30",
+  primary: "bg-primary/15 text-primary border-primary/30",
   success: "bg-success/15 text-success border-success/30",
   warning: "bg-warning/15 text-warning border-warning/30",
 };

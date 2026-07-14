@@ -2,7 +2,9 @@ package com.manhwamaniacs.reader
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Bundle
 import android.view.KeyEvent
+import androidx.core.view.WindowCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -22,6 +24,11 @@ class MainActivity : FlutterActivity() {
     // the setting enabled -- toggled from Dart via setVolumeKeyNavEnabled.
     // Every other screen (and a disabled setting) sees normal volume keys.
     private var volumeKeyNavEnabled = false
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

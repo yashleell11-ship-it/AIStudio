@@ -5,6 +5,7 @@ class SourceSummary {
     required this.description,
     required this.browsable,
     required this.supportsImport,
+    this.iconUrl,
   });
 
   final String id;
@@ -12,6 +13,7 @@ class SourceSummary {
   final String description;
   final bool browsable;
   final bool supportsImport;
+  final String? iconUrl;
 
   factory SourceSummary.fromJson(Map<String, dynamic> json) => SourceSummary(
         id: json['id'] as String,
@@ -19,6 +21,7 @@ class SourceSummary {
         description: json['description'] as String,
         browsable: json['browsable'] as bool,
         supportsImport: json['supports_import'] as bool,
+        iconUrl: json['icon_url'] as String?,
       );
 }
 

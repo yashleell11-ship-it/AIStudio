@@ -8,9 +8,9 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from core.errors import AppError
 from core.time_utils import utcnow
+from core.profile_context import ProfileContext, resolve_profile_context
 from database.models import Bookmark, Chapter, Page, ReadingProgress, Series, User
 from database.session import get_db
-from services.auth_service import get_optional_user
 from utils.path_utils import natural_sort_key
 
 
@@ -20,11 +20,17 @@ def _chapter_sort_key(chapter: Chapter) -> tuple[float, list[int | str]]:
 
 
 class ReaderService:
-    def __init__(self, db: Session, user_id: int | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        user_id: int | None = None,
+        profile_id: int | None = None,
+    ) -> None:
         self._db = db
-        # Reading progress and bookmarks are per-user; None scopes to the
-        # anonymous/legacy (unclaimed) rows.
+        # Reading progress and bookmarks are per-(user, profile); None/None
+        # scopes to the anonymous/legacy (unclaimed, unscoped) rows.
         self._user_id = user_id
+        self._profile_id = profile_id
 
     def save_progress(
         self,
@@ -68,12 +74,14 @@ class ReaderService:
             .filter(
                 ReadingProgress.series_id == series_id,
                 ReadingProgress.user_id == self._user_id,
+                ReadingProgress.profile_id == self._profile_id,
             )
             .first()
         )
         if not progress:
             progress = ReadingProgress(
                 user_id=self._user_id,
+                profile_id=self._profile_id,
                 series_id=series_id,
                 chapter_id=chapter_id,
                 last_page=last_page,
@@ -106,6 +114,7 @@ class ReaderService:
             .filter(
                 ReadingProgress.series_id == series_id,
                 ReadingProgress.user_id == self._user_id,
+                ReadingProgress.profile_id == self._profile_id,
             )
             .first()
         )
@@ -126,6 +135,7 @@ class ReaderService:
             .filter(
                 ReadingProgress.series_id == series_id,
                 ReadingProgress.user_id == self._user_id,
+                ReadingProgress.profile_id == self._profile_id,
             )
             .first()
         )
@@ -167,6 +177,7 @@ class ReaderService:
 
         bookmark = Bookmark(
             user_id=self._user_id,
+            profile_id=self._profile_id,
             series_id=series_id,
             chapter_id=chapter_id,
             page=page,
@@ -192,7 +203,10 @@ class ReaderService:
         useful list without a lookup per row."""
         bookmarks = (
             self._db.query(Bookmark)
-            .filter(Bookmark.user_id == self._user_id)
+            .filter(
+                Bookmark.user_id == self._user_id,
+                Bookmark.profile_id == self._profile_id,
+            )
             .options(
                 selectinload(Bookmark.series),
                 selectinload(Bookmark.chapter),
@@ -222,6 +236,7 @@ class ReaderService:
             .filter(
                 Bookmark.series_id == series_id,
                 Bookmark.user_id == self._user_id,
+                Bookmark.profile_id == self._profile_id,
             )
             .order_by(Bookmark.created_at.desc())
             .all()
@@ -242,7 +257,11 @@ class ReaderService:
     def delete_bookmark(self, bookmark_id: int) -> None:
         bookmark = (
             self._db.query(Bookmark)
-            .filter(Bookmark.id == bookmark_id, Bookmark.user_id == self._user_id)
+            .filter(
+                Bookmark.id == bookmark_id,
+                Bookmark.user_id == self._user_id,
+                Bookmark.profile_id == self._profile_id,
+            )
             .first()
         )
         if not bookmark:
@@ -292,6 +311,6 @@ class ReaderService:
 
 def get_reader_service(
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[User | None, Depends(get_optional_user)],
+    ctx: Annotated[ProfileContext, Depends(resolve_profile_context)],
 ) -> ReaderService:
-    return ReaderService(db, user_id=user.id if user else None)
+    return ReaderService(db, user_id=ctx.user_id, profile_id=ctx.profile_id)

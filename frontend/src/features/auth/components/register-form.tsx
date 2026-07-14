@@ -15,6 +15,10 @@ interface RegisterFormProps {
   bootstrap: boolean;
 }
 
+/** Dark surface field with an amber focus ring, matching the Eclipse Warm auth inputs. */
+const authInputClass =
+  "bg-surface border-border focus-visible:border-primary/40 focus-visible:ring-primary";
+
 /** Account creation. Redirects home on success; errors inline. */
 export function RegisterForm({ bootstrap }: RegisterFormProps) {
   const router = useRouter();
@@ -68,6 +72,7 @@ export function RegisterForm({ bootstrap }: RegisterFormProps) {
           onChange={(event) => setUsername(event.target.value)}
           placeholder="yourname"
           disabled={register.isPending}
+          className={authInputClass}
           required
         />
       </div>
@@ -84,6 +89,7 @@ export function RegisterForm({ bootstrap }: RegisterFormProps) {
           onChange={(event) => setPassword(event.target.value)}
           placeholder="Choose a password"
           disabled={register.isPending}
+          className={authInputClass}
           required
         />
       </div>
@@ -100,6 +106,7 @@ export function RegisterForm({ bootstrap }: RegisterFormProps) {
           onChange={(event) => setDisplayName(event.target.value)}
           placeholder="How your name appears"
           disabled={register.isPending}
+          className={authInputClass}
         />
       </div>
 
@@ -116,6 +123,7 @@ export function RegisterForm({ bootstrap }: RegisterFormProps) {
           onChange={(event) => setEmail(event.target.value)}
           placeholder="you@example.com"
           disabled={register.isPending}
+          className={authInputClass}
         />
       </div>
 
@@ -138,7 +146,12 @@ export function RegisterForm({ bootstrap }: RegisterFormProps) {
         </p>
       ) : null}
 
-      <Button type="submit" size="lg" className="w-full" disabled={!canSubmit}>
+      <Button
+        type="submit"
+        size="lg"
+        className="w-full rounded-full uppercase tracking-wide text-white cta-gradient hover:brightness-110"
+        disabled={!canSubmit}
+      >
         {register.isPending ? (
           "Creating account…"
         ) : (

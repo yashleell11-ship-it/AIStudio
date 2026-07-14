@@ -25,6 +25,10 @@ const _controlsAnimMs = 220;
 
 /// Blurred, translucent panel used by the reader's top and bottom bars so the
 /// overlay stays "almost invisible" over the page while remaining legible.
+///
+/// Eclipse Warm frosted glass — mirrors the app's bottom nav (blur 18, near-
+/// black surface, subtle border) plus a soft warm-amber glow so the reader
+/// chrome reads as part of the same warm system.
 class _GlassSurface extends StatelessWidget {
   const _GlassSurface({required this.child, this.padding});
 
@@ -33,19 +37,38 @@ class _GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.xl),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            color: AppColors.panel.withAlpha(150),
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(color: AppColors.glassEdge),
+    final br = BorderRadius.circular(AppRadius.xl);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: br,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withAlpha(90),
+            blurRadius: 18,
+            offset: const Offset(0, 6),
           ),
-          child: Padding(
-            padding: padding ?? const EdgeInsets.all(AppSpacing.xs),
-            child: child,
+          // Warm amber halo — the Eclipse Warm accent.
+          BoxShadow(
+            color: AppColors.primary.withAlpha(20),
+            blurRadius: 24,
+            spreadRadius: -6,
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: br,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppColors.surface.withAlpha(184),
+              borderRadius: br,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Padding(
+              padding: padding ?? const EdgeInsets.all(AppSpacing.xs),
+              child: child,
+            ),
           ),
         ),
       ),
@@ -67,14 +90,19 @@ class _AnimatedBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Honour the platform "reduce motion" setting — the bars snap instead of
+    // sliding when animations are disabled.
+    final duration = MediaQuery.disableAnimationsOf(context)
+        ? Duration.zero
+        : const Duration(milliseconds: _controlsAnimMs);
     return IgnorePointer(
       ignoring: !visible,
       child: AnimatedSlide(
-        duration: const Duration(milliseconds: _controlsAnimMs),
+        duration: duration,
         curve: Curves.easeOutCubic,
         offset: visible ? Offset.zero : slideFrom,
         child: AnimatedOpacity(
-          duration: const Duration(milliseconds: _controlsAnimMs),
+          duration: duration,
           opacity: visible ? 1 : 0,
           child: child,
         ),
@@ -142,14 +170,14 @@ class ReaderTopBar extends StatelessWidget {
                     onPressed: onBookmark,
                     icon: const Icon(Icons.bookmark_add_outlined, size: 20),
                     tooltip: 'Bookmark',
-                    color: AppColors.fg,
+                    color: AppColors.primary,
                     visualDensity: VisualDensity.compact,
                   ),
                 IconButton(
                   onPressed: onSettings,
                   icon: const Icon(Icons.tune_rounded, size: 20),
                   tooltip: 'Reader settings',
-                  color: AppColors.fg,
+                  color: AppColors.primary,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -176,6 +204,7 @@ class ReaderBottomBar extends StatelessWidget {
     required this.hasNext,
     this.onPreviousChapter,
     this.onNextChapter,
+    this.onSettings,
   });
 
   final int visiblePage;
@@ -186,6 +215,10 @@ class ReaderBottomBar extends StatelessWidget {
   final bool hasNext;
   final VoidCallback? onPreviousChapter;
   final VoidCallback? onNextChapter;
+
+  /// Opens the reader settings sheet — mirrored here so the gear is reachable
+  /// one-handed from the bottom bar as well as the top chrome.
+  final VoidCallback? onSettings;
 
   @override
   Widget build(BuildContext context) {
@@ -212,7 +245,7 @@ class ReaderBottomBar extends StatelessWidget {
                   onPressed: hasPrevious ? onPreviousChapter : null,
                   icon: const Icon(Icons.skip_previous_rounded),
                   tooltip: 'Previous chapter',
-                  color: AppColors.fg,
+                  color: AppColors.primary,
                   disabledColor: AppColors.muted.withAlpha(70),
                 ),
                 Expanded(
@@ -244,9 +277,19 @@ class ReaderBottomBar extends StatelessWidget {
                   onPressed: hasNext ? onNextChapter : null,
                   icon: const Icon(Icons.skip_next_rounded),
                   tooltip: 'Next chapter',
-                  color: AppColors.fg,
+                  color: AppColors.primary,
                   disabledColor: AppColors.muted.withAlpha(70),
                 ),
+                if (onSettings != null)
+                  IconButton(
+                    onPressed: onSettings,
+                    icon: const Icon(Icons.tune_rounded, size: 20),
+                    // Distinct from the top bar's canonical 'Reader settings'
+                    // gear so the single settings finder stays unambiguous.
+                    tooltip: 'More options',
+                    color: AppColors.primary,
+                    visualDensity: VisualDensity.compact,
+                  ),
               ],
             ),
           ),
@@ -288,13 +331,13 @@ class ChapterEdgePrompt extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (direction == EdgeDirection.previous) ...[
-                const Icon(Icons.chevron_left, color: AppColors.violet400, size: 18),
+                const Icon(Icons.chevron_left, color: AppColors.primary, size: 18),
                 const SizedBox(width: AppSpacing.sm),
               ],
               Text(label, style: AppTypography.labelLg),
               if (direction == EdgeDirection.next) ...[
                 const SizedBox(width: AppSpacing.sm),
-                const Icon(Icons.chevron_right, color: AppColors.violet400, size: 18),
+                const Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
               ],
             ],
           ),
@@ -346,17 +389,9 @@ class ReaderMoreSheet extends ConsumerWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: AppSpacing.lg),
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
-            ),
+            // Drag handle is provided by showModalBottomSheet(showDragHandle:
+            // true) so a swipe-down (or a tap-drag on the handle) dismisses the
+            // sheet — no manual grabber needed here.
             // Chapter navigation
             Row(
               children: [

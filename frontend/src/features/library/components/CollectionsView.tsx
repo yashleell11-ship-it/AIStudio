@@ -66,7 +66,7 @@ function CollectionBannerCard({ collection }: { collection: Collection }) {
               unoptimized
             />
           ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/40 via-panel to-cyan-600/20" />
+            <div className="absolute inset-0 bg-gradient-to-br from-accent/40 via-panel to-primary/20" />
           )}
           <div className="absolute inset-0 bg-gradient-to-r from-void/95 via-void/70 to-void/30" />
           <div className="absolute inset-0 bg-gradient-to-t from-void/80 via-transparent to-transparent" />
@@ -78,7 +78,7 @@ function CollectionBannerCard({ collection }: { collection: Collection }) {
           )}
 
           <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6">
-            <h3 className="text-xl font-bold text-white transition-colors group-hover:text-violet-200 sm:text-2xl">
+            <h3 className="text-xl font-bold text-white transition-colors group-hover:text-primary sm:text-2xl">
               {collection.name}
             </h3>
             {collection.description && (
@@ -227,7 +227,7 @@ export function CollectionsView() {
                         }}
                         className={cn(
                           "block w-full px-4 py-2.5 text-left text-sm transition-colors hover:bg-white/5",
-                          sort === value ? "text-violet-400" : "text-fg",
+                          sort === value ? "text-primary" : "text-fg",
                         )}
                       >
                         {label}
@@ -243,9 +243,9 @@ export function CollectionsView() {
         {collectionsQuery.isLoading ? (
           <CollectionsSkeleton />
         ) : collectionsQuery.data && collectionsQuery.data.length === 0 ? (
-          <div className="glass-panel rounded-2xl border border-dashed border-border/50 p-12 text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-violet-500/10">
-              <FolderOpen className="size-8 text-violet-400" />
+          <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
+              <FolderOpen className="size-8 text-primary" />
             </div>
             <p className="text-lg font-medium text-fg">No collections yet</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">
@@ -257,7 +257,7 @@ export function CollectionsView() {
             </Button>
           </div>
         ) : filteredCollections.length === 0 ? (
-          <div className="glass-panel rounded-2xl border border-dashed border-border/50 p-12 text-center">
+          <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
             <p className="text-lg font-medium text-fg">No collections match your search</p>
             <p className="mt-2 text-sm text-muted">Try a different term or clear the search.</p>
           </div>

@@ -111,8 +111,9 @@ def test_preexisting_database_adopted_without_data_loss(tmp_path):
 
 
 def test_two_users_can_hold_state_for_same_series(tmp_path):
-    """The ownership migration must relax the old single-column uniques so two
-    users can each have progress/state for the same catalog series."""
+    """The ownership + profile migrations must relax the old single-column
+    uniques so two users — and two profiles on one account — can each have
+    progress/state for the same catalog series."""
     engine = create_engine(f"sqlite:///{tmp_path / 'share.db'}")
     run_alembic_migrations(engine)
     from sqlalchemy import text
@@ -134,23 +135,22 @@ def test_two_users_can_hold_state_for_same_series(tmp_path):
             )
         )
         ins = text(
-            "INSERT INTO reading_progress (user_id,series_id,chapter_id,last_page,"
-            "scroll_offset_px,progress_pct,started_at,last_read_at) VALUES "
-            "(:u,1,1,1,0,0.0,'2026-01-01','2026-01-01')"
+            "INSERT INTO reading_progress (user_id,profile_id,series_id,chapter_id,"
+            "last_page,scroll_offset_px,progress_pct,started_at,last_read_at) VALUES "
+            "(:u,:p,1,1,1,0,0.0,'2026-01-01','2026-01-01')"
         )
-        conn.execute(ins, {"u": 1})
-        conn.execute(ins, {"u": 2})  # different user, same series → allowed
+        conn.execute(ins, {"u": 1, "p": 1})
+        conn.execute(ins, {"u": 2, "p": 2})  # different user, same series → allowed
+        conn.execute(ins, {"u": 1, "p": 3})  # same user, different profile → allowed
 
-    # But the same (user, series) twice is still rejected.
-    import sqlite3
-
+    # But the same (user, profile, series) again is still rejected.
     with engine.begin() as conn:
         try:
-            conn.execute(ins, {"u": 1})
+            conn.execute(ins, {"u": 1, "p": 1})
             raised = False
         except Exception:
             raised = True
-    assert raised, "duplicate (user, series) should violate the composite unique"
+    assert raised, "duplicate (user, profile, series) should violate the composite unique"
 
 
 def test_run_alembic_migrations_is_idempotent(tmp_path):

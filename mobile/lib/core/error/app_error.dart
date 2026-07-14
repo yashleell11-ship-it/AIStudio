@@ -35,13 +35,19 @@ final class ApiError extends AppError {
 
 /// No network connection or DNS failure.
 final class NetworkError extends AppError {
-  const NetworkError({required this.message, this.cause});
+  const NetworkError({required this.message, this.cause, this.host});
 
   final String message;
   final Object? cause;
 
+  /// Host the request was aimed at, when known. Surfaced to the user so a
+  /// connectivity failure names the server it couldn't reach (aids support).
+  final String? host;
+
   @override
-  String get userMessage => 'Network error — check your connection.';
+  String get userMessage => host == null || host!.isEmpty
+      ? 'Network error — check your connection.'
+      : "Can't reach the server at $host — check your connection.";
 
   @override
   String toString() => 'NetworkError: $message';

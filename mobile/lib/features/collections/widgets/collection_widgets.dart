@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
@@ -7,6 +8,7 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/collections/utils/collection_sorting.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
+import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 
 class CollectionBannerCard extends StatelessWidget {
   const CollectionBannerCard({
@@ -134,15 +136,15 @@ class _GradientFallback extends StatelessWidget {
     return Stack(
       fit: StackFit.expand,
       children: [
-        const DecoratedBox(
+        DecoratedBox(
           decoration: BoxDecoration(
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                Color(0x667C3AED),
+                AppColors.primary.withAlpha(0x66),
                 AppColors.panel,
-                Color(0x3306B6D4),
+                AppColors.accent.withAlpha(0x33),
               ],
             ),
           ),
@@ -165,7 +167,7 @@ class _GradientFallback extends StatelessWidget {
   }
 }
 
-class CollectionHeroBanner extends StatelessWidget {
+class CollectionHeroBanner extends ConsumerWidget {
   const CollectionHeroBanner({
     super.key,
     required this.name,
@@ -184,7 +186,7 @@ class CollectionHeroBanner extends StatelessWidget {
   final String apiBaseUrl;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final resolvedCover = coverUrl ??
         (coverSeriesId != null ? seriesCoverUrl(apiBaseUrl, coverSeriesId!) : null);
 
@@ -194,10 +196,9 @@ class CollectionHeroBanner extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           if (resolvedCover != null)
-            Image.network(
-              resolvedCover,
-              fit: BoxFit.cover,
-              errorBuilder: (_, __, ___) => const _HeroGradient(),
+            SeriesCoverImage(
+              url: resolvedCover,
+              borderRadius: 0,
             )
           else
             const _HeroGradient(),
@@ -265,15 +266,15 @@ class _HeroGradient extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const DecoratedBox(
+    return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            Color(0x4D7C3AED),
+            AppColors.primary.withAlpha(0x4D),
             AppColors.bg,
-            Color(0x3306B6D4),
+            AppColors.accent.withAlpha(0x33),
           ],
         ),
       ),

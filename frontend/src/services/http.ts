@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { getActiveProfileId } from "@/features/profiles/store";
 import { ApiError, type ApiErrorBody, type RequestOptions } from "@/types/api";
 
 /**
@@ -43,6 +44,13 @@ export async function request<T>(
 ): Promise<T> {
   const { method = "GET", body, query, signal, headers } = options;
 
+  // Attach the active reading profile so the backend scopes reads and enforces
+  // mutations per-profile. The id lives in client state (zustand); reading it
+  // here means every call carries `X-Profile-Id` automatically, with no
+  // per-call threading. `null` before a profile is chosen (or on the server) —
+  // then the header is omitted. An explicit `headers` override still wins.
+  const profileId = getActiveProfileId();
+
   let response: Response;
   try {
     response = await fetch(buildUrl(path, query), {
@@ -55,6 +63,7 @@ export async function request<T>(
       headers: {
         Accept: "application/json",
         ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(profileId !== null ? { "X-Profile-Id": String(profileId) } : {}),
         ...headers,
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,

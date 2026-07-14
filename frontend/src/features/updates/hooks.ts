@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { updatesApi } from "./api";
-import type { SeriesTracker } from "./types";
+import type { SeriesTracker, UpdateNotification } from "./types";
 
 const UPDATES_KEY = ["updates"] as const;
 
@@ -190,4 +190,39 @@ export function useUpdateTracker() {
       void queryClient.invalidateQueries({ queryKey: [...UPDATES_KEY, "trackers"] });
     },
   });
+}
+
+export interface NewChaptersBannerState {
+  /** Whether the banner should be visible right now. */
+  show: boolean;
+  /** Number of unread new-chapter notifications. */
+  count: number;
+  /** Distinct series those notifications span. */
+  seriesCount: number;
+  /** Highest notification id currently unread, or null when there are none. */
+  latestId: number | null;
+}
+
+/**
+ * Pure visibility selector for the new-chapters banner. Exported for unit
+ * testing (no React renderer needed — same style as {@link findFollowedTracker}).
+ *
+ * The banner shows when there is at least one unread notification whose id is
+ * newer than the last dismissal watermark. Because notification ids are
+ * monotonic, dismissing hides the banner until a genuinely newer chapter
+ * arrives, at which point it reappears.
+ */
+export function computeNewChaptersBanner(
+  notifications: UpdateNotification[] | undefined,
+  dismissedMaxId: number | null,
+): NewChaptersBannerState {
+  const unread = notifications ?? [];
+  const count = unread.length;
+  if (count === 0) {
+    return { show: false, count: 0, seriesCount: 0, latestId: null };
+  }
+  const latestId = unread.reduce((max, n) => (n.id > max ? n.id : max), unread[0].id);
+  const seriesCount = new Set(unread.map((n) => n.series_id)).size;
+  const show = dismissedMaxId === null || latestId > dismissedMaxId;
+  return { show, count, seriesCount, latestId };
 }

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
@@ -9,11 +11,27 @@ import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
-import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/ghost_pill_button.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class UpdatesScreen extends ConsumerWidget {
   const UpdatesScreen({super.key});
+
+  /// Awaits an action that returns an [AppError] on failure and surfaces it as
+  /// a SnackBar, matching the download banner's failure feedback in this
+  /// module. Silent on success.
+  Future<void> _run(BuildContext context, Future<AppError?> action) async {
+    final error = await action;
+    if (error != null && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.userMessage)),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -21,12 +39,21 @@ class UpdatesScreen extends ConsumerWidget {
     final notifier = ref.read(updatesProvider.notifier);
 
     return Scaffold(
+      backgroundColor: AppColors.bg,
       appBar: AppBar(
-        title: const Text('Updates'),
+        backgroundColor: AppColors.bg,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(Routes.more),
+        ),
+        title: Text('Updates', style: AppTypography.h3),
         actions: [
           IconButton(
             tooltip: 'Check now',
-            onPressed: notifier.triggerCheck,
+            color: AppColors.primary,
+            onPressed: () => _run(context, notifier.triggerCheck()),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -45,29 +72,38 @@ class UpdatesScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
             children: [
-              Text('Updates', style: AppTypography.displayMd),
-              const SizedBox(height: AppSpacing.xs),
-              Text(
-                '${state.unreadCount} unread · ${state.trackers.length} tracked series',
-                style: AppTypography.body.copyWith(color: AppColors.muted),
-              ),
-              const SizedBox(height: AppSpacing.xl2),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  FilledButton.icon(
-                    onPressed: notifier.triggerCheck,
-                    icon: const Icon(Icons.sync, size: 16),
-                    label: const Text('Check all now'),
-                  ),
-                  if (state.unreadCount > 0)
-                    OutlinedButton.icon(
-                      onPressed: notifier.markAllRead,
-                      icon: const Icon(Icons.done_all, size: 16),
-                      label: const Text('Mark all read'),
+              FadeIn(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const HeroHeading(text: 'Updates', fontSize: 40),
+                    const SizedBox(height: AppSpacing.xs),
+                    Text(
+                      '${state.unreadCount} unread · ${state.trackers.length} tracked series',
+                      style: AppTypography.body.copyWith(color: AppColors.muted),
                     ),
-                ],
+                    const SizedBox(height: AppSpacing.xl2),
+                    Wrap(
+                      spacing: AppSpacing.sm,
+                      runSpacing: AppSpacing.sm,
+                      children: [
+                        PrimaryPillButton(
+                          label: 'Check all now',
+                          icon: Icons.sync,
+                          onPressed: () =>
+                              _run(context, notifier.triggerCheck()),
+                        ),
+                        if (state.unreadCount > 0)
+                          GhostPillButton(
+                            label: 'Mark all read',
+                            icon: Icons.done_all,
+                            onPressed: () =>
+                                _run(context, notifier.markAllRead()),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
               const SizedBox(height: AppSpacing.xl2),
               const _SectionHeader(title: 'Notifications'),
@@ -86,7 +122,10 @@ class UpdatesScreen extends ConsumerWidget {
                       notification: notification,
                       onMarkRead: notification.isRead
                           ? null
-                          : () => notifier.markRead(notification.id),
+                          : () => _run(
+                              context,
+                              notifier.markRead(notification.id),
+                            ),
                     ),
                   ),
                 ),
@@ -106,10 +145,16 @@ class UpdatesScreen extends ConsumerWidget {
                     child: _TrackerCard(
                       tracker: tracker,
                       actionPending: state.actionPending,
-                      onDelete: () => notifier.deleteTracker(tracker.id),
+                      onDelete: () =>
+                          _run(context, notifier.deleteTracker(tracker.id)),
                       onAutoDownloadChanged: tracker.trackKind == TrackKind.followed
-                          ? (enabled) =>
-                              notifier.setTrackerAutoDownload(tracker.id, enabled)
+                          ? (enabled) => _run(
+                              context,
+                              notifier.setTrackerAutoDownload(
+                                tracker.id,
+                                enabled,
+                              ),
+                            )
                           : null,
                     ),
                   ),
@@ -129,7 +174,20 @@ class _SectionHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(title, style: AppTypography.h3);
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 18,
+          decoration: BoxDecoration(
+            color: AppColors.primary,
+            borderRadius: BorderRadius.circular(AppRadius.full),
+          ),
+        ),
+        const SizedBox(width: AppSpacing.sm),
+        Text(title, style: AppTypography.h3),
+      ],
+    );
   }
 }
 
@@ -148,7 +206,8 @@ class _NotificationCard extends StatelessWidget {
         ? DateFormat.yMMMd().add_jm().format(notification.createdAt!.toLocal())
         : null;
 
-    return GlassCard(
+    return GlassPanel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -160,18 +219,7 @@ class _NotificationCard extends StatelessWidget {
                   style: AppTypography.labelLg,
                 ),
               ),
-              if (!notification.isRead)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(51),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    'NEW',
-                    style: AppTypography.caption.copyWith(color: AppColors.primary),
-                  ),
-                ),
+              if (!notification.isRead) const _NewBadge(),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -187,10 +235,38 @@ class _NotificationCard extends StatelessWidget {
             const SizedBox(height: AppSpacing.md),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(onPressed: onMarkRead, child: const Text('Mark read')),
+              child: TextButton(
+                onPressed: onMarkRead,
+                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                child: const Text('Mark read'),
+              ),
             ),
           ],
         ],
+      ),
+    );
+  }
+}
+
+class _NewBadge extends StatelessWidget {
+  const _NewBadge();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.primary.withValues(alpha: 0.20),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: AppColors.primary.withValues(alpha: 0.45)),
+      ),
+      child: Text(
+        'NEW',
+        style: AppTypography.caption.copyWith(
+          color: AppColors.primary,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.6,
+        ),
       ),
     );
   }
@@ -211,19 +287,16 @@ class _TrackerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassCard(
+    final followed = tracker.trackKind == TrackKind.followed;
+    return GlassPanel(
+      padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Expanded(child: Text(tracker.seriesTitle, style: AppTypography.labelLg)),
-              Chip(
-                label: Text(
-                  tracker.trackKind == TrackKind.followed ? 'Followed' : 'Downloaded',
-                  style: AppTypography.caption,
-                ),
-              ),
+              _KindBadge(label: followed ? 'Followed' : 'Downloaded'),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
@@ -244,6 +317,7 @@ class _TrackerCard extends StatelessWidget {
               type: MaterialType.transparency,
               child: SwitchListTile(
                 contentPadding: EdgeInsets.zero,
+                activeThumbColor: AppColors.primary,
                 title: const Text('Auto download new chapters'),
                 value: tracker.autoDownload,
                 onChanged: actionPending ? null : onAutoDownloadChanged,
@@ -254,10 +328,33 @@ class _TrackerCard extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: actionPending ? null : onDelete,
+              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
               child: const Text('Remove'),
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _KindBadge extends StatelessWidget {
+  const _KindBadge({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppColors.fg.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Text(
+        label,
+        style: AppTypography.caption.copyWith(color: AppColors.muted),
       ),
     );
   }
@@ -271,7 +368,7 @@ class _UpdatesSkeleton extends StatelessWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl2),
       children: const [
-        SkeletonBox(width: 180, height: 36),
+        SkeletonBox(width: 200, height: 44),
         SizedBox(height: AppSpacing.xl2),
         SkeletonBox(width: double.infinity, height: 100),
         SizedBox(height: AppSpacing.md),
@@ -290,13 +387,26 @@ class _UpdatesError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Center(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Text(error.userMessage, style: AppTypography.body.copyWith(color: AppColors.danger)),
-          const SizedBox(height: AppSpacing.lg),
-          FilledButton(onPressed: onRetry, child: const Text('Retry')),
-        ],
+      child: Padding(
+        padding: const EdgeInsets.all(AppSpacing.xl3),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+            const SizedBox(height: AppSpacing.lg),
+            Text(
+              error.userMessage,
+              style: AppTypography.body.copyWith(color: AppColors.muted),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppSpacing.xl2),
+            PrimaryPillButton(
+              label: 'Retry',
+              icon: Icons.refresh,
+              onPressed: onRetry,
+            ),
+          ],
+        ),
       ),
     );
   }

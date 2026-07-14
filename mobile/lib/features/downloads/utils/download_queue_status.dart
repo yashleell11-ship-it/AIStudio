@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/utils/download_grouping.dart';
 
 /// Display phases shown in the downloads queue UI.
 ///
@@ -92,8 +93,14 @@ Map<DownloadQueueDisplayStatus, int> countDownloadQueueStatuses(
     for (final status in DownloadQueueDisplayStatus.values) status: 0,
   };
   for (final item in items) {
-    counts[downloadQueueDisplayStatus(item)] =
-        counts[downloadQueueDisplayStatus(item)]! + 1;
+    // Cancelled (and any other hidden-but-not-completed) items have no queue
+    // row and must not be miscounted — they fall through to `downloading`
+    // in `downloadQueueDisplayStatus`. Completed items are still counted.
+    if (hiddenFromQueue.contains(item.status) && !item.isCompleted) {
+      continue;
+    }
+    final status = downloadQueueDisplayStatus(item);
+    counts[status] = counts[status]! + 1;
   }
   return counts;
 }

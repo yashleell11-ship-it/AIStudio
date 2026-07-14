@@ -37,7 +37,7 @@ export function SearchResultCard({ series }: SearchResultCardProps) {
   const progress = series.reading_progress;
 
   const content = (
-    <article className="glass-card group flex gap-4 rounded-xl p-3 transition-all hover:border-violet-500/30 hover:shadow-glow">
+    <article className="glass-card group flex gap-4 rounded-2xl p-3 transition-all hover:border-primary/30 hover:shadow-glow">
       <div className="relative h-[120px] w-[80px] shrink-0 overflow-hidden rounded-lg bg-surface-2">
         <Image
           src={coverUrl(series.id)}
@@ -51,7 +51,7 @@ export function SearchResultCard({ series }: SearchResultCardProps) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-start justify-between gap-3">
-          <h3 className="line-clamp-1 text-base font-semibold text-fg group-hover:text-violet-400">
+          <h3 className="line-clamp-1 text-base font-semibold text-fg group-hover:text-primary">
             {series.title}
           </h3>
           {progress != null ? (
@@ -89,7 +89,7 @@ export function SearchResultCard({ series }: SearchResultCardProps) {
               </span>
             ) : null}
           </div>
-          <span className="text-[10px] font-medium uppercase tracking-wide text-violet-400/70">
+          <span className="text-[10px] font-medium uppercase tracking-wide text-primary/70">
             {languageLabel(series.language)}
           </span>
         </div>

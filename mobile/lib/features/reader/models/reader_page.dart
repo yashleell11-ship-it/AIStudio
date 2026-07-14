@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/network/api_image.dart';
+
 class ReaderPage {
   const ReaderPage({
     required this.id,
@@ -21,13 +23,11 @@ class ReaderPage {
   }
 
   factory ReaderPage.fromJson(Map<String, dynamic> json, String apiBaseUrl) {
-    final rawUrl = json['image_url'] as String;
-    final imageUrl =
-        rawUrl.startsWith('http') ? rawUrl : '$apiBaseUrl$rawUrl';
+    final rawUrl = json['image_url'] as String? ?? '';
     return ReaderPage(
       id: json['id'].toString(),
       number: json['number'] as int,
-      imageUrl: imageUrl,
+      imageUrl: rawUrl.isEmpty ? '' : resolveApiResourceUrl(apiBaseUrl, rawUrl),
       width: json['width'] as int?,
       height: json['height'] as int?,
     );

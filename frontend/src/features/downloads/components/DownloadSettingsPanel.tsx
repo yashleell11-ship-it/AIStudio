@@ -66,7 +66,7 @@ function SliderField({
           aria-label={label}
           className="flex-1"
         />
-        <span className="w-12 shrink-0 text-right font-mono text-sm tabular-nums text-violet-400">
+        <span className="w-12 shrink-0 text-right font-mono text-sm tabular-nums text-primary">
           {value}
           {unit}
         </span>
@@ -177,7 +177,7 @@ function DownloadSettingsForm({
 
         <div className="glass-card flex flex-col justify-center rounded-xl p-4">
           <div className="flex items-center gap-2 text-sm text-muted">
-            <Gauge className="size-4 text-cyan-400" aria-hidden />
+            <Gauge className="size-4 text-primary" aria-hidden />
             Active downloads right now
           </div>
           <p className="mt-1 font-display text-3xl tabular-nums text-fg">{activeDownloadCount}</p>
@@ -210,7 +210,7 @@ export function DownloadSettingsPanel() {
   return (
     <section className="glass-card rounded-2xl p-5 md:p-6">
       <div className="mb-6 flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/10 text-violet-400">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 text-primary">
           <Download className="size-5" aria-hidden />
         </div>
         <div>

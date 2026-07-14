@@ -6,7 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_typography.dart';
 
 /// Maps known source IDs to their site favicon URLs for branding. Shared by the
 /// sources list and the source browser so the mapping lives in exactly one
-/// place.
+/// place. Prefer [iconUrl] from the API when the backend supplies it.
 String? sourceFaviconUrl(String sourceId) {
   const map = <String, String>{
     'mangadex': 'https://mangadex.org/favicon.ico',
@@ -39,16 +39,18 @@ class SourceLogo extends StatelessWidget {
     super.key,
     required this.id,
     required this.name,
+    this.iconUrl,
     this.size = 44,
   });
 
   final String id;
   final String name;
+  final String? iconUrl;
   final double size;
 
   @override
   Widget build(BuildContext context) {
-    final faviconUrl = sourceFaviconUrl(id);
+    final faviconUrl = iconUrl ?? sourceFaviconUrl(id);
 
     return Container(
       width: size,

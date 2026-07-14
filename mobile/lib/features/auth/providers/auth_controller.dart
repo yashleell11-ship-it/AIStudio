@@ -5,6 +5,7 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/logging/app_logger.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/models/bootstrap_status.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
@@ -106,6 +107,11 @@ class AuthController extends Notifier<AuthState> {
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
     await _clearToken();
+    await ref.read(activeProfileProvider.notifier).clear();
+    ref.read(profileSessionReadyProvider.notifier).reset();
+    // Drop the previous account's cached profile list so the next sign-in
+    // never briefly renders another user's profiles.
+    ref.invalidate(profilesProvider);
     state = const AuthUnauthenticated();
   }
 
@@ -115,6 +121,9 @@ class AuthController extends Notifier<AuthState> {
   void onSessionExpired() {
     if (state is AuthUnauthenticated) return;
     unawaited(_clearToken());
+    unawaited(ref.read(activeProfileProvider.notifier).clear());
+    ref.read(profileSessionReadyProvider.notifier).reset();
+    ref.invalidate(profilesProvider);
     state = const AuthUnauthenticated();
   }
 

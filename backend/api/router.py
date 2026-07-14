@@ -8,6 +8,7 @@ from routes.backup import router as backup_router
 from routes.downloads import router as downloads_router
 from routes.library import router as library_router
 from routes.ocr import router as ocr_router
+from routes.profiles import router as profiles_router
 from routes.reader import router as reader_router
 from routes.sources import router as sources_router
 from routes.settings import router as settings_router
@@ -30,3 +31,4 @@ api_router.include_router(reader_router)
 api_router.include_router(sources_router)
 api_router.include_router(ocr_router)
 api_router.include_router(updates_router)
+api_router.include_router(profiles_router)

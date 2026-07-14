@@ -7,10 +7,10 @@ import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
-import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
@@ -50,6 +50,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          tooltip: 'Back',
+          onPressed: () =>
+              context.canPop() ? context.pop() : context.go(Routes.more),
+        ),
         title: const Text('Settings'),
         actions: [
           IconButton(
@@ -102,6 +108,14 @@ class _GeneralSettingsPanel extends StatelessWidget {
         SizedBox(height: AppSpacing.sm),
         _AccountSection(),
         SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('Content'),
+        SizedBox(height: AppSpacing.sm),
+        _MatureContentToggle(),
+        SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('History'),
+        SizedBox(height: AppSpacing.sm),
+        _HistorySection(),
+        SizedBox(height: AppSpacing.xl2),
         _SectionHeading('Theme'),
         SizedBox(height: AppSpacing.sm),
         _ThemeSelector(),
@@ -126,13 +140,43 @@ class _GeneralSettingsPanel extends StatelessWidget {
   }
 }
 
+/// Premium section eyebrow: a warm amber accent bar beside an uppercase Syne
+/// label. Mirrors the design-system nav-label treatment (uppercase, wide
+/// tracking) using the display typeface so every settings group reads as one
+/// system.
 class _SectionHeading extends StatelessWidget {
   const _SectionHeading(this.text);
 
   final String text;
 
   @override
-  Widget build(BuildContext context) => Text(text, style: AppTypography.h3);
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+      child: Row(
+        children: [
+          Container(
+            width: 3,
+            height: 15,
+            decoration: BoxDecoration(
+              color: AppColors.primary,
+              borderRadius: BorderRadius.circular(AppRadius.full),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Text(
+            text.toUpperCase(),
+            style: AppTypography.h1.copyWith(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              letterSpacing: 2,
+              color: AppColors.fg,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _AccountSection extends ConsumerWidget {
@@ -213,6 +257,46 @@ class _AccountSection extends ConsumerWidget {
   }
 }
 
+class _HistorySection extends StatelessWidget {
+  const _HistorySection();
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      onTap: () => context.push(Routes.readingHistory),
+      glowColor: AppColors.primary,
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(AppSpacing.sm),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(30),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.primary.withAlpha(64)),
+            ),
+            child: const Icon(Icons.history_rounded, color: AppColors.primary),
+          ),
+          const SizedBox(width: AppSpacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Reading history', style: AppTypography.labelLg),
+                const SizedBox(height: AppSpacing.xxs),
+                Text(
+                  'See what you read last',
+                  style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.chevron_right, color: AppColors.primary),
+        ],
+      ),
+    );
+  }
+}
+
 class _AdminBadge extends StatelessWidget {
   const _AdminBadge();
 
@@ -230,7 +314,7 @@ class _AdminBadge extends StatelessWidget {
       ),
       child: Text(
         'Admin',
-        style: AppTypography.labelSm.copyWith(color: AppColors.violet400),
+        style: AppTypography.labelSm.copyWith(color: AppColors.primary),
       ),
     );
   }
@@ -324,6 +408,132 @@ class _HapticsToggle extends ConsumerWidget {
           onChanged: (value) =>
               ref.read(hapticFeedbackProvider.notifier).setEnabled(value),
         ),
+      ),
+    );
+  }
+}
+
+/// Per-profile "Mature 18+" toggle. Reads the active profile's
+/// `mature_content_enabled` from `GET /settings` and writes it back via
+/// `PUT /settings`; because the underlying provider is invalidated on a profile
+/// switch, switching profiles shows that profile's own value. A failed write is
+/// rolled back by the controller and surfaced as a snackbar (routing back to the
+/// picker if the backend rejects the profile scope).
+class _MatureContentToggle extends ConsumerWidget {
+  const _MatureContentToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(matureContentProvider);
+
+    // Initial load failed and there's no cached value to fall back on: show a
+    // compact, self-contained retry card instead of a dead switch, so this
+    // network-backed section degrades on its own without red-outing the tab.
+    if (async.hasError && !async.hasValue) {
+      return _SectionErrorCard(
+        label: 'the mature content setting',
+        onRetry: () => ref.invalidate(matureContentProvider),
+      );
+    }
+
+    return GlassCard(
+      // SwitchListTile paints its splash on the nearest Material ancestor;
+      // GlassCard only supplies one when onTap is set.
+      child: Material(
+        color: Colors.transparent,
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Show mature content (18+)'),
+          subtitle: const Text(
+            'Include adult-only series in browsing, search and sources '
+            'for this profile. Enabling requires confirming you are 18 or '
+            'older.',
+          ),
+          value: async.valueOrNull ?? false,
+          onChanged: async.isLoading
+              ? null
+              : (value) => _onToggle(context, ref, value),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onToggle(
+    BuildContext context,
+    WidgetRef ref,
+    bool value,
+  ) async {
+    // Turning the gate ON requires an explicit age confirmation first (mirrors
+    // the web MatureContentPanel); turning it OFF applies immediately.
+    if (value) {
+      final confirmed = await _confirmEnable(context);
+      if (confirmed != true) return;
+    }
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    final error =
+        await ref.read(matureContentProvider.notifier).setEnabled(value);
+    if (error == null) return;
+    if (recoverFromProfileScopeError(ref, error)) return;
+    messenger.showSnackBar(SnackBar(content: Text(error.userMessage)));
+  }
+
+  Future<bool?> _confirmEnable(BuildContext context) {
+    return showDialog<bool>(
+      context: context,
+      builder: (dialogCtx) => AlertDialog(
+        title: const Text('Enable mature content?'),
+        content: const Text(
+          'This shows adult (18+) sources, search results and recommendations '
+          'throughout ManhwaManiacs. Only continue if you are of legal age to '
+          'view mature content where you live. You can turn this off again at '
+          'any time.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogCtx, false),
+            child: const Text('Cancel'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(dialogCtx, true),
+            child: const Text('I am 18 or older — Enable'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Compact, self-contained error boundary for a single settings section that
+/// depends on a network provider. One section failing renders just this card
+/// (with an inline retry that re-fetches only that provider) instead of
+/// red-outing the whole tab.
+class _SectionErrorCard extends StatelessWidget {
+  const _SectionErrorCard({required this.label, required this.onRetry});
+
+  final String label;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return GlassCard(
+      child: Row(
+        children: [
+          const Icon(
+            Icons.error_outline_rounded,
+            color: AppColors.muted,
+            size: 18,
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          Expanded(
+            child: Text(
+              "Couldn't load $label.",
+              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+            ),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          TextButton(onPressed: onRetry, child: const Text('Retry')),
+        ],
       ),
     );
   }
@@ -476,11 +686,15 @@ class _DownloadPreferencesSectionState
         const SizedBox(height: AppSpacing.lg),
         settingsAsync.when(
           loading: () => const SkeletonBox(width: double.infinity, height: 180),
-          error: (error, _) => Text(
-            error is AppError
-                ? error.userMessage
-                : 'Failed to load download settings.',
-            style: AppTypography.body.copyWith(color: AppColors.danger),
+          // Isolated retry, not a full-tab error: a failed GET /downloads/settings
+          // (which surfaces as UnknownError → "Something went wrong…") stays
+          // contained to this section while the Wi-Fi toggle above still renders.
+          error: (error, _) => _SectionErrorCard(
+            label: 'download preferences',
+            onRetry: () {
+              _draft = null;
+              ref.invalidate(downloadSettingsProvider);
+            },
           ),
           data: (settings) {
             _draft ??= settings;
@@ -594,10 +808,7 @@ class _ServerSettingsPanel extends ConsumerWidget {
         return ListView(
           padding: const EdgeInsets.all(AppSpacing.xl2),
           children: [
-            Text(
-              'Server connection',
-              style: AppTypography.h3,
-            ),
+            const _SectionHeading('Server connection'),
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Configure the ManhwaManiacs backend URL for this device.',
@@ -707,7 +918,7 @@ class _AboutPanel extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl2),
       children: [
-        Text('About', style: AppTypography.h3),
+        const _SectionHeading('About'),
         const SizedBox(height: AppSpacing.xl2),
         infoAsync.when(
           loading: () => const SkeletonBox(width: double.infinity, height: 100),
@@ -735,7 +946,7 @@ class _AboutPanel extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.lg),
         // Update check
-        Text('Updates', style: AppTypography.h3),
+        const _SectionHeading('Updates'),
         const SizedBox(height: AppSpacing.sm),
         updateAsync.when(
           loading: () => const SkeletonBox(width: double.infinity, height: 64),
@@ -801,14 +1012,14 @@ class _AboutPanel extends ConsumerWidget {
                     children: [
                       const Icon(
                         Icons.system_update_outlined,
-                        color: AppColors.violet400,
+                        color: AppColors.primary,
                         size: 18,
                       ),
                       const SizedBox(width: AppSpacing.sm),
                       Text(
                         'Update available',
                         style: AppTypography.labelLg.copyWith(
-                          color: AppColors.violet400,
+                          color: AppColors.primary,
                         ),
                       ),
                     ],
@@ -897,13 +1108,13 @@ class _DebugPanel extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl2),
       children: [
-        Text('Diagnostics', style: AppTypography.h3),
+        const _SectionHeading('Diagnostics'),
         const SizedBox(height: AppSpacing.sm),
         GlassCard(
           onTap: () => context.push(Routes.diagnostics),
           child: Row(
             children: [
-              const Icon(Icons.speed_rounded, color: AppColors.violet400),
+              const Icon(Icons.speed_rounded, color: AppColors.primary),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -924,7 +1135,7 @@ class _DebugPanel extends ConsumerWidget {
           ),
         ),
         const SizedBox(height: AppSpacing.xl2),
-        Text('Reset', style: AppTypography.h3),
+        const _SectionHeading('Reset'),
         const SizedBox(height: AppSpacing.sm),
         GlassCard(
           child: Column(

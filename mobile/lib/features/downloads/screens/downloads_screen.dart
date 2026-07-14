@@ -10,6 +10,10 @@ import 'package:manhwamaniacs/features/downloads/utils/download_grouping.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/downloads_skeleton.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/downloads_widgets.dart';
 import 'package:manhwamaniacs/features/reader/utils/local_reader_handoff.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/ghost_pill_button.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 
 class DownloadsScreen extends ConsumerStatefulWidget {
   const DownloadsScreen({super.key});
@@ -28,7 +32,11 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
     final notifier = ref.read(downloadsProvider.notifier);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Downloads')),
+      backgroundColor: AppColors.bg,
+      appBar: AppBar(
+        backgroundColor: AppColors.bg,
+        title: Text('Downloads', style: AppTypography.h3),
+      ),
       body: downloadsAsync.when(
         loading: () => const DownloadsSkeleton(),
         error: (error, _) => _DownloadsError(
@@ -49,47 +57,60 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text('Downloads', style: AppTypography.displayMd),
-                          const SizedBox(height: AppSpacing.xs),
-                          Text(
-                            '${state.metrics.active + state.metrics.queued + state.metrics.paused} active, ${state.metrics.completed} completed',
-                            style: AppTypography.body.copyWith(color: AppColors.muted),
-                          ),
-                          const SizedBox(height: AppSpacing.lg),
-                          Wrap(
-                            spacing: AppSpacing.sm,
-                            runSpacing: AppSpacing.sm,
-                            children: [
-                              OutlinedButton.icon(
-                                onPressed: state.actionPending || state.items.isEmpty
-                                    ? null
-                                    : notifier.pauseAll,
-                                icon: const Icon(Icons.pause, size: 16),
-                                label: const Text('Pause All'),
-                              ),
-                              OutlinedButton.icon(
-                                onPressed: state.actionPending || state.items.isEmpty
-                                    ? null
-                                    : notifier.resumeAll,
-                                icon: const Icon(Icons.play_arrow, size: 16),
-                                label: const Text('Resume All'),
-                              ),
-                              TextButton.icon(
-                                onPressed: state.actionPending || state.items.isEmpty
-                                    ? null
-                                    : notifier.cancelAll,
-                                icon: const Icon(Icons.close, size: 16),
-                                label: const Text('Cancel All'),
-                                style: TextButton.styleFrom(
-                                  foregroundColor: AppColors.danger,
+                      Builder(
+                        builder: (context) {
+                          final canAct =
+                              !state.actionPending && state.items.isNotEmpty;
+                          return FadeIn(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                const HeroHeading(
+                                  text: 'Downloads',
+                                  fontSize: 40,
                                 ),
-                              ),
-                            ],
-                          ),
-                        ],
+                                const SizedBox(height: AppSpacing.xs),
+                                Text(
+                                  '${state.metrics.active + state.metrics.queued + state.metrics.paused} active, ${state.metrics.completed} completed',
+                                  style: AppTypography.body
+                                      .copyWith(color: AppColors.muted),
+                                ),
+                                const SizedBox(height: AppSpacing.lg),
+                                Wrap(
+                                  spacing: AppSpacing.sm,
+                                  runSpacing: AppSpacing.sm,
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  children: [
+                                    _ActionPill(
+                                      enabled: canAct,
+                                      child: PrimaryPillButton(
+                                        label: 'Resume All',
+                                        icon: Icons.play_arrow,
+                                        onPressed: canAct ? notifier.resumeAll : null,
+                                      ),
+                                    ),
+                                    _ActionPill(
+                                      enabled: canAct,
+                                      child: GhostPillButton(
+                                        label: 'Pause All',
+                                        icon: Icons.pause,
+                                        onPressed: canAct ? notifier.pauseAll : null,
+                                      ),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: canAct ? notifier.cancelAll : null,
+                                      icon: const Icon(Icons.close, size: 16),
+                                      label: const Text('Cancel All'),
+                                      style: TextButton.styleFrom(
+                                        foregroundColor: AppColors.danger,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        },
                       ),
                       if (state.feedbackMessage != null) ...[
                         const SizedBox(height: AppSpacing.md),
@@ -254,15 +275,30 @@ class _DownloadsError extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl2),
-            FilledButton.icon(
+            PrimaryPillButton(
+              label: 'Try Again',
+              icon: Icons.refresh,
               onPressed: onRetry,
-              icon: const Icon(Icons.refresh),
-              label: const Text('Try Again'),
             ),
           ],
         ),
       ),
     );
+  }
+}
+
+/// Dims a pill button to communicate a disabled state (the premium pills carry
+/// no disabled styling of their own). Tap suppression is handled by the child's
+/// null `onPressed`.
+class _ActionPill extends StatelessWidget {
+  const _ActionPill({required this.enabled, required this.child});
+
+  final bool enabled;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(opacity: enabled ? 1 : 0.4, child: child);
   }
 }
 

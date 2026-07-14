@@ -162,7 +162,11 @@ class SourceBrowseNotifier
   }
 
   Future<void> refresh() async {
-    state = const AsyncLoading();
+    // Keep the previous value attached so the AsyncValue stays *reloading*
+    // rather than a fresh load; skipLoadingOnReload then keeps the grid on
+    // screen (behind the RefreshIndicator spinner) instead of flashing the
+    // full-screen "Opening…" loader.
+    state = const AsyncLoading<SourceBrowseState>().copyWithPrevious(state);
     state = await AsyncValue.guard(() => build(arg));
   }
 

@@ -40,7 +40,7 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
   return (
     <header
       className={cn(
-        "app-no-drag flex h-14 shrink-0 items-center gap-3 border-b border-border/50 bg-void/80 px-4 backdrop-blur-sm",
+        "app-no-drag flex h-14 shrink-0 items-center gap-3 border-b border-border bg-bg-void/80 px-4 backdrop-blur-sm",
         hideOnReader && "lg:flex max-lg:h-11",
       )}
     >
@@ -50,16 +50,13 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
         onClick={toggleSidebar}
         aria-label="Toggle sidebar"
         title="Toggle sidebar (Ctrl/Cmd + B)"
-        className="text-muted hover:text-fg"
+        className="hidden text-muted hover:text-primary lg:inline-flex"
       >
         <PanelLeft className="size-5" />
       </Button>
 
-      <div className="flex items-center gap-2 lg:hidden">
-        <div
-          className="size-2 rounded-full bg-gradient-to-r from-violet-500 to-cyan-500"
-          aria-hidden
-        />
+      <div className="flex items-center gap-2 md:hidden">
+        <div className="size-2 rounded-full bg-primary" aria-hidden />
         <span className="font-display text-base tracking-wide text-fg">ManhwaManiacs</span>
       </div>
 
@@ -69,7 +66,7 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
           <Wifi className="size-3.5" aria-hidden />
           <time className="font-mono tabular-nums">{time}</time>
         </div>
-        <div className="h-6 w-px bg-border/50" aria-hidden />
+        <div className="h-6 w-px bg-border" aria-hidden />
         <UserMenu />
       </div>
     </header>

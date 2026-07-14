@@ -25,8 +25,8 @@ export function PagePlaceholder({
   return (
     <div className="page-shell flex min-h-[50vh] flex-col items-center justify-center text-center">
       <div className="empty-state max-w-lg">
-        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-violet-500/10">
-          <Icon className="size-8 text-violet-400" aria-hidden />
+        <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
+          <Icon className="size-8 text-primary" aria-hidden />
         </div>
         <Badge variant="primary" className="mb-3">
           Coming soon

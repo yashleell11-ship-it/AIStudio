@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { primaryNav, secondaryNav, type NavItem } from "@/config/nav";
+import { navSections, secondaryNav, type NavItem } from "@/config/nav";
 import { useCurrentUser } from "@/features/auth/hooks";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
@@ -23,11 +23,9 @@ function isNavActive(pathname: string, href: string): boolean {
 function NavLink({
   item,
   collapsed,
-  onNavigate,
 }: {
   item: NavItem;
   collapsed: boolean;
-  onNavigate: () => void;
 }) {
   const pathname = usePathname();
   const active = isNavActive(pathname, item.href);
@@ -36,27 +34,26 @@ function NavLink({
   return (
     <Link
       href={item.href}
-      onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       title={collapsed ? item.label : undefined}
       className={cn(
-        "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm transition-all",
-        collapsed && "justify-center px-0",
+        "group relative flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium uppercase tracking-widest transition-all",
+        collapsed && "justify-center px-0 tracking-normal",
         active
-          ? "bg-violet-500/10 text-violet-400"
-          : "text-muted hover:bg-white/5 hover:text-fg",
+          ? "bg-primary/10 text-primary shadow-glow"
+          : "text-muted hover:bg-surface-2 hover:text-fg",
       )}
     >
       {active ? (
         <span
-          className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-violet-500"
+          className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-full bg-primary"
           aria-hidden
         />
       ) : null}
       <Icon
         className={cn(
           "size-5 shrink-0",
-          active ? "text-violet-400" : "text-muted group-hover:text-fg",
+          active ? "text-primary" : "text-muted group-hover:text-fg",
         )}
         aria-hidden
       />
@@ -71,37 +68,29 @@ function NavLink({
 
 export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
-  const mobileSidebarOpen = useUiStore((s) => s.mobileSidebarOpen);
-  const closeMobileSidebar = useUiStore((s) => s.closeMobileSidebar);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { data: user } = useCurrentUser();
 
   const isAdmin = user?.is_admin ?? false;
-  const primaryItems = visibleNav(primaryNav, isAdmin);
-  const secondaryItems = visibleNav(secondaryNav, isAdmin);
-
-  const isMobileDrawer = mobileSidebarOpen;
-  const showCollapsed = collapsed && !isMobileDrawer;
+  const footerItems = visibleNav(secondaryNav, isAdmin);
 
   return (
     <aside
       aria-label="Main navigation"
       className={cn(
-        "flex h-full flex-col border-r border-border/50 bg-sidebar transition-[width,transform] duration-200",
-        "fixed inset-y-0 left-0 z-40 lg:relative lg:z-auto lg:translate-x-0",
-        showCollapsed ? "w-[68px]" : "w-60",
-        !isMobileDrawer && collapsed ? "-translate-x-full lg:translate-x-0" : "translate-x-0",
+        "hidden h-full shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 md:flex",
+        collapsed ? "w-[68px]" : "w-60",
       )}
     >
       <div
         className={cn(
-          "flex h-14 items-center border-b border-border/50 px-4",
-          showCollapsed && "justify-center px-0",
+          "flex h-14 items-center border-b border-border px-4",
+          collapsed && "justify-center px-0",
         )}
       >
-        {showCollapsed ? (
+        {collapsed ? (
           <div
-            className="flex size-9 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-bold text-white"
+            className="flex size-9 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-fg"
             aria-hidden
           >
             MM
@@ -109,7 +98,7 @@ export function Sidebar() {
         ) : (
           <div className="flex items-center gap-2">
             <div
-              className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 to-cyan-500 text-xs font-bold text-white"
+              className="flex size-8 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-fg"
               aria-hidden
             >
               MM
@@ -119,31 +108,37 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2" aria-label="Primary">
-        {primaryItems.map((item) => (
-          <NavLink
-            key={item.href}
-            item={item}
-            collapsed={showCollapsed}
-            onNavigate={closeMobileSidebar}
-          />
-        ))}
+      <nav
+        className="flex flex-1 flex-col gap-4 overflow-y-auto p-2"
+        aria-label="Primary"
+      >
+        {navSections.map((section) => {
+          const items = visibleNav(section.items, isAdmin);
+          if (items.length === 0) return null;
+          return (
+            <div key={section.label} className="flex flex-col gap-0.5">
+              {!collapsed ? (
+                <p className="px-3 pb-1 pt-2 font-display text-xs uppercase tracking-widest text-muted/70">
+                  {section.label}
+                </p>
+              ) : null}
+              {items.map((item) => (
+                <NavLink key={item.href} item={item} collapsed={collapsed} />
+              ))}
+            </div>
+          );
+        })}
       </nav>
 
-      <div className="border-t border-border/50 p-2" aria-label="Secondary navigation">
-        {secondaryItems.map((item) => (
-          <NavLink
-            key={item.href}
-            item={item}
-            collapsed={showCollapsed}
-            onNavigate={closeMobileSidebar}
-          />
+      <div className="border-t border-border p-2" aria-label="Secondary navigation">
+        {footerItems.map((item) => (
+          <NavLink key={item.href} item={item} collapsed={collapsed} />
         ))}
-        {showCollapsed ? (
+        {collapsed ? (
           <button
             type="button"
             onClick={toggleSidebar}
-            className="mt-1 flex w-full items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-white/5 hover:text-fg"
+            className="mt-1 flex w-full items-center justify-center rounded-lg p-2 text-muted transition-colors hover:bg-surface-2 hover:text-fg"
             aria-label="Expand sidebar"
           >
             <ChevronRight className="size-4" />

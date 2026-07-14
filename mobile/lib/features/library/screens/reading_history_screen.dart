@@ -11,6 +11,7 @@ import 'package:manhwamaniacs/features/library/models/reading_history_item.dart'
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 const _weekdays = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -61,7 +62,7 @@ class ReadingHistoryScreen extends ConsumerWidget {
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
             children: [
-              Text('Reading History', style: AppTypography.displayMd),
+              const HeroHeading(text: 'Reading History'),
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Track your reading sessions and activity.',

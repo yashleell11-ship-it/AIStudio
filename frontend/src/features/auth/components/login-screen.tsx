@@ -68,7 +68,10 @@ export function LoginScreen() {
         bootstrap.data.registration_enabled ? (
           <>
             Need an account?{" "}
-            <Link href="/register" className="font-medium text-violet-400 hover:text-violet-300">
+            <Link
+              href="/register"
+              className="font-medium text-primary transition-colors hover:text-primary-hover"
+            >
               Create one
             </Link>
           </>

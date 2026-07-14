@@ -354,7 +354,8 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Reading Statistics'), findsWidgets);
+      // Title is rendered by HeroHeading, which uppercases its text.
+      expect(find.text('READING STATISTICS'), findsWidgets);
       expect(find.text('Total Series'), findsOneWidget);
     });
 
@@ -397,7 +398,8 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Check all now'), findsOneWidget);
+      // "Check all now" is now a PrimaryPillButton, which uppercases its label.
+      expect(find.text('CHECK ALL NOW'), findsOneWidget);
       expect(find.text('Solo Leveling'), findsWidgets);
     });
 
@@ -430,6 +432,11 @@ void main() {
     });
 
     testWidgets('MoreScreen renders navigation tiles', (tester) async {
+      // MoreScreen is a lazy ListView; the "Settings" tile sits below the fold
+      // of the default 800x600 surface and isn't built until scrolled into
+      // view. Give the test a tall surface so every tile is laid out.
+      await tester.binding.setSurfaceSize(const Size(600, 2000));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
         await _wrap(
           const MoreScreen(),
@@ -469,8 +476,13 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('Update Available', skipOffstage: false), findsOneWidget);
-      expect(find.text('1.0.0 → 1.1.0', skipOffstage: false), findsOneWidget);
+      expect(find.text('Update available', skipOffstage: false), findsOneWidget);
+      expect(find.text('Installed', skipOffstage: false), findsOneWidget);
+      expect(find.text('Available', skipOffstage: false), findsOneWidget);
+      expect(find.text('v1.0.0', skipOffstage: false), findsOneWidget);
+      expect(find.text('v1.1.0', skipOffstage: false), findsOneWidget);
+      expect(find.text('(build 1)', skipOffstage: false), findsOneWidget);
+      expect(find.text('(build 2)', skipOffstage: false), findsOneWidget);
     });
   });
 }

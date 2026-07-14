@@ -25,11 +25,13 @@ from database.models import (
     ReadingProgress,
     Series,
     SeriesTag,
+    SeriesTracker,
+    SourceChapterLink,
     Tag,
     User,
 )
 from database.session import get_db
-from services.auth_service import get_optional_user
+from core.profile_context import ProfileContext, resolve_profile_context
 from services.import_cleanup import ImportCleanupService, normalize_folder_path
 from services.source_service import SourceService
 from utils.mobile_urls import page_image_url, series_cover_url
@@ -121,11 +123,18 @@ _scan_status = ScanStatus()
 
 
 class LibraryService:
-    def __init__(self, db: Session, user_id: int | None = None) -> None:
+    def __init__(
+        self,
+        db: Session,
+        user_id: int | None = None,
+        profile_id: int | None = None,
+    ) -> None:
         self._db = db
         self._settings = get_settings()
-        # Reading progress is per-user; None scopes to anonymous/legacy rows.
+        # Reading progress is per-(user, profile); None/None scopes to the
+        # anonymous/legacy unscoped rows.
         self._user_id = user_id
+        self._profile_id = profile_id
 
     def get_scan_status(self) -> dict[str, object]:
         return _scan_status.snapshot()
@@ -304,6 +313,11 @@ class LibraryService:
             seen_keys: set[str] = set()
             total_chapters = 0
             total_pages = 0
+            # Source-linked series get their cover from the real source cover at
+            # serve time; baking a chapter's first page (often a credits/title
+            # page) as the cover is what produced the wrong-cover bug. Leave
+            # cover_path unset for these so the serve-time source path is used.
+            series_is_source_linked = self.resolve_source_link(series.id) is not None
 
             for chapter_data in scanned_series.chapters:
                 key = chapter_data.folder_path or chapter_data.archive_path or ""
@@ -333,7 +347,11 @@ class LibraryService:
 
                 chapter.page_count = len(chapter_data.pages)
                 chapter.scanned_at = utcnow()
-                if chapter_data.pages and not series.cover_path:
+                if (
+                    chapter_data.pages
+                    and not series.cover_path
+                    and not series_is_source_linked
+                ):
                     series.cover_path = chapter_data.pages[0].file_path
 
                 for page_data in chapter_data.pages:
@@ -432,6 +450,7 @@ class LibraryService:
         progress_on = and_(
             ReadingProgress.series_id == Series.id,
             ReadingProgress.user_id == self._user_id,
+            ReadingProgress.profile_id == self._profile_id,
         )
         if status == "reading":
             query = query.join(ReadingProgress, progress_on)
@@ -560,6 +579,34 @@ class LibraryService:
             "ocr_summary": ocr_summary,
         }
 
+    def resolve_source_link(self, series_id: int) -> tuple[str, str] | None:
+        """Resolve a local series to its ``(source, source_series_id)`` if it is
+        source-linked (imported/downloaded from an online source).
+
+        Prefers ``series_trackers.local_series_id`` (a direct series->source
+        mapping); falls back to ``source_chapter_links`` joined through the
+        series' chapters. Returns ``None`` for purely local series.
+        """
+        tracker = (
+            self._db.query(SeriesTracker)
+            .filter(SeriesTracker.local_series_id == series_id)
+            .order_by(SeriesTracker.id.asc())
+            .first()
+        )
+        if tracker and tracker.source and tracker.series_id:
+            return tracker.source, tracker.series_id
+
+        link = (
+            self._db.query(SourceChapterLink)
+            .join(Chapter, Chapter.id == SourceChapterLink.local_chapter_id)
+            .filter(Chapter.series_id == series_id)
+            .order_by(SourceChapterLink.id.asc())
+            .first()
+        )
+        if link and link.source and link.series_id:
+            return link.source, link.series_id
+        return None
+
     def get_series(self, series_id: int) -> dict[str, object]:
         series = (
             self._db.query(Series)
@@ -650,7 +697,10 @@ class LibraryService:
     def get_continue_reading(self, limit: int = 10) -> list[dict[str, object]]:
         rows = (
             self._db.query(ReadingProgress)
-            .filter(ReadingProgress.user_id == self._user_id)
+            .filter(
+                ReadingProgress.user_id == self._user_id,
+                ReadingProgress.profile_id == self._profile_id,
+            )
             .options(
                 joinedload(ReadingProgress.series),
                 joinedload(ReadingProgress.chapter),
@@ -793,6 +843,6 @@ class LibraryService:
 
 def get_library_service(
     db: Annotated[Session, Depends(get_db)],
-    user: Annotated[User | None, Depends(get_optional_user)],
+    ctx: Annotated[ProfileContext, Depends(resolve_profile_context)],
 ) -> LibraryService:
-    return LibraryService(db, user_id=user.id if user else None)
+    return LibraryService(db, user_id=ctx.user_id, profile_id=ctx.profile_id)

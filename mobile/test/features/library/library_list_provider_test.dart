@@ -1,11 +1,13 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
@@ -14,6 +16,7 @@ import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
+import 'package:manhwamaniacs/features/library/repositories/global_search_repository.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
 import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
@@ -422,63 +425,115 @@ void main() {
     });
   });
 
-  group('SearchListNotifier', () {
+  group('SearchListNotifier (federated)', () {
     Future<ProviderContainer> searchContainer(
-      _FakeLibraryRepository fakeRepo,
+      _FakeGlobalSearchRepository fakeRepo,
     ) async {
       final container = ProviderContainer(
         overrides: [
-          libraryRepositoryProvider.overrideWithValue(fakeRepo),
+          globalSearchRepositoryProvider.overrideWithValue(fakeRepo),
         ],
       );
       addTearDown(container.dispose);
       return container;
     }
 
-    test('search with downloaded uses listSeries and preserves pagination', () async {
-      final fakeRepo = _FakeLibraryRepository({
-        1: PagedResult(
-          items: [_series(1), _series(2)],
-          total: 3,
-          page: 1,
-          perPage: 40,
-          hasNext: true,
+    test('blank query resolves to an empty result without hitting the repo',
+        () async {
+      final fakeRepo = _FakeGlobalSearchRepository({});
+      final container = await searchContainer(fakeRepo);
+
+      final state = await container.read(searchListProvider.future);
+
+      expect(state.isEmpty, isTrue);
+      expect(fakeRepo.calls, 0);
+    });
+
+    test('loads first page and appends source pages on loadMore', () async {
+      final fakeRepo = _FakeGlobalSearchRepository({
+        1: const GlobalSearchResult(
+          items: [
+            GlobalSearchItem(kind: 'local', seriesId: '1', title: 'Local One'),
+            GlobalSearchItem(
+              kind: 'source',
+              source: 'mangadex',
+              seriesId: 'abc',
+              title: 'Source One',
+            ),
+          ],
+          sourcesQueried: 12,
+          sourcesFailed: 1,
+          hasMore: true,
         ),
-        2: PagedResult(
-          items: [_series(3)],
-          total: 3,
+        2: const GlobalSearchResult(
+          items: [
+            GlobalSearchItem(
+              kind: 'source',
+              source: 'toonily',
+              seriesId: 'def',
+              title: 'Source Two',
+            ),
+          ],
+          sourcesQueried: 12,
+          sourcesFailed: 1,
           page: 2,
-          perPage: 40,
-          hasNext: false,
         ),
       });
 
       final container = await searchContainer(fakeRepo);
-      container.read(searchQueryProvider.notifier).state = const LibraryQuery(
-        search: 'solo',
-        filter: LibraryFilter.downloaded,
-        viewMode: LibraryViewMode.list,
-      );
+      container.read(searchQueryProvider.notifier).state = 'one piece';
 
       final state = await container.read(searchListProvider.future);
-
-      expect(fakeRepo.searchCalls, 0);
-      expect(fakeRepo.listCalls, 1);
-      expect(fakeRepo.lastSearch, 'solo');
-      expect(fakeRepo.lastHasChapters, isTrue);
-      expect(fakeRepo.lastSort, 'recent');
-      expect(state.total, 3);
-      expect(state.hasNext, isTrue);
       expect(state.items, hasLength(2));
+      expect(state.sourcesQueried, 12);
+      expect(state.sourcesFailed, 1);
+      expect(state.hasMore, isTrue);
+      expect(fakeRepo.lastQuery, 'one piece');
 
       await container.read(searchListProvider.notifier).loadMore();
       final loaded = container.read(searchListProvider).value!;
 
-      expect(fakeRepo.searchCalls, 0);
-      expect(fakeRepo.listCalls, 2);
-      expect(loaded.total, 3);
-      expect(loaded.hasNext, isFalse);
       expect(loaded.items, hasLength(3));
+      expect(loaded.hasMore, isFalse);
+      expect(loaded.isLoadingMore, isFalse);
+      expect(fakeRepo.calls, 2);
+    });
+
+    test('repository error surfaces as AsyncError, never stuck loading',
+        () async {
+      final fakeRepo = _FakeGlobalSearchRepository(
+        {},
+        error: const NetworkError(message: 'offline'),
+      );
+      final container = await searchContainer(fakeRepo);
+      container.read(searchQueryProvider.notifier).state = 'one piece';
+
+      await expectLater(
+        container.read(searchListProvider.future),
+        throwsA(isA<AppError>()),
+      );
+      expect(container.read(searchListProvider).hasError, isTrue);
     });
   });
+}
+
+class _FakeGlobalSearchRepository implements GlobalSearchRepository {
+  _FakeGlobalSearchRepository(this.pages, {this.error});
+
+  final Map<int, GlobalSearchResult> pages;
+  final AppError? error;
+  int calls = 0;
+  String? lastQuery;
+
+  @override
+  Future<Result<GlobalSearchResult>> search(
+    String query, {
+    int page = 1,
+    int perPage = 40,
+  }) async {
+    calls++;
+    lastQuery = query;
+    if (error != null) return Err(error!);
+    return Ok(pages[page] ?? const GlobalSearchResult());
+  }
 }

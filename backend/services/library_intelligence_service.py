@@ -16,6 +16,7 @@ Production-ready features:
 from __future__ import annotations
 
 import heapq
+import logging
 from collections import defaultdict
 from datetime import datetime, timedelta
 from functools import lru_cache
@@ -42,6 +43,7 @@ from sqlalchemy.orm import (
 from core.config import get_settings
 from core.content_rating import MATURE_CONTENT_RATINGS
 from core.errors import AppError
+from core.profile_context import ProfileContext, resolve_profile_context
 from database.models import (
     Chapter,
     ChapterProgress,
@@ -51,30 +53,19 @@ from database.models import (
     Library,
     OcrJob,
     Page,
+    ReadingProfile,
     ReadingProgress,
     ReadingSession,
     Series,
     SeriesTag,
+    SeriesTracker,
+    SourceChapterLink,
     Tag,
 )
 from database.session import get_db
 from utils.path_utils import natural_sort_key
 
-
-def _apply_mature_filter(query):
-    """Drop adult-rated series from a *discovery* query unless the user has
-    enabled mature content.
-
-    Applied to surfaced rows only -- recommendations, similar-series, and the
-    recently-added/updated discovery strips -- so a user who has not opted in
-    never has an 18+ cover pushed at them. The full "My Library" grid is left
-    untouched: series the user deliberately added stay visible and manageable
-    regardless of this setting."""
-    if get_settings().mature_content_enabled:
-        return query
-    return query.filter(
-        func.lower(Series.content_rating).notin_(sorted(MATURE_CONTENT_RATINGS))
-    )
+logger = logging.getLogger(__name__)
 
 
 # ------------------------------------------------------------------
@@ -90,8 +81,69 @@ def _chapter_sort_key(chapter: Chapter) -> tuple[float, list[int | str]]:
 class LibraryIntelligenceService:
     """Intelligence-layer operations over the library catalog."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(
+        self,
+        db: Session,
+        user_id: int | None = None,
+        profile_id: int | None = None,
+    ) -> None:
         self._db = db
+        # Collections, reading history, and recommendations are per-(user,
+        # profile); None/None is the anonymous/legacy unscoped bucket.
+        self._user_id = user_id
+        self._profile_id = profile_id
+
+    # ------------------------------------------------------------------
+    # Per-profile scoping helpers
+    # ------------------------------------------------------------------
+
+    def _mature_enabled(self) -> bool:
+        """The active gate: the profile's own toggle when a profile is active,
+        else the global config default (also used to seed new profiles)."""
+        if self._profile_id is not None:
+            profile = self._db.get(ReadingProfile, self._profile_id)
+            if profile is not None:
+                return bool(profile.mature_content_enabled)
+        return get_settings().mature_content_enabled
+
+    @property
+    def mature_content_enabled(self) -> bool:
+        """Public view of the active profile's mature-content gate (or the
+        global default when no profile is active). Used by callers outside the
+        library — e.g. federated source search — to scope adult sources."""
+        return self._mature_enabled()
+
+    def _apply_mature_filter(self, query):
+        """Drop adult-rated series from a *discovery* query unless the active
+        profile (or global default) has enabled mature content.
+
+        Applied to surfaced rows only -- recommendations, similar-series, and
+        the recently-added/updated discovery strips -- so a profile that has not
+        opted in never has an 18+ cover pushed at it. The full "My Library" grid
+        is left untouched regardless of this setting."""
+        if self._mature_enabled():
+            return query
+        return query.filter(
+            func.lower(Series.content_rating).notin_(sorted(MATURE_CONTENT_RATINGS))
+        )
+
+    def _scope_sessions(self, query):
+        return query.filter(
+            ReadingSession.user_id == self._user_id,
+            ReadingSession.profile_id == self._profile_id,
+        )
+
+    def _scope_progress(self, query):
+        return query.filter(
+            ReadingProgress.user_id == self._user_id,
+            ReadingProgress.profile_id == self._profile_id,
+        )
+
+    def _scope_collections(self, query):
+        return query.filter(
+            Collection.user_id == self._user_id,
+            Collection.profile_id == self._profile_id,
+        )
 
     # ------------------------------------------------------------------
     # Search (relevance-ranked)
@@ -354,7 +406,7 @@ class LibraryIntelligenceService:
             .subquery()
         )
 
-        results = _apply_mature_filter(
+        results = self._apply_mature_filter(
             self._db.query(Series, subq.c.tag_score)
             .outerjoin(subq, subq.c.series_id == Series.id)
             .filter(
@@ -439,7 +491,7 @@ class LibraryIntelligenceService:
         # Select the already-joined shared_tags column directly — the subquery
         # above already computes it per candidate, so no per-row query is needed.
         if tag_subq is not None:
-            rows = _apply_mature_filter(
+            rows = self._apply_mature_filter(
                 self._db.query(Series, tag_subq.c.shared_tags)
                 .outerjoin(tag_subq, tag_subq.c.series_id == Series.id)
                 .filter(
@@ -451,7 +503,7 @@ class LibraryIntelligenceService:
         else:
             rows = [
                 (s, 0)
-                for s in _apply_mature_filter(
+                for s in self._apply_mature_filter(
                     self._db.query(Series).filter(
                         Series.id.notin_(active_ids),
                         Series.deleted_at.is_(None),
@@ -498,7 +550,7 @@ class LibraryIntelligenceService:
         """Build a user preference profile from reading history."""
         # Get series with meaningful reading engagement
         active = (
-            self._db.query(ReadingProgress)
+            self._scope_progress(self._db.query(ReadingProgress))
             .filter(ReadingProgress.progress_pct > 0)
             .order_by(ReadingProgress.progress_pct.desc())
             .limit(20)
@@ -534,7 +586,7 @@ class LibraryIntelligenceService:
     def get_reading_history(self, limit: int = 50) -> list[dict[str, object]]:
         """Return recent reading sessions with series and chapter names."""
         sessions = (
-            self._db.query(ReadingSession)
+            self._scope_sessions(self._db.query(ReadingSession))
             .options(
                 selectinload(ReadingSession.series),
                 selectinload(ReadingSession.chapter),
@@ -565,11 +617,13 @@ class LibraryIntelligenceService:
 
         # Aggregate by date (SQLite DATE truncation)
         rows = (
-            self._db.query(
-                func.date(ReadingSession.started_at).label("day"),
-                func.count(ReadingSession.id).label("sessions"),
-                func.sum(ReadingSession.pages_read).label("pages"),
-                func.sum(ReadingSession.chapter_id).label("chapters_approx"),  # not exact but fast
+            self._scope_sessions(
+                self._db.query(
+                    func.date(ReadingSession.started_at).label("day"),
+                    func.count(ReadingSession.id).label("sessions"),
+                    func.sum(ReadingSession.pages_read).label("pages"),
+                    func.sum(ReadingSession.chapter_id).label("chapters_approx"),  # not exact but fast
+                )
             )
             .filter(ReadingSession.started_at >= cutoff)
             .group_by(func.date(ReadingSession.started_at))
@@ -590,7 +644,7 @@ class LibraryIntelligenceService:
     def get_series_reading_history(self, series_id: int, limit: int = 50) -> list[dict[str, object]]:
         """Return reading history for a specific series."""
         sessions = (
-            self._db.query(ReadingSession)
+            self._scope_sessions(self._db.query(ReadingSession))
             .options(selectinload(ReadingSession.chapter))
             .filter(ReadingSession.series_id == series_id)
             .order_by(ReadingSession.started_at.desc())
@@ -635,7 +689,7 @@ class LibraryIntelligenceService:
     # ------------------------------------------------------------------
 
     def list_collections(self) -> list[dict[str, object]]:
-        """Return all collections with series counts (batch-optimized)."""
+        """Return the active profile's collections with series counts."""
         # Pre-aggregate series counts in one query
         counts = {
             c.collection_id: c.cnt
@@ -647,7 +701,9 @@ class LibraryIntelligenceService:
             .all()
         }
         collections = (
-            self._db.query(Collection).order_by(Collection.sort_order.asc()).all()
+            self._scope_collections(self._db.query(Collection))
+            .order_by(Collection.sort_order.asc())
+            .all()
         )
         return [
             {
@@ -679,7 +735,11 @@ class LibraryIntelligenceService:
         return self._collection_detail(collection)
 
     def create_collection(self, name: str, description: str | None = None) -> dict[str, object]:
-        existing = self._db.query(Collection).filter(Collection.name == name).first()
+        existing = (
+            self._scope_collections(self._db.query(Collection))
+            .filter(Collection.name == name)
+            .first()
+        )
         if existing:
             raise AppError(
                 "Collection name already exists.",
@@ -687,7 +747,12 @@ class LibraryIntelligenceService:
                 status_code=422,
                 details={"field": "name", "reason": "must be unique"},
             )
-        collection = Collection(name=name, description=description)
+        collection = Collection(
+            name=name,
+            description=description,
+            user_id=self._user_id,
+            profile_id=self._profile_id,
+        )
         self._db.add(collection)
         self._db.commit()
         self._db.refresh(collection)
@@ -696,7 +761,11 @@ class LibraryIntelligenceService:
     def update_collection(
         self, collection_id: int, name: str | None = None, description: str | None = None, sort_order: int | None = None
     ) -> dict[str, object]:
-        collection = self._db.query(Collection).filter(Collection.id == collection_id).first()
+        collection = (
+            self._scope_collections(self._db.query(Collection))
+            .filter(Collection.id == collection_id)
+            .first()
+        )
         if not collection:
             raise AppError(
                 "Collection not found.",
@@ -706,7 +775,7 @@ class LibraryIntelligenceService:
             )
         if name is not None:
             duplicate = (
-                self._db.query(Collection)
+                self._scope_collections(self._db.query(Collection))
                 .filter(Collection.name == name, Collection.id != collection_id)
                 .first()
             )
@@ -728,7 +797,11 @@ class LibraryIntelligenceService:
         return self._collection_summary(collection)
 
     def delete_collection(self, collection_id: int) -> None:
-        collection = self._db.query(Collection).filter(Collection.id == collection_id).first()
+        collection = (
+            self._scope_collections(self._db.query(Collection))
+            .filter(Collection.id == collection_id)
+            .first()
+        )
         if not collection:
             raise AppError(
                 "Collection not found.",
@@ -740,7 +813,11 @@ class LibraryIntelligenceService:
         self._db.commit()
 
     def add_series_to_collection(self, collection_id: int, series_id: int) -> dict[str, object]:
-        collection = self._db.query(Collection).filter(Collection.id == collection_id).first()
+        collection = (
+            self._scope_collections(self._db.query(Collection))
+            .filter(Collection.id == collection_id)
+            .first()
+        )
         if not collection:
             raise AppError(
                 "Collection not found.",
@@ -777,7 +854,11 @@ class LibraryIntelligenceService:
         }
 
     def remove_series_from_collection(self, collection_id: int, series_id: int) -> None:
-        collection = self._db.query(Collection).filter(Collection.id == collection_id).first()
+        collection = (
+            self._scope_collections(self._db.query(Collection))
+            .filter(Collection.id == collection_id)
+            .first()
+        )
         if not collection:
             raise AppError(
                 "Collection not found.",
@@ -809,7 +890,11 @@ class LibraryIntelligenceService:
 
     def reorder_collection_series(self, collection_id: int, series_ids: list[int]) -> dict[str, object]:
         """Reorder series in a collection by providing a sorted list of series IDs."""
-        collection = self._db.query(Collection).filter(Collection.id == collection_id).first()
+        collection = (
+            self._scope_collections(self._db.query(Collection))
+            .filter(Collection.id == collection_id)
+            .first()
+        )
         if not collection:
             raise AppError(
                 "Collection not found.",
@@ -952,7 +1037,10 @@ class LibraryIntelligenceService:
         total_chapters = self._db.query(Chapter).count()
         total_pages = self._db.query(func.sum(Series.total_pages)).scalar() or 0
         total_reading_time = (
-            self._db.query(func.sum(ReadingSession.pages_read)).scalar() or 0
+            self._scope_sessions(
+                self._db.query(func.sum(ReadingSession.pages_read))
+            ).scalar()
+            or 0
         )
         completed_series = (
             self._db.query(Series)
@@ -973,7 +1061,7 @@ class LibraryIntelligenceService:
         # Pages read in last 7 days
         week_ago = utcnow() - timedelta(days=7)
         pages_this_week = (
-            self._db.query(func.sum(ReadingSession.pages_read))
+            self._scope_sessions(self._db.query(func.sum(ReadingSession.pages_read)))
             .filter(ReadingSession.started_at >= week_ago)
             .scalar()
             or 0
@@ -1019,7 +1107,9 @@ class LibraryIntelligenceService:
     def _compute_reading_streak(self) -> int:
         """Count consecutive days with reading activity ending today."""
         rows = (
-            self._db.query(func.date(ReadingSession.started_at).label("day"))
+            self._scope_sessions(
+                self._db.query(func.date(ReadingSession.started_at).label("day"))
+            )
             .filter(ReadingSession.started_at.isnot(None))
             .group_by(func.date(ReadingSession.started_at))
             .order_by(func.date(ReadingSession.started_at).desc())
@@ -1044,13 +1134,13 @@ class LibraryIntelligenceService:
         """Approximate reading velocity in pages per hour over last 30 days."""
         month_ago = utcnow() - timedelta(days=30)
         total_pages = (
-            self._db.query(func.sum(ReadingSession.pages_read))
+            self._scope_sessions(self._db.query(func.sum(ReadingSession.pages_read)))
             .filter(ReadingSession.started_at >= month_ago)
             .scalar()
             or 0
         )
         total_sessions = (
-            self._db.query(func.count(ReadingSession.id))
+            self._scope_sessions(self._db.query(func.count(ReadingSession.id)))
             .filter(ReadingSession.started_at >= month_ago)
             .scalar()
             or 0
@@ -1116,9 +1206,11 @@ class LibraryIntelligenceService:
         day_strs = [d.strftime("%Y-%m-%d") for d in days]
 
         rows = (
-            self._db.query(
-                func.date(ReadingSession.started_at).label("day"),
-                func.sum(ReadingSession.pages_read).label("pages"),
+            self._scope_sessions(
+                self._db.query(
+                    func.date(ReadingSession.started_at).label("day"),
+                    func.sum(ReadingSession.pages_read).label("pages"),
+                )
             )
             .filter(ReadingSession.started_at >= datetime.combine(today - timedelta(days=6), datetime.min.time()))
             .group_by(func.date(ReadingSession.started_at))
@@ -1141,7 +1233,7 @@ class LibraryIntelligenceService:
 
     def get_recently_added(self, limit: int = 10) -> list[dict[str, object]]:
         series = (
-            _apply_mature_filter(
+            self._apply_mature_filter(
                 self._db.query(Series).filter(Series.deleted_at.is_(None))
             )
             .order_by(Series.created_at.desc())
@@ -1152,7 +1244,7 @@ class LibraryIntelligenceService:
 
     def get_recently_updated(self, limit: int = 10) -> list[dict[str, object]]:
         series = (
-            _apply_mature_filter(
+            self._apply_mature_filter(
                 self._db.query(Series).filter(Series.deleted_at.is_(None))
             )
             .order_by(Series.updated_at.desc())
@@ -1264,7 +1356,7 @@ class LibraryIntelligenceService:
                 return {"status": j.status, "progress": j.progress, "engine": j.engine}
             return {"status": "not_started"}
 
-        detail["chapters"] = [
+        local_chapters = [
             {
                 "id": chapter.id,
                 "series_id": chapter.series_id,
@@ -1274,9 +1366,35 @@ class LibraryIntelligenceService:
                 "folder_path": chapter.folder_path,
                 "archive_path": chapter.archive_path,
                 "ocr_status": _ocr_status(chapter.id),
+                # Source-merge annotations (defaults for a purely-local chapter).
+                "local_chapter_id": chapter.id,
+                "is_downloaded": True,
+                "is_read": bool(chapter.is_read),
+                "source_chapter_id": None,
             }
             for chapter in chapters
         ]
+
+        # Default: local-only chapter list with no source linkage. If the series
+        # is source-linked we enrich this with the source's full catalog below;
+        # any failure degrades gracefully back to these local chapters.
+        detail["chapters"] = local_chapters
+        detail["source_id"] = None
+        detail["source_series_id"] = None
+        try:
+            merged = self._merge_source_chapters(series, chapters, local_chapters)
+            if merged is not None:
+                detail["source_id"] = merged["source_id"]
+                detail["source_series_id"] = merged["source_series_id"]
+                detail["chapters"] = merged["chapters"]
+        except Exception:  # noqa: BLE001 - never fail series detail on source issues
+            logger.warning(
+                "Source chapter merge failed for series_id=%s; "
+                "falling back to local-only chapter list.",
+                series.id,
+                exc_info=True,
+            )
+
         detail["tags"] = [
             {"id": t.tag.id, "name": t.tag.name, "category": t.tag.category, "color": t.tag.color}
             for t in series.tags
@@ -1286,6 +1404,130 @@ class LibraryIntelligenceService:
             for c in series.collections
         ]
         return detail
+
+    # ------------------------------------------------------------------
+    # Source-linked chapter merge
+    # ------------------------------------------------------------------
+
+    def _resolve_source_link(
+        self, series: Series, chapters: list[Chapter]
+    ) -> tuple[str, str] | None:
+        """Resolve the (source, source_series_id) a library series is linked to.
+
+        Preference order:
+          1. A ``series_trackers`` row whose ``local_series_id`` is this series
+             (the authoritative follow/download link).
+          2. Any ``source_chapter_links`` row joined through one of this series'
+             local chapters (a per-chapter download link).
+
+        Returns ``None`` when the series has no source linkage at all.
+        """
+        tracker = (
+            self._db.query(SeriesTracker)
+            .filter(SeriesTracker.local_series_id == series.id)
+            .order_by(SeriesTracker.id.asc())
+            .first()
+        )
+        if tracker and tracker.source and tracker.series_id:
+            return tracker.source, tracker.series_id
+
+        local_ids = [c.id for c in chapters]
+        if local_ids:
+            link = (
+                self._db.query(SourceChapterLink)
+                .filter(SourceChapterLink.local_chapter_id.in_(local_ids))
+                .order_by(SourceChapterLink.id.asc())
+                .first()
+            )
+            if link and link.source and link.series_id:
+                return link.source, link.series_id
+        return None
+
+    def _merge_source_chapters(
+        self,
+        series: Series,
+        chapters: list[Chapter],
+        local_chapters: list[dict[str, object]],
+    ) -> dict[str, object] | None:
+        """Merge the source's full chapter catalog with local chapters.
+
+        Returns ``{"source_id", "source_series_id", "chapters"}`` or ``None`` when
+        the series is not source-linked or the source returns no catalog. Raises
+        on connector/network failure -- the caller degrades to local-only.
+        """
+        resolved = self._resolve_source_link(series, chapters)
+        if not resolved:
+            return None
+        source, source_series_id = resolved
+
+        # Read-only use of the source connector to fetch the ordered catalog.
+        from services.source_service import SourceService
+
+        catalog = SourceService(source_type=source).get_chapters(source_series_id)
+        if not catalog:
+            return None
+
+        links = (
+            self._db.query(SourceChapterLink)
+            .filter(
+                SourceChapterLink.source == source,
+                SourceChapterLink.series_id == source_series_id,
+            )
+            .all()
+        )
+        src_to_local = {link.chapter_id: link.local_chapter_id for link in links}
+        local_to_src = {link.local_chapter_id: link.chapter_id for link in links}
+        local_by_id = {d["id"]: d for d in local_chapters}
+
+        merged: list[dict[str, object]] = []
+        used_local: set[int] = set()
+
+        for sc in catalog:
+            local_id = src_to_local.get(sc.id)
+            local = local_by_id.get(local_id) if local_id is not None else None
+            if local is not None:
+                entry = dict(local)
+                entry["source_chapter_id"] = sc.id
+                entry["is_downloaded"] = True
+                if entry.get("number") is None and sc.number is not None:
+                    entry["number"] = sc.number
+                used_local.add(local_id)
+            else:
+                entry = {
+                    "id": None,
+                    "series_id": series.id,
+                    "title": sc.title,
+                    "number": sc.number,
+                    "page_count": sc.page_count or 0,
+                    "folder_path": None,
+                    "archive_path": None,
+                    "ocr_status": {"status": "not_started"},
+                    "local_chapter_id": None,
+                    "is_downloaded": False,
+                    "is_read": False,
+                    "source_chapter_id": sc.id,
+                }
+            merged.append(entry)
+
+        # Local chapters that aren't present in the source catalog still appear.
+        for d in local_chapters:
+            if d["id"] not in used_local:
+                extra = dict(d)
+                if extra.get("source_chapter_id") is None:
+                    extra["source_chapter_id"] = local_to_src.get(d["id"])
+                merged.append(extra)
+
+        merged.sort(
+            key=lambda e: (
+                e["number"] if e["number"] is not None else float("inf"),
+                natural_sort_key(str(e.get("title") or "")),
+            )
+        )
+        return {
+            "source_id": source,
+            "source_series_id": source_series_id,
+            "chapters": merged,
+        }
 
     def _collection_summary(self, collection: Collection) -> dict[str, object]:
         series_count = (
@@ -1339,5 +1581,8 @@ class LibraryIntelligenceService:
 
 def get_library_intelligence_service(
     db: Annotated[Session, Depends(get_db)],
+    ctx: Annotated[ProfileContext, Depends(resolve_profile_context)],
 ) -> LibraryIntelligenceService:
-    return LibraryIntelligenceService(db)
+    return LibraryIntelligenceService(
+        db, user_id=ctx.user_id, profile_id=ctx.profile_id
+    )

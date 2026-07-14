@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
+from core.profile_context import require_profile_context
 from core.rate_limit import import_limit, limiter
 from services.auth_service import require_admin_user
 from services.image_service import ImageService, get_image_service
@@ -343,9 +344,9 @@ def list_collections(intel: IntelDep, response: Response) -> list[dict[str, obje
     return items
 
 
-@router.post("/collections")
+@router.post("/collections", dependencies=[Depends(require_profile_context)])
 def create_collection(body: CollectionCreateRequest, intel: IntelDep) -> dict[str, object]:
-    """Create a new collection."""
+    """Create a new collection (scoped to the active profile)."""
     return intel.create_collection(name=body.name, description=body.description)
 
 
@@ -355,7 +356,10 @@ def get_collection(collection_id: int, intel: IntelDep) -> dict[str, object]:
     return intel.get_collection(collection_id)
 
 
-@router.patch("/collections/{collection_id}")
+@router.patch(
+    "/collections/{collection_id}",
+    dependencies=[Depends(require_profile_context)],
+)
 def update_collection(
     collection_id: int,
     body: CollectionUpdateRequest,
@@ -370,13 +374,20 @@ def update_collection(
     )
 
 
-@router.delete("/collections/{collection_id}", status_code=204)
+@router.delete(
+    "/collections/{collection_id}",
+    status_code=204,
+    dependencies=[Depends(require_profile_context)],
+)
 def delete_collection(collection_id: int, intel: IntelDep) -> None:
     """Delete a collection."""
     intel.delete_collection(collection_id)
 
 
-@router.post("/collections/{collection_id}/series/{series_id}")
+@router.post(
+    "/collections/{collection_id}/series/{series_id}",
+    dependencies=[Depends(require_profile_context)],
+)
 def add_series_to_collection(
     collection_id: int,
     series_id: int,
@@ -390,7 +401,10 @@ class CollectionReorderRequest(BaseModel):
     series_ids: list[int]
 
 
-@router.post("/collections/{collection_id}/reorder")
+@router.post(
+    "/collections/{collection_id}/reorder",
+    dependencies=[Depends(require_profile_context)],
+)
 def reorder_collection_series(
     collection_id: int,
     body: CollectionReorderRequest,
@@ -400,7 +414,11 @@ def reorder_collection_series(
     return intel.reorder_collection_series(collection_id, body.series_ids)
 
 
-@router.delete("/collections/{collection_id}/series/{series_id}", status_code=204)
+@router.delete(
+    "/collections/{collection_id}/series/{series_id}",
+    status_code=204,
+    dependencies=[Depends(require_profile_context)],
+)
 def remove_series_from_collection(
     collection_id: int,
     series_id: int,

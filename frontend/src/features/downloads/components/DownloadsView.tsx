@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { HeroHeading } from "@/components/premium/HeroHeading";
 import { ApiError } from "@/types/api";
 import { cn } from "@/lib/cn";
 import {
@@ -87,11 +88,11 @@ function statusLabel(status: string): string {
 function statusBadgeClass(status: string): string {
   switch (status) {
     case "downloading":
-      return "border-violet-500/40 bg-violet-500/15 text-violet-400";
+      return "border-primary/40 bg-primary/15 text-primary";
     case "queued":
-      return "border-cyan-500/40 bg-cyan-500/15 text-cyan-400";
+      return "border-accent/40 bg-accent/15 text-accent";
     case "paused":
-      return "border-amber-500/40 bg-amber-500/15 text-amber-400";
+      return "border-warning/40 bg-warning/15 text-warning";
     case "failed":
       return "border-danger/40 bg-danger/15 text-danger";
     case "completed":
@@ -149,7 +150,7 @@ function GradientProgress({
       aria-valuenow={clamped}
     >
       <div
-        className="h-full rounded-full bg-gradient-to-r from-violet-500 to-cyan-400 transition-all duration-500 ease-out"
+        className="h-full rounded-full bg-gradient-to-r from-accent to-primary transition-all duration-500 ease-out"
         style={{ width: `${clamped}%` }}
       />
     </div>
@@ -160,18 +161,18 @@ function StatTile({
   label,
   value,
   icon: Icon,
-  accent = "violet",
+  accent = "amber",
 }: {
   label: string;
   value: string;
   icon?: React.ComponentType<{ className?: string }>;
-  accent?: "violet" | "cyan" | "emerald" | "amber";
+  accent?: "amber" | "rose" | "success" | "warning";
 }) {
   const accentStyles = {
-    violet: "from-violet-500/20 to-violet-500/5 text-violet-400",
-    cyan: "from-cyan-500/20 to-cyan-500/5 text-cyan-400",
-    emerald: "from-emerald-500/20 to-emerald-500/5 text-emerald-400",
-    amber: "from-amber-500/20 to-amber-500/5 text-amber-400",
+    amber: "from-primary/20 to-primary/5 text-primary",
+    rose: "from-accent/20 to-accent/5 text-accent",
+    success: "from-success/20 to-success/5 text-success",
+    warning: "from-warning/20 to-warning/5 text-warning",
   };
 
   return (
@@ -194,7 +195,7 @@ function StatTile({
 
 function DownloadThumbnail({ title }: { title: string }) {
   return (
-    <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-violet-600/30 to-cyan-500/20 ring-1 ring-white/10">
+    <div className="relative flex size-14 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-gradient-to-br from-primary/30 to-accent/20 ring-1 ring-white/10">
       <span className="font-display text-lg tracking-wide text-white/90">
         {seriesInitials(title)}
       </span>
@@ -207,24 +208,24 @@ function FilterChip({
   count,
   active,
   onClick,
-  tone = "violet",
+  tone = "amber",
 }: {
   label: string;
   count: number;
   active: boolean;
   onClick: () => void;
-  tone?: "violet" | "cyan" | "amber" | "danger";
+  tone?: "amber" | "rose" | "warning" | "danger";
 }) {
   const toneActive = {
-    violet: "border-violet-500/50 bg-violet-500/20 text-violet-300",
-    cyan: "border-cyan-500/50 bg-cyan-500/20 text-cyan-300",
-    amber: "border-amber-500/50 bg-amber-500/20 text-amber-300",
+    amber: "border-primary/50 bg-primary/20 text-primary",
+    rose: "border-accent/50 bg-accent/20 text-accent",
+    warning: "border-warning/50 bg-warning/20 text-warning",
     danger: "border-danger/50 bg-danger/20 text-danger",
   };
   const toneIdle = {
-    violet: "hover:border-violet-500/30 hover:text-violet-400",
-    cyan: "hover:border-cyan-500/30 hover:text-cyan-400",
-    amber: "hover:border-amber-500/30 hover:text-amber-400",
+    amber: "hover:border-primary/30 hover:text-primary",
+    rose: "hover:border-accent/30 hover:text-accent",
+    warning: "hover:border-warning/30 hover:text-warning",
     danger: "hover:border-danger/30 hover:text-danger",
   };
 
@@ -268,7 +269,7 @@ function DownloadRow({
   const isActive = item.status === "downloading" || item.status === "queued";
 
   return (
-    <div className="glass-card rounded-xl p-4 transition-colors hover:border-violet-500/20">
+    <div className="glass-card rounded-xl p-4 transition-colors hover:border-primary/30">
       <div className="flex gap-4">
         <DownloadThumbnail title={item.series_title} />
 
@@ -285,7 +286,7 @@ function DownloadRow({
               )}
             >
               {item.status === "downloading" && (
-                <span className="mr-1.5 size-1.5 animate-pulse rounded-full bg-violet-400" />
+                <span className="mr-1.5 size-1.5 animate-pulse rounded-full bg-primary" />
               )}
               {statusLabel(item.status)}
             </span>
@@ -302,7 +303,7 @@ function DownloadRow({
                   {item.pages_done}/{item.pages_total || "?"} pages
                 </span>
                 {item.status === "downloading" && (
-                  <span className="inline-flex items-center gap-1 text-cyan-400">
+                  <span className="inline-flex items-center gap-1 text-primary">
                     <Zap className="size-3" aria-hidden />
                     {formatSpeed(item.speed_bps, item.speed_mbps)}
                   </span>
@@ -387,7 +388,7 @@ function DownloadRow({
 
 function CompletedRow({ item }: { item: DownloadItem }) {
   return (
-    <div className="flex items-center gap-4 rounded-xl border border-border/30 bg-white/[0.02] px-4 py-3 transition-colors hover:border-emerald-500/20">
+    <div className="flex items-center gap-4 rounded-xl border border-border/30 bg-white/[0.02] px-4 py-3 transition-colors hover:border-success/20">
       <DownloadThumbnail title={item.series_title} />
       <div className="min-w-0 flex-1">
         <p className="truncate font-medium text-fg">{item.series_title}</p>
@@ -456,7 +457,7 @@ function SeriesGroupCard({
               </Badge>
             )}
             {group.queued > 0 && (
-              <Badge variant="default" className="border-cyan-500/30 text-cyan-400">
+              <Badge variant="default" className="border-accent/30 text-accent">
                 {group.queued} queued
               </Badge>
             )}
@@ -642,8 +643,10 @@ export function DownloadsView() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h1 className="font-display text-4xl tracking-wide text-fg">Downloads</h1>
-            <p className="mt-1 text-sm text-muted">
+            <HeroHeading className="text-[2.75rem] leading-none md:text-6xl">
+              Downloads
+            </HeroHeading>
+            <p className="mt-2 text-sm text-muted">
               {metrics
                 ? `${metrics.active + metrics.queued + metrics.paused} active, ${metrics.completed} completed`
                 : "Queue chapters from any source connector."}
@@ -687,7 +690,7 @@ export function DownloadsView() {
           <div className="glass-panel mb-6 rounded-2xl p-5">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="flex items-start gap-3">
-                <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/10 text-violet-400">
+                <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 text-primary">
                   <Download className="size-5" />
                 </div>
                 <div>
@@ -706,21 +709,21 @@ export function DownloadsView() {
               aria-label="Overall download progress"
             />
             <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-              <StatTile label="Active" value={String(metrics.active)} accent="violet" />
-              <StatTile label="Queued" value={String(metrics.queued)} accent="cyan" />
-              <StatTile label="Completed" value={String(metrics.completed)} accent="emerald" />
-              <StatTile label="Failed" value={String(metrics.failed)} accent="amber" />
+              <StatTile label="Active" value={String(metrics.active)} accent="amber" />
+              <StatTile label="Queued" value={String(metrics.queued)} accent="rose" />
+              <StatTile label="Completed" value={String(metrics.completed)} accent="success" />
+              <StatTile label="Failed" value={String(metrics.failed)} accent="warning" />
               <StatTile
                 label="Speed"
                 value={formatSpeed(metrics.overall_speed_bps, metrics.overall_speed_mbps)}
                 icon={Zap}
-                accent="cyan"
+                accent="amber"
               />
               <StatTile
                 label="ETA"
                 value={formatEta(metrics.overall_eta_seconds)}
                 icon={Gauge}
-                accent="violet"
+                accent="rose"
               />
             </div>
           </div>
@@ -745,21 +748,21 @@ export function DownloadsView() {
               count={filterCount(items, "downloading")}
               active={filterTab === "downloading"}
               onClick={() => setFilterTab("downloading")}
-              tone="violet"
+              tone="amber"
             />
             <FilterChip
               label="Queued"
               count={filterCount(items, "queued")}
               active={filterTab === "queued"}
               onClick={() => setFilterTab("queued")}
-              tone="cyan"
+              tone="rose"
             />
             <FilterChip
               label="Paused"
               count={filterCount(items, "paused")}
               active={filterTab === "paused"}
               onClick={() => setFilterTab("paused")}
-              tone="amber"
+              tone="warning"
             />
             <FilterChip
               label="Error"
@@ -773,8 +776,8 @@ export function DownloadsView() {
 
         {!hasQueueWork && completedItems.length === 0 ? (
           <div className="glass-panel rounded-2xl border border-dashed border-border/50 p-12 text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-violet-500/10">
-              <Download className="size-8 text-violet-400" />
+            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
+              <Download className="size-8 text-primary" />
             </div>
             <p className="text-lg font-medium text-fg">No downloads yet</p>
             <p className="mx-auto mt-2 max-w-md text-sm text-muted">
@@ -846,7 +849,7 @@ export function DownloadsView() {
             <button
               type="button"
               onClick={() => setCompletedOpen((open) => !open)}
-              className="mb-4 flex w-full items-center justify-between gap-3 rounded-xl px-1 py-1 text-left transition-colors hover:text-violet-400"
+              className="mb-4 flex w-full items-center justify-between gap-3 rounded-xl px-1 py-1 text-left transition-colors hover:text-primary"
             >
               <span className="inline-flex items-center gap-2 font-medium text-fg">
                 <CheckCircle2 className="size-4 text-success" aria-hidden />

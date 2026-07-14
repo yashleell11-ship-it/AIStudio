@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { useQueueChapters, useQueueSeries } from "@/features/downloads/hooks";
 import {
   useFollowedTracker,
@@ -14,6 +15,7 @@ import {
   useUnfollowTracker,
 } from "@/features/updates/hooks";
 import { ApiError } from "@/types/api";
+import { cn } from "@/lib/cn";
 import { sourceImageUrl } from "../api";
 import { chapterLabel } from "../chapter-label";
 import {
@@ -22,6 +24,9 @@ import {
   useSourceChapters,
   useSourceSeriesDetail,
 } from "../hooks";
+import { useSourceSeriesProgress } from "../source-progress";
+
+type ChapterSortOrder = "newest" | "oldest";
 
 interface SourceSeriesDetailViewProps {
   sourceId: string;
@@ -42,9 +47,38 @@ export function SourceSeriesDetailView({
   const queryClient = useQueryClient();
   const [selectedChapterIds, setSelectedChapterIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [sortOrder, setSortOrder] = useState<ChapterSortOrder>("newest");
+  const { map: progressMap, latest: latestRead } = useSourceSeriesProgress(
+    sourceId,
+    seriesId,
+  );
 
   const series = seriesQuery.data;
   const chapters = useMemo(() => chaptersQuery.data ?? [], [chaptersQuery.data]);
+
+  const sortedChapters = useMemo(() => {
+    const copy = [...chapters];
+    copy.sort((a, b) => {
+      if (a.number == null && b.number == null) return 0;
+      if (a.number == null) return 1; // nulls always last
+      if (b.number == null) return -1;
+      return sortOrder === "newest" ? b.number - a.number : a.number - b.number;
+    });
+    return copy;
+  }, [chapters, sortOrder]);
+
+  // Earliest numbered chapter — the "start from the beginning" target when the
+  // reader has no saved progress. Falls back to raw order if none are numbered.
+  const earliestChapter = useMemo(() => {
+    let earliest: (typeof chapters)[number] | null = null;
+    for (const chapter of chapters) {
+      if (chapter.number == null) continue;
+      if (!earliest || (earliest.number != null && chapter.number < earliest.number)) {
+        earliest = chapter;
+      }
+    }
+    return earliest ?? chapters[0] ?? null;
+  }, [chapters]);
 
   useEffect(() => {
     for (const chapter of chapters.slice(0, 5)) {
@@ -80,10 +114,15 @@ export function SourceSeriesDetailView({
     );
   }
 
-  const firstChapter = chapters[0];
-  const readOnlineHref = firstChapter
-    ? sourceReaderChapterPath(sourceId, seriesId, firstChapter.id)
-    : null;
+  // "Continue" resumes the most recently read chapter at its saved page;
+  // otherwise "Read Online" starts from the earliest chapter at page 1.
+  const primaryChapterId = latestRead ? latestRead.chapterId : earliestChapter?.id ?? null;
+  const primaryHref = latestRead
+    ? `${sourceReaderChapterPath(sourceId, seriesId, latestRead.chapterId)}?page=${latestRead.progress.page}`
+    : earliestChapter
+      ? sourceReaderChapterPath(sourceId, seriesId, earliestChapter.id)
+      : null;
+  const primaryLabel = latestRead ? "Continue" : "Read Online";
 
   const prefetchChapter = (chapterId: string) => {
     prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapterId);
@@ -180,7 +219,7 @@ export function SourceSeriesDetailView({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <Card className="overflow-hidden">
+        <Card className="overflow-hidden rounded-3xl lg:sticky lg:top-24 lg:self-start">
           <div className="relative aspect-[2/3] w-full bg-surface-2">
             <Image
               src={sourceImageUrl(series.cover_url)}
@@ -194,7 +233,7 @@ export function SourceSeriesDetailView({
         </Card>
 
         <div>
-          <h1 className="text-3xl font-bold text-fg">{series.title}</h1>
+          <h1 className="font-display text-4xl leading-tight text-fg">{series.title}</h1>
           {series.author && <p className="mt-2 text-muted">Author: {series.author}</p>}
           {series.artist && <p className="mt-1 text-muted">Artist: {series.artist}</p>}
           {series.status && (
@@ -224,14 +263,14 @@ export function SourceSeriesDetailView({
           )}
 
           <div className="mt-6 flex flex-wrap gap-2">
-            {readOnlineHref && (
-              <Link
-                href={readOnlineHref}
-                onMouseEnter={() => firstChapter && prefetchChapter(firstChapter.id)}
-                onFocus={() => firstChapter && prefetchChapter(firstChapter.id)}
+            {primaryHref && (
+              <span
+                className="inline-flex"
+                onMouseEnter={() => primaryChapterId && prefetchChapter(primaryChapterId)}
+                onFocus={() => primaryChapterId && prefetchChapter(primaryChapterId)}
               >
-                <Button>Read Online</Button>
-              </Link>
+                <PrimaryPillButton href={primaryHref}>{primaryLabel}</PrimaryPillButton>
+              </span>
             )}
             <Button
               variant={isFollowed ? "ghost" : "secondary"}
@@ -267,10 +306,29 @@ export function SourceSeriesDetailView({
       </div>
 
       <Card className="mt-8">
-        <CardHeader>
+        <CardHeader className="flex-row items-center justify-between gap-3">
           <CardTitle>Chapters</CardTitle>
+          {chapters.length > 1 && (
+            <div className="inline-flex overflow-hidden rounded-lg border border-border/50">
+              {(["newest", "oldest"] as const).map((order) => (
+                <button
+                  key={order}
+                  type="button"
+                  onClick={() => setSortOrder(order)}
+                  className={cn(
+                    "px-3 py-1 text-xs font-medium capitalize transition-colors",
+                    sortOrder === order
+                      ? "bg-primary text-primary-fg"
+                      : "text-muted hover:bg-white/5 hover:text-fg",
+                  )}
+                >
+                  {order}
+                </button>
+              ))}
+            </div>
+          )}
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="divide-y divide-border">
           {chaptersQuery.isLoading ? (
             <p className="text-sm text-muted">Loading chapters…</p>
           ) : chaptersQuery.error ? (
@@ -298,13 +356,29 @@ export function SourceSeriesDetailView({
               )}
             </div>
           ) : (
-            chapters.map((chapter) => {
+            sortedChapters.map((chapter) => {
               const selected = selectedChapterIds.has(chapter.id);
               const label = chapterLabel(chapter);
+              const progress = progressMap[chapter.id] ?? null;
+              const completed = progress?.completed ?? false;
+              const reading = progress != null && !completed;
+              const pageCount = progress?.pageCount || chapter.page_count;
+              let progressText: string | null;
+              if (progress && completed) {
+                progressText = pageCount > 0 ? `${pageCount}/${pageCount} pages` : "Read";
+              } else if (progress && reading) {
+                progressText =
+                  pageCount > 0 ? `${progress.page}/${pageCount} pages` : `Page ${progress.page}`;
+              } else {
+                progressText = pageCount > 0 ? `${pageCount} pages` : null;
+              }
               return (
                 <div
                   key={chapter.id}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-border px-4 py-3 transition-colors hover:border-primary/40 hover:bg-surface-2"
+                  className={cn(
+                    "flex flex-wrap items-center justify-between gap-3 px-2 py-3 transition-colors first:pt-0 hover:bg-surface-2/60",
+                    completed && "bg-void/40",
+                  )}
                 >
                   <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
                     <input
@@ -314,11 +388,19 @@ export function SourceSeriesDetailView({
                       className="h-4 w-4 rounded border-border"
                     />
                     <div>
-                      <p className="font-medium text-fg">{label.primary}</p>
+                      <p className={cn("font-medium text-fg", completed && "text-fg/50")}>
+                        {label.primary}
+                      </p>
                       {label.secondary != null && (
-                        <p className="text-sm text-fg/80">{label.secondary}</p>
+                        <p className={cn("text-sm text-fg/80", completed && "text-fg/40")}>
+                          {label.secondary}
+                        </p>
                       )}
-                      <p className="text-sm text-muted">{chapter.page_count} pages</p>
+                      {progressText != null && (
+                        <p className={cn("text-sm", reading ? "text-primary" : "text-muted")}>
+                          {progressText}
+                        </p>
+                      )}
                     </div>
                   </label>
                   <div className="flex flex-wrap gap-2">

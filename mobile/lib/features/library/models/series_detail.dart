@@ -34,11 +34,20 @@ class SeriesDetail extends SeriesSummary {
     required this.chapters,
     required this.tags,
     required this.collections,
+    this.sourceId,
+    this.sourceSeriesId,
   });
 
   final List<ChapterSummary> chapters;
   final List<Tag> tags;
   final List<CollectionRef> collections;
+
+  /// Online source id this library series is linked to (e.g. 'asurascans'),
+  /// or null when the series has no source linkage.
+  final String? sourceId;
+
+  /// The source's series id (e.g. 'killer-pietro-a80d257e'), or null.
+  final String? sourceSeriesId;
 
   @override
   SeriesDetail copyWith({bool? isFavorite, ReadingProgress? readingProgress}) {
@@ -71,6 +80,8 @@ class SeriesDetail extends SeriesSummary {
       chapters: chapters,
       tags: tags,
       collections: collections,
+      sourceId: sourceId,
+      sourceSeriesId: sourceSeriesId,
     );
   }
 
@@ -111,6 +122,8 @@ class SeriesDetail extends SeriesSummary {
       collections: (json['collections'] as List<dynamic>)
           .map((e) => CollectionRef.fromJson(e as Map<String, dynamic>))
           .toList(),
+      sourceId: json['source_id'] as String?,
+      sourceSeriesId: json['source_series_id'] as String?,
     );
   }
 }

@@ -45,11 +45,11 @@ export function MatureContentPanel() {
   return (
     <section className="glass-card rounded-2xl p-5 md:p-6">
       <div className="mb-6 flex items-start gap-3">
-        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500/20 to-cyan-500/10 text-violet-400">
+        <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-accent/10 text-primary">
           <ShieldAlert className="size-5" aria-hidden />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-fg">Content</h2>
+          <h2 className="font-display text-lg tracking-wide text-fg">Content</h2>
           <p className="mt-0.5 text-sm text-muted">
             Control whether adult (18+) content is shown across the app.
           </p>
@@ -69,7 +69,7 @@ export function MatureContentPanel() {
         </div>
       ) : (
         <>
-          <div className="flex items-start justify-between gap-4 rounded-xl border border-border/40 bg-white/[0.02] px-4 py-3 transition-colors hover:border-violet-500/20">
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-2/40 px-4 py-3 transition-colors hover:border-primary/30">
             <div className="min-w-0">
               <p className="text-sm font-medium text-fg">Show mature (18+) content</p>
               <p className="mt-0.5 text-xs text-muted">

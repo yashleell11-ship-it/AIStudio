@@ -90,7 +90,7 @@ function SuggestionChip({
     <button
       type="button"
       onClick={() => onSelect(label)}
-      className="rounded-full border border-border/50 bg-white/[0.03] px-3 py-1.5 text-sm text-muted transition-colors hover:border-violet-500/30 hover:bg-violet-500/10 hover:text-violet-400"
+      className="rounded-full border border-border/50 bg-white/[0.03] px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
     >
       {label}
     </button>
@@ -106,7 +106,7 @@ function SectionLabel({
 }) {
   return (
     <div className="mb-3 flex items-center gap-2">
-      <Icon className="size-3.5 text-cyan-400" aria-hidden />
+      <Icon className="size-3.5 text-primary" aria-hidden />
       <span className="text-[11px] font-semibold uppercase tracking-widest text-muted">
         {label}
       </span>
@@ -169,7 +169,9 @@ export function SearchView() {
     <div className="min-h-full bg-bg px-6 py-8 md:px-10">
       <div className="mx-auto max-w-3xl">
         <header className="mb-8 text-center">
-          <h1 className="text-4xl font-bold tracking-tight text-fg md:text-5xl">Search</h1>
+          <h1 className="font-display text-4xl uppercase tracking-wide text-fg md:text-5xl">
+            Search
+          </h1>
           <p className="mt-2 text-sm text-muted md:text-base">
             Find your next favorite series
           </p>
@@ -185,7 +187,7 @@ export function SearchView() {
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search manga, manhwa, webtoons..."
-            className="h-14 rounded-2xl border-border/50 bg-white/[0.03] pl-14 text-base focus-visible:ring-violet-500/30"
+            className="h-14 rounded-2xl border-border/50 bg-white/[0.03] pl-14 text-base focus-visible:ring-primary/40"
             aria-label="Search library"
             autoComplete="off"
           />
@@ -218,8 +220,8 @@ export function SearchView() {
                 type="button"
                 onClick={() => setFiltersOpen((open) => !open)}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full border border-border/50 bg-white/[0.03] px-4 py-2 text-sm text-muted transition-colors hover:border-violet-500/30 hover:text-fg",
-                  filtersOpen && "border-violet-500/30 bg-violet-500/10 text-violet-400",
+                  "inline-flex items-center gap-2 rounded-full border border-border/50 bg-white/[0.03] px-4 py-2 text-sm text-muted transition-colors hover:border-primary/30 hover:text-fg",
+                  filtersOpen && "border-primary/30 bg-primary/10 text-primary",
                 )}
                 aria-expanded={filtersOpen}
               >
@@ -241,7 +243,7 @@ export function SearchView() {
               </div>
             ) : null}
 
-            <div className="glass-panel rounded-xl border border-dashed border-border/50 p-10 text-center">
+            <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-10 text-center">
               <Search className="mx-auto mb-3 size-8 text-muted/40" aria-hidden />
               <p className="text-lg font-medium text-fg">Start typing to search</p>
               <p className="mt-2 text-sm text-muted">
@@ -273,7 +275,7 @@ export function SearchView() {
                 ))}
               </div>
             ) : results.length === 0 ? (
-              <div className="glass-panel rounded-xl border border-dashed border-border/50 p-10 text-center">
+              <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-10 text-center">
                 <p className="text-lg font-medium text-fg">No results found</p>
                 <p className="mt-2 text-sm text-muted">
                   Try a different search term or clear filters.

@@ -4,6 +4,7 @@ export interface SourceSummary {
   description: string;
   browsable: boolean;
   supports_import: boolean;
+  icon_url?: string | null;
 }
 
 export interface SourceSeriesSummary {

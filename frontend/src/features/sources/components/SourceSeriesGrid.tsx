@@ -20,7 +20,7 @@ export function SourceSeriesGrid({
 }: SourceSeriesGridProps) {
   if (errorMessage) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
+      <div className="rounded-3xl border border-dashed border-border bg-surface p-12 text-center">
         <p className="text-lg font-medium text-fg">Could not load source catalog</p>
         <p className="mt-2 text-sm text-muted">{errorMessage}</p>
       </div>
@@ -33,7 +33,7 @@ export function SourceSeriesGrid({
         {Array.from({ length: 12 }).map((_, index) => (
           <div
             key={index}
-            className="aspect-[2/3] animate-pulse rounded-xl bg-surface-2"
+            className="aspect-[2/3] animate-pulse rounded-2xl bg-surface-2"
           />
         ))}
       </div>
@@ -42,7 +42,7 @@ export function SourceSeriesGrid({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-border bg-surface p-12 text-center">
+      <div className="rounded-3xl border border-dashed border-border bg-surface p-12 text-center">
         <p className="text-lg font-medium text-fg">No series found</p>
         <p className="mt-2 text-sm text-muted">
           {query

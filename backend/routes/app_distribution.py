@@ -91,6 +91,122 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.3.2",
+        build=17,
+        date="July 2026",
+        highlights=[
+            "Search Everywhere — search now spans every source at once, not "
+            "just your library",
+            "Your profile picture is back on the Library tab — tap it to switch "
+            "profiles",
+            "Followed online series now show their real covers instead of a "
+            "placeholder",
+            "Settings no longer breaks when one section can't load — each part "
+            "fails and retries on its own",
+            "Turning on mature 18+ content now asks you to confirm",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.3.1",
+        build=16,
+        date="July 2026",
+        highlights=[
+            "Polish & Privacy — a broad quality pass across the whole app",
+            "Everything now stays per profile: reading position, recent searches "
+            "and online reading progress no longer leak between profiles",
+            "Mature 18+ toggle moved to the top of Settings so it's easy to find",
+            "Reader keeps your exact spot on long chapters and no longer stalls "
+            "auto-scroll after a chapter change",
+            "'Continue' now opens the next unread chapter instead of reopening a "
+            "finished one",
+            "Faster, smoother search and a cleaner Updates screen with clearer "
+            "error messages",
+            "Updating from 1.2.x? Uninstall the old app first — the app's "
+            "signature changed, so it installs as a separate app",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.3.0",
+        build=15,
+        date="July 2026",
+        highlights=[
+            "Profiles are now truly separate — follows, reading history, "
+            "progress, bookmarks and the 18+ setting are kept per profile",
+            "Following a series now works and sticks",
+            "New per-profile Mature 18+ toggle in Settings",
+            "Fixed Settings crashing on some devices (fonts now ship with the app)",
+            "Clearer update screen — shows your installed vs available build with "
+            "install guidance",
+            "More premium profile-selection animation",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.3.0",
+        build=14,
+        date="July 2026",
+        highlights=[
+            "All-new Eclipse Warm look — a premium dark redesign across every "
+            "screen",
+            "Cinematic home with a magnetic continue-reading cover and a "
+            "scrolling cover marquee",
+            "Refreshed reader with a glass control bar and warm amber progress",
+            "New Syne + DM Sans typography and warm amber accents throughout",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.2.8",
+        build=13,
+        date="July 2026",
+        highlights=[
+            "Cleaner Sources grid — site logos with names only, no clutter",
+            "Profile picker shows on every app open with full mood animation",
+            "Library tab shows only followed series",
+            "Reading history in Settings",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.2.8",
+        build=12,
+        date="July 2026",
+        highlights=[
+            "Profile picker shows on every app open again (Netflix-style) with "
+            "the full ~5 second mood animation",
+            "Switch profile from More → Account when you want to change mid-session",
+            "Netflix-style full-screen profile pick — mood floods the whole "
+            "screen before entering the app",
+            "Library tab shows only the series you follow — no dashboard clutter",
+            "Reading history in Settings → General",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.2.8",
+        build=11,
+        date="July 2026",
+        highlights=[
+            "Netflix-style full-screen profile pick — mood floods the whole "
+            "screen for ~5 seconds before entering the app",
+            "Library tab shows only the series you follow — no dashboard clutter",
+            "Reading history in Settings → General",
+            "Download queue snackbar auto-dismisses and no longer gets stuck "
+            "on the Library tab",
+        ],
+    ),
+    ChangelogEntry(
+        version="1.2.7",
+        build=10,
+        date="July 2026",
+        highlights=[
+            "Library series now list every chapter from the source — read "
+            "online or download the ones you're missing, right from the detail "
+            "screen",
+            "Correct series covers on the dashboard instead of a chapter's "
+            "first page",
+            "Swipe down to dismiss the reader settings sheet",
+            "Back button on Settings, Updates, Backup, Storage, Diagnostics "
+            "and Collections screens",
+        ],
+    ),
+    ChangelogEntry(
         version="1.2.2",
         build=5,
         date="July 2026",
@@ -250,6 +366,14 @@ _FAQ: list[tuple[str, str]] = [
         "How do updates work?",
         "The app checks your server for newer builds and offers a one-tap "
         "download whenever a fresher APK is available on this page.",
+    ),
+    (
+        "Updating from 1.2.x? Please uninstall the old app first",
+        "Version 1.3.0 ships under a new app signature, so Android can't update "
+        "across it — it would install a second copy and the old 1.2.x app would "
+        "keep showing an update banner it can never satisfy. Uninstall the old "
+        "ManhwaManiacs app once, then install this one. From 1.3.0 onward, updates "
+        "install normally with one tap.",
     ),
     (
         "Why does Android ask about “unknown sources”?",
@@ -508,6 +632,13 @@ def _render_download(info: AppVersion, apk_ready: bool, size_label: str | None) 
         <p class="section-sub">Android 7.0 and up. Installs directly from your
           server — no Play Store required.</p>
         <div class="download-action">{action}</div>
+        <p class="download-notice">
+          <span class="download-notice-icon">{_icon("refresh")}</span>
+          <span><strong>Updating from 1.2.x?</strong> Android can't update across
+          our new app signature — please <strong>uninstall the old ManhwaManiacs
+          app first</strong>, then install this one. From 1.3.0 onward, updates
+          install normally.</span>
+        </p>
       </div>
       <ol class="steps">{step_html}</ol>
     </div>
@@ -623,11 +754,21 @@ def render_landing_html() -> str:
         '  <meta charset="utf-8" />\n'
         '  <meta name="viewport" content="width=device-width, initial-scale=1" />\n'
         '  <meta name="color-scheme" content="dark" />\n'
-        '  <meta name="theme-color" content="#030507" />\n'
+        '  <meta name="theme-color" content="#0A0A0A" />\n'
         '  <meta name="description" content="ManhwaManiacs — a premium, local-first '
         'manga and manhwa reader for Android. Immersive reading, smart downloads and a '
         'beautiful library, running on your own server." />\n'
         "  <title>ManhwaManiacs — premium local-first manga &amp; manhwa reader</title>\n"
+        # Display (Syne) + body (DM Sans) per the Eclipse Warm design system. Loaded
+        # from the Google Fonts CDN because this is a public marketing page; robust
+        # system fallbacks in --font-display / body font-family keep it looking right
+        # if the CDN is ever blocked (the app itself renders fully offline regardless).
+        '  <link rel="preconnect" href="https://fonts.googleapis.com" />\n'
+        '  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />\n'
+        '  <link rel="stylesheet" '
+        'href="https://fonts.googleapis.com/css2?'
+        "family=Syne:wght@600;700;800&"
+        "family=DM+Sans:wght@400;500;600;700&display=swap\" />\n"
         f"  <style>{_CSS}</style>\n"
         "</head>\n<body>\n"
         f"{body}\n"
@@ -641,46 +782,47 @@ def render_landing_html() -> str:
 _CSS = """
 *,*::before,*::after{box-sizing:border-box}
 :root{
-  --bg:#030507;--bg2:#080c10;--panel:#0d1117;--panel2:#121a24;
-  --border:#1e2633;--border2:#2a3547;
-  --fg:#f1f5f9;--muted:#93a0b4;--muted2:#6b7688;
-  --primary:#8b5cf6;--primary2:#7c3aed;--violet3:#c4b5fd;
-  --accent:#22d3ee;--accent2:#06b6d4;
+  --bg:#0A0A0A;--surface:#111111;--elevated:#181818;
+  --border:rgba(221,228,234,.12);--border2:rgba(221,228,234,.22);
+  --fg:#DDE4EA;--muted:#9AA8B4;--muted2:#6C7680;
+  --amber:#F59E0B;--amber-lite:#FBBF24;--rose:#BE4C00;--warm:#C2410C;
+  --font-display:"Syne","Syne Fallback",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  --font-body:"DM Sans","DM Sans Fallback",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
   --radius:18px;--maxw:1120px;
-  --shadow:0 24px 60px rgba(0,0,0,.55);
-  --glow:0 12px 40px rgba(139,92,246,.45);
+  --shadow:0 24px 60px rgba(0,0,0,.6);
+  --glow:0 0 24px rgba(245,158,11,.28),0 16px 44px rgba(245,158,11,.24);
 }
 html{scroll-behavior:smooth}
 body{
   margin:0;background:var(--bg);color:var(--fg);
-  font-family:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  font-family:var(--font-body);
   line-height:1.6;-webkit-font-smoothing:antialiased;overflow-x:hidden;
 }
 a{color:inherit;text-decoration:none}
 img{max-width:100%;display:block}
 h1,h2,h3,h4{margin:0;line-height:1.15;letter-spacing:-.02em}
 p{margin:0}
-.grad{background:linear-gradient(100deg,var(--violet3),var(--primary) 45%,var(--accent) 100%);
+.grad{background:linear-gradient(100deg,var(--amber-lite),var(--amber) 46%,var(--warm) 100%);
   -webkit-background-clip:text;background-clip:text;color:transparent}
-.eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.16em;
-  text-transform:uppercase;color:var(--violet3);margin-bottom:14px}
+.eyebrow{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--amber);margin-bottom:14px}
 
 /* Buttons */
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:9px;
   font-weight:700;border-radius:14px;padding:12px 20px;cursor:pointer;
-  color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary2));
+  color:#fff;background:linear-gradient(123deg,var(--rose) 4%,var(--warm) 46%,var(--amber) 100%);
   box-shadow:var(--glow);transition:transform .15s ease,box-shadow .15s ease,filter .15s ease;
-  border:1px solid rgba(255,255,255,.10)}
+  border:1px solid rgba(255,255,255,.12)}
 .btn svg{width:20px;height:20px}
-.btn:hover{transform:translateY(-2px);box-shadow:0 16px 46px rgba(139,92,246,.55)}
+.btn:hover{transform:translateY(-2px);box-shadow:0 0 30px rgba(245,158,11,.4),0 20px 50px rgba(194,65,12,.5)}
 .btn:active{transform:translateY(0) scale(.99)}
 .btn-sm{padding:9px 16px;font-size:14px;border-radius:12px;box-shadow:none}
 .btn-lg{padding:15px 26px;font-size:16px}
 .btn-xl{padding:18px 34px;font-size:17px;border-radius:16px;width:100%;max-width:340px}
-.btn-ghost{background:rgba(255,255,255,.04);box-shadow:none;color:var(--fg);
+.btn-ghost{background:rgba(221,228,234,.04);box-shadow:none;color:var(--fg);
   border:1px solid var(--border2)}
-.btn-ghost:hover{background:rgba(255,255,255,.08);box-shadow:none}
-.btn-disabled{background:rgba(255,255,255,.05);color:var(--muted2);cursor:default;
+.btn-ghost:hover{background:rgba(221,228,234,.09);box-shadow:none}
+.btn-disabled{background:rgba(221,228,234,.05);color:var(--muted2);cursor:default;
   box-shadow:none;border:1px solid var(--border)}
 .btn-disabled:hover{transform:none}
 
@@ -688,23 +830,26 @@ p{margin:0}
 .nav{position:sticky;top:0;z-index:50;transition:background .25s ease,border-color .25s ease,backdrop-filter .25s}
 .nav-inner{max-width:var(--maxw);margin:0 auto;padding:16px 22px;display:flex;
   align-items:center;gap:20px}
-.nav.scrolled{background:rgba(6,8,12,.78);backdrop-filter:blur(16px);
+.nav.scrolled{background:rgba(10,10,10,.82);backdrop-filter:blur(16px);
   border-bottom:1px solid var(--border)}
-.brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:17px}
+.brand{display:flex;align-items:center;gap:11px;font-family:var(--font-display);
+  font-weight:800;font-size:17px;letter-spacing:-.01em}
 .brand-mark{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;
-  font-weight:900;color:#fff;background:linear-gradient(135deg,var(--primary),var(--primary2));
-  box-shadow:0 8px 22px rgba(139,92,246,.5)}
+  font-family:var(--font-display);font-weight:800;color:#fff;
+  background:linear-gradient(135deg,var(--amber),var(--warm));
+  box-shadow:0 8px 22px rgba(245,158,11,.42)}
 .brand-mark-lg{width:56px;height:56px;border-radius:16px;font-size:26px;margin-bottom:18px}
-.brand-accent{color:var(--violet3)}
-.nav-links{margin-left:auto;display:flex;gap:26px;font-size:14px;font-weight:600;color:var(--muted)}
+.brand-accent{color:var(--amber)}
+.nav-links{margin-left:auto;display:flex;gap:26px;font-size:12.5px;font-weight:500;
+  letter-spacing:.14em;text-transform:uppercase;color:var(--muted)}
 .nav-links a{transition:color .15s}.nav-links a:hover{color:var(--fg)}
 .nav-actions{margin-left:auto;display:flex;align-items:center;gap:14px}
 .nav-links + .nav-actions{margin-left:26px}
 .status{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
   color:var(--muted);padding:6px 12px;border-radius:999px;border:1px solid var(--border);
-  background:rgba(255,255,255,.02)}
+  background:rgba(221,228,234,.02)}
 .status-dot{width:8px;height:8px;border-radius:50%;background:var(--muted2);
-  box-shadow:0 0 0 0 rgba(148,160,180,.5)}
+  box-shadow:0 0 0 0 rgba(154,168,180,.5)}
 .status.online .status-dot{background:#10b981;box-shadow:0 0 12px 1px rgba(16,185,129,.7);
   animation:pulse 2.4s infinite}
 .status.offline .status-dot{background:#ef4444}
@@ -715,52 +860,54 @@ p{margin:0}
 .hero-inner{max-width:var(--maxw);margin:0 auto;display:grid;
   grid-template-columns:1.1fr .9fr;gap:48px;align-items:center;position:relative;z-index:2}
 .hero-copy{max-width:600px}
-.hero-title{font-size:clamp(38px,6vw,62px);font-weight:800;margin-bottom:22px}
+.hero-title{font-family:var(--font-display);font-size:clamp(38px,6vw,64px);font-weight:800;
+  text-transform:uppercase;letter-spacing:-.02em;line-height:1.02;margin-bottom:22px}
 .hero-sub{color:var(--muted);font-size:clamp(15px,1.4vw,18px);max-width:540px;margin-bottom:30px}
 .hero-cta{display:flex;flex-wrap:wrap;gap:14px;margin-bottom:26px}
 .hero-meta{display:flex;flex-wrap:wrap;gap:10px}
 .chip{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:600;
   color:var(--muted);padding:7px 13px;border-radius:999px;border:1px solid var(--border);
-  background:rgba(255,255,255,.02)}
+  background:rgba(221,228,234,.02)}
 .chip-dot{width:6px;height:6px;border-radius:50%;
-  background:linear-gradient(135deg,var(--primary),var(--accent))}
+  background:linear-gradient(135deg,var(--amber),var(--rose))}
 .hero-art{position:relative;display:grid;place-items:center}
 .hero-phone{width:100%;max-width:440px;border-radius:26px;border:1px solid var(--border2);
   box-shadow:var(--shadow);position:relative;z-index:2}
 .glow-ring{position:absolute;width:78%;aspect-ratio:1;border-radius:50%;
-  background:radial-gradient(circle,rgba(139,92,246,.42),transparent 66%);filter:blur(20px);z-index:1}
+  background:radial-gradient(circle,rgba(245,158,11,.4),transparent 66%);filter:blur(20px);z-index:1}
 .aurora{position:absolute;inset:0;z-index:1;pointer-events:none}
-.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.5}
+.blob{position:absolute;border-radius:50%;filter:blur(70px);opacity:.42}
 .blob.b1{width:520px;height:520px;top:-180px;left:-120px;
-  background:radial-gradient(circle,#6d28d9,transparent 68%);animation:float1 16s ease-in-out infinite}
+  background:radial-gradient(circle,#B45309,transparent 68%);animation:float1 16s ease-in-out infinite}
 .blob.b2{width:460px;height:460px;top:-80px;right:-120px;
-  background:radial-gradient(circle,#0891b2,transparent 68%);animation:float2 20s ease-in-out infinite}
+  background:radial-gradient(circle,#7C2D12,transparent 68%);animation:float2 20s ease-in-out infinite}
 .blob.b3{width:420px;height:420px;bottom:-220px;left:38%;
-  background:radial-gradient(circle,#7c3aed,transparent 70%);animation:float1 24s ease-in-out infinite}
+  background:radial-gradient(circle,#F59E0B,transparent 70%);opacity:.28;animation:float1 24s ease-in-out infinite}
 @keyframes float1{0%,100%{transform:translate(0,0)}50%{transform:translate(28px,34px)}}
 @keyframes float2{0%,100%{transform:translate(0,0)}50%{transform:translate(-34px,26px)}}
 
 /* Sections */
 .section{max-width:var(--maxw);margin:0 auto;padding:76px 22px}
 .section-alt{max-width:none;background:
-  linear-gradient(180deg,transparent,rgba(139,92,246,.04),transparent),var(--bg2);
+  linear-gradient(180deg,transparent,rgba(245,158,11,.04),transparent),var(--surface);
   border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 .section-alt > *{max-width:var(--maxw);margin-left:auto;margin-right:auto}
 .section-head{text-align:center;max-width:640px;margin:0 auto 46px}
-.section-head h2{font-size:clamp(27px,3.4vw,40px);font-weight:800;margin-bottom:14px}
+.section-head h2{font-family:var(--font-display);font-size:clamp(27px,3.4vw,40px);
+  font-weight:800;letter-spacing:-.02em;margin-bottom:14px}
 .section-sub{color:var(--muted);font-size:16px}
 
 /* Features */
 .feature-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:18px}
-.feature{background:linear-gradient(180deg,var(--panel2),var(--panel));
+.feature{background:linear-gradient(180deg,var(--elevated),var(--surface));
   border:1px solid var(--border);border-radius:var(--radius);padding:24px 22px;
   transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
 .feature:hover{transform:translateY(-4px);border-color:var(--border2);
-  box-shadow:0 18px 40px rgba(0,0,0,.4)}
+  box-shadow:0 18px 40px rgba(0,0,0,.5)}
 .feature-icon{display:grid;place-items:center;width:46px;height:46px;border-radius:13px;
-  margin-bottom:16px;color:var(--violet3);
-  background:linear-gradient(135deg,rgba(139,92,246,.22),rgba(34,211,238,.12));
-  border:1px solid rgba(139,92,246,.28)}
+  margin-bottom:16px;color:var(--amber);
+  background:linear-gradient(135deg,rgba(245,158,11,.22),rgba(190,76,0,.14));
+  border:1px solid rgba(245,158,11,.28)}
 .feature-icon svg{width:23px;height:23px}
 .feature h3{font-size:16.5px;margin-bottom:8px}
 .feature p{color:var(--muted);font-size:14px}
@@ -778,48 +925,56 @@ p{margin:0}
 
 /* Release notes */
 .release-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:18px}
-.release{background:linear-gradient(180deg,var(--panel2),var(--panel));
+.release{background:linear-gradient(180deg,var(--elevated),var(--surface));
   border:1px solid var(--border);border-radius:var(--radius);padding:22px}
 .release-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
-.release-badge{font-weight:800;font-size:15px;padding:5px 12px;border-radius:999px;color:#fff;
-  background:linear-gradient(135deg,var(--primary),var(--primary2))}
+.release-badge{font-family:var(--font-display);font-weight:800;font-size:15px;padding:5px 12px;
+  border-radius:999px;color:#fff;background:linear-gradient(135deg,var(--amber),var(--warm))}
 .release-date{color:var(--muted2);font-size:12.5px}
 .release-notes{margin:0;padding:0;list-style:none;display:grid;gap:10px}
 .release-notes li{position:relative;padding-left:22px;color:var(--muted);font-size:14px}
 .release-notes li::before{content:"";position:absolute;left:2px;top:9px;width:8px;height:8px;
-  border-radius:2px;background:linear-gradient(135deg,var(--primary),var(--accent))}
+  border-radius:2px;background:linear-gradient(135deg,var(--amber),var(--rose))}
 
 /* Download */
 .download-card{max-width:var(--maxw);margin:0 auto;display:grid;grid-template-columns:1fr 1fr;
   gap:40px;align-items:center;background:
-  radial-gradient(700px 340px at 0% 0%,rgba(139,92,246,.16),transparent 60%),
-  linear-gradient(180deg,var(--panel2),var(--panel));
+  radial-gradient(700px 340px at 0% 0%,rgba(245,158,11,.16),transparent 60%),
+  linear-gradient(180deg,var(--elevated),var(--surface));
   border:1px solid var(--border2);border-radius:28px;padding:44px}
-.download-lead h2{font-size:clamp(26px,3vw,36px);font-weight:800;margin-bottom:12px}
+.download-lead h2{font-family:var(--font-display);font-size:clamp(26px,3vw,36px);
+  font-weight:800;letter-spacing:-.02em;margin-bottom:12px}
 .download-action{margin-top:26px}
 .download-meta{margin-top:14px;color:var(--muted2);font-size:13px}
-.download-meta code{color:var(--violet3)}
+.download-meta code{color:var(--amber)}
+.download-notice{display:flex;gap:12px;align-items:flex-start;margin-top:20px;
+  padding:14px 16px;border-radius:14px;font-size:13px;line-height:1.55;color:var(--muted);
+  background:linear-gradient(135deg,rgba(245,158,11,.12),rgba(190,76,0,.08));
+  border:1px solid rgba(245,158,11,.3)}
+.download-notice strong{color:var(--fg);font-weight:700}
+.download-notice-icon{flex:none;display:grid;place-items:center;color:var(--amber);margin-top:1px}
+.download-notice-icon svg{width:18px;height:18px}
 .steps{list-style:none;margin:0;padding:0;display:grid;gap:14px}
-.step{display:flex;align-items:flex-start;gap:14px;background:rgba(255,255,255,.02);
+.step{display:flex;align-items:flex-start;gap:14px;background:rgba(221,228,234,.02);
   border:1px solid var(--border);border-radius:14px;padding:16px 18px}
 .step-num{flex:none;width:26px;height:26px;border-radius:8px;display:grid;place-items:center;
-  font-weight:800;font-size:13px;color:var(--violet3);background:rgba(139,92,246,.16);
-  border:1px solid rgba(139,92,246,.3)}
-.step-icon{flex:none;color:var(--accent);margin-top:1px}
+  font-family:var(--font-display);font-weight:800;font-size:13px;color:var(--amber);
+  background:rgba(245,158,11,.16);border:1px solid rgba(245,158,11,.3)}
+.step-icon{flex:none;color:var(--rose);margin-top:1px}
 .step-icon svg{width:20px;height:20px}
 .step h4{font-size:15px;margin-bottom:3px}
 .step p{color:var(--muted);font-size:13.5px}
 
 /* FAQ */
 .faq{max-width:760px;margin:0 auto;display:grid;gap:12px}
-.faq-item{background:linear-gradient(180deg,var(--panel2),var(--panel));
+.faq-item{background:linear-gradient(180deg,var(--elevated),var(--surface));
   border:1px solid var(--border);border-radius:14px;padding:2px 20px;transition:border-color .2s}
 .faq-item[open]{border-color:var(--border2)}
 .faq-item summary{list-style:none;cursor:pointer;display:flex;align-items:center;
   justify-content:space-between;gap:16px;padding:18px 0;font-weight:600;font-size:15.5px}
 .faq-item summary::-webkit-details-marker{display:none}
 .faq-mark{flex:none;width:20px;height:20px;position:relative}
-.faq-mark::before,.faq-mark::after{content:"";position:absolute;background:var(--violet3);
+.faq-mark::before,.faq-mark::after{content:"";position:absolute;background:var(--amber);
   border-radius:2px;transition:transform .2s ease}
 .faq-mark::before{top:9px;left:2px;width:16px;height:2px}
 .faq-mark::after{top:2px;left:9px;width:2px;height:16px}
@@ -829,19 +984,19 @@ p{margin:0}
 /* Support */
 .support-grid{max-width:820px;margin:0 auto;display:grid;grid-template-columns:1fr;gap:14px}
 .support-card{display:flex;align-items:center;gap:18px;padding:20px 22px;
-  background:linear-gradient(180deg,var(--panel2),var(--panel));
+  background:linear-gradient(180deg,var(--elevated),var(--surface));
   border:1px solid var(--border);border-radius:var(--radius);
   transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
 .support-card:hover{transform:translateY(-3px);border-color:var(--border2);
-  box-shadow:0 14px 34px rgba(0,0,0,.4)}
+  box-shadow:0 14px 34px rgba(0,0,0,.5)}
 .support-card h3{font-size:16.5px;margin-bottom:4px}
 .support-card p{color:var(--muted);font-size:14px}
-.support-arrow{margin-left:auto;color:var(--violet3);font-size:20px;font-weight:700;
+.support-arrow{margin-left:auto;color:var(--amber);font-size:20px;font-weight:700;
   transition:transform .2s ease}
 .support-card:hover .support-arrow{transform:translateX(4px)}
 
 /* Footer */
-.footer{border-top:1px solid var(--border);background:var(--bg2);padding:48px 22px}
+.footer{border-top:1px solid var(--border);background:var(--surface);padding:48px 22px}
 .footer-inner{max-width:var(--maxw);margin:0 auto;text-align:center;display:grid;
   gap:16px;justify-items:center}
 .footer-note{color:var(--muted);font-size:14px;max-width:440px}

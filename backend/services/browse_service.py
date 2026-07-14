@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
+import re
 from urllib.parse import quote
 
 from core.config import get_settings
@@ -19,6 +21,23 @@ from connectors.registry import (
 from services.outbound_security import validate_outbound_url
 
 logger = logging.getLogger(__name__)
+
+# Federated search fan-out tuning: bound concurrency so we never open more than
+# a handful of upstream connections at once, and cap each source so one slow /
+# Cloudflare-blocked site can't stall the whole request.
+_SEARCH_CONCURRENCY = 8
+_SEARCH_TIMEOUT_SECONDS = 8.0
+_WHITESPACE_RE = re.compile(r"\s+")
+
+
+def _absolute_url(base_url: str, path: str) -> str:
+    """Join a request base URL (``http://host/``) with a relative API path."""
+    return f"{base_url.rstrip('/')}/{path.lstrip('/')}"
+
+
+def _normalize_title(title: str) -> str:
+    """Collapse whitespace + casefold for duplicate detection across sources."""
+    return _WHITESPACE_RE.sub(" ", (title or "").strip()).casefold()
 
 
 def _normalize_source_chapter_id(chapter_id: str) -> str:
@@ -143,6 +162,7 @@ class BrowseService:
                 "description": descriptor.description,
                 "browsable": descriptor.browsable,
                 "supports_import": descriptor.supports_import,
+                "icon_url": descriptor.icon_url,
             }
             for descriptor in descriptors
         ]
@@ -246,6 +266,111 @@ class BrowseService:
             listing.has_more,
         )
         return _serialize_paginated(listing, source_id)
+
+    async def federated_search(
+        self,
+        query: str,
+        *,
+        page: int = 1,
+        per_page: int = 40,
+        include_mature: bool = False,
+        local_items: list[dict[str, object]] | None = None,
+        base_url: str = "",
+    ) -> dict[str, object]:
+        """Search the local library AND every browsable source in parallel.
+
+        ``local_items`` are already-serialized ``kind:"local"`` hits (the caller
+        owns the DB session, so it queries the library and passes them in).
+        Source connectors are fanned out concurrently in a thread pool with
+        bounded concurrency + a per-source timeout; a failing / slow / blocked
+        source is counted into ``sources_failed`` and never breaks the response.
+        """
+        local_items = list(local_items or [])
+        normalized_query = query.strip()
+
+        # Resolve the browsable sources the same way ``list_sources`` does,
+        # honouring the caller's mature-content gate (adult sources dropped off).
+        descriptors = list_installed_connectors(
+            browsable_only=True,
+            include_mature=include_mature,
+        )
+        source_ids = [descriptor.source_type for descriptor in descriptors]
+        sources_queried = len(source_ids)
+
+        source_items: list[dict[str, object]] = []
+        sources_failed = 0
+        source_has_more = False
+
+        if normalized_query and source_ids:
+            loop = asyncio.get_event_loop()
+            semaphore = asyncio.Semaphore(_SEARCH_CONCURRENCY)
+
+            async def _search_one(source_id: str) -> PaginatedSeriesList:
+                def _work() -> PaginatedSeriesList:
+                    connector = create_connector(source_id)
+                    return connector.search_series(normalized_query, page, sort=None)
+
+                async with semaphore:
+                    return await asyncio.wait_for(
+                        loop.run_in_executor(None, _work),
+                        timeout=_SEARCH_TIMEOUT_SECONDS,
+                    )
+
+            results = await asyncio.gather(
+                *(_search_one(source_id) for source_id in source_ids),
+                return_exceptions=True,
+            )
+            for source_id, result in zip(source_ids, results):
+                if isinstance(result, BaseException):
+                    sources_failed += 1
+                    logger.warning(
+                        "federated_search source=%s query=%r failed: %r",
+                        source_id,
+                        normalized_query,
+                        result,
+                    )
+                    continue
+                if result.has_more:
+                    source_has_more = True
+                for series in result.items:
+                    source_items.append(
+                        {
+                            "kind": "source",
+                            "source": source_id,
+                            "series_id": str(series.id),
+                            "title": series.title,
+                            "cover_url": _absolute_url(
+                                base_url,
+                                f"/sources/{source_id}/series/"
+                                f"{quote(str(series.id), safe='')}/cover",
+                            ),
+                            "author": series.author,
+                            "extra": None,
+                        }
+                    )
+
+        # Merge: local first, then source hits; de-dupe by normalized title with
+        # local winning over source copies of the same series.
+        merged: list[dict[str, object]] = list(local_items)
+        seen = {_normalize_title(str(item["title"])) for item in local_items}
+        for item in source_items:
+            key = _normalize_title(str(item["title"]))
+            if key in seen:
+                continue
+            seen.add(key)
+            merged.append(item)
+
+        total_merged = len(merged)
+        items = merged[:per_page]
+        has_more = source_has_more or total_merged > per_page
+
+        return {
+            "items": items,
+            "sources_queried": sources_queried,
+            "sources_failed": sources_failed,
+            "page": page,
+            "has_more": has_more,
+        }
 
     def get_series(self, source_id: str, series_id: str) -> dict[str, object]:
         connector = self._get_connector(source_id)

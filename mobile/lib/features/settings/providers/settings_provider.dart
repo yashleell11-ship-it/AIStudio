@@ -11,7 +11,10 @@ import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dar
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
+import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository.dart';
+import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository_impl.dart';
 import 'package:manhwamaniacs/features/settings/services/image_cache_service.dart';
+import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -30,6 +33,69 @@ final settingsApiUrlProvider = FutureProvider.autoDispose<String>((ref) async {
   final saved = await storage.getApiUrl();
   return saved ?? ref.watch(apiBaseUrlProvider);
 });
+
+// ── Mature content (per-profile) ───────────────────────────────────────────
+
+final matureSettingsRepositoryProvider = Provider<MatureSettingsRepository>(
+  (ref) => MatureSettingsRepositoryImpl(ref.watch(dioProvider)),
+  name: 'matureSettingsRepository',
+);
+
+/// The active profile's `mature_content_enabled` flag, read from `GET /settings`
+/// (scoped by the `X-Profile-Id` header). `autoDispose` and invalidated on a
+/// profile switch (see `profileScopedInvalidators`), so it always reflects the
+/// *current* profile's own value rather than a carried-over one.
+final matureContentProvider =
+    AsyncNotifierProvider.autoDispose<MatureContentController, bool>(
+  MatureContentController.new,
+  name: 'matureContent',
+);
+
+class MatureContentController extends AutoDisposeAsyncNotifier<bool> {
+  @override
+  Future<bool> build() async {
+    final result =
+        await ref.read(matureSettingsRepositoryProvider).getMatureEnabled();
+    if (result.isErr) throw result.error;
+    return result.value;
+  }
+
+  /// Persist [value] for the active profile. Optimistically flips the toggle so
+  /// the switch responds instantly; rolls back and returns the [AppError] if the
+  /// write fails.
+  Future<AppError?> setEnabled(bool value) async {
+    final previous = state.valueOrNull;
+    state = AsyncData(value);
+    final result =
+        await ref.read(matureSettingsRepositoryProvider).setMatureEnabled(value);
+    if (result.isErr) {
+      state = AsyncData(previous ?? !value);
+      return result.error;
+    }
+    state = AsyncData(result.value);
+    // The mature gate decides which sources, browse rows and search results are
+    // visible, so every cache that filters on it must be dropped to reflect the
+    // new value (mirrors the web mutation invalidating those queries).
+    for (final invalidate in matureScopedInvalidators) {
+      invalidate(ref);
+    }
+    return null;
+  }
+}
+
+/// Caches whose contents depend on the active profile's mature-content gate.
+/// Dropped after a successful toggle so browse/search/sources immediately
+/// reflect the new value. Kept as a top-level list (mirroring
+/// [metadataCacheInvalidators]) so the exact set is auditable and testable.
+final List<void Function(Ref ref)> matureScopedInvalidators = [
+  // Which sources appear (adult sources are hidden while the gate is off).
+  (ref) => ref.invalidate(sourcesListProvider),
+  // Per-source browse rows + their available browse modes (family, all args).
+  (ref) => ref.invalidate(sourceBrowseProvider),
+  (ref) => ref.invalidate(sourceBrowseModesProvider),
+  // Library search results.
+  (ref) => ref.invalidate(searchListProvider),
+];
 
 // ── Theme ────────────────────────────────────────────────────────────────
 

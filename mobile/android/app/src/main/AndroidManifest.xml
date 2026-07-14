@@ -1,5 +1,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- Required for all network access. Debug/profile source sets declare this
+         too, but release builds only merge main + plugin manifests, so it MUST
+         live here or release APKs ship with no INTERNET permission and every
+         request fails with a generic connection error (see 1.2.3+6 login bug). -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="ManhwaManiacs"
         android:name="${applicationName}"

@@ -35,7 +35,7 @@ abstract final class AppTheme {
       cardColor: AppColors.panel,
       dividerColor: AppColors.border,
       textTheme: AppTypography.textTheme,
-      fontFamily: 'Inter',
+      fontFamily: AppTypography.fontFamilyBody,
 
       // ── AppBar ────────────────────────────────────────────────────────────
       appBarTheme: const AppBarTheme(
@@ -59,14 +59,14 @@ abstract final class AppTheme {
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         elevation: 0,
-        height: 68,
+        height: 56,
         indicatorColor: AppColors.violetGlow,
         indicatorShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            size: 22,
+            size: 20,
             color: states.contains(WidgetState.selected)
                 ? AppColors.primary
                 : AppColors.muted,

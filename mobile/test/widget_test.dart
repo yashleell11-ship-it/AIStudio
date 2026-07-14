@@ -21,6 +21,8 @@ void main() {
           apiBaseUrlOverride(Env.defaultApiUrl),
           sharedPrefsProvider.overrideWithValue(prefs),
           authenticatedAuthOverride(),
+          activeProfileOverride(),
+          profileSessionReadyOverride(),
         ],
         child: const ManhwaManiacsApp(),
       ),
@@ -29,6 +31,9 @@ void main() {
     await tester.pump(const Duration(milliseconds: 100));
 
     expect(find.byType(MaterialApp), findsOneWidget);
+    // The app shell renders its bottom-nav destinations; "Library" is the
+    // first destination's label. (The Library tab itself shows its error state
+    // here because this smoke test provides no library repository override.)
     expect(find.text('Library'), findsWidgets);
   });
 }

@@ -26,7 +26,7 @@ interface ChapterReaderProps {
   nextChapterHref: string | null;
   backHref: string;
   onBookmark?: (page: number) => void;
-  onPageProgress?: (page: number) => void;
+  onPageProgress?: (page: number, pageCount: number) => void;
   bookmarkPending?: boolean;
   showBookmark?: boolean;
 }
@@ -56,6 +56,8 @@ export function ChapterReader({
   const resetZoom = useReaderStore((state) => state.resetZoom);
   const controlsVisible = useReaderStore((state) => state.controlsVisible);
   const toggleControls = useReaderStore((state) => state.toggleControls);
+  const pageGap = useReaderStore((state) => state.pageGap);
+  const togglePageGap = useReaderStore((state) => state.togglePageGap);
 
   const contentRef = useRef<HTMLDivElement>(null);
   const topSentinelRef = useRef<HTMLDivElement>(null);
@@ -137,9 +139,9 @@ export function ChapterReader({
   const handleVisiblePageChange = useCallback(
     (pageNumber: number) => {
       setVisiblePage(pageNumber);
-      onPageProgress?.(pageNumber);
+      onPageProgress?.(pageNumber, pages.length);
     },
-    [onPageProgress],
+    [onPageProgress, pages.length],
   );
 
   const updateScrollState = useCallback(() => {
@@ -261,7 +263,7 @@ export function ChapterReader({
   if (isLoading) {
     return (
       <div
-        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-obsidian p-6"
+        className="flex min-h-[60vh] flex-col items-center justify-center gap-4 bg-bg p-6"
         aria-busy="true"
         aria-label="Loading chapter"
       >
@@ -282,11 +284,11 @@ export function ChapterReader({
     const message =
       error instanceof ApiError ? error.message : "Failed to load chapter.";
     return (
-      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 bg-obsidian p-6 text-center">
+      <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 bg-bg p-6 text-center">
         <p className="text-danger">{message}</p>
         <Link
           href={backHref}
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-violet-600 px-4 text-sm font-medium text-white hover:bg-violet-500"
+          className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
         >
           Go back
         </Link>
@@ -296,7 +298,7 @@ export function ChapterReader({
 
   if (!chapter || pages.length === 0) {
     return (
-      <div className="flex min-h-[60vh] items-center justify-center bg-obsidian text-muted">
+      <div className="flex min-h-[60vh] items-center justify-center bg-bg text-muted">
         This chapter has no pages.
       </div>
     );
@@ -305,7 +307,7 @@ export function ChapterReader({
   return (
     <div
       ref={contentRef}
-      className="relative flex min-h-full flex-col bg-obsidian scroll-smooth"
+      className="relative flex min-h-full flex-col bg-bg scroll-smooth"
       onClick={() => toggleControls()}
       role="presentation"
     >
@@ -315,8 +317,8 @@ export function ChapterReader({
           controlsVisible ? "opacity-0" : "opacity-100",
         )}
       >
-        <div className="glass-panel rounded-full px-4 py-1.5 font-mono text-xs tabular-nums text-muted">
-          {visiblePage} / {pages.length}
+        <div className="glass-panel rounded-full px-4 py-1.5 font-mono text-xs tabular-nums text-primary">
+          {visiblePage} <span className="text-muted">/ {pages.length}</span>
         </div>
       </div>
 
@@ -335,6 +337,7 @@ export function ChapterReader({
             pages={pages}
             chapterTitle={chapterTitle}
             zoom={zoom}
+            pageGap={pageGap}
             scrollElement={scrollElement}
             initialScrollTop={initialScrollTop}
             onVisiblePageChange={handleVisiblePageChange}
@@ -360,6 +363,8 @@ export function ChapterReader({
           onZoomIn={zoomIn}
           onZoomOut={zoomOut}
           onZoomReset={resetZoom}
+          pageGap={pageGap}
+          onTogglePageGap={togglePageGap}
           onBookmark={onBookmark ? handleBookmark : undefined}
           previousChapterHref={previousChapterHref}
           nextChapterHref={nextChapterHref}

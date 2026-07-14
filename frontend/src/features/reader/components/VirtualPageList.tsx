@@ -2,6 +2,7 @@
 
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "@/lib/cn";
 import { readerDebug } from "../debug";
 import type { ReaderPage } from "../types";
 import {
@@ -12,12 +13,16 @@ import {
 import { restoreChapterScroll } from "../scroll-preparation";
 import { PageImage } from "./PageImage";
 
+/** Number of upcoming pages to warm into the browser cache ahead of the reader. */
+const PREFETCH_AHEAD = 2;
+
 interface VirtualPageRowProps {
   page: ReaderPage;
   pageNumber: number;
   chapterTitle: string;
   zoom: number;
   priority: boolean;
+  pageGap: boolean;
   onImageLoad: () => void;
 }
 
@@ -27,13 +32,16 @@ const VirtualPageRow = memo(function VirtualPageRow({
   chapterTitle,
   zoom,
   priority,
+  pageGap,
   onImageLoad,
 }: VirtualPageRowProps) {
   return (
     <div
       id={`reader-page-${pageNumber}`}
       data-page={pageNumber}
-      className="mx-auto w-full pb-1"
+      // No bottom padding by default so consecutive pages stack flush — a webtoon
+      // strip must read as one continuous image with no seam between pages.
+      className={cn("mx-auto w-full", pageGap && "pb-2")}
       style={{
         width: zoom === 1 ? "100%" : `${zoom * 100}%`,
         maxWidth: zoom <= 1 ? "48rem" : "none",
@@ -45,6 +53,7 @@ const VirtualPageRow = memo(function VirtualPageRow({
         width={page.width}
         height={page.height}
         priority={priority}
+        seamless={!pageGap}
         onLoad={onImageLoad}
       />
     </div>
@@ -55,6 +64,7 @@ interface VirtualPageListProps {
   pages: ReaderPage[];
   chapterTitle: string;
   zoom: number;
+  pageGap: boolean;
   scrollElement: HTMLElement;
   initialScrollTop: number;
   onVisiblePageChange: (pageNumber: number) => void;
@@ -65,6 +75,7 @@ export function VirtualPageList({
   pages,
   chapterTitle,
   zoom,
+  pageGap,
   scrollElement,
   initialScrollTop,
   onVisiblePageChange,
@@ -73,6 +84,7 @@ export function VirtualPageList({
   const [containerWidth, setContainerWidth] = useState(DEFAULT_CONTAINER_WIDTH);
   const readyNotifiedRef = useRef(false);
   const initialRestorePendingRef = useRef(initialScrollTop > 0);
+  const prefetchedRef = useRef<Set<string>>(new Set());
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -88,7 +100,24 @@ export function VirtualPageList({
   useEffect(() => {
     readyNotifiedRef.current = false;
     initialRestorePendingRef.current = initialScrollTop > 0;
+    prefetchedRef.current = new Set();
   }, [initialScrollTop, pages]);
+
+  const prefetchAhead = useCallback(
+    (activeIndex: number) => {
+      if (typeof window === "undefined") return;
+      const seen = prefetchedRef.current;
+      for (let offset = 1; offset <= PREFETCH_AHEAD; offset += 1) {
+        const next = pages[activeIndex + offset];
+        if (!next || seen.has(next.imageUrl)) continue;
+        seen.add(next.imageUrl);
+        const preloader = new window.Image();
+        preloader.decoding = "async";
+        preloader.src = next.imageUrl;
+      }
+    },
+    [pages],
+  );
 
   useEffect(() => {
     readerDebug("virtual-page-list-mounted", {
@@ -99,6 +128,8 @@ export function VirtualPageList({
     });
   }, [containerWidth, pages.length, scrollElement]);
 
+  // TanStack Virtual returns fresh functions each render that cannot be memoized.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: pages.length,
     getScrollElement: () => scrollElement,
@@ -156,8 +187,9 @@ export function VirtualPageList({
         activeIndex = item.index;
       }
     }
+    prefetchAhead(activeIndex);
     onVisiblePageChange(activeIndex + 1);
-  }, [onVisiblePageChange, pages.length, scrollElement, virtualizer]);
+  }, [onVisiblePageChange, pages.length, prefetchAhead, scrollElement, virtualizer]);
 
   useEffect(() => {
     let frame = 0;
@@ -200,6 +232,7 @@ export function VirtualPageList({
               pageNumber={virtualItem.index + 1}
               chapterTitle={chapterTitle}
               zoom={zoom}
+              pageGap={pageGap}
               priority={virtualItem.index < 2}
               onImageLoad={() => {
                 const element = document.querySelector(

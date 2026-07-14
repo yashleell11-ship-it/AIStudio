@@ -11,6 +11,7 @@ import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/repositories/auth_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 final _user = AuthUser(
   id: 1,
@@ -92,11 +93,16 @@ class _FakeAuthRepository implements AuthRepository {
       );
 }
 
-ProviderContainer _container(_FakeAuthRepository repo, _FakeStorage storage) {
+ProviderContainer _container(
+  _FakeAuthRepository repo,
+  _FakeStorage storage, {
+  List<Override> extra = const [],
+}) {
   final container = ProviderContainer(
     overrides: [
       authRepositoryProvider.overrideWithValue(repo),
       secureStorageProvider.overrideWithValue(storage),
+      ...extra,
     ],
   );
   addTearDown(container.dispose);
@@ -214,9 +220,17 @@ void main() {
 
   group('AuthController logout / expiry', () {
     test('logout revokes server-side then clears locally', () async {
+      // logout() now also clears the active reading profile, which reads
+      // sharedPrefsProvider — provide it so the profile clear can run.
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
       final storage = _FakeStorage()..token = 'tok';
       final repo = _FakeAuthRepository(meResult: Ok(_user));
-      final container = _container(repo, storage);
+      final container = _container(
+        repo,
+        storage,
+        extra: [sharedPrefsProvider.overrideWithValue(prefs)],
+      );
       await container.read(authControllerProvider.notifier).restored;
       expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
 
@@ -229,9 +243,17 @@ void main() {
     });
 
     test('onSessionExpired drops the session without calling logout', () async {
+      // onSessionExpired() also clears the active reading profile, which reads
+      // sharedPrefsProvider — provide it so the profile clear can run.
+      SharedPreferences.setMockInitialValues(<String, Object>{});
+      final prefs = await SharedPreferences.getInstance();
       final storage = _FakeStorage()..token = 'tok';
       final repo = _FakeAuthRepository(meResult: Ok(_user));
-      final container = _container(repo, storage);
+      final container = _container(
+        repo,
+        storage,
+        extra: [sharedPrefsProvider.overrideWithValue(prefs)],
+      );
       await container.read(authControllerProvider.notifier).restored;
       expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
 
