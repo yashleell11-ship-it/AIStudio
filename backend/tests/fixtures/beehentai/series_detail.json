@@ -1,0 +1,81 @@
+{
+  "success": true,
+  "data": {
+    "new_url": "/titles/6p2968GW-sister-neighbors",
+    "title": {
+      "id": "6p2968GW",
+      "url": "/sister-neighbors",
+      "name": "Sister Neighbors",
+      "slug": "sister-neighbors",
+      "cover": "https://rx.toondex.io/covers/8c3c211da206.webp",
+      "status": "COMPLETED",
+      "rating": 4.3,
+      "stats": {
+        "views": 16024436,
+        "bookmarks_count": 1693,
+        "comments_count": 0,
+        "manga_only_comments_count": 0,
+        "chapters_count": 161,
+        "ratings_count": 0,
+        "reviews_count": 0
+      },
+      "updated_at": "2022-01-23T03:00:07.000Z",
+      "summary": "Tim and Hailey grew up together and now they live alone in Seoul. Denise is Hailey\u2019s best friend who comes over so often that the three practically live together. things are good until Tim bluffs to h",
+      "authors": [
+        {
+          "name": "Tharchog",
+          "slug": "tharchog"
+        }
+      ],
+      "artists": [],
+      "genres": [
+        {
+          "name": "Adult",
+          "slug": "adult",
+          "titles_count": 828
+        },
+        {
+          "name": "Drama",
+          "slug": "drama",
+          "titles_count": 1904
+        },
+        {
+          "name": "Harem",
+          "slug": "harem",
+          "titles_count": 499
+        },
+        {
+          "name": "Mature",
+          "slug": "mature",
+          "titles_count": 1595
+        },
+        {
+          "name": "Romance",
+          "slug": "romance",
+          "titles_count": 1674
+        },
+        {
+          "name": "Seinen",
+          "slug": "seinen",
+          "titles_count": 473
+        },
+        {
+          "name": "Slice of Life",
+          "slug": "slice-of-life",
+          "titles_count": 158
+        }
+      ],
+      "latest_chapters": [
+        {
+          "id": "LDgV74Yv",
+          "url": "/sister-neighbors/chapter-160",
+          "name": "Chapter 160",
+          "slug": "chapter-160",
+          "updated_at": "2022-01-23T03:00:23.000Z",
+          "number": null,
+          "cv": 1642906807000
+        }
+      ]
+    }
+  }
+}

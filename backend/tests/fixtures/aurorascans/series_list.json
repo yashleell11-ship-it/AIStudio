@@ -1,0 +1,40 @@
+{
+  "data": [
+    {
+      "id": 1267,
+      "slug": "the-artist-who-paints-dungeon",
+      "title": "The Artist Who Paints Dungeon",
+      "alternativeTitles": "던전을 그리는 화가",
+      "cover": "https://media.qimanga.com/file/qiscans/upload/2026/07/06/1783353714140-Enz_9Q-xxlarge.webp",
+      "type": "MANHWA",
+      "status": "ONGOING",
+      "publishStatus": "PUBLIC",
+      "createdAt": "2026-07-06T16:04:27.720Z",
+      "avgRating": 2.33,
+      "redirectUrl": null,
+      "discountActive": false,
+      "discountPercentage": null,
+      "discountEndAt": null
+    },
+    {
+      "id": 1122,
+      "slug": "the-swordmaster-in-a-magic-supremacy-world",
+      "title": "The Swordmaster in a Magic-Supremacy World",
+      "alternativeTitles": "魔術至上世界の妖刀使い",
+      "cover": "https://media.qimanhwa.com/file/qiscans/upload/2026/03/28/1774727023191-oSEdJGjC-159545_s.webp",
+      "type": "MANGA",
+      "status": "ONGOING",
+      "publishStatus": "PUBLIC",
+      "createdAt": "2026-03-28T19:43:45.617Z",
+      "avgRating": 3,
+      "redirectUrl": "",
+      "discountActive": false,
+      "discountPercentage": null,
+      "discountEndAt": null
+    }
+  ],
+  "totalItems": 818,
+  "totalPages": 41,
+  "current": 1,
+  "next": 2
+}

@@ -1,0 +1,796 @@
+
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8" /><meta http-equiv="content-language" content="zh-CN" /><meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="robots" content="&lt;%= GetRobotsMeta() %>" /><link rel="canonical" href="MasterPages/%3C%25=%20GetCanonicalUrl()%20%25%3E" /><title>
+	All Comics
+</title>
+
+    <!-- CSS -->
+    <link rel="stylesheet" href="/Content/bootstrap.min.css" />
+    <link rel="stylesheet" href="/Content/Site.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css" crossorigin="anonymous" referrerpolicy="no-referrer" />
+
+    <!-- ✅ SEO riêng từng page sẽ inject vào đây -->
+    
+    <!-- SEO -->
+    <meta name="description" content="免费漫画列表，最新更新漫画、热门漫画在线阅读，尽在CManhua。" />
+
+    <meta property="og:title" content="全部漫画列表 - CManhua" />
+    <meta property="og:description" content="最新漫画、热门漫画在线阅读平台" />
+    <meta property="og:type" content="website" />
+
+    <link rel="canonical" href="https://cmanhua.com/AllComics" />
+
+    <!-- STYLE-->
+    <style>
+        /* 🌤 Nền tổng thể */
+        body {
+            background: linear-gradient(135deg, #eaf3ff, #f8fcff);
+            font-family: "Poppins", sans-serif;
+            color: #222;
+        }
+
+        /* 📘 Section */
+        section.bg-light {
+            background: linear-gradient(180deg, rgba(240, 248, 255, 0.85), rgba(225, 235, 255, 0.9));
+            border-radius: 25px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.15);
+            margin-top: 2rem;
+            margin-bottom: 3rem;
+            padding: 2.5rem 2rem;
+        }
+
+        section h3.fw-bold {
+            color: #1565c0;
+            text-shadow: 0 0 8px rgba(33, 150, 243, 0.25);
+        }
+
+        /* 📕 Card Manga */
+        .card {
+            border: none !important;
+            border-radius: 20px !important;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.95), rgba(235, 245, 255, 0.85));
+            box-shadow: 0 8px 25px rgba(33, 150, 243, 0.1);
+            overflow: hidden;
+            position: relative;
+            transition: all 0.35s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-6px) scale(1.03);
+            box-shadow: 0 15px 40px rgba(33, 150, 243, 0.25);
+        }
+
+        .card-img-top {
+            border-radius: 20px 20px 0 0;
+            transition: transform 0.35s ease, filter 0.35s ease;
+        }
+
+        .card:hover .card-img-top {
+            transform: scale(1.05);
+            filter: brightness(1.08);
+        }
+
+        .card-body {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.8);
+            border-top: 1px solid rgba(200, 200, 255, 0.4);
+            border-radius: 0 0 20px 20px;
+        }
+
+        .card-title {
+            color: #0d47a1;
+            font-weight: 600;
+            text-shadow: 0 0 6px rgba(33, 150, 243, 0.15);
+        }
+
+        /* ✨ Hiệu ứng ánh sáng nhẹ */
+        .card::before {
+            content: "";
+            position: absolute;
+            top: -30%;
+            left: -30%;
+            width: 160%;
+            height: 160%;
+            background: radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.15), transparent 60%),
+                        radial-gradient(circle at 80% 70%, rgba(255, 255, 255, 0.1), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+
+        .card:hover::before {
+            opacity: 1;
+            animation: floatGlow 8s linear infinite;
+        }
+
+        @keyframes floatGlow {
+            0% { transform: translate(0, 0); }
+            50% { transform: translate(-5%, -5%); }
+            100% { transform: translate(0, 0); }
+        }
+
+        /* 🔹 Nút phân trang */
+        .btn-outline-primary,
+        .btn-primary {
+            border-radius: 25px;
+            font-weight: 600;
+            min-width: 40px;
+            transition: all 0.3s ease;
+        }
+
+        .btn-outline-primary {
+            border-color: #42a5f5;
+            color: #1565c0;
+        }
+
+        .btn-outline-primary:hover {
+            background: linear-gradient(90deg, #42a5f5, #5c6bc0);
+            color: white;
+            border: none;
+            box-shadow: 0 0 10px rgba(33, 150, 243, 0.3);
+        }
+
+        .btn-primary {
+            background: linear-gradient(90deg, #42a5f5, #5c6bc0);
+            border: none;
+            color: white;
+            box-shadow: 0 0 12px rgba(33, 150, 243, 0.4);
+        }
+
+        .btn-primary:hover {
+            background: linear-gradient(90deg, #1e88e5, #3949ab);
+            transform: translateY(-2px);
+            box-shadow: 0 0 16px rgba(33, 150, 243, 0.5);
+        }
+
+        /* 🔹 Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(100, 149, 237, 0.3);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(30, 144, 255, 0.5);
+        }
+    </style>
+
+
+    <!-- ✅ Schema global -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "CManhua",
+      "url": "https://zh.cmanhua.com"
+    }
+    </script>
+
+</head>
+<body>
+<form method="post" action="./AllComics" id="ctl01">
+<div class="aspNetHidden">
+<input type="hidden" name="__EVENTTARGET" id="__EVENTTARGET" value="" />
+<input type="hidden" name="__EVENTARGUMENT" id="__EVENTARGUMENT" value="" />
+<input type="hidden" name="__VIEWSTATE" id="__VIEWSTATE" value="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" />
+</div>
+
+<script type="6b957596e4a28de2532a6d03-text/javascript">
+//<![CDATA[
+var theForm = document.forms['ctl01'];
+if (!theForm) {
+    theForm = document.ctl01;
+}
+function __doPostBack(eventTarget, eventArgument) {
+    if (!theForm.onsubmit || (theForm.onsubmit() != false)) {
+        theForm.__EVENTTARGET.value = eventTarget;
+        theForm.__EVENTARGUMENT.value = eventArgument;
+        theForm.submit();
+    }
+}
+//]]>
+</script>
+
+
+<div class="aspNetHidden">
+
+	<input type="hidden" name="__VIEWSTATEGENERATOR" id="__VIEWSTATEGENERATOR" value="D3298210" />
+	<input type="hidden" name="__EVENTVALIDATION" id="__EVENTVALIDATION" value="bj9h4qq6KSVJuo0S1BV5tv9Ji4k1MDXAxhJUYl0/0lWlJk+8G9zBGxBLbPf6Rukm7cyDZInzpnTunaUllt9R8PKqSf53cvF6GZ379TUyJBhTw5gunuzcXbbkahP7INCPlnR9722xB+BPN9kVEop2UHQf1t4hy985jakwNUuFeQbY0OJodJ8+BORlLTYvr4M0Sp5BXE4sztDzjdZART6wB3mKPjseGLOvia8OEp7Jz3UWg1HLm3DB06IQY1ZRZZY39XQeQehSiEDwXrDft9uPh9Zdq2DCwP+FctUcf7k/BCvdip0bqrUORFWzRYHZs0z5GPdj5MsJuAng4PQJWwOb7A==" />
+</div>
+    <header class="main-header">
+        <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+            <div class="container">
+
+                <!-- Logo -->
+                <a id="lnkHome" class="navbar-brand d-flex align-items-center" href="./">
+                <img src='/Assets/images/logo_200x200-removebg-preview.png'
+                     alt="CManhua 漫画 在线阅读" class="site-logo"/>
+                </a>
+
+                <!-- MOBILE RIGHT -->
+                <div class="mobile-icons d-lg-none">
+
+                    <a href="javascript:void(0)" id="btnOpenSearch" class="mobile-icon">
+                        <i class="fa-solid fa-magnifying-glass"></i>
+                    </a>
+
+                    <a href="/MangaUpdate" class="mobile-icon">
+                        <i class="fa-solid fa-book"></i>
+                    </a>
+
+                    <a href="/Browse" class="mobile-icon">
+                        <i class="fa-solid fa-compass"></i>
+                    </a>
+
+                    <!-- Toggle -->
+                    <button class="navbar-toggler"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#mobileMenu">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+
+                </div>
+
+                <!-- DESKTOP MENU -->
+                <div class="collapse navbar-collapse" id="mobileMenu">
+
+                    <ul class="navbar-nav me-auto mb-2 mb-lg-0 fw-semibold desktop-menu">
+
+                        <li class="nav-item">
+                            <a href="javascript:void(0)" id="btnOpenSearchDesktop" class="nav-link">
+                                <i class="fa-solid fa-magnifying-glass me-1"></i>
+                                搜索
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a id="lnkMangaUpdates" class="nav-link" href="MangaUpdate">
+                            <i class="fa-solid fa-book me-1"></i>
+                            漫画更新</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a id="lnkBrowse" class="nav-link" href="Browse">
+                            <i class="fa-solid fa-compass me-1"></i>
+                            浏览</a>
+                        </li>
+
+                    </ul>
+
+                    <!-- RIGHT SIDE -->
+                    <div class="header-right d-lg-flex align-items-center">
+
+                        <select name="ctl00$langSelect" id="langSelect" class="form-select form-select-sm lang-select">
+	<option value="en">English</option>
+	<option selected="selected" value="zh">中文</option>
+</select>
+
+                        <div id="authArea" class="auth-area">
+                            
+                    <a href='/Login' 
+                       class='btn btn-primary btn-sm h-100' style='font-weight:600; width:100px;'>
+                       登录
+                    </a>
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+        </nav>
+    </header>
+
+    <!-- ✅ SEARCH DROPDOWN OVERLAY (không che header) -->
+    <div id="searchDropdown" class="search-dropdown">
+        <div class="search-dropdown-inner container" style="max-width: 920px;">
+
+            <div class="search-bar">
+                <i class="fa-solid fa-magnifying-glass text-muted"></i>
+
+                <input id="searchModalInput"
+                    class="form-control form-control-lg border-0 shadow-none"
+                    type="text"
+                    placeholder="搜索漫画..."
+                    autocomplete="off" />
+
+                <button type="button" id="btnCloseSearch" class="btn btn-link text-muted">
+                    <i class="fa-solid fa-xmark fs-5"></i>
+                </button>
+            </div>
+
+            <div id="searchModalResults" class="list-group search-modal-list"></div>
+
+            <div id="searchEmptyHint" class="text-muted mt-3" style="display: none;">
+                未找到漫画。
+            </div>
+
+        </div>
+    </div>
+
+
+    
+    <section class="py-5 bg-light">
+        <div class="container">
+            <h1 class="visually-hidden">
+                全部漫画列表 - 免费在线阅读
+            </h1>
+            <!-- Tiêu đề -->
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h3 class="fw-bold mb-0">
+                    所有漫画
+                </h3>
+            </div>
+            <!-- Danh sách truyện -->
+            <div class="row g-3">
+                
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/quanqiuyushouwonengkanjianjinhualuxian'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/quanqiuyushouwonengkanjianjinhualuxian-1/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='全球御兽：我能看见进化路线 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">全球御兽：我能看见进化路线</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/gaodenglinghun'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/gaodenglinghun-1/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='高等灵魂 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">高等灵魂</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/tianwaifeilaibushixian'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/tianwaifeilaibushixian-1/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='天外飞来不是仙 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">天外飞来不是仙</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/yujiangzejiangwodexiuweimoshangxian'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/yujiangzejiangwodexiuweimoshangxian-1/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='遇强则强，我的修为无上限 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">遇强则强，我的修为无上限</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/doupocangqiong'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/doupocangqiong/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='斗破苍穹 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">斗破苍穹</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/moxianshengjiinwulin'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/moxianshengjiinwulin/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='无限升级in武林 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">无限升级in武林</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/chuanchengtuanzihoufanpayijiadouxiangshawo'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/chuanchengtuanzihoufanpayijiadouxiangshawo/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='穿成团子后，反派一家都想杀我！ 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">穿成团子后，反派一家都想杀我！</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/jinyishengdeyishouzhensuo'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/jinyishengdeyishouzhensuo/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='金医生的异兽诊所 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">金医生的异兽诊所</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/66666nianhoufuhuodeheimofashi'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/66666nianhoufuhuodeheimofashi/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='66666年后复活的黑魔法师 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">66666年后复活的黑魔法师</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/moshirenhuangfanyouqinggeweinvturuzuo'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/moshirenhuangfanyouqinggeweinvturuzuo/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='末世：人皇幡有请各位女徒入座 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">末世：人皇幡有请各位女徒入座</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/shushishouce'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/shushishouce/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='术师手册 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">术师手册</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/maiyaodehuangtaizi'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/maiyaodehuangtaizi/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='卖药的皇太子 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">卖药的皇太子</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/maoshiwodehaizi'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/maoshiwodehaizi/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='貌似我的孩子 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">貌似我的孩子</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/zhiyulenanzhudeyinying'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/zhiyulenanzhudeyinying/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='治愈了男主的阴影 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">治愈了男主的阴影</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/xindongsishuayi'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/xindongsishuayi/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='心动四选一 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">心动四选一</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/gaowudengliuweilaiyimonian'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/gaowudengliuweilaiyimonian/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='高武：登陆未来一万年 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">高武：登陆未来一万年</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/jihuanshijieguoke'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/jihuanshijieguoke/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='奇幻世界过客 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">奇幻世界过客</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/yeshoubaijueyeyebumian'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/yeshoubaijueyeyebumian/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='野兽伯爵夜夜不眠 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">野兽伯爵夜夜不眠</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/yanyudechunqing'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/yanyudechunqing/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='延禹的纯情 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">延禹的纯情</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/meiyan'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/meiyan/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='美妍 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">美妍</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/shenguishijiewoyouteshuwuxing'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/shenguishijiewoyouteshuwuxing/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='神诡世界，我有特殊悟性 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">神诡世界，我有特殊悟性</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/tianmozhixianggouzhao'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/tianmozhixianggouzhao/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='天魔只想苟着 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">天魔只想苟着</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/yunianzhixiang'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/yunianzhixiang/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='欲念之香 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">欲念之香</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a class="text-decoration-none text-black" href='/comic/qingwuchupengsishen'>
+                                <div class="card border-0 shadow-sm h-100">
+                                    <img src='/pictures/qingwuchupengsishen/cover.webp' 
+                                         class="card-img-top" 
+                                         alt='请勿触碰死神 漫画 在线阅读'
+                                         loading="lazy"
+                                         style="height: 250px; object-fit: cover;" />
+                                    <div class="card-body p-2">
+                                        <h6 class="card-title text-truncate">请勿触碰死神</h6>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    
+            </div>
+
+            <!-- Phân trang -->
+            <div class="d-flex justify-content-center mt-4">
+                
+                        <a id="MainContent_rptPager_lnkPage_0" class="btn btn-sm btn-outline-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl00$lnkPage&#39;,&#39;&#39;)"><</a>
+                    
+                        <a id="MainContent_rptPager_lnkPage_1" class="btn btn-sm btn-outline-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl01$lnkPage&#39;,&#39;&#39;)">1</a>
+                    
+                        <a id="MainContent_rptPager_lnkPage_2" class="btn btn-sm btn-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl02$lnkPage&#39;,&#39;&#39;)">2</a>
+                    
+                        <a id="MainContent_rptPager_lnkPage_3" class="btn btn-sm btn-outline-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl03$lnkPage&#39;,&#39;&#39;)">3</a>
+                    
+                        <a id="MainContent_rptPager_lnkPage_4" class="btn btn-sm btn-outline-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl04$lnkPage&#39;,&#39;&#39;)">4</a>
+                    
+                        <a id="MainContent_rptPager_lnkPage_5" class="btn btn-sm btn-outline-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl05$lnkPage&#39;,&#39;&#39;)">...</a>
+                    
+                        <a id="MainContent_rptPager_lnkPage_6" class="btn btn-sm btn-outline-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl06$lnkPage&#39;,&#39;&#39;)">475</a>
+                    
+                        <a id="MainContent_rptPager_lnkPage_7" class="btn btn-sm btn-outline-primary mx-1" href="javascript:__doPostBack(&#39;ctl00$MainContent$rptPager$ctl07$lnkPage&#39;,&#39;&#39;)">></a>
+                    
+            </div>
+            <div class="d-flex justify-content-center align-items-center mt-3 gap-2">
+                <input name="ctl00$MainContent$txtJumpPage" type="text" value="2" id="MainContent_txtJumpPage" class="form-control form-control-sm" placeholder="页码" style="width: 80px; text-align: center;" />
+
+                <input type="submit" name="ctl00$MainContent$btnJumpPage" value="跳转" id="MainContent_btnJumpPage" class="btn btn-sm btn-primary" />
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Footer -->
+    <footer class="text-center text-lg-start bg-light text-dark pt-4 mt-5">
+    <div class="container text-md-start">
+        <div class="row mt-3">
+
+            <div class="col-6 col-md-6 col-lg-3 col-xl-3 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    <img src='/Assets/images/logo_200x200-removebg-preview.png'
+                         alt="logo" width="80" height="80" class="me-2" />
+                </h6>
+                <p>免费在线观看漫画。更新快，质量高，使用方便。</p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-2 col-xl-2 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    快速链接
+                </h6>
+                <p><a class="text-dark text-decoration-none" href="./">首页</a></p>
+                <p><a class="text-dark text-decoration-none" href="MangaUpdate">漫画更新</a></p>
+                <p><a class="text-dark text-decoration-none" href="Browse">浏览</a></p>
+                <p><a class="text-dark text-decoration-none" href="Login">登录</a></p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-2 col-xl-2 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    政策
+                </h6>
+                <p><a id="lnkPrivacy" class="text-dark text-decoration-none" href="MasterPages/#">隐私政策</a></p>
+                <p><a id="lnkTerms" class="text-dark text-decoration-none" href="MasterPages/#">条款与条件</a></p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-3 col-xl-3 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    联系我们
+                </h6>
+                <p><i class="fa-solid fa-envelope me-2"></i><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="64171114140b1610240903010f0b4a0707">[email&#160;protected]</a></p>
+                <p><i class="fa-solid fa-phone me-2"></i>+84 123 456 789</p>
+                <p><i class="fa-solid fa-location-dot me-2"></i>Hanoi, Vietnam</p>
+            </div>
+
+            <div class="col-6 col-md-6 col-lg-2 col-xl-2 mx-auto mb-4">
+                <h6 class="fw-bold mb-3">
+                    关注我们
+                </h6>
+                <a href="#" class="btn btn-outline-dark btn-sm me-2"><i class="fab fa-facebook-f"></i></a>
+                <a href="#" class="btn btn-outline-dark btn-sm me-2"><i class="fab fa-twitter"></i></a>
+                <a href="#" class="btn btn-outline-dark btn-sm me-2"><i class="fab fa-instagram"></i></a>
+                <a href="#" class="btn btn-outline-dark btn-sm"><i class="fab fa-discord"></i></a>
+            </div>
+
+        </div>
+    </div>
+
+    <div class="text-center py-3 mt-3 border-top border-secondary">
+        © 2025 Mgeko.cc - 版权所有
+    </div>
+</footer>
+</form>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script src="/Scripts/bootstrap.bundle.min.js" type="6b957596e4a28de2532a6d03-text/javascript"></script>
+
+<!-- Global site script -->
+<script src="/Scripts/Site.js" type="6b957596e4a28de2532a6d03-text/javascript"></script>
+
+<script type="6b957596e4a28de2532a6d03-text/javascript">
+    window.__site = window.__site || {};
+    window.__site.langSelectId = "langSelect";
+    window.__site.comicDetailUrl = "/ComicDetail";
+
+</script>
+
+<script src="/cdn-cgi/scripts/7d0fa10a/cloudflare-static/rocket-loader.min.js" data-cf-settings="6b957596e4a28de2532a6d03-|49" defer></script><script defer src="https://static.cloudflareinsights.com/beacon.min.js/v4513226cdae34746b4dedf0b4dfa099e1781791509496" integrity="sha512-ZE9pZaUXND66v380QUtch/5sE9tPFh2zg45pR2PB0CVkCtOREv2AJKkSidISWkysEuQ0EH8faUU5du78bx87UQ==" data-cf-beacon='{"version":"2024.11.0","token":"3e8362d9a1b04ec3a970aebb0e884ee3","r":1,"server_timing":{"name":{"cfCacheStatus":true,"cfEdge":true,"cfExtPri":true,"cfL4":true,"cfOrigin":true,"cfSpeedBrain":true},"location_startswith":null}}' crossorigin="anonymous"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'a1994be768375f9f',t:'MTc4Mzc4ODUxNA=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

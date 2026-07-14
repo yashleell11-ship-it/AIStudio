@@ -1,0 +1,20 @@
+{
+  "code": 0,
+  "data": {
+    "comic_id": 1,
+    "chapter_id": 1,
+    "title": "My Kingdom (Silent War)",
+    "pages": [
+      "https://cdn.comicland.org/my-kingdom-silent-war/chapter-1/001.jpg",
+      "https://cdn.comicland.org/my-kingdom-silent-war/chapter-1/002.jpg",
+      "https://cdn.comicland.org/my-kingdom-silent-war/chapter-1/003.jpg"
+    ],
+    "aspect_ratios": [
+      0.14,
+      0.14,
+      0.15
+    ],
+    "chapter_count": 160
+  },
+  "message": "ok"
+}

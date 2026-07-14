@@ -16,6 +16,8 @@ class MadaraSiteConfig:
     # URL path segment for series/chapters: ``manga`` (CoffeeManga-style) or
     # ``serie`` (Toonily-style).
     url_segment: str = "manga"
+    # When set, browse uses ``/?post_type=…`` (e.g. hentai4free) instead of ``/{segment}/``.
+    listing_post_type: str | None = None
     mature: bool = False
     use_cf: bool = True
     description: str = ""

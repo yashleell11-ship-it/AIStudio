@@ -131,7 +131,7 @@ class MadaraConnector(SourceConnector):
             )
             html_parser = MadaraHtml(cfg) if seg != self.CONFIG.url_segment else self._html
             path = html_parser.listing_path(page)
-            params = html_parser.listing_params(sort=sort)
+            params = html_parser.listing_params(sort=sort, page=page)
             try:
                 html = self._http.get_text(path, params=params)
             except ConnectorHttpError as exc:

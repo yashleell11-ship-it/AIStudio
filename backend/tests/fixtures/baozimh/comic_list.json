@@ -1,0 +1,23 @@
+{
+  "next": "/api/bzmhq/amp_comic_list?type=all&region=all&state=all&filter=*&page=2&limit=36&language=tw",
+  "items": [
+    {
+      "comic_id": "wuliandianfeng-pikapi",
+      "type_names": ["熱血", "冒險"],
+      "author": "噼咔噼",
+      "name": "武煉巔峰",
+      "topic_img": "wuliandianfeng-pikapi.jpg",
+      "region_name": "國漫",
+      "region": "cn"
+    },
+    {
+      "comic_id": "yaoshenji-taxuedongman",
+      "type_names": ["熱血", "冒險"],
+      "author": "踏雪動漫",
+      "name": "妖神記",
+      "topic_img": "yaoshenji-taxuedongman.jpg",
+      "region_name": "國漫",
+      "region": "cn"
+    }
+  ]
+}

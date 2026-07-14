@@ -230,6 +230,56 @@ class DdgSyncHttpClient:
         )
         raise ConnectorHttpError(message, status_code=status_code) from last_error
 
+    def get_json(
+        self,
+        path: str,
+        *,
+        params: dict[str, Any] | None = None,
+        extra_headers: dict[str, str] | None = None,
+    ) -> Any:
+        """GET JSON from an API path and return the decoded body."""
+        url = self._resolve_url(path)
+        last_error: Exception | None = None
+        headers = dict(self._headers)
+        headers["Accept"] = "application/json, text/plain, */*"
+        if extra_headers:
+            headers.update(extra_headers)
+
+        for attempt in range(self._max_retries):
+            self._rate_limit()
+            try:
+                response = self._session.get(
+                    url,
+                    params=_serialize_params(params),
+                    headers=headers,
+                    timeout=self._timeout,
+                    allow_redirects=True,
+                )
+                if response.status_code in RETRYABLE_STATUS:
+                    raise ConnectorHttpError(
+                        f"Retryable HTTP {response.status_code}",
+                        status_code=response.status_code,
+                    )
+                if response.status_code >= 400:
+                    raise ConnectorHttpError(
+                        f"Client error '{response.status_code} {response.reason}' for url '{url}'",
+                        status_code=response.status_code,
+                    )
+                return json.loads(response.text)
+            except (ConnectorHttpError, OSError, json.JSONDecodeError) as exc:
+                last_error = exc
+                if attempt + 1 >= self._max_retries:
+                    break
+                time.sleep(0.5 * (2**attempt))
+
+        message = str(last_error) if last_error else "Unknown HTTP error"
+        status_code = (
+            last_error.status_code
+            if isinstance(last_error, ConnectorHttpError)
+            else None
+        )
+        raise ConnectorHttpError(message, status_code=status_code) from last_error
+
     def get_bytes(
         self,
         url: str,

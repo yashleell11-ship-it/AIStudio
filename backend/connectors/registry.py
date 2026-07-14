@@ -7,8 +7,27 @@ from dataclasses import dataclass
 from typing import Any
 
 from connectors.akuma.connector import AkumaConnector
+from connectors.asmhentai.connector import AsmHentaiConnector
+from connectors.aurorascans.connector import AuroraScansConnector
+from connectors.bbato.connector import BbatoConnector
+from connectors.beehentai.connector import BeeHentaiConnector
+from connectors.comicland.connector import ComicLandConnector
+from connectors.flamescans.connector import FlameScansConnector
+from connectors.freeadultcomix.connector import FreeAdultComixConnector
+from connectors.baozimh.connector import BaoZiMHConnector
+from connectors.cmanhua.connector import CManhuaConnector
+from connectors.comicasura.connector import ComicAsuraConnector
+from connectors.comicsvalley.connector import ComicsValleyConnector
+from connectors.ehentai.connector import EHentaiConnector
+from connectors.elftoon.connector import ElfToonConnector
+from connectors.galaxymanga.connector import GalaxyMangaConnector
+from connectors.harimanga.connector import HariMangaConnector
+from connectors.hentai20.connector import Hentai20Connector
+from connectors.hentaifox import HentaiFoxConnector
+from connectors.hentaiera import HentaiEraConnector
 from connectors.asurascans.connector import AsuraScansConnector
 from connectors.base import SourceConnector
+from connectors.branding import connector_icon_url
 from connectors.coffeemanga.connector import CoffeeMangaConnector
 from connectors.eightmuses.connector import EightMusesConnector
 from connectors.local_filesystem.connector import LocalFilesystemConnector
@@ -18,6 +37,7 @@ from connectors.madara.sites import MADARA_SITES
 from connectors.mangadex.connector import MangaDexConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
 from connectors.demonicscans.connector import DemonicScansConnector
+from connectors.doujins.connector import DoujinsConnector
 from connectors.firstkissmanga.connector import FirstKissMangaConnector
 from connectors.nhentai.connector import NHentaiConnector
 from connectors.porncomic18.connector import PornComic18Connector
@@ -39,10 +59,29 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     MangaDexConnector.SOURCE_TYPE,
     MangaKatanaConnector.SOURCE_TYPE,
     DemonicScansConnector.SOURCE_TYPE,
+    DoujinsConnector.SOURCE_TYPE,
     ToonilyConnector.SOURCE_TYPE,
     NHentaiConnector.SOURCE_TYPE,
     PornComic18Connector.SOURCE_TYPE,
     ThreeHentaiConnector.SOURCE_TYPE,
+    AsmHentaiConnector.SOURCE_TYPE,
+    AuroraScansConnector.SOURCE_TYPE,
+    BbatoConnector.SOURCE_TYPE,
+    BeeHentaiConnector.SOURCE_TYPE,
+    ComicLandConnector.SOURCE_TYPE,
+    FlameScansConnector.SOURCE_TYPE,
+    FreeAdultComixConnector.SOURCE_TYPE,
+    BaoZiMHConnector.SOURCE_TYPE,
+    CManhuaConnector.SOURCE_TYPE,
+    ComicAsuraConnector.SOURCE_TYPE,
+    ComicsValleyConnector.SOURCE_TYPE,
+    EHentaiConnector.SOURCE_TYPE,
+    ElfToonConnector.SOURCE_TYPE,
+    GalaxyMangaConnector.SOURCE_TYPE,
+    Hentai20Connector.SOURCE_TYPE,
+    HentaiFoxConnector.SOURCE_TYPE,
+    HentaiEraConnector.SOURCE_TYPE,
+    HariMangaConnector.SOURCE_TYPE,
     EightMusesConnector.SOURCE_TYPE,
     FirstKissMangaConnector.SOURCE_TYPE,
     *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
@@ -65,6 +104,7 @@ class ConnectorDescriptor:
     browsable: bool
     supports_import: bool
     mature: bool = False
+    icon_url: str | None = None
 
 
 _REGISTRY: dict[str, type[SourceConnector]] = {}
@@ -95,7 +135,26 @@ def _register_builtin_connectors() -> None:
         (NHentaiConnector.SOURCE_TYPE, NHentaiConnector),
         (PornComic18Connector.SOURCE_TYPE, PornComic18Connector),
         (ThreeHentaiConnector.SOURCE_TYPE, ThreeHentaiConnector),
+        (AsmHentaiConnector.SOURCE_TYPE, AsmHentaiConnector),
+        (AuroraScansConnector.SOURCE_TYPE, AuroraScansConnector),
+        (BbatoConnector.SOURCE_TYPE, BbatoConnector),
+        (BeeHentaiConnector.SOURCE_TYPE, BeeHentaiConnector),
+        (ComicLandConnector.SOURCE_TYPE, ComicLandConnector),
+        (FlameScansConnector.SOURCE_TYPE, FlameScansConnector),
+        (FreeAdultComixConnector.SOURCE_TYPE, FreeAdultComixConnector),
+        (BaoZiMHConnector.SOURCE_TYPE, BaoZiMHConnector),
+        (CManhuaConnector.SOURCE_TYPE, CManhuaConnector),
+        (ComicAsuraConnector.SOURCE_TYPE, ComicAsuraConnector),
+        (ComicsValleyConnector.SOURCE_TYPE, ComicsValleyConnector),
+        (EHentaiConnector.SOURCE_TYPE, EHentaiConnector),
+        (GalaxyMangaConnector.SOURCE_TYPE, GalaxyMangaConnector),
+        (Hentai20Connector.SOURCE_TYPE, Hentai20Connector),
+        (HentaiFoxConnector.SOURCE_TYPE, HentaiFoxConnector),
+        (HentaiEraConnector.SOURCE_TYPE, HentaiEraConnector),
+        (HariMangaConnector.SOURCE_TYPE, HariMangaConnector),
         (EightMusesConnector.SOURCE_TYPE, EightMusesConnector),
+        (ElfToonConnector.SOURCE_TYPE, ElfToonConnector),
+        (DoujinsConnector.SOURCE_TYPE, DoujinsConnector),
         *((cls.SOURCE_TYPE, cls) for cls in _MADARA_CONNECTOR_CLASSES),
     )
     if "1stkissmanga" not in EXCLUDED_CONNECTORS:
@@ -210,6 +269,7 @@ def _descriptor_for(connector_cls: type[SourceConnector]) -> ConnectorDescriptor
         browsable=getattr(connector_cls, "BROWSABLE", True),
         supports_import=getattr(connector_cls, "SUPPORTS_IMPORT", False),
         mature=getattr(connector_cls, "MATURE", False),
+        icon_url=connector_icon_url(connector_cls),
     )
 
 

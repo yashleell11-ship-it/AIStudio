@@ -1,0 +1,36 @@
+{
+  "data": [
+    {
+      "id": 60319,
+      "slug": "chapter-10",
+      "number": 10,
+      "title": null,
+      "cover": null,
+      "price": 0,
+      "isFree": true,
+      "becameFreeAt": null,
+      "publishStatus": "PUBLIC",
+      "commentCount": 0,
+      "createdAt": "2026-07-11T16:17:52.094Z",
+      "requiresPurchase": false
+    },
+    {
+      "id": 60315,
+      "slug": "chapter-14",
+      "number": 14,
+      "title": null,
+      "cover": null,
+      "price": 50,
+      "isFree": false,
+      "becameFreeAt": null,
+      "publishStatus": "PUBLIC",
+      "commentCount": 0,
+      "createdAt": "2026-07-11T15:58:04.102Z",
+      "requiresPurchase": true
+    }
+  ],
+  "totalItems": 2,
+  "totalPages": 1,
+  "current": 1,
+  "next": null
+}

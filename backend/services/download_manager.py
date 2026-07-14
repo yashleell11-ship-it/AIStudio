@@ -38,6 +38,7 @@ from services.download_support import (
 from services.import_cleanup import normalize_folder_path
 from services.library_service import LibraryService
 from services.ocr_pipeline import OcrJobService
+from services.source_service import SourceService
 from utils.filename_utils import page_extension, sanitize_path_segment
 
 logger = logging.getLogger(__name__)
@@ -647,7 +648,7 @@ class DownloadManager:
         expected_page_count: int,
     ) -> Chapter:
         library = LibraryService(db)
-        library.index_downloads_root(str(self._downloads_root.resolve()))
+        self._index_downloaded_series(library, chapter_path)
 
         normalized_folder = normalize_folder_path(str(chapter_path.resolve()))
         local_chapter = (
@@ -693,6 +694,40 @@ class DownloadManager:
             link.local_chapter_id = local_chapter.id
         db.flush()
         return local_chapter
+
+    def _index_downloaded_series(
+        self, library: LibraryService, chapter_path: Path
+    ) -> None:
+        """Index only the series folder that owns the just-completed chapter,
+        instead of re-scanning the entire downloads root on every completion.
+
+        A completed download only ever *adds* one chapter directory beneath one
+        series directory; nothing anywhere else in the library changes. The old
+        behaviour re-indexed the whole downloads root on every completion, which
+        made each completion O(total library chapters) -- i.e. O(n^2) work across
+        a large multi-chapter download, and re-touched every unrelated series'
+        rows each time. Scoping the scan+persist to the single owning series
+        folder keeps a completion proportional to just that series and leaves
+        every other series untouched.
+
+        Correctness is preserved by reusing the exact same discovery
+        (``SourceService.discover_folder``) and persistence
+        (``LibraryService._persist_scan``) the full rescan used: a "series"-mode
+        scan of the series folder yields the identical ``ScannedSeries`` that a
+        library-mode scan of the whole downloads root produced for it, so the
+        resulting Series/Chapter/Page rows -- including page order, titles,
+        chapter numbers, cover, and aggregate counts -- match a full rescan
+        exactly. The global orphan-merge / stale-series cleanup that
+        ``index_downloads_root`` also ran is intentionally skipped here: a
+        download never removes on-disk content, so there is nothing stale to
+        prune, and running that cleanup against a single-series scan would
+        wrongly treat every *other* series as missing and delete it.
+        """
+        series_folder = chapter_path.parent
+        library_row = library._get_or_create_library(self._downloads_root)
+        scan = SourceService().discover_folder(str(series_folder.resolve()))
+        library._persist_scan(library_row, scan)
+        library._db.flush()
 
     def _assert_can_continue(self, db, download_id: int) -> None:
         db.expire_all()
