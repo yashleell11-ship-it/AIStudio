@@ -35,7 +35,13 @@ jobs:
 
       - name: Build unsigned iOS app
         # `flutter build ios` runs `pod install`; --no-codesign skips Apple signing.
-        run: flutter build ios --release --no-codesign
+        # The dart-defines mirror the production APK build (see mobile/RELEASE.md):
+        # without them the app defaults to FLAVOR=dev + http://127.0.0.1:8000,
+        # which on a phone is nothing, and would allow a clear-text bearer token.
+        run: >
+          flutter build ios --release --no-codesign
+          --dart-define=FLAVOR=prod
+          --dart-define=API_URL=https://app.manhwamaniacs.xyz
 
       - name: Package unsigned .ipa
         # An .ipa is just a zip with the .app inside a Payload/ folder.
