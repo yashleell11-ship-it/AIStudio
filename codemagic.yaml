@@ -1,0 +1,49 @@
+# Codemagic CI config — builds an UNSIGNED iOS .ipa for free sideloading.
+#
+# No Apple Developer account needed for this workflow. The .ipa comes out
+# unsigned; SideStore / AltStore re-sign it on-device with your free Apple ID.
+#
+# Setup (one time):
+#   1. Sign in at https://codemagic.io with GitHub, authorize the repo
+#      yashleell11-ship-it/AIStudio.
+#   2. Codemagic auto-detects this codemagic.yaml. Pick the "ios-sideload" workflow.
+#   3. Start build. When it finishes, download ManhwaManiacs.ipa from artifacts
+#      (also emailed to you).
+#
+# To upgrade to TestFlight later (needs the $99/yr account): add an
+# `ios_signing` block + an App Store Connect integration and swap
+# `--no-codesign` for a signed `flutter build ipa`. Nothing here is wasted.
+
+workflows:
+  ios-sideload:
+    name: iOS unsigned IPA (free sideload)
+    working_directory: mobile
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      flutter: 3.44.6
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Flutter pub get
+        script: flutter pub get
+      - name: Build unsigned iOS app
+        # `flutter build ios` runs `pod install` for us; --no-codesign skips
+        # the Apple signing step entirely.
+        script: flutter build ios --release --no-codesign
+      - name: Package unsigned .ipa
+        # An .ipa is just a zip with the .app under a Payload/ folder.
+        script: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/Runner.app
+          zip -r9 ManhwaManiacs.ipa Payload
+    artifacts:
+      - mobile/build/ios/iphoneos/ManhwaManiacs.ipa
+    publishing:
+      email:
+        recipients:
+          - yashdhanda001@gmail.com
+        notify:
+          success: true
+          failure: true
