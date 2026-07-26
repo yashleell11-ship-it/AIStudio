@@ -168,3 +168,81 @@ def test_download_treats_directory_path_as_not_built(
     landing = client.get("/", headers={"accept": "text/html"})
     assert landing.status_code == 200
     assert "APK not built yet" in landing.text
+
+
+# ── iOS / SideStore source ───────────────────────────────────────────────────
+
+
+def _fake_ipa(tmp_path: Path, monkeypatch) -> Path:
+    ipa = tmp_path / "ManhwaManiacs.ipa"
+    ipa.write_bytes(b"PK\x03\x04 fake ipa bytes")
+    monkeypatch.setattr("routes.app_distribution.IPA_PATH", ipa)
+    return ipa
+
+
+def test_ios_source_lists_published_build(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    ipa = _fake_ipa(tmp_path, monkeypatch)
+    monkeypatch.setenv("MM_PUBLIC_BASE_URL", "https://app.manhwamaniacs.xyz")
+
+    source = client.get("/app/source.json").json()
+    assert source["name"] == "ManhwaManiacs"
+    assert source["news"] == []
+
+    app = source["apps"][0]
+    # Bundle id must match the Xcode project or SideStore treats an update as a
+    # separate app instead of replacing the installed one.
+    assert app["bundleIdentifier"] == "com.manhwamaniacs.reader"
+
+    version = app["versions"][0]
+    assert version["downloadURL"] == (
+        "https://app.manhwamaniacs.xyz/app/ios/download"
+    )
+    assert version["size"] == ipa.stat().st_size
+    assert version["version"] == client.get("/app/version").json()["version"]
+    assert version["buildVersion"] == str(client.get("/app/version").json()["build"])
+
+
+def test_ios_source_uses_request_origin_when_unconfigured(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # Without MM_PUBLIC_BASE_URL the manifest must still emit absolute URLs —
+    # they are fetched by the phone, so a relative path would be unusable.
+    _fake_ipa(tmp_path, monkeypatch)
+    monkeypatch.delenv("MM_PUBLIC_BASE_URL", raising=False)
+
+    version = client.get("/app/source.json").json()["apps"][0]["versions"][0]
+    assert version["downloadURL"].startswith("http")
+    assert version["downloadURL"].endswith("/app/ios/download")
+
+
+def test_ios_source_valid_with_no_build_published(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # A source with no installable version is still a *valid* source; SideStore
+    # must be able to add it rather than erroring on an unpublished app.
+    monkeypatch.setattr("routes.app_distribution.IPA_PATH", tmp_path / "missing.ipa")
+
+    source = client.get("/app/source.json")
+    assert source.status_code == 200
+    assert source.json()["apps"][0]["versions"] == []
+    assert client.get("/app/ios/download").status_code == 404
+
+
+def test_ios_download_serves_ipa(client: TestClient, tmp_path: Path, monkeypatch):
+    _fake_ipa(tmp_path, monkeypatch)
+    response = client.get("/app/ios/download")
+    assert response.status_code == 200
+    assert response.content == b"PK\x03\x04 fake ipa bytes"
+    assert ".ipa" in response.headers.get("content-disposition", "")
+
+
+def test_ios_download_treats_directory_path_as_not_published(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # Same failure mode as the APK: an empty read-only bind mount is a directory.
+    ipa_dir = tmp_path / "ipa" / "ManhwaManiacs.ipa"
+    ipa_dir.mkdir(parents=True)
+    monkeypatch.setattr("routes.app_distribution.IPA_PATH", ipa_dir)
+    assert client.get("/app/ios/download").status_code == 404

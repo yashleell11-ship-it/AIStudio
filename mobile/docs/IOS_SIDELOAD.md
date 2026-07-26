@@ -1,61 +1,139 @@
 # Running ManhwaManiacs on iPhone (free, no Mac)
 
-The app is already iOS-ready (the `mobile/ios/` Xcode project, all plugins, and
-HTTPS backend are all in place). The only work is **building** the iOS binary —
-which requires macOS — and **installing** it. Since you're on Linux with no Mac
-and no paid Apple account, we do it this way:
+Building an iOS binary requires macOS; installing one normally requires a $99/yr
+Apple Developer account. This project needs neither:
 
-1. **Build** the unsigned `.ipa` in the cloud → Codemagic (free Mac CI).
-2. **Install** it on the iPhone → SideStore, signing with a free Apple ID.
+- **Build** — GitHub Actions' free macOS runner produces an unsigned `.ipa`
+  (`.github/workflows/ios-build.yml`).
+- **Publish** — `ops/fetch-ios-build.sh` pulls that `.ipa` onto the NAS, and the
+  backend lists it in a SideStore source at `/app/source.json`.
+- **Install** — SideStore on the phone signs it with a **free** Apple ID.
+
+Once set up, shipping a new iOS build is: push code → wait ~5 min → tap
+**Update** on the phone.
+
+> Codemagic (`codemagic.yaml`) was the original plan and still works as a
+> fallback, but GitHub Actions is what's wired up and in use.
 
 ---
 
-## Step 1 — Build the .ipa (Codemagic, cloud)
+## One-time phone setup
 
-1. Push `codemagic.yaml` (repo root) to GitHub if it isn't there yet:
+Done from a **Windows** PC. (Linux is possible via the containerised `altcon`
+route in SideStore's docs, but it's substantially more work — use Windows if you
+have it.)
+
+**Prerequisites:** iPhone on iOS 15+ **with a passcode set**, on WiFi, and an
+Apple ID. Prefer a *throwaway* Apple ID — SideStore stores these credentials, and
+the free-tier 3-app limit and 7-day certificates are charged against whichever
+account signs. Never sign that account into **Settings → Media & Purchases** on
+the phone, or iOS associates the device with it for 90 days.
+
+1. **iPhone:** App Store → install **LocalDevVPN** → open it → turn the tunnel
+   **on**. SideStore cannot install or refresh anything without this running.
+2. **PC:** install **iTunes** (Apple's site or Microsoft Store) and launch it
+   once, so its USB drivers register. Disable auto-sync:
+   *Edit → Preferences → Devices → Prevent … from syncing automatically.*
+3. **PC:** install **iloader** — `iloader-windows-x64.msi` from
+   <https://iloader.app>. This replaced the old AltServer flow; it also places
+   the pairing file, so there's no JitterbugPair step any more.
+4. Plug the iPhone in, **unlock it**, tap **Trust**, enter the passcode.
+5. In iloader: sign in with the Apple ID → select the device → **SideStore
+   (Stable)**. (The *LiveContainer + SideStore* bundle saves an app slot but
+   isn't needed — LocalDevVPN comes from the App Store and doesn't consume one.)
+6. **iPhone:** *Settings → Privacy & Security → Developer Mode* → on → restart.
+   **After the reboot, confirm the lock-screen prompt** — missing that leaves
+   Developer Mode off.
+7. **iPhone:** *Settings → General → VPN & Device Management* → **Trust** the
+   developer profile. SideStore won't launch until you do.
+8. Open SideStore and refresh to complete registration.
+
+## Add the update source
+
+In SideStore: **Browse → Sources → +** and add:
+
+```
+https://app.manhwamaniacs.xyz/app/source.json
+```
+
+ManhwaManiacs now appears in SideStore. Install it from there; future updates
+are an in-app **Update** button, with no PC involved.
+
+---
+
+## Shipping a new iOS build
+
+1. **Bump `version:` in `mobile/pubspec.yaml`.** This is not optional —
+   SideStore compares `version`/`buildVersion` against what's installed, and both
+   come from the pubspec. New code without a version bump will *not* surface an
+   update, even though the served `.ipa` changed.
+2. Push to the branch in `ios-build.yml` (`feat/profile-isolation-eclipse-warm`).
+   Actions builds automatically, ~4–5 min.
+3. Publish it on the NAS:
    ```bash
-   git add codemagic.yaml mobile/docs/IOS_SIDELOAD.md
-   git commit -m "ci: add Codemagic iOS unsigned build"
-   git push github <your-branch>
+   ops/fetch-ios-build.sh
    ```
-2. Go to <https://codemagic.io>, sign in with GitHub, authorize the
-   `yashleell11-ship-it/AIStudio` repo.
-3. Codemagic reads `codemagic.yaml` automatically. Start the **ios-sideload**
-   workflow.
-4. ~10–15 min later, download **ManhwaManiacs.ipa** from the build artifacts
-   (also emailed to you). This is your installable file.
+   Needs a GitHub token with **Actions: read** on the repo (the repo is private),
+   from `$GH_TOKEN` or `~/.gh_token`. It no-ops (exit 2) when the newest run is
+   already published, so it's safe to run on a timer:
+   ```
+   */10 * * * * /apps/dev/aistudio/ops/fetch-ios-build.sh >/dev/null 2>&1
+   ```
+4. On the phone: SideStore shows an update. Tap it.
 
-Free tier = 500 Mac-build minutes/month — plenty for a personal app.
+iOS won't allow a fully silent install — that final tap is an OS-level consent
+requirement, not a limitation of this setup.
 
-## Step 2 — Install on iPhone (SideStore, free Apple ID)
+### Day-to-day development
 
-SideStore installs sideloaded apps with a **free** Apple ID and, crucially,
-**auto-refreshes them over WiFi** so you rarely hit the 7-day wall manually.
+Use **Android** with hot reload for UI and logic work — it's the same Dart code
+and the feedback loop is instant. Cut an iOS build when you want to verify on the
+phone or ship, not for every change.
 
-1. Follow the SideStore setup guide: <https://sidestore.io> (it walks through
-   pairing — the pairing file can be generated from Linux via their tooling /
-   `jitterbug`).
-2. Once SideStore is running on the phone, open the `ManhwaManiacs.ipa` in it
-   and install.
-3. Trust the developer profile: **Settings → General → VPN & Device Management**.
+---
 
-> Alternative: **AltStore** via `AltServer-Linux` (community port) running on
-> your Linux box on the same network. Same idea, same free Apple ID.
+## How the pieces fit
 
-## The free-account limits (not fixable — Apple's rules)
+| Piece | Where | Does what |
+|---|---|---|
+| `.github/workflows/ios-build.yml` | GitHub Actions (macOS) | Builds the unsigned `.ipa`, bakes in `FLAVOR=prod` + `API_URL` |
+| `ops/fetch-ios-build.sh` | NAS | Downloads the newest successful run's artifact into `$DIR/ipa` |
+| `MM_IPA_PATH` / `./ipa:/app/ipa:ro` | docker-compose | Mounts that drop read-only into the backend |
+| `GET /app/source.json` | backend | SideStore source manifest (version, size, download URL) |
+| `GET /app/ios/download` | backend | Serves the `.ipa` itself |
+| `MM_PUBLIC_BASE_URL` | deploy `.env` | Origin for the manifest's absolute URLs — the *phone* fetches these |
 
-- **7-day expiry** — apps stop launching after a week and must be re-signed.
-  SideStore refreshes automatically in the background when the phone can reach
-  it, so in practice you mostly don't notice. Keep SideStore installed.
-- **Max 3 sideloaded apps** at once per Apple ID.
-- App won't appear in Spotlight search until first launched.
+The build command must carry the same dart-defines as the production APK:
 
-## When the 7-day dance gets old → TestFlight ($99/yr)
+```
+--dart-define=FLAVOR=prod --dart-define=API_URL=https://app.manhwamaniacs.xyz
+```
 
-Upgrade path, reusing the same Codemagic build:
-1. Join the Apple Developer Program ($99/yr).
-2. In Codemagic, add an App Store Connect API integration + `ios_signing`.
-3. Swap `flutter build ios --release --no-codesign` for a signed
-   `flutter build ipa`, and add a `publishing: app_store_connect:` block.
-4. Builds then land in **TestFlight** — installs over the air, last 90 days,
-   auto-update like any App Store app.
+Without them the app falls back to `FLAVOR=dev` + `http://127.0.0.1:8000`, which
+on a phone points at nothing, forces the manual setup screen, and permits a
+clear-text bearer token.
+
+## Living with a free Apple ID
+
+- **Apps expire after 7 days.** SideStore background-refreshes over WiFi with
+  LocalDevVPN on, so this is usually invisible. If it lapses, reinstall from
+  SideStore — it re-signs; your data survives.
+- **3 sideloaded apps max** per Apple ID. App Store apps (LocalDevVPN) don't
+  count; SideStore itself does.
+- App won't appear in Spotlight until first launched.
+- Upgrade path if the 7-day cycle ever grates: a $99/yr Apple Developer account
+  plus TestFlight, reusing this exact build — swap `--no-codesign` for a signed
+  `flutter build ipa` and publish to App Store Connect.
+
+## Troubleshooting
+
+| Symptom | Fix |
+|---|---|
+| App shows the server-setup screen | dart-defines missing from the build — check the `flutter build ios` step |
+| SideStore offers no update | `version:` in `mobile/pubspec.yaml` wasn't bumped |
+| `/app/source.json` versions list is empty | No `.ipa` published — run `ops/fetch-ios-build.sh` |
+| Manifest URLs point at an internal host | `MM_PUBLIC_BASE_URL` unset in the deploy `.env` |
+| Install hangs in SideStore | Change the **anisette server** in iloader, or reinstall SideStore |
+| Phone missing from iloader | Trust prompt didn't stick — unplug, replug, unlock, retry |
+
+Docs: <https://docs.sidestore.io> · iloader: <https://github.com/nab138/iloader>

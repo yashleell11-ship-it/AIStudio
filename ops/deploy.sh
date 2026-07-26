@@ -114,9 +114,12 @@ build_apk(){
     warn "Flutter/Android toolchain not found — falling back to a prebuilt APK if present"
   fi
 
-  # Fallback: a prebuilt APK carried in the source tree (mobile/build/...).
-  if [ ! -f "$out" ] && [ -f "$built" ]; then
-    cp "$built" "$out"; say "using prebuilt APK from the source tree"
+  # Publish the prebuilt APK carried in the source tree (mobile/build/...).
+  # ALWAYS overwrite the served copy — a previously-deployed $out must never be
+  # served in place of the current tree's build, or /app/download serves a stale
+  # APK forever (the served version silently lags the pubspec version).
+  if [ -f "$built" ]; then
+    cp "$built" "$out"; say "published prebuilt APK from the source tree"
   fi
 
   if [ -f "$out" ]; then
@@ -234,6 +237,15 @@ do_deploy(){
   #     backend). Best-effort — never fails the deploy.
   build_apk
 
+  # 1c) the iOS .ipa can't be built here (needs macOS) — it's fetched from the
+  #     GitHub Actions runner by ops/fetch-ios-build.sh. Just guarantee the mount
+  #     point exists so compose doesn't create it root-owned and the backend
+  #     reports "not published yet" rather than failing to start.
+  if [ -n "${APP_HOST:-}" ]; then
+    mkdir -p "$DIR/ipa"
+    chown -R 1000:1000 "$DIR/ipa" 2>/dev/null || true
+  fi
+
   # 2) per-environment .env (isolation: compose reads this for build args + runtime env)
   cat > "$DIR/.env" <<ENV
 MM_CONTAINER=$CONTAINER
@@ -241,6 +253,7 @@ MM_IMAGE=$IMAGE
 MM_RESTART=$RESTART
 MM_VOLUME=$VOLUME
 MM_PUBLIC_API_URL=https://$HOST/api
+MM_PUBLIC_BASE_URL=${APP_HOST:+https://$APP_HOST}
 APP_ENV=$APP_ENV
 GIT_BRANCH=$branch
 GIT_COMMIT=$commit

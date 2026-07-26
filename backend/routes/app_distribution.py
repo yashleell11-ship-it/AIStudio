@@ -18,10 +18,11 @@ LAN with no CDN.
 from __future__ import annotations
 
 import os
+from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
@@ -64,6 +65,38 @@ SCREENSHOTS_DIR: Path = Path(
     )
 )
 _ALLOWED_MEDIA_SUFFIXES = {".png", ".jpg", ".jpeg", ".webp", ".gif"}
+
+# Latest unsigned iOS build. Unlike the APK, this is *not* produced by the deploy
+# — building iOS needs macOS, so it comes from the GitHub Actions runner (see
+# .github/workflows/ios-build.yml) and is dropped into $DIR/ipa by
+# ops/fetch-ios-build.sh. Mounted read-only into the container as /app/ipa.
+IPA_PATH: Path = Path(
+    os.environ.get(
+        "MM_IPA_PATH",
+        str(
+            REPO_ROOT
+            / "mobile"
+            / "build"
+            / "ios"
+            / "iphoneos"
+            / "ManhwaManiacs.ipa"
+        ),
+    )
+)
+
+# Absolute base URL used to build the download links inside the SideStore source
+# manifest. Those links are fetched by the *phone*, not by this server, so they
+# can't be relative and can't be an internal hostname. The deploy sets this to
+# https://$APP_HOST; when unset we fall back to the request's own base URL, which
+# is what makes the manifest work unchanged on a LAN.
+PUBLIC_BASE_URL_ENV = "MM_PUBLIC_BASE_URL"
+
+# Must match PRODUCT_BUNDLE_IDENTIFIER in mobile/ios/Runner.xcodeproj — SideStore
+# keys installed apps by bundle id, so a mismatch shows up as a second app rather
+# than an update to the existing one.
+IOS_BUNDLE_ID = "com.manhwamaniacs.reader"
+# Mirrors IPHONEOS_DEPLOYMENT_TARGET in the Xcode project.
+IOS_MIN_VERSION = "13.0"
 
 _DEFAULT_VERSION = "1.0.0"
 _DEFAULT_BUILD = 1
@@ -421,6 +454,86 @@ def read_app_version() -> AppVersion:
     except OSError:
         pass
     return AppVersion(version=version, build=build, apk="/app/download")
+
+
+def _public_base_url(request: Request) -> str:
+    """Absolute origin the phone should use for manifest download links."""
+    configured = os.environ.get(PUBLIC_BASE_URL_ENV, "").strip()
+    if configured:
+        return configured.rstrip("/")
+    return str(request.base_url).rstrip("/")
+
+
+def build_ios_source(request: Request) -> dict:
+    """Build the AltStore/SideStore source manifest for the iOS build.
+
+    The ``versions`` list is empty when no .ipa has been published yet — that is
+    a valid source, and SideStore renders it as an app with nothing installable
+    rather than failing to add the source at all.
+
+    Note that SideStore decides an update exists by comparing ``version`` /
+    ``buildVersion``, both of which come from the Flutter pubspec. Shipping new
+    code without bumping ``version:`` there will *not* surface an update, even
+    though the .ipa behind ``downloadURL`` has changed.
+    """
+    base = _public_base_url(request)
+    info = read_app_version()
+
+    versions: list[dict] = []
+    if IPA_PATH.is_file():
+        stat = IPA_PATH.stat()
+        entry: dict = {
+            "version": info.version,
+            "buildVersion": str(info.build),
+            "date": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime(
+                "%Y-%m-%d"
+            ),
+            "downloadURL": f"{base}/app/ios/download",
+            "size": stat.st_size,
+            "minOSVersion": IOS_MIN_VERSION,
+        }
+        notes = next(
+            (e for e in _RELEASE_NOTES if e.version == info.version),
+            None,
+        )
+        if notes is not None:
+            entry["localizedDescription"] = "\n".join(
+                f"• {h}" for h in notes.highlights
+            )
+        versions.append(entry)
+
+    return {
+        "name": "ManhwaManiacs",
+        "subtitle": "The iOS build of your ManhwaManiacs reader",
+        "website": base,
+        "tintColor": "#7C5CFF",
+        "apps": [
+            {
+                "name": "ManhwaManiacs",
+                "bundleIdentifier": IOS_BUNDLE_ID,
+                "developerName": "ManhwaManiacs",
+                "subtitle": "Manga & manhwa reader",
+                "localizedDescription": (
+                    "Read manga and manhwa from your own ManhwaManiacs server. "
+                    "Track progress across devices, download chapters for "
+                    "offline reading, and search every source at once."
+                ),
+                "iconURL": f"{base}/app/media/app-icon.png",
+                "category": "entertainment",
+                "screenshots": [
+                    f"{base}/app/media/{name}"
+                    for name in (
+                        "reader-screenshot.png",
+                        "search-screenshot.png",
+                        "series-detail-screenshot.png",
+                        "downloads-screenshot.png",
+                    )
+                ],
+                "versions": versions,
+            }
+        ],
+        "news": [],
+    }
 
 
 def _format_size(num_bytes: int) -> str:
@@ -1101,4 +1214,31 @@ def app_download() -> FileResponse:
         path=APK_PATH,
         media_type="application/vnd.android.package-archive",
         filename=f"manhwamaniacs-{info.version}.apk",
+    )
+
+
+@router.get("/app/source.json")
+def app_ios_source(request: Request) -> dict:
+    """SideStore/AltStore source manifest.
+
+    Added as a source inside SideStore on the phone; SideStore then polls this
+    and offers an in-app update whenever the version here outruns the installed
+    one, which is what removes the laptop from the update loop.
+    """
+    return build_ios_source(request)
+
+
+@router.get("/app/ios/download")
+def app_ios_download() -> FileResponse:
+    """Serve the latest unsigned iOS build (fetched from CI, not built here)."""
+    if not IPA_PATH.is_file():
+        raise HTTPException(
+            status_code=404,
+            detail="No iOS build published yet. Run ops/fetch-ios-build.sh.",
+        )
+    info = read_app_version()
+    return FileResponse(
+        path=IPA_PATH,
+        media_type="application/octet-stream",
+        filename=f"manhwamaniacs-{info.version}.ipa",
     )

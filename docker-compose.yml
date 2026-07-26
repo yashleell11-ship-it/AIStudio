@@ -42,6 +42,15 @@ services:
       - MM_APK_PATH=${MM_APK_PATH:-/app/apk/app-release.apk}
       - MM_PUBSPEC_PATH=${MM_PUBSPEC_PATH:-/app/mobile/pubspec.yaml}
       - MM_SCREENSHOTS_DIR=${MM_SCREENSHOTS_DIR:-/app/mobile/docs/screenshots}
+      # Latest unsigned iOS build, served at app.<host>/app/ios/download and listed
+      # in the SideStore source at /app/source.json. Populated by
+      # ops/fetch-ios-build.sh from the GitHub Actions macOS runner, not by the
+      # deploy — iOS builds need a Mac.
+      - MM_IPA_PATH=${MM_IPA_PATH:-/app/ipa/ManhwaManiacs.ipa}
+      # Origin baked into the source manifest's download links. Those URLs are
+      # fetched by the phone, so they must be publicly resolvable — the deploy
+      # sets this to https://$APP_HOST.
+      - MM_PUBLIC_BASE_URL=${MM_PUBLIC_BASE_URL:-}
     expose:
       - "8000"
     networks: [internal, edge]
@@ -51,6 +60,9 @@ services:
       # (landing imagery). The ./apk dir is created by the deploy even when empty, so
       # a missing APK reads as "not built yet" instead of a broken bind mount.
       - ./apk:/app/apk:ro
+      # Same pattern for the iOS build; dir is created empty by the deploy so a
+      # missing .ipa reads as "not published yet" instead of a broken mount.
+      - ./ipa:/app/ipa:ro
       - ./mobile/pubspec.yaml:/app/mobile/pubspec.yaml:ro
       - ./mobile/docs/screenshots:/app/mobile/docs/screenshots:ro
     healthcheck:
