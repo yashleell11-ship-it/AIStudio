@@ -1,0 +1,53 @@
+name: Build iOS (unsigned, for sideload)
+
+# Builds an unsigned iOS .ipa on GitHub's free cloud Mac.
+# No Apple Developer account needed. The .ipa is downloadable from the run's
+# "Artifacts" section, then installed on-device via SideStore / AltStore.
+#
+# Runs automatically on every push to the branch below, and can also be
+# started by hand from the repo's Actions tab (workflow_dispatch).
+
+on:
+  push:
+    branches:
+      - feat/profile-isolation-eclipse-warm
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    runs-on: macos-latest
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.44.6'
+          channel: stable
+          cache: true
+
+      - name: Flutter pub get
+        run: flutter pub get
+
+      - name: Build unsigned iOS app
+        # `flutter build ios` runs `pod install`; --no-codesign skips Apple signing.
+        run: flutter build ios --release --no-codesign
+
+      - name: Package unsigned .ipa
+        # An .ipa is just a zip with the .app inside a Payload/ folder.
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/Runner.app
+          zip -r9 ManhwaManiacs.ipa Payload
+
+      - name: Upload .ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ManhwaManiacs-ipa
+          path: mobile/build/ios/iphoneos/ManhwaManiacs.ipa
+          if-no-files-found: error
