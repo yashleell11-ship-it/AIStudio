@@ -190,7 +190,12 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
                         final collection = filtered[index];
                         return CollectionBannerCard(
                           collection: collection,
-                          onTap: () => context.go(RoutePaths.collectionDetail(collection.id)),
+                          // push, not go: `go` would replace the whole stack
+                          // with a two-page match and throw away the tab shell
+                          // this screen was pushed over, which also costs the
+                          // iOS back-swipe on the way out of Collections.
+                          onTap: () => context
+                              .push(RoutePaths.collectionDetail(collection.id)),
                         );
                       },
                     ),

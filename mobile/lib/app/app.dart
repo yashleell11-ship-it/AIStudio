@@ -1,4 +1,5 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/router/app_router.dart';
 import 'package:manhwamaniacs/app/theme/app_theme.dart';
@@ -20,8 +21,16 @@ class ManhwaManiacsApp extends ConsumerWidget {
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
       routerConfig: router,
-      builder: (context, child) =>
-          WhatsNewAutoShow(child: child ?? const SizedBox.shrink()),
+      // Baseline overlay style for the screens that have no AppBar to publish
+      // one — the dashboard, the reader, the profile picker. Without it those
+      // screens inherit whatever the last AppBar happened to set, which on iOS
+      // means falling back to `UIStatusBarStyleDefault` (dark glyphs when the
+      // phone is in Light appearance) over the app's near-black background.
+      // Any AppBar's own AnnotatedRegion sits deeper in the tree and still wins.
+      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
+        value: AppTheme.systemOverlayStyle,
+        child: WhatsNewAutoShow(child: child ?? const SizedBox.shrink()),
+      ),
     );
   }
 }

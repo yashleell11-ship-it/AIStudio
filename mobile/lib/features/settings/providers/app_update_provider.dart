@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -25,6 +26,7 @@ final appUpdateProvider =
       localVersion: localInfo.version,
       localBuild: localBuild,
       apiBaseUrl: baseUrl,
+      channel: AppUpdateChannel.forPlatform(defaultTargetPlatform),
     );
   } on DioException {
     return null;

@@ -134,7 +134,14 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen> {
                       const SizedBox(height: AppSpacing.xl2),
                       ..._buildQueueContent(state, filter, notifier),
                       ..._buildCompletedSection(state.items),
-                      const SizedBox(height: AppSpacing.xl3),
+                      // Clear the floating glass nav bar *and* the home
+                      // indicator beneath it — the shell sets `extendBody`, so
+                      // the last rows otherwise come to rest underneath both.
+                      // Matches sources_list_screen.dart.
+                      SizedBox(
+                        height: AppSpacing.xl7 +
+                            MediaQuery.paddingOf(context).bottom,
+                      ),
                     ],
                   ),
                 ),

@@ -295,7 +295,13 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ),
                 ),
               ],
-              const SizedBox(height: AppSpacing.xl3),
+              // Clear the floating nav bar (56pt) and the gap it floats in
+              // (the bottom inset, 34pt on an iPhone) — the shell sets
+              // `extendBody`, so the last result otherwise comes to rest
+              // underneath both. Matches sources_list_screen.dart.
+              SizedBox(
+                height: AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+              ),
             ],
           ),
         ),

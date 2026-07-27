@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
@@ -12,6 +13,7 @@ import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
+import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
@@ -546,6 +548,12 @@ class _ReaderDefaultsSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final defaults = ref.watch(readerDefaultsProvider);
     final notifier = ref.read(readerDefaultsProvider.notifier);
+    // Refresh rate is `flutter_displaymode` and volume-key paging is the
+    // `NativeBridge` method channel; both are Android-only and already no-op
+    // elsewhere (reader_display_mode.dart, native_bridge.dart). Showing live
+    // controls that save a preference and then do nothing is worse than not
+    // showing them, so hide rather than disable.
+    final hasDisplayModes = Theme.of(context).platform == TargetPlatform.android;
 
     return GlassCard(
       child: Column(
@@ -576,29 +584,31 @@ class _ReaderDefaultsSection extends ConsumerWidget {
             onSelectionChanged: (selection) =>
                 notifier.setFitMode(selection.first),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
-            child: Text('Refresh rate', style: AppTypography.labelLg),
-          ),
-          Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-            child: Text(
-              'Auto uses the highest rate your screen supports.',
-              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+          if (hasDisplayModes) ...[
+            const SizedBox(height: AppSpacing.lg),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+              child: Text('Refresh rate', style: AppTypography.labelLg),
             ),
-          ),
-          Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.xs,
-            children: ReaderRefreshRate.values.map((rate) {
-              return ChoiceChip(
-                label: Text(rate.label),
-                selected: defaults.refreshRate == rate,
-                onSelected: (_) => notifier.setRefreshRate(rate),
-              );
-            }).toList(),
-          ),
+            Padding(
+              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              child: Text(
+                'Auto uses the highest rate your screen supports.',
+                style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+              ),
+            ),
+            Wrap(
+              spacing: AppSpacing.sm,
+              runSpacing: AppSpacing.xs,
+              children: ReaderRefreshRate.values.map((rate) {
+                return ChoiceChip(
+                  label: Text(rate.label),
+                  selected: defaults.refreshRate == rate,
+                  onSelected: (_) => notifier.setRefreshRate(rate),
+                );
+              }).toList(),
+            ),
+          ],
           const SizedBox(height: AppSpacing.sm),
           // SwitchListTile paints on the nearest Material ancestor; GlassCard
           // doesn't provide one unless onTap is set.
@@ -627,15 +637,16 @@ class _ReaderDefaultsSection extends ConsumerWidget {
                   value: defaults.lockControls,
                   onChanged: notifier.setLockControls,
                 ),
-                SwitchListTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Volume key navigation'),
-                  subtitle: const Text(
-                    'Turn pages with the volume buttons (Android)',
+                if (hasDisplayModes)
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Volume key navigation'),
+                    subtitle: const Text(
+                      'Turn pages with the volume buttons',
+                    ),
+                    value: defaults.volumeKeyNavigation,
+                    onChanged: notifier.setVolumeKeyNavigation,
                   ),
-                  value: defaults.volumeKeyNavigation,
-                  onChanged: notifier.setVolumeKeyNavigation,
-                ),
               ],
             ),
           ),
@@ -915,7 +926,7 @@ class _AboutPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final infoAsync = ref.watch(packageInfoProvider);
-    final updateAsync = ref.watch(appUpdateProvider);
+    final channel = AppUpdateChannel.forPlatform(Theme.of(context).platform);
 
     return ListView(
       padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -950,113 +961,13 @@ class _AboutPanel extends ConsumerWidget {
         // Update check
         const _SectionHeading('Updates'),
         const SizedBox(height: AppSpacing.sm),
-        updateAsync.when(
-          loading: () => const SkeletonBox(width: double.infinity, height: 64),
-          error: (_, __) => GlassCard(
-            child: Row(
-              children: [
-                const Icon(
-                  Icons.cloud_off_outlined,
-                  color: AppColors.muted,
-                  size: 18,
-                ),
-                const SizedBox(width: AppSpacing.sm),
-                Text(
-                  'Could not check for updates',
-                  style: AppTypography.body.copyWith(color: AppColors.muted),
-                ),
-              ],
-            ),
-          ),
-          data: (info) {
-            if (info == null) {
-              return GlassCard(
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.cloud_off_outlined,
-                      color: AppColors.muted,
-                      size: 18,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Server unreachable',
-                      style:
-                          AppTypography.body.copyWith(color: AppColors.muted),
-                    ),
-                  ],
-                ),
-              );
-            }
-            if (!info.hasUpdate) {
-              return GlassCard(
-                child: Row(
-                  children: [
-                    const Icon(
-                      Icons.check_circle_outline,
-                      color: AppColors.success,
-                      size: 18,
-                    ),
-                    const SizedBox(width: AppSpacing.sm),
-                    Text(
-                      'Up to date — v${info.localVersion}',
-                      style: AppTypography.body,
-                    ),
-                  ],
-                ),
-              );
-            }
-            return GlassCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.system_update_outlined,
-                        color: AppColors.primary,
-                        size: 18,
-                      ),
-                      const SizedBox(width: AppSpacing.sm),
-                      Text(
-                        'Update available',
-                        style: AppTypography.labelLg.copyWith(
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(
-                    'v${info.localVersion} → v${info.remoteVersion}',
-                    style:
-                        AppTypography.bodySm.copyWith(color: AppColors.muted),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  OutlinedButton.icon(
-                    onPressed: () async {
-                      final uri = Uri.tryParse(info.downloadUrl);
-                      if (uri == null) return;
-                      final launched = await launchUrl(
-                        uri,
-                        mode: LaunchMode.externalApplication,
-                      );
-                      if (!launched && context.mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          SnackBar(
-                            content: Text('Could not open: ${info.downloadUrl}'),
-                          ),
-                        );
-                      }
-                    },
-                    icon: const Icon(Icons.download_outlined, size: 16),
-                    label: const Text('Download Update'),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
+        // The two channels are not comparable, so neither is their UI: the
+        // APK card runs a build-number check the SideStore channel has no
+        // equivalent for. See AppVersionInfo.hasUpdate.
+        if (channel == AppUpdateChannel.sideStore)
+          const _SideStoreUpdateCard()
+        else
+          const _ApkUpdateCard(),
         const SizedBox(height: AppSpacing.lg),
         OutlinedButton(
           onPressed: () {
@@ -1070,6 +981,197 @@ class _AboutPanel extends ConsumerWidget {
           child: const Text('Open source licenses'),
         ),
       ],
+    );
+  }
+}
+
+/// The Updates section on the Android APK channel: check `/app/version`
+/// and offer the release APK when the backend is ahead of the install.
+class _ApkUpdateCard extends ConsumerWidget {
+  const _ApkUpdateCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ref.watch(appUpdateProvider).when(
+      loading: () => const SkeletonBox(width: double.infinity, height: 64),
+      error: (_, __) => GlassCard(
+        child: Row(
+          children: [
+            const Icon(
+              Icons.cloud_off_outlined,
+              color: AppColors.muted,
+              size: 18,
+            ),
+            const SizedBox(width: AppSpacing.sm),
+            Text(
+              'Could not check for updates',
+              style: AppTypography.body.copyWith(color: AppColors.muted),
+            ),
+          ],
+        ),
+      ),
+      data: (info) {
+        if (info == null) {
+          return GlassCard(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.cloud_off_outlined,
+                  color: AppColors.muted,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Server unreachable',
+                  style:
+                      AppTypography.body.copyWith(color: AppColors.muted),
+                ),
+              ],
+            ),
+          );
+        }
+        if (!info.hasUpdate) {
+          return GlassCard(
+            child: Row(
+              children: [
+                const Icon(
+                  Icons.check_circle_outline,
+                  color: AppColors.success,
+                  size: 18,
+                ),
+                const SizedBox(width: AppSpacing.sm),
+                Text(
+                  'Up to date — v${info.localVersion}',
+                  style: AppTypography.body,
+                ),
+              ],
+            ),
+          );
+        }
+        return GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  const Icon(
+                    Icons.system_update_outlined,
+                    color: AppColors.primary,
+                    size: 18,
+                  ),
+                  const SizedBox(width: AppSpacing.sm),
+                  Text(
+                    'Update available',
+                    style: AppTypography.labelLg.copyWith(
+                      color: AppColors.primary,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                'v${info.localVersion} → v${info.remoteVersion}',
+                style:
+                    AppTypography.bodySm.copyWith(color: AppColors.muted),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  final uri = Uri.tryParse(info.downloadUrl);
+                  if (uri == null) return;
+                  final launched = await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  );
+                  if (!launched && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Could not open: ${info.downloadUrl}'),
+                      ),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.download_outlined, size: 16),
+                label: const Text('Download Update'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// The Updates section on a sideloaded iOS build.
+///
+/// There is deliberately nothing to tap here. The app is installed through
+/// SideStore on a free Apple ID: SideStore subscribes to the source manifest
+/// below, compares it against what is installed, and does the install and the
+/// 7-day re-sign itself. Anything this screen offered instead would be a lie —
+/// `/app/download` is an Android `.apk`, and a raw `.ipa` cannot be installed
+/// by a process that has no way to sign it.
+class _SideStoreUpdateCard extends ConsumerWidget {
+  const _SideStoreUpdateCard();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final sourceUrl = AppVersionInfo.sourceUrlFor(
+      AppUpdateChannel.sideStore,
+      ref.watch(apiBaseUrlProvider),
+    );
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(
+                Icons.install_mobile_outlined,
+                color: AppColors.primary,
+                size: 18,
+              ),
+              const SizedBox(width: AppSpacing.sm),
+              Text(
+                'Managed by SideStore',
+                style: AppTypography.labelLg.copyWith(
+                  color: AppColors.primary,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            'This build is sideloaded. SideStore watches the source below and '
+            'offers new builds itself — there is nothing to download here.',
+            style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          SelectableText(
+            sourceUrl,
+            style: AppTypography.bodySm.copyWith(color: AppColors.fg),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          OutlinedButton.icon(
+            onPressed: () async {
+              await Clipboard.setData(ClipboardData(text: sourceUrl));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Source URL copied')),
+              );
+            },
+            icon: const Icon(Icons.copy_outlined, size: 16),
+            label: const Text('Copy source URL'),
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            'A free Apple ID signature lasts 7 days. If the app stops '
+            'launching, open SideStore and refresh it — re-signing with the '
+            'same Apple ID keeps you signed in here.',
+            style: AppTypography.caption.copyWith(color: AppColors.muted),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1125,7 +1227,12 @@ class _DebugPanel extends ConsumerWidget {
                     Text('Performance & display', style: AppTypography.labelLg),
                     const SizedBox(height: AppSpacing.xxs),
                     Text(
-                      'Refresh rate, FPS, frame timing, device info, cache',
+                      // Refresh rate is only a readable/switchable thing on
+                      // Android (`flutter_displaymode`); do not advertise it
+                      // where the diagnostics screen reports "unsupported".
+                      Theme.of(context).platform == TargetPlatform.android
+                          ? 'Refresh rate, FPS, frame timing, device info, cache'
+                          : 'FPS, frame timing, device info, cache',
                       style: AppTypography.bodySm
                           .copyWith(color: AppColors.muted),
                     ),

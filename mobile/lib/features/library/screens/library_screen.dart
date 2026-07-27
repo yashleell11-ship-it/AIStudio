@@ -374,8 +374,12 @@ class _LibraryBody extends StatelessWidget {
                 ),
               ),
             ],
-            // Extra bottom padding for floating nav bar
-            const SizedBox(height: AppSpacing.xl7),
+            // Clear the floating nav bar and the home indicator under it. The
+            // flat xl7 that used to be here only happened to be tall enough on
+            // Android's ~24pt gesture inset; iOS's 34pt eats into it.
+            SizedBox(
+              height: AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+            ),
           ],
         ),
       ),

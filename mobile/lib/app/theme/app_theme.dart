@@ -11,6 +11,24 @@ export 'package:manhwamaniacs/app/theme/app_typography.dart';
 
 /// ManhwaManiacs v2 Material dark theme — dark-only.
 abstract final class AppTheme {
+  /// System overlay (status bar / nav bar) style for the whole app.
+  ///
+  /// The two brightness fields are inverted by design and read by different
+  /// platforms. `statusBarIconBrightness` describes the *glyphs* and is
+  /// Android-only; `statusBarBrightness` describes the *background behind* the
+  /// bar and is the only field the iOS embedder looks at — it early-returns
+  /// when that key is absent, which is why every AppBar's overlay style used to
+  /// be a no-op on iPhone. The app pins a dark theme on both `theme` and
+  /// `darkTheme`, so this is a constant rather than something derived from the
+  /// system appearance.
+  static const SystemUiOverlayStyle systemOverlayStyle = SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+    statusBarBrightness: Brightness.dark,
+    systemNavigationBarColor: Colors.transparent,
+    systemNavigationBarIconBrightness: Brightness.light,
+  );
+
   static ThemeData get dark {
     const colorScheme = ColorScheme.dark(
       surface: AppColors.panel,
@@ -45,12 +63,7 @@ abstract final class AppTheme {
         scrolledUnderElevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        systemOverlayStyle: SystemUiOverlayStyle(
-          statusBarColor: Colors.transparent,
-          statusBarIconBrightness: Brightness.light,
-          systemNavigationBarColor: Colors.transparent,
-          systemNavigationBarIconBrightness: Brightness.light,
-        ),
+        systemOverlayStyle: systemOverlayStyle,
       ),
 
       // ── Navigation Bar (M3) ───────────────────────────────────────────────

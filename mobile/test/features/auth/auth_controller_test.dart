@@ -47,16 +47,25 @@ const _unreachable = NetworkError(message: 'blackholed', host: 'nas.local');
 class _FakeStorage extends SecureStorageService {
   String? token;
 
+  /// Simulates the keychain refusing a write or a delete. `flutter_secure_
+  /// storage` turns any non-`noErr` OSStatus into a `PlatformException`, and on
+  /// an iOS build that SideStore re-signs every 7 days that is a live
+  /// possibility rather than a theoretical one.
+  bool failWrites = false;
+  bool failDeletes = false;
+
   @override
   Future<String?> getAuthToken() async => token;
 
   @override
   Future<void> setAuthToken(String value) async {
+    if (failWrites) throw Exception('keychain write refused');
     token = value;
   }
 
   @override
   Future<void> clearAuthToken() async {
+    if (failDeletes) throw Exception('keychain delete refused');
     token = null;
   }
 }
@@ -459,6 +468,74 @@ void main() {
       await pumpEventQueue();
       expect(repo.logoutCalls, 0);
       expect(storage.token, isNull);
+    });
+  });
+
+  // The app is sideloaded on iOS and re-signed on the device every 7 days, so
+  // a keychain call failing is a real operating condition. None of these may
+  // leave the app on a screen it cannot leave — an infinite splash or a
+  // permanently spinning sign-in button is indistinguishable from a lapsed
+  // signing certificate, which is the one failure the owner must be able to
+  // diagnose.
+  group('AuthController survives keychain failures', () {
+    test('a failed delete still resolves the launch, never latching '
+        'AuthUnknown', () async {
+      final storage = _FakeStorage()
+        ..token = 'stale'
+        ..failDeletes = true;
+      final (container, _) = await _containerWithPrefs(
+        _FakeAuthRepository(meResult: const Err<AuthUser>(_rejected)),
+        storage,
+        prefs: _prefsWithCachedUser(),
+      );
+
+      await container.read(authControllerProvider.notifier).restored;
+
+      // Without the guard the throw unwound past `state = AuthUnauthenticated()`
+      // and the router held the app on the splash for the rest of the session.
+      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
+      // The in-memory token is cleared synchronously, so no request carries the
+      // credential the server just rejected even though the disk copy survives.
+      expect(container.read(authTokenStoreProvider).token, isNull);
+    });
+
+    test('a failed write still completes the sign-in it belongs to', () async {
+      final storage = _FakeStorage()..failWrites = true;
+      final (container, _) = await _containerWithPrefs(
+        _FakeAuthRepository(
+          loginResult: Ok(AuthResponse(user: _user, token: 'fresh')),
+        ),
+        storage,
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      final error = await container
+          .read(authControllerProvider.notifier)
+          .login(username: 'tester', password: 'pw', remember: true);
+
+      expect(error, isNull);
+      expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
+      // Persistence is what was lost, not the session: the interceptor reads
+      // the in-memory token, so this launch works and only a restart signs out.
+      expect(container.read(authTokenStoreProvider).token, 'fresh');
+      expect(storage.token, isNull);
+    });
+
+    test('logout still completes when the delete fails', () async {
+      final storage = _FakeStorage()..token = 'tok';
+      final repo = _FakeAuthRepository(meResult: Ok(_user));
+      final (container, _) = await _containerWithPrefs(repo, storage);
+      await container.read(authControllerProvider.notifier).restored;
+      expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
+
+      storage.failDeletes = true;
+      await container.read(authControllerProvider.notifier).logout();
+
+      expect(repo.logoutCalls, 1);
+      // The session is revoked server-side by this point, so a "Log out" that
+      // silently did nothing would leave the user on a dead session.
+      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
+      expect(container.read(authTokenStoreProvider).token, isNull);
     });
   });
 }
