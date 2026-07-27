@@ -66,7 +66,7 @@ def _page_count(document: str, *, gallery_id: str) -> int:
             return int(match.group(1))
         except ValueError:
             pass
-    numbers = [int(number) for number in GALLERY_THUMB_RE.findall(document)]
+    numbers = [int(number) for _page, number in GALLERY_THUMB_RE.findall(document)]
     return max(numbers) if numbers else 0
 
 

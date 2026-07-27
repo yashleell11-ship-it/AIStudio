@@ -34,7 +34,7 @@ CHAPTER_LINK_RE = re.compile(
     r"<a\s+class=['\"]cd-chapter-link['\"]\s*href=['\"]/ReadComic\?id=([a-f0-9]+)['\"]>\s*(.*?)\s*</a>",
     re.S | re.I,
 )
-CHAPTER_NUM_RE = re.compile(r"章节\s*(\d+)\s*:", re.I)
+CHAPTER_NUM_RE = re.compile(r"章节\s*(\d+(?:\.\d+)?)\s*:", re.I)
 PAGE_IMG_RE = re.compile(r"data-src=['\"](https?://[^'\"]+)['\"]", re.I)
 VIEWSTATE_RE = re.compile(
     r'name="(__VIEWSTATE|__VIEWSTATEGENERATOR|__EVENTVALIDATION)"[^>]*value="([^"]*)"',

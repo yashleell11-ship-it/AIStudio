@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Comment out DEAD/ERROR Madara sites in sites.py from probe results."""
+"""Comment out DEAD/ERROR Madara sites in catalog.py from probe results."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[2]
-SITES_PY = REPO / "backend" / "connectors" / "madara" / "sites.py"
+CATALOG_PY = REPO / "backend" / "connectors" / "catalog.py"
 RESULTS = REPO / "docs" / "connector_probe_results.json"
 
 HANDCRAFTED = frozenset(
@@ -26,7 +26,7 @@ def main() -> None:
     }
     live_ids = {r["source_id"] for r in data["results"] if r["status"] == "LIVE"}
 
-    text = SITES_PY.read_text(encoding="utf-8")
+    text = CATALOG_PY.read_text(encoding="utf-8")
     lines = text.splitlines(keepends=True)
     out: list[str] = []
     changed = 0
@@ -41,7 +41,7 @@ def main() -> None:
             continue
         out.append(line)
 
-    SITES_PY.write_text("".join(out), encoding="utf-8")
+    CATALOG_PY.write_text("".join(out), encoding="utf-8")
     print(f"Commented out {changed} dead Madara entries")
     print(f"Live: {len(live_ids)} | Dead pruned: {len(dead_ids)}")
 

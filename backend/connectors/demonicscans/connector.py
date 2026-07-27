@@ -76,8 +76,16 @@ class DemonicScansConnector(SourceConnector):
 
     @property
     def allowed_image_hosts(self) -> frozenset[str]:
-        # Cover thumbnails are hosted on readermc.org; reader pages on demoniclibs.
-        return frozenset({"demonicscans.org", "demoniclibs.com", "readermc.org"})
+        # Cover thumbnails are hosted on readermc.org; reader page images moved
+        # to mangareadon.org (demoniclibs.com kept as a legacy fallback host).
+        return frozenset(
+            {
+                "demonicscans.org",
+                "demoniclibs.com",
+                "readermc.org",
+                "mangareadon.org",
+            }
+        )
 
     def image_fetch_headers(self) -> dict[str, str]:
         return {"Referer": f"{SITE_BASE}/"}

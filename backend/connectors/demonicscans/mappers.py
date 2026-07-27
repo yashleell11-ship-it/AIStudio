@@ -5,8 +5,11 @@ from __future__ import annotations
 import html
 import re
 from typing import Any
+from urllib.parse import quote
 from urllib.parse import urljoin
 from urllib.parse import urlparse
+from urllib.parse import urlsplit
+from urllib.parse import urlunsplit
 
 from connectors.ids import fully_unquote
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
@@ -14,7 +17,11 @@ from connectors.titles import normalize_chapter_title
 
 SITE_BASE = "https://demonicscans.org"
 PAGE_SIZE = 20
-READER_IMAGE_HOST_SUFFIXES = ("demoniclibs.com",)
+# Reader page images are served from these CDN hosts. The site migrated the
+# reader off ``demoniclibs.com`` to ``mangareadon.org`` (img.class="imgholder"
+# with ``src="https://mangareadon.org/<Series>/<chapter>/<n>.jpg"``); the older
+# host is kept as a fallback for chapters that still point at it.
+READER_IMAGE_HOST_SUFFIXES = ("mangareadon.org", "demoniclibs.com")
 READER_IMAGE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 READER_IMAGE_BLOCKLIST_SUBSTRINGS = (
     "/img/free_ads",
@@ -148,9 +155,16 @@ def parse_series_detail(html_text: str, series_id: str) -> Series | None:
     artist = _stat("Artist")
     status = _stat("Status")
 
-    genres = tuple(
-        _clean_text(item)
-        for item in re.findall(r'<div class="genres-list">.*?<li>\s*([^<]+)\s*</li>', html_text, re.I | re.S)
+    genres_block = re.search(
+        r'<div class="genres-list">(.*?)</div>', html_text, re.I | re.S
+    )
+    genres = (
+        tuple(
+            _clean_text(item)
+            for item in re.findall(r"<li>\s*([^<]+)\s*</li>", genres_block.group(1), re.I | re.S)
+        )
+        if genres_block
+        else ()
     )
 
     desc_match = re.search(
@@ -212,7 +226,7 @@ def parse_chapters(html_text: str, series_id: str) -> list[Chapter]:
 
 
 def chapter_id_to_reader_path(chapter_id: str) -> str:
-    series_id, _, chapter_num = chapter_id.partition(":")
+    series_id, _, chapter_num = chapter_id.rpartition(":")
     return f"/title/{series_id}/chapter/{chapter_num}/1"
 
 
@@ -224,6 +238,19 @@ IMG_TAG_RE = re.compile(r"<img[^>]+>", re.I)
 SOURCE_TAG_RE = re.compile(r"<source[^>]+>", re.I)
 SRCSET_RE = re.compile(r'srcset\s*=\s*"([^"]+)"', re.I)
 NOSCRIPT_RE = re.compile(r"<noscript>(.*?)</noscript>", re.I | re.S)
+
+
+def _encode_url_path(url: str) -> str:
+    """Percent-encode spaces (and other unsafe path chars) in a reader image URL.
+
+    ``mangareadon.org`` serves page images at paths containing raw spaces
+    (e.g. ``/Tales of Demons and Gods/1/1.jpg``). Storing a spec-valid URL keeps
+    every downstream consumer (image proxy, download manager) happy. ``%`` is in
+    the safe set so already-encoded URLs are not double-encoded.
+    """
+    parts = urlsplit(url)
+    path = quote(parts.path, safe="/%:@!$&'()*+,;=~-._")
+    return urlunsplit((parts.scheme, parts.netloc, path, parts.query, parts.fragment))
 
 
 def _urls_from_srcset(value: str) -> list[str]:
@@ -257,7 +284,7 @@ def extract_image_urls(html_text: str) -> list[str]:
         return True
 
     def _add(url: str) -> None:
-        full = urljoin(SITE_BASE, url.strip())
+        full = _encode_url_path(urljoin(SITE_BASE, url.strip()))
         if not full or full in seen:
             return
         if not _is_real_reader_image(full):

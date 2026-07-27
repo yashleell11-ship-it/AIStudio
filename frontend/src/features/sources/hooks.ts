@@ -5,6 +5,7 @@ import type { SourceChapterSummary } from "./types";
 
 const SOURCES_KEY = ["sources"] as const;
 const SOURCE_READER_STALE_MS = 5 * 60_000;
+const SEARCH_STALE_MS = 30_000;
 
 export function sourceReaderChapterQueryKey(
   sourceId: string,
@@ -55,6 +56,26 @@ export function useSources() {
   return useQuery({
     queryKey: [...SOURCES_KEY, "installed"],
     queryFn: () => sourcesApi.listSources(),
+  });
+}
+
+/**
+ * Federated search across the local library and every enabled remote source.
+ * Mirrors the local-library `useSearch`: only runs for a non-empty query, keeps
+ * previous results while a new query loads (no flicker), and reuses the same
+ * short staleTime as the global default so repeated searches stay cached.
+ */
+export function useFederatedSearch(params: {
+  q: string;
+  page?: number;
+  per_page?: number;
+}) {
+  return useQuery({
+    queryKey: [...SOURCES_KEY, "search", params],
+    queryFn: () => sourcesApi.federatedSearch(params),
+    enabled: params.q.length > 0,
+    placeholderData: (previous) => previous,
+    staleTime: SEARCH_STALE_MS,
   });
 }
 

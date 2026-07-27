@@ -4,13 +4,19 @@ from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, patch
+from urllib.parse import urlparse
 
 import pytest
 
 from connectors.demonicscans.connector import DemonicScansConnector
-from connectors.demonicscans.mappers import parse_series_cards, parse_series_detail
+from connectors.demonicscans.mappers import (
+    parse_chapter_pages,
+    parse_series_cards,
+    parse_series_detail,
+)
 from connectors.ids import fully_unquote
 from services.browse_service import BrowseService, _serialize_series
+from services.outbound_security import host_matches_allowlist
 from connectors.models import Series
 
 FIXTURES = Path(__file__).parent / "fixtures" / "demonicscans"
@@ -81,6 +87,41 @@ def test_demonicscans_allowlist_includes_readermc() -> None:
     connector = DemonicScansConnector()
     assert "readermc.org" in connector.allowed_image_hosts
     assert connector.image_fetch_headers()["Referer"] == "https://demonicscans.org/"
+
+
+def test_parse_chapter_pages_extracts_mangareadon_images() -> None:
+    html = (FIXTURES / "chapter_reader_pages.html").read_text(encoding="utf-8")
+    pages = parse_chapter_pages(html, "Tales-of-Demons-and-Gods:1")
+
+    # Three real page images; the house ad (/img/free_ads.jpg) is dropped.
+    assert len(pages) == 3
+    for index, page in enumerate(pages, start=1):
+        assert page.id == f"Tales-of-Demons-and-Gods:1:{index}"
+        assert page.number == index
+        assert page.remote_url is not None
+        assert page.remote_url.startswith("https://mangareadon.org/")
+        # Raw spaces in the CDN path are percent-encoded into a valid URL.
+        assert " " not in page.remote_url
+        assert "%20" in page.remote_url
+        assert page.remote_url.endswith(f"/1/{index}.jpg")
+
+    assert all("free_ads" not in (p.remote_url or "") for p in pages)
+
+
+def test_parse_chapter_pages_urls_pass_ssrf_allowlist() -> None:
+    connector = DemonicScansConnector()
+    assert "mangareadon.org" in connector.allowed_image_hosts
+
+    html = (FIXTURES / "chapter_reader_pages.html").read_text(encoding="utf-8")
+    pages = parse_chapter_pages(html, "Tales-of-Demons-and-Gods:1")
+    assert pages
+
+    # Extracted hosts must clear the shared SSRF allowlist check (host-exact or
+    # dot-suffix, not weakened), otherwise the image proxy would reject them.
+    for page in pages:
+        hostname = urlparse(page.remote_url).hostname
+        assert hostname is not None
+        assert host_matches_allowlist(hostname, connector.allowed_image_hosts)
 
 
 def test_resolve_series_cover_fetches_readermc(monkeypatch: pytest.MonkeyPatch) -> None:

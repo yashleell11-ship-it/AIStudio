@@ -155,7 +155,7 @@ def series_detail_to_series(payload: dict[str, Any], *, chapter_count: int | Non
 
 def chapter_item_to_chapter(item: dict[str, Any], *, series_id: str) -> Chapter:
     number = item.get("number")
-    chapter_number = int(number) if number is not None else None
+    chapter_number = float(number) if number is not None else None
     title = normalize_chapter_title(item.get("title"))
     if not title:
         title = f"Chapter {number}" if number is not None else "Chapter"

@@ -101,6 +101,12 @@ class MangaDexConnector(SourceConnector):
             "contentRating[]": ["safe", "suggestive", "erotica"],
             "includes[]": ["cover_art", "author", "artist"],
             "hasAvailableChapters": "true",
+            # get_chapters() reads the feed filtered to translatedLanguage[]=en,
+            # so browse must be filtered the same way. Without this, browse
+            # surfaces series whose only chapters are in other languages
+            # (e.g. Russian- or Vietnamese-only titles), and the English feed
+            # then returns 0 chapters -> the series looks empty to the reader.
+            "availableTranslatedLanguage[]": ["en"],
         }
         order = MANGA_SORT_ORDERS.get(sort or "default", MANGA_SORT_ORDERS["default"])
         params.update(order)

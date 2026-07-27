@@ -100,6 +100,8 @@ class _LocalReaderBody extends ConsumerWidget {
               id: page.id.toString(),
               number: page.number,
               imageUrl: readerPageImageUrl(apiBaseUrl, page.id),
+              width: page.width,
+              height: page.height,
             ),
           )
           .toList(),

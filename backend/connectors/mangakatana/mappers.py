@@ -71,7 +71,7 @@ def page_id_chapter_id(page_id: str) -> str | None:
     return chapter_id or None
 
 
-def parse_chapter_number(chapter_id: str) -> int | None:
+def parse_chapter_number(chapter_id: str) -> float | None:
     if "/" not in chapter_id:
         return None
     _, _, ref = chapter_id.rpartition("/")
@@ -79,7 +79,7 @@ def parse_chapter_number(chapter_id: str) -> int | None:
         ref = ref[1:]
     try:
         value = float(ref)
-        return int(value) if value.is_integer() else None
+        return int(value) if value.is_integer() else value
     except ValueError:
         return None
 
