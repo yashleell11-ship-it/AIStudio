@@ -27,9 +27,16 @@ services:
       # user's is_admin, not a token — the first registered account bootstraps as
       # admin. Cookies are Secure by default (all envs are HTTPS behind Caddy).
       - MM_COOKIE_SECURE=${MM_COOKIE_SECURE:-true}
-      # Allow self-service signup after the bootstrap admin exists. Set false for
-      # an invite-only / single-household instance.
-      - MM_REGISTRATION_ENABLED=${MM_REGISTRATION_ENABLED:-true}
+      # Allow self-service signup after the bootstrap admin exists. Defaults to
+      # CLOSED: these instances are internet-facing via Cloudflare, and an open
+      # signup on a public host lets strangers create accounts on the household
+      # server. Set true explicitly (and briefly) to invite someone.
+      #
+      # Note this flag does NOT gate the bootstrap account — routes/auth.py:164
+      # only enforces it once `user_count() > 0`, so an instance with an empty
+      # users table is always claimable by whoever registers first. Closing that
+      # window means creating the owner account, not flipping this flag.
+      - MM_REGISTRATION_ENABLED=${MM_REGISTRATION_ENABLED:-false}
       # Absolute host dirs a library import may read from (comma-separated).
       # Empty ⇒ only the downloads path is importable. Set this (and mount the
       # dir) to import an existing on-disk library.
