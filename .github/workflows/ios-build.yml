@@ -16,6 +16,10 @@ on:
 jobs:
   build-ios:
     runs-on: macos-latest
+    # Needed to publish the .ipa as a release asset (see the last step for why a
+    # release rather than just an artifact).
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: mobile
@@ -153,6 +157,37 @@ jobs:
               || { echo "::error::$key missing from the built Info.plist"; exit 1; }
           done
           echo "purpose strings present"
+
+      - name: Publish the .ipa as a release asset
+        # GitHub requires authentication to download a workflow *artifact*, even
+        # on a public repo — so the NAS could not fetch a build without a PAT
+        # minted and stored as root. Release assets on a public repo are
+        # anonymously downloadable, which lets ops/fetch-ios-build.sh run with no
+        # credentials at all.
+        #
+        # One release per build number, so /releases/latest always resolves to
+        # the newest build and the fetch script needs no tag bookkeeping. The
+        # build number is monotonic (1000 + run_number), so tags never collide.
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="ios-build-${{ steps.ver.outputs.number }}"
+          gh release create "$TAG" \
+            --repo "${{ github.repository }}" \
+            --target "${{ github.sha }}" \
+            --title "iOS ${{ steps.ver.outputs.name }} (build ${{ steps.ver.outputs.number }})" \
+            --notes "Unsigned iOS build for SideStore sideloading. Commit ${{ github.sha }}." \
+            build/ios/iphoneos/ManhwaManiacs.ipa \
+            build/ios/iphoneos/ios-build.json
+          # Podfile.lock rides along when pod install produced one, so it can be
+          # retrieved and committed without a token either. Uploaded separately,
+          # and guarded, because a missing lockfile must not fail a build that
+          # otherwise succeeded. (Kept array-free: the runner's /bin/bash is 3.2,
+          # where an empty "${arr[@]}" is an unbound-variable error under set -u.)
+          if [ -f ios/Podfile.lock ]; then
+            gh release upload "$TAG" ios/Podfile.lock --repo "${{ github.repository }}"
+          fi
 
       - name: Upload Podfile.lock
         # There is no Mac in this project, so the ONLY way to obtain a real
