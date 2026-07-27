@@ -593,10 +593,17 @@ def build_ios_source(request: Request) -> dict:
                 "bundleIdentifier": IOS_BUNDLE_ID,
                 "developerName": "ManhwaManiacs",
                 "subtitle": "Manga & manhwa reader",
+                # Deliberately does NOT claim offline reading. Downloads are
+                # fetched and stored by the server, and the phone streams pages
+                # from it, so "download for offline reading" was untrue -- see
+                # docs/OFFLINE_READING.md for the on-device work that would make
+                # it true. Advertising it before it exists is how a listing ends
+                # up promising something the app cannot do.
                 "localizedDescription": (
                     "Read manga and manhwa from your own ManhwaManiacs server. "
-                    "Track progress across devices, download chapters for "
-                    "offline reading, and search every source at once."
+                    "Every account and profile keeps its own library, follows "
+                    "and reading position. Download chapters to your server and "
+                    "search every source at once."
                 ),
                 "iconURL": f"{base}/app/media/app-icon.png",
                 "category": "entertainment",
