@@ -559,6 +559,15 @@ class UpdateService:
             .filter(
                 Download.status == "completed",
                 Download.user_id == self._user_id,
+                # Profile too, not just the account. The trackers minted below
+                # are stamped with self._profile_id, so selecting on user alone
+                # made one profile's sync create "downloaded" trackers for a
+                # sibling profile's downloads -- attributing content to a
+                # persona that never asked for it. Downloads only gained a
+                # profile_id in b8f52d1c47ae; rows predating it are NULL and are
+                # picked up by the account's unscoped bucket, which is where
+                # their membership landed too.
+                Download.profile_id == self._profile_id,
             )
             .group_by(Download.source, Download.series_id)
             .all()

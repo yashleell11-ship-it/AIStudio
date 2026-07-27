@@ -647,7 +647,30 @@ class DownloadManager:
         *,
         expected_page_count: int,
     ) -> Chapter:
-        library = LibraryService(db)
+        # Import AS the person who queued this download. Indexing the series
+        # creates its library-membership row, and that row is keyed on
+        # (user_id, profile_id) -- so an unscoped service here files the
+        # membership under the legacy (NULL, NULL) bucket and the
+        # just-downloaded series is invisible in every real profile's library,
+        # on every client. The worker has no request context, so the only place
+        # the initiating (user, profile) can come from is the Download row.
+        #
+        # profile_id is NULL for downloads queued before the column existed
+        # (and for anonymous/unscoped ones). That is honoured as-is rather than
+        # resolved to, say, the account's oldest profile: the row has never
+        # recorded who asked, and inventing an answer drops someone else's
+        # series into a profile's shelf. Such a download lands in its account's
+        # unscoped bucket; the owner can move it with the explicit
+        # "add to library" action (LibraryService.set_in_library).
+        library = LibraryService(
+            db, user_id=download.user_id, profile_id=download.profile_id
+        )
+        if download.user_id is not None and download.profile_id is None:
+            logger.info(
+                "download_id=%s has no initiating profile (legacy row); "
+                "library membership filed under the account's unscoped bucket",
+                download.id,
+            )
         self._index_downloaded_series(library, chapter_path)
 
         normalized_folder = normalize_folder_path(str(chapter_path.resolve()))

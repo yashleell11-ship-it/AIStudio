@@ -52,9 +52,13 @@ class DownloadService:
         # worker still processes everyone's queue, and de-dup stays global so a
         # chapter already in the shared library is never re-fetched.
         self._user_id = user_id
-        # Downloads are not profile-scoped rows (Download has no profile_id),
-        # but the 18+ gate that decides whether a source may be enqueued at all
-        # is per-profile, so the profile is carried purely for that check.
+        # The active profile does two jobs here: it resolves the per-profile 18+
+        # gate that decides whether a source may be enqueued at all, and it is
+        # stamped onto each Download row so the worker can add the finished
+        # series to *this* profile's library (membership is per-(user, profile)).
+        # The queue itself stays an account-level view -- the bytes land in one
+        # shared library folder, so listing/pausing/cancelling remain scoped to
+        # user_id only; profile_id records who asked, not who may look.
         self._profile_id = profile_id
 
     @property
@@ -190,6 +194,7 @@ class DownloadService:
             chapter_title = titles.get(chapter_id) or (chapter.title if chapter else chapter_id)
             download = Download(
                 user_id=self._user_id,
+                profile_id=self._profile_id,
                 source=source_id,
                 series_id=series_id,
                 chapter_id=chapter_id,
