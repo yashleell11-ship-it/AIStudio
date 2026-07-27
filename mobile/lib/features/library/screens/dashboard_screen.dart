@@ -7,29 +7,27 @@ import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
-import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
-import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
-import 'package:manhwamaniacs/features/library/widgets/home/home_cover_marquee.dart';
-import 'package:manhwamaniacs/features/library/widgets/home/home_sections.dart';
+import 'package:manhwamaniacs/core/utils/responsive.dart';
+import 'package:manhwamaniacs/features/library/widgets/home/followed_series_card.dart';
 import 'package:manhwamaniacs/features/profiles/widgets/profile_switcher_chip.dart';
 import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
-import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
+import 'package:manhwamaniacs/shared/widgets/scroll_reveal.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
-/// Resume path for a library series+chapter (mirrors series-detail routing).
-String _readerPath(int seriesId, int chapterId) =>
-    '${RoutePaths.seriesDetail(seriesId)}/chapters/$chapterId/read';
-
-/// Library tab home — an "Eclipse Warm" dashboard built over the user's
-/// followed series (Library = followed only) enriched with continue-reading
-/// and recently-updated data.
+/// Library tab — the followed series, and nothing else.
+///
+/// Deliberately spare (DESIGN_SYSTEM.md hard constraint: "Library tab (mobile)
+/// = followed series only"): one heading, one grid of covers. Tapping a card
+/// opens that series' detail screen, where the full chapter list lives with the
+/// latest chapter first. Browse Sources is reachable from exactly one place at
+/// a time — the empty state when there is nothing followed yet, otherwise the
+/// small app-bar action.
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -48,18 +46,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     });
   }
 
-  Future<void> _refresh() async {
-    ref.invalidate(dashboardProvider);
-    await ref.read(updatesProvider.notifier).refresh();
-  }
+  Future<void> _refresh() => ref.read(updatesProvider.notifier).refresh();
 
   @override
   Widget build(BuildContext context) {
     final updatesAsync = ref.watch(updatesProvider);
+    // Resolved once so the app bar and the body agree on whether the shelf is
+    // empty (and therefore on which single Browse affordance is shown).
+    final followed = _followedOf(updatesAsync.valueOrNull);
 
     return Scaffold(
       // Float the active-profile chip (Netflix-style) over the top-right of the
-      // hero without disturbing the existing full-bleed hero layout.
+      // grid without pushing the heading down.
       extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
@@ -67,48 +65,50 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         scrolledUnderElevation: 0,
         toolbarHeight: kToolbarHeight,
         automaticallyImplyLeading: false,
-        actions: const [
-          ProfileSwitcherChip(),
-          SizedBox(width: AppSpacing.sm),
+        actions: [
+          // The single Browse affordance once the shelf has something on it —
+          // with an empty shelf the empty state owns that job instead, so the
+          // screen never shows two routes to the same place.
+          if (followed.isNotEmpty)
+            IconButton(
+              icon: const Icon(Icons.travel_explore_rounded),
+              tooltip: 'Browse Sources',
+              onPressed: () => context.go(Routes.sources),
+            ),
+          const ProfileSwitcherChip(),
+          const SizedBox(width: AppSpacing.sm),
         ],
       ),
       body: updatesAsync.when(
-        loading: () => const _HomeSkeleton(),
+        loading: () => const _LibrarySkeleton(),
         error: (error, _) => _FollowedSeriesError(
           error: error is AppError
               ? error
               : UnknownError(message: error.toString(), cause: error),
           onRetry: () => ref.invalidate(updatesProvider),
         ),
-        data: (state) {
-          final followed = state.trackers
-              .where((tracker) => tracker.trackKind == TrackKind.followed)
-              .toList();
-
-          // Enrichment data (continue-reading + trending). Never blocks the
-          // dashboard — if it errors or is loading we simply omit those bits.
-          final dash = ref.watch(dashboardProvider).valueOrNull;
-          final continueItems = dash?.continueReading ?? const [];
-          final trending = dash?.recentlyUpdated ?? const [];
-
-          if (followed.isEmpty && continueItems.isEmpty && trending.isEmpty) {
-            return _HomeEmpty(onRefresh: _refresh);
-          }
+        data: (data) {
+          if (followed.isEmpty) return _LibraryEmpty(onRefresh: _refresh);
 
           return RefreshIndicator(
             color: AppColors.primary,
             onRefresh: _refresh,
-            child: _HomeContent(
+            child: _FollowedGrid(
               followed: followed,
-              continueItems: continueItems,
-              trending: trending,
-              onOpenTracker: (t) => _openTracker(context, t),
+              notifications: data.notifications,
+              onOpenTracker: (tracker) => _openTracker(context, tracker),
             ),
           );
         },
       ),
     );
   }
+
+  /// Library = followed only; downloaded-only trackers never appear here.
+  List<SeriesTracker> _followedOf(UpdatesState? state) => [
+        for (final tracker in state?.trackers ?? const <SeriesTracker>[])
+          if (tracker.trackKind == TrackKind.followed) tracker,
+      ];
 
   void _openTracker(BuildContext context, SeriesTracker tracker) {
     final localId = tracker.localSeriesId;
@@ -122,180 +122,95 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-class _HomeContent extends ConsumerWidget {
-  const _HomeContent({
+/// The whole screen body: a heading and the followed-series cover grid.
+class _FollowedGrid extends StatelessWidget {
+  const _FollowedGrid({
     required this.followed,
-    required this.continueItems,
-    required this.trending,
+    required this.notifications,
     required this.onOpenTracker,
   });
 
   final List<SeriesTracker> followed;
-  final List<ContinueReadingItem> continueItems;
-  final List<SeriesSummary> trending;
+  final List<UpdateNotification> notifications;
   final void Function(SeriesTracker) onOpenTracker;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final baseUrl = ref.watch(apiBaseUrlProvider);
-    final topPad = MediaQuery.paddingOf(context).top;
+  Widget build(BuildContext context) {
     final bottomPad = MediaQuery.paddingOf(context).bottom;
 
-    final firstContinue = continueItems.isNotEmpty ? continueItems.first : null;
-
-    // Hero cover: the resume target, else the first followed/trending cover.
-    String? heroCover;
-    if (firstContinue != null) {
-      heroCover = seriesCoverUrl(baseUrl, firstContinue.seriesId);
-    } else {
-      final firstFollowedCover = followed
-          .map((t) => trackerCoverUrl(baseUrl, t))
-          .whereType<String>()
-          .firstOrNull;
-      if (firstFollowedCover != null) {
-        heroCover = firstFollowedCover;
-      } else if (trending.isNotEmpty) {
-        heroCover = seriesCoverUrl(baseUrl, trending.first.id);
-      }
-    }
-
-    // Marquee covers: followed covers first, topped up with trending. Auth-gated
-    // URLs rendered through SeriesCoverImage tiles inside HomeCoverMarquee.
-    final marqueeCovers = <String>{
-      for (final t in followed)
-        if (trackerCoverUrl(baseUrl, t) case final url?) url,
-      for (final s in trending) seriesCoverUrl(baseUrl, s.id),
-    }.toList();
-
-    final continueCards = _buildContinueCards(context, baseUrl);
-    final sectionTitle = continueItems.isNotEmpty
-        ? 'Continue'
-        : trending.isNotEmpty
-            ? 'Recently Updated'
-            : 'Your Library';
-
     return CustomScrollView(
+      // Always scrollable so pull-to-refresh still works with a single follow
+      // that doesn't fill the viewport.
       physics: const AlwaysScrollableScrollPhysics(),
       slivers: [
         SliverPadding(
-          padding: EdgeInsets.only(top: topPad + AppSpacing.xl2),
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.xl2,
+            _headingTopPadding(context),
+            AppSpacing.xl2,
+            AppSpacing.xl,
+          ),
           sliver: SliverToBoxAdapter(
             child: FadeIn(
-              child: HomeHero(
-                heading: 'Your Library',
-                tagline: firstContinue != null
-                    ? 'Pick up where you left off'
-                    : 'Your followed series, together',
-                coverUrl: heroCover,
-                ctaLabel:
-                    firstContinue != null ? 'Continue Reading' : 'Browse Sources',
-                ctaIcon: firstContinue != null
-                    ? Icons.play_arrow_rounded
-                    : Icons.travel_explore_rounded,
-                onCta: () {
-                  if (firstContinue != null) {
-                    context.push(
-                      _readerPath(
-                        firstContinue.seriesId,
-                        firstContinue.chapterId,
-                      ),
-                    );
-                  } else {
-                    context.go(Routes.sources);
-                  }
-                },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const HeroHeading(text: 'Library', fontSize: 40),
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(
+                    followed.length == 1
+                        ? '1 series followed'
+                        : '${followed.length} series followed',
+                    style:
+                        AppTypography.caption.copyWith(color: AppColors.muted),
+                  ),
+                ],
               ),
             ),
           ),
         ),
-        if (marqueeCovers.isNotEmpty)
-          SliverPadding(
-            padding: const EdgeInsets.only(top: AppSpacing.xl3),
-            sliver: SliverToBoxAdapter(
-              child: HomeCoverMarquee(coverUrls: marqueeCovers),
-            ),
-          ),
         SliverPadding(
-          padding: const EdgeInsets.only(top: AppSpacing.xl3),
-          sliver: SliverToBoxAdapter(
-            child: HomeAbout(onCta: () => context.go(Routes.sources)),
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl2),
+          sliver: SliverGrid.builder(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: context.seriesGridColumns,
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.xl,
+              childAspectRatio: 0.5,
+            ),
+            itemCount: followed.length,
+            itemBuilder: (context, index) {
+              final tracker = followed[index];
+              return ScrollReveal(
+                index: index,
+                child: FollowedSeriesCard(
+                  tracker: tracker,
+                  meta: FollowedSeriesMeta.forTracker(
+                    tracker: tracker,
+                    notifications: notifications,
+                  ),
+                  onTap: () => onOpenTracker(tracker),
+                ),
+              );
+            },
           ),
         ),
-        if (continueCards.isNotEmpty) ...[
-          SliverPadding(
-            padding: const EdgeInsets.only(top: AppSpacing.xl3),
-            sliver: SliverToBoxAdapter(
-              child: HomeSectionLabel(text: sectionTitle),
-            ),
-          ),
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl2,
-              AppSpacing.lg,
-              AppSpacing.xl2,
-              0,
-            ),
-            sliver: SliverList.separated(
-              itemCount: continueCards.length,
-              separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.md),
-              itemBuilder: (context, index) => FadeIn(
-                delay: Duration(milliseconds: 60 * index),
-                child: continueCards[index],
-              ),
-            ),
-          ),
-        ],
         SliverToBoxAdapter(
           child: SizedBox(height: AppSpacing.xl6 + bottomPad),
         ),
       ],
     );
   }
-
-  List<Widget> _buildContinueCards(BuildContext context, String baseUrl) {
-    if (continueItems.isNotEmpty) {
-      return [
-        for (final item in continueItems)
-          HomeContinueCard(
-            coverUrl: seriesCoverUrl(baseUrl, item.seriesId),
-            title: item.seriesTitle,
-            subtitle: continueSubtitle(item),
-            progressPct: item.progressPct,
-            onTap: () =>
-                context.push(_readerPath(item.seriesId, item.chapterId)),
-          ),
-      ];
-    }
-    if (trending.isNotEmpty) {
-      return [
-        for (final s in trending)
-          HomeContinueCard(
-            coverUrl: seriesCoverUrl(baseUrl, s.id),
-            title: s.title,
-            subtitle: '${s.readChapters}/${s.totalChapters} chapters',
-            progressPct: s.totalChapters > 0 ? s.readProgressPct * 100 : null,
-            onTap: () => context.push(RoutePaths.seriesDetail(s.id)),
-          ),
-      ];
-    }
-    return [
-      // Every followed series — local imports AND online-only follows. Online
-      // follows resolve to their source cover; only a genuinely unresolvable
-      // tracker falls through to the placeholder inside HomeContinueCard.
-      for (final t in followed)
-        HomeContinueCard(
-          coverUrl: trackerCoverUrl(baseUrl, t) ?? '',
-          title: t.seriesTitle,
-          subtitle: '${t.knownChapterCount} chapters',
-          onTap: () => onOpenTracker(t),
-        ),
-    ];
-  }
 }
 
-/// Welcome state for a fresh account with nothing followed or in progress.
-class _HomeEmpty extends StatelessWidget {
-  const _HomeEmpty({required this.onRefresh});
+/// Clears the transparent app bar the body is drawn behind.
+double _headingTopPadding(BuildContext context) =>
+    MediaQuery.paddingOf(context).top + kToolbarHeight + AppSpacing.lg;
+
+/// Empty shelf — every account on this server starts here, so it has to say
+/// what to do and offer the one way to do it.
+class _LibraryEmpty extends StatelessWidget {
+  const _LibraryEmpty({required this.onRefresh});
 
   final Future<void> Function() onRefresh;
 
@@ -332,50 +247,43 @@ class _HomeEmpty extends StatelessWidget {
   }
 }
 
-class _HomeSkeleton extends StatelessWidget {
-  const _HomeSkeleton();
+/// Loading shimmer shaped like the real grid, so nothing shifts on load.
+class _LibrarySkeleton extends StatelessWidget {
+  const _LibrarySkeleton();
 
   @override
   Widget build(BuildContext context) {
-    final topPad = MediaQuery.paddingOf(context).top;
-
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.xl2,
-        topPad + AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl6,
-      ),
+    return CustomScrollView(
       physics: const NeverScrollableScrollPhysics(),
-      children: const [
-        SkeletonBox(width: 220, height: 56),
-        SizedBox(height: AppSpacing.xl2),
-        Center(
-          child: SkeletonBox(width: 168, height: 252, borderRadius: AppRadius.xl2),
-        ),
-        SizedBox(height: AppSpacing.xl2),
-        SkeletonBox(width: 200, height: 16),
-        SizedBox(height: AppSpacing.lg),
-        SkeletonBox(width: 200, height: 48, borderRadius: AppRadius.pill),
-        SizedBox(height: AppSpacing.xl3),
-        SizedBox(
-          height: 168,
-          child: Row(
-            children: [
-              SkeletonBox(width: 112, height: 168, borderRadius: AppRadius.lg),
-              SizedBox(width: AppSpacing.md),
-              SkeletonBox(width: 112, height: 168, borderRadius: AppRadius.lg),
-              SizedBox(width: AppSpacing.md),
-              SkeletonBox(width: 112, height: 168, borderRadius: AppRadius.lg),
-            ],
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.xl2,
+            _headingTopPadding(context),
+            AppSpacing.xl2,
+            AppSpacing.xl,
+          ),
+          sliver: const SliverToBoxAdapter(
+            child: SkeletonBox(width: 200, height: 40),
           ),
         ),
-        SizedBox(height: AppSpacing.xl3),
-        SkeletonBox(width: double.infinity, height: 150, borderRadius: AppRadius.xl2),
-        SizedBox(height: AppSpacing.xl3),
-        SkeletonBox(width: double.infinity, height: 102, borderRadius: AppRadius.xl),
-        SizedBox(height: AppSpacing.md),
-        SkeletonBox(width: double.infinity, height: 102, borderRadius: AppRadius.xl),
+        SliverPadding(
+          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl2),
+          sliver: SliverGrid.builder(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: context.seriesGridColumns,
+              crossAxisSpacing: AppSpacing.md,
+              mainAxisSpacing: AppSpacing.xl,
+              childAspectRatio: 0.5,
+            ),
+            itemCount: 6,
+            itemBuilder: (_, __) => const SkeletonBox(
+              width: double.infinity,
+              height: double.infinity,
+              borderRadius: AppRadius.xl,
+            ),
+          ),
+        ),
       ],
     );
   }

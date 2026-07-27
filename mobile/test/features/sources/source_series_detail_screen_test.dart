@@ -370,13 +370,14 @@ class _RecordingDownloadsRepository implements DownloadsRepository {
       throw UnimplementedError();
 }
 
-SourceSeriesSummary _series() => const SourceSeriesSummary(
+SourceSeriesSummary _series({String? latestChapter}) => SourceSeriesSummary(
       id: 'manga-1',
       sourceId: 'mangadex',
       title: 'Solo Leveling',
       chapterCount: 1,
-      genres: [],
+      genres: const [],
       coverUrl: 'http://example.test/cover.jpg',
+      latestChapter: latestChapter,
     );
 
 SourceChapterSummary _chapter({
@@ -399,12 +400,13 @@ Future<ProviderContainer> _pumpScreen(
   _RecordingDownloadsRepository? downloadsRepo,
   List<SourceChapterSummary>? chapters,
   List<DownloadItem> downloadItems = const [],
+  SourceSeriesSummary? series,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
   final fakeSourcesRepo = _FakeSourcesRepository(
-    _series(),
+    series ?? _series(),
     chapters ?? [_chapter(id: 'manga-1:1', number: 1)],
   );
   final fakeDownloadsRepo = downloadsRepo ?? _RecordingDownloadsRepository();
@@ -442,6 +444,54 @@ Future<ProviderContainer> _pumpScreen(
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('SourceSeriesDetailScreen header meta line', () {
+    testWidgets('latest comes from the chapter list, not a stale summary field',
+        (tester) async {
+      // Connectors scrape `latest_chapter` off a listing page that can lag the
+      // real chapter list, so the summary field must never win: it would print
+      // "Latest: Chapter 118" directly above a newest-first list topped by 120.
+      await _pumpScreen(
+        tester,
+        updatesRepo: _FakeUpdatesRepository(),
+        series: _series(latestChapter: 'Chapter 118'),
+        chapters: [
+          _chapter(id: 'manga-1:118', number: 118, title: 'Chapter 118'),
+          _chapter(id: 'manga-1:120', number: 120, title: 'Chapter 120'),
+        ],
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Latest: Chapter 120'), findsOneWidget);
+      expect(find.textContaining('Latest: Chapter 118'), findsNothing);
+    });
+
+    testWidgets('falls back to the summary field when no chapters loaded',
+        (tester) async {
+      await _pumpScreen(
+        tester,
+        updatesRepo: _FakeUpdatesRepository(),
+        series: _series(latestChapter: 'Chapter 77'),
+        chapters: const [],
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('Latest: Chapter 77'), findsOneWidget);
+    });
+
+    testWidgets('states no count when the series has no chapters',
+        (tester) async {
+      await _pumpScreen(
+        tester,
+        updatesRepo: _FakeUpdatesRepository(),
+        series: _series(),
+        chapters: const [],
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('0 chapters'), findsNothing);
+    });
+  });
 
   group('SourceSeriesDetailScreen chapter rows', () {
     testWidgets('tapping a chapter navigates to the source reader',

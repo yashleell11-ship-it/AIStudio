@@ -41,6 +41,8 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
     final detailAsync = ref.watch(
       sourceSeriesDetailProvider((sourceId: sourceId, seriesId: seriesId)),
     );
+    // Name the screen after the series the user tapped, not the generic route.
+    final title = detailAsync.valueOrNull?.series.title;
 
     return Scaffold(
       appBar: AppBar(
@@ -50,7 +52,11 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
               ? context.pop()
               : context.go(RoutePaths.sourceBrowse(sourceId)),
         ),
-        title: const Text('Source Series'),
+        title: Text(
+          title == null || title.isEmpty ? 'Series' : title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       body: detailAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -123,6 +129,40 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
           : an.compareTo(bn);
     });
     return copy;
+  }
+
+  /// Newest chapter, for the header meta line. Prefers the highest-numbered
+  /// chapter in the loaded list and falls back to the source-provided
+  /// `latest_chapter` string. Null only when neither is available.
+  String? _latestChapterLabel() {
+    // The loaded list wins over the source's summary field. Connectors scrape
+    // `latest_chapter` from a listing page that can lag the chapter list by
+    // days, so preferring it let the header read "Latest: Ch. 118" directly
+    // above a newest-first list whose top row was Chapter 120 -- the one number
+    // on this screen that has to be right.
+    final newest =
+        _sortedChapters(widget.chapters, _ChapterSortOrder.newest).firstOrNull;
+    if (newest != null) {
+      return chapterLabel(number: newest.number, title: newest.title).primary;
+    }
+    final provided = widget.series.latestChapter?.trim();
+    if (provided != null && provided.isNotEmpty) return provided;
+    return null;
+  }
+
+  /// "Latest: Chapter 120  ·  120 chapters" — either half is dropped when it
+  /// is not actually known, so the line never states a count of zero.
+  String? _headerMetaLine() {
+    final parts = <String>[];
+    final latest = _latestChapterLabel();
+    if (latest != null) parts.add('Latest: $latest');
+    // The loaded chapter list is authoritative; the summary count is only a
+    // fallback for sources that omit chapters from the detail payload.
+    final count = widget.chapters.isNotEmpty
+        ? widget.chapters.length
+        : widget.series.chapterCount;
+    if (count > 0) parts.add(count == 1 ? '1 chapter' : '$count chapters');
+    return parts.isEmpty ? null : parts.join('  ·  ');
   }
 
   /// Per-row progress line. Unread → "{n} pages"; reading → "{page}/{n} pages";
@@ -220,6 +260,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     );
     final progressMap = ref.watch(sourceProgressProvider);
     final sortedChapters = _sortedChapters(chapters, _sortOrder);
+    final metaLine = _headerMetaLine();
     final latestRead = ref.read(sourceProgressProvider.notifier).latestForSeries(
           sourceId: widget.sourceId,
           seriesId: widget.seriesId,
@@ -250,6 +291,13 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         if (series.author != null) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(series.author!, style: AppTypography.body.copyWith(color: AppColors.muted)),
+        ],
+        if (metaLine != null) ...[
+          const SizedBox(height: AppSpacing.xs),
+          Text(
+            metaLine,
+            style: AppTypography.label.copyWith(color: AppColors.primary),
+          ),
         ],
         if (series.description != null && series.description!.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.lg),
