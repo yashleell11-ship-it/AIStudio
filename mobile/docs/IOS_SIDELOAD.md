@@ -12,8 +12,19 @@ Apple Developer account. This project needs neither:
 Once set up, shipping a new iOS build is: push code → wait ~10 min → tap
 **Update** on the phone. Nothing to bump, download, or sideload by hand.
 
-> Codemagic (`codemagic.yaml`) was the original plan and still works as a
-> fallback, but GitHub Actions is what's wired up and in use.
+> Codemagic (`codemagic.yaml`) was the original plan. **Do not use it as-is** —
+> its build step (`codemagic.yaml:34`) is a bare
+> `flutter build ios --release --no-codesign` with no `--dart-define`, so the
+> `.ipa` it produces is a *dev*-flavour app pointed at `http://127.0.0.1:8000`
+> (`mobile/lib/core/config/env.dart:6-9,14-17`). GitHub Actions is what's wired
+> up and in use.
+
+> **The workflow only exists locally.** `github/feat/profile-isolation-eclipse-warm`
+> is behind HEAD, and the tracking remote (`origin`) is the NAS Forgejo, not
+> GitHub. Until someone runs `git push github feat/profile-isolation-eclipse-warm`
+> there is no iOS build on GitHub at all, and every fix in this document is
+> theoretical. Re-push after each change — Actions builds what GitHub has, not
+> what your working tree has.
 
 ---
 
@@ -135,6 +146,50 @@ Without them the app falls back to `FLAVOR=dev` + `http://127.0.0.1:8000`, which
 on a phone points at nothing, forces the manual setup screen, and permits a
 clear-text bearer token.
 
+## How the iOS dependencies are pinned
+
+Nobody on this project has a Mac, so the cloud runner has to be able to build
+without a human resolving anything. Two settings make that true, and both are
+load-bearing:
+
+| Setting | Where | Why |
+|---|---|---|
+| `config: enable-swift-package-manager: false` | `mobile/pubspec.yaml` | Swift Package Manager is **on by default** on Flutter stable. With it on, `file_picker` resolves its iOS dependencies by cloning six repos from GitHub *at build time* — three of them tracked by a moving branch, none of them pinned by anything in this repo. It also runs *alongside* CocoaPods, because `flutter_secure_storage` ships no `Package.swift`, and Flutter warns that combination can produce duplicate-module link failures. |
+| `Pod::PICKER_MEDIA = false` | `mobile/ios/Podfile` | Drops `DKImagePickerController` — the only remote pod in the project. With it gone, every pod is a local path pod and `pod install` touches the network zero times. It is also the only code that reaches `PHPhotoLibrary`. |
+
+Net effect: the entire iOS dependency graph is pinned by `mobile/pubspec.lock`
+alone. Nothing is fetched, so nothing can drift or 404 mid-build.
+
+`mobile/ios/Podfile` is **checked in on purpose** — Flutter generates one when
+it's missing and preserves it when it's there, so committing it is what makes
+the two settings above survive a CI checkout.
+
+There is no `mobile/ios/Podfile.lock` yet, because generating one requires a Mac.
+The workflow uploads the one CI produces as a separate `ios-podfile-lock`
+artifact: after the first green run, download it, drop it in `mobile/ios/` and
+commit it. (With only path-based pods this is belt-and-braces, not a
+correctness requirement.)
+
+### Deployment target
+
+`IPHONEOS_DEPLOYMENT_TARGET = 13.0` in every build configuration of
+`Runner.xcodeproj`, `platform :ios, '13.0'` in the Podfile, and 13.0 in the
+`Flutter.podspec` podhelper generates. 13.0 is also the highest floor any
+dependency asks for — `url_launcher_ios` and `shared_preferences_foundation` sit
+exactly on it, everything else is 12.0 or lower. Keep all three in step if you
+ever raise it.
+
+### Purpose strings
+
+`mobile/ios/Runner/Info.plist` carries `NSPhotoLibraryUsageDescription` and
+`NSAppleMusicUsageDescription`. Neither is reachable from the app's own Dart
+today — the single `FilePicker.platform.pickFiles()` call
+(`lib/features/settings/screens/backup_screen.dart:43`) uses the default
+`FileType.any`, which is the document-picker path and needs no permission. They
+are there because a missing purpose string is not a warning on iOS: it is an
+immediate process kill, and on a sideloaded build that is indistinguishable from
+a lapsed certificate. The build step asserts both survived into the binary.
+
 ## Living with a free Apple ID
 
 - **Apps expire after 7 days.** SideStore background-refreshes over WiFi with
@@ -151,7 +206,12 @@ clear-text bearer token.
 
 | Symptom | Fix |
 |---|---|
+| No workflow run appears at all | The branch was never pushed to `github` — `git push github feat/profile-isolation-eclipse-warm` |
 | App shows the server-setup screen | dart-defines missing from the build — check the `flutter build ios` step |
+| Build dies resolving Swift packages | `enable-swift-package-manager: false` was lost from `mobile/pubspec.yaml`, or `mobile/ios/Podfile` isn't in the checkout |
+| Build dies cloning `DKImagePickerController` / `SDWebImage` | Same cause — see the pinning table above |
+| App dies instantly when picking a file | A purpose string is missing. The **Verify** step should have caught it; check its output |
+| Settings → cache size crashes | `path_provider_foundation` is an FFI/native-assets package now — look at the native-assets build output first |
 | SideStore offers no update | Check `/var/log/manhwamaniacs-ios-sync.log`, then that `buildVersion` in `/app/source.json` actually went up |
 | `buildVersion` didn't go up after a push | No `ios-build.json` beside the `.ipa`, so it fell back to the pubspec — check the artifact contains both files |
 | `/app/source.json` versions list is empty | No `.ipa` published — run `sudo ops/fetch-ios-build.sh` |

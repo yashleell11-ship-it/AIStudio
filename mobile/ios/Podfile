@@ -1,0 +1,85 @@
+# CHECKED IN ON PURPOSE.
+#
+# Flutter generates this file from
+# $FLUTTER_ROOT/packages/flutter_tools/templates/cocoapods/Podfile-ios when it
+# is missing (cocoapods.dart `setupPodfile`), and preserves it when it exists.
+# Committing it is what lets the two edits below survive a CI checkout — there
+# is no Mac in this project, so the cloud runner's build must be fully
+# determined by what is in git.
+#
+# Deltas from the stock Flutter template, and only these:
+#   1. `platform :ios, '13.0'` is uncommented (see below).
+#   2. `Pod::PICKER_MEDIA = false` (see below).
+
+# Pin the pod platform to the same floor as the app target.
+# Runner.xcodeproj sets IPHONEOS_DEPLOYMENT_TARGET = 13.0 in every build
+# configuration, and 13.0 is also the highest floor any dependency asks for
+# (url_launcher_ios 6.4.1 and shared_preferences_foundation 2.5.6 both declare
+# exactly 13.0; everything else is 12.0 or lower). Stating it explicitly stops
+# CocoaPods from inferring a platform and keeps pods, app and podhelper's
+# generated Flutter.podspec (also 13.0) in agreement.
+platform :ios, '13.0'
+
+# Compile the media picker OUT of file_picker.
+#
+# file_picker.podspec only adds `s.dependency 'DKImagePickerController/PhotoGallery'`
+# when PICKER_MEDIA is truthy. That pod is the sole remote dependency in this
+# entire project; without it `pod install` resolves nothing over the network.
+#
+# The media picker is dead weight here regardless: the app's only call site is
+# `FilePicker.platform.pickFiles()` in
+# lib/features/settings/screens/backup_screen.dart, which uses the default
+# FileType.any and therefore routes to UIDocumentPickerViewController.
+#
+# Dropping it also removes the only code in the binary that touches
+# PHPhotoLibrary, which is what would hard-terminate the app on a device if
+# NSPhotoLibraryUsageDescription were ever missing. (It is present in
+# Info.plist anyway, as a belt-and-braces measure.)
+#
+# FilePickerPlugin.m guards every media path with `#ifdef PICKER_MEDIA` and
+# returns a FlutterError instead when it is absent, so a future FileType.image
+# call degrades to a handled error rather than a link failure.
+#
+# PICKER_AUDIO and PICKER_DOCUMENT are left at their defaults (on).
+Pod::PICKER_MEDIA = false
+
+# CocoaPods analytics sends network stats synchronously affecting flutter build latency.
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
