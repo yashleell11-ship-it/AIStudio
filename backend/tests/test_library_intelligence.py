@@ -18,6 +18,7 @@ from database.models import (
     Series,
     SeriesTag,
     Tag,
+    UserSeriesState,
 )
 from services.library_intelligence_service import LibraryIntelligenceService
 from services.library_service import LibraryService
@@ -49,6 +50,21 @@ def _seed_series(db: Session, library: Library, title: str, **kwargs) -> Series:
         **kwargs,
     )
     db.add(series)
+    db.flush()
+    # Every library read is scoped to (user_id, profile_id) + in_library, so a
+    # bare catalog row is in nobody's library. These tests drive the services
+    # with the unscoped (NULL, NULL) owner, so seed membership for that owner --
+    # mirroring any per-user state the caller asked for on the series row.
+    db.add(
+        UserSeriesState(
+            user_id=None,
+            profile_id=None,
+            series_id=series.id,
+            in_library=True,
+            is_favorite=kwargs.get("is_favorite", False),
+            reading_status=kwargs.get("reading_status", "unread"),
+        )
+    )
     db.flush()
     return series
 

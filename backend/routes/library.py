@@ -121,6 +121,11 @@ class TagCreateRequest(BaseModel):
     color: str | None = Field(default=None, max_length=16)
 
 
+class LibraryMembershipResponse(BaseModel):
+    series_id: int
+    in_library: bool
+
+
 class SeriesUpdateRequest(BaseModel):
     title: str | None = None
     author: str | None = None
@@ -176,23 +181,56 @@ def get_series(series_id: int, intel: IntelDep) -> dict[str, object]:
     return intel.get_series_detail(series_id)
 
 
-@router.patch("/series/{series_id}")
+@router.patch("/series/{series_id}", dependencies=[Depends(require_profile_context)])
 def patch_series(
     series_id: int,
     body: SeriesUpdateRequest,
     intel: IntelDep,
 ) -> dict[str, object]:
-    """Update series metadata."""
+    """Update series metadata.
+
+    Guarded: ``reading_status``/``is_favorite`` in the body land on the caller's
+    own per-profile state, so an active profile has to be named.
+    """
     return intel.update_series_metadata(
         series_id,
         **body.model_dump(exclude_none=True),
     )
 
 
-@router.post("/series/{series_id}/favorite")
+@router.post(
+    "/series/{series_id}/favorite",
+    dependencies=[Depends(require_profile_context)],
+)
 def toggle_favorite(series_id: int, intel: IntelDep) -> dict[str, object]:
-    """Toggle the favorite status of a series."""
+    """Toggle the favorite status of a series for the active profile."""
     return intel.toggle_favorite(series_id)
+
+
+@router.post(
+    "/series/{series_id}/add",
+    response_model=LibraryMembershipResponse,
+    dependencies=[Depends(require_profile_context)],
+)
+def add_series_to_library(series_id: int, service: ServiceDep) -> LibraryMembershipResponse:
+    """Add a catalog series to the active profile's library."""
+    return LibraryMembershipResponse(**service.set_in_library(series_id, True))
+
+
+@router.delete(
+    "/series/{series_id}/add",
+    response_model=LibraryMembershipResponse,
+    dependencies=[Depends(require_profile_context)],
+)
+def remove_series_from_library(
+    series_id: int, service: ServiceDep
+) -> LibraryMembershipResponse:
+    """Remove a series from the active profile's library.
+
+    Favourite, reading status and progress are kept, so re-adding restores the
+    shelf exactly as it was.
+    """
+    return LibraryMembershipResponse(**service.set_in_library(series_id, False))
 
 
 @router.get("/series/{series_id}/similar")

@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session, sessionmaker
 
-from database.models import Chapter, Library, Page, PageText, Series
+from database.models import Chapter, Library, Page, PageText, Series, UserSeriesState
 from database.session import get_db
 from main import create_app
 
@@ -302,13 +302,20 @@ def test_list_series_has_chapters_filter(client: TestClient, tmp_path: Path, db_
 
     library = db_session.query(Library).first()
     assert library is not None
+    empty = Series(
+        library_id=library.id,
+        title="Empty Series",
+        sort_title="empty series",
+        folder_path=str((library_root / "Empty Series").resolve()),
+        total_chapters=0,
+    )
+    db_session.add(empty)
+    db_session.flush()
+    # The import above put the scanned series in the caller's library; this one
+    # is hand-seeded, so it needs its own membership row to show up at all.
     db_session.add(
-        Series(
-            library_id=library.id,
-            title="Empty Series",
-            sort_title="empty series",
-            folder_path=str((library_root / "Empty Series").resolve()),
-            total_chapters=0,
+        UserSeriesState(
+            user_id=None, profile_id=None, series_id=empty.id, in_library=True
         )
     )
     db_session.commit()

@@ -8,7 +8,7 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
-from database.models import Chapter, ChapterText, Library, Series
+from database.models import Chapter, ChapterText, Library, Series, UserSeriesState
 from database.session import get_db
 from main import create_app
 from tests.test_mangadex_connector import FIXTURES, _load
@@ -91,11 +91,21 @@ def test_library_series_list_includes_pagination_aliases(db_engine) -> None:
         db.add(lib)
         db.flush()
         for index in range(3):
+            series = Series(
+                library_id=lib.id,
+                title=f"Series {index}",
+                folder_path=f"/tmp/test/s{index}",
+            )
+            db.add(series)
+            db.flush()
+            # Library reads are scoped by (user_id, profile_id) + in_library;
+            # the default test session is the unscoped (NULL, NULL) owner.
             db.add(
-                Series(
-                    library_id=lib.id,
-                    title=f"Series {index}",
-                    folder_path=f"/tmp/test/s{index}",
+                UserSeriesState(
+                    user_id=None,
+                    profile_id=None,
+                    series_id=series.id,
+                    in_library=True,
                 )
             )
         db.commit()
@@ -121,11 +131,16 @@ def test_library_search_includes_pagination_aliases(db_engine) -> None:
         lib = Library(name="Test", root_path="/tmp/test")
         db.add(lib)
         db.flush()
+        series = Series(
+            library_id=lib.id,
+            title="Solo Leveling",
+            folder_path="/tmp/test/solo",
+        )
+        db.add(series)
+        db.flush()
         db.add(
-            Series(
-                library_id=lib.id,
-                title="Solo Leveling",
-                folder_path="/tmp/test/solo",
+            UserSeriesState(
+                user_id=None, profile_id=None, series_id=series.id, in_library=True
             )
         )
         db.commit()

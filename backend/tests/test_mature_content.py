@@ -23,7 +23,7 @@ from connectors.toonily.connector import ToonilyConnector
 from core.config import get_settings, update_persisted_settings
 from core.content_rating import MATURE_CONTENT_RATINGS, is_mature_rating
 from core.errors import AppError
-from database.models import Library, Series
+from database.models import Library, Series, UserSeriesState
 from services.browse_service import BrowseService
 from services.library_intelligence_service import LibraryIntelligenceService
 
@@ -125,23 +125,31 @@ def _seed_two_series(db) -> None:
     library = Library(name="Test", root_path="/tmp/mm")
     db.add(library)
     db.flush()
+    series = [
+        Series(
+            library_id=library.id,
+            title="Wholesome Adventure",
+            folder_path="/tmp/mm/wholesome",
+            sort_title="wholesome adventure",
+            content_rating="safe",
+        ),
+        Series(
+            library_id=library.id,
+            title="Adults Only",
+            folder_path="/tmp/mm/adults",
+            sort_title="adults only",
+            content_rating="pornographic",
+        ),
+    ]
+    db.add_all(series)
+    db.flush()
+    # Discovery is membership-scoped now, so both series have to be in the
+    # (NULL, NULL) owner's library for the mature gate to be the only variable.
     db.add_all(
-        [
-            Series(
-                library_id=library.id,
-                title="Wholesome Adventure",
-                folder_path="/tmp/mm/wholesome",
-                sort_title="wholesome adventure",
-                content_rating="safe",
-            ),
-            Series(
-                library_id=library.id,
-                title="Adults Only",
-                folder_path="/tmp/mm/adults",
-                sort_title="adults only",
-                content_rating="pornographic",
-            ),
-        ]
+        UserSeriesState(
+            user_id=None, profile_id=None, series_id=s.id, in_library=True
+        )
+        for s in series
     )
     db.commit()
 
