@@ -228,8 +228,15 @@ do_deploy(){
 
   # 1) sync source into the isolated env directory
   mkdir -p "$DIR"
+  # apk/ and ipa/ are runtime drops that live only in the deploy dir, never in
+  # the source tree -- so without excluding them --delete removes them on every
+  # deploy. For the .ipa that meant each deploy silently unpublished the iOS
+  # build (/app/source.json advertising nothing) until the sync cron next ran,
+  # up to ten minutes later. The APK is rebuilt in step 1b, but excluding it too
+  # closes the window where /app/download would 404 mid-deploy.
   rsync -a --delete \
     --exclude '.git' --exclude '.forgejo' --exclude 'node_modules' --exclude '.next' \
+    --exclude 'apk' --exclude 'ipa' \
     "$SRC"/ "$DIR"/
   chown -R 1000:1000 "$DIR" 2>/dev/null || true
 
