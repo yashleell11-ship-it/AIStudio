@@ -301,7 +301,13 @@ class _TrackerCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            '${tracker.source} · ${tracker.knownChapterCount} chapters',
+            // knownChapterCount is 0 until the first successful update check --
+            // follow_series creates the tracker without it -- so a freshly
+            // followed series would otherwise be labelled "0 chapters", which
+            // reads as "this series has none" rather than "not checked yet".
+            tracker.knownChapterCount > 0
+                ? '${tracker.source} · ${tracker.knownChapterCount} chapters'
+                : tracker.source,
             style: AppTypography.body.copyWith(color: AppColors.muted),
           ),
           if (tracker.lastError != null) ...[

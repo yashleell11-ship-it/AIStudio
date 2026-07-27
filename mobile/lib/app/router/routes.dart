@@ -71,9 +71,15 @@ abstract final class RoutePaths {
 
   static String sourceBrowse(String sourceId) => '/sources/$sourceId';
 
+  // Source ids are flat slugs, but series/chapter ids come from the connectors
+  // and can contain `/` or `%` (e.g. toonily's `series/chapter-1`). go_router
+  // percent-DECODES path parameters on the way in, so encoding here is the
+  // matching half of that round-trip: without it a slash-bearing id becomes an
+  // extra path segment (404) and a literal `%` throws in `decodeComponent`.
   static String sourceSeriesDetail(String sourceId, String seriesId) =>
-      '/sources/$sourceId/series/$seriesId';
+      '/sources/$sourceId/series/${Uri.encodeComponent(seriesId)}';
 
   static String sourceReader(String sourceId, String seriesId, String chapterId) =>
-      '/sources/$sourceId/series/$seriesId/chapters/${Uri.encodeComponent(chapterId)}/read';
+      '/sources/$sourceId/series/${Uri.encodeComponent(seriesId)}'
+      '/chapters/${Uri.encodeComponent(chapterId)}/read';
 }
