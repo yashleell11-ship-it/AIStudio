@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import Response
+from pydantic import BaseModel, Field
 
 from core.rate_limit import limiter, sources_limit
 from services.browse_service import BrowseService, get_browse_service
@@ -12,6 +13,11 @@ from services.library_intelligence_service import (
     get_library_intelligence_service,
 )
 from services.reading_service import ReadingService, get_reading_service
+from services.source_pin_service import (
+    SourcePinService,
+    get_source_pin_service,
+    require_source_pin_service,
+)
 from utils.api_pagination import set_list_total_header
 
 router = APIRouter(prefix="/sources", tags=["sources"])
@@ -22,6 +28,14 @@ ReadingDep = Annotated[ReadingService, Depends(get_reading_service)]
 IntelDep = Annotated[
     LibraryIntelligenceService, Depends(get_library_intelligence_service)
 ]
+PinDep = Annotated[SourcePinService, Depends(get_source_pin_service)]
+PinWriteDep = Annotated[SourcePinService, Depends(require_source_pin_service)]
+
+
+class SourcePinsUpdate(BaseModel):
+    """The complete pinned set, in the order it should be displayed."""
+
+    source_ids: list[str] = Field(default_factory=list)
 
 
 @router.get("")
@@ -51,8 +65,10 @@ async def federated_search(
     # Local library hits (kind:"local"). Skip on empty query -- the library
     # search rejects blank input -- but still report sources as queried.
     local_items: list[dict[str, object]] = []
+    local_has_more = False
     if query:
         local_result = intel.search_series(query, page=page, per_page=per_page)
+        local_has_more = bool(local_result.get("has_more"))
         for summary in local_result.get("items", []):
             local_items.append(
                 {
@@ -72,8 +88,31 @@ async def federated_search(
         per_page=per_page,
         include_mature=intel.mature_content_enabled,
         local_items=local_items,
+        local_has_more=local_has_more,
         base_url=base_url,
     )
+
+
+# NOTE: like ``/search`` above, both literal ``/pins`` routes MUST stay ahead of
+# the ``/{source_id}/...`` routes or FastAPI captures "pins" as a source id.
+@router.get("/pins")
+def list_source_pins(service: PinDep, response: Response) -> list[dict[str, object]]:
+    """Return the caller's pinned sources, ordered."""
+    items = service.list_pins()
+    set_list_total_header(response, len(items))
+    return items
+
+
+@router.put("/pins")
+def replace_source_pins(
+    payload: SourcePinsUpdate,
+    service: PinWriteDep,
+    response: Response,
+) -> list[dict[str, object]]:
+    """Replace the pinned set with exactly the sources given, in that order."""
+    items = service.replace_pins(payload.source_ids)
+    set_list_total_header(response, len(items))
+    return items
 
 
 @router.get("/{source_id}/browse-modes")

@@ -5,6 +5,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import threading
+from concurrent.futures import ThreadPoolExecutor
+from itertools import zip_longest
 from urllib.parse import quote
 
 from core.config import get_settings
@@ -14,6 +17,7 @@ from connectors.http.client import ConnectorHttpError
 from connectors.ids import fully_unquote
 from connectors.models import Chapter, Page, PaginatedSeriesList, Series
 from connectors.registry import (
+    ConnectorDescriptor,
     create_connector,
     list_installed_connectors,
     registry_snapshot,
@@ -22,12 +26,40 @@ from services.outbound_security import validate_outbound_url
 
 logger = logging.getLogger(__name__)
 
-# Federated search fan-out tuning: bound concurrency so we never open more than
-# a handful of upstream connections at once, and cap each source so one slow /
-# Cloudflare-blocked site can't stall the whole request.
-_SEARCH_CONCURRENCY = 8
+# Federated search fan-out tuning. The fan-out is I/O bound across dozens of
+# unrelated sites, so it gets a dedicated pool instead of the shared default
+# executor: the previous semaphore of 8 serialised the registry into
+# ceil(N/8) rounds of _SEARCH_TIMEOUT_SECONDS, measured at 34-52s against the
+# mobile client's 30s receive timeout (i.e. search failed outright). Fanning
+# out to every source at once measured 10.8s on the same 50-source registry.
+_SEARCH_MAX_WORKERS = 128
 _SEARCH_TIMEOUT_SECONDS = 8.0
+# Whole-request budget. Whatever has not resolved by the deadline is reported
+# as a failed source so the client always gets its page back in time.
+_SEARCH_DEADLINE_SECONDS = 12.0
+# Search runs on a much tighter HTTP budget than browsing (30s x 3 retries):
+# one wedged site must not eat the deadline. Applied only to the search-scoped
+# connector instances built by _search_connector, so browsing keeps its
+# resilience.
+_SEARCH_HTTP_TIMEOUT_SECONDS = 6.0
+_SEARCH_HTTP_RETRIES = 1
+# A source that answers with this many titles, none of which share a token with
+# the query, is answering something other than what was asked -- baozimh returns
+# its whole 82-title catalog for every query -- so its results are dropped.
+# Below the threshold results are only demoted, never dropped: a narrow result
+# set with no literal overlap is exactly how a genuine alternative-title hit
+# looks (MangaDex answers "lookism" with the single romanized title
+# "Oemo Jisangjuui").
+_QUERY_IGNORED_MIN_ITEMS = 10
 _WHITESPACE_RE = re.compile(r"\s+")
+_TOKEN_SPLIT_RE = re.compile(r"[^\w]+", re.UNICODE)
+_LOCAL_GROUP_NAME = "My Library"
+
+_search_executor: ThreadPoolExecutor | None = None
+_search_executor_lock = threading.Lock()
+# Search-scoped connector instances, one per source (see _search_connector).
+_search_connectors: dict[str, SourceConnector] = {}
+_search_connectors_lock = threading.Lock()
 
 
 def _absolute_url(base_url: str, path: str) -> str:
@@ -36,8 +68,127 @@ def _absolute_url(base_url: str, path: str) -> str:
 
 
 def _normalize_title(title: str) -> str:
-    """Collapse whitespace + casefold for duplicate detection across sources."""
+    """Collapse whitespace + casefold for duplicate detection within a source."""
     return _WHITESPACE_RE.sub(" ", (title or "").strip()).casefold()
+
+
+def _query_tokens(query: str) -> list[str]:
+    return [token for token in _TOKEN_SPLIT_RE.split(query.casefold()) if token]
+
+
+def _relevance_score(title: str, query_norm: str, tokens: list[str]) -> float:
+    """Rank one result title against the query. ``0.0`` means "shares nothing".
+
+    Only the title is available here -- connectors normalize away the alternative
+    titles a site matched on -- so a zero score means "no literal overlap", not
+    "wrong result". Callers demote zeros rather than discarding them; see
+    _QUERY_IGNORED_MIN_ITEMS for the one case where a source is dropped.
+    """
+    normalized = _normalize_title(title)
+    if not normalized or not tokens:
+        return 0.0
+    if normalized == query_norm:
+        return 4.0
+    if query_norm in normalized:
+        return 3.0
+    matched = sum(1 for token in tokens if token in normalized)
+    if matched == len(tokens):
+        return 2.0
+    if matched:
+        return 1.0 + matched / len(tokens)
+    return 0.0
+
+
+def _search_error_message(exc: BaseException) -> str:
+    """One-line, client-safe reason a source contributed nothing."""
+    if isinstance(exc, TimeoutError):
+        return "Timed out."
+    if isinstance(exc, ConnectorHttpError) and exc.status_code == 403:
+        return "Access blocked (403). This source may use Cloudflare or bot protection."
+    return str(exc) or exc.__class__.__name__
+
+
+def _get_search_executor() -> ThreadPoolExecutor:
+    """The federated fan-out's own thread pool.
+
+    Sized to hold the whole registry at once; threads are spawned on demand, so
+    a small search costs no more than a small pool. Kept off the default
+    executor so a wedged source cannot starve unrelated background work.
+    """
+    global _search_executor
+    if _search_executor is None:
+        with _search_executor_lock:
+            if _search_executor is None:
+                _search_executor = ThreadPoolExecutor(
+                    max_workers=_SEARCH_MAX_WORKERS,
+                    thread_name_prefix="federated-search",
+                )
+    return _search_executor
+
+
+def _apply_search_http_budget(connector: SourceConnector) -> None:
+    """Tighten every HTTP client the connector owns to the search budget.
+
+    Both connector HTTP clients (httpx and the curl_cffi one) expose the same
+    ``_timeout`` / ``_max_retries`` knobs. Reaching for them here keeps the
+    budget in one place instead of threading a parameter through 50 connector
+    files, and it is only ever applied to the search-scoped instance below --
+    never to the shared instance browsing uses.
+    """
+    for value in vars(connector).values():
+        timeout = getattr(value, "_timeout", None)
+        retries = getattr(value, "_max_retries", None)
+        if not isinstance(timeout, (int, float)) or not isinstance(retries, int):
+            continue
+        value._timeout = min(float(timeout), _SEARCH_HTTP_TIMEOUT_SECONDS)
+        value._max_retries = min(retries, _SEARCH_HTTP_RETRIES)
+        # httpx.Client keeps its own copy of the timeout for every request.
+        inner = getattr(value, "_client", None)
+        if inner is not None and hasattr(inner, "timeout"):
+            inner.timeout = _SEARCH_HTTP_TIMEOUT_SECONDS
+
+
+def _search_connector(source_id: str) -> SourceConnector:
+    """Return the connector instance the federated fan-out should use.
+
+    The registry hands browsing a cached instance per source; search needs a
+    tighter HTTP budget than browsing, so it keeps its own instance rather than
+    mutating a shared one out from under a concurrent browse request.
+    """
+    connector = create_connector(source_id)
+    if not isinstance(connector, SourceConnector):
+        # Test doubles and anything else non-standard are used untouched.
+        return connector
+    cached = _search_connectors.get(source_id)
+    if cached is not None and type(cached) is type(connector):
+        return cached
+    try:
+        scoped = type(connector)()
+    except Exception:  # pragma: no cover - connector needs constructor config
+        logger.debug("federated_search source=%s has no search-scoped instance", source_id)
+        return connector
+    _apply_search_http_budget(scoped)
+    with _search_connectors_lock:
+        return _search_connectors.setdefault(source_id, scoped)
+
+
+def _round_robin(buckets: list[list[dict[str, object]]], limit: int) -> list[dict[str, object]]:
+    """Interleave per-source result lists, one item per source per round.
+
+    This replaces the flat ``merged[:per_page]`` truncation: with sources
+    concatenated in connector display-name order, the third source alone
+    (baozimh, 82 catalog titles) consumed all 40 slots and the real hits never
+    reached the page.
+    """
+    picked: list[dict[str, object]] = []
+    for row in zip_longest(*buckets):
+        for item in row:
+            if item is None:
+                continue
+            picked.append(item)
+            if len(picked) >= limit:
+                return picked
+    return picked
 
 
 def _normalize_source_chapter_id(chapter_id: str) -> str:
@@ -162,6 +313,9 @@ class BrowseService:
                 "description": descriptor.description,
                 "browsable": descriptor.browsable,
                 "supports_import": descriptor.supports_import,
+                # Carried through so the client can badge 18+ sources; the
+                # descriptor has always had it, the payload just dropped it.
+                "mature": descriptor.mature,
                 "icon_url": descriptor.icon_url,
             }
             for descriptor in descriptors
@@ -267,6 +421,129 @@ class BrowseService:
         )
         return _serialize_paginated(listing, source_id)
 
+    async def _fan_out_search(
+        self,
+        query: str,
+        source_ids: list[str],
+        *,
+        page: int,
+    ) -> dict[str, PaginatedSeriesList | BaseException]:
+        """Query every source at once, bounded per source and overall.
+
+        Returns one entry per source: its listing, or the exception explaining
+        why it contributed nothing. Sources still running at the overall
+        deadline are cancelled and reported as timed out -- their threads are
+        left to drain in the dedicated pool rather than holding up the response.
+        """
+        loop = asyncio.get_running_loop()
+        executor = _get_search_executor()
+
+        async def _search_one(source_id: str) -> PaginatedSeriesList:
+            def _work() -> PaginatedSeriesList:
+                return _search_connector(source_id).search_series(query, page, sort=None)
+
+            return await asyncio.wait_for(
+                loop.run_in_executor(executor, _work),
+                timeout=_SEARCH_TIMEOUT_SECONDS,
+            )
+
+        tasks = {
+            asyncio.ensure_future(_search_one(source_id)): source_id
+            for source_id in source_ids
+        }
+        done, pending = await asyncio.wait(tasks, timeout=_SEARCH_DEADLINE_SECONDS)
+
+        outcomes: dict[str, PaginatedSeriesList | BaseException] = {}
+        for task in done:
+            failure = task.exception()
+            outcomes[tasks[task]] = failure if failure is not None else task.result()
+        for task in pending:
+            task.cancel()
+            outcomes[tasks[task]] = TimeoutError("Search deadline exceeded.")
+        return outcomes
+
+    def _build_source_group(
+        self,
+        descriptor: ConnectorDescriptor,
+        outcome: PaginatedSeriesList | BaseException | None,
+        *,
+        base_url: str,
+        query_norm: str,
+        tokens: list[str],
+    ) -> tuple[dict[str, object], float]:
+        """Turn one source's outcome into a display group + its best score."""
+        source_id = descriptor.source_type
+        group: dict[str, object] = {
+            "source": source_id,
+            "source_name": descriptor.name,
+            "icon_url": descriptor.icon_url,
+            "status": "empty",
+            "error": None,
+            "total": 0,
+            "has_more": False,
+            "items": [],
+        }
+        if outcome is None:
+            return group, 0.0
+        if isinstance(outcome, BaseException):
+            group["status"] = "error"
+            group["error"] = _search_error_message(outcome)
+            logger.warning(
+                "federated_search source=%s query=%r failed: %r", source_id, query_norm, outcome
+            )
+            return group, 0.0
+
+        scored: list[tuple[float, dict[str, object]]] = []
+        seen: set[str] = set()
+        for series in outcome.items:
+            # De-dupe WITHIN one source only. The same series legitimately shows
+            # up under several sources and each keeps its own row: collapsing
+            # across sources is what reduced the five real Lookism hits to one.
+            key = _normalize_title(series.title)
+            if key in seen:
+                continue
+            seen.add(key)
+            scored.append(
+                (
+                    _relevance_score(series.title, query_norm, tokens),
+                    {
+                        "kind": "source",
+                        "source": source_id,
+                        "series_id": str(series.id),
+                        "title": series.title,
+                        "cover_url": _absolute_url(
+                            base_url,
+                            f"/sources/{source_id}/series/"
+                            f"{quote(str(series.id), safe='')}/cover",
+                        ),
+                        "author": series.author,
+                        "extra": None,
+                    },
+                )
+            )
+
+        best_score = max((score for score, _ in scored), default=0.0)
+        if best_score <= 0.0 and len(scored) >= _QUERY_IGNORED_MIN_ITEMS:
+            group["error"] = (
+                f"Source returned {len(scored)} results unrelated to the query; ignored."
+            )
+            logger.info(
+                "federated_search source=%s query=%r ignored the query (%d unrelated titles)",
+                source_id,
+                query_norm,
+                len(scored),
+            )
+            return group, 0.0
+
+        # Stable sort: best matches first, source order preserved within a tier.
+        scored.sort(key=lambda pair: -pair[0])
+        items = [item for _, item in scored]
+        group["items"] = items
+        group["total"] = len(items)
+        group["has_more"] = bool(outcome.has_more)
+        group["status"] = "ok" if items else "empty"
+        return group, best_score
+
     async def federated_search(
         self,
         query: str,
@@ -275,15 +552,20 @@ class BrowseService:
         per_page: int = 40,
         include_mature: bool = False,
         local_items: list[dict[str, object]] | None = None,
+        local_has_more: bool = False,
         base_url: str = "",
     ) -> dict[str, object]:
         """Search the local library AND every browsable source in parallel.
 
         ``local_items`` are already-serialized ``kind:"local"`` hits (the caller
         owns the DB session, so it queries the library and passes them in).
-        Source connectors are fanned out concurrently in a thread pool with
-        bounded concurrency + a per-source timeout; a failing / slow / blocked
-        source is counted into ``sources_failed`` and never breaks the response.
+        ``local_has_more`` reports whether the library query itself has further
+        pages, so a local-only result set is not falsely truncated to one page.
+
+        Results are returned twice: as ``groups`` (the library plus one group
+        per source, which is what the screen renders) and as the flat ``items``
+        list older clients still read. ``items`` interleaves the groups instead
+        of truncating a concatenation, so no single source can consume the page.
         """
         local_items = list(local_items or [])
         normalized_query = query.strip()
@@ -294,78 +576,85 @@ class BrowseService:
             browsable_only=True,
             include_mature=include_mature,
         )
-        source_ids = [descriptor.source_type for descriptor in descriptors]
-        sources_queried = len(source_ids)
+        sources_queried = len(descriptors)
 
-        source_items: list[dict[str, object]] = []
-        sources_failed = 0
-        source_has_more = False
-
-        if normalized_query and source_ids:
-            loop = asyncio.get_event_loop()
-            semaphore = asyncio.Semaphore(_SEARCH_CONCURRENCY)
-
-            async def _search_one(source_id: str) -> PaginatedSeriesList:
-                def _work() -> PaginatedSeriesList:
-                    connector = create_connector(source_id)
-                    return connector.search_series(normalized_query, page, sort=None)
-
-                async with semaphore:
-                    return await asyncio.wait_for(
-                        loop.run_in_executor(None, _work),
-                        timeout=_SEARCH_TIMEOUT_SECONDS,
-                    )
-
-            results = await asyncio.gather(
-                *(_search_one(source_id) for source_id in source_ids),
-                return_exceptions=True,
+        outcomes: dict[str, PaginatedSeriesList | BaseException] = {}
+        if normalized_query and descriptors:
+            outcomes = await self._fan_out_search(
+                normalized_query,
+                [descriptor.source_type for descriptor in descriptors],
+                page=page,
             )
-            for source_id, result in zip(source_ids, results):
-                if isinstance(result, BaseException):
-                    sources_failed += 1
-                    logger.warning(
-                        "federated_search source=%s query=%r failed: %r",
-                        source_id,
-                        normalized_query,
-                        result,
-                    )
-                    continue
-                if result.has_more:
-                    source_has_more = True
-                for series in result.items:
-                    source_items.append(
-                        {
-                            "kind": "source",
-                            "source": source_id,
-                            "series_id": str(series.id),
-                            "title": series.title,
-                            "cover_url": _absolute_url(
-                                base_url,
-                                f"/sources/{source_id}/series/"
-                                f"{quote(str(series.id), safe='')}/cover",
-                            ),
-                            "author": series.author,
-                            "extra": None,
-                        }
-                    )
 
-        # Merge: local first, then source hits; de-dupe by normalized title with
-        # local winning over source copies of the same series.
-        merged: list[dict[str, object]] = list(local_items)
-        seen = {_normalize_title(str(item["title"])) for item in local_items}
-        for item in source_items:
-            key = _normalize_title(str(item["title"]))
-            if key in seen:
-                continue
-            seen.add(key)
-            merged.append(item)
+        query_norm = _normalize_title(normalized_query)
+        tokens = _query_tokens(normalized_query)
+        ranked: list[tuple[float, dict[str, object]]] = []
+        sources_failed = 0
+        for descriptor in descriptors:
+            group, score = self._build_source_group(
+                descriptor,
+                outcomes.get(descriptor.source_type),
+                base_url=base_url,
+                query_norm=query_norm,
+                tokens=tokens,
+            )
+            if group["status"] == "error":
+                sources_failed += 1
+            ranked.append((score, group))
 
-        total_merged = len(merged)
-        items = merged[:per_page]
-        has_more = source_has_more or total_merged > per_page
+        # Most relevant source first; sources with nothing to show sink to the
+        # bottom, ties broken by display name so the order is stable.
+        ranked.sort(
+            key=lambda pair: (
+                -pair[0],
+                0 if pair[1]["items"] else 1,
+                str(pair[1]["source_name"]).casefold(),
+            )
+        )
+        source_groups = [group for _, group in ranked]
+
+        local_group: dict[str, object] = {
+            "source": None,
+            "source_name": _LOCAL_GROUP_NAME,
+            "icon_url": None,
+            "status": "ok" if local_items else "empty",
+            "error": None,
+            "total": len(local_items),
+            "has_more": bool(local_has_more),
+            "items": local_items,
+        }
+
+        # Flat list: the library first (as before), then one item per source per
+        # round until the page is full.
+        items = local_items[:per_page]
+        if len(items) < per_page:
+            items = items + _round_robin(
+                [group["items"] for group in source_groups],
+                per_page - len(items),
+            )
+
+        total_available = len(local_items) + sum(
+            len(group["items"]) for group in source_groups
+        )
+        has_more = (
+            local_has_more
+            or total_available > len(items)
+            or any(group["has_more"] for group in source_groups)
+        )
+
+        logger.info(
+            "federated_search query=%r sources_queried=%d sources_failed=%d "
+            "groups_with_hits=%d items=%d",
+            normalized_query,
+            sources_queried,
+            sources_failed,
+            sum(1 for group in source_groups if group["items"]),
+            len(items),
+        )
 
         return {
             "items": items,
+            "groups": [local_group, *source_groups],
             "sources_queried": sources_queried,
             "sources_failed": sources_failed,
             "page": page,
