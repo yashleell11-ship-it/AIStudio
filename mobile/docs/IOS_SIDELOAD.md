@@ -218,5 +218,6 @@ a lapsed certificate. The build step asserts both survived into the binary.
 | Manifest URLs point at an internal host | `MM_PUBLIC_BASE_URL` unset in the deploy `.env` |
 | Install hangs in SideStore | Change the **anisette server** in iloader, or reinstall SideStore |
 | Phone missing from iloader | Trust prompt didn't stick — unplug, replug, unlock, retry |
+| `OperationError 1006` — "could not determine this device's UDID" | The pairing file is stale or gone. Nothing to do with the build — SideStore reads the UDID from that file to sign, so *every* install and refresh fails the same way until it is replaced. Turn LocalDevVPN on, plug into the PC, unlock, Trust, then re-pair in iloader. iOS invalidates pairing records on its own (an iOS update or a long gap without connecting will do it) |
 
 Docs: <https://docs.sidestore.io> · iloader: <https://github.com/nab138/iloader>
