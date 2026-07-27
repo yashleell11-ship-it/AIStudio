@@ -47,6 +47,32 @@ void main() {
     });
   });
 
+  group('AuthUser.toJson', () {
+    test('round-trips every field through fromJson', () {
+      // The offline cold start restores a session from this blob, so a field
+      // lost here is a field the app cannot see with the server down.
+      final restored = AuthUser.fromJson(AuthUser.fromJson(fullJson).toJson());
+      expect(restored.id, 7);
+      expect(restored.username, 'reader');
+      expect(restored.email, 'reader@example.com');
+      expect(restored.displayName, 'Avid Reader');
+      expect(restored.isAdmin, isTrue);
+      expect(restored.createdAt, DateTime.parse('2024-01-01T00:00:00'));
+      expect(restored.lastLoginAt, DateTime.parse('2024-06-01T12:00:00'));
+    });
+
+    test('round-trips null optionals', () {
+      final json = Map<String, dynamic>.from(fullJson)
+        ..['email'] = null
+        ..['display_name'] = null
+        ..['last_login_at'] = null;
+      final restored = AuthUser.fromJson(AuthUser.fromJson(json).toJson());
+      expect(restored.email, isNull);
+      expect(restored.displayName, isNull);
+      expect(restored.lastLoginAt, isNull);
+    });
+  });
+
   group('AuthResponse.fromJson', () {
     test('parses the nested user and token', () {
       final response = AuthResponse.fromJson({

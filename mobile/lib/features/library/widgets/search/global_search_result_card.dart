@@ -68,16 +68,22 @@ class GlobalSearchResultCard extends StatelessWidget {
   }
 }
 
-/// Compact cover-first card for the search results grid.
+/// Compact cover-first card for the search results grid and for the horizontal
+/// shelves under each source section.
 class GlobalSearchResultGridCard extends StatelessWidget {
   const GlobalSearchResultGridCard({
     super.key,
     required this.item,
     required this.onTap,
+    this.showSourceBadge = true,
   });
 
   final GlobalSearchItem item;
   final VoidCallback onTap;
+
+  /// Off inside a per-source section, where the section header already says
+  /// where these results came from.
+  final bool showSourceBadge;
 
   @override
   Widget build(BuildContext context) {
@@ -101,11 +107,12 @@ class GlobalSearchResultGridCard extends StatelessWidget {
                   fit: StackFit.expand,
                   children: [
                     SeriesCoverImage(url: item.coverUrl ?? '', borderRadius: 0),
-                    Positioned(
-                      left: AppSpacing.xxs,
-                      top: AppSpacing.xxs,
-                      child: SourceBadge(item: item, compact: true),
-                    ),
+                    if (showSourceBadge)
+                      Positioned(
+                        left: AppSpacing.xxs,
+                        top: AppSpacing.xxs,
+                        child: SourceBadge(item: item, compact: true),
+                      ),
                   ],
                 ),
               ),

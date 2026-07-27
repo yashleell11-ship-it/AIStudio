@@ -3,37 +3,116 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
-import 'package:manhwamaniacs/features/library/repositories/global_search_repository.dart';
 import 'package:manhwamaniacs/features/library/screens/search_screen.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
+import 'package:manhwamaniacs/features/sources/models/source_series.dart';
+import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// Fake federated-search repo. Returns [result] for a non-empty query, or an
-/// [error] when configured to fail.
-class _FakeGlobalSearchRepository implements GlobalSearchRepository {
-  _FakeGlobalSearchRepository({this.result, this.error});
+/// Grouped federated-search double. Returns [result] for a non-empty query, or
+/// an [error] when configured to fail. [browseItems] backs the single-source
+/// retry path, which goes to the source's own browse endpoint.
+class _FakeSourcesRepository implements SourcesRepository {
+  _FakeSourcesRepository({this.result, this.error, this.browseItems = const []});
 
-  final GlobalSearchResult? result;
+  final GroupedSearchResult? result;
   final AppError? error;
+  final List<SourceSeriesSummary> browseItems;
+  int browseCalls = 0;
 
   @override
-  Future<Result<GlobalSearchResult>> search(
+  Future<Result<GroupedSearchResult>> searchGrouped(
     String query, {
     int page = 1,
     int perPage = 40,
   }) async {
     if (error != null) return Err(error!);
-    return Ok(result ?? const GlobalSearchResult());
+    return Ok(result ?? const GroupedSearchResult());
   }
+
+  @override
+  Future<Result<PagedResult<SourceSeriesSummary>>> listSeries(
+    String sourceId, {
+    int page = 1,
+    String? query,
+    String? sort,
+  }) async {
+    browseCalls++;
+    return Ok(
+      PagedResult(
+        items: browseItems,
+        total: browseItems.length,
+        page: page,
+        perPage: 20,
+        hasNext: false,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourcePin>>> listPins() async => const Ok([]);
+
+  @override
+  Future<Result<List<SourcePin>>> replacePins(List<String> sourceIds) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourceSummary>>> listSources() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourceBrowseMode>>> listBrowseModes(String sourceId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<SourceSeriesSummary>> getSeries(
+    String sourceId,
+    String seriesId,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourceChapterSummary>>> getChapters(
+    String sourceId,
+    String seriesId,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ReaderChapter>> getReaderChapter(
+    String sourceId,
+    String seriesId,
+    String chapterId,
+  ) =>
+      throw UnimplementedError();
 }
 
-Future<void> _pumpSearch(
-  WidgetTester tester,
-  GlobalSearchRepository repo,
-) async {
+/// Source ids here are deliberately ones with no known favicon so [SourceLogo]
+/// renders its letter avatar instead of reaching for the network in a test.
+SourceSearchGroup _group({
+  String? source,
+  String name = 'Your library',
+  SourceGroupStatus status = SourceGroupStatus.ok,
+  String? error,
+  List<GlobalSearchItem> items = const [],
+}) =>
+    SourceSearchGroup(
+      source: source,
+      sourceName: name,
+      status: status,
+      error: error,
+      total: items.length,
+      items: items,
+    );
+
+Future<void> _pumpSearch(WidgetTester tester, SourcesRepository repo) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
@@ -62,7 +141,7 @@ Future<void> _pumpSearch(
     ProviderScope(
       overrides: [
         sharedPrefsProvider.overrideWithValue(prefs),
-        globalSearchRepositoryProvider.overrideWithValue(repo),
+        sourcesRepositoryProvider.overrideWithValue(repo),
       ],
       child: MaterialApp.router(routerConfig: router),
     ),
@@ -80,32 +159,42 @@ Future<void> _search(WidgetTester tester, String term) async {
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('SearchScreen (federated)', () {
+  group('SearchScreen (federated, grouped)', () {
     testWidgets('shows suggestions before searching', (tester) async {
-      await _pumpSearch(tester, _FakeGlobalSearchRepository());
+      await _pumpSearch(tester, _FakeSourcesRepository());
 
       expect(find.text('Start typing to search'), findsOneWidget);
       expect(find.text('TRENDING'), findsOneWidget);
       expect(find.text('fantasy'), findsOneWidget);
     });
 
-    testWidgets('renders merged local + source results with badges',
+    testWidgets('renders a section per source with its own matches',
         (tester) async {
       await _pumpSearch(
         tester,
-        _FakeGlobalSearchRepository(
-          result: const GlobalSearchResult(
-            items: [
-              GlobalSearchItem(
-                kind: 'local',
-                seriesId: '1',
-                title: 'One Piece (Library)',
+        _FakeSourcesRepository(
+          result: GroupedSearchResult(
+            groups: [
+              _group(
+                items: const [
+                  GlobalSearchItem(
+                    kind: 'local',
+                    seriesId: '1',
+                    title: 'One Piece (Library)',
+                  ),
+                ],
               ),
-              GlobalSearchItem(
-                kind: 'source',
-                source: 'mangadex',
-                seriesId: 'md-1',
-                title: 'One Piece (MangaDex)',
+              _group(
+                source: 'demonicscans',
+                name: 'Demonic Scans',
+                items: const [
+                  GlobalSearchItem(
+                    kind: 'source',
+                    source: 'demonicscans',
+                    seriesId: 'md-1',
+                    title: 'One Piece (Demonic)',
+                  ),
+                ],
               ),
             ],
             sourcesQueried: 12,
@@ -116,22 +205,84 @@ void main() {
 
       await _search(tester, 'one piece');
 
+      // A header per source, and that source's hits beneath it.
+      expect(find.text('Your library'), findsOneWidget);
+      expect(find.text('Demonic Scans'), findsOneWidget);
       expect(find.text('One Piece (Library)'), findsOneWidget);
-      expect(find.text('One Piece (MangaDex)'), findsOneWidget);
-      // Badges: LIBRARY for the local hit, MANGADEX for the source hit.
-      expect(find.text('LIBRARY'), findsOneWidget);
-      expect(find.text('MANGADEX'), findsOneWidget);
+      expect(find.text('One Piece (Demonic)'), findsOneWidget);
       // Status line reflects sources queried, and flags failures subtly.
       expect(find.textContaining('2 results found'), findsOneWidget);
       expect(find.text('Some sources unavailable'), findsOneWidget);
+    });
+
+    testWidgets('a source that failed shows its own error row with Retry',
+        (tester) async {
+      final repo = _FakeSourcesRepository(
+        result: GroupedSearchResult(
+          groups: [
+            _group(
+              items: const [
+                GlobalSearchItem(
+                  kind: 'local',
+                  seriesId: '1',
+                  title: 'One Piece (Library)',
+                ),
+              ],
+            ),
+            _group(
+              source: 'demonicscans',
+              name: 'Demonic Scans',
+              status: SourceGroupStatus.error,
+              error: 'Source timed out',
+            ),
+          ],
+          sourcesQueried: 2,
+          sourcesFailed: 1,
+        ),
+        browseItems: const [
+          SourceSeriesSummary(
+            id: 'ds-9',
+            sourceId: 'demonicscans',
+            title: 'One Piece (Recovered)',
+            chapterCount: 4,
+            genres: [],
+            coverUrl: '',
+          ),
+        ],
+      );
+      await _pumpSearch(tester, repo);
+      await _search(tester, 'one piece');
+
+      // The rest of the screen still rendered — one dead source is one row.
+      expect(find.text('One Piece (Library)'), findsOneWidget);
+      expect(find.text('Source timed out'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Retry'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Retry'));
+      await tester.pumpAndSettle();
+
+      expect(repo.browseCalls, 1);
+      expect(find.text('Source timed out'), findsNothing);
+      expect(find.text('One Piece (Recovered)'), findsOneWidget);
     });
 
     testWidgets('empty result shows "No results found", not a spinner',
         (tester) async {
       await _pumpSearch(
         tester,
-        _FakeGlobalSearchRepository(
-          result: const GlobalSearchResult(sourcesQueried: 12),
+        _FakeSourcesRepository(
+          result: GroupedSearchResult(
+            groups: [
+              _group(status: SourceGroupStatus.empty),
+              _group(
+                source: 'demonicscans',
+                name: 'Demonic Scans',
+                status: SourceGroupStatus.empty,
+              ),
+            ],
+            sourcesQueried: 12,
+          ),
         ),
       );
 
@@ -144,9 +295,7 @@ void main() {
     testWidgets('repository error shows error state with retry', (tester) async {
       await _pumpSearch(
         tester,
-        _FakeGlobalSearchRepository(
-          error: const NetworkError(message: 'offline'),
-        ),
+        _FakeSourcesRepository(error: const NetworkError(message: 'offline')),
       );
 
       await _search(tester, 'one piece');
@@ -160,14 +309,20 @@ void main() {
         (tester) async {
       await _pumpSearch(
         tester,
-        _FakeGlobalSearchRepository(
-          result: const GlobalSearchResult(
-            items: [
-              GlobalSearchItem(
-                kind: 'source',
-                source: 'mangadex',
-                seriesId: 'md-1',
-                title: 'One Piece (MangaDex)',
+        _FakeSourcesRepository(
+          result: GroupedSearchResult(
+            groups: [
+              _group(
+                source: 'demonicscans',
+                name: 'Demonic Scans',
+                items: const [
+                  GlobalSearchItem(
+                    kind: 'source',
+                    source: 'demonicscans',
+                    seriesId: 'md-1',
+                    title: 'One Piece (Demonic)',
+                  ),
+                ],
               ),
             ],
             sourcesQueried: 1,
@@ -177,10 +332,10 @@ void main() {
 
       await _search(tester, 'one piece');
 
-      await tester.tap(find.text('One Piece (MangaDex)'));
+      await tester.tap(find.text('One Piece (Demonic)'));
       await tester.pumpAndSettle();
 
-      expect(find.text('SOURCE mangadex md-1'), findsOneWidget);
+      expect(find.text('SOURCE demonicscans md-1'), findsOneWidget);
     });
   });
 }

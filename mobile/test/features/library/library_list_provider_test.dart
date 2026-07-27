@@ -16,11 +16,16 @@ import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
-import 'package:manhwamaniacs/features/library/repositories/global_search_repository.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
 import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
+import 'package:manhwamaniacs/features/sources/models/source_series.dart';
+import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -425,53 +430,107 @@ void main() {
     });
   });
 
-  group('SearchListNotifier (federated)', () {
+  group('SearchListNotifier (federated, grouped)', () {
     Future<ProviderContainer> searchContainer(
-      _FakeGlobalSearchRepository fakeRepo,
+      _FakeSearchSourcesRepository fakeRepo,
     ) async {
       final container = ProviderContainer(
         overrides: [
-          globalSearchRepositoryProvider.overrideWithValue(fakeRepo),
+          sourcesRepositoryProvider.overrideWithValue(fakeRepo),
         ],
       );
       addTearDown(container.dispose);
       return container;
     }
 
+    SourceSearchGroup group_({
+      String? source,
+      String name = 'Local library',
+      SourceGroupStatus status = SourceGroupStatus.ok,
+      String? error,
+      bool hasMore = false,
+      List<GlobalSearchItem> items = const [],
+    }) =>
+        SourceSearchGroup(
+          source: source,
+          sourceName: name,
+          status: status,
+          error: error,
+          total: items.length,
+          hasMore: hasMore,
+          items: items,
+        );
+
     test('blank query resolves to an empty result without hitting the repo',
         () async {
-      final fakeRepo = _FakeGlobalSearchRepository({});
+      final fakeRepo = _FakeSearchSourcesRepository({});
       final container = await searchContainer(fakeRepo);
 
       final state = await container.read(searchListProvider.future);
 
       expect(state.isEmpty, isTrue);
+      expect(state.groups, isEmpty);
       expect(fakeRepo.calls, 0);
     });
 
-    test('loads first page and appends source pages on loadMore', () async {
-      final fakeRepo = _FakeGlobalSearchRepository({
-        1: const GlobalSearchResult(
-          items: [
-            GlobalSearchItem(kind: 'local', seriesId: '1', title: 'Local One'),
-            GlobalSearchItem(
-              kind: 'source',
+    test('loads page 1 and merges page 2 into the existing sections', () async {
+      final fakeRepo = _FakeSearchSourcesRepository({
+        1: GroupedSearchResult(
+          groups: [
+            group_(
+              items: const [
+                GlobalSearchItem(
+                  kind: 'local',
+                  seriesId: '1',
+                  title: 'Local One',
+                ),
+              ],
+            ),
+            group_(
               source: 'mangadex',
-              seriesId: 'abc',
-              title: 'Source One',
+              name: 'MangaDex',
+              hasMore: true,
+              items: const [
+                GlobalSearchItem(
+                  kind: 'source',
+                  source: 'mangadex',
+                  seriesId: 'abc',
+                  title: 'Source One',
+                ),
+              ],
             ),
           ],
           sourcesQueried: 12,
           sourcesFailed: 1,
           hasMore: true,
         ),
-        2: const GlobalSearchResult(
-          items: [
-            GlobalSearchItem(
-              kind: 'source',
+        2: GroupedSearchResult(
+          groups: [
+            // Same source as page 1: its items must extend that section
+            // instead of adding a second MangaDex header.
+            group_(
+              source: 'mangadex',
+              name: 'MangaDex',
+              items: const [
+                GlobalSearchItem(
+                  kind: 'source',
+                  source: 'mangadex',
+                  seriesId: 'abc-2',
+                  title: 'Source One (page 2)',
+                ),
+              ],
+            ),
+            group_(
               source: 'toonily',
-              seriesId: 'def',
-              title: 'Source Two',
+              name: 'Toonily',
+              items: const [
+                GlobalSearchItem(
+                  kind: 'source',
+                  source: 'toonily',
+                  seriesId: 'def',
+                  title: 'Source Two',
+                ),
+              ],
             ),
           ],
           sourcesQueried: 12,
@@ -484,7 +543,8 @@ void main() {
       container.read(searchQueryProvider.notifier).state = 'one piece';
 
       final state = await container.read(searchListProvider.future);
-      expect(state.items, hasLength(2));
+      expect(state.groups, hasLength(2));
+      expect(state.resultCount, 2);
       expect(state.sourcesQueried, 12);
       expect(state.sourcesFailed, 1);
       expect(state.hasMore, isTrue);
@@ -493,15 +553,101 @@ void main() {
       await container.read(searchListProvider.notifier).loadMore();
       final loaded = container.read(searchListProvider).value!;
 
-      expect(loaded.items, hasLength(3));
+      expect(loaded.groups, hasLength(3));
+      expect([for (final g in loaded.groups) g.key], ['@local', 'mangadex', 'toonily']);
+      expect(loaded.groups[1].items, hasLength(2));
+      expect(loaded.resultCount, 4);
       expect(loaded.hasMore, isFalse);
       expect(loaded.isLoadingMore, isFalse);
       expect(fakeRepo.calls, 2);
     });
 
+    test('groupsWithResults drops the sources that answered with nothing',
+        () async {
+      final fakeRepo = _FakeSearchSourcesRepository({
+        1: GroupedSearchResult(
+          groups: [
+            group_(status: SourceGroupStatus.empty),
+            group_(
+              source: 'mangadex',
+              name: 'MangaDex',
+              items: const [
+                GlobalSearchItem(
+                  kind: 'source',
+                  source: 'mangadex',
+                  seriesId: 'abc',
+                  title: 'Source One',
+                ),
+              ],
+            ),
+            group_(
+              source: 'toonily',
+              name: 'Toonily',
+              status: SourceGroupStatus.error,
+              error: 'Timed out',
+            ),
+          ],
+          sourcesQueried: 2,
+          sourcesFailed: 1,
+        ),
+      });
+
+      final container = await searchContainer(fakeRepo);
+      container.read(searchQueryProvider.notifier).state = 'one piece';
+
+      final state = await container.read(searchListProvider.future);
+
+      expect(state.groups, hasLength(3));
+      expect([for (final g in state.groupsWithResults) g.key], ['mangadex']);
+      expect(state.groups.last.hasError, isTrue);
+    });
+
+    test('retrySource re-queries only the failed source', () async {
+      final fakeRepo = _FakeSearchSourcesRepository(
+        {
+          1: GroupedSearchResult(
+            groups: [
+              group_(
+                source: 'toonily',
+                name: 'Toonily',
+                status: SourceGroupStatus.error,
+                error: 'Timed out',
+              ),
+            ],
+            sourcesQueried: 1,
+            sourcesFailed: 1,
+          ),
+        },
+        browsePages: const [
+          SourceSeriesSummary(
+            id: 'ghi',
+            sourceId: 'toonily',
+            title: 'Recovered Hit',
+            chapterCount: 3,
+            genres: [],
+            coverUrl: '',
+          ),
+        ],
+      );
+
+      final container = await searchContainer(fakeRepo);
+      container.read(searchQueryProvider.notifier).state = 'one piece';
+      await container.read(searchListProvider.future);
+
+      await container.read(searchListProvider.notifier).retrySource('toonily');
+      final state = container.read(searchListProvider).value!;
+
+      // One browse call, no second federated fan-out.
+      expect(fakeRepo.calls, 1);
+      expect(fakeRepo.browseCalls, 1);
+      expect(state.groups.single.hasError, isFalse);
+      expect(state.groups.single.items.single.title, 'Recovered Hit');
+      expect(state.sourcesFailed, 0);
+    });
+
     test('repository error surfaces as AsyncError, never stuck loading',
         () async {
-      final fakeRepo = _FakeGlobalSearchRepository(
+      final fakeRepo = _FakeSearchSourcesRepository(
         {},
         error: const NetworkError(message: 'offline'),
       );
@@ -517,16 +663,25 @@ void main() {
   });
 }
 
-class _FakeGlobalSearchRepository implements GlobalSearchRepository {
-  _FakeGlobalSearchRepository(this.pages, {this.error});
+/// Grouped-search double. Only [searchGrouped] and [listSeries] (the
+/// single-source retry path) are wired; everything else throws so an unexpected
+/// call fails loudly instead of silently returning empty data.
+class _FakeSearchSourcesRepository implements SourcesRepository {
+  _FakeSearchSourcesRepository(
+    this.pages, {
+    this.error,
+    this.browsePages = const [],
+  });
 
-  final Map<int, GlobalSearchResult> pages;
+  final Map<int, GroupedSearchResult> pages;
   final AppError? error;
+  final List<SourceSeriesSummary> browsePages;
   int calls = 0;
+  int browseCalls = 0;
   String? lastQuery;
 
   @override
-  Future<Result<GlobalSearchResult>> search(
+  Future<Result<GroupedSearchResult>> searchGrouped(
     String query, {
     int page = 1,
     int perPage = 40,
@@ -534,6 +689,61 @@ class _FakeGlobalSearchRepository implements GlobalSearchRepository {
     calls++;
     lastQuery = query;
     if (error != null) return Err(error!);
-    return Ok(pages[page] ?? const GlobalSearchResult());
+    return Ok(pages[page] ?? const GroupedSearchResult());
   }
+
+  @override
+  Future<Result<PagedResult<SourceSeriesSummary>>> listSeries(
+    String sourceId, {
+    int page = 1,
+    String? query,
+    String? sort,
+  }) async {
+    browseCalls++;
+    return Ok(
+      PagedResult(
+        items: browsePages,
+        total: browsePages.length,
+        page: page,
+        perPage: 20,
+        hasNext: false,
+      ),
+    );
+  }
+
+  @override
+  Future<Result<List<SourceSummary>>> listSources() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourcePin>>> listPins() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourcePin>>> replacePins(List<String> sourceIds) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourceBrowseMode>>> listBrowseModes(String sourceId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<SourceSeriesSummary>> getSeries(
+    String sourceId,
+    String seriesId,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourceChapterSummary>>> getChapters(
+    String sourceId,
+    String seriesId,
+  ) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ReaderChapter>> getReaderChapter(
+    String sourceId,
+    String seriesId,
+    String chapterId,
+  ) =>
+      throw UnimplementedError();
 }

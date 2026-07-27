@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/profile_animations.dart';
@@ -29,6 +30,20 @@ class _StubProfilesNotifier extends ProfilesNotifier {
   @override
   Future<List<Profile>> build() async => _items;
 }
+
+/// Fails the way an unreachable server does — the list is server data, so with
+/// the NAS down this is all the picker ever gets.
+class _UnreachableProfilesNotifier extends ProfilesNotifier {
+  @override
+  Future<List<Profile>> build() async =>
+      throw const NetworkError(message: 'blackholed', host: 'nas.local');
+}
+
+/// The snapshot a previous session left on this device.
+const _persistedActiveProfile = {
+  'mm.active_profile':
+      '{"id":1,"name":"Alex","avatar_key":"violet","mood":"romantic"}',
+};
 
 Finder get _takeover => find.byKey(const Key('profile-mood-takeover'));
 
@@ -65,8 +80,10 @@ Future<void> _pumpRoutedPicker(
   WidgetTester tester,
   List<Profile> profiles, {
   required bool reduceMotion,
+  Map<String, Object> prefsValues = const {},
+  Override? profilesOverride,
 }) async {
-  SharedPreferences.setMockInitialValues({});
+  SharedPreferences.setMockInitialValues(prefsValues);
   final prefs = await SharedPreferences.getInstance();
   final router = GoRouter(
     initialLocation: ProfileRoutes.picker,
@@ -85,7 +102,8 @@ Future<void> _pumpRoutedPicker(
     ProviderScope(
       overrides: [
         sharedPrefsProvider.overrideWithValue(prefs),
-        profilesProvider.overrideWith(() => _StubProfilesNotifier(profiles)),
+        profilesOverride ??
+            profilesProvider.overrideWith(() => _StubProfilesNotifier(profiles)),
       ],
       child: MaterialApp.router(
         routerConfig: router,
@@ -192,6 +210,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('HOME'), findsOneWidget);
     expect(_takeover, findsNothing);
+  });
+
+  testWidgets('an unreachable server offers the persisted profile and a retry',
+      (tester) async {
+    await _pumpRoutedPicker(
+      tester,
+      const [],
+      reduceMotion: true,
+      prefsValues: _persistedActiveProfile,
+      profilesOverride:
+          profilesProvider.overrideWith(_UnreachableProfilesNotifier.new),
+    );
+
+    // Not the default error card: the snapshot is rendered as a real tile, and
+    // the failure names the server it could not reach.
+    expect(find.text('Alex'), findsOneWidget);
+    expect(
+      find.text("Can't reach the server at nas.local — check your connection."),
+      findsOneWidget,
+    );
+    // PrimaryPillButton uppercases its label.
+    expect(find.text('RETRY'), findsOneWidget);
+
+    await tester.tap(find.text('Alex'));
+    await tester.pumpAndSettle();
+
+    // Tapping it enters the session on that persona rather than dead-ending.
+    expect(find.text('HOME'), findsOneWidget);
+  });
+
+  testWidgets('an unreachable server with no persisted profile still retries',
+      (tester) async {
+    await _pumpRoutedPicker(
+      tester,
+      const [],
+      reduceMotion: true,
+      profilesOverride:
+          profilesProvider.overrideWith(_UnreachableProfilesNotifier.new),
+    );
+
+    expect(find.text('Profiles are unavailable'), findsOneWidget);
+    expect(find.text('RETRY'), findsOneWidget);
   });
 
   testWidgets('the ceremony runs about five seconds end to end',

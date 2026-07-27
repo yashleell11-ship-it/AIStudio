@@ -90,6 +90,7 @@ class RecommendationsScreen extends ConsumerWidget {
                   onSeriesTap: (series) => context.push(RoutePaths.seriesDetail(series.id)),
                   onToggleFavorite: (seriesId) async {
                     await ref.read(libraryRepositoryProvider).toggleFavorite(seriesId);
+                    if (!context.mounted) return;
                     ref.invalidate(recommendationsProvider);
                   },
                 ),
