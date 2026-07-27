@@ -1,0 +1,21 @@
+# ManhwaManiacs — pull the newest CI-built iOS .ipa so SideStore can offer it
+# as an over-the-air update, closing the loop from `git push` to a badge on the
+# phone. See ops/fetch-ios-build.sh and .github/workflows/ios-build.yml.
+#
+# Install:
+#   sudo install -m 644 ops/manhwamaniacs-ios-sync.cron \
+#        /etc/cron.d/manhwamaniacs-ios-sync
+# (the installed filename must not contain a dot, or cron ignores it)
+#
+# Runs as root because the publish directory under /srv/apps is owned by nas,
+# and the script chowns the published .ipa to the container's uid.
+#
+# Requires a GitHub token with Actions:read on the repo at /root/.gh_token —
+# without it every run fails and logs. See ops/fetch-ios-build.sh.
+#
+# Every 10 minutes: an iOS build takes ~10-15 min, so this adds at most a few
+# minutes on top of the build itself. Runs with nothing new cost one API call.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+*/10 * * * * root /apps/dev/aistudio/ops/ios-sync-cron.sh
