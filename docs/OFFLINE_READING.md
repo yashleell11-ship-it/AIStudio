@@ -15,6 +15,7 @@ Status: **designed, not built.** Nothing here ships until the whole feature is c
 | One tap or two? | **One.** The existing Download button fills the NAS *and* the phone. No second action. |
 | Storage cap | **No limit** by default. The ~1.5 GB free-space floor is non-negotiable regardless. |
 | When full | **Auto-evict** the oldest already-read chapters. Pinned series are never evicted. |
+| After reading | **Auto-delete the phone copy 2 days after a chapter is finished.** See below. |
 | Download a series | **Every chapter** goes to the phone, not just the next N unread. |
 | Two profiles, same chapter | **Store once**, deduplicated by content hash. Each profile still only sees its own. |
 
@@ -22,6 +23,32 @@ Consequence of "no limit" + "everything" + auto-evict: the free-space floor is t
 eviction can only reclaim *finished* chapters. On a series where nothing has been read there is
 nothing to evict, so the queue pauses at the floor rather than deleting unread chapters. That is
 deliberate — silently deleting something unread is worse than stalling.
+
+### Read-then-expire (the 2-day rule)
+
+Finishing a chapter schedules its **phone copy** for deletion 2 days later. This is the primary way
+storage stays bounded; pressure-based eviction becomes the fallback for when reading outpaces it.
+
+Precise semantics, because each of these is a way to get it wrong:
+
+- **Trigger** is a chapter reaching `read_complete`, not merely being opened. Stamp `read_at`;
+  delete when `now - read_at >= 48h`.
+- **The sweep runs on app launch and resume, never on a timer.** There is no dependable background
+  execution on a sideloaded iOS build, so "2 days later" in practice means "on the first app open
+  after 48 hours have elapsed". Anything else would be a promise the platform cannot keep.
+- **Re-reading cancels it.** Reopening a chapter clears `read_at`; finishing it again restarts the
+  48 hours. Otherwise a re-read would delete itself mid-scroll.
+- **Never delete the chapter currently open**, even if its timer has expired.
+- **Pinned series are exempt**, same as pressure eviction.
+- **Only device bytes are deleted.** The NAS copy is untouched, so a re-read re-downloads rather
+  than re-scrapes.
+- **Progress and read state survive.** Deleting the blobs must not delete the `chapters` row's
+  history or the `progress_outbox` entry — the chapter goes back to "on server, not on phone", not
+  to "never read". Getting this wrong would silently rewind the user's position.
+- **Blobs are refcounted.** With cross-profile dedupe, a shared blob is only unlinked when the last
+  referencing profile expires it.
+- The interval is a constant, surfaced in Settings so it can be changed or turned off without a
+  rebuild.
 
 ---
 
@@ -101,8 +128,8 @@ Each is independently reviewable. Riskiest unknowns first.
 3. **One tap, two destinations** (~1–1.5 weeks). A queue engine: two sequential legs, resume,
    bounded retry, disk floor, ghost-row recovery after a kill.
 4. **Offline progress that never rewinds you** (~4–5 days).
-5. **Storage: budget, eviction, honest numbers** (~1 week). The Storage screen currently conflates
-   NAS bytes with phone bytes.
+5. **Storage: budget, eviction, honest numbers** (~1 week). Includes the read-then-expire sweep and
+   its Settings control. The Storage screen currently conflates NAS bytes with phone bytes.
 6. **Platform hardening and the CBZ-backed library** (~4–5 days).
 
 Realistically **5–6 weeks**.
