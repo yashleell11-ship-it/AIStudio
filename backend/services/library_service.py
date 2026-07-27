@@ -10,6 +10,7 @@ from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
 from core.config import get_settings
+from core.content_rating import mature_rating_predicate, resolve_mature_gate
 from core.errors import AppError
 from database.models import (
     Bookmark,
@@ -157,6 +158,23 @@ class LibraryService:
             UserSeriesState.profile_id == self._profile_id,
             UserSeriesState.in_library == True,  # noqa: E712 - SQL, not Python
         )
+
+    def _mature_enabled(self) -> bool:
+        """The active 18+ gate for this (user, profile)."""
+        return resolve_mature_gate(self._db, self._profile_id, self._user_id)
+
+    def _apply_mature_filter(self, query):
+        """Hide adult-rated series from a ``Series`` query while 18+ is off.
+
+        Mirrors LibraryIntelligenceService._apply_mature_filter — same rule,
+        same helper — because "My Library" and discovery disagreeing about what
+        exists is precisely the bug this closes. Purely a visibility filter:
+        membership, progress and the rows themselves are untouched, and the
+        series reappears the moment the profile turns 18+ back on.
+        """
+        if self._mature_enabled():
+            return query
+        return query.filter(~mature_rating_predicate(Series.content_rating))
 
     def _get_or_create_state(self, series_id: int) -> UserSeriesState:
         state = (
@@ -546,7 +564,11 @@ class LibraryService:
         # INNER JOIN on membership: "My Library" is whatever THIS (user,
         # profile) added, never the catalog. Every filter, the total, and the
         # page below therefore start from a per-caller row set.
-        query = (
+        #
+        # The 18+ filter is applied HERE, before every other filter and before
+        # ``total = query.count()``, so the count and the page can never
+        # disagree — a total that includes hidden rows renders phantom pages.
+        query = self._apply_mature_filter(
             self._db.query(Series)
             .join(UserSeriesState, self._library_on())
             .filter(Series.deleted_at.is_(None))
@@ -740,9 +762,18 @@ class LibraryService:
         return None
 
     def get_series(self, series_id: int) -> dict[str, object]:
+        # Gated like the grid, not just like the detail screen. This method is
+        # the shared reader behind the cover route (image_service) and the
+        # reader's chapter list (reading_service), so leaving it open meant a
+        # hidden 18+ series was still one numeric id away -- its cover being the
+        # single most identifying artefact of it. 404 rather than 403, matching
+        # how a mature *source* is made to look absent rather than forbidden.
         series = (
-            self._db.query(Series)
-            .options(joinedload(Series.chapters).joinedload(Chapter.pages))
+            self._apply_mature_filter(
+                self._db.query(Series).options(
+                    joinedload(Series.chapters).joinedload(Chapter.pages)
+                )
+            )
             .filter(Series.id == series_id)
             .first()
         )
@@ -779,9 +810,16 @@ class LibraryService:
         }
 
     def get_chapter(self, chapter_id: int) -> dict[str, object]:
+        # Gated via the owning series for the same reason as get_series: this
+        # backs both /library/chapters/{id} and /reader/chapter/{id}, and an
+        # ungated chapter payload hands back the title and the whole page list
+        # of a series the gate is hiding.
         chapter = (
-            self._db.query(Chapter)
-            .options(joinedload(Chapter.pages))
+            self._apply_mature_filter(
+                self._db.query(Chapter)
+                .options(joinedload(Chapter.pages))
+                .join(Series, Series.id == Chapter.series_id)
+            )
             .filter(Chapter.id == chapter_id)
             .first()
         )
@@ -856,8 +894,16 @@ class LibraryService:
         return page
 
     def get_continue_reading(self, limit: int = 10) -> list[dict[str, object]]:
+        # Joined (not left-joined) to Series so the 18+ gate applies: a series
+        # hidden from the grid must not reappear on the home screen's
+        # Continue Reading strip, which is the surface that shows its title and
+        # cover most prominently. Progress rows are untouched.
         rows = (
-            self._db.query(ReadingProgress)
+            self._apply_mature_filter(
+                self._db.query(ReadingProgress).join(
+                    Series, Series.id == ReadingProgress.series_id
+                )
+            )
             .filter(
                 ReadingProgress.user_id == self._user_id,
                 ReadingProgress.profile_id == self._profile_id,

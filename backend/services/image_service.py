@@ -57,9 +57,13 @@ class ImageService:
         try:
             # Local import keeps browse_service off the module import graph and
             # avoids constructing connectors until a source cover is needed.
-            from services.browse_service import get_browse_service
+            # Constructed without a gate: this only ever fetches the cover of a
+            # series ALREADY in someone's library, and the gate has already
+            # decided whether that series is visible at all. Re-gating here
+            # would only break covers for a series the caller can see.
+            from services.browse_service import BrowseService
 
-            media_type, data = get_browse_service().resolve_series_cover(
+            media_type, data = BrowseService().resolve_series_cover(
                 source_id, source_series_id
             )
         except Exception:  # noqa: BLE001 - upstream/connector errors fall back

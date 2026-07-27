@@ -70,6 +70,9 @@ def client(db_engine, download_manager: DownloadManager):
 def _mock_connector() -> MagicMock:
     connector = MagicMock()
     connector.is_browsable = True
+    # A bare MagicMock answers truthily to every attribute, so is_mature has to
+    # be pinned or the 18+ enqueue gate 404s these non-adult fixtures.
+    connector.is_mature = False
     connector.allowed_image_hosts = frozenset({"example.com"})
     connector.get_series.return_value = MagicMock(title="Solo Leveling")
     connector.get_chapters.return_value = [
@@ -184,6 +187,9 @@ def test_queue_entire_series_includes_chapters_with_unknown_page_count(
     the series was silently dropped."""
     connector = MagicMock()
     connector.is_browsable = True
+    # A bare MagicMock answers truthily to every attribute, so is_mature has to
+    # be pinned or the 18+ enqueue gate 404s these non-adult fixtures.
+    connector.is_mature = False
     connector.get_series.return_value = MagicMock(title="Kuroneko to Majo no Kyoushitsu")
     connector.get_chapters.return_value = [
         ConnectorChapter(
@@ -222,6 +228,9 @@ def test_queue_entire_series_all_unknown_page_counts_still_queues_everything(
     page_count == 0) must still queue every chapter, not zero."""
     connector = MagicMock()
     connector.is_browsable = True
+    # A bare MagicMock answers truthily to every attribute, so is_mature has to
+    # be pinned or the 18+ enqueue gate 404s these non-adult fixtures.
+    connector.is_mature = False
     connector.get_series.return_value = MagicMock(title="Brand New Series")
     connector.get_chapters.return_value = [
         ConnectorChapter(

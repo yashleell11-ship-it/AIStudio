@@ -16,13 +16,26 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
+from connectors.registry import ConnectorDescriptor
 from core.config import get_settings
 from database.models import Chapter, Library, Page, Series, UserSeriesState
 from database.session import get_db
 from main import create_app
 
 FOLLOW_PATCH = "services.update_service.list_installed_connectors"
-_INSTALLED = [MagicMock(source_type="mangadex", name="MangaDex")]
+# A real descriptor, not a MagicMock: the tracker's resolved rating reads
+# ``descriptor.mature``, and a MagicMock answers truthily to that, which would
+# make every follow in these tests look 18+ and vanish behind the gate.
+_INSTALLED = [
+    ConnectorDescriptor(
+        source_type="mangadex",
+        name="MangaDex",
+        description="",
+        browsable=True,
+        supports_import=False,
+        mature=False,
+    )
+]
 
 
 def _seed_catalog(factory, *, user_id: int, profile_ids: list[int]) -> dict[str, int]:
