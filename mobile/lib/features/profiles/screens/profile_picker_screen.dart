@@ -8,6 +8,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/profile_animations.dart';
@@ -105,6 +106,17 @@ class _ProfilePickerScreenState extends ConsumerState<ProfilePickerScreen>
     context.push(ProfileRoutes.edit(profile.id));
   }
 
+  /// Enter the session as the persona already persisted on this device.
+  ///
+  /// Only reachable from the offline fallback: the list never loaded, so there
+  /// is no [Profile] to select — and none is needed, the snapshot *is* the
+  /// active profile. Skips the ceremony deliberately; a degraded entry should
+  /// be quiet and immediate rather than a five-second celebration.
+  void _resume() {
+    ref.read(profileSessionReadyProvider.notifier).enter();
+    context.go(Routes.home);
+  }
+
   @override
   Widget build(BuildContext context) {
     final profilesAsync = ref.watch(profilesProvider);
@@ -155,6 +167,16 @@ class _ProfilePickerScreenState extends ConsumerState<ProfilePickerScreen>
                 body: SafeArea(
                   child: AsyncValueWidget(
                     value: profilesAsync,
+                    // Without this the default error card renders a dead screen
+                    // — no tiles, no retry — which is exactly what an
+                    // unreachable server produces here.
+                    error: (error) => _UnreachableBody(
+                      error: error,
+                      active: active,
+                      onResume: _resume,
+                      onRetry: () =>
+                          ref.read(profilesProvider.notifier).refresh(),
+                    ),
                     data: (profiles) => _PickerBody(
                       profiles: profiles,
                       selectingId: _selecting?.id,
@@ -480,6 +502,107 @@ class _PickerBody extends StatelessWidget {
   Widget _revealed(bool reduceMotion, int index, Widget child) {
     if (reduceMotion) return child;
     return ScrollReveal(index: index, child: child);
+  }
+}
+
+/// Shown when the profile list cannot be fetched — in practice an unreachable
+/// server, which is also the one moment the picker must not be a dead end: it
+/// stands between a restored session and the rest of the app.
+///
+/// The persisted [active] snapshot is the only persona available without the
+/// server, so it renders as a single tappable tile beside a retry. With no
+/// snapshot there is nothing to enter as, and only the retry remains.
+class _UnreachableBody extends StatelessWidget {
+  const _UnreachableBody({
+    required this.error,
+    required this.active,
+    required this.onResume,
+    required this.onRetry,
+  });
+
+  final AppError error;
+  final ActiveProfile? active;
+  final VoidCallback onResume;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final profile = active;
+    final retry = PrimaryPillButton(
+      label: 'Retry',
+      icon: Icons.refresh,
+      onPressed: onRetry,
+    );
+
+    if (profile == null) {
+      return EmptyState(
+        icon: Icons.cloud_off_outlined,
+        message: 'Profiles are unavailable',
+        subtitle: error.userMessage,
+        action: retry,
+      );
+    }
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(
+        AppSpacing.xl2,
+        AppSpacing.xl2,
+        AppSpacing.xl2,
+        AppSpacing.xl4,
+      ),
+      child: Column(
+        children: [
+          const HeroHeading(
+            text: "Who's reading?",
+            fontSize: 44,
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: AppSpacing.md),
+          Text(
+            error.userMessage,
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(color: AppColors.muted),
+          ),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            'Continue as your last profile, or retry once it is back.',
+            textAlign: TextAlign.center,
+            style: AppTypography.body.copyWith(color: AppColors.muted),
+          ),
+          const SizedBox(height: AppSpacing.xl3),
+          Semantics(
+            label: profile.name,
+            button: true,
+            child: InkWell(
+              onTap: onResume,
+              borderRadius: BorderRadius.circular(AppRadius.xl),
+              child: _GlassTileCard(
+                focused: false,
+                child: SizedBox(
+                  width: 108,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ProfileAvatar(avatarKey: profile.avatarKey),
+                      const SizedBox(height: AppSpacing.sm),
+                      Text(
+                        profile.name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: AppTypography.labelLg,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: AppSpacing.xl2),
+          retry,
+        ],
+      ),
+    );
   }
 }
 

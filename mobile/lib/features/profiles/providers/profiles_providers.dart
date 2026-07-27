@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/logging/app_logger.dart';
+import 'package:manhwamaniacs/features/auth/providers/session_offline_provider.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
@@ -107,7 +108,17 @@ final profileSessionReadyProvider =
 
 class ProfileSessionReadyNotifier extends Notifier<bool> {
   @override
-  bool build() => false;
+  bool build() {
+    // The gate stands on every normal cold start. Offline it cannot: the
+    // profile list is server data, so holding an authenticated user on a picker
+    // that will never load one parks him on a dead screen with no way forward.
+    // The persisted selection is enough to enter as the right persona, and the
+    // ceremony returns on the next launch that reaches the server.
+    if (!ref.watch(sessionOfflineProvider)) return false;
+    // Read, not watch: re-running on every profile switch would slam the gate
+    // shut mid-session.
+    return ref.read(activeProfileProvider) != null;
+  }
 
   void enter() => state = true;
 
