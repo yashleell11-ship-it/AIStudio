@@ -130,6 +130,30 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.4.0",
+        build=18,
+        date="July 2026",
+        highlights=[
+            "Your library is your own — every account, and every profile within "
+            "an account, now has its own library, follows and reading progress. "
+            "Nothing is shared unless you share it",
+            "The 18+ switch actually works — turning it off now hides adult "
+            "sources and adult series everywhere, and turning it back on brings "
+            "them straight back. Nothing is ever deleted",
+            "Search finds what you searched for — one source could previously "
+            "flood the page with unrelated titles. Results are now grouped under "
+            "each source, with the ones that matched shown first",
+            "Sources rebuilt as a searchable list — pin your favourites, and "
+            "your pins now follow your account instead of staying on one phone",
+            "The Library tab is just the series you follow, and tapping one "
+            "opens its full chapter list with the latest chapter up top",
+            "The app opens when your server is unreachable instead of signing "
+            "you out — though reading still needs the server for now",
+            "When a source dies you can move a followed series to another one "
+            "and keep your place",
+        ],
+    ),
+    ChangelogEntry(
         version="1.3.2",
         build=17,
         date="July 2026",
