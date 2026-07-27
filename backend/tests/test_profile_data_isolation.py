@@ -17,7 +17,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from core.config import get_settings
-from database.models import Chapter, Library, Page, Series
+from database.models import Chapter, Library, Page, Series, UserSeriesState
 from database.session import get_db
 from main import create_app
 
@@ -25,8 +25,13 @@ FOLLOW_PATCH = "services.update_service.list_installed_connectors"
 _INSTALLED = [MagicMock(source_type="mangadex", name="MangaDex")]
 
 
-def _seed_catalog(factory) -> dict[str, int]:
-    """Seed a shared library with a safe and an adult series + a chapter."""
+def _seed_catalog(factory, *, user_id: int, profile_ids: list[int]) -> dict[str, int]:
+    """Seed a shared library with a safe and an adult series + a chapter.
+
+    Both series are put in BOTH profiles' libraries: these tests isolate the
+    per-profile mature gate and progress, so library membership must not be the
+    variable that differs between them.
+    """
     db = factory()
     try:
         lib = Library(name="Main", root_path="/lib")
@@ -48,6 +53,16 @@ def _seed_catalog(factory) -> dict[str, int]:
         )
         db.add_all([safe, adult])
         db.flush()
+        db.add_all(
+            UserSeriesState(
+                user_id=user_id,
+                profile_id=profile_id,
+                series_id=series.id,
+                in_library=True,
+            )
+            for profile_id in profile_ids
+            for series in (safe, adult)
+        )
         chapter = Chapter(
             series_id=safe.id, title="Ch1", number=1.0, page_count=10, sort_key="0001"
         )
@@ -88,10 +103,13 @@ class TestProfileDataIsolation:
             "/auth/register", json={"username": "owner", "password": "supersecret"}
         )
         assert reg.status_code in (200, 201), reg.text
+        owner_id = reg.json()["user"]["id"]
         p1 = client.post("/profiles", json={"name": "Alpha"}).json()
         p2 = client.post("/profiles", json={"name": "Beta"}).json()
 
-        ids = _seed_catalog(factory)
+        ids = _seed_catalog(
+            factory, user_id=owner_id, profile_ids=[p1["id"], p2["id"]]
+        )
         yield {
             "client": client,
             "factory": factory,

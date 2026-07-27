@@ -29,6 +29,7 @@ from database.models import (
     SourceChapterLink,
     Tag,
     User,
+    UserSeriesState,
 )
 from database.session import get_db
 from core.profile_context import ProfileContext, resolve_profile_context
@@ -131,10 +132,107 @@ class LibraryService:
     ) -> None:
         self._db = db
         self._settings = get_settings()
-        # Reading progress is per-(user, profile); None/None scopes to the
-        # anonymous/legacy unscoped rows.
+        # Library membership, per-series state and reading progress are all
+        # per-(user, profile); None/None scopes to the anonymous/legacy
+        # unscoped rows.
         self._user_id = user_id
         self._profile_id = profile_id
+
+    # ------------------------------------------------------------------
+    # Per-(user, profile) scoping helpers
+    # ------------------------------------------------------------------
+
+    def _library_on(self):
+        """Join predicate binding a ``Series`` to *this* (user, profile)'s
+        membership row.
+
+        ``in_library`` is the membership bit, not the presence of the row: a
+        state row legitimately exists with ``in_library`` false once progress or
+        a favourite was recorded from Browse without adding the series. Joining
+        without this predicate would hand every account the whole catalog.
+        """
+        return and_(
+            UserSeriesState.series_id == Series.id,
+            UserSeriesState.user_id == self._user_id,
+            UserSeriesState.profile_id == self._profile_id,
+            UserSeriesState.in_library == True,  # noqa: E712 - SQL, not Python
+        )
+
+    def _get_or_create_state(self, series_id: int) -> UserSeriesState:
+        state = (
+            self._db.query(UserSeriesState)
+            .filter(
+                UserSeriesState.user_id == self._user_id,
+                UserSeriesState.profile_id == self._profile_id,
+                UserSeriesState.series_id == series_id,
+            )
+            .first()
+        )
+        if state is None:
+            state = UserSeriesState(
+                user_id=self._user_id,
+                profile_id=self._profile_id,
+                series_id=series_id,
+            )
+            self._db.add(state)
+            self._db.flush()
+        return state
+
+    def _state_map(self, series_ids: list[int]) -> dict[int, UserSeriesState]:
+        if not series_ids:
+            return {}
+        rows = (
+            self._db.query(UserSeriesState)
+            .filter(
+                UserSeriesState.user_id == self._user_id,
+                UserSeriesState.profile_id == self._profile_id,
+                UserSeriesState.series_id.in_(series_ids),
+            )
+            .all()
+        )
+        return {row.series_id: row for row in rows}
+
+    def _progress_map(self, series_ids: list[int]) -> dict[int, ReadingProgress]:
+        """Batch-load this (user, profile)'s progress rows.
+
+        Deliberately not ``Series.reading_progress``: that relationship is
+        ``uselist=False`` with no owner predicate, so it resolves to an
+        arbitrary user's row and used to hand one account another's page number.
+        """
+        if not series_ids:
+            return {}
+        rows = (
+            self._db.query(ReadingProgress)
+            .filter(
+                ReadingProgress.user_id == self._user_id,
+                ReadingProgress.profile_id == self._profile_id,
+                ReadingProgress.series_id.in_(series_ids),
+            )
+            .all()
+        )
+        return {row.series_id: row for row in rows}
+
+    def _read_chapter_map(self, series_ids: list[int]) -> dict[int, int]:
+        """Per-(user, profile) completed-chapter counts, keyed by series.
+
+        The denormalized ``series.read_chapters`` column counts *every* user's
+        completed chapters, so it can never be reported to a single caller.
+        """
+        if not series_ids:
+            return {}
+        rows = (
+            self._db.query(Chapter.series_id, func.count(ChapterProgress.id))
+            .join(ChapterProgress, ChapterProgress.chapter_id == Chapter.id)
+            .filter(
+                Chapter.series_id.in_(series_ids),
+                ChapterProgress.user_id == self._user_id,
+                ChapterProgress.profile_id == self._profile_id,
+                ChapterProgress.is_completed == True,  # noqa: E712 - SQL, not Python
+            )
+            .group_by(Chapter.series_id)
+            .all()
+        )
+        return {series_id: count for series_id, count in rows}
 
     def get_scan_status(self) -> dict[str, object]:
         return _scan_status.snapshot()
@@ -296,11 +394,13 @@ class LibraryService:
                 series.sort_title = self._compute_sort_title(scanned_series.title)
                 series.updated_at = utcnow()
 
-            progress = (
-                self._db.query(ReadingProgress)
-                .filter(ReadingProgress.series_id == series.id)
-                .first()
-            )
+            # An import is the operator saying "these are mine". Without this
+            # the catalog row would exist while nobody's library contained it,
+            # so whoever ran the scan would land back on an empty grid.
+            state = self._get_or_create_state(series.id)
+            if not state.in_library:
+                state.in_library = True
+                state.updated_at = utcnow()
 
             existing_chapters = {
                 normalize_folder_path(chapter.folder_path)
@@ -377,7 +477,16 @@ class LibraryService:
 
             for key, chapter in existing_chapters.items():
                 if key not in seen_keys:
-                    if progress and progress.chapter_id == chapter.id:
+                    # Repoint EVERY progress row off the disappearing chapter,
+                    # not just the first one found: progress is per-(user,
+                    # profile), so one chapter can be referenced by as many rows
+                    # as there are readers.
+                    stale_progress = (
+                        self._db.query(ReadingProgress)
+                        .filter(ReadingProgress.chapter_id == chapter.id)
+                        .all()
+                    )
+                    if stale_progress:
                         replacement = (
                             self._db.query(Chapter)
                             .filter(
@@ -387,15 +496,15 @@ class LibraryService:
                             .order_by(Chapter.number.asc().nullslast(), Chapter.id.asc())
                             .first()
                         )
-                        if replacement:
-                            progress.chapter_id = replacement.id
-                            progress.last_page = min(
-                                progress.last_page,
-                                replacement.page_count or progress.last_page,
-                            )
-                        else:
-                            self._db.delete(progress)
-                            progress = None
+                        for row in stale_progress:
+                            if replacement:
+                                row.chapter_id = replacement.id
+                                row.last_page = min(
+                                    row.last_page,
+                                    replacement.page_count or row.last_page,
+                                )
+                            else:
+                                self._db.delete(row)
                     self._db.delete(chapter)
 
             series.total_chapters = total_chapters
@@ -434,7 +543,14 @@ class LibraryService:
     language: str | None = None,
     has_chapters: bool | None = None,
 ) -> dict[str, object]:
-        query = self._db.query(Series).filter(Series.deleted_at.is_(None))
+        # INNER JOIN on membership: "My Library" is whatever THIS (user,
+        # profile) added, never the catalog. Every filter, the total, and the
+        # page below therefore start from a per-caller row set.
+        query = (
+            self._db.query(Series)
+            .join(UserSeriesState, self._library_on())
+            .filter(Series.deleted_at.is_(None))
+        )
 
         if library_id is not None:
             query = query.filter(Series.library_id == library_id)
@@ -460,7 +576,7 @@ class LibraryService:
             )
 
         if reading_status is not None:
-            query = query.filter(Series.reading_status == reading_status)
+            query = query.filter(UserSeriesState.reading_status == reading_status)
 
         if has_chapters is True:
             query = query.filter(Series.total_chapters > 0)
@@ -476,7 +592,7 @@ class LibraryService:
             query = query.join(SeriesTag).filter(SeriesTag.tag_id == tag_id)
 
         if is_favorite is not None:
-            query = query.filter(Series.is_favorite == is_favorite)
+            query = query.filter(UserSeriesState.is_favorite == is_favorite)
 
         if language is not None:
             query = query.filter(Series.language == language)
@@ -498,13 +614,11 @@ class LibraryService:
         else:
             query = query.order_by(Series.sort_title.asc())
 
+        # Per-caller now that the membership join is in place.
         total = query.count()
         offset = max(page - 1, 0) * per_page
         series_list = (
-            query.options(
-                joinedload(Series.chapters),
-                joinedload(Series.reading_progress),
-            )
+            query.options(joinedload(Series.chapters))
             .offset(offset)
             .limit(per_page)
             .all()
@@ -512,8 +626,18 @@ class LibraryService:
 
         all_chapter_ids = [chapter.id for series in series_list for chapter in series.chapters]
         ocr_map = self._get_ocr_status_for_chapters(all_chapter_ids)
+        series_ids = [series.id for series in series_list]
+        state_map = self._state_map(series_ids)
+        progress_map = self._progress_map(series_ids)
+        read_map = self._read_chapter_map(series_ids)
         items = [
-            self._series_summary(series, ocr_map=ocr_map)
+            self._series_summary(
+                series,
+                ocr_map=ocr_map,
+                state=state_map.get(series.id),
+                progress=progress_map.get(series.id),
+                read_chapters=read_map.get(series.id, 0),
+            )
             for series in series_list
         ]
         from utils.api_pagination import enrich_pagination_aliases
@@ -533,10 +657,18 @@ class LibraryService:
         series: Series,
         *,
         ocr_map: dict[int, dict[str, Any]] | None = None,
+        state: UserSeriesState | None = None,
+        progress: ReadingProgress | None = None,
+        read_chapters: int = 0,
     ) -> dict[str, object]:
+        """Serialize a catalog series *as seen by this (user, profile)*.
+
+        Everything owner-specific — favourite, reading status, read count,
+        progress — comes from the caller's own rows, never from the shared
+        ``series`` columns. A caller with no state row simply sees the defaults.
+        """
         chapter_count = len(series.chapters)
         page_count = sum(chapter.page_count for chapter in series.chapters)
-        progress = series.reading_progress
         first_chapter_id = None
         if series.chapters:
             sorted_chapters = sorted(series.chapters, key=_chapter_sort_key)
@@ -565,10 +697,10 @@ class LibraryService:
             "cover_path": series.cover_path,
             "cover_url": series_cover_url(series.id),
             "folder_path": series.folder_path,
-            "is_favorite": bool(series.is_favorite),
-            "reading_status": series.reading_status,
+            "is_favorite": bool(state.is_favorite) if state else False,
+            "reading_status": state.reading_status if state else "unread",
             "chapter_count": chapter_count,
-            "read_chapters": series.read_chapters,
+            "read_chapters": read_chapters,
             "page_count": page_count,
             "total_chapters": series.total_chapters,
             "total_pages": series.total_pages,
@@ -625,7 +757,12 @@ class LibraryService:
         chapter_ids = [c.id for c in chapters]
         ocr_map = self._get_ocr_status_for_chapters(chapter_ids)
         return {
-            **self._series_summary(series),
+            **self._series_summary(
+                series,
+                state=self._state_map([series.id]).get(series.id),
+                progress=self._progress_map([series.id]).get(series.id),
+                read_chapters=self._read_chapter_map([series.id]).get(series.id, 0),
+            ),
             "chapters": [
                 {
                     "id": chapter.id,
@@ -677,6 +814,30 @@ class LibraryService:
                 for page in pages
             ],
         }
+
+    def set_in_library(self, series_id: int, in_library: bool) -> dict[str, object]:
+        """Add / remove a catalog series for *this* (user, profile).
+
+        Removing clears membership but keeps the state row, so a favourite,
+        reading status, or recorded progress survives a remove-and-re-add.
+        """
+        series = (
+            self._db.query(Series)
+            .filter(Series.id == series_id, Series.deleted_at.is_(None))
+            .first()
+        )
+        if not series:
+            raise AppError(
+                "Series not found.",
+                code="series_not_found",
+                status_code=404,
+                details={"series_id": series_id},
+            )
+        state = self._get_or_create_state(series_id)
+        state.in_library = in_library
+        state.updated_at = utcnow()
+        self._db.commit()
+        return {"series_id": series_id, "in_library": in_library}
 
     def get_page(self, page_id: int) -> Page:
         page = (
@@ -731,8 +892,12 @@ class LibraryService:
 
     def list_libraries(self) -> list[dict[str, object]]:
         libraries = self._db.query(Library).order_by(Library.name.asc()).all()
+        # Roots are operator config, so every account sees the same list -- but
+        # the counts are what the caller would actually get back from
+        # ``list_series(library_id=...)``, so they are membership-scoped.
         counts = dict(
             self._db.query(Series.library_id, func.count())
+            .join(UserSeriesState, self._library_on())
             .filter(Series.deleted_at.is_(None))
             .group_by(Series.library_id)
             .all()

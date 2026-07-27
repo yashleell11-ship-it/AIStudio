@@ -22,6 +22,7 @@ from database.models import (
     Page,
     PageText,
     Series,
+    UserSeriesState,
 )
 from database.models import ChapterText as ChapterTextModel
 from services.library_service import LibraryService
@@ -93,6 +94,16 @@ class TestOcrLibraryIntegration:
             )
             db_session.add(series)
             db_session.flush()
+            # list_series only returns series in the caller's own library; the
+            # default test session is the unscoped (NULL, NULL) owner.
+            db_session.add(
+                UserSeriesState(
+                    user_id=None,
+                    profile_id=None,
+                    series_id=series.id,
+                    in_library=True,
+                )
+            )
             chapter = Chapter(
                 series_id=series.id,
                 title="Ch1",
