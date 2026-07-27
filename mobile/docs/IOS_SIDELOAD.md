@@ -5,12 +5,12 @@ Apple Developer account. This project needs neither:
 
 - **Build** — GitHub Actions' free macOS runner produces an unsigned `.ipa`
   (`.github/workflows/ios-build.yml`).
-- **Publish** — `ops/fetch-ios-build.sh` pulls that `.ipa` onto the NAS, and the
-  backend lists it in a SideStore source at `/app/source.json`.
+- **Publish** — a cron job on the NAS pulls that `.ipa` (`ops/fetch-ios-build.sh`)
+  and the backend lists it in a SideStore source at `/app/source.json`.
 - **Install** — SideStore on the phone signs it with a **free** Apple ID.
 
-Once set up, shipping a new iOS build is: push code → wait ~5 min → tap
-**Update** on the phone.
+Once set up, shipping a new iOS build is: push code → wait ~10 min → tap
+**Update** on the phone. Nothing to bump, download, or sideload by hand.
 
 > Codemagic (`codemagic.yaml`) was the original plan and still works as a
 > fallback, but GitHub Actions is what's wired up and in use.
@@ -63,26 +63,46 @@ are an in-app **Update** button, with no PC involved.
 
 ## Shipping a new iOS build
 
-1. **Bump `version:` in `mobile/pubspec.yaml`.** This is not optional —
-   SideStore compares `version`/`buildVersion` against what's installed, and both
-   come from the pubspec. New code without a version bump will *not* surface an
-   update, even though the served `.ipa` changed.
-2. Push to the branch in `ios-build.yml` (`feat/profile-isolation-eclipse-warm`).
+Once the sync timer is installed (see below), this is the whole loop:
+
+1. Push to the branch in `ios-build.yml` (`feat/profile-isolation-eclipse-warm`).
    Actions builds automatically, ~4–5 min.
-3. Publish it on the NAS:
-   ```bash
-   ops/fetch-ios-build.sh
-   ```
-   Needs a GitHub token with **Actions: read** on the repo (the repo is private),
-   from `$GH_TOKEN` or `~/.gh_token`. It no-ops (exit 2) when the newest run is
-   already published, so it's safe to run on a timer:
-   ```
-   */10 * * * * /apps/dev/aistudio/ops/fetch-ios-build.sh >/dev/null 2>&1
-   ```
-4. On the phone: SideStore shows an update. Tap it.
+2. Within 10 minutes the NAS pulls the build and starts advertising it.
+3. On the phone: SideStore shows an update. Tap it.
 
 iOS won't allow a fully silent install — that final tap is an OS-level consent
 requirement, not a limitation of this setup.
+
+**Build numbers are automatic.** CI stamps `1000 + <run number>` into each
+`.ipa` and writes the numbers it used into an `ios-build.json` beside it; the
+server advertises *that*, not its own checkout of the pubspec. So pushing code is
+enough to surface an update — no version bump needed.
+
+`version:` in `mobile/pubspec.yaml` still controls the human-readable version
+*name* (and the Android build number), so bump it when you want the phone to say
+1.3.3 instead of 1.3.2. Add a matching `_RELEASE_NOTES` entry in
+`backend/routes/app_distribution.py` and SideStore will show those notes on the
+update.
+
+### Installing the sync timer (one time)
+
+The pull is a root cron job — the publish directory under `/srv/apps` is owned by
+`nas`, and the script chowns the result to the container's uid.
+
+```bash
+sudo install -m 644 /apps/dev/aistudio/ops/manhwamaniacs-ios-sync.cron /etc/cron.d/manhwamaniacs-ios-sync
+```
+
+It needs a GitHub token with **Actions: read** on the repo (the repo is private)
+at `/root/.gh_token`, mode 600. Without it every run fails and logs.
+
+Runs land in `/var/log/manhwamaniacs-ios-sync.log`, but only when something
+happened — a "nothing new" poll is silent. To publish immediately instead of
+waiting for the timer:
+
+```bash
+sudo /apps/dev/aistudio/ops/fetch-ios-build.sh
+```
 
 ### Day-to-day development
 
@@ -96,7 +116,9 @@ phone or ship, not for every change.
 
 | Piece | Where | Does what |
 |---|---|---|
-| `.github/workflows/ios-build.yml` | GitHub Actions (macOS) | Builds the unsigned `.ipa`, bakes in `FLAVOR=prod` + `API_URL` |
+| `.github/workflows/ios-build.yml` | GitHub Actions (macOS) | Builds the unsigned `.ipa`, stamps the build number, bakes in `FLAVOR=prod` + `API_URL` |
+| `ios-build.json` | beside the `.ipa` | The version/build CI put *in* that binary — the server can't read it back out of an `.ipa` |
+| `/etc/cron.d/manhwamaniacs-ios-sync` | NAS | Runs the pull every 10 min via `ops/ios-sync-cron.sh` |
 | `ops/fetch-ios-build.sh` | NAS | Downloads the newest successful run's artifact into `$DIR/ipa` |
 | `MM_IPA_PATH` / `./ipa:/app/ipa:ro` | docker-compose | Mounts that drop read-only into the backend |
 | `GET /app/source.json` | backend | SideStore source manifest (version, size, download URL) |
@@ -130,8 +152,9 @@ clear-text bearer token.
 | Symptom | Fix |
 |---|---|
 | App shows the server-setup screen | dart-defines missing from the build — check the `flutter build ios` step |
-| SideStore offers no update | `version:` in `mobile/pubspec.yaml` wasn't bumped |
-| `/app/source.json` versions list is empty | No `.ipa` published — run `ops/fetch-ios-build.sh` |
+| SideStore offers no update | Check `/var/log/manhwamaniacs-ios-sync.log`, then that `buildVersion` in `/app/source.json` actually went up |
+| `buildVersion` didn't go up after a push | No `ios-build.json` beside the `.ipa`, so it fell back to the pubspec — check the artifact contains both files |
+| `/app/source.json` versions list is empty | No `.ipa` published — run `sudo ops/fetch-ios-build.sh` |
 | Manifest URLs point at an internal host | `MM_PUBLIC_BASE_URL` unset in the deploy `.env` |
 | Install hangs in SideStore | Change the **anisette server** in iloader, or reinstall SideStore |
 | Phone missing from iloader | Trust prompt didn't stick — unplug, replug, unlock, retry |

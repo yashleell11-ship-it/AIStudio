@@ -17,6 +17,7 @@ LAN with no CDN.
 
 from __future__ import annotations
 
+import json
 import os
 from datetime import datetime, timezone
 from html import escape
@@ -83,6 +84,11 @@ IPA_PATH: Path = Path(
         ),
     )
 )
+
+# Version metadata for the published .ipa, written by CI beside the binary (see
+# .github/workflows/ios-build.yml) and copied into place by ops/fetch-ios-build.sh.
+IOS_META_ENV = "MM_IOS_META_PATH"
+IOS_META_NAME = "ios-build.json"
 
 # Absolute base URL used to build the download links inside the SideStore source
 # manifest. Those links are fetched by the *phone*, not by this server, so they
@@ -456,6 +462,56 @@ def read_app_version() -> AppVersion:
     return AppVersion(version=version, build=build, apk="/app/download")
 
 
+def _ios_meta_path() -> Path:
+    """Location of the published .ipa's version metadata (sits beside the .ipa).
+
+    Resolved per call rather than at import so it follows ``IPA_PATH``, which the
+    deploy points at a bind mount.
+    """
+    configured = os.environ.get(IOS_META_ENV, "").strip()
+    if configured:
+        return Path(configured)
+    return IPA_PATH.parent / IOS_META_NAME
+
+
+def read_ios_release(ipa: Path) -> tuple[str, str, str]:
+    """``(version, buildVersion, date)`` describing the published .ipa.
+
+    Prefers the metadata CI wrote next to the binary, because neither obvious
+    local source is trustworthy: this server can't read a version out of an .ipa,
+    and its own pubspec checkout knows nothing about the build number CI stamped
+    into that binary.
+
+    Falls back field by field to the pubspec (and the .ipa's mtime) so an .ipa
+    published before CI emitted metadata — or a truncated/garbled file — still
+    yields a usable manifest instead of a 500.
+    """
+    info = read_app_version()
+    version = info.version
+    build = str(info.build)
+    date = datetime.fromtimestamp(ipa.stat().st_mtime, tz=timezone.utc).strftime(
+        "%Y-%m-%d"
+    )
+
+    try:
+        meta = json.loads(_ios_meta_path().read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return version, build, date
+    if not isinstance(meta, dict):
+        return version, build, date
+
+    raw_version = meta.get("version")
+    if isinstance(raw_version, str) and raw_version.strip():
+        version = raw_version.strip()
+    raw_build = meta.get("buildVersion")
+    if isinstance(raw_build, (str, int)) and str(raw_build).strip().isdigit():
+        build = str(raw_build).strip()
+    raw_date = meta.get("date")
+    if isinstance(raw_date, str) and raw_date.strip():
+        date = raw_date.strip()
+    return version, build, date
+
+
 def _public_base_url(request: Request) -> str:
     """Absolute origin the phone should use for manifest download links."""
     configured = os.environ.get(PUBLIC_BASE_URL_ENV, "").strip()
@@ -471,29 +527,29 @@ def build_ios_source(request: Request) -> dict:
     a valid source, and SideStore renders it as an app with nothing installable
     rather than failing to add the source at all.
 
-    Note that SideStore decides an update exists by comparing ``version`` /
-    ``buildVersion``, both of which come from the Flutter pubspec. Shipping new
-    code without bumping ``version:`` there will *not* surface an update, even
-    though the .ipa behind ``downloadURL`` has changed.
+    SideStore decides an update exists by comparing ``version`` /
+    ``buildVersion`` against what is installed, so both must describe the .ipa
+    actually behind ``downloadURL`` — they come from :func:`read_ios_release`,
+    not from this server's pubspec. CI bumps the build number on every run, so
+    pushing code is enough to surface an update; the pubspec ``version:`` only
+    controls the human-readable name.
     """
     base = _public_base_url(request)
-    info = read_app_version()
 
     versions: list[dict] = []
     if IPA_PATH.is_file():
         stat = IPA_PATH.stat()
+        ios_version, ios_build, ios_date = read_ios_release(IPA_PATH)
         entry: dict = {
-            "version": info.version,
-            "buildVersion": str(info.build),
-            "date": datetime.fromtimestamp(stat.st_mtime, tz=timezone.utc).strftime(
-                "%Y-%m-%d"
-            ),
+            "version": ios_version,
+            "buildVersion": ios_build,
+            "date": ios_date,
             "downloadURL": f"{base}/app/ios/download",
             "size": stat.st_size,
             "minOSVersion": IOS_MIN_VERSION,
         }
         notes = next(
-            (e for e in _RELEASE_NOTES if e.version == info.version),
+            (e for e in _RELEASE_NOTES if e.version == ios_version),
             None,
         )
         if notes is not None:
@@ -1236,9 +1292,9 @@ def app_ios_download() -> FileResponse:
             status_code=404,
             detail="No iOS build published yet. Run ops/fetch-ios-build.sh.",
         )
-    info = read_app_version()
+    version, build, _ = read_ios_release(IPA_PATH)
     return FileResponse(
         path=IPA_PATH,
         media_type="application/octet-stream",
-        filename=f"manhwamaniacs-{info.version}.ipa",
+        filename=f"manhwamaniacs-{version}-{build}.ipa",
     )

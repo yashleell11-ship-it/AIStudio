@@ -117,10 +117,31 @@ mkdir -p "$DEST" || { err "cannot create $DEST"; exit 1; }
 # Same-filesystem temp + mv so the backend never serves a half-written file.
 cp "$IPA" "$DEST/.ManhwaManiacs.ipa.tmp" && mv -f "$DEST/.ManhwaManiacs.ipa.tmp" "$DEST/ManhwaManiacs.ipa" || {
   err "failed to write $DEST/ManhwaManiacs.ipa"; exit 1; }
+
+# The metadata names the version the manifest advertises, so it is published
+# *after* the binary: a crash between the two leaves phones briefly seeing the
+# old version number (nothing offered, corrected on the next run), whereas the
+# reverse order would offer an update that hands back the previous .ipa.
+META="$(find "$TMP/unpacked" -name 'ios-build.json' -type f | head -1)"
+if [ -n "$META" ] && python3 -m json.tool "$META" >/dev/null 2>&1; then
+  cp "$META" "$DEST/.ios-build.json.tmp" && mv -f "$DEST/.ios-build.json.tmp" "$DEST/ios-build.json" || {
+    err "failed to write $DEST/ios-build.json"; exit 1; }
+else
+  warn "no valid ios-build.json in the artifact — the manifest will fall back to"
+  warn "pubspec numbers, which will not advertise this build as an update"
+fi
+
 echo "$RUN_ID" > "$STAMP"
 # Match the APK drop's ownership so the container (uid 1000) can read it.
 chown -R 1000:1000 "$DEST" 2>/dev/null || true
 
 size="$(stat -c%s "$DEST/ManhwaManiacs.ipa" 2>/dev/null || echo '?')"
 say "published $DEST/ManhwaManiacs.ipa ($size bytes, commit $RUN_SHA)"
-warn "SideStore only offers an update when mobile/pubspec.yaml 'version:' changes"
+if [ -r "$DEST/ios-build.json" ]; then
+  advertised="$(python3 -c '
+import json, sys
+m = json.load(open(sys.argv[1]))
+print(m.get("version", "?"), "build", m.get("buildVersion", "?"))
+' "$DEST/ios-build.json" 2>/dev/null)" || advertised="(unreadable)"
+  say "SideStore will advertise $advertised"
+fi

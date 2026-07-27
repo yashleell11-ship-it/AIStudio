@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -177,6 +178,9 @@ def _fake_ipa(tmp_path: Path, monkeypatch) -> Path:
     ipa = tmp_path / "ManhwaManiacs.ipa"
     ipa.write_bytes(b"PK\x03\x04 fake ipa bytes")
     monkeypatch.setattr("routes.app_distribution.IPA_PATH", ipa)
+    # The metadata is looked up beside the .ipa; make sure a stray env override
+    # from the host can't point these tests at a real deploy's file.
+    monkeypatch.delenv("MM_IOS_META_PATH", raising=False)
     return ipa
 
 
@@ -200,8 +204,67 @@ def test_ios_source_lists_published_build(
         "https://app.manhwamaniacs.xyz/app/ios/download"
     )
     assert version["size"] == ipa.stat().st_size
+    # No CI metadata beside this .ipa, so the pubspec numbers are the fallback.
     assert version["version"] == client.get("/app/version").json()["version"]
     assert version["buildVersion"] == str(client.get("/app/version").json()["build"])
+
+
+def test_ios_source_advertises_ci_build_metadata(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # The whole point of the metadata file: the build number CI stamped into the
+    # binary is what gets advertised, *not* this server's pubspec. Without it,
+    # pushing code would never surface an update on the phone.
+    _fake_ipa(tmp_path, monkeypatch)
+    (tmp_path / "ios-build.json").write_text(
+        json.dumps(
+            {
+                "version": "9.9.9",
+                "buildVersion": "1042",
+                "date": "2026-01-02",
+                "commit": "deadbee",
+                "runId": "5",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    version = client.get("/app/source.json").json()["apps"][0]["versions"][0]
+    assert version["version"] == "9.9.9"
+    assert version["buildVersion"] == "1042"
+    assert version["date"] == "2026-01-02"
+    # ...and the pubspec numbers it overrode are genuinely different, so this
+    # test would fail if the fallback path were silently taken.
+    assert client.get("/app/version").json()["version"] != "9.9.9"
+
+
+def test_ios_source_survives_unusable_metadata(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # A half-written or garbled metadata file must degrade to the pubspec
+    # numbers, never 500 — a broken source URL takes SideStore out entirely.
+    _fake_ipa(tmp_path, monkeypatch)
+    pubspec = client.get("/app/version").json()
+
+    for junk in ("not json at all", "[]", '{"buildVersion": "not-a-number"}'):
+        (tmp_path / "ios-build.json").write_text(junk, encoding="utf-8")
+        response = client.get("/app/source.json")
+        assert response.status_code == 200, junk
+        version = response.json()["apps"][0]["versions"][0]
+        assert version["version"] == pubspec["version"], junk
+        assert version["buildVersion"] == str(pubspec["build"]), junk
+
+
+def test_ios_download_filename_names_the_published_build(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    _fake_ipa(tmp_path, monkeypatch)
+    (tmp_path / "ios-build.json").write_text(
+        json.dumps({"version": "9.9.9", "buildVersion": "1042"}), encoding="utf-8"
+    )
+
+    disposition = client.get("/app/ios/download").headers.get("content-disposition", "")
+    assert "manhwamaniacs-9.9.9-1042.ipa" in disposition
 
 
 def test_ios_source_uses_request_origin_when_unconfigured(
