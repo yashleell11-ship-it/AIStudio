@@ -16,6 +16,8 @@ import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.da
 import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/features/sources/screens/source_series_detail_screen.dart';
@@ -52,6 +54,21 @@ class _FakeSourcesRepository implements SourcesRepository {
 
   @override
   Future<Result<List<SourceSummary>>> listSources() => throw UnimplementedError();
+
+  @override
+  Future<Result<GroupedSearchResult>> searchGrouped(
+    String query, {
+    int page = 1,
+    int perPage = 40,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourcePin>>> listPins() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<SourcePin>>> replacePins(List<String> sourceIds) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<List<SourceBrowseMode>>> listBrowseModes(String sourceId) =>

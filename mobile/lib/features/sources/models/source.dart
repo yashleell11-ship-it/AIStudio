@@ -5,6 +5,7 @@ class SourceSummary {
     required this.description,
     required this.browsable,
     required this.supportsImport,
+    this.mature = false,
     this.iconUrl,
   });
 
@@ -13,6 +14,10 @@ class SourceSummary {
   final String description;
   final bool browsable;
   final bool supportsImport;
+
+  /// Adult connector. The backend only lists these at all when the profile's
+  /// mature gate is open, so this is a badge/filter hint, not an access check.
+  final bool mature;
   final String? iconUrl;
 
   factory SourceSummary.fromJson(Map<String, dynamic> json) => SourceSummary(
@@ -21,6 +26,7 @@ class SourceSummary {
         description: json['description'] as String,
         browsable: json['browsable'] as bool,
         supportsImport: json['supports_import'] as bool,
+        mature: json['mature'] as bool? ?? false,
         iconUrl: json['icon_url'] as String?,
       );
 }

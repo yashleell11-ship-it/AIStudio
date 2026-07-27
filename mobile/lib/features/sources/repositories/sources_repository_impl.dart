@@ -4,6 +4,8 @@ import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 
@@ -27,6 +29,58 @@ class SourcesRepositoryImpl implements SourcesRepository {
       return Err(UnknownError(message: e.toString(), cause: e));
     }
   }
+
+  @override
+  Future<Result<GroupedSearchResult>> searchGrouped(
+    String query, {
+    int page = 1,
+    int perPage = 40,
+  }) async {
+    try {
+      final r = await _dio.get<Map<String, dynamic>>(
+        '/sources/search',
+        queryParameters: {'q': query, 'page': page, 'per_page': perPage},
+      );
+      // cover_url comes back absolute here (unlike /sources/{id}/series), so no
+      // _apiBaseUrl resolution is needed.
+      return Ok(GroupedSearchResult.fromJson(r.data ?? const {}));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<List<SourcePin>>> listPins() async {
+    try {
+      final r = await _dio.get<List<dynamic>>('/sources/pins');
+      return Ok(_parsePins(r.data));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<List<SourcePin>>> replacePins(List<String> sourceIds) async {
+    try {
+      final r = await _dio.put<List<dynamic>>(
+        '/sources/pins',
+        data: {'source_ids': sourceIds},
+      );
+      return Ok(_parsePins(r.data));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  List<SourcePin> _parsePins(List<dynamic>? data) => (data ?? const [])
+      .map((e) => SourcePin.fromJson(e as Map<String, dynamic>))
+      .toList();
 
   @override
   Future<Result<List<SourceBrowseMode>>> listBrowseModes(String sourceId) async {

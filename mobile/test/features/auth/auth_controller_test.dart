@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
@@ -8,6 +11,7 @@ import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/models/bootstrap_status.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
+import 'package:manhwamaniacs/features/auth/providers/session_offline_provider.dart';
 import 'package:manhwamaniacs/features/auth/repositories/auth_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -19,6 +23,26 @@ final _user = AuthUser(
   isAdmin: false,
   createdAt: DateTime.utc(2024),
 );
+
+/// Key `PreferencesService` caches the last confirmed identity under.
+const _cachedUserKey = 'auth_cached_user';
+
+final _cachedUser = AuthUser(
+  id: 9,
+  username: 'from-cache',
+  isAdmin: true,
+  createdAt: DateTime.utc(2023),
+);
+
+/// The server is up but says the token is dead.
+const _rejected = ApiError(
+  statusCode: 401,
+  code: 'not_authenticated',
+  message: 'expired',
+);
+
+/// The server never answered — the failure mode this whole suite is about.
+const _unreachable = NetworkError(message: 'blackholed', host: 'nas.local');
 
 class _FakeStorage extends SecureStorageService {
   String? token;
@@ -48,6 +72,10 @@ class _FakeAuthRepository implements AuthRepository {
   Result<AuthResponse>? loginResult;
   Result<AuthResponse>? registerResult;
   int logoutCalls = 0;
+
+  /// Stands in for an unreachable host on a live LAN: the SYN is blackholed, so
+  /// the call neither succeeds nor fails — it just never returns.
+  bool hangOnMe = false;
 
   @override
   Future<Result<BootstrapStatus>> bootstrapStatus() async =>
@@ -86,11 +114,19 @@ class _FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<Result<AuthUser>> me() async =>
+  Future<Result<AuthUser>> me() {
+    if (hangOnMe) return Completer<Result<AuthUser>>().future;
+    return Future.value(
       meResult ??
-      const Err<AuthUser>(
-        ApiError(statusCode: 401, code: 'not_authenticated', message: 'nope'),
-      );
+          const Err<AuthUser>(
+            ApiError(
+              statusCode: 401,
+              code: 'not_authenticated',
+              message: 'nope',
+            ),
+          ),
+    );
+  }
 }
 
 ProviderContainer _container(
@@ -108,6 +144,29 @@ ProviderContainer _container(
   addTearDown(container.dispose);
   return container;
 }
+
+/// A container wired with real (mock-backed) shared preferences, since every
+/// offline path reads or writes the cached-identity blob.
+Future<(ProviderContainer, SharedPreferences)> _containerWithPrefs(
+  _FakeAuthRepository repo,
+  _FakeStorage storage, {
+  Map<String, Object> prefs = const {},
+}) async {
+  SharedPreferences.setMockInitialValues(prefs);
+  final instance = await SharedPreferences.getInstance();
+  return (
+    _container(
+      repo,
+      storage,
+      extra: [sharedPrefsProvider.overrideWithValue(instance)],
+    ),
+    instance,
+  );
+}
+
+Map<String, Object> _prefsWithCachedUser() => {
+      _cachedUserKey: jsonEncode(_cachedUser.toJson()),
+    };
 
 void main() {
   group('AuthController restore', () {
@@ -133,19 +192,137 @@ void main() {
 
     test('rejected token clears the session', () async {
       final storage = _FakeStorage()..token = 'stale';
-      final container = _container(
-        _FakeAuthRepository(
-          meResult: const Err<AuthUser>(
-            ApiError(statusCode: 401, code: 'x', message: 'expired'),
-          ),
-        ),
+      final (container, prefs) = await _containerWithPrefs(
+        _FakeAuthRepository(meResult: const Err<AuthUser>(_rejected)),
         storage,
+        prefs: _prefsWithCachedUser(),
       );
       await container.read(authControllerProvider.notifier).restored;
 
       expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
       expect(storage.token, isNull);
       expect(container.read(authTokenStoreProvider).token, isNull);
+      // A 401 is the server itself disowning the session, so the cached
+      // identity must go too — otherwise the next launch resurrects it offline.
+      expect(prefs.getString(_cachedUserKey), isNull);
+    });
+
+    test('a confirmed session is cached for the next cold start', () async {
+      final (container, prefs) = await _containerWithPrefs(
+        _FakeAuthRepository(meResult: Ok(_user)),
+        _FakeStorage()..token = 'tok',
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      final raw = prefs.getString(_cachedUserKey);
+      expect(raw, isNotNull);
+      expect(
+        AuthUser.fromJson(jsonDecode(raw!) as Map<String, dynamic>).username,
+        'tester',
+      );
+      expect(container.read(sessionOfflineProvider), isFalse);
+    });
+  });
+
+  group('AuthController restore with an unreachable server', () {
+    test('keeps the token and restores the cached user', () async {
+      final storage = _FakeStorage()..token = 'tok';
+      final (container, _) = await _containerWithPrefs(
+        _FakeAuthRepository(meResult: const Err<AuthUser>(_unreachable)),
+        storage,
+        prefs: _prefsWithCachedUser(),
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      final state = container.read(authControllerProvider);
+      expect(state, isA<AuthAuthenticated>());
+      expect((state as AuthAuthenticated).user.username, 'from-cache');
+      // The whole point: a transport failure must not touch secure storage —
+      // logging back in would need the very server that is down.
+      expect(storage.token, 'tok');
+      expect(container.read(authTokenStoreProvider).token, 'tok');
+      expect(container.read(sessionOfflineProvider), isTrue);
+    });
+
+    test('a timeout is treated the same as a refused connection', () async {
+      final storage = _FakeStorage()..token = 'tok';
+      final (container, _) = await _containerWithPrefs(
+        _FakeAuthRepository(meResult: const Err<AuthUser>(TimeoutError())),
+        storage,
+        prefs: _prefsWithCachedUser(),
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
+      expect(storage.token, 'tok');
+    });
+
+    test('a blackholed probe resolves well before the 15s connect timeout',
+        () async {
+      final storage = _FakeStorage()..token = 'tok';
+      final (container, _) = await _containerWithPrefs(
+        _FakeAuthRepository()..hangOnMe = true,
+        storage,
+        prefs: _prefsWithCachedUser(),
+      );
+
+      final stopwatch = Stopwatch()..start();
+      await container.read(authControllerProvider.notifier).restored;
+      stopwatch.stop();
+
+      expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
+      expect(storage.token, 'tok');
+      // The splash must not hang for the client's full connect timeout.
+      expect(stopwatch.elapsed, lessThan(const Duration(seconds: 10)));
+    });
+
+    test('with no cached user it stays logged out but keeps the token',
+        () async {
+      final storage = _FakeStorage()..token = 'tok';
+      final (container, _) = await _containerWithPrefs(
+        _FakeAuthRepository(meResult: const Err<AuthUser>(_unreachable)),
+        storage,
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      // There is no identity to present a session with, but the token is still
+      // good as far as anyone knows — the next launch can validate it.
+      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
+      expect(storage.token, 'tok');
+    });
+
+    test('a 502 from a proxy does not count as a rejection', () async {
+      // A reverse proxy in front of a stopped backend answers, but nothing it
+      // says is about the token — treating it as one strands the user exactly
+      // like an unreachable host does, because login would 502 too.
+      final storage = _FakeStorage()..token = 'tok';
+      final (container, prefs) = await _containerWithPrefs(
+        _FakeAuthRepository(
+          meResult: const Err<AuthUser>(
+            ApiError(statusCode: 502, code: 'bad_gateway', message: 'down'),
+          ),
+        ),
+        storage,
+        prefs: _prefsWithCachedUser(),
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
+      expect(storage.token, 'tok');
+      expect(prefs.getString(_cachedUserKey), isNotNull);
+    });
+
+    test('a corrupt cached blob degrades to logged out', () async {
+      final storage = _FakeStorage()..token = 'tok';
+      final (container, _) = await _containerWithPrefs(
+        _FakeAuthRepository(meResult: const Err<AuthUser>(_unreachable)),
+        storage,
+        prefs: const {_cachedUserKey: 'not json'},
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
+      expect(storage.token, 'tok');
     });
   });
 
@@ -168,6 +345,28 @@ void main() {
       expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
       expect(storage.token, 'fresh');
       expect(container.read(authTokenStoreProvider).token, 'fresh');
+    });
+
+    test('success caches the user so the next cold start can run offline',
+        () async {
+      final (container, prefs) = await _containerWithPrefs(
+        _FakeAuthRepository(
+          loginResult: Ok(AuthResponse(user: _user, token: 'fresh')),
+        ),
+        _FakeStorage(),
+      );
+      await container.read(authControllerProvider.notifier).restored;
+
+      await container
+          .read(authControllerProvider.notifier)
+          .login(username: 'tester', password: 'pw', remember: true);
+
+      final raw = prefs.getString(_cachedUserKey);
+      expect(raw, isNotNull);
+      expect(
+        AuthUser.fromJson(jsonDecode(raw!) as Map<String, dynamic>).id,
+        _user.id,
+      );
     });
 
     test('failure returns the error and stays unauthenticated', () async {
@@ -220,17 +419,11 @@ void main() {
 
   group('AuthController logout / expiry', () {
     test('logout revokes server-side then clears locally', () async {
-      // logout() now also clears the active reading profile, which reads
-      // sharedPrefsProvider — provide it so the profile clear can run.
-      SharedPreferences.setMockInitialValues(<String, Object>{});
-      final prefs = await SharedPreferences.getInstance();
       final storage = _FakeStorage()..token = 'tok';
       final repo = _FakeAuthRepository(meResult: Ok(_user));
-      final container = _container(
-        repo,
-        storage,
-        extra: [sharedPrefsProvider.overrideWithValue(prefs)],
-      );
+      // logout() also clears the active reading profile and the cached
+      // identity, both of which read sharedPrefsProvider.
+      final (container, prefs) = await _containerWithPrefs(repo, storage);
       await container.read(authControllerProvider.notifier).restored;
       expect(container.read(authControllerProvider), isA<AuthAuthenticated>());
 
@@ -240,6 +433,8 @@ void main() {
       expect(container.read(authControllerProvider), isA<AuthUnauthenticated>());
       expect(storage.token, isNull);
       expect(container.read(authTokenStoreProvider).token, isNull);
+      // No leftover identity for the next account's cold start to restore.
+      expect(prefs.getString(_cachedUserKey), isNull);
     });
 
     test('onSessionExpired drops the session without calling logout', () async {

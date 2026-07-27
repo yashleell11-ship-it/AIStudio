@@ -3,34 +3,7 @@ import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
-import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
-
-final pinnedSourcesProvider =
-    NotifierProvider<PinnedSourcesNotifier, List<String>>(
-  PinnedSourcesNotifier.new,
-);
-
-class PinnedSourcesNotifier extends Notifier<List<String>> {
-  @override
-  List<String> build() {
-    final prefs = ref.watch(preferencesProvider);
-    return prefs.pinnedSources;
-  }
-
-  Future<void> toggle(String sourceId) async {
-    final current = state.toList();
-    if (current.contains(sourceId)) {
-      current.remove(sourceId);
-    } else {
-      current.insert(0, sourceId);
-    }
-    state = current;
-    await ref.read(preferencesProvider).setPinnedSources(current);
-  }
-
-  bool isPinned(String sourceId) => state.contains(sourceId);
-}
 
 final sourcesListProvider = FutureProvider.autoDispose<List<SourceSummary>>((ref) async {
   final repo = ref.watch(sourcesRepositoryProvider);
@@ -38,6 +11,21 @@ final sourcesListProvider = FutureProvider.autoDispose<List<SourceSummary>>((ref
   if (result.isErr) throw result.error;
   return result.value;
 });
+
+/// Free-text filter over the Sources screen. With ~50 connectors this is the
+/// primary way to reach one, so it lives in a provider rather than screen state
+/// and survives a rebuild of the list.
+final sourcesFilterQueryProvider = StateProvider<String>(
+  (ref) => '',
+  name: 'sourcesFilterQuery',
+);
+
+enum SourcesFilter { all, pinned, mature }
+
+final sourcesFilterProvider = StateProvider<SourcesFilter>(
+  (ref) => SourcesFilter.all,
+  name: 'sourcesFilter',
+);
 
 class SourceBrowseQuery {
   const SourceBrowseQuery({

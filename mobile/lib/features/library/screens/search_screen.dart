@@ -9,22 +9,34 @@ import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/library/utils/recent_searches.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
 import 'package:manhwamaniacs/features/library/widgets/search/global_search_result_card.dart';
-import 'package:manhwamaniacs/features/library/widgets/search/search_result_card.dart';
 import 'package:manhwamaniacs/features/library/widgets/search/search_suggestions.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
+import 'package:manhwamaniacs/features/sources/providers/source_pins_provider.dart';
+import 'package:manhwamaniacs/features/sources/utils/source_branding.dart';
+import 'package:manhwamaniacs/features/sources/widgets/filter_pill.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/scroll_reveal.dart';
+import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
+/// Federated search, grouped per source.
+///
+/// The screen renders `/sources/search`'s `groups` payload — the local library
+/// first, then one section per queried source — rather than the flat merged
+/// feed it used to show. With ~50 connectors answering a single query, a flat
+/// list buried the library's own hits under whichever source happened to be
+/// fast; a section per source keeps "where did this come from" answerable at a
+/// glance, and lets one slow/failed source fail on its own instead of taking
+/// the whole screen down with it.
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
 
@@ -115,14 +127,16 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
   @override
   Widget build(BuildContext context) {
     final query = ref.watch(searchQueryProvider).trim();
-    final viewMode = ref.watch(searchViewModeProvider);
     final listAsync = ref.watch(searchListProvider);
+    final visibleGroups = ref.watch(visibleSearchGroupsProvider);
+    final groupFilter = ref.watch(searchGroupFilterProvider);
+    final pinnedIds = ref.watch(pinnedSourceIdsProvider);
     final hasQuery = query.isNotEmpty;
 
-    ref.listen<AsyncValue<GlobalSearchResult>>(searchListProvider,
+    ref.listen<AsyncValue<GroupedSearchResult>>(searchListProvider,
         (previous, next) {
       next.whenData((state) {
-        if (hasQuery && !next.isLoading && state.items.isNotEmpty) {
+        if (hasQuery && !next.isLoading && !state.isEmpty) {
           _persistRecentSearch(query);
         }
       });
@@ -137,9 +151,11 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           onRefresh: () => ref.read(searchListProvider.notifier).refresh(),
           slivers: _contentSlivers(
             hasQuery: hasQuery,
-            viewMode: viewMode,
             isLoading: true,
             state: null,
+            groups: const [],
+            groupFilter: groupFilter,
+            pinnedIds: pinnedIds,
           ),
         ),
         error: (error, _) => _SearchError(
@@ -153,28 +169,41 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           onRefresh: () => ref.read(searchListProvider.notifier).refresh(),
           slivers: _contentSlivers(
             hasQuery: hasQuery,
-            viewMode: viewMode,
             isLoading: false,
             state: state,
+            groups: visibleGroups,
+            groupFilter: groupFilter,
+            pinnedIds: pinnedIds,
           ),
         ),
       ),
     );
   }
 
-  /// Builds the search screen as lazily-evaluated slivers so paginated results
-  /// stay virtualized: the header is one adapter sliver and the results are a
-  /// SliverList/SliverGrid.builder, so only on-screen cards (and their
-  /// auth-gated cover images) are materialized as the user scrolls.
+  /// Builds the screen as lazily-evaluated slivers so a 50-source answer stays
+  /// virtualized: the header is one adapter sliver and the sections are a
+  /// `SliverList.builder`, so only on-screen sections (and their auth-gated
+  /// cover images) are ever materialized.
   List<Widget> _contentSlivers({
     required bool hasQuery,
-    required LibraryViewMode viewMode,
     required bool isLoading,
-    required GlobalSearchResult? state,
+    required GroupedSearchResult? state,
+    required List<SourceSearchGroup> groups,
+    required SearchGroupFilter groupFilter,
+    required List<String> pinnedIds,
   }) {
     const horizontalPadding = EdgeInsets.symmetric(horizontal: AppSpacing.xl2);
-    final showResults =
-        hasQuery && !isLoading && state != null && !state.isEmpty;
+
+    // "Nothing matched anywhere" is the one case that earns the full empty
+    // panel. If any source failed we still draw the sections, because the
+    // per-source error rows (and their Retry) are the only way back.
+    final showEmptyPanel = hasQuery &&
+        !isLoading &&
+        state != null &&
+        state.isEmpty &&
+        state.sourcesFailed == 0;
+    final showSections =
+        hasQuery && !isLoading && state != null && !showEmptyPanel;
 
     final slivers = <Widget>[
       SliverPadding(
@@ -188,70 +217,64 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: _SearchHeader(
             hasQuery: hasQuery,
             isLoading: isLoading,
-            viewMode: viewMode,
             state: state,
+            showEmptyPanel: showEmptyPanel,
+            showGroupFilters: showSections,
+            groupFilter: groupFilter,
+            pinnedIds: pinnedIds,
             recentSearches: _recentSearches,
             searchController: _searchController,
             onSearchChanged: _onSearchChanged,
             onSelectSuggestion: _applySuggestion,
-            onViewModeChanged: (mode) =>
-                ref.read(searchViewModeProvider.notifier).state = mode,
+            onGroupFilterChanged: (value) =>
+                ref.read(searchGroupFilterProvider.notifier).state = value,
           ),
         ),
       ),
     ];
 
-    if (showResults) {
-      final items = state.items;
-      if (viewMode == LibraryViewMode.grid) {
-        final columns = context.seriesGridColumns.clamp(2, 6);
-        slivers.add(
-          SliverPadding(
-            padding: horizontalPadding,
-            sliver: SliverGrid.builder(
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columns,
-                crossAxisSpacing: AppSpacing.md,
-                mainAxisSpacing: AppSpacing.xl,
-                childAspectRatio: 0.56,
-              ),
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return ScrollReveal(
-                  index: index,
-                  child: GlobalSearchResultGridCard(
-                    item: item,
-                    onTap: () => _openItem(item),
-                  ),
-                );
-              },
+    if (showSections && groups.isEmpty) {
+      slivers.add(
+        SliverPadding(
+          padding: horizontalPadding,
+          sliver: SliverToBoxAdapter(
+            child: _NoteCard(
+              icon: Icons.filter_alt_off,
+              title: 'No sources in this view',
+              message: groupFilter == SearchGroupFilter.pinned
+                  ? 'Pin a source on the Sources tab to keep it here.'
+                  : 'Switch back to All to see every source that answered.',
             ),
           ),
-        );
-      } else {
-        slivers.add(
-          SliverPadding(
-            padding: horizontalPadding,
-            sliver: SliverList.builder(
-              itemCount: items.length,
-              itemBuilder: (context, index) {
-                final item = items[index];
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                  child: ScrollReveal(
-                    index: index,
-                    child: GlobalSearchResultCard(
-                      item: item,
-                      onTap: () => _openItem(item),
-                    ),
-                  ),
-                );
-              },
-            ),
+        ),
+      );
+    } else if (showSections) {
+      final notifier = ref.read(searchListProvider.notifier);
+      slivers.add(
+        SliverPadding(
+          padding: horizontalPadding,
+          sliver: SliverList.builder(
+            itemCount: groups.length,
+            itemBuilder: (context, index) {
+              final group = groups[index];
+              final sourceId = group.source;
+              return ScrollReveal(
+                key: ValueKey(group.key),
+                index: index,
+                child: _SourceSection(
+                  group: group,
+                  isRetrying:
+                      sourceId != null && notifier.isRetrying(sourceId),
+                  onRetry: sourceId == null
+                      ? null
+                      : () => notifier.retrySource(sourceId),
+                  onOpenItem: _openItem,
+                ),
+              );
+            },
           ),
-        );
-      }
+        ),
+      );
     }
 
     slivers.add(
@@ -260,7 +283,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
         sliver: SliverToBoxAdapter(
           child: Column(
             children: [
-              if (showResults && state.isLoadingMore) ...[
+              if (state?.isLoadingMore ?? false) ...[
                 const SizedBox(height: AppSpacing.xl2),
                 const Center(
                   child: Padding(
@@ -284,31 +307,37 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 }
 
 /// Non-result header: hero heading, search field, the status/progress line and
-/// view toggle, and the pre-results states (suggestions, loading skeleton, and
-/// the empty "No results found" panel). The result cards are rendered as
-/// separate virtualized slivers by the parent.
+/// section filters, and the pre-results states (suggestions, loading skeleton,
+/// and the empty "No results found" panel). The per-source sections are
+/// rendered as separate virtualized slivers by the parent.
 class _SearchHeader extends StatelessWidget {
   const _SearchHeader({
     required this.hasQuery,
     required this.isLoading,
-    required this.viewMode,
+    required this.showEmptyPanel,
+    required this.showGroupFilters,
+    required this.groupFilter,
+    required this.pinnedIds,
     required this.recentSearches,
     required this.searchController,
     required this.onSearchChanged,
     required this.onSelectSuggestion,
-    required this.onViewModeChanged,
+    required this.onGroupFilterChanged,
     this.state,
   });
 
   final bool hasQuery;
   final bool isLoading;
-  final LibraryViewMode viewMode;
-  final GlobalSearchResult? state;
+  final bool showEmptyPanel;
+  final bool showGroupFilters;
+  final SearchGroupFilter groupFilter;
+  final List<String> pinnedIds;
+  final GroupedSearchResult? state;
   final List<String> recentSearches;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
   final ValueChanged<String> onSelectSuggestion;
-  final ValueChanged<LibraryViewMode> onViewModeChanged;
+  final ValueChanged<SearchGroupFilter> onGroupFilterChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -362,24 +391,379 @@ class _SearchHeader extends StatelessWidget {
         ],
         if (hasQuery) ...[
           const SizedBox(height: AppSpacing.xl2),
-          Row(
-            children: [
-              Expanded(
-                child: _StatusLine(isLoading: isLoading, state: state),
-              ),
-              _ViewModeToggle(
-                viewMode: viewMode,
-                onChanged: onViewModeChanged,
-              ),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
+          _StatusLine(isLoading: isLoading, state: state),
+          if (showGroupFilters && state != null) ...[
+            const SizedBox(height: AppSpacing.lg),
+            _GroupFilterRow(
+              filter: groupFilter,
+              onChanged: onGroupFilterChanged,
+              allCount: state!.groups.length,
+              withResultsCount: state!.groupsWithResults.length,
+              pinnedCount: state!.groups
+                  .where(
+                    (group) =>
+                        group.isLocal || pinnedIds.contains(group.source),
+                  )
+                  .length,
+            ),
+          ],
+          const SizedBox(height: AppSpacing.xl),
           if (isLoading)
-            SearchResultsSkeleton(viewMode: viewMode)
-          else if (state != null && state!.isEmpty)
+            const _SearchSectionsSkeleton()
+          else if (showEmptyPanel)
             const LibraryEmptyPanel(emptyState: LibraryEmptyState.search),
         ],
       ],
+    );
+  }
+}
+
+/// Which source sections are on screen. Client-side only, so the chips carry
+/// their own counts — otherwise "Pinned" looks broken when nothing is pinned.
+class _GroupFilterRow extends StatelessWidget {
+  const _GroupFilterRow({
+    required this.filter,
+    required this.onChanged,
+    required this.allCount,
+    required this.withResultsCount,
+    required this.pinnedCount,
+  });
+
+  final SearchGroupFilter filter;
+  final ValueChanged<SearchGroupFilter> onChanged;
+  final int allCount;
+  final int withResultsCount;
+  final int pinnedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: FilterPill.height,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: [
+          FilterPill(
+            label: 'All',
+            count: allCount,
+            selected: filter == SearchGroupFilter.all,
+            onTap: () => onChanged(SearchGroupFilter.all),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          FilterPill(
+            label: 'With results',
+            count: withResultsCount,
+            selected: filter == SearchGroupFilter.hasResults,
+            onTap: () => onChanged(SearchGroupFilter.hasResults),
+          ),
+          const SizedBox(width: AppSpacing.sm),
+          FilterPill(
+            label: 'Pinned',
+            count: pinnedCount,
+            selected: filter == SearchGroupFilter.pinned,
+            onTap: () => onChanged(SearchGroupFilter.pinned),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One source's slice of the answer: a header identifying the source, then its
+/// matches — or that source's own loading / empty / failed state, so a dead
+/// connector costs one row instead of the whole screen.
+class _SourceSection extends StatelessWidget {
+  const _SourceSection({
+    required this.group,
+    required this.isRetrying,
+    required this.onRetry,
+    required this.onOpenItem,
+  });
+
+  final SourceSearchGroup group;
+  final bool isRetrying;
+
+  /// Null for the local library group — there is no remote call to retry.
+  final VoidCallback? onRetry;
+  final ValueChanged<GlobalSearchItem> onOpenItem;
+
+  /// Cover-first cards on a horizontal shelf: at ~50 sections, stacking every
+  /// source's hits vertically would make the second source unreachable.
+  static const double cardWidth = 112;
+  static const double shelfHeight = 200;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _SourceSectionHeader(group: group),
+          const SizedBox(height: AppSpacing.md),
+          _body(),
+        ],
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (isRetrying) return const _ShelfSkeleton();
+
+    if (group.hasError) {
+      return _SourceSectionNote(
+        icon: Icons.cloud_off,
+        message: group.error ?? 'This source did not answer.',
+        tone: AppColors.danger,
+        onRetry: onRetry,
+      );
+    }
+
+    if (group.items.isEmpty) {
+      return _SourceSectionNote(
+        icon: Icons.search_off,
+        // A backend-supplied note on an empty group means the source answered
+        // with results it judged irrelevant — worth saying, because "nothing
+        // matched" and "this source returned noise" are different problems.
+        message: group.error ?? 'No matches',
+        tone: AppColors.muted,
+      );
+    }
+
+    return SizedBox(
+      height: shelfHeight,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: EdgeInsets.zero,
+        itemCount: group.items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+        itemBuilder: (context, index) {
+          final item = group.items[index];
+          return SizedBox(
+            width: cardWidth,
+            child: GlobalSearchResultGridCard(
+              item: item,
+              // The section header already names the source; repeating it on
+              // every cover is noise.
+              showSourceBadge: false,
+              onTap: () => onOpenItem(item),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _SourceSectionHeader extends StatelessWidget {
+  const _SourceSectionHeader({required this.group});
+
+  final SourceSearchGroup group;
+
+  static const double _logoSize = 28;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        if (group.isLocal)
+          Container(
+            width: _logoSize,
+            height: _logoSize,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withAlpha(28),
+              borderRadius: BorderRadius.circular(AppRadius.md),
+              border: Border.all(color: AppColors.primary.withAlpha(90)),
+            ),
+            child: const Icon(
+              Icons.bookmark_outline,
+              size: 16,
+              color: AppColors.primary,
+            ),
+          )
+        else
+          SourceLogo(
+            id: group.source ?? '',
+            name: group.sourceName,
+            iconUrl: group.iconUrl,
+            size: _logoSize,
+          ),
+        const SizedBox(width: AppSpacing.md),
+        Flexible(
+          child: Text(
+            group.sourceName,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.labelLg.copyWith(
+              fontWeight: FontWeight.w600,
+              color: AppColors.fg,
+            ),
+          ),
+        ),
+        if (group.items.isNotEmpty) ...[
+          const SizedBox(width: AppSpacing.sm),
+          _CountBadge(count: group.total),
+        ],
+      ],
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppSpacing.sm,
+        vertical: 1,
+      ),
+      decoration: BoxDecoration(
+        color: AppColors.fg.withAlpha(13),
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        border: Border.all(color: AppColors.border.withAlpha(128)),
+      ),
+      child: Text(
+        '$count',
+        style: AppTypography.caption.copyWith(
+          color: AppColors.muted,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+/// One-line stand-in for a section with nothing to show — kept to a single row
+/// so a query that only two sources answer doesn't become fifty empty panels.
+class _SourceSectionNote extends StatelessWidget {
+  const _SourceSectionNote({
+    required this.icon,
+    required this.message,
+    required this.tone,
+    this.onRetry,
+  });
+
+  final IconData icon;
+  final String message;
+  final Color tone;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 14, color: tone.withAlpha(180)),
+        const SizedBox(width: AppSpacing.sm),
+        Expanded(
+          child: Text(
+            message,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: AppTypography.bodySm.copyWith(color: tone),
+          ),
+        ),
+        if (onRetry != null)
+          TextButton(
+            onPressed: onRetry,
+            style: TextButton.styleFrom(
+              foregroundColor: AppColors.primary,
+              minimumSize: const Size(64, 36),
+              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+            ),
+            child: Text('Retry', style: AppTypography.label),
+          ),
+      ],
+    );
+  }
+}
+
+/// Panel for "your filter hid everything" — distinct from "nothing matched",
+/// which is what [LibraryEmptyPanel] says.
+class _NoteCard extends StatelessWidget {
+  const _NoteCard({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(AppSpacing.xl2),
+      decoration: BoxDecoration(
+        color: AppColors.panel,
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        children: [
+          Icon(icon, size: 28, color: AppColors.muted.withAlpha(140)),
+          const SizedBox(height: AppSpacing.md),
+          Text(title, style: AppTypography.h4, textAlign: TextAlign.center),
+          const SizedBox(height: AppSpacing.sm),
+          Text(
+            message,
+            style: AppTypography.body.copyWith(color: AppColors.muted),
+            textAlign: TextAlign.center,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Loading state shaped like the sections it becomes, so the screen doesn't
+/// reflow when the answer lands.
+class _SearchSectionsSkeleton extends StatelessWidget {
+  const _SearchSectionsSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var i = 0; i < 3; i++) ...[
+          const Row(
+            children: [
+              SkeletonBox(width: 28, height: 28),
+              SizedBox(width: AppSpacing.md),
+              SkeletonBox(width: 120, height: 14),
+            ],
+          ),
+          const SizedBox(height: AppSpacing.md),
+          const _ShelfSkeleton(),
+          const SizedBox(height: AppSpacing.xl2),
+        ],
+      ],
+    );
+  }
+}
+
+class _ShelfSkeleton extends StatelessWidget {
+  const _ShelfSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: _SourceSection.shelfHeight,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        padding: EdgeInsets.zero,
+        itemCount: 4,
+        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+        itemBuilder: (_, __) => const SkeletonBox(
+          width: _SourceSection.cardWidth,
+          height: _SourceSection.shelfHeight,
+        ),
+      ),
     );
   }
 }
@@ -392,7 +776,7 @@ class _StatusLine extends StatelessWidget {
   const _StatusLine({required this.isLoading, required this.state});
 
   final bool isLoading;
-  final GlobalSearchResult? state;
+  final GroupedSearchResult? state;
 
   @override
   Widget build(BuildContext context) {
@@ -403,7 +787,7 @@ class _StatusLine extends StatelessWidget {
       );
     }
 
-    final count = state!.items.length;
+    final count = state!.resultCount;
     final queried = state!.sourcesQueried;
     final failed = state!.sourcesFailed;
 
@@ -430,73 +814,6 @@ class _StatusLine extends StatelessWidget {
           ),
         ],
       ],
-    );
-  }
-}
-
-class _ViewModeToggle extends StatelessWidget {
-  const _ViewModeToggle({required this.viewMode, required this.onChanged});
-
-  final LibraryViewMode viewMode;
-  final ValueChanged<LibraryViewMode> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        color: AppColors.fg.withAlpha(13),
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border.withAlpha(128)),
-      ),
-      padding: const EdgeInsets.all(2),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _ModeButton(
-            icon: Icons.grid_view,
-            selected: viewMode == LibraryViewMode.grid,
-            onTap: () => onChanged(LibraryViewMode.grid),
-          ),
-          _ModeButton(
-            icon: Icons.view_list,
-            selected: viewMode == LibraryViewMode.list,
-            onTap: () => onChanged(LibraryViewMode.list),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ModeButton extends StatelessWidget {
-  const _ModeButton({
-    required this.icon,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final IconData icon;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected ? AppColors.primary : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: SizedBox(
-          width: 32,
-          height: 32,
-          child: Icon(
-            icon,
-            size: 18,
-            color: selected ? AppColors.primaryFg : AppColors.muted,
-          ),
-        ),
-      ),
     );
   }
 }

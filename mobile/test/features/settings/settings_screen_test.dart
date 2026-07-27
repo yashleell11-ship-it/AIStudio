@@ -12,7 +12,6 @@ import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
 import 'package:manhwamaniacs/features/library/models/dashboard_data.dart';
-import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
@@ -32,6 +31,7 @@ import 'package:manhwamaniacs/features/settings/providers/app_update_provider.da
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -77,7 +77,7 @@ class _EmptyLibraryListNotifier extends LibraryListNotifier {
 
 class _EmptySearchListNotifier extends SearchListNotifier {
   @override
-  Future<GlobalSearchResult> build() async => const GlobalSearchResult();
+  Future<GroupedSearchResult> build() async => const GroupedSearchResult();
 }
 
 class _EmptyBookmarksNotifier extends BookmarksNotifier {

@@ -4,6 +4,8 @@ import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
+import 'package:manhwamaniacs/features/sources/providers/source_pins_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
@@ -47,11 +49,13 @@ final searchQueryProvider = StateProvider<String>(
   name: 'searchQuery',
 );
 
-/// Grid/list toggle for the search results (federated search has no server
-/// sort/filter, so this is the only presentation control it carries).
-final searchViewModeProvider = StateProvider<LibraryViewMode>(
-  (ref) => LibraryViewMode.list,
-  name: 'searchViewMode',
+/// Which source sections the grouped results show. Client-side only — the
+/// endpoint always answers with every queried source.
+enum SearchGroupFilter { all, pinned, hasResults }
+
+final searchGroupFilterProvider = StateProvider<SearchGroupFilter>(
+  (ref) => SearchGroupFilter.all,
+  name: 'searchGroupFilter',
 );
 
 final libraryListProvider =
@@ -61,12 +65,41 @@ final libraryListProvider =
 );
 
 /// Federated search results (local library + every enabled remote source),
-/// keyed off [searchQueryProvider]. Always resolves to data or error — never
-/// an indefinite loading state.
+/// grouped per source and keyed off [searchQueryProvider]. Always resolves to
+/// data or error — never an indefinite loading state.
+///
+/// The name is deliberately unchanged: `profileScopedInvalidators` and the
+/// settings metadata-cache invalidators both drop this provider by name when
+/// the active profile or the server changes.
 final searchListProvider = AsyncNotifierProvider.autoDispose<SearchListNotifier,
-    GlobalSearchResult>(
+    GroupedSearchResult>(
   SearchListNotifier.new,
   name: 'searchList',
+);
+
+/// The sections actually rendered, after the client-side group filter.
+///
+/// Filtering lives here rather than in the screen so the chip counts and the
+/// list can never disagree.
+final visibleSearchGroupsProvider = Provider.autoDispose<List<SourceSearchGroup>>(
+  (ref) {
+    final result = ref.watch(searchListProvider).valueOrNull;
+    if (result == null) return const [];
+    final filter = ref.watch(searchGroupFilterProvider);
+    final pinned = ref.watch(pinnedSourceIdsProvider);
+
+    return switch (filter) {
+      SearchGroupFilter.all => result.groups,
+      SearchGroupFilter.hasResults => result.groupsWithResults,
+      // The local library is never "unpinned away" — it is the user's own shelf
+      // and belongs at the top of every view.
+      SearchGroupFilter.pinned => [
+          for (final group in result.groups)
+            if (group.isLocal || pinned.contains(group.source)) group,
+        ],
+    };
+  },
+  name: 'visibleSearchGroups',
 );
 
 class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
@@ -171,35 +204,42 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
       fetchLibraryListPage(ref, query, page);
 }
 
-/// Drives federated search via [GlobalSearchRepository].
+/// Drives federated search over the grouped `/sources/search` payload.
 ///
 /// Loading always resolves: `build` returns an empty result for a blank query
 /// and otherwise returns data or throws (→ AsyncError). Staleness is handled on
 /// two fronts — Riverpod re-runs `build` whenever [searchQueryProvider] changes
 /// and only the latest build's future is applied to state (so a slow response
 /// for an old query is discarded), and an explicit request token guards the
-/// imperative `loadMore`/`refresh` paths. The UI additionally debounces
-/// keystrokes before mutating [searchQueryProvider].
+/// imperative `loadMore`/`refresh`/`retrySource` paths. The UI additionally
+/// debounces keystrokes before mutating [searchQueryProvider].
 class SearchListNotifier
-    extends AutoDisposeAsyncNotifier<GlobalSearchResult> {
+    extends AutoDisposeAsyncNotifier<GroupedSearchResult> {
   var _requestId = 0;
 
+  /// Sources with a single-source retry in flight, so only that section
+  /// shimmers instead of the whole screen.
+  final _retrying = <String>{};
+
   @override
-  Future<GlobalSearchResult> build() async {
+  Future<GroupedSearchResult> build() async {
     final query = ref.watch(searchQueryProvider).trim();
     if (query.isEmpty) {
-      return const GlobalSearchResult();
+      return const GroupedSearchResult();
     }
     final requestId = ++_requestId;
+    _retrying.clear();
     final result =
-        await ref.read(globalSearchRepositoryProvider).search(query);
+        await ref.read(sourcesRepositoryProvider).searchGrouped(query);
     // Guard against a superseded query resolving late.
     if (requestId != _requestId) {
-      return state.valueOrNull ?? const GlobalSearchResult();
+      return state.valueOrNull ?? const GroupedSearchResult();
     }
     if (result.isErr) throw result.error;
     return result.value;
   }
+
+  bool isRetrying(String sourceId) => _retrying.contains(sourceId);
 
   Future<void> refresh() async {
     ref.invalidateSelf();
@@ -218,8 +258,8 @@ class SearchListNotifier
 
     final nextPage = current.page + 1;
     final result = await ref
-        .read(globalSearchRepositoryProvider)
-        .search(query, page: nextPage);
+        .read(sourcesRepositoryProvider)
+        .searchGrouped(query, page: nextPage);
 
     // Ignore if a newer query/refresh superseded this page request.
     if (requestId != _requestId) return;
@@ -231,15 +271,72 @@ class SearchListNotifier
       return;
     }
 
-    final next = result.value;
+    state = AsyncData(latest.mergePage(result.value));
+  }
+
+  /// Re-query a single source that failed, without re-running the federation.
+  ///
+  /// Goes to that source's own browse endpoint rather than `/sources/search`,
+  /// which is the only way to retry one section: a second federated call would
+  /// pay for all ~50 sources to fix one.
+  Future<void> retrySource(String sourceId) async {
+    final current = state.valueOrNull;
+    final query = ref.read(searchQueryProvider).trim();
+    if (current == null || query.isEmpty || _retrying.contains(sourceId)) return;
+
+    final requestId = _requestId;
+    _retrying.add(sourceId);
+    // A fresh instance (GroupedSearchResult has no value equality) is what
+    // makes listeners rebuild and observe the new `isRetrying` answer.
+    state = AsyncData(current.copyWith());
+
+    final result = await ref
+        .read(sourcesRepositoryProvider)
+        .listSeries(sourceId, query: query);
+
+    _retrying.remove(sourceId);
+    // A newer query replaced these results while the retry was in flight.
+    if (requestId != _requestId) return;
+
+    final latest = state.valueOrNull;
+    if (latest == null) return;
+
     state = AsyncData(
       latest.copyWith(
-        items: [...latest.items, ...next.items],
-        page: nextPage,
-        hasMore: next.hasMore,
-        sourcesQueried: next.sourcesQueried,
-        sourcesFailed: next.sourcesFailed,
-        isLoadingMore: false,
+        groups: [
+          for (final group in latest.groups)
+            if (group.source != sourceId)
+              group
+            else if (result.isErr)
+              group.copyWith(
+                status: SourceGroupStatus.error,
+                error: result.error.userMessage,
+              )
+            else
+              group.copyWith(
+                status: result.value.items.isEmpty
+                    ? SourceGroupStatus.empty
+                    : SourceGroupStatus.ok,
+                clearError: true,
+                total: result.value.items.length,
+                hasMore: result.value.hasNext,
+                items: [
+                  for (final series in result.value.items)
+                    GlobalSearchItem(
+                      kind: 'source',
+                      source: sourceId,
+                      seriesId: series.id,
+                      title: series.title,
+                      coverUrl:
+                          series.coverUrl.isEmpty ? null : series.coverUrl,
+                      author: series.author,
+                    ),
+                ],
+              ),
+        ],
+        sourcesFailed: result.isErr
+            ? latest.sourcesFailed
+            : (latest.sourcesFailed - 1).clamp(0, latest.sourcesQueried),
       ),
     );
   }
@@ -325,7 +422,7 @@ int _compareSeries(SeriesSummary a, SeriesSummary b, LibrarySort sort) {
         .compareTo((b.author ?? '').toLowerCase()),
     LibrarySort.year => (b.year ?? 0).compareTo(a.year ?? 0),
     LibrarySort.totalChapters =>
-      b.chapterCount.compareTo(a.chapterCount),
+      b.totalChapters.compareTo(a.totalChapters),
     LibrarySort.dateAdded => b.createdAt.compareTo(a.createdAt),
     LibrarySort.recent =>
       (b.readingProgress?.lastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0))

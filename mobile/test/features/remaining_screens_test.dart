@@ -25,6 +25,8 @@ import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
+import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/features/sources/screens/sources_list_screen.dart';
@@ -292,6 +294,23 @@ class _FakeSourcesRepository implements SourcesRepository {
           supportsImport: true,
         ),
       ]);
+
+  /// The Sources screen renders a pinned section, so this has to answer even
+  /// though this test only asserts on the row list.
+  @override
+  Future<Result<List<SourcePin>>> listPins() async => const Ok([]);
+
+  @override
+  Future<Result<List<SourcePin>>> replacePins(List<String> sourceIds) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<GroupedSearchResult>> searchGrouped(
+    String query, {
+    int page = 1,
+    int perPage = 40,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<List<SourceBrowseMode>>> listBrowseModes(String sourceId) =>

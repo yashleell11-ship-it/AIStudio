@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/auth/providers/session_offline_provider.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
@@ -248,6 +249,46 @@ void main() {
             mood: Mood.neutral,
           );
       expect(error, isA<ApiError>());
+    });
+  });
+
+  group('ProfileSessionReadyNotifier', () {
+    const persisted = {
+      'mm.active_profile':
+          '{"id":1,"name":"Me","avatar_key":"violet","mood":"fantasy"}',
+    };
+
+    test('the gate stands on a normal cold start', () async {
+      final container = await _container(
+        repo: _FakeProfilesRepository([]),
+        prefs: persisted,
+      );
+      addTearDown(container.dispose);
+
+      expect(container.read(profileSessionReadyProvider), isFalse);
+    });
+
+    test('an offline session enters on the persisted profile', () async {
+      final container = await _container(
+        repo: _FakeProfilesRepository([]),
+        prefs: persisted,
+      );
+      addTearDown(container.dispose);
+      expect(container.read(profileSessionReadyProvider), isFalse);
+
+      // The picker cannot list profiles with the server down, so gating on it
+      // would park the user on a screen with no tiles and no way forward.
+      container.read(sessionOfflineProvider.notifier).markOffline();
+      expect(container.read(profileSessionReadyProvider), isTrue);
+    });
+
+    test('an offline session with nothing persisted still shows the picker',
+        () async {
+      final container = await _container(repo: _FakeProfilesRepository([]));
+      addTearDown(container.dispose);
+
+      container.read(sessionOfflineProvider.notifier).markOffline();
+      expect(container.read(profileSessionReadyProvider), isFalse);
     });
   });
 }

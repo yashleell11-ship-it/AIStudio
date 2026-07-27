@@ -71,7 +71,21 @@ Honor `MediaQuery.disableAnimationsOf(context)`. Mirror web visuals/naming.
 ## Hard constraints (do not break)
 
 Profile picker on every cold start (~5s mood animation); Library tab (mobile) =
-followed series only; reading history in Settings; sources grid = logo+name only;
-reader settings sheet swipe-down dismiss (mobile); mature toggle / admin / auth
-intact; **backend API unchanged**; keep reader virtual scrolling & scroll restore.
-Do not rename the app. Do not commit git.
+followed series only; reading history in Settings; sources screen = searchable
+row list, Pinned section first (see below); reader settings sheet swipe-down
+dismiss (mobile); mature toggle / admin / auth intact; keep reader virtual
+scrolling & scroll restore. Do not rename the app. Do not commit git.
+
+**Superseded 2026-07-27 — "sources grid = logo+name only".** That constraint was
+written when the catalog was small. At ~50 sources a logo-only grid gave no way
+to find a source and no room for a pin affordance (pinning existed but was
+long-press-only, with no visual cue). The screen is now a filterable row list:
+a search field, All/Pinned/18+ chips, a Pinned section above All sources, and a
+44x44 pin button per row. Source logos render at their design size rather than
+being upscaled from a 16px favicon, and names use the body face, not the display
+face.
+
+The old "**backend API unchanged**" constraint is also retired: per-user library
+isolation and grouped source search both required new endpoints
+(`/library/series/{id}/add`, `/sources/pins`, and a `groups` array on
+`/sources/search`).
