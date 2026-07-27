@@ -40,4 +40,18 @@ class AuthUser {
             ? DateTime.parse(json['last_login_at'] as String)
             : null,
       );
+
+  /// Back to the wire shape, so the identity can be cached on-device and a cold
+  /// start with an unreachable server can still resolve to a signed-in session
+  /// instead of stranding the user on a login screen it also cannot reach.
+  /// Round-trips through [AuthUser.fromJson] unchanged.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'username': username,
+        'email': email,
+        'display_name': displayName,
+        'is_admin': isAdmin,
+        'created_at': createdAt.toIso8601String(),
+        'last_login_at': lastLoginAt?.toIso8601String(),
+      };
 }

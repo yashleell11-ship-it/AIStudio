@@ -1,10 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/logging/app_logger.dart';
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/auth/models/auth_response.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
+import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/models/bootstrap_status.dart';
+import 'package:manhwamaniacs/features/auth/providers/session_offline_provider.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -18,7 +23,23 @@ import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 /// `AsyncNotifier`: login and logout never pass through a loading phase (the
 /// screens show their own button spinner), so the router never flashes the
 /// splash mid-action.
+///
+/// A session survives an unreachable server. Restoration distinguishes the
+/// server *rejecting* the token from never having answered, and on the latter
+/// resolves to [AuthAuthenticated] from the cached identity with
+/// `sessionOfflineProvider` raised — the token is never touched, because
+/// signing back in would need the same server that is down.
 class AuthController extends Notifier<AuthState> {
+  /// How long the launch-time `/auth/me` probe gets before the app stops
+  /// waiting and falls back to the cached session.
+  ///
+  /// Deliberately far below the client's 15s connect timeout rather than a
+  /// lowering of it: an unreachable server on a live LAN blackholes the SYN
+  /// instead of refusing it, so without this bound every cold start offline
+  /// sits on the splash for the full 15s. Only the *startup* probe is impatient
+  /// — real requests keep the generous timeout.
+  static const Duration _probeTimeout = Duration(seconds: 3);
+
   late Future<void> _restored;
 
   /// Completes once the launch-time token restoration has settled. Exposed so
@@ -52,12 +73,47 @@ class AuthController extends Notifier<AuthState> {
     }
     // Seed the in-memory store so the /auth/me probe carries the token.
     ref.read(authTokenStoreProvider).token = token;
-    final result = await ref.read(authRepositoryProvider).me();
+    final result = await _probeSession();
     if (result.isOk) {
+      await _cacheUser(result.value);
+      ref.read(sessionOfflineProvider.notifier).markOnline();
       state = AuthAuthenticated(result.value);
-    } else {
-      await _clearToken();
+      return;
+    }
+    // Only the server disowning the credential may invalidate a session, and it
+    // says so with exactly one thing: a 401 from /auth/me (the backend raises
+    // `not_authenticated` and nothing else for a dead session). Every other
+    // outcome — a blackholed SYN, a timeout, a 502 from a proxy whose backend
+    // is down — says nothing about the token, and clearing it there would
+    // strand the user on a login screen that needs the very server that just
+    // failed him.
+    final error = result.error;
+    if (error is ApiError && error.isUnauthorized) {
+      await _clearSession();
       state = const AuthUnauthenticated();
+      return;
+    }
+    final cached = _cachedUser();
+    if (cached == null) {
+      // Unreachable and no cached identity to run on, so there is no session to
+      // present. The token deliberately stays in secure storage: the next
+      // launch that reaches the server can still validate it.
+      appLogger.w('Session restore failed with no cached user', error);
+      state = const AuthUnauthenticated();
+      return;
+    }
+    ref.read(sessionOfflineProvider.notifier).markOffline();
+    state = AuthAuthenticated(cached);
+  }
+
+  /// The launch-time `/auth/me` probe, bounded by [_probeTimeout]. A timeout is
+  /// reported as a [TimeoutError] so it lands in the same transport-failure
+  /// branch as the interceptor's own timeout/network mapping.
+  Future<Result<AuthUser>> _probeSession() async {
+    try {
+      return await ref.read(authRepositoryProvider).me().timeout(_probeTimeout);
+    } on TimeoutException {
+      return const Err<AuthUser>(TimeoutError());
     }
   }
 
@@ -75,7 +131,7 @@ class AuthController extends Notifier<AuthState> {
           remember: remember,
         );
     if (result.isErr) return result.error;
-    await _persistSession(result.value.token);
+    await _persistSession(result.value);
     state = AuthAuthenticated(result.value.user);
     return null;
   }
@@ -97,7 +153,7 @@ class AuthController extends Notifier<AuthState> {
           remember: remember,
         );
     if (result.isErr) return result.error;
-    await _persistSession(result.value.token);
+    await _persistSession(result.value);
     state = AuthAuthenticated(result.value.user);
     return null;
   }
@@ -106,7 +162,7 @@ class AuthController extends Notifier<AuthState> {
   /// clear locally. The local token is cleared regardless of the server result.
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
-    await _clearToken();
+    await _clearSession();
     await ref.read(activeProfileProvider.notifier).clear();
     ref.read(profileSessionReadyProvider.notifier).reset();
     // Drop the previous account's cached profile list so the next sign-in
@@ -120,23 +176,58 @@ class AuthController extends Notifier<AuthState> {
   /// would 401 again) and drop to unauthenticated. Idempotent.
   void onSessionExpired() {
     if (state is AuthUnauthenticated) return;
-    unawaited(_clearToken());
+    unawaited(_clearSession());
     unawaited(ref.read(activeProfileProvider.notifier).clear());
     ref.read(profileSessionReadyProvider.notifier).reset();
     ref.invalidate(profilesProvider);
     state = const AuthUnauthenticated();
   }
 
-  Future<void> _persistSession(String token) async {
-    ref.read(authTokenStoreProvider).token = token;
-    await ref.read(secureStorageProvider).setAuthToken(token);
+  Future<void> _persistSession(AuthResponse response) async {
+    ref.read(authTokenStoreProvider).token = response.token;
+    await ref.read(secureStorageProvider).setAuthToken(response.token);
+    await _cacheUser(response.user);
+    ref.read(sessionOfflineProvider.notifier).markOnline();
   }
 
-  /// Clears the token from the in-memory store (synchronously, so the very next
-  /// request drops the header) and from secure storage.
-  Future<void> _clearToken() async {
+  /// Clears the in-memory token (synchronously, so the very next request drops
+  /// the header), the persisted token, and the cached identity — no leftover
+  /// blob may let the *next* account's cold start restore this one's session.
+  Future<void> _clearSession() async {
     ref.read(authTokenStoreProvider).clear();
+    ref.read(sessionOfflineProvider.notifier).markOnline();
     await ref.read(secureStorageProvider).clearAuthToken();
+    try {
+      await ref.read(preferencesProvider).clearCachedAuthUser();
+    } catch (error, stackTrace) {
+      appLogger.w('Failed to clear the cached user', error, stackTrace);
+    }
+  }
+
+  /// Mirror the confirmed identity into preferences so a later cold start can
+  /// resolve a session while the server is unreachable. Best-effort: a failed
+  /// cache write must never fail the sign-in that produced it.
+  Future<void> _cacheUser(AuthUser user) async {
+    try {
+      await ref
+          .read(preferencesProvider)
+          .setCachedAuthUser(jsonEncode(user.toJson()));
+    } catch (error, stackTrace) {
+      appLogger.w('Failed to cache the authenticated user', error, stackTrace);
+    }
+  }
+
+  /// The last identity `/auth/me` confirmed, or null when there is none (or it
+  /// no longer decodes — a corrupt blob degrades to logged-out, never a crash).
+  AuthUser? _cachedUser() {
+    try {
+      final raw = ref.read(preferencesProvider).cachedAuthUser;
+      if (raw == null || raw.isEmpty) return null;
+      return AuthUser.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (error, stackTrace) {
+      appLogger.w('Failed to read the cached user', error, stackTrace);
+      return null;
+    }
   }
 }
 

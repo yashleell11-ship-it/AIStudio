@@ -22,6 +22,7 @@ abstract final class _Keys {
   static const String setupCompleted = 'settings_setup_completed';
   static const String lastSeenChangelogBuild = 'settings_last_seen_changelog_build';
   static const String volumeKeyNavigation = 'settings_volume_key_navigation';
+  static const String cachedAuthUser = 'auth_cached_user';
 }
 
 /// Light preferences that do not need encryption.
@@ -135,6 +136,15 @@ class PreferencesService {
       _prefs.getInt(_Keys.lastSeenChangelogBuild) ?? 0;
   Future<void> setLastSeenChangelogBuild(int build) =>
       _prefs.setInt(_Keys.lastSeenChangelogBuild, build);
+
+  /// The last user `/auth/me` confirmed, as its raw JSON blob (see
+  /// `AuthUser.toJson`). Not a credential — the bearer token stays in secure
+  /// storage — just enough identity to resolve a signed-in session when the
+  /// server is unreachable at launch. Cleared whenever the session is.
+  String? get cachedAuthUser => _prefs.getString(_Keys.cachedAuthUser);
+  Future<void> setCachedAuthUser(String json) =>
+      _prefs.setString(_Keys.cachedAuthUser, json);
+  Future<void> clearCachedAuthUser() => _prefs.remove(_Keys.cachedAuthUser);
 
   List<String> get pinnedSources =>
       _prefs.getStringList(_Keys.pinnedSources) ?? [];
