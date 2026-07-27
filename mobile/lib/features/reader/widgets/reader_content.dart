@@ -3,12 +3,12 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/core/platform/native_bridge.dart';
+import 'package:manhwamaniacs/core/platform/system_ui.dart';
 import 'package:manhwamaniacs/core/utils/haptics.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
@@ -20,6 +20,7 @@ import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
 import 'package:manhwamaniacs/features/reader/utils/scroll_storage.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_controls.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_edge_back_gesture.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_page_image.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_shortcuts.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
@@ -171,7 +172,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
         widget.initialPage.clamp(1, widget.chapter.pages.length);
     _scrollController = ScrollController()..addListener(_handleScroll);
     unawaited(tuneReaderImageCache(ref.read(nativeBridgeProvider)));
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersiveSticky);
+    unawaited(applyReadingSystemUiMode());
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _restoreInitialScroll();
       final defaults = ref.read(readerDefaultsProvider);
@@ -221,7 +222,10 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _visiblePageNotifier.dispose();
     _atStartNotifier.dispose();
     _atEndNotifier.dispose();
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+    // Restore what the app launched with rather than hardcoding edgeToEdge:
+    // on iOS that call was the only thing that ever un-hid the status bar, so
+    // the app silently changed shape the first time a chapter was closed.
+    unawaited(applyRestingSystemUiMode());
     super.dispose();
   }
 
@@ -944,6 +948,19 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
                   ),
                 ),
                 pageList,
+                // iOS has no system back-swipe inside the reader (the route is
+                // a fade `CustomTransitionPage`, which bypasses
+                // `PageTransitionsTheme`), and an iPhone has no hardware back
+                // button — so once the controls auto-hide there is no visible
+                // and no gestural way out. Hand the platform gesture back, but
+                // only in vertical mode, where nothing else wants horizontal
+                // drags. In LTR/RTL mode the page list itself pages on that
+                // axis and the strip must not exist at all.
+                ReaderEdgeBackGesture(
+                  enabled: direction.isVertical &&
+                      Theme.of(context).platform == TargetPlatform.iOS,
+                  onBack: widget.onBack,
+                ),
                 // Dim + warmth filter — its own ConsumerWidget so brightness
                 // drags repaint only this layer, never the page list.
                 const ReaderFilterOverlay(),

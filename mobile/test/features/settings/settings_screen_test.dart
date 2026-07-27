@@ -26,6 +26,7 @@ import 'package:manhwamaniacs/features/library/providers/library_list_provider.d
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
@@ -300,6 +301,11 @@ class _ThrowingMatureController extends MatureContentController {
 Future<ProviderContainer> _pumpSettings(
   WidgetTester tester, {
   List<Override> extraOverrides = const [],
+  // Several sections branch on `Theme.of(context).platform` — the update
+  // channel, and the two reader settings backed by Android-only platform
+  // channels. Drive it through the theme rather than dart:io so both branches
+  // are reachable from a test.
+  TargetPlatform platform = TargetPlatform.android,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -327,7 +333,10 @@ Future<ProviderContainer> _pumpSettings(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: SettingsScreen()),
+      child: MaterialApp(
+        theme: ThemeData(platform: platform),
+        home: const SettingsScreen(),
+      ),
     ),
   );
   await tester.pump();
@@ -583,6 +592,91 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Download settings saved.'), findsOneWidget);
+    });
+  });
+
+  group('SettingsScreen update channel', () {
+    const anUpdateIsAvailable = AppVersionInfo(
+      localVersion: '1.3.2',
+      localBuild: 17,
+      remoteVersion: '1.3.3',
+      remoteBuild: 18,
+      downloadUrl: 'http://127.0.0.1:8000/app/download',
+      channel: AppUpdateChannel.apk,
+    );
+
+    testWidgets('Android still offers the APK download', (tester) async {
+      await _pumpSettings(
+        tester,
+        extraOverrides: [
+          appUpdateProvider.overrideWith((ref) async => anUpdateIsAvailable),
+        ],
+      );
+
+      await tester.tap(find.text('About'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Update available'), findsOneWidget);
+      expect(find.text('Download Update'), findsOneWidget);
+    });
+
+    testWidgets('iOS never offers a download and never claims "up to date"',
+        (tester) async {
+      // Even handed an APK-channel result that says an update exists, the iOS
+      // build must not surface a download: /app/download is an Android package
+      // an iPhone cannot open, and the two channels do not share a build-number
+      // sequence, so the verdict itself is meaningless here.
+      await _pumpSettings(
+        tester,
+        platform: TargetPlatform.iOS,
+        extraOverrides: [
+          appUpdateProvider.overrideWith((ref) async => anUpdateIsAvailable),
+        ],
+      );
+
+      await tester.tap(find.text('About'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Managed by SideStore'), findsOneWidget);
+      expect(find.text('Download Update'), findsNothing);
+      expect(find.text('Update available'), findsNothing);
+      expect(find.textContaining('Up to date'), findsNothing);
+      // The manifest SideStore subscribes to — not the .apk, not a raw .ipa.
+      expect(
+        find.text('http://127.0.0.1:8000/app/source.json'),
+        findsOneWidget,
+      );
+    });
+  });
+
+  group('SettingsScreen hides Android-only reader settings', () {
+    testWidgets('Android shows refresh rate and volume-key paging',
+        (tester) async {
+      await _pumpSettings(tester);
+
+      await _scrollToText(tester, 'Refresh rate');
+      expect(find.text('Refresh rate'), findsOneWidget);
+
+      await _scrollToText(tester, 'Volume key navigation');
+      expect(find.text('Volume key navigation'), findsOneWidget);
+    });
+
+    testWidgets('iOS shows neither — both are silent no-ops there',
+        (tester) async {
+      // `flutter_displaymode` and the volume-key NativeBridge are both gated to
+      // Android and return immediately elsewhere, so on an iPhone these
+      // controls saved a preference and then did nothing at all.
+      await _pumpSettings(tester, platform: TargetPlatform.iOS);
+
+      await _scrollToText(tester, 'Lock reader controls');
+
+      expect(find.text('Refresh rate', skipOffstage: false), findsNothing);
+      expect(
+        find.text('Volume key navigation', skipOffstage: false),
+        findsNothing,
+      );
+      // The cross-platform reader settings are untouched.
+      expect(find.text('Lock reader controls'), findsOneWidget);
     });
   });
 }

@@ -1,30 +1,67 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/settings/utils/settings_search_index.dart';
+
+/// The index as Android renders it — the platform that shows every entry.
+List<SettingsSearchEntry> _android(String query) =>
+    filterSettingsSearchIndex(query, platform: TargetPlatform.android);
 
 void main() {
   group('filterSettingsSearchIndex', () {
     test('returns the full index for an empty query', () {
-      expect(filterSettingsSearchIndex(''), settingsSearchIndex);
-      expect(filterSettingsSearchIndex('   '), settingsSearchIndex);
+      expect(_android(''), settingsSearchIndex);
+      expect(_android('   '), settingsSearchIndex);
     });
 
     test('matches on label, case-insensitively', () {
-      final results = filterSettingsSearchIndex('THEME');
+      final results = _android('THEME');
       expect(results.map((e) => e.label), contains('Theme'));
     });
 
     test('matches on subtitle too', () {
-      final results = filterSettingsSearchIndex('FPS');
+      final results = _android('FPS');
       expect(results.map((e) => e.label), contains('Refresh rate'));
     });
 
     test('returns nothing for a query that matches no setting', () {
-      expect(filterSettingsSearchIndex('xyz-not-a-setting'), isEmpty);
+      expect(_android('xyz-not-a-setting'), isEmpty);
     });
 
     test('the volume key navigation setting is discoverable', () {
-      final results = filterSettingsSearchIndex('volume');
+      final results = _android('volume');
       expect(results.map((e) => e.label), contains('Volume key navigation'));
+    });
+
+    // The General tab hides refresh rate and volume-key paging off Android —
+    // both are backed by Android-only platform channels and silently no-op
+    // elsewhere. Search must hide them too, or it offers a jump to a control
+    // that is not on the screen it lands on.
+    test('Android-only settings are hidden from search on iOS', () {
+      final labels = filterSettingsSearchIndex('', platform: TargetPlatform.iOS)
+          .map((e) => e.label);
+
+      expect(labels, isNot(contains('Refresh rate')));
+      expect(labels, isNot(contains('Volume key navigation')));
+      expect(labels, contains('Reading direction'));
+      expect(labels, contains('Fit mode'));
+    });
+
+    test('and stay hidden for a query that would otherwise match them', () {
+      expect(
+        filterSettingsSearchIndex('volume', platform: TargetPlatform.iOS),
+        isEmpty,
+      );
+      expect(
+        filterSettingsSearchIndex('refresh', platform: TargetPlatform.iOS),
+        isEmpty,
+      );
+    });
+
+    test('but remain on Android', () {
+      final labels = _android('').map((e) => e.label);
+
+      expect(labels, contains('Refresh rate'));
+      expect(labels, contains('Volume key navigation'));
     });
   });
 }

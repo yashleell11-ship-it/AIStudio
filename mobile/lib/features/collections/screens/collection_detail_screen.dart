@@ -225,7 +225,10 @@ class CollectionDetailScreen extends ConsumerWidget {
         .deleteCollection();
     if (!context.mounted) return;
     if (error == null) {
-      context.go(Routes.collections);
+      // The collection this screen renders no longer exists, so unwind to the
+      // list. Pop when there is a stack to pop (the normal path in from More)
+      // and only fall back to a location change on a cold deep link.
+      context.canPop() ? context.pop() : context.go(Routes.collections);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(error.userMessage)),
@@ -260,7 +263,8 @@ class _CollectionDetailError extends StatelessWidget {
             FilledButton(onPressed: onRetry, child: const Text('Retry')),
             const SizedBox(height: AppSpacing.md),
             OutlinedButton(
-              onPressed: () => context.go(Routes.collections),
+              onPressed: () =>
+                  context.canPop() ? context.pop() : context.go(Routes.collections),
               child: const Text('Back to collections'),
             ),
           ],

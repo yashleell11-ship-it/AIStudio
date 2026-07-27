@@ -20,7 +20,15 @@ class MoreScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final updateAsync = ref.watch(appUpdateProvider);
+    // On the SideStore channel there is no actionable banner to show — the
+    // build numbers are not comparable and `/app/download` is an Android
+    // package (see AppVersionInfo.hasUpdate) — so skip the check entirely
+    // rather than firing a request whose answer can only be discarded.
+    final updateAsync =
+        AppUpdateChannel.forPlatform(Theme.of(context).platform) ==
+                AppUpdateChannel.apk
+            ? ref.watch(appUpdateProvider)
+            : const AsyncValue<AppVersionInfo?>.data(null);
     final updatesAsync = ref.watch(updatesProvider);
     final unreadCount =
         updatesAsync.valueOrNull?.unreadCount ?? 0;
@@ -34,6 +42,20 @@ class MoreScreen extends ConsumerWidget {
           top: AppSpacing.md,
           bottom: MediaQuery.paddingOf(context).bottom + AppSpacing.xl7,
         ),
+        // Everything that leaves this tab uses `push`, never `go`.
+        //
+        // Updates / Collections / Settings / Storage / Backup are *top-level*
+        // routes, siblings of the shell rather than children of it, so `go`
+        // collapsed the stack to a single page. `Navigator.canPop()` was then
+        // false and `CupertinoPageTransitionsBuilder` declines to install its
+        // back-swipe on a route that cannot pop — leaving those five screens
+        // with no edge-swipe at all on a phone with no hardware back button.
+        // `push` keeps the More tab underneath, which also gives the gesture
+        // something to parallax.
+        //
+        // The Library-section tiles below stay on `go` on purpose: their
+        // targets live inside the Library shell branch, so `go` already
+        // produces a poppable two-page stack there.
         children: [
           const _SectionHeader('Discover'),
           _MoreTile(
@@ -41,13 +63,13 @@ class MoreScreen extends ConsumerWidget {
             selectedIcon: Icons.notifications,
             label: 'Updates',
             badge: unreadCount > 0 ? '$unreadCount' : null,
-            onTap: () => context.go(Routes.updates),
+            onTap: () => context.push(Routes.updates),
           ),
           _MoreTile(
             icon: Icons.collections_bookmark_outlined,
             selectedIcon: Icons.collections_bookmark,
             label: 'Collections',
-            onTap: () => context.go(Routes.collections),
+            onTap: () => context.push(Routes.collections),
           ),
           const SizedBox(height: AppSpacing.md),
           const _SectionHeader('Account'),
@@ -89,19 +111,19 @@ class MoreScreen extends ConsumerWidget {
             icon: Icons.settings_outlined,
             selectedIcon: Icons.settings,
             label: 'Settings',
-            onTap: () => context.go(Routes.settings),
+            onTap: () => context.push(Routes.settings),
           ),
           _MoreTile(
             icon: Icons.storage_outlined,
             selectedIcon: Icons.storage,
             label: 'Storage',
-            onTap: () => context.go(Routes.storage),
+            onTap: () => context.push(Routes.storage),
           ),
           _MoreTile(
             icon: Icons.backup_outlined,
             selectedIcon: Icons.backup,
             label: 'Backup & Restore',
-            onTap: () => context.go(Routes.backup),
+            onTap: () => context.push(Routes.backup),
           ),
           updateAsync.when(
             skipLoadingOnReload: true,
@@ -488,7 +510,7 @@ class _AppInfoTile extends ConsumerWidget {
           style: AppTypography.bodySm.copyWith(color: AppColors.muted),
         ),
         trailing: const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
-        onTap: () => context.go(Routes.settings),
+        onTap: () => context.push(Routes.settings),
       ),
     );
   }

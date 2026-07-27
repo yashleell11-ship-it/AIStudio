@@ -345,7 +345,13 @@ class _FakeSourcesRepository implements SourcesRepository {
       throw UnimplementedError();
 }
 
-Future<Widget> _wrap(Widget child, {required List<Override> overrides}) async {
+Future<Widget> _wrap(
+  Widget child, {
+  required List<Override> overrides,
+  // The update banner branches on the platform, which the screens read from
+  // the theme rather than dart:io so both branches stay reachable here.
+  TargetPlatform platform = TargetPlatform.android,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
   return ProviderScope(
@@ -354,7 +360,10 @@ Future<Widget> _wrap(Widget child, {required List<Override> overrides}) async {
       sharedPrefsProvider.overrideWithValue(prefs),
       ...overrides,
     ],
-    child: MaterialApp(home: child),
+    child: MaterialApp(
+      theme: ThemeData(platform: platform),
+      home: child,
+    ),
   );
 }
 
@@ -481,6 +490,7 @@ void main() {
         remoteVersion: '1.1.0',
         remoteBuild: 2,
         downloadUrl: 'http://localhost:8000/app/download',
+        channel: AppUpdateChannel.apk,
       );
       final widget = await _wrap(
         const MoreScreen(),
@@ -502,6 +512,39 @@ void main() {
       expect(find.text('v1.1.0', skipOffstage: false), findsOneWidget);
       expect(find.text('(build 1)', skipOffstage: false), findsOneWidget);
       expect(find.text('(build 2)', skipOffstage: false), findsOneWidget);
+    });
+
+    testWidgets('MoreScreen never offers an APK download on iOS',
+        (tester) async {
+      // The banner's whole payload is "Download update" → /app/download, an
+      // Android package an iPhone cannot open, plus install instructions that
+      // talk about the notification shade. Even handed an APK-channel result
+      // that says an update exists, none of it may reach an iPhone.
+      const updateInfo = AppVersionInfo(
+        localVersion: '1.0.0',
+        localBuild: 1,
+        remoteVersion: '1.1.0',
+        remoteBuild: 2,
+        downloadUrl: 'http://localhost:8000/app/download',
+        channel: AppUpdateChannel.apk,
+      );
+      final widget = await _wrap(
+        const MoreScreen(),
+        platform: TargetPlatform.iOS,
+        overrides: [
+          updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+          appUpdateProvider.overrideWith((ref) async => updateInfo),
+        ],
+      );
+      await tester.pumpWidget(widget);
+      await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      await tester.pump();
+
+      expect(find.text('Update available', skipOffstage: false), findsNothing);
+      expect(find.text('Download update', skipOffstage: false), findsNothing);
+      // The rest of the tab is untouched.
+      expect(find.text('Settings', skipOffstage: false), findsOneWidget);
     });
   });
 }

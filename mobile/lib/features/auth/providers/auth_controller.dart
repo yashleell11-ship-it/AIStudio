@@ -57,7 +57,26 @@ class AuthController extends Notifier<AuthState> {
     return const AuthUnknown();
   }
 
+  /// Launch-time restoration, wrapped so that nothing can leave the app latched
+  /// on [AuthUnknown].
+  ///
+  /// The router maps [AuthUnknown] to the splash screen with no timeout and no
+  /// other transition, so an unexpected throw anywhere below would freeze the
+  /// launch on a branded spinner — which on a sideloaded build is exactly what
+  /// a lapsed signing certificate looks like, and therefore the worst possible
+  /// failure to be ambiguous about. Dropping to logged-out is recoverable; a
+  /// frozen splash is not.
   Future<void> _restore() async {
+    try {
+      await _restoreSession();
+    } catch (error, stackTrace) {
+      appLogger.e('Session restore failed unexpectedly', error, stackTrace);
+    } finally {
+      if (state is AuthUnknown) state = const AuthUnauthenticated();
+    }
+  }
+
+  Future<void> _restoreSession() async {
     String? token;
     try {
       token = await ref.read(secureStorageProvider).getAuthToken();
@@ -185,7 +204,19 @@ class AuthController extends Notifier<AuthState> {
 
   Future<void> _persistSession(AuthResponse response) async {
     ref.read(authTokenStoreProvider).token = response.token;
-    await ref.read(secureStorageProvider).setAuthToken(response.token);
+    try {
+      await ref.read(secureStorageProvider).setAuthToken(response.token);
+    } catch (error, stackTrace) {
+      // Best-effort, exactly like [_cacheUser]: a keychain write can throw a
+      // PlatformException (the plugin turns any non-`noErr` OSStatus into one),
+      // and on a re-signed sideloaded build that is a live possibility. The
+      // in-memory token set above is what the interceptor actually reads, so
+      // the session still works for this launch — only its survival across a
+      // restart is lost. Letting this escape instead left `login()` short of
+      // `state = AuthAuthenticated(...)` with the sign-in button spinning
+      // forever and no error ever shown.
+      appLogger.w('Failed to persist the auth token', error, stackTrace);
+    }
     await _cacheUser(response.user);
     ref.read(sessionOfflineProvider.notifier).markOnline();
   }
@@ -196,7 +227,18 @@ class AuthController extends Notifier<AuthState> {
   Future<void> _clearSession() async {
     ref.read(authTokenStoreProvider).clear();
     ref.read(sessionOfflineProvider.notifier).markOnline();
-    await ref.read(secureStorageProvider).clearAuthToken();
+    try {
+      await ref.read(secureStorageProvider).clearAuthToken();
+    } catch (error, stackTrace) {
+      // The in-memory token is already gone, so a failed *persistent* delete is
+      // survivable and must not be fatal. It was not guarded before, and the
+      // caller that matters is [_restore]: a throw there unwound before
+      // `state = AuthUnauthenticated()`, latching [AuthUnknown] — which the
+      // router maps to the splash screen with no timeout and no other exit.
+      // An app frozen on its own splash is indistinguishable from a lapsed
+      // sideload certificate, so this one has to degrade quietly.
+      appLogger.w('Failed to clear the stored auth token', error, stackTrace);
+    }
     try {
       await ref.read(preferencesProvider).clearCachedAuthUser();
     } catch (error, stackTrace) {
