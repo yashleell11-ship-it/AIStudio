@@ -11,7 +11,9 @@ from sqlalchemy.orm import Session, joinedload
 
 from connectors.registry import create_connector
 from core.config import get_settings, update_persisted_settings
+from core.content_rating import resolve_mature_gate
 from core.errors import AppError
+from core.profile_context import ProfileContext, resolve_profile_context
 from core.time_utils import utcnow
 from database.models import Download, DownloadQueue, SourceChapterLink, User
 from database.session import get_db
@@ -37,7 +39,11 @@ _FLOAT_SETTINGS = {"download_retry_delay_seconds", "download_timeout_seconds"}
 
 class DownloadService:
     def __init__(
-        self, db: Session, manager: DownloadManager, user_id: int | None = None
+        self,
+        db: Session,
+        manager: DownloadManager,
+        user_id: int | None = None,
+        profile_id: int | None = None,
     ) -> None:
         self._db = db
         self._manager = manager
@@ -46,6 +52,14 @@ class DownloadService:
         # worker still processes everyone's queue, and de-dup stays global so a
         # chapter already in the shared library is never re-fetched.
         self._user_id = user_id
+        # Downloads are not profile-scoped rows (Download has no profile_id),
+        # but the 18+ gate that decides whether a source may be enqueued at all
+        # is per-profile, so the profile is carried purely for that check.
+        self._profile_id = profile_id
+
+    @property
+    def _mature_enabled(self) -> bool:
+        return resolve_mature_gate(self._db, self._profile_id, self._user_id)
 
     def list_downloads(self) -> list[dict[str, Any]]:
         rows = (
@@ -467,6 +481,17 @@ class DownloadService:
                 code="source_not_browsable",
                 status_code=400,
             )
+        # Same 404-not-403 gate BrowseService applies, for the same reason:
+        # enqueueing was a write-side back door onto an 18+ source while the
+        # gate was off. Only the *enqueue* is gated — an already-running
+        # download is left alone by the worker, since killing an in-flight
+        # transfer on a toggle would be surprising and loses partial work.
+        if connector.is_mature and not self._mature_enabled:
+            raise AppError(
+                "Source not found.",
+                code="source_not_found",
+                status_code=404,
+            )
         return connector
 
     def _get_download(self, download_id: int) -> Download:
@@ -552,5 +577,11 @@ class DownloadService:
 def get_download_service(
     db: Annotated[Session, Depends(get_db)],
     user: Annotated[User | None, Depends(get_optional_user)],
+    ctx: Annotated[ProfileContext, Depends(resolve_profile_context)],
 ) -> DownloadService:
-    return DownloadService(db, get_download_manager(), user_id=user.id if user else None)
+    return DownloadService(
+        db,
+        get_download_manager(),
+        user_id=user.id if user else None,
+        profile_id=ctx.profile_id,
+    )

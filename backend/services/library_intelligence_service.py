@@ -40,8 +40,11 @@ from sqlalchemy.orm import (
     selectinload,
 )
 
-from core.config import get_settings
-from core.content_rating import MATURE_CONTENT_RATINGS
+from core.content_rating import (
+    is_mature_rating,
+    mature_rating_predicate,
+    resolve_mature_gate,
+)
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
 from database.models import (
@@ -53,7 +56,6 @@ from database.models import (
     Library,
     OcrJob,
     Page,
-    ReadingProfile,
     ReadingProgress,
     ReadingSession,
     Series,
@@ -100,13 +102,8 @@ class LibraryIntelligenceService:
     # ------------------------------------------------------------------
 
     def _mature_enabled(self) -> bool:
-        """The active gate: the profile's own toggle when a profile is active,
-        else the global config default (also used to seed new profiles)."""
-        if self._profile_id is not None:
-            profile = self._db.get(ReadingProfile, self._profile_id)
-            if profile is not None:
-                return bool(profile.mature_content_enabled)
-        return get_settings().mature_content_enabled
+        """The active gate for this (user, profile)."""
+        return resolve_mature_gate(self._db, self._profile_id, self._user_id)
 
     @property
     def mature_content_enabled(self) -> bool:
@@ -116,18 +113,43 @@ class LibraryIntelligenceService:
         return self._mature_enabled()
 
     def _apply_mature_filter(self, query):
-        """Drop adult-rated series from a *discovery* query unless the active
-        profile (or global default) has enabled mature content.
+        """Drop adult-rated series from a ``Series`` query while the gate is off.
 
-        Applied to surfaced rows only -- recommendations, similar-series, and
-        the recently-added/updated discovery strips -- so a profile that has not
-        opted in never has an 18+ cover pushed at it. The full "My Library" grid
-        is left untouched regardless of this setting."""
+        Applied to every surface that can put a series in front of the user --
+        the library grid, search, discovery strips, recommendations, continue-
+        reading, history, collections and statistics -- not just discovery. A
+        series hidden from the grid but still showing in Continue Reading is
+        worse than not hiding it at all, so the gate is all-or-nothing.
+
+        This HIDES, it never deletes: the rows, the membership and the progress
+        all stay intact and reappear the moment the profile turns 18+ back on.
+
+        Note ``~mature_rating_predicate`` rather than ``notin_``: the latter is
+        NULL against an unrated row, which silently dropped it. Unrated stays
+        visible on purpose -- ``Series.content_rating`` defaults to "unknown"
+        for every folder import, so hiding unknown would blank the library."""
         if self._mature_enabled():
             return query
-        return query.filter(
-            func.lower(Series.content_rating).notin_(sorted(MATURE_CONTENT_RATINGS))
+        return query.filter(~mature_rating_predicate(Series.content_rating))
+
+    def _mature_series_ids(self):
+        """Subquery of adult-rated series ids, for surfaces that filter rows
+        hanging off a series (progress, sessions) rather than ``Series`` itself."""
+        return (
+            self._db.query(Series.id)
+            .filter(mature_rating_predicate(Series.content_rating))
+            .scalar_subquery()
         )
+
+    def _gate_sessions(self, query):
+        """Drop reading sessions belonging to a hidden series.
+
+        ``notin_`` against the id subquery rather than a join, so a session
+        whose series row has gone (soft-deleted, or never resolved) is kept
+        rather than silently disappearing with the adult ones."""
+        if self._mature_enabled():
+            return query
+        return query.filter(ReadingSession.series_id.notin_(self._mature_series_ids()))
 
     def _scope_sessions(self, query):
         return query.filter(
@@ -168,18 +190,35 @@ class LibraryIntelligenceService:
         """Narrow a ``Series`` query to what this (user, profile) added."""
         return query.join(UserSeriesState, self._library_on())
 
-    def _library_series_ids(self):
-        """Subquery of this (user, profile)'s series ids, for aggregates that
+    def _library_series_id_query(self):
+        """This (user, profile)'s series ids as a query, for aggregates that
         count rows hanging off series (chapters, tags) rather than series."""
-        return (
-            self._db.query(UserSeriesState.series_id)
-            .filter(
-                UserSeriesState.user_id == self._user_id,
-                UserSeriesState.profile_id == self._profile_id,
-                UserSeriesState.in_library == True,  # noqa: E712 - SQL, not Python
-            )
-            .scalar_subquery()
+        return self._db.query(UserSeriesState.series_id).filter(
+            UserSeriesState.user_id == self._user_id,
+            UserSeriesState.profile_id == self._profile_id,
+            UserSeriesState.in_library == True,  # noqa: E712 - SQL, not Python
         )
+
+    # Membership and visibility are kept as separate helpers on purpose:
+    # ``_scope_library`` / ``_library_series_id_query`` answer "did this profile
+    # add it", the pair below answers "and may this profile see it right now".
+    # Every *read* surface uses the visible pair; conflating the two would
+    # quietly under-report anywhere membership is what is actually being asked
+    # (imports, cleanup, exports).
+
+    def _visible_library(self, query):
+        """This (user, profile)'s library, minus whatever the 18+ gate hides."""
+        return self._apply_mature_filter(self._scope_library(query))
+
+    def _visible_library_series_ids(self):
+        """Gate-filtered series-id subquery, so aggregates over chapters/tags
+        cannot count rows belonging to a hidden series."""
+        query = self._library_series_id_query()
+        if not self._mature_enabled():
+            query = query.join(Series, Series.id == UserSeriesState.series_id).filter(
+                ~mature_rating_predicate(Series.content_rating)
+            )
+        return query.scalar_subquery()
 
     def _get_or_create_state(self, series_id: int) -> UserSeriesState:
         state = (
@@ -291,7 +330,7 @@ class LibraryIntelligenceService:
 
         # Fallback / expansion: broad SQL scan with scoring
         # This is a single indexed query that filters to candidate rows.
-        candidates = (
+        candidates = self._apply_mature_filter(
             self._db.query(
                 Series,
                 ReadingProgress,
@@ -327,8 +366,23 @@ class LibraryIntelligenceService:
                     Series.description.ilike(q_like),
                 ),
             )
-            .all()
-        )
+        ).all()
+
+        # The FTS hit set is raw rowids straight off the virtual table, so it
+        # bypasses the ORM filter above entirely. Left unfiltered it is not just
+        # a scoring boost -- an adult series matched by FTS alone short-circuits
+        # the empty-result branch below. Gate it with the same rule.
+        if fts_ids and not self._mature_enabled():
+            allowed = {
+                row[0]
+                for row in self._db.query(Series.id)
+                .filter(
+                    Series.id.in_(fts_ids),
+                    ~mature_rating_predicate(Series.content_rating),
+                )
+                .all()
+            }
+            fts_ids &= allowed
 
         if not candidates and not fts_ids:
             from utils.api_pagination import enrich_pagination_aliases
@@ -530,14 +584,15 @@ class LibraryIntelligenceService:
 
         # Candidates come from the caller's own library only — recommending a
         # title another account added would disclose that they added it.
-        results = self._apply_mature_filter(
-            self._scope_library(self._db.query(Series, subq.c.tag_score))
+        results = (
+            self._visible_library(self._db.query(Series, subq.c.tag_score))
             .outerjoin(subq, subq.c.series_id == Series.id)
             .filter(
                 Series.id != series_id,
                 Series.deleted_at.is_(None),
             )
-        ).all()
+            .all()
+        )
 
         scored: list[tuple[int, Series]] = []
         for row in results:
@@ -616,24 +671,25 @@ class LibraryIntelligenceService:
         # above already computes it per candidate, so no per-row query is needed.
         # Candidates are drawn from the caller's own library only.
         if tag_subq is not None:
-            rows = self._apply_mature_filter(
-                self._scope_library(self._db.query(Series, tag_subq.c.shared_tags))
+            rows = (
+                self._visible_library(self._db.query(Series, tag_subq.c.shared_tags))
                 .outerjoin(tag_subq, tag_subq.c.series_id == Series.id)
                 .filter(
                     Series.id.notin_(active_ids),
                     Series.deleted_at.is_(None),
                     tag_subq.c.shared_tags.isnot(None),
                 )
-            ).all()
+                .all()
+            )
         else:
             rows = [
                 (s, 0)
-                for s in self._apply_mature_filter(
-                    self._scope_library(self._db.query(Series)).filter(
-                        Series.id.notin_(active_ids),
-                        Series.deleted_at.is_(None),
-                    )
-                ).all()
+                for s in self._visible_library(self._db.query(Series))
+                .filter(
+                    Series.id.notin_(active_ids),
+                    Series.deleted_at.is_(None),
+                )
+                .all()
             ]
 
         if not rows:
@@ -709,9 +765,14 @@ class LibraryIntelligenceService:
     # ------------------------------------------------------------------
 
     def get_reading_history(self, limit: int = 50) -> list[dict[str, object]]:
-        """Return recent reading sessions with series and chapter names."""
+        """Return recent reading sessions with series and chapter names.
+
+        Gate-filtered by the session's series: history carries the title, so
+        leaving it unfiltered would name every adult series the profile has
+        read while the grid pretends they do not exist.
+        """
         sessions = (
-            self._scope_sessions(self._db.query(ReadingSession))
+            self._gate_sessions(self._scope_sessions(self._db.query(ReadingSession)))
             .options(
                 selectinload(ReadingSession.series),
                 selectinload(ReadingSession.chapter),
@@ -769,7 +830,7 @@ class LibraryIntelligenceService:
     def get_series_reading_history(self, series_id: int, limit: int = 50) -> list[dict[str, object]]:
         """Return reading history for a specific series."""
         sessions = (
-            self._scope_sessions(self._db.query(ReadingSession))
+            self._gate_sessions(self._scope_sessions(self._db.query(ReadingSession)))
             .options(selectinload(ReadingSession.chapter))
             .filter(ReadingSession.series_id == series_id)
             .order_by(ReadingSession.started_at.desc())
@@ -821,12 +882,15 @@ class LibraryIntelligenceService:
 
     def list_collections(self) -> list[dict[str, object]]:
         """Return the active profile's collections with series counts."""
-        # Pre-aggregate series counts in one query
+        # Pre-aggregate series counts in one query, gate-filtered so the count
+        # on the card matches what opening the collection actually shows.
         counts = {
             c.collection_id: c.cnt
-            for c in self._db.query(
-                CollectionSeries.collection_id,
-                func.count(CollectionSeries.series_id).label("cnt"),
+            for c in self._apply_mature_filter(
+                self._db.query(
+                    CollectionSeries.collection_id,
+                    func.count(CollectionSeries.series_id).label("cnt"),
+                ).join(Series, Series.id == CollectionSeries.series_id)
             )
             .group_by(CollectionSeries.collection_id)
             .all()
@@ -1051,7 +1115,16 @@ class LibraryIntelligenceService:
     # ------------------------------------------------------------------
 
     def list_tags(self, category: str | None = None) -> list[dict[str, object]]:
-        """Return all tags with series counts (batch-optimized via subquery)."""
+        """Tags on series this (user, profile) can currently see, with counts.
+
+        Scoped to the visible library rather than to every Tag row on the
+        instance. Tags carry no owner of their own, so an unscoped listing both
+        named other accounts' tags and — once the 18+ gate started hiding
+        series — kept naming a tag that existed solely on a hidden adult series,
+        while the statistics screen had already stopped counting it. A tag whose
+        only series is invisible is at best useless as a filter and at worst
+        exactly the label the gate was asked to hide.
+        """
         q = self._db.query(Tag)
         if category is not None:
             q = q.filter(Tag.category == category)
@@ -1060,16 +1133,27 @@ class LibraryIntelligenceService:
             return []
 
         tag_ids = [t.id for t in tags]
-        # Batch-count in one query
-        counts = dict(
-            self._db.query(
-                SeriesTag.tag_id,
-                func.count(SeriesTag.series_id),
-            )
-            .filter(SeriesTag.tag_id.in_(tag_ids))
-            .group_by(SeriesTag.tag_id)
-            .all()
-        )
+
+        def _counts(*, gated: bool) -> dict[int, int]:
+            query = self._db.query(
+                SeriesTag.tag_id, func.count(func.distinct(SeriesTag.series_id))
+            ).filter(SeriesTag.tag_id.in_(tag_ids))
+            if gated and not self._mature_enabled():
+                query = query.filter(
+                    SeriesTag.series_id.notin_(self._mature_series_ids())
+                )
+            return dict(query.group_by(SeriesTag.tag_id).all())
+
+        applied = _counts(gated=False)
+        counts = _counts(gated=True)
+        # A tag is dropped only when it HAS series and none of them are visible
+        # -- that is the leak: a label whose sole series is hidden by the 18+
+        # gate was still being named here while statistics had stopped counting
+        # it. A tag with no series at all is an unapplied label the user just
+        # created, so it stays; hiding those would make tag creation look broken.
+        tags = [t for t in tags if applied.get(t.id, 0) == 0 or counts.get(t.id, 0) > 0]
+        if not tags:
+            return []
         return [
             {
                 "id": t.id,
@@ -1166,23 +1250,32 @@ class LibraryIntelligenceService:
         """Return comprehensive library statistics for this (user, profile).
 
         Every count is membership-scoped: a brand-new account must read zeros,
-        not a census of what everyone else on the instance has.
+        not a census of what everyone else on the instance has. Counts are also
+        gate-scoped: while 18+ is off an adult series contributes to nothing,
+        because a series count that does not match the visible grid is itself a
+        disclosure ("47 series" over 46 covers).
         """
-        library_series = self._scope_library(self._db.query(Series)).filter(
+        library_series = self._visible_library(self._db.query(Series)).filter(
             Series.deleted_at.is_(None)
         )
         total_series = library_series.count()
         total_chapters = (
             self._db.query(Chapter)
-            .filter(Chapter.series_id.in_(self._library_series_ids()))
+            .filter(Chapter.series_id.in_(self._visible_library_series_ids()))
             .count()
         )
         total_pages = (
-            self._scope_library(self._db.query(func.sum(Series.total_pages)))
+            self._visible_library(self._db.query(func.sum(Series.total_pages)))
             .filter(Series.deleted_at.is_(None))
             .scalar()
             or 0
         )
+        # Session-derived numbers below (reading time, pages this week, streak,
+        # velocity, weekly chart) are deliberately NOT gate-filtered. They name
+        # nothing -- unlike the series/tag/author aggregates above, which would
+        # otherwise put an adult series' author or genre on the stats screen --
+        # and filtering them would break the reading streak on every toggle,
+        # which is a visible, confusing side effect for no privacy gain.
         total_reading_time = (
             self._scope_sessions(
                 self._db.query(func.sum(ReadingSession.pages_read))
@@ -1191,7 +1284,7 @@ class LibraryIntelligenceService:
         )
         # reading_status / is_favorite are the caller's own opinion, so they are
         # read off UserSeriesState rather than the shared catalog columns.
-        state_counts = (
+        state_counts = self._apply_mature_filter(
             self._db.query(UserSeriesState)
             .join(Series, Series.id == UserSeriesState.series_id)
             .filter(
@@ -1315,7 +1408,7 @@ class LibraryIntelligenceService:
                 func.count(SeriesTag.series_id).label("series_count"),
             )
             .join(SeriesTag, SeriesTag.tag_id == Tag.id)
-            .filter(SeriesTag.series_id.in_(self._library_series_ids()))
+            .filter(SeriesTag.series_id.in_(self._visible_library_series_ids()))
             .group_by(Tag.id)
             .order_by(func.count(SeriesTag.series_id).desc())
             .limit(10)
@@ -1335,7 +1428,7 @@ class LibraryIntelligenceService:
         """Return top authors by series count and total pages, over this (user,
         profile)'s library only."""
         rows = (
-            self._scope_library(
+            self._visible_library(
                 self._db.query(
                     Series.author,
                     func.count(Series.id).label("series_count"),
@@ -1391,11 +1484,8 @@ class LibraryIntelligenceService:
 
     def get_recently_added(self, limit: int = 10) -> list[dict[str, object]]:
         series = (
-            self._apply_mature_filter(
-                self._scope_library(self._db.query(Series)).filter(
-                    Series.deleted_at.is_(None)
-                )
-            )
+            self._visible_library(self._db.query(Series))
+            .filter(Series.deleted_at.is_(None))
             .order_by(Series.created_at.desc())
             .limit(limit)
             .all()
@@ -1404,11 +1494,8 @@ class LibraryIntelligenceService:
 
     def get_recently_updated(self, limit: int = 10) -> list[dict[str, object]]:
         series = (
-            self._apply_mature_filter(
-                self._scope_library(self._db.query(Series)).filter(
-                    Series.deleted_at.is_(None)
-                )
-            )
+            self._visible_library(self._db.query(Series))
+            .filter(Series.deleted_at.is_(None))
             .order_by(Series.updated_at.desc())
             .limit(limit)
             .all()
@@ -1496,7 +1583,13 @@ class LibraryIntelligenceService:
             .filter(Series.id == series_id, Series.deleted_at.is_(None))
             .first()
         )
-        if not series:
+        # Hidden by the 18+ gate reads as not-found, matching the precedent for
+        # mature *sources* (BrowseService._get_connector): a 403 would confirm
+        # the series exists, and the whole point of the gate is that nothing
+        # about adult content surfaces while it is off. The row is untouched.
+        if not series or (
+            not self._mature_enabled() and is_mature_rating(series.content_rating)
+        ):
             raise AppError(
                 "Series not found.",
                 code="series_not_found",
@@ -1737,13 +1830,16 @@ class LibraryIntelligenceService:
     def _collection_detail(self, collection: Collection) -> dict[str, object]:
         summary = self._collection_summary(collection)
         # Series in collection, ordered by sort_order, with pagination
-        links = (
+        # Gate-filtered via the join, not after the fact, so the reported
+        # total matches the items -- a collection that says "12" over 11 covers
+        # is the same disclosure as showing the twelfth.
+        links = self._apply_mature_filter(
             self._db.query(CollectionSeries)
+            .join(Series, Series.id == CollectionSeries.series_id)
             .filter(CollectionSeries.collection_id == collection.id)
             .order_by(CollectionSeries.sort_order.asc())
             .options(selectinload(CollectionSeries.series))
-            .all()
-        )
+        ).all()
         summary["series"] = {
             "items": self._series_summaries([link.series for link in links]),
             "total": len(links),

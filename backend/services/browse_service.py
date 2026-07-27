@@ -8,10 +8,17 @@ import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from itertools import zip_longest
+from typing import Annotated
 from urllib.parse import quote
 
+from fastapi import Depends
+from sqlalchemy.orm import Session
+
 from core.config import get_settings
+from core.content_rating import resolve_mature_gate
 from core.errors import AppError
+from core.profile_context import ProfileContext, resolve_profile_context
+from database.session import get_db
 from connectors.base import SourceConnector
 from connectors.http.client import ConnectorHttpError
 from connectors.ids import fully_unquote
@@ -267,6 +274,29 @@ def _serialize_paginated(
 class BrowseService:
     """Source-agnostic facade for browsing online catalogs."""
 
+    def __init__(self, mature_enabled: bool | None = None) -> None:
+        """``mature_enabled`` is the caller's *resolved* 18+ gate.
+
+        It is passed in rather than looked up because the gate is per-(user,
+        profile) and this service holds neither a DB session nor a
+        ``ProfileContext`` -- reading ``get_settings()`` here is exactly the bug
+        that made the in-app toggle inert. ``get_browse_service`` resolves it
+        from the request's profile.
+
+        ``None`` means "no caller context", and falls back to the global config
+        default at *call* time (not construction, so a settings change is
+        observed). That path exists only for the handful of context-free
+        callers: the federated search fan-out, cover prefetching for series
+        already in a library, and direct construction in connector tests.
+        """
+        self._mature_enabled = mature_enabled
+
+    def _gate_open(self) -> bool:
+        """Whether adult content is permitted for whoever built this service."""
+        if self._mature_enabled is not None:
+            return self._mature_enabled
+        return get_settings().mature_content_enabled
+
     @staticmethod
     def _raise_source_connector_error(source_id: str, exc: Exception) -> None:
         """Map upstream connector failures to client-facing browse errors."""
@@ -296,7 +326,7 @@ class BrowseService:
         snapshot = registry_snapshot()
         descriptors = list_installed_connectors(
             browsable_only=True,
-            include_mature=get_settings().mature_content_enabled,
+            include_mature=self._gate_open(),
         )
         logging.getLogger("uvicorn.error").info(
             "GET /sources registry_id=%s all_types=%s browsable_types=%s returning=%s",
@@ -343,7 +373,7 @@ class BrowseService:
         # existence isn't disclosed. This one check covers every read path
         # (browse, search, series, chapters, pages, reader, covers) because
         # they all resolve their connector here.
-        if connector.is_mature and not get_settings().mature_content_enabled:
+        if connector.is_mature and not self._gate_open():
             raise AppError(
                 "Source not found.",
                 code="source_not_found",
@@ -517,6 +547,11 @@ class BrowseService:
                             f"{quote(str(series.id), safe='')}/cover",
                         ),
                         "author": series.author,
+                        # Carried through so source-migration candidates can be
+                        # compared on catalog size without an extra fetch per
+                        # candidate. 0 means "the source did not say", not
+                        # "empty" -- most search endpoints omit it.
+                        "chapter_count": series.chapter_count,
                         "extra": None,
                     },
                 )
@@ -848,5 +883,15 @@ class BrowseService:
         return media_type, response.content
 
 
-def get_browse_service() -> BrowseService:
-    return BrowseService()
+def get_browse_service(
+    db: Annotated[Session, Depends(get_db)],
+    ctx: Annotated[ProfileContext, Depends(resolve_profile_context)],
+) -> BrowseService:
+    """Per-request browse service carrying the caller's own 18+ gate.
+
+    This is where the source-level gate becomes per-(user, profile): every
+    remote read path resolves its connector through ``_get_connector``, so
+    binding the gate once here covers browse, series, chapters, pages, covers
+    and the reader in one place.
+    """
+    return BrowseService(mature_enabled=resolve_mature_gate(db, ctx.profile_id, ctx.user_id))

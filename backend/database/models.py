@@ -567,6 +567,8 @@ class SeriesTracker(Base):
         Index("ix_series_trackers_track_kind", "track_kind"),
         Index("ix_series_trackers_user_id", "user_id"),
         Index("ix_series_trackers_profile_id", "profile_id"),
+        # The 18+ gate filters by resolved rating on every tracker read.
+        Index("ix_series_trackers_content_rating", "content_rating"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -585,6 +587,27 @@ class SeriesTracker(Base):
     auto_download: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
     check_interval_minutes: Mapped[int | None] = mapped_column(Integer)
     known_chapter_ids: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    # Same catalog as known_chapter_ids but keeping each chapter's NUMBER:
+    # ``[{"id": ..., "number": ...}]``. Numbers are the only stable axis across
+    # sources (ids are opaque per-source strings, titles are translations), so
+    # without this a migration off a source that has since died has nothing to
+    # map progress by. known_chapter_ids is kept until a later contract
+    # migration so the update engine's diff is unchanged.
+    known_chapters: Mapped[str | None] = mapped_column(Text)
+    # --- maturity, resolved by core.content_rating.resolve_tracker_rating ----
+    # Captured at follow time from the connector's genres; NULL means "no
+    # signal", which resolves to unknown rather than to safe.
+    content_rating: Mapped[str | None] = mapped_column(String(64))
+    # The user's explicit verdict. Wins over everything, including the source's
+    # own maturity — the only mechanism that works for the many dead connectors
+    # where no metadata will ever arrive again.
+    mature_override: Mapped[bool | None] = mapped_column(Integer)
+    # --- source-migration audit trail ---------------------------------------
+    # Kept so a bad repoint stays diagnosable (and undoable) while the old ids
+    # are still known; the migration itself overwrites source/series_id.
+    migrated_from_source: Mapped[str | None] = mapped_column(String(64))
+    migrated_from_series_id: Mapped[str | None] = mapped_column(String(128))
+    migrated_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_error: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

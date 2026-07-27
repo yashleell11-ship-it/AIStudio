@@ -221,6 +221,11 @@ def test_auto_download_queues_new_chapters_when_enabled(db_session: Session) -> 
     settings = service.get_global_settings()
 
     mock_connector = MagicMock()
+    # A bare MagicMock is truthy for every attribute, including is_mature —
+    # which the 18+ enqueue gate now reads. Pin it so this non-adult fixture
+    # is not 404'd by the gate.
+    mock_connector.is_mature = False
+    mock_connector.is_browsable = True
     mock_connector.get_chapters.return_value = [
         _chapter("ch-1", number=1),
         _chapter("ch-2", number=2, title="New Chapter"),

@@ -20,14 +20,14 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from connectors.registry import ConnectorDescriptor, list_installed_connectors
-from core.config import get_settings
+from core.content_rating import resolve_mature_gate
 from core.errors import AppError
 from core.profile_context import (
     ProfileContext,
     require_profile_context,
     resolve_profile_context,
 )
-from database.models import ReadingProfile, SourcePin
+from database.models import SourcePin
 from database.session import get_db
 
 SOURCE_ID_MAX = 64
@@ -52,13 +52,8 @@ class SourcePinService:
         )
 
     def _mature_enabled(self) -> bool:
-        """Active mature gate (mirrors routes.settings._mature_enabled): the
-        active profile's own toggle, else the global config default."""
-        if self._profile_id is not None:
-            profile = self._db.get(ReadingProfile, self._profile_id)
-            if profile is not None:
-                return bool(profile.mature_content_enabled)
-        return get_settings().mature_content_enabled
+        """Active mature gate for this (user, profile)."""
+        return resolve_mature_gate(self._db, self._profile_id, self._user_id)
 
     def _pinnable_sources(self) -> dict[str, ConnectorDescriptor]:
         """Sources the caller can actually see, keyed by connector id.

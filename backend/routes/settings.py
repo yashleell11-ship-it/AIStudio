@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.config import get_settings, update_persisted_settings
+from core.content_rating import resolve_mature_gate
 from core.profile_context import ProfileContext, resolve_profile_context
 from database.models import ReadingProfile
 from database.session import get_db
@@ -30,13 +31,9 @@ ProfileDep = Annotated[ProfileContext, Depends(resolve_profile_context)]
 
 
 def _mature_enabled(db: Session, ctx: ProfileContext) -> bool:
-    """Active mature gate: the active profile's own toggle if one is active,
-    otherwise the global config default."""
-    if ctx.profile_id is not None:
-        profile = db.get(ReadingProfile, ctx.profile_id)
-        if profile is not None:
-            return bool(profile.mature_content_enabled)
-    return get_settings().mature_content_enabled
+    """Active mature gate for this request. Thin alias so GET /settings echoes
+    back exactly what every gated read path will act on."""
+    return resolve_mature_gate(db, ctx.profile_id, ctx.user_id)
 
 
 class UnifiedSettingsUpdate(BaseModel):

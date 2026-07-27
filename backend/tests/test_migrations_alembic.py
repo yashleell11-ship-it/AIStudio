@@ -162,3 +162,50 @@ def test_run_alembic_migrations_is_idempotent(tmp_path):
     with engine.connect() as conn:
         rev2 = MigrationContext.configure(conn).get_current_revision()
     assert rev1 == rev2
+
+
+def test_tracker_maturity_backfill_stamps_existing_adult_source_follows(tmp_path):
+    """a7c3e51b90d4's data step.
+
+    Without it the 18+ gate would ship inert for every follow that already
+    exists: a tracker created before the rating columns existed has NULL in both
+    of them, and the owner would have to re-mark each one by hand. Trackers on a
+    general-purpose source are deliberately left NULL — guessing "adult" there
+    would hide follows he never asked to hide.
+    """
+    from connectors.registry import list_installed_connectors
+
+    db_url = f"sqlite:///{tmp_path / 'backfill.db'}"
+    engine = create_engine(db_url)
+    _alembic_upgrade(db_url, "f1a9c46d2e70")  # the revision before the columns
+
+    adult = next(
+        d.source_type for d in list_installed_connectors(include_mature=True) if d.mature
+    )
+    safe = next(
+        d.source_type
+        for d in list_installed_connectors(include_mature=True)
+        if not d.mature
+    )
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO series_trackers "
+                "(source, series_id, series_title, track_kind, enabled, notify, "
+                " auto_download, known_chapter_ids, created_at, updated_at) VALUES "
+                "(:src, 's1', 'T', 'followed', 1, 1, 0, '[]', "
+                " '2026-01-01', '2026-01-01')"
+            ),
+            [{"src": adult}, {"src": safe}],
+        )
+
+    run_alembic_migrations(engine)
+
+    with engine.connect() as conn:
+        rows = dict(
+            conn.execute(
+                text("SELECT source, content_rating FROM series_trackers")
+            ).all()
+        )
+    assert rows[adult] == "mature"
+    assert rows[safe] is None
