@@ -1,6 +1,5 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 
 interface PagePlaceholderProps {
@@ -12,8 +11,9 @@ interface PagePlaceholderProps {
 }
 
 /**
- * Temporary scaffold for routes whose feature ships in a later phase.
- * Replaced by the real feature module when that phase lands.
+ * Empty state for a route that needs a selection before it can render anything —
+ * /reader without a series, for example. Not a "not built yet" placeholder: the
+ * features behind these routes exist, so it points at where to make the choice.
  */
 export function PagePlaceholder({
   title,
@@ -28,9 +28,6 @@ export function PagePlaceholder({
         <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
           <Icon className="size-8 text-primary" aria-hidden />
         </div>
-        <Badge variant="primary" className="mb-3">
-          Coming soon
-        </Badge>
         <h1 className="page-title">{title}</h1>
         <p className="page-subtitle mx-auto mt-3 max-w-md">{description}</p>
         {actionHref && actionLabel ? (
