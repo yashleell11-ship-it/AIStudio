@@ -1561,6 +1561,13 @@ class LibraryIntelligenceService:
             "cover_url": f"/library/covers/{series.id}",
             "folder_path": series.folder_path,
             "is_favorite": bool(state.is_favorite) if state else False,
+            # Whether THIS (user, profile) has the series on their shelf.
+            # list_series inner-joins on it so everything there is a member by
+            # construction, but the detail route deliberately does not filter on
+            # it -- without this field a client opening a series by URL could
+            # not tell "on my shelf" from "merely exists", and had to infer it
+            # by re-querying the gated list and matching on id.
+            "in_library": bool(state.in_library) if state else False,
             "reading_status": state.reading_status if state else "unread",
             "chapter_count": chapter_count,
             "read_chapters": read_chapters,

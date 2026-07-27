@@ -250,12 +250,22 @@ class Download(Base):
         Index("ix_downloads_source_series_chapter", "source", "series_id", "chapter_id"),
         Index("ix_downloads_status", "status"),
         Index("ix_downloads_user_id", "user_id"),
+        Index("ix_downloads_profile_id", "profile_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     # Who queued this download. Background workers read ownership off the row
     # (they have no request/user context). Nullable for legacy rows.
     user_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    # WHICH PROFILE queued it. Library membership is per-(user, profile), and on
+    # completion the worker adds the imported series to the downloader's library
+    # — so it needs the profile, not just the account, or the membership row
+    # lands in the unscoped bucket and the series is invisible everywhere.
+    # Nullable: rows queued before this column existed cannot say, and are not
+    # attributed to a guessed profile (see DownloadManager._import_and_verify).
+    profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reading_profiles.id", ondelete="CASCADE"), nullable=True
+    )
     source: Mapped[str] = mapped_column(String(64), nullable=False)
     series_id: Mapped[str] = mapped_column(String(128), nullable=False)
     chapter_id: Mapped[str] = mapped_column(String(128), nullable=False)
@@ -274,17 +284,27 @@ class Download(Base):
     error: Mapped[str | None] = mapped_column(Text)
 
     queue: Mapped[DownloadQueue | None] = relationship(
-        back_populates="download", uselist=False
+        back_populates="download", uselist=False, cascade="all, delete-orphan"
     )
 
 
 class DownloadQueue(Base):
+    """The scheduling half of a ``Download`` — one row per download, at most.
+
+    Carries no ownership of its own: whose download this is comes from the
+    ``Download`` it points at, so it needs no user_id/profile_id and must simply
+    not outlive its parent. The delete cascade is what makes that true — without
+    it, deleting a profile cascades away its ``downloads`` rows and this table's
+    NOT NULL ``download_id`` is left dangling, which SQLite rejects outright
+    (the profile delete fails with a foreign key error).
+    """
+
     __tablename__ = "download_queue"
     __table_args__ = (Index("ix_download_queue_state_priority", "state", "priority"),)
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     download_id: Mapped[int] = mapped_column(
-        ForeignKey("downloads.id"), nullable=False, unique=True
+        ForeignKey("downloads.id", ondelete="CASCADE"), nullable=False, unique=True
     )
     priority: Mapped[int] = mapped_column(Integer, default=0)
     state: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
