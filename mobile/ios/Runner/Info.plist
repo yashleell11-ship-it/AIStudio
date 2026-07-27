@@ -26,6 +26,22 @@
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!--
+		Purpose strings. iOS does not warn about a missing one: it kills the
+		process the instant the matching framework is touched, which on a
+		sideloaded build looks identical to an expired signing certificate.
+		Both keys below cover code that is COMPILED INTO the binary by
+		file_picker 8.3.7 even though the app's own Dart never reaches it
+		(lib/features/settings/screens/backup_screen.dart calls pickFiles()
+		with the default FileType.any, which is the document-picker path).
+		They are here so that a future FileType.audio/image call, or a
+		file_picker upgrade, cannot turn into an unexplainable crash on a
+		phone nobody can attach a debugger to.
+	-->
+	<key>NSAppleMusicUsageDescription</key>
+	<string>ManhwaManiacs only needs your media library if you pick an audio file from it. It never reads your library otherwise.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>ManhwaManiacs only needs your photo library if you pick an image from it, for example when restoring a backup. It never reads your photos otherwise.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

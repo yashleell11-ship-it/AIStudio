@@ -72,6 +72,22 @@ jobs:
           --dart-define=FLAVOR=prod
           --dart-define=API_URL=https://app.manhwamaniacs.xyz
 
+      - name: Inspect the built app
+        # Nobody here owns a Mac, so this log is the only place the build is ever
+        # looked at. Purely informational — it must not be able to fail the run.
+        # On a first-ever iOS build the Frameworks listing is the fastest way to
+        # confirm ios/Podfile's PICKER_MEDIA=false took effect: there should be
+        # no DKImagePickerController / SDWebImage / TOCropViewController.
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "--- Runner.app/Info.plist ---"
+          /usr/libexec/PlistBuddy -c "Print" build/ios/iphoneos/Runner.app/Info.plist || true
+          echo "--- Frameworks embedded in Runner.app ---"
+          ls build/ios/iphoneos/Runner.app/Frameworks 2>/dev/null || echo "(none)"
+          echo "--- ios/Podfile.lock (commit this into mobile/ios/ to pin CI) ---"
+          cat ios/Podfile.lock 2>/dev/null || echo "(no Podfile.lock produced)"
+
       - name: Package unsigned .ipa
         # An .ipa is just a zip with the .app inside a Payload/ folder.
         run: |
@@ -105,3 +121,49 @@ jobs:
             mobile/build/ios/iphoneos/ManhwaManiacs.ipa
             mobile/build/ios/iphoneos/ios-build.json
           if-no-files-found: error
+
+      - name: Verify the .ipa is what we claimed
+        # Runs AFTER the upload on purpose: if an assertion here is wrong, the
+        # run still goes red but the .ipa is already downloadable by hand, so a
+        # bad check can never cost a build on a machine nobody can reproduce.
+        #
+        # What it guards, both of which fail silently and days late otherwise:
+        #   * the version/build actually stamped into the binary. If these drift
+        #     from ios-build.json, /app/source.json advertises a build that is
+        #     not in the .ipa and SideStore's update badge lies — that is the
+        #     "SideStore offers no update" row in mobile/docs/IOS_SIDELOAD.md.
+        #   * the purpose strings. A missing one is not a warning on iOS, it is
+        #     a process kill the moment the matching framework is touched, and
+        #     on a sideloaded build that looks exactly like a lapsed cert.
+        run: |
+          set -euo pipefail
+          PLIST=build/ios/iphoneos/Runner.app/Info.plist
+          pb() { /usr/libexec/PlistBuddy -c "Print :$1" "$PLIST"; }
+
+          GOT_NAME="$(pb CFBundleShortVersionString)"
+          GOT_NUMBER="$(pb CFBundleVersion)"
+          echo "built: $GOT_NAME ($GOT_NUMBER)"
+          [ "$GOT_NAME" = "${{ steps.ver.outputs.name }}" ] \
+            || { echo "::error::CFBundleShortVersionString is $GOT_NAME, expected ${{ steps.ver.outputs.name }}"; exit 1; }
+          [ "$GOT_NUMBER" = "${{ steps.ver.outputs.number }}" ] \
+            || { echo "::error::CFBundleVersion is $GOT_NUMBER, expected ${{ steps.ver.outputs.number }}"; exit 1; }
+
+          for key in NSPhotoLibraryUsageDescription NSAppleMusicUsageDescription; do
+            pb "$key" >/dev/null 2>&1 \
+              || { echo "::error::$key missing from the built Info.plist"; exit 1; }
+          done
+          echo "purpose strings present"
+
+      - name: Upload Podfile.lock
+        # There is no Mac in this project, so the ONLY way to obtain a real
+        # Podfile.lock is to let the cloud runner generate one and hand it back.
+        # Download this from the run's Artifacts, drop it in mobile/ios/ and
+        # commit it — from then on CI resolves pods identically every run.
+        # Separate from the .ipa artifact so a missing lockfile can never break
+        # the download the phone actually needs.
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-podfile-lock
+          path: mobile/ios/Podfile.lock
+          if-no-files-found: warn

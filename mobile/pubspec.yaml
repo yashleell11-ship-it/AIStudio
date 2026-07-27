@@ -63,6 +63,30 @@ dev_dependencies:
   flutter_lints: ^4.0.0
 
 flutter:
+  # ── Darwin dependency management: CocoaPods only ───────────────────────────
+  # Swift Package Manager is ON BY DEFAULT on the stable channel
+  # (flutter_tools/lib/src/features.dart: swiftPackageManager, stable
+  # enabledByDefault: true). Leaving it on is actively harmful here:
+  #
+  #   * flutter_secure_storage 9.2.4 ships no Package.swift, so CocoaPods would
+  #     run ALONGSIDE SwiftPM — the dual-manager mode Flutter itself warns can
+  #     produce duplicate-module link failures.
+  #   * file_picker's SwiftPM manifest pulls SIX packages straight from GitHub
+  #     at build time, three of them tracked by a moving BRANCH
+  #     (DKImagePickerController@4.3.9, DKCamera@master, DKPhotoGallery@master).
+  #     Nothing in this repo pins them, and CI has no Package.resolved to fall
+  #     back on.
+  #
+  # With SwiftPM off, every plugin resolves through its podspec as a local path
+  # pod (see ios/Podfile) — the whole iOS dependency graph is offline and is
+  # pinned by pubspec.lock alone. This matters because the iOS build runs on a
+  # throwaway cloud Mac nobody can debug interactively.
+  #
+  # Verified safe: no plugin here is SwiftPM-only, so this cannot trip
+  # darwin_dependency_management.dart's `_throwToolExitIfSwiftPMOnlyPluginsExist`.
+  config:
+    enable-swift-package-manager: false
+
   uses-material-design: true
   assets:
     - assets/images/
