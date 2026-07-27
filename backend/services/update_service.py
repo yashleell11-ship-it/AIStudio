@@ -1243,6 +1243,17 @@ class UpdateService:
 
     def _select_trackers_for_check(self, tracker_ids: list[int] | None) -> list[SeriesTracker]:
         query = self._db.query(SeriesTracker).filter(SeriesTracker.enabled.is_(True))
+        # Scoped when a request is driving this, global when the scheduler is.
+        # POST /updates/check accepts explicit tracker_ids, and without this a
+        # caller could name another account's tracker id and force a check of
+        # it. The background sweep constructs this service with no user context
+        # precisely because it must cover every household member, so scoping
+        # unconditionally would silently stop update checking altogether.
+        if self._user_id is not None:
+            query = query.filter(
+                SeriesTracker.user_id == self._user_id,
+                SeriesTracker.profile_id == self._profile_id,
+            )
         if tracker_ids:
             query = query.filter(SeriesTracker.id.in_(tracker_ids))
         return query.order_by(SeriesTracker.source, SeriesTracker.series_title).all()
