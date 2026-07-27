@@ -1,4 +1,4 @@
-"""Map ToonDex (BeeHentai successor) API payloads to connector models."""
+"""Map ToonTop (BeeHentai successor) API payloads to connector models."""
 
 from __future__ import annotations
 
@@ -9,8 +9,10 @@ from typing import Any
 
 from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Series
 
-API_BASE = "https://api.toondex.io"
-SITE_BASE = "https://toondex.io"
+# BeeHentai/ToonDex migrated to ToonTop; the old api.toondex.io host now
+# 301-redirects to the site root (toontop.io/<path>) which 404s.
+API_BASE = "https://api.toontop.io"
+SITE_BASE = "https://toontop.io"
 PAGE_SIZE = 24
 
 _SORT_MAP: dict[str, str] = {

@@ -9,6 +9,7 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from connectors.base import SourceConnector
+from connectors.excluded import EXCLUDED_CONNECTORS
 from connectors.http.client import ConnectorHttpError
 from connectors.madara.mappers import MadaraHtml
 from connectors.madara.sites import MADARA_SITES
@@ -89,10 +90,13 @@ def _mock_coffeemanga_html(connector: SourceConnector):
 
 
 # Sample every Nth site so the suite stays fast; full list is registered at runtime.
+# Excluded sources are not registered (create_connector would raise), so skip them.
 _MADARA_SAMPLE_IDS = [
     cfg.source_id
     for cfg in MADARA_SITES
-    if cfg.url_segment == "manga" and not cfg.mature
+    if cfg.url_segment == "manga"
+    and not cfg.mature
+    and cfg.source_id not in EXCLUDED_CONNECTORS
 ][::8]  # ~15 connectors
 
 

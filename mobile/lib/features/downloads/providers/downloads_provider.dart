@@ -127,8 +127,15 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
       // would leak a zombie Timer firing on a disposed notifier forever.
       if (_disposed) return;
       _schedulePolling(data.items);
+      // Re-read state after the network round-trip: an action may have started
+      // mid-fetch and flipped `actionPending`/`feedbackMessage`. Folding onto
+      // the pre-fetch snapshot (`current`) would silently clobber it — e.g.
+      // re-enabling action buttons while a pause is still running. Fold onto
+      // the latest state instead, matching what `refresh()` already does.
+      final latest = state.valueOrNull;
+      if (latest == null) return;
       state = AsyncData(
-        current.copyWith(
+        latest.copyWith(
           items: data.items,
           metrics: data.metrics,
           clearActionError: true,
@@ -139,6 +146,12 @@ class DownloadsNotifier extends AutoDisposeAsyncNotifier<DownloadsState> {
 
   void _schedulePolling(List<DownloadItem> items) {
     _pollTimer?.cancel();
+    // Never (re)start the poll loop after the notifier is disposed. `_runAction`,
+    // `_runBulk` and `refresh` all reschedule after awaited network work; if the
+    // provider autoDisposed in the meantime, onDispose has already run and a new
+    // Timer.periodic here would fire forever on a dead notifier (a zombie timer
+    // nothing holds a reference to cancel).
+    if (_disposed) return;
     final hasActive = items.any((item) => item.isDownloading || item.isQueued);
     final interval = hasActive
         ? const Duration(seconds: 2)

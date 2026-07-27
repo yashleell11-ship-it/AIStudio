@@ -1,4 +1,4 @@
-"""BeeHentai online source connector (beehentai.com → toondex.io API)."""
+"""BeeHentai online source connector (beehentai.com → toontop.io API)."""
 
 from __future__ import annotations
 
@@ -35,12 +35,12 @@ API_HEADERS = {
 
 
 class BeeHentaiConnector(SourceConnector):
-    """Browse and read from BeeHentai (redirects to ToonDex)."""
+    """Browse and read from BeeHentai (redirects to ToonTop)."""
 
     SOURCE_TYPE = "beehentai"
     DISPLAY_NAME = "BeeHentai"
     DESCRIPTION = (
-        "Browse and read manga and manhwa from BeeHentai (now ToonDex). "
+        "Browse and read manga and manhwa from BeeHentai (now ToonTop). "
         "Images are proxied through ManhwaManiacs."
     )
     BROWSABLE = True
@@ -77,7 +77,7 @@ class BeeHentaiConnector(SourceConnector):
 
     @property
     def allowed_image_hosts(self) -> frozenset[str]:
-        return frozenset({"rx.toondex.io", "toondex.io"})
+        return frozenset({"rx.toontop.io", "toontop.io"})
 
     def image_fetch_headers(self) -> dict[str, str]:
         return {"Referer": f"{SITE_BASE}/"}

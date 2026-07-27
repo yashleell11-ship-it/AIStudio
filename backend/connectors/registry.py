@@ -43,6 +43,9 @@ from connectors.nhentai.connector import NHentaiConnector
 from connectors.porncomic18.connector import PornComic18Connector
 from connectors.threehentai.connector import ThreeHentaiConnector
 from connectors.toonily.connector import ToonilyConnector
+from connectors.webtoons.connector import WebtoonsConnector
+from connectors.tapas.connector import TapasConnector
+from connectors.weebcentral.connector import WeebCentralConnector
 
 logger = logging.getLogger(__name__)
 
@@ -83,6 +86,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     HentaiEraConnector.SOURCE_TYPE,
     HariMangaConnector.SOURCE_TYPE,
     EightMusesConnector.SOURCE_TYPE,
+    TapasConnector.SOURCE_TYPE,
     FirstKissMangaConnector.SOURCE_TYPE,
     *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
 }
@@ -133,6 +137,9 @@ def _register_builtin_connectors() -> None:
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
         (NHentaiConnector.SOURCE_TYPE, NHentaiConnector),
+        (WeebCentralConnector.SOURCE_TYPE, WeebCentralConnector),
+        (WebtoonsConnector.SOURCE_TYPE, WebtoonsConnector),
+        (TapasConnector.SOURCE_TYPE, TapasConnector),
         (PornComic18Connector.SOURCE_TYPE, PornComic18Connector),
         (ThreeHentaiConnector.SOURCE_TYPE, ThreeHentaiConnector),
         (AsmHentaiConnector.SOURCE_TYPE, AsmHentaiConnector),

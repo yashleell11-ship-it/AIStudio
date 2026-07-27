@@ -18,6 +18,7 @@ LISTING_CARD_RE = re.compile(
     r'class="(?:g_title|gallery_title)"><a[^>]*>([^<]+)</a>',
     re.S | re.I,
 )
+NEXT_PAGE_RE = re.compile(r"page-link['\"][^>]*>\s*Next", re.I)
 TITLE_H1_RE = re.compile(r'<h1[^>]*>([^<]+)', re.I)
 TITLE_TAG_RE = re.compile(r"<title>([^<]+?)\s*-\s*", re.I)
 PAGE_COUNT_RE = re.compile(r'id="load_pages"[^>]+value="(\d+)"', re.I)
@@ -111,11 +112,12 @@ def parse_series_list(
                 cover_url=thumb_url.replace("/thumb.jpg", "/cover.jpg"),
             )
         )
+    has_next = bool(NEXT_PAGE_RE.search(document))
     return PaginatedSeriesList(
         items=items,
         page=page,
         page_size=page_size,
-        api_has_more=len(items) >= page_size,
+        api_has_more=has_next or len(items) >= page_size,
     )
 
 

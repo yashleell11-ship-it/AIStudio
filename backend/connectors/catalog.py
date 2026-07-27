@@ -1,13 +1,11 @@
-"""Full source catalog — all Madara-factory candidates for probe & rollout.
+"""Madara-factory source catalog — live connectors only.
 
-``madara/sites.py`` imports ``MADARA_CATALOG`` for registration. Prune to
-``MADARA_LIVE`` only after connector probes confirm browse works.
+Pruned 2026-07-27: dead/parked/CF-blocked sites removed after E2E probe.
 """
 
 from __future__ import annotations
 
 from connectors.madara.config import MadaraSiteConfig
-from connectors.excluded import EXCLUDED_CONNECTORS
 
 
 def _site(
@@ -35,109 +33,18 @@ def _site(
 
 # fmt: off
 MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
-    # --- Mixed aggregators (general) ----------------------------------------
-    _site("mangakakalot", "MangaKakalot", "mangakakalot.com"),
-    _site("manganelo", "MangaNelo", "manganelo.com"),
-    _site("manganato", "MangaNato", "natomanga.com"),
-    _site("readmanganato", "ReadMangaNato", "readmanganato.com"),
-    _site("mangabat", "MangaBat", "mangabat.com"),
-    _site("mangafire", "MangaFire", "mangafire.to"),
-    _site("mangapark", "MangaPark", "mangapark.net"),
-    _site("weebcentral", "Weeb Central", "weebcentral.com"),
-    _site("mangasee", "MangaSee", "mangasee123.com"),
-    _site("mangapill", "MangaPill", "mangapill.com"),
-    _site("mangakomi", "MangaKomi", "mangakomi.io"),
+    # --- Live Madara sources (E2E verified 2026-07-27) ----------------------
     _site("mangaread", "MangaRead", "mangaread.org"),
-    _site("mangatx", "MangaTX", "mangatx.com"),
-    _site("mangahere", "MangaHere", "mangahere.cc", use_cf=False),
-    _site("mangafreak", "MangaFreak", "mangafreak.net", use_cf=False),
-    _site("mangaclash", "MangaClash", "mangaclash.com", use_cf=False),
-    _site("mangareader_to", "MangaReader.to", "mangareader.to"),
-    _site("mangahub", "MangaHub", "mangahub.io"),
-    _site("mangasect", "MangaSect", "mangasect.com", use_cf=False),
-    _site("mangabuddy", "MangaBuddy", "mangabuddy.com"),
-    _site("mangajar", "MangaJar", "mangajar.com", use_cf=False),
-    _site("mangadass", "MangaDass", "mangadass.com", use_cf=False),
-    _site("mangatoon", "MangaToon", "mangatoon.mobi", use_cf=False),
-    _site("mangago", "MangaGo", "mangago.me", use_cf=False, mature=True),
-    _site("mangakiss", "MangaKiss", "mangakiss.org", use_cf=False),
-    _site("mangakakalotfun", "MangaKakalotFun", "mangakakalotfun.com"),
-    _site("manganelo_link", "MangaNelo Link", "manganelo.link"),
-
-    # --- Manhwa scan groups & aggregators -----------------------------------
-    _site("reaperscans", "Reaper Scans", "reaperscans.com"),
-    _site("luminousscans", "Luminous Scans", "luminousscans.com"),
-    _site("voidscans", "Void Scans", "void-scans.com"),
-    _site("nightscans", "Night Scans", "nightscans.net"),
-    _site("resetscans", "Reset Scans", "reset-scans.com"),
-    _site("templescan", "Temple Scan", "templescan.net"),
-    _site("sectscans", "Sect Scans", "sectscans.com"),
-    _site("paradisescans", "Paradise Scans", "paradisescans.com"),
-    _site("likemanga", "LikeManga", "likemanga.io", use_cf=False),
-    _site("mangacute", "MangaCute", "mangacute.com", use_cf=False),
-    _site("mangademon", "MangaDemon", "mangademon.org"),
-    _site("utoon", "Utoon", "utoon.net", use_cf=False),
-    _site("rizzcomic", "Rizz Comic", "rizzcomic.com", use_cf=False),
-    _site("s2manga", "S2Manga", "s2manga.com", use_cf=False),
-    _site("setsuscans", "Setsu Scans", "setsuscans.com", use_cf=False),
-    _site("toonclash", "ToonClash", "toonclash.com"),
-    _site("vymanga", "VyManga", "vymanga.com", use_cf=False),
-    _site("nhscans", "NHScans", "nhscans.com", use_cf=False),
-    _site("omega_scans", "Omega Scans", "omega-scans.com"),
-    _site("thunderscans", "Thunder Scans", "en-thunderscans.com"),
-    _site("kingofshojo", "King of Shojo", "kingofshojo.com", use_cf=False),
-    _site("skymanga", "Sky Manga", "skymanga.xyz", use_cf=False),
-    _site("novelmic", "NovelMic", "novelmic.com", use_cf=False),
-    _site("zinmanga", "ZinManga", "zinmanga.com"),
-    _site("tapas", "Tapas", "tapas.io", use_cf=False),
-    _site("tappytoon", "Tappytoon", "tappytoon.com", use_cf=False),
-    _site("webtoons", "Webtoon", "webtoons.com", use_cf=False),
-
-    # --- Manhua -------------------------------------------------------------
-    _site("manhuascan", "ManhuaScan", "manhuascan.com"),
     _site("manhuaplus", "ManhuaPlus", "manhuaplus.com", extra_image_hosts=frozenset({"cdn.manhuaplus.com"})),
-    _site("manhuafast", "ManhuaFast", "manhuafast.net"),
-    _site("manhuagui", "ManhuaGui", "manhuagui.com", use_cf=False),
-        _site("manhuakey", "ManhuaKey", "manhuakey.com", use_cf=False),
-    _site("manhuabox", "ManhuaBox", "manhuabox.com", use_cf=False),
-    _site("manhuatop", "ManhuaTop", "manhuatop.org", use_cf=False),
-    _site("manhuafans", "ManhuaFans", "manhuafans.com", use_cf=False),
-    _site("manhuazonghe", "ManhuaZonghe", "manhuazonghe.com", use_cf=False),
-    _site("manhuasite", "ManhuaSite", "manhuasite.com", use_cf=False),
-    _site("manhuaren", "ManhuaRen", "manhuaren.com", use_cf=False),
-    _site("manhuarmtl", "ManhuaRMTL", "manhuarmtl.com", use_cf=False),
+    _site("manhuakey", "ManhuaKey", "manhuakey.com", use_cf=False),
     _site("topmanhua", "TopManhua", "topmanhua.net", use_cf=False, mature=True),
-    _site("manhuaus", "ManhuaUS", "manhuaus.com", use_cf=False, mature=True),
     _site("manhuahot", "ManhuaHot", "manhuahot.com", use_cf=False, mature=True),
-        _site("manhuanext", "ManhuaNext", "manhuanext.com", use_cf=False, mature=True),
-
-    # --- Manhwa 18+ ---------------------------------------------------------
-    _site("toongod", "ToonGod", "toongod.org", url_segment="serie", mature=True),
-    _site("hiperdex", "Hiperdex", "hiperdex.com", mature=True),
-    _site("manhwa18", "Manhwa18", "manhwa18.com", mature=True, use_cf=False),
-    _site("manhwa18net", "Manhwa18.net", "manhwa18.net", mature=True, use_cf=False),
-    _site("olympusbiblioteca", "Olympus Biblioteca", "olympusbiblioteca.com", mature=True),
-    _site("topton", "Toptoon", "topton.com", mature=True, use_cf=False),
-    _site("toomics", "Toomics", "toomics.com", mature=True, use_cf=False),
-    _site("lezhin", "Lezhin", "lezhin.com", mature=True, use_cf=False),
-    _site("manhwa68", "Manhwa68", "manhwa68.com", mature=True, use_cf=False),
+    _site("manhuanext", "ManhuaNext", "manhuanext.com", use_cf=False, mature=True),
     _site("manhwaclub", "ManhwaClub", "manhwaclub.net", mature=True, use_cf=False),
     _site("manhwatop", "ManhwaTop", "manhwatop.com", mature=True, use_cf=False),
-    _site("manytoon", "ManyToon", "manytoon.com", mature=True, use_cf=False),
-    _site("honeytoon", "Honeytoon", "honeytoon.com", mature=True, use_cf=False),
-    _site("lustoon", "LustToon", "lustoon.com", mature=True, use_cf=False),
     _site("manhwaden", "ManhwaDen", "manhwaden.com", mature=True, use_cf=False, extra_image_hosts=frozenset({"remanhwa.me"})),
-    _site("manhwahub", "ManhwaHub", "manhwahub.net", mature=True, use_cf=False),
-    _site("wfwf", "WfWf", "wfwf.fun", mature=True, use_cf=False),
-    _site("manhwazone", "ManhwaZone", "manhwazone.com", mature=True, use_cf=False),
-    _site("manhwatoon", "ManhwaToon", "manhwatoon.me", mature=True, use_cf=False),
     _site("manhwanex", "ManhwaNex", "manhwanex.com", mature=True, use_cf=False),
-    _site("asiatoon", "AsiaToon", "asiatoon.net", mature=True, use_cf=False),
-    _site("manhwa_raw", "Manhwa Raw", "manhwa-raw.com", mature=True, use_cf=False),
-    _site("lunatoons", "LunaToons", "lunatoons.org", mature=True, use_cf=False),
-    _site("heytoon", "HeyToon", "heytoon.net", mature=True, use_cf=False),
-
-    # --- Mixed 18+ ----------------------------------------------------------
+    _site("s2manga", "S2Manga", "s2read.com", use_cf=False),
     _site(
         "allporncomic",
         "AllPornComic",
@@ -147,56 +54,23 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
         use_cf=False,
         extra_image_hosts=frozenset({"cdn.allporncomic.com"}),
     ),
-    _site("multporn", "Multporn", "multporn.net", mature=True, use_cf=False),
-    _site("svscomics", "SVSComics", "svscomics.com", mature=True, use_cf=False),
-    _site("xyzcomics", "XYZ Comics", "xyzcomics.com", mature=True, use_cf=False),
-    _site("luscious", "Luscious", "luscious.net", mature=True, use_cf=False),
-    _site("kingcomix", "KingComix", "kingcomix.com", mature=True, use_cf=False),
-    _site("myhentaicomics", "MyHentaiComics", "myhentaicomics.com", mature=True, use_cf=False),
-    _site("myhentaigallery", "MyHentaiGallery", "myhentaigallery.com", mature=True, use_cf=False),
-    _site("palcomix", "PalComix", "palcomix.com", mature=True, use_cf=False),
-    _site("allhenscan", "AllHenScan", "allhenscan.com", mature=True, use_cf=False),
     _site("apcomics", "APComics", "apcomics.org", mature=True, use_cf=False),
     _site("cocomic", "CoComic", "cocomic.co", mature=True, use_cf=False),
-    # --- Manga 18+ (hentai / doujin) ----------------------------------------
-        _site("hentai2read", "Hentai2Read", "hentai2read.com", mature=True, use_cf=False),
-    _site("hentaihere", "HentaiHere", "hentaihere.com", mature=True, use_cf=False),
-    _site("simplyhentai", "Simply Hentai", "simply-hentai.com", mature=True, use_cf=False),
-    _site("hentaihand", "HentaiHand", "hentaihand.com", mature=True, use_cf=False),
-    _site(
-        "hentai4free",
-        "Hentai4Free",
-        "hentai4free.net",
-        mature=True,
-        use_cf=False,
-        url_segment="hentai",
-        listing_post_type="wp-manga",
-    ),
-    _site("pururin", "Pururin", "pururin.io", mature=True, use_cf=False),
-    _site("tsumino", "Tsumino", "tsumino.com", mature=True, use_cf=False),
     _site("manga18x", "Manga18x", "manga18x.net", mature=True, use_cf=False),
-    _site("yaoimangaonline", "Yaoi Manga Online", "yaoimangaonline.com", mature=True, use_cf=False),
-    _site("lilymanga", "LilyManga", "lilymanga.net", mature=True, use_cf=False),
-    _site("mangadistrict", "MangaDistrict", "mangadistrict.com", mature=True, use_cf=False),
-    _site("hentaicity", "HentaiCity", "hentaicity.com", mature=True, use_cf=False),
     _site("cucumbermanga", "CucumberManga", "cucumbermanga.com", mature=True, use_cf=False),
     _site("pawmanga", "PawManga", "pawmanga.com", mature=True, use_cf=False),
-    _site("shibamanga", "ShibaManga", "shibamanga.com", mature=True, use_cf=False),
-        _site("hitomi", "Hitomi", "hitomi.la", mature=True, use_cf=False),
-    _site("nhentai_com", "nHentai.com", "nhentai.com", mature=True, use_cf=False),
+    _site("lilymanga", "LilyManga", "lilymanga.net", url_segment="gl", mature=True, use_cf=False),
+    _site("mangadistrict", "MangaDistrict", "mangadistrict.com", url_segment="series", listing_post_type="wp-manga", mature=True, use_cf=False),
 )
 # fmt: on
 
-# Confirmed live via connector probe — safe production subset.
-MADARA_LIVE: frozenset[str] = frozenset({
-    "mangaread", "manhuaplus", "manhuakey", "topmanhua", "manhuahot", "manhuanext",
-    "manhwaclub", "manhwatop", "manhwaden", "manhwanex", "apcomics", "cocomic",
-    "manga18x", "cucumbermanga", "pawmanga",
-})
+# Alias — entire catalog is production-safe after prune.
+MADARA_LIVE: frozenset[str] = frozenset(s.source_id for s in MADARA_CATALOG)
 
 HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
     "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga", "nhentai",
     "18porncomic", "3hentai", "8muses", "akuma", "asmhentai", "aurorascans", "bbato", "beehentai",
     "baozimh", "cmanhua", "comicasura", "comicsvalley", "comicland", "doujins", "ehentai", "elftoon", "flamescans",
     "freeadultcomix", "galaxymanga", "hentai20", "harimanga", "hentaifox", "hentaiera",
+    "webtoons", "weebcentral", "tapas",
 })

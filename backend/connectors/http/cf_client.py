@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import threading
 import time
 from typing import Any
 from urllib.parse import urljoin
@@ -60,6 +61,7 @@ class CfSyncHttpClient:
         self._max_retries = max_retries
         self._min_interval = min_interval
         self._last_request = 0.0
+        self._rate_lock = threading.Lock()
         request_headers = {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.9",
@@ -71,11 +73,12 @@ class CfSyncHttpClient:
         self._session = Session(impersonate=impersonate)
 
     def _rate_limit(self) -> None:
-        now = time.monotonic()
-        elapsed = now - self._last_request
-        if elapsed < self._min_interval:
-            time.sleep(self._min_interval - elapsed)
-        self._last_request = time.monotonic()
+        with self._rate_lock:
+            now = time.monotonic()
+            elapsed = now - self._last_request
+            if elapsed < self._min_interval:
+                time.sleep(self._min_interval - elapsed)
+            self._last_request = time.monotonic()
 
     def _resolve_url(self, path: str) -> str:
         if path.startswith("http://") or path.startswith("https://"):

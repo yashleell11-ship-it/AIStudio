@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import json
+import threading
 import time
 from typing import Any
 
@@ -50,6 +52,7 @@ class SyncConnectorHttpClient:
         self._max_retries = max_retries
         self._min_interval = min_interval
         self._last_request = 0.0
+        self._rate_lock = threading.Lock()
         request_headers = {
             "User-Agent": user_agent,
             "Accept": "application/json",
@@ -64,11 +67,12 @@ class SyncConnectorHttpClient:
         )
 
     def _rate_limit(self) -> None:
-        now = time.monotonic()
-        elapsed = now - self._last_request
-        if elapsed < self._min_interval:
-            time.sleep(self._min_interval - elapsed)
-        self._last_request = time.monotonic()
+        with self._rate_lock:
+            now = time.monotonic()
+            elapsed = now - self._last_request
+            if elapsed < self._min_interval:
+                time.sleep(self._min_interval - elapsed)
+            self._last_request = time.monotonic()
 
     def _retry_sleep(self, attempt: int, response: httpx.Response | None = None) -> None:
         if response is not None and response.status_code == 429:
@@ -107,7 +111,7 @@ class SyncConnectorHttpClient:
                 if not isinstance(payload, dict):
                     raise ConnectorHttpError("Expected JSON object response.")
                 return payload
-            except (httpx.HTTPError, ConnectorHttpError) as exc:
+            except (httpx.HTTPError, ConnectorHttpError, json.JSONDecodeError) as exc:
                 last_error = exc
                 if attempt + 1 >= self._max_retries:
                     break
@@ -144,7 +148,7 @@ class SyncConnectorHttpClient:
                     )
                 response.raise_for_status()
                 return response.json()
-            except (httpx.HTTPError, ConnectorHttpError) as exc:
+            except (httpx.HTTPError, ConnectorHttpError, json.JSONDecodeError) as exc:
                 last_error = exc
                 if attempt + 1 >= self._max_retries:
                     break

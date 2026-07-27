@@ -85,6 +85,26 @@ def test_search_series_uses_title_param(mangadex_connector: MangaDexConnector):
     assert listing.items[0].title == "Solo Leveling"
 
 
+def test_browse_and_search_filter_to_english_available(mangadex_connector: MangaDexConnector):
+    """Browse/search must request only series with English chapters available.
+
+    get_chapters() reads the feed filtered to translatedLanguage[]=en, so browse
+    must be filtered the same way (availableTranslatedLanguage[]=en). Otherwise
+    browse surfaces series whose only chapters are in another language (e.g.
+    Russian- or Vietnamese-only titles) and the English feed then returns 0
+    chapters, leaving the reader with an empty series.
+    """
+    listing_payload = _load("manga_list.json")
+
+    with patch.object(mangadex_connector._http, "get_json", return_value=listing_payload) as mock_get:
+        mangadex_connector.get_series_list(1)
+    assert mock_get.call_args.kwargs["params"]["availableTranslatedLanguage[]"] == ["en"]
+
+    with patch.object(mangadex_connector._http, "get_json", return_value=listing_payload) as mock_get:
+        mangadex_connector.search_series("Solo Leveling", 1)
+    assert mock_get.call_args.kwargs["params"]["availableTranslatedLanguage[]"] == ["en"]
+
+
 def test_get_chapters_and_pages(mangadex_connector: MangaDexConnector):
     feed_payload = _load("chapter_feed.json")
     at_home_payload = _load("at_home.json")

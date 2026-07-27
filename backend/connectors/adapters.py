@@ -15,9 +15,17 @@ def build_scan_result(connector: SourceConnector) -> ScanResult:
     """Walk a connector via its public API and produce a scan result for persistence."""
     result = ScanResult()
     series_page = 1
+    # Hard ceiling so a connector that always reports has_more (or repeats a
+    # non-empty page) can never spin this catalog walk forever.
+    max_pages = 1000
 
     while True:
         listing = connector.get_series_list(series_page)
+        # A page with no items means the listing is exhausted regardless of what
+        # ``has_more`` claims — otherwise a buggy connector returning
+        # ``has_more=True`` with an empty page would loop indefinitely.
+        if not listing.items:
+            break
         for series in listing.items:
             scanned_series = ScannedSeries(
                 title=series.title,
@@ -48,7 +56,7 @@ def build_scan_result(connector: SourceConnector) -> ScanResult:
             if scanned_series.chapters:
                 result.series.append(scanned_series)
 
-        if not listing.has_more:
+        if not listing.has_more or series_page >= max_pages:
             break
         series_page += 1
 

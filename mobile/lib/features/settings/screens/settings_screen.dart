@@ -848,12 +848,14 @@ class _ServerSettingsPanel extends ConsumerWidget {
             OutlinedButton(
               onPressed: () async {
                 await ref.read(settingsActionsProvider).resetApiUrl();
+                // Guard the async gap: if the screen was popped during the
+                // reset, `controller` is already disposed and writing to it
+                // throws (mirrors the Save URL handler above).
+                if (!context.mounted) return;
                 controller.text = Env.defaultApiUrl;
-                if (context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Reset to default URL.')),
-                  );
-                }
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Reset to default URL.')),
+                );
               },
               child: const Text('Reset to default'),
             ),

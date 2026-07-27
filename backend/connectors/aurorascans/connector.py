@@ -213,6 +213,10 @@ class AuroraScansConnector(SourceConnector):
                     if chapter is not None:
                         chapters.append(chapter)
             page += 1
+        # API returns chapters newest-first (sort=desc); the reader and
+        # prev/next navigation (BrowseService.get_reader_chapter) require
+        # ascending order, so normalize before returning.
+        chapters.sort(key=lambda chapter: chapter.number if chapter.number is not None else 0.0)
         return chapters
 
     def get_chapter_pages(self, chapter_id: str) -> list[Page]:

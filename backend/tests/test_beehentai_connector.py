@@ -25,10 +25,10 @@ def test_connector_metadata(beehentai_connector: BeeHentaiConnector):
     assert beehentai_connector.source_type == "beehentai"
     assert beehentai_connector.display_name == "BeeHentai"
     assert beehentai_connector.is_mature is True
-    assert "rx.toondex.io" in beehentai_connector.allowed_image_hosts
+    assert "rx.toontop.io" in beehentai_connector.allowed_image_hosts
 
 
-def test_list_series_uses_toondex_search(beehentai_connector: BeeHentaiConnector):
+def test_list_series_uses_toontop_search(beehentai_connector: BeeHentaiConnector):
     listing_payload = _load("series_list.json")
 
     with patch.object(beehentai_connector._http, "get_json", return_value=listing_payload) as mock_get:
@@ -113,6 +113,6 @@ def test_chapter_pages(beehentai_connector: BeeHentaiConnector):
 
     assert len(pages) == 3
     assert pages[0].number == 1
-    assert pages[0].remote_url.startswith("https://rx.toondex.io/")
+    assert pages[0].remote_url.startswith("https://rx.toontop.io/")
     assert pages[2].number == 3
     assert pages[0].id == f"{chapter_id}:1"

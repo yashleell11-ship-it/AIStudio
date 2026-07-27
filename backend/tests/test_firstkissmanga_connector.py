@@ -18,6 +18,7 @@ from connectors.firstkissmanga.mappers import (
     parse_chapters,
     parse_series_list,
 )
+from connectors.excluded import EXCLUDED_CONNECTORS
 from connectors.registry import create_connector, list_installed_connectors
 
 
@@ -37,7 +38,12 @@ def _load(name: str) -> str:
 
 def test_registry_lists_1stkissmanga():
     browsable = [item.source_type for item in list_installed_connectors(browsable_only=True)]
-    assert "1stkissmanga" in browsable
+    if "1stkissmanga" in EXCLUDED_CONNECTORS:
+        # 1stkissmanga.io is parked/unreachable and is intentionally excluded from
+        # the active registry; it must not surface as a browsable source.
+        assert "1stkissmanga" not in browsable
+    else:
+        assert "1stkissmanga" in browsable
 
 
 def test_fingerprint_gate_detection():
@@ -172,6 +178,11 @@ def test_parse_chapters_filters_by_series():
 
 
 def test_create_1stkissmanga_connector():
+    if "1stkissmanga" in EXCLUDED_CONNECTORS:
+        # Excluded sources are not registered, so instantiation must be refused.
+        with pytest.raises(ValueError, match="Unknown source type"):
+            create_connector("1stkissmanga")
+        return
     connector = create_connector("1stkissmanga")
     assert connector.source_type == "1stkissmanga"
     assert connector.is_mature is False

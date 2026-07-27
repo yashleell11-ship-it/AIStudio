@@ -1,6 +1,7 @@
 import { env } from "@/config/env";
 import { http } from "@/services/http";
 import type {
+  GlobalSearchResponse,
   PaginatedSourceSeries,
   SourceBrowseMode,
   SourceGenre,
@@ -40,6 +41,10 @@ export interface SourceReaderChapterResponse {
 
 export const sourcesApi = {
   listSources: () => http.get<SourceSummary[]>("/sources"),
+
+  // Federated search across the local library AND every enabled remote source.
+  federatedSearch: (params: { q: string; page?: number; per_page?: number }) =>
+    http.get<GlobalSearchResponse>("/sources/search", { query: params }),
 
   browseModes: (sourceId: string) =>
     http.get<SourceBrowseMode[]>(`/sources/${encodeURIComponent(sourceId)}/browse-modes`),

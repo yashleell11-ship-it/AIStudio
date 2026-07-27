@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import {
   BookOpen,
   Clock,
@@ -12,8 +19,10 @@ import { ApiError } from "@/types/api";
 import { Input } from "@/components/ui/input";
 import { useShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
-import { useSearch } from "@/features/library/hooks";
-import { SearchResultCard, SearchResultCardSkeleton } from "./SearchResultCard";
+import { useFederatedSearch, useSources } from "@/features/sources/hooks";
+import { globalSearchScopeLabel } from "@/features/sources/global-search";
+import { GlobalSearchResultCard } from "./GlobalSearchResultCard";
+import { SearchResultCardSkeleton } from "./SearchResultCard";
 
 const RECENT_SEARCHES_KEY = "manhwamaniacs:recent-searches";
 const MAX_RECENT_SEARCHES = 4;
@@ -120,7 +129,15 @@ export function SearchView() {
   const searchRef = useRef<HTMLInputElement>(null);
   const lastPersistedRef = useRef<string | null>(null);
   const trimmedQuery = query.trim();
-  const searchQuery = useSearch({ q: trimmedQuery, page: 1, per_page: 40 });
+  const searchQuery = useFederatedSearch({ q: trimmedQuery, page: 1, per_page: 40 });
+  const sourcesQuery = useSources();
+  const sourceNames = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const source of sourcesQuery.data ?? []) {
+      map[source.id] = source.name;
+    }
+    return map;
+  }, [sourcesQuery.data]);
   const recentSearches = useSyncExternalStore(
     subscribeRecentSearches,
     getRecentSearchesSnapshot,
@@ -163,7 +180,13 @@ export function SearchView() {
 
   const hasQuery = trimmedQuery.length > 0;
   const results = searchQuery.data?.items ?? [];
-  const resultCount = searchQuery.data?.total ?? 0;
+  const resultCount = results.length;
+  const scopeLabel = searchQuery.data
+    ? globalSearchScopeLabel(
+        searchQuery.data.sources_queried,
+        searchQuery.data.sources_failed,
+      )
+    : null;
 
   return (
     <div className="min-h-full bg-bg px-6 py-8 md:px-10">
@@ -188,7 +211,7 @@ export function SearchView() {
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Search manga, manhwa, webtoons..."
             className="h-14 rounded-2xl border-border/50 bg-white/[0.03] pl-14 text-base focus-visible:ring-primary/40"
-            aria-label="Search library"
+            aria-label="Search library and sources"
             autoComplete="off"
           />
         </div>
@@ -233,7 +256,8 @@ export function SearchView() {
             {filtersOpen ? (
               <div className="glass-panel rounded-xl p-4 text-sm text-muted">
                 <p>
-                  Search matches titles, authors, and descriptions in your local library.
+                  Search spans your local library and every enabled source
+                  connector at once.
                 </p>
                 <p className="mt-2">
                   Press{" "}
@@ -247,7 +271,7 @@ export function SearchView() {
               <Search className="mx-auto mb-3 size-8 text-muted/40" aria-hidden />
               <p className="text-lg font-medium text-fg">Start typing to search</p>
               <p className="mt-2 text-sm text-muted">
-                Search across titles, authors, and descriptions in your library.
+                Search your library and every source connector at once.
               </p>
             </div>
           </div>
@@ -262,11 +286,16 @@ export function SearchView() {
         {hasQuery ? (
           <section>
             <SectionLabel icon={BookOpen} label="Results" />
-            <p className="mb-4 text-sm text-muted">
-              {searchQuery.isLoading
-                ? "Searching…"
-                : `${resultCount.toLocaleString()} ${resultCount === 1 ? "result" : "results"} found`}
-            </p>
+            <div className="mb-4">
+              <p className="text-sm text-muted">
+                {searchQuery.isLoading
+                  ? "Searching sources…"
+                  : `${resultCount.toLocaleString()} ${resultCount === 1 ? "result" : "results"} found`}
+              </p>
+              {!searchQuery.isLoading && scopeLabel ? (
+                <p className="mt-0.5 text-xs text-muted/70">{scopeLabel}</p>
+              ) : null}
+            </div>
 
             {searchQuery.isLoading ? (
               <div className="space-y-3">
@@ -278,13 +307,17 @@ export function SearchView() {
               <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-10 text-center">
                 <p className="text-lg font-medium text-fg">No results found</p>
                 <p className="mt-2 text-sm text-muted">
-                  Try a different search term or clear filters.
+                  Try a different search term across your library and sources.
                 </p>
               </div>
             ) : (
               <div className="space-y-3">
-                {results.map((series) => (
-                  <SearchResultCard key={series.id} series={series} />
+                {results.map((item) => (
+                  <GlobalSearchResultCard
+                    key={`${item.kind}:${item.source ?? "local"}:${item.series_id}`}
+                    item={item}
+                    sourceNames={sourceNames}
+                  />
                 ))}
               </div>
             )}

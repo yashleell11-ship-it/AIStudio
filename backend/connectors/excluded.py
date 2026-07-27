@@ -1,17 +1,21 @@
-"""Source IDs omitted from the active connector registry."""
+"""Source IDs omitted from the active connector registry.
+
+Only sources that still have connector code (or legacy aliases) but must not
+register. Madara dead sites were removed from ``catalog.py`` instead.
+"""
 
 from __future__ import annotations
 
 EXCLUDED_CONNECTORS: frozenset[str] = frozenset({
+    # --- External / never catalogued ----------------------------------------
     "comick",
-    "allhenscan",  # allhenscan.com — domain dead (NXDOMAIN)
-    "1stkissmanga",  # 1stkissmanga.io — parked / unreachable
-    "asiatoon",  # asiatoon.net — Cloudflare JS challenge blocks server access
-    "bato",  # bato.to — site shut down Jan 2026; primary times out; mirrors parked/404/CF JS
-    "cartoonmad",  # cartoonmad.com — Afternic parked (/lander stub); no live catalog
-    "dragontea",  # dragontea.ink — Cloudflare JS challenge blocks server access
-    "comix_to",  # comix.to — jscrambler-signed /api/v1; blocks server access
-    "gingertoon",  # gingertoon.com — empty SSR archive; catalog loaded via CF-protected admin-ajax
-    "hentai3z",  # hentai3z.com — placeholder stub (~480 bytes); no browseable catalog
-    "hentaiyes",  # hentaiyes.com — affiliate link hub; no on-site manga catalog
+    "bato",  # shut down Jan 2026
+    "cartoonmad",  # Afternic parked
+    "dragontea",  # Cloudflare JS wall
+    "comix_to",  # signed API; blocks server access
+    "gingertoon",  # CF-protected admin-ajax catalog
+    "hentai3z",  # placeholder stub
+    "hentaiyes",  # affiliate hub, no catalog
+    # --- Hand-crafted but dead (code kept for fixtures) -----------------------
+    "1stkissmanga",  # 1stkissmanga.io parked / unreachable
 })

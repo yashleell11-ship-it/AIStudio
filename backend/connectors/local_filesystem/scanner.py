@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Literal
 
 from utils.path_utils import (
+    IMAGE_EXTENSIONS,
     is_archive_file,
-    is_image_file,
     list_archive_files,
     list_image_files,
     natural_sort_key,
@@ -139,7 +139,7 @@ def _scan_archive_file(archive: Path) -> ScannedChapter | None:
             if name.endswith("/"):
                 continue
             member_path = Path(name)
-            if is_image_file(member_path):
+            if member_path.suffix.lower() in IMAGE_EXTENSIONS:
                 members.append(name)
     if not members:
         return None
