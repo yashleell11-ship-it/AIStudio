@@ -734,15 +734,20 @@ class ReadingProfile(Base):
 
 
 class UserSeriesState(Base):
-    """Per-user state for a shared catalog series (household model).
+    """Per-(user, profile) membership and state for a catalog series.
 
-    The catalog (``series``) is shared across the household; a user's own
-    favourite flag, reading status, and read-chapter count live here, one row
-    per (user, series). ``user_id`` is nullable so a pre-multi-user database can
-    be migrated with the owner unknown — the first admin registration claims all
-    NULL-owned rows (see AuthService.register). Supersedes the legacy
-    ``series.is_favorite`` / ``series.reading_status`` / ``series.read_chapters``
-    columns, which remain until a later contract migration drops them.
+    ``series`` rows are catalog facts with no owner, so this table — not the
+    catalog — is the authority on who has what. ``in_library`` is the membership
+    bit: a series is in a profile's library only if a row here says so. Library,
+    Browse, Search, statistics and recommendations all filter through it, which
+    is what keeps a brand-new account (or a second profile on one account) from
+    seeing anything another one added.
+
+    ``user_id`` is nullable so a pre-multi-user database can be migrated with the
+    owner unknown — the first admin registration claims all NULL-owned rows (see
+    AuthService.register). Supersedes the legacy ``series.is_favorite`` /
+    ``series.reading_status`` / ``series.read_chapters`` columns, which remain
+    until a later contract migration drops them.
     """
 
     __tablename__ = "user_series_state"
@@ -755,6 +760,18 @@ class UserSeriesState(Base):
         Index("ix_user_series_state_series", "series_id"),
         Index("ix_user_series_state_user_favorite", "user_id", "is_favorite"),
         Index("ix_user_series_state_user_status", "user_id", "reading_status"),
+        # Covers the series ⋈ user_series_state join every scoped listing does:
+        # (user_id, profile_id) narrows to the caller, in_library applies
+        # membership, and the trailing series_id supplies the join key — SQLite
+        # resolves the whole user_series_state side as a COVERING INDEX with no
+        # table lookup. A bare index on the in_library boolean would be too
+        # unselective for the planner to pick, and a plain
+        # (user_id, profile_id, series_id) index would duplicate the index
+        # SQLite already builds for uq_user_series_state.
+        Index(
+            "ix_user_series_state_library",
+            "user_id", "profile_id", "in_library", "series_id",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -763,9 +780,59 @@ class UserSeriesState(Base):
         ForeignKey("reading_profiles.id", ondelete="CASCADE"), nullable=True
     )
     series_id: Mapped[int] = mapped_column(ForeignKey("series.id"), nullable=False)
+    # Membership bit. A row may exist with in_library=False (e.g. progress was
+    # recorded from Browse without adding), so presence of the row is NOT
+    # membership — this column is.
+    in_library: Mapped[bool] = mapped_column(
+        Integer, nullable=False, default=False, server_default="0"
+    )
     is_favorite: Mapped[bool] = mapped_column(Integer, nullable=False, default=False)
     reading_status: Mapped[str] = mapped_column(String(64), nullable=False, default="unread")
     read_chapters: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow
+    )
+
+
+class SourcePin(Base):
+    """A source the user pinned to the top of the Sources screen.
+
+    Pins are server-side (not client prefs) so they follow the account across
+    devices, and are scoped to (user_id, profile_id) like every other per-user
+    row. ``source_id`` is the connector key (e.g. "mangadex"), not a FK —
+    connectors are code, not rows, and a pin must survive a connector being
+    temporarily unregistered.
+
+    Unlike the legacy per-user-state tables this is a new table with no
+    pre-multi-user rows, so ``user_id`` is NOT NULL and deletes cascade with the
+    owning account — a pin can never land in the unowned bucket that
+    AuthService._claim_unowned_data sweeps. ``profile_id`` stays nullable to
+    match the rest of the scoped tables; uniqueness across a NULL profile_id is
+    not DB-enforced (SQLite treats NULLs as distinct), so the app layer owns
+    that, as it already does for series_trackers.
+    """
+
+    __tablename__ = "source_pins"
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id", "profile_id", "source_id", name="uq_source_pins_user_source"
+        ),
+        Index("ix_source_pins_user_id", "user_id"),
+        Index("ix_source_pins_profile_id", "profile_id"),
+        # Powers the ordered pinned-section read.
+        Index("ix_source_pins_user_sort", "user_id", "profile_id", "sort_order"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    profile_id: Mapped[int | None] = mapped_column(
+        ForeignKey("reading_profiles.id", ondelete="CASCADE"), nullable=True
+    )
+    source_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow, onupdate=utcnow
