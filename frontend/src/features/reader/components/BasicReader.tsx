@@ -12,6 +12,7 @@ import {
 import { toReaderChapterContent } from "../api";
 import { readerDebug } from "../debug";
 import { readerSeriesKey } from "../preferences";
+import { seriesPageHref } from "../series-link";
 import { ApiError } from "@/types/api";
 import { ChapterReader } from "./ChapterReader";
 
@@ -154,7 +155,7 @@ export function BasicReader({ seriesId, chapterId, initialPage = 1 }: BasicReade
       initialPage={initialPage}
       previousChapterHref={previousChapterHref}
       nextChapterHref={nextChapterHref}
-      backHref={`/library/${seriesId}`}
+      seriesHref={seriesPageHref({ scope: "local", seriesId })}
       onBookmark={handleBookmark}
       onPageProgress={handlePageProgress}
       preloadNextChapter={preloadNextChapter}

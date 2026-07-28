@@ -9,6 +9,16 @@ import type { ReadingDirection } from "./types";
  */
 export const HELP_SHORTCUT_KEYS = ["shift+?", "?"];
 
+/**
+ * Combo that leaves the chapter for its own series page.
+ *
+ * "S" for series, unmodified like every other reader binding, and free of the
+ * keys already bound (A/D, H/J/K/L, B, F, 0/-/=). Deliberately NOT ⌘/Ctrl+S:
+ * the registry calls `preventDefault` on a match, so a modified binding here
+ * would swallow the browser's own Save.
+ */
+export const SERIES_SHORTCUT_KEYS = "s";
+
 /** What a page-turn input resolves to once reading direction is applied. */
 export type PageTurn = "advance" | "retreat";
 

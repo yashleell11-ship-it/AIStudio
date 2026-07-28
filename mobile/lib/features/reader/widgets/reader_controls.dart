@@ -113,14 +113,16 @@ class _AnimatedBar extends StatelessWidget {
 
 // ── Top bar ───────────────────────────────────────────────────────────────────
 
-/// Minimal top bar: back (top-left, like modern readers), chapter title, and
-/// optional bookmark + settings actions.
+/// Minimal top bar: back (top-left, like modern readers), chapter title — which
+/// doubles as the way into the series page — and optional bookmark + settings
+/// actions.
 class ReaderTopBar extends StatelessWidget {
   const ReaderTopBar({
     super.key,
     required this.chapterTitle,
     required this.visible,
     required this.onBack,
+    required this.onOpenSeries,
     required this.onSettings,
     this.onBookmark,
   });
@@ -128,6 +130,9 @@ class ReaderTopBar extends StatelessWidget {
   final String chapterTitle;
   final bool visible;
   final VoidCallback onBack;
+
+  /// Opens the series page for the chapter being read.
+  final VoidCallback onOpenSeries;
   final VoidCallback onSettings;
   final VoidCallback? onBookmark;
 
@@ -156,12 +161,49 @@ class ReaderTopBar extends StatelessWidget {
                   color: AppColors.fg,
                 ),
                 Expanded(
-                  child: Text(
-                    chapterTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.labelLg.copyWith(
-                      fontWeight: FontWeight.w600,
+                  // The title carries the jump rather than a fourth icon: it is
+                  // already where a reader looks to know what they are reading,
+                  // it reads as a label instead of yet another unlabelled glyph
+                  // in a bar that auto-hides, and it leaves the bookmark/gear
+                  // pair uncrowded. The chevron is what marks it a destination.
+                  child: Tooltip(
+                    message: 'Go to series',
+                    child: Material(
+                      // _GlassSurface is a DecoratedBox, not a Material, so
+                      // without this the ink would splash on the Scaffold
+                      // behind the page list and never be seen. Transparent —
+                      // it paints the splash and nothing else.
+                      type: MaterialType.transparency,
+                      child: InkWell(
+                        onTap: onOpenSeries,
+                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: AppSpacing.sm,
+                            vertical: AppSpacing.sm,
+                          ),
+                          child: Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  chapterTitle,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTypography.labelLg.copyWith(
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: AppSpacing.xs),
+                              const Icon(
+                                Icons.chevron_right_rounded,
+                                size: 18,
+                                color: AppColors.muted,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
                     ),
                   ),
                 ),
@@ -359,12 +401,16 @@ class ReaderMoreSheet extends ConsumerWidget {
     super.key,
     this.onPreviousChapter,
     this.onNextChapter,
+    this.onOpenSeries,
     this.onBookmark,
     this.showBookmark = true,
   });
 
   final VoidCallback? onPreviousChapter;
   final VoidCallback? onNextChapter;
+
+  /// Opens the series page for the chapter being read.
+  final VoidCallback? onOpenSeries;
   final VoidCallback? onBookmark;
   final bool showBookmark;
 
@@ -425,6 +471,26 @@ class ReaderMoreSheet extends ConsumerWidget {
                 ),
               ],
             ),
+            // Mirrors the tappable title in the top bar. That bar auto-hides
+            // after a few seconds, so a reader who never discovers the title is
+            // tappable would have no way to the series page at all; the sheet is
+            // where this reader already keeps everything else it can do, and it
+            // stays put until dismissed.
+            if (onOpenSeries != null) ...[
+              const SizedBox(height: AppSpacing.md),
+              SizedBox(
+                width: double.infinity,
+                child: _SheetNavButton(
+                  label: 'Go to series',
+                  icon: Icons.menu_book_outlined,
+                  enabled: true,
+                  onTap: () {
+                    Navigator.pop(context);
+                    onOpenSeries!();
+                  },
+                ),
+              ),
+            ],
             const SizedBox(height: AppSpacing.lg),
             const Divider(height: 1),
             const SizedBox(height: AppSpacing.lg),

@@ -69,6 +69,7 @@ class ReaderContent extends ConsumerStatefulWidget {
     required this.chapter,
     required this.scrollStorageKey,
     required this.onBack,
+    required this.onOpenSeries,
     this.initialPage = 1,
     this.showBookmark = true,
     this.onSaveProgress,
@@ -85,6 +86,12 @@ class ReaderContent extends ConsumerStatefulWidget {
   final int initialPage;
   final bool showBookmark;
   final VoidCallback onBack;
+
+  /// Open the series page for this chapter, so the chapter list is reachable
+  /// without retracing however the reader was entered. Required rather than
+  /// optional: both entry points always know their series, and a null here
+  /// would silently remove the only affordance for it.
+  final VoidCallback onOpenSeries;
 
   /// Persist reading progress. Only the local library reader supplies this.
   final Future<void> Function(int page)? onSaveProgress;
@@ -735,6 +742,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       builder: (_) => ReaderMoreSheet(
         onPreviousChapter: widget.onPreviousChapter,
         onNextChapter: widget.onNextChapter,
+        onOpenSeries: widget.onOpenSeries,
         onBookmark: (widget.showBookmark &&
                 widget.onAddBookmark != null &&
                 !_bookmarkPending)
@@ -976,6 +984,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
                   scrollProgressNotifier: _scrollProgressNotifier,
                   visiblePageNotifier: _visiblePageNotifier,
                   onBack: widget.onBack,
+                  onOpenSeries: widget.onOpenSeries,
                   onMoreOptions: _showMoreOptions,
                   onPreviousChapter: onPreviousChapter,
                   onNextChapter: onNextChapter,
@@ -1006,6 +1015,7 @@ class _ReaderControlsLayer extends ConsumerWidget {
     required this.scrollProgressNotifier,
     required this.visiblePageNotifier,
     required this.onBack,
+    required this.onOpenSeries,
     required this.onMoreOptions,
     required this.showBookmark,
     this.onBookmark,
@@ -1022,6 +1032,7 @@ class _ReaderControlsLayer extends ConsumerWidget {
   final ValueNotifier<int> scrollProgressNotifier;
   final ValueNotifier<int> visiblePageNotifier;
   final VoidCallback onBack;
+  final VoidCallback onOpenSeries;
   final VoidCallback onMoreOptions;
   final bool showBookmark;
   final VoidCallback? onBookmark;
@@ -1086,7 +1097,7 @@ class _ReaderControlsLayer extends ConsumerWidget {
             visible: ui.controlsVisible,
           ),
         ),
-        // Top bar — back (top-left), title, bookmark, settings.
+        // Top bar — back (top-left), title (opens the series), bookmark, settings.
         Align(
           alignment: Alignment.topCenter,
           child: GestureDetector(
@@ -1095,6 +1106,7 @@ class _ReaderControlsLayer extends ConsumerWidget {
               chapterTitle: chapter.title,
               visible: ui.controlsVisible,
               onBack: onBack,
+              onOpenSeries: onOpenSeries,
               onSettings: onMoreOptions,
               onBookmark: showBookmark ? onBookmark : null,
             ),

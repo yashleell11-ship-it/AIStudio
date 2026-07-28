@@ -104,6 +104,7 @@ void main() {
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
             onBack: () {},
+            onOpenSeries: () {},
           ),
         ),
       );
@@ -129,6 +130,7 @@ void main() {
             scrollStorageKey: '1',
             onAddBookmark: (_) async => true,
             onBack: () {},
+            onOpenSeries: () {},
           ),
         ),
       );
@@ -154,6 +156,7 @@ void main() {
             scrollStorageKey: 'src:1:1',
             showBookmark: false,
             onBack: () {},
+            onOpenSeries: () {},
           ),
         ),
       );
@@ -178,6 +181,7 @@ void main() {
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
             onBack: () {},
+            onOpenSeries: () {},
           ),
         ),
       );
@@ -216,6 +220,7 @@ void main() {
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
             onBack: () {},
+            onOpenSeries: () {},
             // No onSaveProgress — progress must never fire.
           ),
         ),
@@ -239,6 +244,7 @@ void main() {
             chapter: _sampleChapter(),
             scrollStorageKey: '1',
             onBack: () => backCalls++,
+            onOpenSeries: () {},
           ),
         ),
       );
@@ -265,6 +271,7 @@ void main() {
             scrollStorageKey: '1',
             onAddBookmark: (_) async => true,
             onBack: () {},
+            onOpenSeries: () {},
           ),
         ),
       );
@@ -294,6 +301,7 @@ void main() {
             scrollStorageKey: '1',
             onAddBookmark: (_) async => false,
             onBack: () {},
+            onOpenSeries: () {},
           ),
         ),
       );
@@ -324,6 +332,7 @@ void main() {
               scrollStorageKey: '1',
               onAddBookmark: (_) async => throw Exception('bookmark failed'),
               onBack: () {},
+              onOpenSeries: () {},
             ),
           ),
         );
@@ -361,6 +370,7 @@ void main() {
             chapter: _sampleChapter(nextChapterId: '2'),
             scrollStorageKey: '1',
             onBack: () {},
+            onOpenSeries: () {},
             onNextChapter: () => nextCalls++,
           ),
         ),
@@ -396,6 +406,7 @@ void main() {
               chapter: _tallChapter(nextChapterId: '2'),
               scrollStorageKey: '1',
               onBack: () {},
+              onOpenSeries: () {},
               onNextChapter: () => nextCalls++,
             ),
           ),
@@ -452,6 +463,7 @@ void main() {
               chapter: _tallChapter(nextChapterId: '2'),
               scrollStorageKey: '1',
               onBack: () {},
+              onOpenSeries: () {},
               onNextChapter: () => nextCalls++,
             ),
           ),
@@ -495,6 +507,7 @@ void main() {
               chapter: _tallChapter(nextChapterId: '2'),
               scrollStorageKey: '1',
               onBack: () {},
+              onOpenSeries: () {},
               onNextChapter: () => nextCalls++,
             ),
           ),
@@ -543,6 +556,7 @@ void main() {
               chapter: _tallChapter(nextChapterId: '2'),
               scrollStorageKey: '1',
               onBack: () {},
+              onOpenSeries: () {},
               onNextChapter: () => nextCalls++,
             ),
           ),

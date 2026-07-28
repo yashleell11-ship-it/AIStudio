@@ -3,6 +3,7 @@
 import { useShortcut } from "@/lib/keyboard";
 import {
   HELP_SHORTCUT_KEYS,
+  SERIES_SHORTCUT_KEYS,
   horizontalTurn,
   horizontalTurnDescription,
   type PageTurn,
@@ -22,6 +23,7 @@ export interface ReaderShortcutHandlers {
   onToggleHelp: () => void;
   onPreviousChapter: () => void;
   onNextChapter: () => void;
+  onOpenSeries: () => void;
   onBookmark: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
@@ -141,6 +143,14 @@ export function useReaderShortcuts(handlers: ReaderShortcutHandlers): void {
     description: "Next chapter",
     group: GROUP,
     handler: () => handlers.onNextChapter(),
+  });
+
+  useShortcut({
+    id: "reader.series",
+    keys: SERIES_SHORTCUT_KEYS,
+    description: "Go to series page",
+    group: GROUP,
+    handler: () => handlers.onOpenSeries(),
   });
 
   useShortcut({
