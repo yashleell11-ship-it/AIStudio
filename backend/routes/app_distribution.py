@@ -130,6 +130,26 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.6.0",
+        build=20,
+        date="July 2026",
+        highlights=[
+            "Follow a series straight from its own page — downloading one used "
+            "to leave you with no way to be told when the next chapter lands",
+            "Reading a chapter? Tap the title to jump to that series and its "
+            "full chapter list",
+            "Nobody else can reach your series any more. Content is now checked "
+            "against your account on every fetch, not just hidden from lists",
+            "Fixed a hole where anyone signed in could rename any series",
+            "Auto-downloaded chapters now arrive in your library instead of "
+            "vanishing into nowhere",
+            "Deleting a reading profile no longer strands the series only it "
+            "had saved",
+            "Website: a source whose name contains a slash now opens the series "
+            "you actually clicked",
+        ],
+    ),
+    ChangelogEntry(
         version="1.5.0",
         build=19,
         date="July 2026",
