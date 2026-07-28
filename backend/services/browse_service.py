@@ -30,6 +30,13 @@ from connectors.registry import (
     registry_snapshot,
 )
 from services.outbound_security import validate_outbound_url
+from services.source_health import (
+    SourceHealthState,
+    load_states,
+    record_outcomes,
+    states_for,
+    summarize,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -106,13 +113,29 @@ def _relevance_score(title: str, query_norm: str, tokens: list[str]) -> float:
     return 0.0
 
 
+_URL_IN_TEXT = re.compile(r"https?://\S+")
+
+
+def _redact_urls(text: str) -> str:
+    """Strip URLs out of an error string.
+
+    httpx builds its message from the failing request URL, which for a search
+    carries the query string. This message is persisted on the GLOBAL
+    source_health row and served to every authenticated caller, so leaving it
+    intact made one account's search terms readable by another. The rest of the
+    message is genuinely useful when diagnosing a dead source, so redact rather
+    than discard.
+    """
+    return _URL_IN_TEXT.sub("<url>", text).strip()
+
+
 def _search_error_message(exc: BaseException) -> str:
     """One-line, client-safe reason a source contributed nothing."""
     if isinstance(exc, TimeoutError):
         return "Timed out."
     if isinstance(exc, ConnectorHttpError) and exc.status_code == 403:
         return "Access blocked (403). This source may use Cloudflare or bot protection."
-    return str(exc) or exc.__class__.__name__
+    return _redact_urls(str(exc)) or exc.__class__.__name__
 
 
 def _get_search_executor() -> ThreadPoolExecutor:
@@ -274,7 +297,11 @@ def _serialize_paginated(
 class BrowseService:
     """Source-agnostic facade for browsing online catalogs."""
 
-    def __init__(self, mature_enabled: bool | None = None) -> None:
+    def __init__(
+        self,
+        mature_enabled: bool | None = None,
+        db: Session | None = None,
+    ) -> None:
         """``mature_enabled`` is the caller's *resolved* 18+ gate.
 
         It is passed in rather than looked up because the gate is per-(user,
@@ -288,8 +315,15 @@ class BrowseService:
         observed). That path exists only for the handful of context-free
         callers: the federated search fan-out, cover prefetching for series
         already in a library, and direct construction in connector tests.
+
+        ``db`` is the caller's request-scoped session, used ONLY for source
+        health (reading it, and recording what the search fan-out observed).
+        It is optional for the same reason as the gate: the context-free
+        callers above have no session, and a service without one simply reports
+        every source's health as unknown instead of failing.
         """
         self._mature_enabled = mature_enabled
+        self._db = db
 
     def _gate_open(self) -> bool:
         """Whether adult content is permitted for whoever built this service."""
@@ -322,12 +356,57 @@ class BrowseService:
             ) from exc
         raise exc
 
-    def list_sources(self) -> list[dict[str, object]]:
-        snapshot = registry_snapshot()
-        descriptors = list_installed_connectors(
+    def _visible_descriptors(self) -> list[ConnectorDescriptor]:
+        """The browsable sources this caller's 18+ gate allows.
+
+        Single definition of "sources I can see", so the health surfaces below
+        cannot drift from what ``list_sources`` shows.
+        """
+        return list_installed_connectors(
             browsable_only=True,
             include_mature=self._gate_open(),
         )
+
+    def _health_for(
+        self, descriptors: list[ConnectorDescriptor]
+    ) -> dict[str, SourceHealthState]:
+        """Health keyed by source id, for these descriptors only.
+
+        Health is stored globally but read through the caller's own gated
+        descriptor list, so a mature source's health cannot reach a profile
+        that is not allowed to know the source exists.
+        """
+        return states_for(
+            load_states(self._db), [descriptor.source_type for descriptor in descriptors]
+        )
+
+    @staticmethod
+    def _source_payload(
+        descriptor: ConnectorDescriptor, health: SourceHealthState
+    ) -> dict[str, object]:
+        """One row of the source listing. Shared by /sources and /sources/health
+        so the two can never disagree about a source's shape."""
+        return {
+            "id": descriptor.source_type,
+            "source_id": descriptor.source_type,
+            "name": descriptor.name,
+            "description": descriptor.description,
+            "browsable": descriptor.browsable,
+            "supports_import": descriptor.supports_import,
+            # Carried through so the client can badge 18+ sources; the
+            # descriptor has always had it, the payload just dropped it.
+            "mature": descriptor.mature,
+            "icon_url": descriptor.icon_url,
+            # Additive: lets the listing badge a source the owner's searches
+            # have found unreachable, instead of it looking installed and fine
+            # right up until a followed series stops updating.
+            "health": health.payload(),
+        }
+
+    def list_sources(self) -> list[dict[str, object]]:
+        snapshot = registry_snapshot()
+        descriptors = self._visible_descriptors()
+        health = self._health_for(descriptors)
         logging.getLogger("uvicorn.error").info(
             "GET /sources registry_id=%s all_types=%s browsable_types=%s returning=%s",
             snapshot["registry_id"],
@@ -336,20 +415,38 @@ class BrowseService:
             [descriptor.source_type for descriptor in descriptors],
         )
         return [
-            {
-                "id": descriptor.source_type,
-                "source_id": descriptor.source_type,
-                "name": descriptor.name,
-                "description": descriptor.description,
-                "browsable": descriptor.browsable,
-                "supports_import": descriptor.supports_import,
-                # Carried through so the client can badge 18+ sources; the
-                # descriptor has always had it, the payload just dropped it.
-                "mature": descriptor.mature,
-                "icon_url": descriptor.icon_url,
-            }
+            self._source_payload(descriptor, health[descriptor.source_type])
             for descriptor in descriptors
         ]
+
+    def list_source_health(self) -> list[dict[str, object]]:
+        """The same rows as ``list_sources``, ordered worst-first.
+
+        Deliberately not a different payload shape, so a client can render
+        either list with one component; the only difference is the order --
+        dead sources first, then failing, then never-probed, then healthy --
+        because the question this view answers is "what is broken", not "what
+        can I browse". A failing source is never omitted: hiding it is exactly
+        how the owner ended up unable to tell a dead source from a quiet one.
+        """
+        descriptors = self._visible_descriptors()
+        health = self._health_for(descriptors)
+        ordered = sorted(
+            descriptors,
+            key=lambda descriptor: (
+                health[descriptor.source_type].severity,
+                -health[descriptor.source_type].consecutive_failures,
+                descriptor.name.casefold(),
+            ),
+        )
+        return [
+            self._source_payload(descriptor, health[descriptor.source_type])
+            for descriptor in ordered
+        ]
+
+    def source_health_summary(self) -> dict[str, int]:
+        """Counts by status across the sources this caller can see."""
+        return summarize(self._health_for(self._visible_descriptors()).values())
 
     def _get_connector(self, source_id: str) -> SourceConnector:
         try:
@@ -492,6 +589,42 @@ class BrowseService:
             outcomes[tasks[task]] = TimeoutError("Search deadline exceeded.")
         return outcomes
 
+    def _merge_health(
+        self, outcomes: dict[str, PaginatedSeriesList | BaseException]
+    ) -> dict[str, SourceHealthState]:
+        """Record this fan-out's outcomes and return health for every source.
+
+        Sources that were not probed (empty query) keep whatever was already
+        recorded -- nothing was learned about them, so nothing is written.
+
+        A source counts as OK whenever it *answered*, including with zero
+        results or with the unrelated-catalog dump that
+        ``_QUERY_IGNORED_MIN_ITEMS`` throws away. That is deliberate: those are
+        relevance problems, and treating them as outages would demote a
+        perfectly reachable source and make the health table lie about why the
+        results are bad.
+        """
+        stored = load_states(self._db)
+        if not outcomes:
+            return stored
+        results = {
+            source_id: (
+                _search_error_message(outcome)
+                if isinstance(outcome, BaseException)
+                else None
+            )
+            for source_id, outcome in outcomes.items()
+        }
+        try:
+            return {**stored, **record_outcomes(self._db, results)}
+        except Exception:  # pragma: no cover - defensive
+            # Health is diagnostic metadata about the search; it must never be
+            # the reason the search itself fails. record_outcomes already
+            # handles database errors, so reaching here means a bug -- log it
+            # loudly and serve the results with the last known health.
+            logger.exception("federated_search could not record source health")
+            return stored
+
     def _build_source_group(
         self,
         descriptor: ConnectorDescriptor,
@@ -500,6 +633,7 @@ class BrowseService:
         base_url: str,
         query_norm: str,
         tokens: list[str],
+        health: SourceHealthState,
     ) -> tuple[dict[str, object], float]:
         """Turn one source's outcome into a display group + its best score."""
         source_id = descriptor.source_type
@@ -512,6 +646,9 @@ class BrowseService:
             "total": 0,
             "has_more": False,
             "items": [],
+            # Recorded reachability, so the screen can label a source that has
+            # been failing for weeks differently from one that failed just now.
+            "health": health.payload(),
         }
         if outcome is None:
             return group, 0.0
@@ -607,6 +744,8 @@ class BrowseService:
 
         # Resolve the browsable sources the same way ``list_sources`` does,
         # honouring the caller's mature-content gate (adult sources dropped off).
+        # NOTE: this path takes the gate as an argument rather than reading
+        # ``self._gate_open()``, so it cannot use ``_visible_descriptors``.
         descriptors = list_installed_connectors(
             browsable_only=True,
             include_mature=include_mature,
@@ -621,32 +760,58 @@ class BrowseService:
                 page=page,
             )
 
+        # The fan-out already probed every source and caught every failure, so
+        # it is the one place that knows whether a source is answering without
+        # spending a single extra request. Recording happens BEFORE the groups
+        # are built so this response reflects what it just observed -- in
+        # particular, a source that recovered is un-demoted by the very search
+        # that found it working.
+        health = states_for(
+            self._merge_health(outcomes), [d.source_type for d in descriptors]
+        )
+
         query_norm = _normalize_title(normalized_query)
         tokens = _query_tokens(normalized_query)
-        ranked: list[tuple[float, dict[str, object]]] = []
+        ranked: list[tuple[float, SourceHealthState, dict[str, object]]] = []
         sources_failed = 0
         for descriptor in descriptors:
+            state = health[descriptor.source_type]
             group, score = self._build_source_group(
                 descriptor,
                 outcomes.get(descriptor.source_type),
                 base_url=base_url,
                 query_norm=query_norm,
                 tokens=tokens,
+                health=state,
             )
             if group["status"] == "error":
                 sources_failed += 1
-            ranked.append((score, group))
+            ranked.append((score, state, group))
 
-        # Most relevant source first; sources with nothing to show sink to the
-        # bottom, ties broken by display name so the order is stable.
+        # Demotion is the FIRST sort key, ahead of relevance: a source with a
+        # failure streak sinks below every source that is still answering.
+        # Relevance then orders the rest as before -- most relevant first,
+        # sources with nothing to show below them, ties broken by display name
+        # so the order is stable.
+        #
+        # Demoted is not hidden. The group, its error text and its health block
+        # all survive, because the owner has to be able to SEE that a source is
+        # failing -- that is the whole point -- and because one success clears
+        # the streak and floats it straight back up.
+        #
+        # In practice a demoted source contributed nothing this round anyway
+        # (that is what demoted it); this key is what keeps the empty husks of
+        # ~100 dead connectors below the sources that answered.
         ranked.sort(
-            key=lambda pair: (
-                -pair[0],
-                0 if pair[1]["items"] else 1,
-                str(pair[1]["source_name"]).casefold(),
+            key=lambda entry: (
+                1 if entry[1].demoted else 0,
+                -entry[0],
+                0 if entry[2]["items"] else 1,
+                str(entry[2]["source_name"]).casefold(),
             )
         )
-        source_groups = [group for _, group in ranked]
+        source_groups = [group for _, _, group in ranked]
+        sources_demoted = sum(1 for _, state, _ in ranked if state.demoted)
 
         local_group: dict[str, object] = {
             "source": None,
@@ -679,10 +844,11 @@ class BrowseService:
 
         logger.info(
             "federated_search query=%r sources_queried=%d sources_failed=%d "
-            "groups_with_hits=%d items=%d",
+            "sources_demoted=%d groups_with_hits=%d items=%d",
             normalized_query,
             sources_queried,
             sources_failed,
+            sources_demoted,
             sum(1 for group in source_groups if group["items"]),
             len(items),
         )
@@ -692,6 +858,10 @@ class BrowseService:
             "groups": [local_group, *source_groups],
             "sources_queried": sources_queried,
             "sources_failed": sources_failed,
+            # How many of the queried sources are currently demoted for a
+            # failure streak. Distinct from sources_failed, which counts only
+            # this search's misses.
+            "sources_demoted": sources_demoted,
             "page": page,
             "has_more": has_more,
         }
@@ -893,5 +1063,11 @@ def get_browse_service(
     remote read path resolves its connector through ``_get_connector``, so
     binding the gate once here covers browse, series, chapters, pages, covers
     and the reader in one place.
+
+    The session is carried too, for source health only (read on every listing,
+    written by the search fan-out when a source's state actually changes).
     """
-    return BrowseService(mature_enabled=resolve_mature_gate(db, ctx.profile_id, ctx.user_id))
+    return BrowseService(
+        mature_enabled=resolve_mature_gate(db, ctx.profile_id, ctx.user_id),
+        db=db,
+    )

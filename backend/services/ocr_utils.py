@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING
 from PIL import Image
 
 from core.errors import AppError
+from utils.path_utils import natural_sort_key
 from core.config import get_settings
 
 if TYPE_CHECKING:
@@ -70,9 +71,15 @@ def _resolve_zip_page(file_path: Path, page_number: int) -> Image.Image:
         )
     try:
         with zipfile.ZipFile(file_path, "r") as zf:
-            members = sorted(
-                [name for name in zf.namelist() if _is_valid_image_member(name)]
-            )
+            # Natural order, matching the scanner that assigned the page numbers
+            # and the reader that serves the images. A plain sorted() puts 10
+            # before 2, so OCR read a different page than the one on screen and
+            # attached its text and boxes to the wrong page.
+            members = [
+                name
+                for name in sorted(zf.namelist(), key=natural_sort_key)
+                if _is_valid_image_member(name)
+            ]
             if page_number > len(members):
                 raise AppError(
                     "Page not found in archive.",
@@ -117,9 +124,12 @@ def _resolve_rar_page(file_path: Path, page_number: int) -> Image.Image:
 
     try:
         with rarfile.RarFile(file_path, "r") as rf:
-            members = sorted(
-                [name for name in rf.namelist() if _is_valid_image_member(name)]
-            )
+            # Same natural ordering as the zip path above, for the same reason.
+            members = [
+                name
+                for name in sorted(rf.namelist(), key=natural_sort_key)
+                if _is_valid_image_member(name)
+            ]
             if page_number > len(members):
                 raise AppError(
                     "Page not found in archive.",

@@ -880,3 +880,53 @@ class SourcePin(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, default=utcnow, onupdate=utcnow
     )
+
+
+class SourceHealth(Base):
+    """Whether a source connector is answering, one row per connector.
+
+    Deliberately GLOBAL, unlike every other table added since multi-user: a
+    site being down is a property of the site, not of the account that happened
+    to search while it was down. Two users must not have to independently
+    discover the same dead connector, and a fresh profile must not start from
+    "unknown" for all ~151 sources.
+
+    Global storage does NOT mean global disclosure -- the read paths iterate the
+    caller's mature-gated descriptor list and never the table, so a mature
+    source's row stays invisible to a profile that cannot see the source itself.
+
+    ``source_id`` is the connector key, not a FK (connectors are code, not
+    rows), and it is UNIQUE: this table is a current-state record, not an event
+    log. History is deliberately not kept -- SQLite here has a single writer
+    that page reads already contend for, and the questions the owner actually
+    asks ("is it dead? since when? why?") are all answered by the last outcome
+    plus the streak.
+    """
+
+    __tablename__ = "source_health"
+    __table_args__ = (
+        UniqueConstraint("source_id", name="uq_source_health_source_id"),
+        # The status page reads "worst first"; the search fan-out reads the
+        # whole (tiny) table, so only this one index is worth its write cost.
+        Index("ix_source_health_consecutive_failures", "consecutive_failures"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    source_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    # NULL means "never seen answering", which is not the same as "failing":
+    # a source installed after the last search has neither timestamp set.
+    last_ok_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_error_at: Mapped[datetime | None] = mapped_column(DateTime)
+    last_error: Mapped[str | None] = mapped_column(Text)
+    # Reset to 0 by any success, so a source that comes back recovers on its
+    # own with no operator action. Capped when written (see
+    # services.source_health) -- past the cap the streak stops being the
+    # interesting number and ``last_ok_at`` is.
+    consecutive_failures: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0
+    )
+    last_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow
+    )

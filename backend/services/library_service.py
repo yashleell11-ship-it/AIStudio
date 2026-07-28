@@ -844,7 +844,22 @@ class LibraryService:
                     "id": page.id,
                     "chapter_id": page.chapter_id,
                     "number": page.number,
-                    "file_path": page.file_path,
+                    # Deliberately blank, never page.file_path. This used to ship
+                    # the absolute in-container path (/data/downloads/<series>/
+                    # <chapter>/001.jpg) to every reader client, which handed out
+                    # the server's filesystem layout, the library root and the
+                    # on-disk titles of other series -- the exact disclosure that
+                    # image_service.py:118-125 and path_utils.validate_path_under_roots
+                    # go out of their way to withhold on the error path.
+                    #
+                    # The key itself has to stay: mobile parses it as a required
+                    # non-nullable String (mobile/lib/features/library/models/
+                    # chapter.dart:74), so dropping it crashes ChapterDetail.fromJson
+                    # on every existing installed build. No client reads the value
+                    # -- clients address pages by id/number and load bytes from
+                    # image_url -- so emptying it is inert. Drop the key once mobile
+                    # has shipped a build that no longer requires it.
+                    "file_path": "",
                     "image_url": page_image_url(page.id),
                     "width": page.width,
                     "height": page.height,
