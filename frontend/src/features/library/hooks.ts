@@ -1,5 +1,16 @@
+// `useBulkSeriesAction` below holds React state (`useState`/`useRef`), so this
+// module can only ever run on the client. It is re-exported by the
+// `@/features/library` barrel, which Server Components import — without this
+// directive Turbopack refuses the whole graph ("You're importing a module that
+// depends on `useRef` into a React Server Component module") and every route
+// that reaches the barrel, including `/`, returns 500.
+"use client";
+
 import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useCallback, useRef, useState } from "react";
 import { libraryApi } from "./api";
+import { type BulkOutcome, type BulkProgress, runBulk, summarizeBulkOutcome } from "./bulk";
+import type { ReadingStatus } from "./url-state";
 import type { SeriesFilter, SeriesSort } from "./types";
 
 const LIBRARY_KEY = ["library"] as const;
@@ -27,6 +38,7 @@ export function useSeriesList(params: {
   library_id?: number;
   is_favorite?: boolean;
   language?: string;
+  has_chapters?: boolean;
 }) {
   return useQuery({
     queryKey: [...LIBRARY_KEY, "series", params],
@@ -51,6 +63,17 @@ export function useContinueReading(limit = 10) {
 
 // --- Search ---
 
+/**
+ * Relevance-ranked search over the shelf (`GET /library/search`): also matches
+ * descriptions and boosts what is being read.
+ *
+ * NOT what the library grid's search box uses. That box sits inside a filter and
+ * sort toolbar whose state is bookmarkable, and this endpoint takes no filters,
+ * no sort and no page size beyond `q` — a URL claiming "favourites, by year"
+ * while the results ignored both would be a lie. The grid searches through
+ * `list_series(search=…)` instead, which composes. This stays as the binding for
+ * ranked search, which the mobile client uses.
+ */
 export function useSearch(params: { q: string; page?: number; per_page?: number }) {
   return useQuery({
     queryKey: [...INTELLIGENCE_KEY, "search", params],
@@ -146,6 +169,127 @@ export function useSetLibraryMembership() {
       void queryClient.invalidateQueries({ queryKey: INTELLIGENCE_KEY });
     },
   });
+}
+
+// --- Bulk actions ---
+
+/**
+ * What a bulk action does to one series.
+ *
+ * `favorite` and `reading_status` go through `PATCH /library/series/{id}` rather
+ * than the `/favorite` toggle: a toggle applied to a mixed selection would
+ * *invert* each series and leave the shelf more mixed than it started, whereas
+ * the PATCH sets an absolute value. Both fields land on the caller's own
+ * `user_series_state` row (backend/services/library_intelligence_service.py:472-490).
+ */
+export type BulkAction =
+  | { kind: "favorite"; value: boolean }
+  | { kind: "reading_status"; value: ReadingStatus }
+  | { kind: "tag"; tagId: number }
+  | { kind: "membership"; inLibrary: boolean };
+
+/** Past participle for the completion message: "12 series removed." */
+function bulkActionVerb(action: BulkAction): string {
+  switch (action.kind) {
+    case "favorite":
+      return action.value ? "favourited" : "unfavourited";
+    case "reading_status":
+      return action.value === "completed" ? "marked read" : `marked ${action.value}`;
+    case "tag":
+      return "tagged";
+    case "membership":
+      return action.inLibrary ? "added back" : "removed";
+  }
+}
+
+function bulkActionRequest(action: BulkAction, seriesId: number): Promise<unknown> {
+  switch (action.kind) {
+    case "favorite":
+      return libraryApi.updateMetadata(seriesId, { is_favorite: action.value });
+    case "reading_status":
+      return libraryApi.updateMetadata(seriesId, { reading_status: action.value });
+    case "tag":
+      return libraryApi.addTagToSeries(seriesId, action.tagId);
+    case "membership":
+      return action.inLibrary
+        ? libraryApi.addToLibrary(seriesId)
+        : libraryApi.removeFromLibrary(seriesId);
+  }
+}
+
+export interface BulkActionState {
+  run: (action: BulkAction, seriesIds: readonly number[]) => Promise<BulkOutcome<number>>;
+  cancel: () => void;
+  progress: BulkProgress | null;
+  isRunning: boolean;
+  /** One-line result of the last run, until dismissed. */
+  message: string | null;
+  dismissMessage: () => void;
+}
+
+/**
+ * Apply one action to many series.
+ *
+ * The library API has no bulk endpoint for any of these, so every action is N
+ * requests; `runBulk` bounds how many are in flight and reports progress, and
+ * the caller can stop a long run part-way. Caches are invalidated once at the
+ * end rather than per request — invalidating 200 times would refetch the whole
+ * grid 200 times while the run is still going.
+ */
+export function useBulkSeriesAction(): BulkActionState {
+  const queryClient = useQueryClient();
+  const [progress, setProgress] = useState<BulkProgress | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancel = useCallback(() => {
+    abortRef.current?.abort();
+  }, []);
+
+  const dismissMessage = useCallback(() => setMessage(null), []);
+
+  const run = useCallback(
+    async (action: BulkAction, seriesIds: readonly number[]) => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setIsRunning(true);
+      setMessage(null);
+      setProgress({ completed: 0, failed: 0, total: seriesIds.length });
+
+      try {
+        const outcome = await runBulk(
+          seriesIds,
+          (seriesId) => bulkActionRequest(action, seriesId),
+          { onProgress: setProgress, signal: controller.signal },
+        );
+
+        // Membership decides what every gated read returns, so the per-series
+        // toggles have to be told the new answer directly — they read from a
+        // fetcher-less query that an invalidation alone cannot refresh.
+        if (action.kind === "membership") {
+          for (const seriesId of outcome.succeeded) {
+            queryClient.setQueryData(
+              libraryMembershipQueryKey(seriesId),
+              action.inLibrary,
+            );
+          }
+        }
+        await queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
+        await queryClient.invalidateQueries({ queryKey: INTELLIGENCE_KEY });
+
+        setMessage(summarizeBulkOutcome(outcome, bulkActionVerb(action)));
+        return outcome;
+      } finally {
+        abortRef.current = null;
+        setIsRunning(false);
+        setProgress(null);
+      }
+    },
+    [queryClient],
+  );
+
+  return { run, cancel, progress, isRunning, message, dismissMessage };
 }
 
 // --- Recommendations ---

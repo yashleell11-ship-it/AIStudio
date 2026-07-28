@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { ArrowLeftRight, RefreshCw, Search } from "lucide-react";
+import { ArrowLeftRight, Bell, ChevronRight, RefreshCw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,7 +24,6 @@ import {
 } from "../hooks";
 import type { SeriesTracker, UpdateNotification } from "../types";
 import { MigrateSeriesDialog } from "./MigrateSeriesDialog";
-import { UpdateSettingsPanel } from "./UpdateSettingsPanel";
 
 function formatWhen(value: string | null): string {
   if (!value) {
@@ -205,13 +204,36 @@ export function UpdatesView() {
         </div>
       ) : null}
 
-      <UpdateSettingsPanel
-        settings={settings.data}
-        isLoading={settings.isLoading}
-        isError={settings.isError}
-        error={settings.error}
-        onRetry={() => settings.refetch()}
-      />
+      {/* Settings used to be duplicated here AND in Settings; they now live in
+          exactly one place. This is the pointer to it, plus the two facts the
+          owner needs on this page to know whether checking is even happening. */}
+      <Link
+        href="/settings"
+        className="group block focus-visible:outline-none"
+        aria-label="Open update and notification settings"
+      >
+        <Card className="transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60">
+          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+                <Bell className="size-5" aria-hidden />
+              </span>
+              <div className="min-w-0">
+                <p className="font-medium text-fg">Update &amp; notification settings</p>
+                <p className="mt-0.5 text-sm text-muted">
+                  {settings.data
+                    ? `${settings.data.enabled ? "Checking" : "Not checking"} every ${settings.data.check_interval_minutes} min · notifications ${settings.data.notify_enabled ? "on" : "off"} · last check ${formatWhen(settings.data.last_run_at)}`
+                    : "Configure checks, notifications, and per-series alerts in Settings."}
+                </p>
+              </div>
+            </div>
+            <ChevronRight
+              className="size-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+              aria-hidden
+            />
+          </CardContent>
+        </Card>
+      </Link>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>

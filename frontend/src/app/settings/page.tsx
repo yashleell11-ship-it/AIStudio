@@ -3,17 +3,17 @@
 import { useState } from "react";
 import Link from "next/link";
 import {
+  Activity,
   Bell,
   ChevronRight,
   Download,
   History,
   Keyboard,
-  RefreshCw,
   ShieldAlert,
 } from "lucide-react";
 import { DownloadSettingsPanel } from "@/features/downloads";
-import { UpdateSettingsPanel } from "@/features/updates";
-import { useUpdateSettings } from "@/features/updates/hooks";
+import { NotificationSettingsPanel } from "@/features/updates";
+import { useCurrentUser } from "@/features/auth/hooks";
 import { MatureContentPanel } from "@/features/preferences";
 import { KeyboardShortcutsPanel } from "@/components/settings/keyboard-shortcuts-panel";
 import { FadeIn } from "@/components/premium/FadeIn";
@@ -21,7 +21,7 @@ import { GlassPanel } from "@/components/premium/GlassPanel";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
 
-type SettingsTab = "general" | "downloads" | "content" | "shortcuts";
+type SettingsTab = "notifications" | "downloads" | "content" | "shortcuts";
 
 const NAV_ITEMS: {
   id: SettingsTab;
@@ -30,10 +30,10 @@ const NAV_ITEMS: {
   description: string;
 }[] = [
   {
-    id: "general",
-    label: "General",
-    icon: RefreshCw,
-    description: "Updates and notifications",
+    id: "notifications",
+    label: "Notifications",
+    icon: Bell,
+    description: "Update checks and alerts",
   },
   {
     id: "downloads",
@@ -55,21 +55,42 @@ const NAV_ITEMS: {
   },
 ];
 
-function UpdatesSettingsSection() {
-  const settings = useUpdateSettings();
+/** Reusable shortcut card in the header band. */
+function ShortcutCard({
+  href,
+  icon: Icon,
+  title,
+  description,
+}: {
+  href: string;
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}) {
   return (
-    <UpdateSettingsPanel
-      settings={settings.data}
-      isLoading={settings.isLoading}
-      isError={settings.isError}
-      error={settings.error}
-      onRetry={() => settings.refetch()}
-    />
+    <Link href={href} className="group block focus-visible:outline-none">
+      <GlassPanel className="flex h-full items-center gap-4 rounded-3xl p-5 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60 md:p-6">
+        <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+          <Icon className="size-5" aria-hidden />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display text-lg tracking-wide text-fg">{title}</h2>
+          <p className="mt-0.5 text-sm text-muted">{description}</p>
+        </div>
+        <ChevronRight
+          className="size-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
+          aria-hidden
+        />
+      </GlassPanel>
+    </Link>
   );
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("notifications");
+  // System status is instance-wide health, so the entry point is only offered
+  // to the account the API marks as admin — the same flag the sidebar uses.
+  const { data: user } = useCurrentUser();
 
   return (
     <div className="page-shell bg-bg">
@@ -87,28 +108,22 @@ export default function SettingsPage() {
         </FadeIn>
 
         <FadeIn className="mb-6" y={20} delay={0.05}>
-          <Link
-            href="/library/history"
-            className="group block focus-visible:outline-none"
-          >
-            <GlassPanel className="flex items-center gap-4 rounded-3xl p-5 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60 md:p-6">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-                <History className="size-5" aria-hidden />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h2 className="font-display text-lg tracking-wide text-fg">
-                  Reading History
-                </h2>
-                <p className="mt-0.5 text-sm text-muted">
-                  Revisit everything you&apos;ve read, most recent first.
-                </p>
-              </div>
-              <ChevronRight
-                className="size-5 shrink-0 text-muted transition-transform group-hover:translate-x-0.5 group-hover:text-primary"
-                aria-hidden
+          <div className="grid gap-4 lg:grid-cols-2">
+            <ShortcutCard
+              href="/library/history"
+              icon={History}
+              title="Reading History"
+              description="Revisit everything you've read, most recent first."
+            />
+            {user?.is_admin ? (
+              <ShortcutCard
+                href="/admin/status"
+                icon={Activity}
+                title="System Status"
+                description="Backend health, the update checker, source failures, and the queue."
               />
-            </GlassPanel>
-          </Link>
+            ) : null}
+          </div>
         </FadeIn>
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
@@ -149,7 +164,7 @@ export default function SettingsPage() {
 
           <FadeIn y={20} delay={0.15} className="min-w-0 flex-1">
             <div className="space-y-6">
-              {activeTab === "general" && <UpdatesSettingsSection />}
+              {activeTab === "notifications" && <NotificationSettingsPanel />}
               {activeTab === "downloads" && <DownloadSettingsPanel />}
               {activeTab === "content" && <MatureContentPanel />}
               {activeTab === "shortcuts" && <KeyboardShortcutsPanel />}

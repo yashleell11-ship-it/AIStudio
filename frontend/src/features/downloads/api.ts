@@ -37,6 +37,12 @@ export const downloadsApi = {
   retry: (downloadId: number) =>
     http.post<DownloadItem>(`/downloads/${downloadId}/retry`),
 
+  // Reorders a still-pending download within its OWN series' dispatch queue by
+  // swapping priority with the adjacent sibling (backend/routes/downloads.py:151).
+  // "up" means dispatched sooner. Already at the end is a no-op, not an error.
+  move: ({ downloadId, direction }: { downloadId: number; direction: "up" | "down" }) =>
+    http.post<DownloadItem>(`/downloads/${downloadId}/move`, { direction }),
+
   pauseSeries: (body: { source_id: string; series_id: string }) =>
     http.post<BulkActionResponse>("/downloads/series/pause", body),
 

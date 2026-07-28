@@ -1,3 +1,11 @@
+"use client";
+
+// React 19's `react-server` export condition does not export useRef,
+// useState or useSyncExternalStore, so a Server Component that reaches this
+// module -- directly or through the feature barrel -- fails the whole route
+// with a 500 rather than a type error. typecheck, lint and the unit tests all
+// pass on that tree, so nothing but actually loading a page catches it.
+
 import { useCallback, useMemo, useRef, useSyncExternalStore } from "react";
 import {
   activeStorageKey,

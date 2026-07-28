@@ -26,6 +26,19 @@ export function useUpdateSettingsMutation() {
   });
 }
 
+/**
+ * Sources the update checker can track. Filtered by the caller's 18+ gate
+ * server-side, and the registry cannot change without a restart, so it is
+ * cached aggressively.
+ */
+export function useUpdateSources() {
+  return useQuery({
+    queryKey: [...UPDATES_KEY, "sources"],
+    queryFn: () => updatesApi.sources(),
+    staleTime: 5 * 60_000,
+  });
+}
+
 export function useTrackers(trackKind?: string) {
   return useQuery({
     queryKey: [...UPDATES_KEY, "trackers", trackKind ?? "all"],

@@ -1,16 +1,29 @@
 "use client";
 
-import { SeriesCard, SeriesListItem } from "./SeriesCard";
-import type { LibraryViewMode } from "./LibraryToolbar";
+import {
+  DEFAULT_LIBRARY_DENSITY,
+  type LibraryDensity,
+  densityGridClassName,
+} from "@/features/library/density";
+import { cn } from "@/lib/cn";
+import { SeriesCard, SeriesListItem, type SeriesSelectHandler } from "./SeriesCard";
 import type { SeriesSummary } from "../types";
 
 export type SeriesGridEmptyState = "library" | "search" | "filter";
+
+export interface SeriesGridSelection {
+  selecting: boolean;
+  selectedIds: ReadonlySet<number>;
+  onSelect: SeriesSelectHandler;
+}
 
 interface SeriesGridProps {
   items: SeriesSummary[];
   isLoading?: boolean;
   emptyState?: SeriesGridEmptyState;
-  viewMode?: LibraryViewMode;
+  density?: LibraryDensity;
+  /** Omitted by callers that have no multi-select (collections, for now). */
+  selection?: SeriesGridSelection;
 }
 
 function emptyCopy(state: SeriesGridEmptyState): { title: string; description: string } {
@@ -34,33 +47,39 @@ function emptyCopy(state: SeriesGridEmptyState): { title: string; description: s
   }
 }
 
+/** Skeleton count scaled to the density, so the placeholder fills the same space. */
+function skeletonCount(density: LibraryDensity): number {
+  switch (density) {
+    case "compact":
+      return 24;
+    case "list":
+      return 8;
+    default:
+      return 12;
+  }
+}
+
 export function SeriesGrid({
   items,
   isLoading,
   emptyState = "library",
-  viewMode = "grid",
+  density = DEFAULT_LIBRARY_DENSITY,
+  selection,
 }: SeriesGridProps) {
   if (isLoading) {
-    if (viewMode === "list") {
-      return (
-        <div aria-busy="true" aria-label="Loading library" className="space-y-3">
-          {Array.from({ length: 8 }).map((_, index) => (
-            <div key={index} className="h-20 animate-pulse rounded-2xl bg-surface-2" />
-          ))}
-        </div>
-      );
-    }
-
     return (
       <div
         aria-busy="true"
         aria-label="Loading library"
-        className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+        className={densityGridClassName(density)}
       >
-        {Array.from({ length: 12 }).map((_, index) => (
+        {Array.from({ length: skeletonCount(density) }).map((_, index) => (
           <div
             key={index}
-            className="aspect-[2/3] animate-pulse rounded-2xl bg-surface-2"
+            className={cn(
+              "animate-pulse rounded-2xl bg-surface-2",
+              density === "list" ? "h-20" : "aspect-[2/3]",
+            )}
           />
         ))}
       </div>
@@ -77,21 +96,40 @@ export function SeriesGrid({
     );
   }
 
-  if (viewMode === "list") {
-    return (
-      <div className="space-y-3">
-        {items.map((series) => (
-          <SeriesListItem key={series.id} series={series} />
-        ))}
-      </div>
-    );
-  }
+  const cardSelection = (series: SeriesSummary) =>
+    selection
+      ? {
+          selecting: selection.selecting,
+          selected: selection.selectedIds.has(series.id),
+          onSelect: selection.onSelect,
+        }
+      : undefined;
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {items.map((series) => (
-        <SeriesCard key={series.id} series={series} />
-      ))}
+    <div
+      className={cn(
+        densityGridClassName(density),
+        // Shift-click drags the browser's own text selection across every card
+        // it passes, which looks like a bug and hides the highlight.
+        selection?.selecting && "select-none",
+      )}
+    >
+      {items.map((series) =>
+        density === "list" ? (
+          <SeriesListItem
+            key={series.id}
+            series={series}
+            selection={cardSelection(series)}
+          />
+        ) : (
+          <SeriesCard
+            key={series.id}
+            series={series}
+            density={density}
+            selection={cardSelection(series)}
+          />
+        ),
+      )}
     </div>
   );
 }

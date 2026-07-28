@@ -1,0 +1,140 @@
+/**
+ * Multi-select state for the library grid.
+ *
+ * Kept out of the view so the range math is testable on its own: shift-click is
+ * the one part of a selection UI that is easy to get subtly wrong (backwards
+ * ranges, a stale anchor that a filter change scrolled off the page) and
+ * impossible to notice by eye until a bulk action hits the wrong 40 series.
+ *
+ * `ids` is a Set because every card asks "am I selected?" on every render, and
+ * the grid routinely holds 200 of them.
+ */
+
+export interface SelectionState {
+  readonly ids: ReadonlySet<number>;
+  /**
+   * The fixed end of a shift-click range: the last id clicked *without* shift.
+   * `null` when nothing has been clicked yet, or when the anchor has since been
+   * filtered out of the visible list.
+   */
+  readonly anchor: number | null;
+}
+
+export const EMPTY_SELECTION: SelectionState = { ids: new Set<number>(), anchor: null };
+
+export function isSelected(state: SelectionState, id: number): boolean {
+  return state.ids.has(id);
+}
+
+export function selectionCount(state: SelectionState): number {
+  return state.ids.size;
+}
+
+/**
+ * The ids between `from` and `to` inclusive, in the order they are displayed.
+ *
+ * Order-agnostic: shift-clicking upwards has to select the same set as
+ * shift-clicking downwards. Returns nothing when either end is missing from
+ * `ordered`, which is the "anchor was filtered away" case.
+ */
+export function selectionRange(
+  ordered: readonly number[],
+  from: number,
+  to: number,
+): number[] {
+  const start = ordered.indexOf(from);
+  const end = ordered.indexOf(to);
+  if (start === -1 || end === -1) {
+    return [];
+  }
+  const [low, high] = start <= end ? [start, end] : [end, start];
+  return ordered.slice(low, high + 1);
+}
+
+/** Plain click: flip one id and make it the anchor for the next shift-click. */
+export function toggleSelection(state: SelectionState, id: number): SelectionState {
+  const ids = new Set(state.ids);
+  if (ids.has(id)) {
+    ids.delete(id);
+  } else {
+    ids.add(id);
+  }
+  // The anchor follows the last plain click even when that click deselected:
+  // shift-clicking after "unselect this one" should still measure from here.
+  return { ids, anchor: id };
+}
+
+/**
+ * Shift-click: add the whole anchor→`id` range to what is already selected.
+ *
+ * Additive rather than replacing, like Gmail and the file managers people
+ * already know: a shift-click never silently drops a selection built up
+ * elsewhere in the grid. The anchor stays put so successive shift-clicks widen
+ * or narrow the same range from a fixed end.
+ *
+ * With no usable anchor there is no range to take, so this degrades to a plain
+ * click — the alternative is a click that appears to do nothing.
+ */
+export function extendSelection(
+  state: SelectionState,
+  id: number,
+  ordered: readonly number[],
+): SelectionState {
+  if (state.anchor === null) {
+    return toggleSelection(state, id);
+  }
+  const range = selectionRange(ordered, state.anchor, id);
+  if (range.length === 0) {
+    return toggleSelection(state, id);
+  }
+  const ids = new Set(state.ids);
+  for (const rangeId of range) {
+    ids.add(rangeId);
+  }
+  return { ids, anchor: state.anchor };
+}
+
+/** Select every visible id, anchoring on the first so shift-click still works. */
+export function selectAll(ordered: readonly number[]): SelectionState {
+  return { ids: new Set(ordered), anchor: ordered[0] ?? null };
+}
+
+export function clearSelection(): SelectionState {
+  return EMPTY_SELECTION;
+}
+
+/**
+ * Drop everything no longer in `ordered`.
+ *
+ * Run whenever the visible set changes (a filter, a search, a refetch after a
+ * bulk remove). Without it the selection keeps ids the user can no longer see,
+ * and the next bulk action silently includes them — the count in the bar would
+ * not even match the number of highlighted cards.
+ *
+ * Returns the same object when nothing was pruned so React can skip the render.
+ */
+export function retainSelection(
+  state: SelectionState,
+  ordered: readonly number[],
+): SelectionState {
+  const visible = new Set(ordered);
+  const kept = new Set<number>();
+  for (const id of state.ids) {
+    if (visible.has(id)) {
+      kept.add(id);
+    }
+  }
+  const anchor = state.anchor !== null && visible.has(state.anchor) ? state.anchor : null;
+  if (kept.size === state.ids.size && anchor === state.anchor) {
+    return state;
+  }
+  return { ids: kept, anchor };
+}
+
+/** The selected ids in display order — the order bulk actions run them in. */
+export function orderedSelection(
+  state: SelectionState,
+  ordered: readonly number[],
+): number[] {
+  return ordered.filter((id) => state.ids.has(id));
+}

@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ApiError } from "@/types/api";
 import { downloadsApi } from "./api";
 
 const DOWNLOADS_KEY = ["downloads"] as const;
@@ -80,6 +81,62 @@ export function useRetryDownload() {
   return useMutation({
     mutationFn: downloadsApi.retry,
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
+    },
+  });
+}
+
+export function useMoveDownload() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: downloadsApi.move,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
+    },
+  });
+}
+
+/** What a bulk retry actually managed to do. */
+export interface RetryFailedResult {
+  requested: number;
+  retried: number;
+  /** Ids the server refused, with the reason it gave. */
+  rejected: { id: number; message: string }[];
+}
+
+/**
+ * Retry every failed chapter.
+ *
+ * There is no bulk-retry endpoint: `POST /downloads/resume-all` does cover
+ * failed rows, but it also un-pauses everything the owner deliberately paused
+ * and never increments `retry_count`, so it is the wrong verb here. This loops
+ * the per-item retry endpoint instead and reports what actually went through —
+ * one chapter that will not retry must not silently swallow the other thirty.
+ *
+ * Sequential on purpose: the queue is shared and the worker pool is small, so
+ * firing N writes in parallel buys nothing and only makes a partial failure
+ * harder to attribute.
+ */
+export function useRetryFailedDownloads() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: number[]): Promise<RetryFailedResult> => {
+      const rejected: RetryFailedResult["rejected"] = [];
+      let retried = 0;
+      for (const id of ids) {
+        try {
+          await downloadsApi.retry(id);
+          retried += 1;
+        } catch (error) {
+          rejected.push({
+            id,
+            message: error instanceof ApiError ? error.message : "Retry failed.",
+          });
+        }
+      }
+      return { requested: ids.length, retried, rejected };
+    },
+    onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: DOWNLOADS_KEY });
     },
   });

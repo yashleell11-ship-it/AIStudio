@@ -1,10 +1,19 @@
 import { describe, expect, it } from "vitest";
 import {
+  UNKNOWN_FAILURE_MESSAGE,
+  canCancelDownload,
+  canMoveDownload,
+  canPauseDownload,
+  canResumeDownload,
+  canRetryDownload,
+  describeDownloadStatus,
   groupDownloadsBySeries,
+  partitionDownloads,
   seriesCanCancel,
   seriesCanPause,
   seriesCanResume,
   seriesGroupKey,
+  summarizeFailures,
   visibleGroupItems,
 } from "./grouping";
 import type { DownloadItem } from "./types";
@@ -146,5 +155,150 @@ describe("visibleGroupItems", () => {
     ])[0];
 
     expect(visibleGroupItems(group)).toEqual([]);
+  });
+});
+
+describe("partitionDownloads", () => {
+  it("puts every backend status in its own bucket", () => {
+    const partition = partitionDownloads([
+      item({ id: 1, status: "downloading" }),
+      item({ id: 2, status: "queued" }),
+      item({ id: 3, status: "paused" }),
+      item({ id: 4, status: "failed" }),
+      item({ id: 5, status: "completed" }),
+      item({ id: 6, status: "cancelled" }),
+    ]);
+
+    expect(partition.downloading.map((i) => i.id)).toEqual([1]);
+    expect(partition.queued.map((i) => i.id)).toEqual([2]);
+    expect(partition.paused.map((i) => i.id)).toEqual([3]);
+    expect(partition.failed.map((i) => i.id)).toEqual([4]);
+    expect(partition.completed.map((i) => i.id)).toEqual([5]);
+    expect(partition.cancelled.map((i) => i.id)).toEqual([6]);
+    expect(partition.other).toEqual([]);
+  });
+
+  it("collects an unrecognised status into `other` rather than dropping it", () => {
+    const partition = partitionDownloads([item({ id: 9, status: "teleporting" })]);
+
+    expect(partition.other.map((i) => i.id)).toEqual([9]);
+    expect(partition.failed).toEqual([]);
+  });
+
+  it("sorts failures newest-first so the freshest error is read first", () => {
+    const partition = partitionDownloads([
+      item({ id: 1, status: "failed", updated_at: "2026-01-01T00:00:00Z" }),
+      item({ id: 2, status: "failed", updated_at: "2026-03-01T00:00:00Z" }),
+      item({ id: 3, status: "failed", updated_at: "2026-02-01T00:00:00Z" }),
+    ]);
+
+    expect(partition.failed.map((i) => i.id)).toEqual([2, 3, 1]);
+  });
+});
+
+describe("download action availability", () => {
+  it("offers retry only for failed and paused chapters", () => {
+    expect(canRetryDownload(item({ status: "failed" }))).toBe(true);
+    expect(canRetryDownload(item({ status: "paused" }))).toBe(true);
+    expect(canRetryDownload(item({ status: "queued" }))).toBe(false);
+    expect(canRetryDownload(item({ status: "completed" }))).toBe(false);
+  });
+
+  it("offers resume only for paused and failed chapters", () => {
+    expect(canResumeDownload(item({ status: "paused" }))).toBe(true);
+    expect(canResumeDownload(item({ status: "failed" }))).toBe(true);
+    expect(canResumeDownload(item({ status: "downloading" }))).toBe(false);
+  });
+
+  it("offers pause only for work that is actually interruptible", () => {
+    expect(canPauseDownload(item({ status: "downloading" }))).toBe(true);
+    expect(canPauseDownload(item({ status: "queued" }))).toBe(true);
+    expect(canPauseDownload(item({ status: "failed" }))).toBe(false);
+    expect(canPauseDownload(item({ status: "completed" }))).toBe(false);
+  });
+
+  it("offers cancel for anything not already finished or cancelled", () => {
+    expect(canCancelDownload(item({ status: "failed" }))).toBe(true);
+    expect(canCancelDownload(item({ status: "queued" }))).toBe(true);
+    expect(canCancelDownload(item({ status: "completed" }))).toBe(false);
+    expect(canCancelDownload(item({ status: "cancelled" }))).toBe(false);
+  });
+
+  it("offers reordering only while a chapter is still pending dispatch", () => {
+    expect(canMoveDownload(item({ status: "queued", queue_state: "pending" }))).toBe(true);
+    expect(canMoveDownload(item({ status: "queued", queue_state: "active" }))).toBe(false);
+    expect(canMoveDownload(item({ status: "downloading", queue_state: "pending" }))).toBe(false);
+    expect(canMoveDownload(item({ status: "queued", queue_state: null }))).toBe(false);
+  });
+});
+
+describe("describeDownloadStatus", () => {
+  it("distinguishes queued, downloading, completed, and failed", () => {
+    expect(describeDownloadStatus("queued").tone).toBe("pending");
+    expect(describeDownloadStatus("downloading").tone).toBe("active");
+    expect(describeDownloadStatus("completed").tone).toBe("done");
+    expect(describeDownloadStatus("failed").tone).toBe("failed");
+    expect(describeDownloadStatus("failed").label).toBe("Failed");
+  });
+
+  it("reports an unknown status verbatim instead of guessing a tone", () => {
+    const descriptor = describeDownloadStatus("teleporting");
+    expect(descriptor.label).toBe("teleporting");
+    expect(descriptor.tone).toBe("neutral");
+  });
+});
+
+describe("summarizeFailures", () => {
+  it("is empty when nothing failed", () => {
+    const summary = summarizeFailures([item({ status: "queued" }), item({ status: "completed" })]);
+
+    expect(summary.count).toBe(0);
+    expect(summary.reasons).toEqual([]);
+    expect(summary.retriableIds).toEqual([]);
+  });
+
+  it("collapses identical errors into one reason with a count", () => {
+    const summary = summarizeFailures([
+      item({ id: 1, status: "failed", error: "connector timed out" }),
+      item({ id: 2, status: "failed", error: "connector timed out" }),
+      item({ id: 3, status: "failed", error: "404 from source" }),
+    ]);
+
+    expect(summary.count).toBe(3);
+    expect(summary.reasons.map((r) => [r.message, r.count])).toEqual([
+      ["connector timed out", 2],
+      ["404 from source", 1],
+    ]);
+  });
+
+  it("labels a failure that recorded no error text instead of showing a blank", () => {
+    const summary = summarizeFailures([
+      item({ id: 1, status: "failed", error: null }),
+      item({ id: 2, status: "failed", error: "   " }),
+    ]);
+
+    expect(summary.reasons).toHaveLength(1);
+    expect(summary.reasons[0].message).toBe(UNKNOWN_FAILURE_MESSAGE);
+    expect(summary.reasons[0].count).toBe(2);
+  });
+
+  it("counts distinct series by (source, series_id), not title", () => {
+    const summary = summarizeFailures([
+      item({ id: 1, status: "failed", source: "mangadex", series_id: "s1" }),
+      item({ id: 2, status: "failed", source: "mangadex", series_id: "s1" }),
+      item({ id: 3, status: "failed", source: "mangakatana", series_id: "s1" }),
+    ]);
+
+    expect(summary.seriesCount).toBe(2);
+  });
+
+  it("lists every failed id as retriable, newest first", () => {
+    const summary = summarizeFailures([
+      item({ id: 1, status: "failed", updated_at: "2026-01-01T00:00:00Z" }),
+      item({ id: 2, status: "failed", updated_at: "2026-02-01T00:00:00Z" }),
+      item({ id: 3, status: "queued" }),
+    ]);
+
+    expect(summary.retriableIds).toEqual([2, 1]);
   });
 });

@@ -43,6 +43,7 @@ export const libraryApi = {
     library_id?: number;
     is_favorite?: boolean;
     language?: string;
+    has_chapters?: boolean;
   }) =>
     http.get<SeriesListResponse>("/library/series", {
       query: {
@@ -55,8 +56,11 @@ export const libraryApi = {
         collection_id: params.collection_id || undefined,
         tag_id: params.tag_id || undefined,
         library_id: params.library_id || undefined,
+        // Stringified rather than passed through `||`: `false` is a real filter
+        // ("only non-favourites") and would otherwise be dropped as falsy.
         is_favorite: params.is_favorite != null ? String(params.is_favorite) : undefined,
         language: params.language || undefined,
+        has_chapters: params.has_chapters != null ? String(params.has_chapters) : undefined,
       },
     }),
 

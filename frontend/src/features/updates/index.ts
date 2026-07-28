@@ -6,8 +6,9 @@ export {
   parseChapterOffset,
   stalePreviewFromError,
 } from "./migration";
-export { UpdateSettingsPanel } from "./components/UpdateSettingsPanel";
+export { NotificationSettingsPanel } from "./components/NotificationSettingsPanel";
 export { NotificationBell } from "./components/NotificationBell";
 export { UpdateBanner } from "./components/UpdateBanner";
 export * from "./hooks";
+export * from "./notifications";
 export * from "./types";
