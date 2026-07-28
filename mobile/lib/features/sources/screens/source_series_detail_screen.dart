@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
@@ -9,21 +9,22 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
 import 'package:manhwamaniacs/features/downloads/utils/queue_download_feedback.dart';
+import 'package:manhwamaniacs/features/downloads/utils/source_chapter_download_status.dart';
 import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
-import 'package:manhwamaniacs/features/sources/widgets/source_chapter_download_status_badge.dart';
 import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
-import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
-
-/// Chapter list ordering. Defaults to newest-first (highest chapter number).
-enum _ChapterSortOrder { newest, oldest }
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_sort.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_tile.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_detail_body.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_detail_chips.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_detail_meta.dart';
 
 class SourceSeriesDetailScreen extends ConsumerWidget {
   const SourceSeriesDetailScreen({
@@ -108,27 +109,17 @@ class _SeriesDetailBody extends ConsumerStatefulWidget {
 class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
   final Set<String> _selectedChapterIds = {};
   bool _downloadPending = false;
-  _ChapterSortOrder _sortOrder = _ChapterSortOrder.newest;
+  SeriesChapterSortOrder _sortOrder = SeriesChapterSortOrder.newest;
 
-  /// Returns a sorted copy of [chapters] by chapter number, nulls always last.
-  /// Newest = descending, oldest = ascending.
   List<SourceChapterSummary> _sortedChapters(
     List<SourceChapterSummary> chapters,
-    _ChapterSortOrder order,
-  ) {
-    final copy = [...chapters];
-    copy.sort((a, b) {
-      final an = a.number;
-      final bn = b.number;
-      if (an == null && bn == null) return 0;
-      if (an == null) return 1;
-      if (bn == null) return -1;
-      return order == _ChapterSortOrder.newest
-          ? bn.compareTo(an)
-          : an.compareTo(bn);
-    });
-    return copy;
-  }
+    SeriesChapterSortOrder order,
+  ) =>
+      sortSeriesChapters(
+        chapters,
+        numberOf: (chapter) => chapter.number,
+        order: order,
+      );
 
   /// Newest chapter, for the header meta line. Prefers the highest-numbered
   /// chapter in the loaded list and falls back to the source-provided
@@ -140,37 +131,13 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     // above a newest-first list whose top row was Chapter 120 -- the one number
     // on this screen that has to be right.
     final newest =
-        _sortedChapters(widget.chapters, _ChapterSortOrder.newest).firstOrNull;
+        _sortedChapters(widget.chapters, SeriesChapterSortOrder.newest).firstOrNull;
     if (newest != null) {
       return chapterLabel(number: newest.number, title: newest.title).primary;
     }
     final provided = widget.series.latestChapter?.trim();
     if (provided != null && provided.isNotEmpty) return provided;
     return null;
-  }
-
-  /// "Latest: Chapter 120  ·  120 chapters" — either half is dropped when it
-  /// is not actually known, so the line never states a count of zero.
-  String? _headerMetaLine() {
-    final parts = <String>[];
-    final latest = _latestChapterLabel();
-    if (latest != null) parts.add('Latest: $latest');
-    // The loaded chapter list is authoritative; the summary count is only a
-    // fallback for sources that omit chapters from the detail payload.
-    final count = widget.chapters.isNotEmpty
-        ? widget.chapters.length
-        : widget.series.chapterCount;
-    if (count > 0) parts.add(count == 1 ? '1 chapter' : '$count chapters');
-    return parts.isEmpty ? null : parts.join('  ·  ');
-  }
-
-  /// Per-row progress line. Unread → "{n} pages"; reading → "{page}/{n} pages";
-  /// done → "{n}/{n} pages". Returns null when the page count is unknown.
-  String? _chapterProgressText(SourceChapterProgress? progress, int pageCount) {
-    if (pageCount <= 0) return null;
-    if (progress == null) return '$pageCount pages';
-    if (progress.completed) return '$pageCount/$pageCount pages';
-    return '${progress.page}/$pageCount pages';
   }
 
   void _toggleChapter(String chapterId) {
@@ -259,206 +226,142 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     );
     final progressMap = ref.watch(sourceProgressProvider);
     final sortedChapters = _sortedChapters(chapters, _sortOrder);
-    final metaLine = _headerMetaLine();
     final latestRead = ref.read(sourceProgressProvider.notifier).latestForSeries(
           sourceId: widget.sourceId,
           seriesId: widget.seriesId,
         );
 
-    return ListView(
-      padding: EdgeInsets.fromLTRB(
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
+    return SeriesDetailBody(
+      cover: series.coverUrl.isEmpty
+          ? null
+          : SeriesCoverImage(url: series.coverUrl, borderRadius: 0),
+      title: series.title,
+      author: series.author,
+      artist: series.artist,
+      metaLine: seriesDetailMetaLine(
+        latestChapterLabel: _latestChapterLabel(),
+        // The loaded chapter list is authoritative; the summary count is only a
+        // fallback for sources that omit chapters from the detail payload.
+        chapterCount:
+            chapters.isNotEmpty ? chapters.length : series.chapterCount,
       ),
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(12),
-          child: AspectRatio(
-            aspectRatio: 2 / 3,
-            child: series.coverUrl.isEmpty
-                ? const ColoredBox(color: AppColors.panel)
-                : SeriesCoverImage(
-                    url: series.coverUrl,
-                    borderRadius: 0,
-                  ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.xl2),
-        Text(series.title, style: AppTypography.displayMd),
-        if (series.author != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(series.author!, style: AppTypography.body.copyWith(color: AppColors.muted)),
-        ],
-        if (metaLine != null) ...[
-          const SizedBox(height: AppSpacing.xs),
-          Text(
-            metaLine,
-            style: AppTypography.label.copyWith(color: AppColors.primary),
-          ),
-        ],
-        if (series.description != null && series.description!.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Text(series.description!, style: AppTypography.body),
-        ],
-        if (chapters.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          _ReadPrimaryButton(
-            sourceId: widget.sourceId,
-            seriesId: widget.seriesId,
-            latestRead: latestRead,
-            orderedChapters:
-                _sortedChapters(chapters, _ChapterSortOrder.oldest),
-          ),
-        ],
-        const SizedBox(height: AppSpacing.lg),
-        SeriesFollowButton(
-          key: const Key('follow-toggle'),
-          sourceId: widget.sourceId,
-          seriesId: widget.seriesId,
-          seriesTitle: series.title,
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
-          children: [
-            OutlinedButton.icon(
-              key: const Key('download-series'),
-              onPressed: downloadBusy || chapters.isEmpty ? null : _downloadSeries,
-              icon: const Icon(Icons.download_outlined),
-              label: const Text('Download Series'),
+      description: series.description,
+      primaryAction: chapters.isEmpty
+          ? null
+          : _ReadPrimaryButton(
+              sourceId: widget.sourceId,
+              seriesId: widget.seriesId,
+              latestRead: latestRead,
+              orderedChapters:
+                  _sortedChapters(chapters, SeriesChapterSortOrder.oldest),
             ),
-            OutlinedButton.icon(
-              key: const Key('download-selected'),
-              onPressed: downloadBusy || _selectedChapterIds.isEmpty
-                  ? null
-                  : () => _queueChapters(_selectedChapterIds.toList()),
-              icon: const Icon(Icons.playlist_add_check_outlined),
-              label: const Text('Download Selected'),
-            ),
-          ],
+      followAction: SeriesFollowButton(
+        key: const Key('follow-toggle'),
+        sourceId: widget.sourceId,
+        seriesId: widget.seriesId,
+        seriesTitle: series.title,
+      ),
+      secondaryActions: [
+        OutlinedButton.icon(
+          key: const Key('download-series'),
+          onPressed: downloadBusy || chapters.isEmpty ? null : _downloadSeries,
+          icon: const Icon(Icons.download_outlined),
+          label: const Text('Download Series'),
         ),
-        const SizedBox(height: AppSpacing.xl2),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text('Chapters', style: AppTypography.h3),
-            if (chapters.isNotEmpty)
-              _SortToggle(
-                value: _sortOrder,
-                onChanged: (order) => setState(() => _sortOrder = order),
-              ),
-          ],
+        OutlinedButton.icon(
+          key: const Key('download-selected'),
+          onPressed: downloadBusy || _selectedChapterIds.isEmpty
+              ? null
+              : () => _queueChapters(_selectedChapterIds.toList()),
+          icon: const Icon(Icons.playlist_add_check_outlined),
+          label: const Text('Download Selected'),
         ),
-        const SizedBox(height: AppSpacing.md),
-        if (chapters.isEmpty)
-          const EmptyState(
-            icon: Icons.menu_book_outlined,
-            message: 'No chapters available',
-            subtitle: 'This source did not return any chapters for this series.',
-          )
-        else
-          ...sortedChapters.map(
-            (chapter) {
-              final label = chapterLabel(
-                number: chapter.number,
-                title: chapter.title,
-              );
-              final selected = _selectedChapterIds.contains(chapter.id);
-              final chapterStatus = downloadLookup.statusFor(chapter.id);
-              final downloadDisabled =
-                  downloadBusy || downloadLookup.isDownloadDisabled(chapter.id);
-              final retryable = downloadLookup.isRetryable(chapter.id);
-              final progress = progressMap[sourceProgressKey(
-                sourceId: widget.sourceId,
-                seriesId: widget.seriesId,
-                chapterId: chapter.id,
-              )];
-              final completed = progress?.completed ?? false;
-              // Prefer the page count captured while reading (authoritative for
-              // this reader), falling back to the source-provided count.
-              final storedCount = progress?.pageCount ?? 0;
-              final effectiveCount =
-                  storedCount > 0 ? storedCount : chapter.pageCount;
-              final progressText =
-                  _chapterProgressText(progress, effectiveCount);
-              final titleColor = completed ? AppColors.muted : null;
-              final card = Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
-                child: GlassCard(
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Checkbox(
-                        key: Key('select-${chapter.id}'),
-                        value: selected,
-                        onChanged: downloadBusy
-                            ? null
-                            : (_) => _toggleChapter(chapter.id),
-                      ),
-                      Expanded(
-                        child: InkWell(
-                          onTap: () => context.go(
-                            RoutePaths.sourceReader(
-                              widget.sourceId,
-                              widget.seriesId,
-                              chapter.id,
-                            ),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  label.primary,
-                                  style: AppTypography.labelLg
-                                      .copyWith(color: titleColor),
-                                ),
-                                if (label.secondary != null)
-                                  Text(label.secondary!, style: AppTypography.bodySm),
-                                if (progressText != null)
-                                  Text(
-                                    progressText,
-                                    style: AppTypography.caption.copyWith(
-                                      // In-progress reads glow warm amber;
-                                      // unread/completed stay muted.
-                                      color: (progress != null && !completed)
-                                          ? AppColors.primary
-                                          : AppColors.muted,
-                                    ),
-                                  ),
-                                SourceChapterDownloadStatusBadge(
-                                  key: Key('chapter-status-${chapter.id}'),
-                                  status: chapterStatus,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                      IconButton(
-                        key: Key('download-${chapter.id}'),
-                        tooltip: retryable ? 'Retry Download' : 'Download Chapter',
-                        onPressed: downloadDisabled
-                            ? null
-                            : () => _queueChapters([chapter.id]),
-                        icon: Icon(
-                          retryable ? Icons.refresh : Icons.download_outlined,
-                        ),
-                      ),
-                    ],
-                  ),
+      ],
+      details: [
+        // Status and genres get the same pill treatment the library page gives
+        // reading status and tags -- the source page simply had nowhere to put
+        // them before.
+        if ((series.status != null && series.status!.isNotEmpty) ||
+            series.genres.isNotEmpty)
+          SeriesDetailChipRow(
+            chips: [
+              if (series.status != null && series.status!.isNotEmpty)
+                SeriesDetailChip(
+                  label: series.status!.toUpperCase(),
+                  color: AppColors.primary,
                 ),
-              );
-              // Read chapters recede: dropping the whole card's opacity over the
-              // dark background reads as a darker, muted "already read" row.
-              return completed ? Opacity(opacity: 0.6, child: card) : card;
-            },
+              for (final genre in series.genres) SeriesDetailChip(label: genre),
+            ],
           ),
       ],
+      sortOrder: _sortOrder,
+      onSortOrderChanged: (order) => setState(() => _sortOrder = order),
+      emptyChapters: const EmptyState(
+        icon: Icons.menu_book_outlined,
+        message: 'No chapters available',
+        subtitle: 'This source did not return any chapters for this series.',
+      ),
+      chapterTiles: [
+        for (final chapter in sortedChapters)
+          _buildChapterTile(
+            chapter: chapter,
+            downloadBusy: downloadBusy,
+            downloadLookup: downloadLookup,
+            progressMap: progressMap,
+            latestRead: latestRead,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildChapterTile({
+    required SourceChapterSummary chapter,
+    required bool downloadBusy,
+    required SourceChapterDownloadLookup downloadLookup,
+    required Map<String, SourceChapterProgress> progressMap,
+    required LatestSourceRead? latestRead,
+  }) {
+    final progress = progressMap[sourceProgressKey(
+      sourceId: widget.sourceId,
+      seriesId: widget.seriesId,
+      chapterId: chapter.id,
+    )];
+    final completed = progress?.completed ?? false;
+    // Prefer the page count captured while reading (authoritative for this
+    // reader), falling back to the source-provided count.
+    final storedCount = progress?.pageCount ?? 0;
+    final effectiveCount = storedCount > 0 ? storedCount : chapter.pageCount;
+    final downloadDisabled =
+        downloadBusy || downloadLookup.isDownloadDisabled(chapter.id);
+
+    return SeriesChapterTile(
+      key: Key('chapter-${chapter.id}'),
+      label: chapterLabel(number: chapter.number, title: chapter.title),
+      progressText: seriesChapterProgressText(
+        pageCount: effectiveCount,
+        page: progress?.page,
+        completed: completed,
+      ),
+      inProgress: progress != null && !completed,
+      downloadStatus: downloadLookup.statusFor(chapter.id),
+      statusBadgeKey: Key('chapter-status-${chapter.id}'),
+      isRead: completed,
+      // "Reading" marks the chapter Continue would resume -- the last one
+      // opened, and only while it is unfinished.
+      isCurrent: latestRead?.chapterId == chapter.id && !completed,
+      onTap: () => context.go(
+        RoutePaths.sourceReader(widget.sourceId, widget.seriesId, chapter.id),
+      ),
+      selection: SeriesChapterSelection(
+        checkboxKey: Key('select-${chapter.id}'),
+        selected: _selectedChapterIds.contains(chapter.id),
+        onChanged: downloadBusy ? null : (_) => _toggleChapter(chapter.id),
+      ),
+      download: SeriesChapterDownloadAction(
+        buttonKey: Key('download-${chapter.id}'),
+        retryable: downloadLookup.isRetryable(chapter.id),
+        onPressed: downloadDisabled ? null : () => _queueChapters([chapter.id]),
+      ),
     );
   }
 }
@@ -519,62 +422,6 @@ class _ReadPrimaryButton extends StatelessWidget {
       onPressed: () => context.go(target),
       icon: isContinue ? Icons.play_arrow_rounded : Icons.menu_book_outlined,
       label: isContinue ? 'Continue' : 'Read Online',
-    );
-  }
-}
-
-/// Compact Newest/Oldest segmented toggle for the chapter list header.
-class _SortToggle extends StatelessWidget {
-  const _SortToggle({required this.value, required this.onChanged});
-
-  final _ChapterSortOrder value;
-  final ValueChanged<_ChapterSortOrder> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final motion = MediaQuery.disableAnimationsOf(context)
-        ? Duration.zero
-        : const Duration(milliseconds: 150);
-    return Container(
-      padding: const EdgeInsets.all(2),
-      decoration: BoxDecoration(
-        color: AppColors.surface2,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.glassEdge),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _segment('Newest', _ChapterSortOrder.newest, motion),
-          _segment('Oldest', _ChapterSortOrder.oldest, motion),
-        ],
-      ),
-    );
-  }
-
-  Widget _segment(String label, _ChapterSortOrder order, Duration motion) {
-    final selected = value == order;
-    return GestureDetector(
-      onTap: selected ? null : () => onChanged(order),
-      child: AnimatedContainer(
-        duration: motion,
-        curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
-        ),
-        decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Text(
-          label,
-          style: AppTypography.caption.copyWith(
-            color: selected ? AppColors.primaryFg : AppColors.muted,
-            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-          ),
-        ),
-      ),
     );
   }
 }

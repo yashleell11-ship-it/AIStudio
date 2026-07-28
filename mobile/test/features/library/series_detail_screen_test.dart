@@ -5,6 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
 import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
@@ -25,6 +29,8 @@ import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_sort.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_tile.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../support/test_overrides.dart';
 
@@ -241,11 +247,79 @@ class _FakeUpdatesRepository implements UpdatesRepository {
       throw UnimplementedError();
 }
 
+/// Downloads notifier that records queue calls instead of hitting the network.
+class _FakeDownloadsNotifier extends DownloadsNotifier {
+  _FakeDownloadsNotifier(this.recorder);
+
+  final _QueueRecorder recorder;
+
+  @override
+  Future<DownloadsState> build() async => const DownloadsState(
+        items: <DownloadItem>[],
+        metrics: DownloadMetrics(
+          total: 0,
+          completed: 0,
+          failed: 0,
+          remaining: 0,
+          active: 0,
+          queued: 0,
+          paused: 0,
+          storageUsedBytes: 0,
+          storageFreeBytes: 0,
+          overallSpeedBps: 0,
+          overallSpeedMbps: 0,
+          workers: DownloadWorkers(configured: 1, active: 0, running: 0),
+        ),
+      );
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueChapters({
+    required String sourceId,
+    required String seriesId,
+    required List<String> chapterIds,
+    String? seriesTitle,
+    int? priority,
+  }) async {
+    recorder.chapterSourceId = sourceId;
+    recorder.chapterSeriesId = seriesId;
+    recorder.chapterIds = chapterIds;
+    return recorder.chaptersResponse;
+  }
+
+  @override
+  Future<Result<QueueDownloadResponse>> queueSeries({
+    required String sourceId,
+    required String seriesId,
+    int? priority,
+  }) async {
+    recorder.seriesSourceId = sourceId;
+    recorder.seriesSeriesId = seriesId;
+    return recorder.seriesResponse;
+  }
+}
+
+/// Captures what the local page asked the download queue for. The point of
+/// these assertions is that the page sends the *source* pair, not the library
+/// series id — the ids are different namespaces and only one of them works.
+class _QueueRecorder {
+  String? chapterSourceId;
+  String? chapterSeriesId;
+  List<String>? chapterIds;
+  String? seriesSourceId;
+  String? seriesSeriesId;
+
+  Result<QueueDownloadResponse> chaptersResponse =
+      const Ok(QueueDownloadResponse(queued: [1, 2], skipped: []));
+  Result<QueueDownloadResponse> seriesResponse =
+      const Ok(QueueDownloadResponse(queued: [1, 2, 3], skipped: []));
+}
+
 SeriesDetail _sampleSeriesDetail({
   String? sourceId,
   String? sourceSeriesId,
   bool isFollowed = false,
   int? followTrackerId,
+  List<ChapterSummary>? chapters,
 }) {
   return SeriesDetail(
     sourceId: sourceId,
@@ -282,30 +356,55 @@ SeriesDetail _sampleSeriesDetail({
       progressPct: 50,
       lastReadAt: DateTime(2024, 6),
     ),
-    chapters: const [
-      ChapterSummary(
-        id: 101,
-        seriesId: 1,
-        title: 'Chapter 1',
-        number: 1,
-        pageCount: 20,
-      ),
-      ChapterSummary(
-        id: 102,
-        seriesId: 1,
-        title: 'Chapter 2',
-        number: 2,
-        pageCount: 20,
-      ),
-    ],
+    chapters: chapters ??
+        const [
+          ChapterSummary(
+            id: 101,
+            seriesId: 1,
+            title: 'Chapter 1',
+            number: 1,
+            pageCount: 20,
+          ),
+          ChapterSummary(
+            id: 102,
+            seriesId: 1,
+            title: 'Chapter 2',
+            number: 2,
+            pageCount: 20,
+          ),
+        ],
     tags: const [],
     collections: const [CollectionRef(id: 1, name: 'Favorites')],
   );
 }
 
+/// A downloaded chapter followed by a chapter that only exists in the source
+/// catalog — the mixed state the local page has to render since it started
+/// listing everything the source offers, not only what is on disk.
+const _mixedChapters = [
+  ChapterSummary(
+    id: 101,
+    seriesId: 1,
+    title: 'Chapter 1',
+    number: 1,
+    pageCount: 20,
+    sourceChapterId: 'manga-1:1',
+  ),
+  // No local id: this one exists only in the source's catalog.
+  ChapterSummary(
+    seriesId: 1,
+    title: 'Chapter 2',
+    number: 2,
+    pageCount: 0,
+    isDownloaded: false,
+    sourceChapterId: 'manga-1:2',
+  ),
+];
+
 Future<Widget> _buildSeriesDetailApp(
   SeriesDetail detail, {
   _FakeUpdatesRepository? updatesRepo,
+  _QueueRecorder? queueRecorder,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -320,6 +419,9 @@ Future<Widget> _buildSeriesDetailApp(
       updatesRepositoryProvider.overrideWithValue(
         updatesRepo ?? _FakeUpdatesRepository(),
       ),
+      downloadsProvider.overrideWith(
+        () => _FakeDownloadsNotifier(queueRecorder ?? _QueueRecorder()),
+      ),
       seriesDetailProvider(1).overrideWith((ref) async => detail),
     ],
     child: const MaterialApp(
@@ -328,35 +430,233 @@ Future<Widget> _buildSeriesDetailApp(
   );
 }
 
+/// Chapter row labels in the order they are rendered.
+List<String> _renderedChapterLabels(WidgetTester tester) => [
+      for (final tile
+          in tester.widgetList<SeriesChapterTile>(find.byType(SeriesChapterTile)))
+        tile.label.primary,
+    ];
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  /// Widens the surface so the whole detail column lays out.
+  void useTallSurface(WidgetTester tester) {
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+  }
+
   group('SeriesDetailScreen', () {
     testWidgets('renders series metadata and chapters', (tester) async {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
+      useTallSurface(tester);
 
       await tester.pumpWidget(await _buildSeriesDetailApp(_sampleSeriesDetail()));
       await tester.pumpAndSettle();
 
       expect(find.text('Solo Leveling'), findsWidgets);
-      expect(find.text('by Chugong'), findsOneWidget);
+      expect(find.text('Chugong'), findsOneWidget);
       expect(find.text('Chapter 1'), findsOneWidget);
       expect(find.text('Reading'), findsOneWidget);
       expect(find.textContaining('Favorites'), findsOneWidget);
     });
   });
 
-  group('SeriesDetailScreen Follow control', () {
-    /// Widens the surface so the whole detail column lays out; the Follow
-    /// control sits below the read CTA and would otherwise be off-screen.
-    void useTallSurface(WidgetTester tester) {
-      tester.view.physicalSize = const Size(1080, 2400);
-      tester.view.devicePixelRatio = 1.0;
-      addTearDown(tester.view.resetPhysicalSize);
-    }
+  // The two series pages had drifted into looking like different apps, which is
+  // what made tapping a chapter title in the reader feel like leaving the app.
+  // These lock the library page to the source page's shape.
+  group('SeriesDetailScreen matches the source page shape', () {
+    testWidgets('summarises the series on one line, source-page style',
+        (tester) async {
+      useTallSurface(tester);
 
+      await tester.pumpWidget(await _buildSeriesDetailApp(_sampleSeriesDetail()));
+      await tester.pumpAndSettle();
+
+      // "Latest: … · N chapters" is the source page's line; pages and read
+      // percentage are the library-only facts folded into the same line rather
+      // than scattered into a row of their own.
+      expect(
+        find.text(
+          'Latest: Chapter 2  ·  2 chapters  ·  40 pages  ·  50% read',
+        ),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('offers the same primary actions in the same order',
+        (tester) async {
+      useTallSurface(tester);
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(sourceId: 'mangadex', sourceSeriesId: 'manga-1'),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // CONTINUE (uppercased by the shared pill), then Follow, then the
+      // download pair -- the order the source page uses.
+      expect(find.byKey(const Key('read-primary')), findsOneWidget);
+      expect(find.text('CONTINUE'), findsOneWidget);
+      expect(find.byKey(const Key('follow-toggle')), findsOneWidget);
+      expect(find.byKey(const Key('download-series')), findsOneWidget);
+      expect(find.byKey(const Key('download-selected')), findsOneWidget);
+      // Favourite is the library-only extra and survives the unification.
+      expect(find.byKey(const Key('favorite-toggle')), findsOneWidget);
+    });
+
+    testWidgets('hides the download controls for a series with no source',
+        (tester) async {
+      useTallSurface(tester);
+
+      // A hand-imported CBZ folder has nothing to download from, so offering
+      // (even disabled) download buttons would be a lie.
+      await tester.pumpWidget(await _buildSeriesDetailApp(_sampleSeriesDetail()));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('download-series')), findsNothing);
+      expect(find.byKey(const Key('download-selected')), findsNothing);
+      expect(find.byKey(const Key('favorite-toggle')), findsOneWidget);
+    });
+
+    testWidgets('the Newest/Oldest toggle reorders the chapter list',
+        (tester) async {
+      useTallSurface(tester);
+
+      await tester.pumpWidget(await _buildSeriesDetailApp(_sampleSeriesDetail()));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SeriesChapterSortToggle), findsOneWidget);
+      // Newest-first is the default on both pages.
+      expect(_renderedChapterLabels(tester), ['Chapter 2', 'Chapter 1']);
+
+      await tester.tap(find.text('Oldest'));
+      await tester.pumpAndSettle();
+
+      expect(_renderedChapterLabels(tester), ['Chapter 1', 'Chapter 2']);
+    });
+
+    testWidgets('marks the last-read chapter and shows its page position',
+        (tester) async {
+      useTallSurface(tester);
+
+      await tester.pumpWidget(await _buildSeriesDetailApp(_sampleSeriesDetail()));
+      await tester.pumpAndSettle();
+
+      final current = tester
+          .widgetList<SeriesChapterTile>(find.byType(SeriesChapterTile))
+          .firstWhere((tile) => tile.isCurrent);
+      expect(current.label.primary, 'Chapter 1');
+      expect(current.progressText, '5/20 pages');
+    });
+
+    testWidgets('shows per-chapter download state for remote-only chapters',
+        (tester) async {
+      useTallSurface(tester);
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(
+            sourceId: 'mangadex',
+            sourceSeriesId: 'manga-1',
+            chapters: _mixedChapters,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // The chapter on disk cannot be queued again; the catalog-only one can.
+      final downloaded =
+          tester.widget<IconButton>(find.byKey(const Key('download-manga-1:1')));
+      expect(downloaded.onPressed, isNull);
+      final remote =
+          tester.widget<IconButton>(find.byKey(const Key('download-manga-1:2')));
+      expect(remote.onPressed, isNotNull);
+
+      // Same for selection: only what is missing can be ticked for a bulk grab.
+      final downloadedBox =
+          tester.widget<Checkbox>(find.byKey(const Key('select-manga-1:1')));
+      expect(downloadedBox.onChanged, isNull);
+      final remoteBox =
+          tester.widget<Checkbox>(find.byKey(const Key('select-manga-1:2')));
+      expect(remoteBox.onChanged, isNotNull);
+    });
+
+    testWidgets('queues a selected chapter against the source ids, not the '
+        'library id', (tester) async {
+      useTallSurface(tester);
+      final recorder = _QueueRecorder();
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(
+            sourceId: 'mangadex',
+            sourceSeriesId: 'manga-1',
+            chapters: _mixedChapters,
+          ),
+          queueRecorder: recorder,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        tester
+            .widget<OutlinedButton>(find.byKey(const Key('download-selected')))
+            .onPressed,
+        isNull,
+      );
+
+      await tester.tap(find.byKey(const Key('select-manga-1:2')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const Key('download-selected')));
+      await tester.pumpAndSettle();
+
+      expect(recorder.chapterSourceId, 'mangadex');
+      expect(recorder.chapterSeriesId, 'manga-1');
+      expect(recorder.chapterIds, ['manga-1:2']);
+    });
+
+    testWidgets('Download Series queues the whole series from its source',
+        (tester) async {
+      useTallSurface(tester);
+      final recorder = _QueueRecorder();
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(
+            sourceId: 'mangadex',
+            sourceSeriesId: 'manga-1',
+            chapters: _mixedChapters,
+          ),
+          queueRecorder: recorder,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const Key('download-series')));
+      await tester.pumpAndSettle();
+
+      expect(recorder.seriesSourceId, 'mangadex');
+      expect(recorder.seriesSeriesId, 'manga-1');
+    });
+
+    testWidgets('favourite still toggles', (tester) async {
+      useTallSurface(tester);
+
+      // The sample starts favourited; tapping has to flip the label rather than
+      // the control quietly disappearing in the reshuffle.
+      await tester.pumpWidget(await _buildSeriesDetailApp(_sampleSeriesDetail()));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Favorited'), findsOneWidget);
+      await tester.tap(find.byKey(const Key('favorite-toggle')));
+      await tester.pumpAndSettle();
+      expect(find.text('Add Favorite'), findsOneWidget);
+    });
+  });
+
+  group('SeriesDetailScreen Follow control', () {
     testWidgets('is absent for a series with no source link', (tester) async {
       useTallSurface(tester);
       final fakeUpdates = _FakeUpdatesRepository();

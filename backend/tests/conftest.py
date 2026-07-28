@@ -9,6 +9,7 @@ from sqlalchemy.pool import StaticPool
 
 from database.models import Base
 from services.download_manager import reset_download_manager_for_tests
+from services.library_service import get_page_dimension_backfill
 from services.ocr_engine import _clear_easyocr_cache
 from services.ocr_pipeline import reset_ocr_manager_for_tests
 from services.update_scheduler import reset_update_manager_for_tests
@@ -62,6 +63,25 @@ def reset_download_manager():
     reset_download_manager_for_tests(None)
     yield
     reset_download_manager_for_tests(None)
+
+
+@pytest.fixture(autouse=True)
+def disable_page_dimension_backfill():
+    """Keep the opportunistic page-dimension filler inert across the suite.
+
+    Reading a chapter enqueues its series for background measurement. The
+    worker writes through ``SessionLocal`` (the real process engine), and
+    ``_is_application_database`` already declines to enqueue from a test
+    fixture's session -- but a test that builds the app without overriding
+    ``get_db`` would slip past that guard and spawn a thread writing to the
+    developer's actual database. Off by default; the tests that exercise the
+    scheduler turn it back on for themselves."""
+    backfill = get_page_dimension_backfill()
+    backfill.reset()
+    backfill.set_enabled(False)
+    yield
+    backfill.reset()
+    backfill.set_enabled(False)
 
 
 @pytest.fixture(autouse=True)

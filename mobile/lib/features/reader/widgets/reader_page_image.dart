@@ -93,6 +93,7 @@ class ReaderPageImage extends ConsumerStatefulWidget {
     this.viewportHeight,
     this.priority = false,
     this.onLoad,
+    this.onIntrinsicSize,
     this.httpHeaders,
   });
 
@@ -113,6 +114,17 @@ class ReaderPageImage extends ConsumerStatefulWidget {
   final bool priority;
   final VoidCallback? onLoad;
 
+  /// Reports the page's real pixel dimensions the moment the decoder knows
+  /// them.
+  ///
+  /// Most sources never send page dimensions, so the list has to reserve space
+  /// for a page it has not seen. Decoding is the first and only chance to learn
+  /// the truth — and it happens before the image is painted, so a caller that
+  /// reserves extents from this never shows a mis-sized page at all. Fires at
+  /// most once. Pass ``null`` when the size is already known: it saves resolving
+  /// the image a second time.
+  final void Function(int pixelWidth, int pixelHeight)? onIntrinsicSize;
+
   /// Optional auth headers for proxied `/sources/*/pages/*/image` URLs.
   final Map<String, String>? httpHeaders;
 
@@ -122,8 +134,75 @@ class ReaderPageImage extends ConsumerStatefulWidget {
 
 class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
   int _retryToken = 0;
+  ImageStream? _sizeStream;
+  ImageStreamListener? _sizeListener;
+  bool _sizeReported = false;
 
   void _retry() => setState(() => _retryToken++);
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _listenForIntrinsicSize();
+  }
+
+  @override
+  void dispose() {
+    _detachSizeListener();
+    super.dispose();
+  }
+
+  /// Resolve the page once purely to learn its dimensions.
+  ///
+  /// Deliberately the same [ResizeImage] key the rendered page and the
+  /// prefetcher use, so this is a cache hit and never a second decode. The
+  /// downsampled bitmap keeps the source's aspect ratio, which is all the
+  /// caller wants.
+  void _listenForIntrinsicSize() {
+    if (widget.onIntrinsicSize == null || _sizeReported) return;
+    if (_sizeStream != null || widget.imageUrl.isEmpty) return;
+
+    final headers = widget.httpHeaders ??
+        apiImageHttpHeaders(ref.read(authTokenStoreProvider).token);
+    final provider = ResizeImage.resizeIfNeeded(
+      readerDecodeWidth(
+        widget.viewportWidth,
+        MediaQuery.devicePixelRatioOf(context),
+      ),
+      null,
+      CachedNetworkImageProvider(widget.imageUrl, headers: headers),
+    );
+
+    final stream = provider.resolve(createLocalImageConfiguration(context));
+    final listener = ImageStreamListener(
+      (info, _) {
+        final width = info.image.width;
+        final height = info.image.height;
+        // The completer clones the ImageInfo per listener, so this one is ours
+        // to release — holding it would pin the full bitmap for the session.
+        info.dispose();
+        _sizeReported = true;
+        _detachSizeListener();
+        widget.onIntrinsicSize?.call(width, height);
+      },
+      // A page that never loads keeps its reserved fallback extent; there is
+      // nothing better to say about its size.
+      onError: (_, __) => _detachSizeListener(),
+    );
+    // Assigned before subscribing: an already-decoded page calls the listener
+    // back synchronously from inside addListener, and the detach it triggers
+    // has to be able to see what it is detaching from.
+    _sizeStream = stream;
+    _sizeListener = listener;
+    stream.addListener(listener);
+  }
+
+  void _detachSizeListener() {
+    final listener = _sizeListener;
+    if (listener != null) _sizeStream?.removeListener(listener);
+    _sizeListener = null;
+    _sizeStream = null;
+  }
 
   Widget _placeholderBox({required Widget child}) {
     return AspectRatio(

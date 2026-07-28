@@ -1,11 +1,17 @@
 from __future__ import annotations
 
+import logging
+import time
+import zipfile
+from collections import deque
+from collections.abc import Iterable
 from core.time_utils import utcnow
 from pathlib import Path
-from threading import Lock
-from typing import Annotated
+from threading import Lock, Thread
+from typing import IO, Annotated
 
 from fastapi import Depends
+from PIL import Image
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session, joinedload
 
@@ -33,23 +39,279 @@ from database.models import (
     User,
     UserSeriesState,
 )
-from database.session import get_db
+from database.session import SessionLocal, get_db, get_engine
 from core.profile_context import ProfileContext, resolve_profile_context
 from services.import_cleanup import ImportCleanupService, normalize_folder_path
 from services.source_service import SourceService
 from utils.mobile_urls import page_image_url, series_cover_url
 from utils.path_utils import (
+    ARCHIVE_EXTENSIONS,
     natural_sort_key,
+    sorted_archive_image_members,
     validate_absolute_path,
     validate_path_under_roots,
 )
 from connectors.local_filesystem.scanner import ScanResult
 from database.models import ChapterProgress
 
+logger = logging.getLogger(__name__)
+
 
 def _chapter_sort_key(chapter: Chapter) -> tuple[float, list[int | str]]:
     number = chapter.number if chapter.number is not None else float("inf")
     return (number, natural_sort_key(chapter.title))
+
+
+# ----------------------------------------------------------------------
+# Page dimensions
+#
+# The reader lays a chapter out as one lazy list and needs an extent for
+# every page BEFORE that page's bytes arrive. With width/height null it
+# falls back to a single guessed aspect ratio for all of them
+# (mobile/lib/features/reader/utils/page_layout.dart:55-62), so each image
+# that finishes loading resizes its slot and shoves everything below it --
+# which reads, mid-scroll, as the reader randomly throwing you backwards.
+# Recording the real dimensions is what makes the estimate exact and the
+# scroll position stable.
+# ----------------------------------------------------------------------
+
+# Only the header is read, never the pixels: Image.open() parses enough of
+# the stream to answer .size and stops. A 100 KB JPEG costs ~0.2 ms and a
+# few KB of IO, which is why measuring a whole chapter at scan time is
+# affordable at all -- decoding it would not be.
+def _dimensions_of(source: Path | IO[bytes]) -> tuple[int, int] | None:
+    """``(width, height)`` for a path or open file object, else ``None``.
+
+    Every failure is ``None``, never an exception: a truncated, empty,
+    mis-named, unreadable or absurdly large page must not abort the scan
+    that found it. Null columns simply mean "unknown" and the client
+    already falls back to its default ratio for them, so the worst case of
+    a bad file is today's behaviour for that one page.
+    """
+    try:
+        with Image.open(source) as image:
+            width, height = image.size
+    except Exception:  # noqa: BLE001 - unreadable page must not fail the scan
+        return None
+    if not width or not height or width <= 0 or height <= 0:
+        return None
+    return int(width), int(height)
+
+
+def measure_pages(entries: Iterable[tuple[int, str]]) -> dict[int, tuple[int, int]]:
+    """Map ``page number -> (width, height)`` for ``(number, file_path)`` pairs.
+
+    Takes exactly what a ``Page`` row carries, so the same function serves
+    both the scanner (which is minting those rows) and the backfill (which
+    is repairing them) and the two can never disagree.
+
+    Archive pages are the reason this is batched rather than per-page. For a
+    .cbz every page shares one ``file_path`` -- the archive -- and the member
+    that *is* page N is derived positionally. Grouping by archive means one
+    open and one ``sorted_archive_image_members`` call per chapter instead of
+    per page, and it forces the measurement through the same shared helper
+    ImageService.resolve_page_file serves bytes with, so the dimensions
+    reported for page N always describe the image page N actually renders.
+
+    Pages that cannot be measured are simply absent from the result.
+    """
+    sizes: dict[int, tuple[int, int]] = {}
+    archives: dict[str, list[int]] = {}
+
+    for number, file_path in entries:
+        if not file_path:
+            continue
+        if Path(file_path).suffix.lower() in ARCHIVE_EXTENSIONS:
+            archives.setdefault(file_path, []).append(number)
+            continue
+        dimensions = _dimensions_of(Path(file_path))
+        if dimensions is not None:
+            sizes[number] = dimensions
+
+    for archive_path, numbers in archives.items():
+        try:
+            with zipfile.ZipFile(archive_path, "r") as archive:
+                members = sorted_archive_image_members(archive.namelist())
+                for number in numbers:
+                    if not 1 <= number <= len(members):
+                        continue
+                    try:
+                        with archive.open(members[number - 1]) as stream:
+                            dimensions = _dimensions_of(stream)
+                    except Exception:  # noqa: BLE001 - bad member, keep going
+                        dimensions = None
+                    if dimensions is not None:
+                        sizes[number] = dimensions
+        except Exception:  # noqa: BLE001 - unreadable archive leaves nulls
+            logger.debug("Could not read archive for page sizes", exc_info=True)
+            continue
+
+    return sizes
+
+
+def fill_chapter_page_dimensions(db: Session, chapter_id: int) -> int:
+    """Measure and store dimensions for one chapter's unmeasured pages.
+
+    Returns how many rows were filled. Commits, so hand it a session it owns
+    -- it is the unit of work the background backfill runs one chapter at a
+    time, sized so an interrupted sweep leaves whole chapters done rather
+    than a chapter half done.
+    """
+    rows = (
+        db.query(Page)
+        .filter(
+            Page.chapter_id == chapter_id,
+            or_(Page.width.is_(None), Page.height.is_(None)),
+        )
+        .all()
+    )
+    if not rows:
+        return 0
+
+    sizes = measure_pages((row.number, row.file_path) for row in rows)
+    filled = 0
+    for row in rows:
+        dimensions = sizes.get(row.number)
+        if dimensions is None:
+            continue
+        row.width, row.height = dimensions
+        filled += 1
+    if filled:
+        db.commit()
+    return filled
+
+
+# Pause between chapters so a several-hundred-chapter sweep stays background
+# noise against the reader's own image requests rather than competing with
+# them for the disk.
+_BACKFILL_CHAPTER_PAUSE_SECONDS = 0.05
+# Cap on remembered chapter ids; a library this large has long since been
+# swept, and forgetting simply allows a later re-attempt.
+_BACKFILL_SEEN_LIMIT = 100_000
+
+
+class PageDimensionBackfill:
+    """Fills dimensions for chapters that were indexed before they were recorded.
+
+    Why a background worker and not a migration: the only way to learn a
+    page's size is to open the file, and a library holds hundreds of
+    thousands of them. Doing that inside an Alembic revision would put an
+    unbounded, uninterruptible filesystem walk in front of every app start
+    (``run_alembic_migrations`` is called synchronously from ``init_db``),
+    and doing it inside ``get_chapter`` would put it in front of every page
+    turn. Neither is acceptable, so the request only ever *names* work here
+    and returns; a single daemon thread does it afterwards.
+
+    Why it is driven off reads rather than swept blindly: what the owner is
+    reading now is what has to be right now. Opening a chapter enqueues that
+    chapter first and then the rest of its series in reading order, so by
+    the time they reach chapter 2 the whole series is measured. Only the
+    very first chapter opened after an upgrade lays out on the old guess.
+
+    One worker, not a pool: this is IO against the same disk the reader is
+    pulling images from, and finishing one chapter early beats starting ten.
+    """
+
+    def __init__(self) -> None:
+        self._lock = Lock()
+        self._pending: deque[int] = deque()
+        self._seen: set[int] = set()
+        self._thread: Thread | None = None
+        self._enabled = True
+
+    def set_enabled(self, enabled: bool) -> None:
+        with self._lock:
+            self._enabled = enabled
+
+    def reset(self) -> None:
+        """Drop queued and remembered work; leaves enabled/disabled untouched.
+        A worker mid-chapter finishes it, then finds an empty queue and exits."""
+        with self._lock:
+            self._pending.clear()
+            self._seen.clear()
+
+    def schedule(self, chapter_ids: Iterable[int]) -> None:
+        """Queue chapters, in the order given, skipping ones already attempted."""
+        with self._lock:
+            if not self._enabled:
+                return
+            if len(self._seen) > _BACKFILL_SEEN_LIMIT:
+                self._seen.clear()
+            for chapter_id in chapter_ids:
+                if chapter_id in self._seen:
+                    continue
+                self._seen.add(chapter_id)
+                self._pending.append(chapter_id)
+            if not self._pending or self._thread is not None:
+                return
+            # Daemon: this is opportunistic repair, never a reason to hold a
+            # shutdown open.
+            self._thread = Thread(
+                target=self._run,
+                name="page-dimension-backfill",
+                daemon=True,
+            )
+            self._thread.start()
+
+    def _next(self) -> int | None:
+        with self._lock:
+            if not self._pending or not self._enabled:
+                # Clearing the handle inside the same lock that starts a
+                # thread is what keeps "worker running" single-valued: a
+                # schedule() racing this either sees a live thread or gets to
+                # start the next one, never both and never neither.
+                self._thread = None
+                return None
+            return self._pending.popleft()
+
+    def _run(self) -> None:
+        while True:
+            chapter_id = self._next()
+            if chapter_id is None:
+                return
+            db = SessionLocal()
+            try:
+                filled = fill_chapter_page_dimensions(db, chapter_id)
+                if filled:
+                    logger.info(
+                        "Backfilled dimensions for %d page(s) of chapter %s",
+                        filled,
+                        chapter_id,
+                    )
+            except Exception:  # noqa: BLE001 - one bad chapter must not end the sweep
+                db.rollback()
+                logger.warning(
+                    "Page dimension backfill failed for chapter %s",
+                    chapter_id,
+                    exc_info=True,
+                )
+            finally:
+                db.close()
+            time.sleep(_BACKFILL_CHAPTER_PAUSE_SECONDS)
+
+
+_page_dimension_backfill = PageDimensionBackfill()
+
+
+def get_page_dimension_backfill() -> PageDimensionBackfill:
+    """The process-wide filler. Exposed so the test suite can hold it inert."""
+    return _page_dimension_backfill
+
+
+def _is_application_database(db: Session) -> bool:
+    """True when *db* talks to the database the backfill worker writes through.
+
+    The worker opens its own ``SessionLocal``, which is bound to the process
+    engine. A LibraryService can legitimately be handed some other session --
+    a test fixture's throwaway SQLite file, a restore probe -- and enqueueing
+    from one of those would have the worker "repair" chapter ids that mean
+    something entirely different in the application database. So the request
+    only schedules work when the two are the same database.
+    """
+    try:
+        return db.get_bind() is get_engine()
+    except Exception:  # noqa: BLE001 - unbound/partitioned session: don't schedule
+        return False
 
 
 class ScanStatus:
@@ -470,6 +732,7 @@ class LibraryService:
                     key = normalize_folder_path(chapter_data.folder_path)
                 seen_keys.add(key)
                 chapter = existing_chapters.get(key)
+                known_sizes: dict[tuple[int, str], tuple[int, int]] = {}
                 if not chapter:
                     chapter = Chapter(
                         series_id=series.id,
@@ -488,6 +751,7 @@ class LibraryService:
                     chapter.number = chapter_data.number
                     chapter.sort_key = self._compute_sort_key(chapter_data.number)
                     chapter.scanned_at = utcnow()
+                    known_sizes = self._known_page_dimensions(chapter.id)
                     self._clear_chapter_page_data(chapter.id)
 
                 chapter.page_count = len(chapter_data.pages)
@@ -499,11 +763,36 @@ class LibraryService:
                 ):
                     series.cover_path = chapter_data.pages[0].file_path
 
+                # Measured here, while the files are already being walked, so
+                # every page reaches the reader with a real aspect ratio and
+                # the lazy list never has to guess. Header reads only (see
+                # measure_pages); anything unreadable is left null rather than
+                # aborting the import of an otherwise fine chapter.
+                #
+                # Only pages this scan has never sized are opened. A completed
+                # download re-persists EVERY chapter of the series it landed in
+                # (the else-branch above drops and re-inserts their pages), so
+                # measuring unconditionally would re-open the whole series' pages
+                # once per downloaded chapter -- quadratic file IO across a
+                # multi-chapter download, and painful on network storage. A page
+                # keyed by the same (number, file_path) is the same image, and
+                # even a file re-encoded in place keeps its aspect ratio, which
+                # is the only thing the client derives from these two numbers.
+                page_sizes = measure_pages(
+                    (page_data.number, page_data.file_path)
+                    for page_data in chapter_data.pages
+                    if (page_data.number, page_data.file_path) not in known_sizes
+                )
                 for page_data in chapter_data.pages:
+                    dimensions = known_sizes.get(
+                        (page_data.number, page_data.file_path)
+                    ) or page_sizes.get(page_data.number)
                     page = Page(
                         chapter_id=chapter.id,
                         number=page_data.number,
                         file_path=page_data.file_path,
+                        width=dimensions[0] if dimensions else None,
+                        height=dimensions[1] if dimensions else None,
                     )
                     self._db.add(page)
                 # Flush this chapter's new pages now, right after its old ones
@@ -868,6 +1157,8 @@ class LibraryService:
                 details={"chapter_id": chapter_id},
             )
         pages = sorted(chapter.pages, key=lambda page: page.number)
+        if any(page.width is None or page.height is None for page in pages):
+            self._schedule_dimension_backfill(chapter)
         ocr_map = self._get_ocr_status_for_chapters([chapter.id])
         return {
             "id": chapter.id,
@@ -904,6 +1195,38 @@ class LibraryService:
                 for page in pages
             ],
         }
+
+    def _schedule_dimension_backfill(self, chapter: Chapter) -> None:
+        """Hand a chapter (and the rest of its series) to the background filler.
+
+        Called only after ``get_chapter`` has already applied the object-level
+        gate and the 18+ filter, and only ever with chapters of the series the
+        caller just proved they may read -- so this widens nothing. Nothing is
+        returned to the caller and no file is touched on this thread: the whole
+        method is one indexed query and an append under a lock.
+
+        The rest of the series is enqueued because a reader moves forward. Only
+        the chapter open that discovers the gap can be laid out on the old
+        guess; by the time they hit "next", the pages it needs are measured.
+        """
+        if not _is_application_database(self._db):
+            return
+        siblings = (
+            self._db.query(Chapter.id, Chapter.number)
+            .filter(
+                Chapter.series_id == chapter.series_id,
+                Chapter.id != chapter.id,
+            )
+            .order_by(Chapter.number.asc().nullslast(), Chapter.id.asc())
+            .all()
+        )
+        current = chapter.number
+        ahead: list[int] = []
+        behind: list[int] = []
+        for sibling_id, number in siblings:
+            is_ahead = current is None or (number is not None and number > current)
+            (ahead if is_ahead else behind).append(sibling_id)
+        _page_dimension_backfill.schedule([chapter.id, *ahead, *behind])
 
     def set_in_library(self, series_id: int, in_library: bool) -> dict[str, object]:
         """Add / remove a catalog series for *this* (user, profile).
@@ -1019,6 +1342,27 @@ class LibraryService:
             }
             for library in libraries
         ]
+
+    def _known_page_dimensions(
+        self, chapter_id: int
+    ) -> dict[tuple[int, str], tuple[int, int]]:
+        """Already-recorded sizes for a chapter, keyed by ``(number, file_path)``.
+
+        Read immediately before ``_clear_chapter_page_data`` wipes the rows, so a
+        rescan can carry forward what it already knows instead of re-opening
+        every file. Half-recorded rows are excluded, which keeps null the single
+        meaning of "unmeasured" (see the a1f4c8b27d63 migration).
+        """
+        rows = (
+            self._db.query(Page.number, Page.file_path, Page.width, Page.height)
+            .filter(
+                Page.chapter_id == chapter_id,
+                Page.width.isnot(None),
+                Page.height.isnot(None),
+            )
+            .all()
+        )
+        return {(number, path): (width, height) for number, path, width, height in rows}
 
     def _clear_chapter_page_data(self, chapter_id: int) -> None:
         """Remove page rows and dependent OCR text before a chapter rescan."""

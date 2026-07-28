@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
+import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
@@ -14,9 +15,11 @@ import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dar
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
+import 'package:manhwamaniacs/features/reader/utils/page_extents.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_display_mode.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_scroll_controller.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
 import 'package:manhwamaniacs/features/reader/utils/scroll_storage.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_controls.dart';
@@ -38,6 +41,10 @@ const _postScrollCooldownMs = 300;
 
 /// Max gap between two taps to register a double-tap (zoom toggle).
 const _doubleTapMs = 280;
+
+/// Frames a deferred scroll-restore is allowed to home in for before it settles
+/// wherever it has got to. See [_ReaderContentState._attemptRestoreJump].
+const _maxRestoreFrames = 30;
 
 /// Longest frame delta auto-scroll will honour. Beyond this (a stall, GC pause
 /// or the app returning from the background) we fall back to a single 60 fps
@@ -76,6 +83,7 @@ class ReaderContent extends ConsumerStatefulWidget {
     this.onAddBookmark,
     this.onPreviousChapter,
     this.onNextChapter,
+    this.pageExtents,
   });
 
   final ReaderChapter chapter;
@@ -104,12 +112,21 @@ class ReaderContent extends ConsumerStatefulWidget {
   final VoidCallback? onPreviousChapter;
   final VoidCallback? onNextChapter;
 
+  /// Page geometry for this chapter. The reader owns one per session when this
+  /// is omitted; supplying it lets a test resolve a page's real size without a
+  /// decoding image, which is otherwise unreachable from outside.
+  final ReaderPageExtents? pageExtents;
+
   @override
   ConsumerState<ReaderContent> createState() => _ReaderContentState();
 }
 
 class _ReaderContentState extends ConsumerState<ReaderContent> {
-  late final ScrollController _scrollController;
+  late final ReaderScrollController _scrollController;
+  late final ReaderPageExtents _pageExtents;
+  late final bool _ownsPageExtents;
+  ReaderPageMetrics? _cachedMetrics;
+  var _extentCommitScheduled = false;
   SharedPreferences? _prefs;
   ReaderWakelock? _wakelock;
   ReaderDisplayMode? _displayMode;
@@ -122,7 +139,6 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   Timer? _hideControlsTimer;
 
   // Scroll-driven state — ValueNotifiers avoid any rebuild on scroll
-  final _scrollProgressNotifier = ValueNotifier<int>(0);
   final _visiblePageNotifier = ValueNotifier<int>(1);
   final _atStartNotifier = ValueNotifier<bool>(false);
   final _atEndNotifier = ValueNotifier<bool>(false);
@@ -146,6 +162,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   // the meantime so a clamped-short interim offset never overwrites the saved one.
   double? _pendingRestoreOffset;
   double _lastRestoreMaxExtent = -1;
+  var _restoreFrames = 0;
   var _autoNextTriggered = false;
   var _wakelockEnabled = false;
   var _lockInitialized = false;
@@ -177,7 +194,10 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     super.initState();
     _visiblePageNotifier.value =
         widget.initialPage.clamp(1, widget.chapter.pages.length);
-    _scrollController = ScrollController()..addListener(_handleScroll);
+    _ownsPageExtents = widget.pageExtents == null;
+    _pageExtents = widget.pageExtents ?? ReaderPageExtents(widget.chapter.pages);
+    _pageExtents.addListener(_handleExtentSubmission);
+    _scrollController = ReaderScrollController()..addListener(_handleScroll);
     unawaited(tuneReaderImageCache(ref.read(nativeBridgeProvider)));
     unawaited(applyReadingSystemUiMode());
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -225,7 +245,8 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       );
     }
     _scrollController.dispose();
-    _scrollProgressNotifier.dispose();
+    _pageExtents.removeListener(_handleExtentSubmission);
+    if (_ownsPageExtents) _pageExtents.dispose();
     _visiblePageNotifier.dispose();
     _atStartNotifier.dispose();
     _atEndNotifier.dispose();
@@ -303,29 +324,34 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     unawaited(_displayMode?.apply(rate));
   }
 
+  /// Page geometry for the current layout. Rebuilt on every [build] (viewport,
+  /// zoom, direction and fit all feed it) and thrown away whenever a page's real
+  /// size lands, so nothing ever reads a stale extent.
+  ReaderPageMetrics get _metrics => _cachedMetrics ??= _buildMetrics();
+
+  ReaderPageMetrics _buildMetrics() {
+    final defaults = _defaults;
+    return ReaderPageMetrics.of(
+      _pageExtents,
+      direction: defaults.direction,
+      fitMode: defaults.fitMode,
+      viewportWidth: _containerWidth ?? MediaQuery.sizeOf(context).width,
+      viewportHeight: _containerHeight ?? MediaQuery.sizeOf(context).height,
+      zoom: ref.read(readerUiProvider).zoomLevel,
+    );
+  }
+
   void _restoreInitialScroll() {
     if (_initialScrollApplied || !_scrollController.hasClients) return;
 
     final prefs = _resolvedPrefs();
-    final zoom = ref.read(readerUiProvider).zoomLevel;
-    final defaults = _defaults;
-    final width = _containerWidth ?? MediaQuery.sizeOf(context).width;
-    final height = _containerHeight ?? MediaQuery.sizeOf(context).height;
     final savedScroll = readReaderScrollPositionByKey(prefs, _scrollKey);
     final targetPage = widget.initialPage.clamp(1, widget.chapter.pages.length);
-    final estimatedOffset = estimateScrollOffsetToPage(
-      widget.chapter.pages,
-      targetPage,
-      width,
-      zoom,
-      scrollAxis: defaults.direction.scrollAxis,
-      crossAxisSize: defaults.direction.isVertical ? width : height,
-    );
     final initialOffset = resolveInitialScrollTop(
       savedScroll: savedScroll,
       initialPage: targetPage,
       pageCount: widget.chapter.pages.length,
-      estimatedOffsetToPage: estimatedOffset,
+      estimatedOffsetToPage: _metrics.offsetToPage(targetPage),
     );
 
     if (initialOffset <= 0) {
@@ -339,7 +365,19 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     // forward frame by frame until it can land exactly on [initialOffset].
     _pendingRestoreOffset = initialOffset;
     _lastRestoreMaxExtent = -1;
+    _restoreFrames = 0;
     _attemptRestoreJump();
+  }
+
+  /// Give up on a restore that is still homing in.
+  ///
+  /// Marks the restore as applied so scroll saves resume; leaving
+  /// [_pendingRestoreOffset] set would silently stop the reader ever persisting
+  /// a position again for this chapter.
+  void _abandonPendingRestore() {
+    if (_pendingRestoreOffset == null) return;
+    _pendingRestoreOffset = null;
+    _initialScrollApplied = true;
   }
 
   /// Drive the deferred scroll-restore. Called once per frame while a restore is
@@ -351,13 +389,23 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// saves resume, so a clamped-short interim offset can never be persisted.
   void _attemptRestoreJump() {
     final target = _pendingRestoreOffset;
-    if (target == null || !mounted || !_scrollController.hasClients) return;
+    if (target == null) return;
+    if (!mounted || !_scrollController.hasClients) {
+      _abandonPendingRestore();
+      return;
+    }
 
     final maxExtent = _scrollController.position.maxScrollExtent;
     final reachedTarget = maxExtent >= target;
     final stoppedGrowing = maxExtent <= _lastRestoreMaxExtent;
+    // The list reports the chapter's true extent from the first frame now, so a
+    // restore lands on its first attempt. The budget is the backstop for a list
+    // whose extent keeps creeping — without it a homing loop of jumpTo can run
+    // for as long as pages keep resolving, and every frame of that loop drags
+    // the reader back to where they left off while they are trying to read.
+    final outOfFrames = ++_restoreFrames >= _maxRestoreFrames;
 
-    if (reachedTarget || stoppedGrowing) {
+    if (reachedTarget || stoppedGrowing || outOfFrames) {
       _scrollController.jumpTo(target.clamp(0.0, maxExtent));
       _pendingRestoreOffset = null;
       _initialScrollApplied = true;
@@ -372,6 +420,68 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     WidgetsBinding.instance.addPostFrameCallback((_) => _attemptRestoreJump());
   }
 
+  // ── Page extents ──────────────────────────────────────────────────────────
+
+  /// A page has reported its real size. Fold it in when it is safe to touch the
+  /// scroll position — never during build or layout, where a correction would
+  /// assert.
+  void _handleExtentSubmission() {
+    if (!mounted || _extentCommitScheduled) return;
+    if (_pageExtents.pendingRatios.isEmpty) return;
+    _extentCommitScheduled = true;
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      _commitPageExtents();
+    } else {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _commitPageExtents());
+    }
+  }
+
+  /// Apply measured page sizes and undo the shove they give the pages below.
+  ///
+  /// Both halves land before the next layout, so the list is never laid out with
+  /// the new extents and the old offset — that in-between state *is* the jump
+  /// the reader sees. Corrections are computed against the pre-commit geometry
+  /// for every pending page at once: a page growing above the viewport moves the
+  /// pages after it and the viewport itself by the same amount, so their
+  /// relative positions stay valid across the batch.
+  void _commitPageExtents() {
+    _extentCommitScheduled = false;
+    if (!mounted || _pageExtents.pendingRatios.isEmpty) return;
+
+    final pending = Map<int, double>.of(_pageExtents.pendingRatios);
+    final metrics = _metrics;
+    final hasClients = _scrollController.hasClients;
+    final scrollOffset =
+        hasClients ? _scrollController.position.pixels : 0.0;
+
+    var correction = 0.0;
+    if (hasClients) {
+      for (final index in pending.keys.toList()..sort()) {
+        correction += scrollCorrectionForExtentChange(
+          pageStart: metrics.offsetToPage(index + 1),
+          oldExtent: metrics.extentAt(index),
+          newExtent: metrics.extentForRatio(pending[index]!),
+          scrollOffset: scrollOffset,
+        );
+      }
+    }
+
+    setState(() {
+      _pageExtents.commitPending();
+      _cachedMetrics = null;
+    });
+    _scrollController.applyExtentCorrection(correction);
+
+    // Deferred: maxScrollExtent still describes the old geometry until the
+    // frame this setState schedules has laid out, and reading edge state off it
+    // now could spuriously report the end of the chapter.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) _handleScroll();
+    });
+  }
+
   void _handleScroll() {
     if (!_scrollController.hasClients) return;
 
@@ -380,8 +490,6 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     final maxScroll = position.maxScrollExtent;
     final scrollOffset = position.pixels;
     final viewport = position.viewportDimension;
-    final progress =
-        maxScroll > 0 ? ((scrollOffset / maxScroll) * 100).round() : 100;
     final atStart = isAtReadingStart(
       scrollOffset: scrollOffset,
       viewport: viewport,
@@ -395,20 +503,11 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       direction: defaults.direction,
     );
 
-    final width = _containerWidth ?? MediaQuery.sizeOf(context).width;
-    final height = _containerHeight ?? MediaQuery.sizeOf(context).height;
-    final zoom = ref.read(readerUiProvider).zoomLevel;
-    final page = resolveVisiblePage(
-      widget.chapter.pages,
-      scrollOffset,
-      width,
-      zoom,
-      scrollAxis: defaults.direction.scrollAxis,
-      crossAxisSize: defaults.direction.isVertical ? width : height,
-    );
+    // Derived from the same extents the list is laid out with, so the counter,
+    // the scrubber and the pages can never drift apart.
+    final page = _metrics.pageAtOffset(scrollOffset);
 
     // Update ValueNotifiers — no setState, no rebuild
-    _scrollProgressNotifier.value = progress;
     _visiblePageNotifier.value = page;
 
     // Push edge-state via ValueNotifier — zero setState, zero page-list rebuild
@@ -666,6 +765,25 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     }
   }
 
+  /// Jump to the start of [page].
+  ///
+  /// Resolved through the same [ReaderPageMetrics] the list is laid out from, so
+  /// the scrubber lands exactly where the page counter says it will — a second
+  /// estimator here would put the two a page apart on any chapter whose sizes
+  /// are not all known yet.
+  void _seekToPage(int page) {
+    if (!_scrollController.hasClients) return;
+    // A restore still homing in would drag the reader straight back off the
+    // page they just asked for.
+    _abandonPendingRestore();
+    final position = _scrollController.position;
+    final target = _metrics.offsetToPage(page);
+    _scrollController.jumpTo(target.clamp(0.0, position.maxScrollExtent));
+    // Scrubbing is deliberate interaction with the controls, so keep them up
+    // instead of letting the auto-hide close the bar mid-drag.
+    _scheduleHideControls();
+  }
+
   /// Animate one viewport (~85%) forward or backward along the reading axis.
   void _pageBy({required bool forward}) {
     if (!_scrollController.hasClients) return;
@@ -685,6 +803,9 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     if (notification is ScrollStartNotification &&
         notification.dragDetails != null) {
       _isScrolling = true;
+      // The reader has taken over. Abandon a restore that is still homing in
+      // rather than yanking them back to the saved offset mid-drag.
+      _abandonPendingRestore();
       // Hide controls when the user starts dragging
       if (ref.read(readerUiProvider).controlsVisible) {
         _hideControls();
@@ -760,6 +881,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
   Widget _buildPageItem({
     required int index,
+    required ReaderPageMetrics metrics,
     required ReaderDefaults defaults,
     required double zoom,
     required double viewportWidth,
@@ -768,17 +890,15 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   }) {
     final page = widget.chapter.pages[index];
     final pageNumber = index + 1;
-    final aspectRatio = pageAspectRatio(page);
     final direction = defaults.direction;
     final fitMode = defaults.fitMode;
     final contentWidthFactor = zoom == 1 ? 1.0 : zoom;
     final maxWidth = zoom <= 1 ? maxContentWidth : double.infinity;
-    final crossAxisSize = direction.isVertical ? viewportWidth : viewportHeight;
 
     final pageImage = ReaderPageImage(
       imageUrl: page.imageUrl,
       alt: '${widget.chapter.title} page $pageNumber',
-      aspectRatio: aspectRatio,
+      aspectRatio: metrics.ratioAt(index),
       fitMode: fitMode,
       backgroundColor: backgroundColor,
       layoutAxis: direction.scrollAxis,
@@ -786,23 +906,30 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       viewportHeight: viewportHeight,
       priority: index < 2,
       onLoad: _handleScroll,
+      // Already-known sizes need no second resolve.
+      onIntrinsicSize: _pageExtents.isResolved(index)
+          ? null
+          : (pixelWidth, pixelHeight) => _pageExtents.submitMeasuredSize(
+                index,
+                pixelWidth: pixelWidth,
+                pixelHeight: pixelHeight,
+              ),
     );
 
+    // The list forces each item to the extent [metrics] reserved for it, so the
+    // clip only ever matters in the single frame between a page decoding at a
+    // size nobody predicted and that size being folded into the layout.
     if (direction.isHorizontal) {
-      final pageWidth = estimatePageExtent(
-        page,
-        crossAxisSize,
-        zoom,
-        Axis.horizontal,
-      );
       return RepaintBoundary(
-        child: Padding(
-          padding: const EdgeInsets.only(right: AppSpacing.xs),
-          child: Align(
-            child: SizedBox(
-              height: crossAxisSize,
-              width: pageWidth * contentWidthFactor,
-              child: pageImage,
+        child: ClipRect(
+          child: Padding(
+            padding: const EdgeInsets.only(right: readerPagedGap),
+            child: Align(
+              child: SizedBox(
+                height: viewportHeight,
+                width: metrics.extentAt(index) - readerPagedGap,
+                child: pageImage,
+              ),
             ),
           ),
         ),
@@ -812,13 +939,19 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     // Vertical (webtoon) mode: no inter-page padding so pages sit flush
     // edge-to-edge. Any earlier gap rendered the backdrop as a seam between
     // pages; letterboxing now uses the backdrop colour inside the page itself.
+    // Top-aligned, so a page that turns out taller than reserved grows
+    // downward instead of creeping out of both ends of its slot.
     return RepaintBoundary(
-      child: Align(
-        child: ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: maxWidth),
-          child: FractionallySizedBox(
-            widthFactor: contentWidthFactor,
-            child: pageImage,
+      child: ClipRect(
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: maxWidth),
+            child: FractionallySizedBox(
+              alignment: Alignment.topCenter,
+              widthFactor: contentWidthFactor,
+              child: pageImage,
+            ),
           ),
         ),
       ),
@@ -890,15 +1023,46 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _containerHeight = mediaSize.height;
 
     final direction = defaults.direction;
-    final listPadding = direction.isVertical
-        ? const EdgeInsets.only(top: AppSpacing.lg, bottom: 120)
-        : const EdgeInsets.only(left: AppSpacing.lg, right: 120);
+    // Leading padding is always [readerListLeadingPadding] in *scroll* terms —
+    // which for a right-to-left chapter is the right-hand side, because the list
+    // is reversed. Getting this the wrong way round would offset every page
+    // jump by the difference between the two.
+    final listPadding = switch (direction) {
+      ReadingDirection.vertical => const EdgeInsets.only(
+          top: readerListLeadingPadding,
+          bottom: readerListTrailingPadding,
+        ),
+      ReadingDirection.leftToRight => const EdgeInsets.only(
+          left: readerListLeadingPadding,
+          right: readerListTrailingPadding,
+        ),
+      ReadingDirection.rightToLeft => const EdgeInsets.only(
+          right: readerListLeadingPadding,
+          left: readerListTrailingPadding,
+        ),
+    };
+
+    final metrics = _cachedMetrics = ReaderPageMetrics.of(
+      _pageExtents,
+      direction: direction,
+      fitMode: defaults.fitMode,
+      viewportWidth: mediaSize.width,
+      viewportHeight: mediaSize.height,
+      zoom: zoomLevel,
+    );
+    final pageCount = widget.chapter.pages.length;
 
     // Page list — wrapped in RepaintBoundary so overlay repaints (controls,
     // indicators) never propagate into the image tiles. Optionally wrapped in
     // a single ColorFiltered layer for sepia/grayscale tone.
+    //
+    // Every item is forced to the extent [metrics] reserved for it rather than
+    // being measured after the fact. That is what makes a page's height a
+    // decision instead of a surprise: a page whose image has not arrived still
+    // occupies exactly the space it will occupy once it has, and the offsets a
+    // page jump resolves to are the offsets the list actually uses.
     Widget pageList = RepaintBoundary(
-      child: ListView.builder(
+      child: ListView.custom(
         key: ValueKey(
           'reader-list-${direction.name}-${defaults.fitMode.name}',
         ),
@@ -910,15 +1074,24 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
         // they scroll into view — smoother fast scrolls, lower latency (we
         // prioritise this over memory footprint).
         scrollCacheExtent: const ScrollCacheExtent.pixels(6000),
-        addRepaintBoundaries: false, // handled per-item below
-        itemCount: widget.chapter.pages.length,
-        itemBuilder: (context, index) => _buildPageItem(
-          index: index,
-          defaults: defaults,
-          zoom: zoomLevel,
-          viewportWidth: mediaSize.width,
-          viewportHeight: mediaSize.height,
-          backgroundColor: readerBackground.color,
+        // ListView.builder derives this from its item count; the .custom
+        // constructor does not, and without it a screen reader loses the
+        // "page N of M" framing for the list.
+        semanticChildCount: pageCount,
+        itemExtentBuilder: (index, _) =>
+            index < 0 || index >= pageCount ? null : metrics.extentAt(index),
+        childrenDelegate: _ReaderPageDelegate(
+          childCount: pageCount,
+          totalExtent: metrics.totalPagesExtent,
+          builder: (context, index) => _buildPageItem(
+            index: index,
+            metrics: metrics,
+            defaults: defaults,
+            zoom: zoomLevel,
+            viewportWidth: mediaSize.width,
+            viewportHeight: mediaSize.height,
+            backgroundColor: readerBackground.color,
+          ),
         ),
       ),
     );
@@ -981,11 +1154,11 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
                   hasNext: hasNext,
                   atStartNotifier: _atStartNotifier,
                   atEndNotifier: _atEndNotifier,
-                  scrollProgressNotifier: _scrollProgressNotifier,
                   visiblePageNotifier: _visiblePageNotifier,
                   onBack: widget.onBack,
                   onOpenSeries: widget.onOpenSeries,
                   onMoreOptions: _showMoreOptions,
+                  onSeekToPage: _seekToPage,
                   onPreviousChapter: onPreviousChapter,
                   onNextChapter: onNextChapter,
                   showBookmark: widget.showBookmark,
@@ -1002,6 +1175,37 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   }
 }
 
+/// Page delegate that reports the chapter's exact total extent.
+///
+/// Left to itself a lazy list extrapolates its scrollable range from the average
+/// height of the handful of children it happens to have laid out, so
+/// `maxScrollExtent` — and therefore where a page jump or the scrub rail lands —
+/// keeps moving as you read. Every page's extent is already known here, so hand
+/// over the real sum and the range stops drifting.
+class _ReaderPageDelegate extends SliverChildBuilderDelegate {
+  _ReaderPageDelegate({
+    required NullableIndexedWidgetBuilder builder,
+    required int childCount,
+    required this.totalExtent,
+  }) : super(
+          builder,
+          childCount: childCount,
+          // Each page carries its own RepaintBoundary already.
+          addRepaintBoundaries: false,
+        );
+
+  final double totalExtent;
+
+  @override
+  double? estimateMaxScrollOffset(
+    int firstIndex,
+    int lastIndex,
+    double leadingScrollOffset,
+    double trailingScrollOffset,
+  ) =>
+      totalExtent;
+}
+
 // ── Controls overlay (separated so readerUiProvider rebuilds don't hit the list)
 
 class _ReaderControlsLayer extends ConsumerWidget {
@@ -1012,11 +1216,11 @@ class _ReaderControlsLayer extends ConsumerWidget {
     required this.hasNext,
     required this.atStartNotifier,
     required this.atEndNotifier,
-    required this.scrollProgressNotifier,
     required this.visiblePageNotifier,
     required this.onBack,
     required this.onOpenSeries,
     required this.onMoreOptions,
+    required this.onSeekToPage,
     required this.showBookmark,
     this.onBookmark,
     this.onPreviousChapter,
@@ -1029,11 +1233,11 @@ class _ReaderControlsLayer extends ConsumerWidget {
   final bool hasNext;
   final ValueNotifier<bool> atStartNotifier;
   final ValueNotifier<bool> atEndNotifier;
-  final ValueNotifier<int> scrollProgressNotifier;
   final ValueNotifier<int> visiblePageNotifier;
   final VoidCallback onBack;
   final VoidCallback onOpenSeries;
   final VoidCallback onMoreOptions;
+  final ValueChanged<int> onSeekToPage;
   final bool showBookmark;
   final VoidCallback? onBookmark;
   final VoidCallback? onPreviousChapter;
@@ -1088,15 +1292,9 @@ class _ReaderControlsLayer extends ConsumerWidget {
             );
           },
         ),
-        // Minimal page indicator (visible when controls are hidden)
-        ValueListenableBuilder<int>(
-          valueListenable: visiblePageNotifier,
-          builder: (_, page, __) => ReaderPageIndicator(
-            visiblePage: page,
-            pageCount: pageCount,
-            visible: ui.controlsVisible,
-          ),
-        ),
+        // Nothing is drawn over the reading area itself: the page counter that
+        // used to float there sat on top of the artwork every time the controls
+        // hid, which is exactly when the reader is looking at the page.
         // Top bar — back (top-left), title (opens the series), bookmark, settings.
         Align(
           alignment: Alignment.topCenter,
@@ -1112,26 +1310,24 @@ class _ReaderControlsLayer extends ConsumerWidget {
             ),
           ),
         ),
-        // Bottom bar — prev/next chapter, progress, page indicator.
+        // Bottom bar — prev/next chapter, page indicator, scrub rail.
         Align(
           alignment: Alignment.bottomCenter,
           child: GestureDetector(
             onTap: () {},
             child: ValueListenableBuilder<int>(
-              valueListenable: scrollProgressNotifier,
-              builder: (_, progress, __) => ValueListenableBuilder<int>(
-                valueListenable: visiblePageNotifier,
-                builder: (_, page, __) => ReaderBottomBar(
-                  visiblePage: page,
-                  pageCount: pageCount,
-                  scrollProgress: progress,
-                  visible: ui.controlsVisible,
-                  hasPrevious: hasPrevious,
-                  hasNext: hasNext,
-                  onPreviousChapter: onPreviousChapter,
-                  onNextChapter: onNextChapter,
-                  onSettings: onMoreOptions,
-                ),
+              valueListenable: visiblePageNotifier,
+              builder: (_, page, __) => ReaderBottomBar(
+                visiblePage: page,
+                pageCount: pageCount,
+                direction: direction,
+                visible: ui.controlsVisible,
+                hasPrevious: hasPrevious,
+                hasNext: hasNext,
+                onSeekToPage: onSeekToPage,
+                onPreviousChapter: onPreviousChapter,
+                onNextChapter: onNextChapter,
+                onSettings: onMoreOptions,
               ),
             ),
           ),

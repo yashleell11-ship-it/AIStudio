@@ -1,9 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 
-const double defaultContainerWidth = 768;
+/// Widest a page is drawn at 1x zoom, so a phone-shaped strip is not stretched
+/// across a tablet.
 const double maxContentWidth = 768;
+
+/// Ratio a page is laid out at until its real size is known. Chosen to look
+/// like a print page rather than a webtoon strip, because guessing tall would
+/// leave a screenful of empty backdrop under every short page.
 const double defaultAspectRatio = 2 / 3;
 
 BoxFit readerFitModeToBoxFit(ReaderFitMode mode) => switch (mode) {
@@ -11,103 +15,6 @@ BoxFit readerFitModeToBoxFit(ReaderFitMode mode) => switch (mode) {
       ReaderFitMode.height => BoxFit.fitHeight,
       ReaderFitMode.screen => BoxFit.contain,
     };
-double resolveContainerWidth(double measuredWidth) =>
-    measuredWidth > 0 ? measuredWidth : defaultContainerWidth;
-
-double estimatePageHeight(
-  ReaderPage page,
-  double containerWidth,
-  double zoom,
-) {
-  final contentWidth = (containerWidth.clamp(0, maxContentWidth)) * zoom;
-  final width = page.width;
-  final height = page.height;
-  if (width != null && height != null && width > 0) {
-    return (contentWidth / width) * height;
-  }
-  return contentWidth / defaultAspectRatio;
-}
-
-double estimatePageWidth(
-  ReaderPage page,
-  double containerHeight,
-  double zoom,
-) {
-  final contentHeight = containerHeight * zoom;
-  final width = page.width;
-  final height = page.height;
-  if (width != null && height != null && height > 0) {
-    return (contentHeight / height) * width;
-  }
-  return contentHeight * defaultAspectRatio;
-}
-
-double estimatePageExtent(
-  ReaderPage page,
-  double crossAxisSize,
-  double zoom,
-  Axis scrollAxis,
-) =>
-    scrollAxis == Axis.vertical
-        ? estimatePageHeight(page, crossAxisSize, zoom)
-        : estimatePageWidth(page, crossAxisSize, zoom);
-
-double pageAspectRatio(ReaderPage page) {
-  final width = page.width;
-  final height = page.height;
-  if (width != null && height != null && width > 0 && height > 0) {
-    return width / height;
-  }
-  return defaultAspectRatio;
-}
-
-double estimateScrollOffsetToPage(
-  List<ReaderPage> pages,
-  int pageNumber,
-  double containerWidth,
-  double zoom, {
-  Axis scrollAxis = Axis.vertical,
-  double crossAxisSize = defaultContainerWidth,
-}) {
-  final targetIndex = (pageNumber - 1).clamp(0, pages.length - 1);
-  var offset = 0.0;
-  for (var index = 0; index < targetIndex; index++) {
-    offset += estimatePageExtent(
-      pages[index],
-      scrollAxis == Axis.vertical ? containerWidth : crossAxisSize,
-      zoom,
-      scrollAxis,
-    );
-  }
-  return offset;
-}
-
-int resolveVisiblePage(
-  List<ReaderPage> pages,
-  double scrollOffset,
-  double containerWidth,
-  double zoom, {
-  Axis scrollAxis = Axis.vertical,
-  double crossAxisSize = defaultContainerWidth,
-}) {
-  if (pages.isEmpty) return 1;
-
-  var cumulative = 0.0;
-  var activePage = 1;
-  for (var index = 0; index < pages.length; index++) {
-    final extent = estimatePageExtent(
-      pages[index],
-      scrollAxis == Axis.vertical ? containerWidth : crossAxisSize,
-      zoom,
-      scrollAxis,
-    );
-    if (cumulative <= scrollOffset + 80) {
-      activePage = index + 1;
-    }
-    cumulative += extent;
-  }
-  return activePage;
-}
 
 bool isAtReadingStart({
   required double scrollOffset,

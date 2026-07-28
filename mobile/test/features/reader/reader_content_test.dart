@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/utils/page_extents.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
+import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -67,10 +69,78 @@ ReaderChapter _tallChapter({String? nextChapterId}) {
   );
 }
 
-Future<SharedPreferences> _freshPrefs() async {
-  SharedPreferences.setMockInitialValues({});
+/// A chapter whose pages carry no dimensions at all — the un-backfilled case
+/// the reader has to stay stable through. Every page opens on the fallback
+/// ratio and only learns its real height once the image decodes.
+ReaderChapter _dimensionlessChapter({int pageCount = 8}) {
+  return ReaderChapter(
+    id: '1',
+    seriesId: '1',
+    title: 'Chapter 1',
+    pageCount: pageCount,
+    mode: ReaderMode.local,
+    pages: List.generate(
+      pageCount,
+      (index) => ReaderPage(
+        id: '${101 + index}',
+        number: index + 1,
+        imageUrl: 'http://example.test/reader/page/${101 + index}/image',
+      ),
+    ),
+  );
+}
+
+/// Six pages tall enough that the last one can actually be scrolled to the top
+/// of the viewport, which is what makes "drag the rail to the end" land on the
+/// final page rather than one short of it.
+ReaderChapter _scrubChapter({int pageCount = 6}) {
+  return ReaderChapter(
+    id: '1',
+    seriesId: '1',
+    title: 'Chapter 1',
+    pageCount: pageCount,
+    mode: ReaderMode.local,
+    pages: List.generate(
+      pageCount,
+      (index) => ReaderPage(
+        id: '${101 + index}',
+        number: index + 1,
+        imageUrl: 'http://example.test/reader/page/${101 + index}/image',
+        width: 800,
+        height: 2400,
+      ),
+    ),
+  );
+}
+
+/// The geometry the reader is laying its pages out with right now.
+///
+/// Read from the reader's own MediaQuery rather than assumed: `setSurfaceSize`
+/// changes what the list is laid out into but not what MediaQuery reports, and
+/// the reader sizes pages from the latter. Tests that need exact offsets
+/// therefore leave the surface size alone so the two agree.
+ReaderPageMetrics _metricsFor(WidgetTester tester, ReaderPageExtents extents) {
+  final viewport = MediaQuery.sizeOf(tester.element(find.byType(ListView)));
+  return ReaderPageMetrics.of(
+    extents,
+    direction: ReadingDirection.vertical,
+    fitMode: ReaderFitMode.width,
+    viewportWidth: viewport.width,
+    viewportHeight: viewport.height,
+  );
+}
+
+ScrollController _listController(WidgetTester tester) =>
+    tester.widget<ListView>(find.byType(ListView)).controller!;
+
+Future<SharedPreferences> _freshPrefs([
+  Map<String, Object> values = const {},
+]) async {
+  SharedPreferences.setMockInitialValues(values);
   return SharedPreferences.getInstance();
 }
+
+const _readingDirectionKey = 'settings_reading_direction';
 
 Widget _wrapWithPrefs(SharedPreferences prefs, Widget child) {
   return ProviderScope(
@@ -379,11 +449,20 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       final listView = find.byType(ListView);
+      // Reach the bottom: the countdown starts.
       await tester.drag(listView, const Offset(0, -4000));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 500));
 
+      // Scroll back to the top before it fires — that cancels it outright.
       await tester.drag(listView, const Offset(0, 4000));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 1000));
+      expect(nextCalls, 0);
+
+      // Returning to the bottom has to arm a fresh countdown, otherwise a
+      // reader who scrolls back up once never gets auto-next again.
+      await tester.drag(listView, const Offset(0, -4000));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 1000));
 
@@ -538,6 +617,307 @@ void main() {
         await tester.pump(const Duration(milliseconds: 300));
         // 1000ms since returning: the single fresh countdown has fired once.
         expect(nextCalls, 1);
+      },
+    );
+
+    testWidgets(
+      'a page resolving taller ABOVE the viewport does not move the reader',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        final chapter = _dimensionlessChapter();
+        final extents = ReaderPageExtents(chapter.pages);
+        addTearDown(extents.dispose);
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: chapter,
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final metrics = _metricsFor(tester, extents);
+        final controller = _listController(tester);
+
+        // Settle on page 4, several pages deep — page 1 is now well above the
+        // viewport and the reader can no longer see it at all.
+        controller.jumpTo(metrics.offsetToPage(4));
+        await tester.pump();
+        expect(find.text('Page 4 / 8'), findsOneWidget);
+
+        // Page 1 decodes as a 900x16000 webtoon strip: more than ten times the
+        // height the list reserved for it on the 2/3 fallback.
+        final grownExtent = metrics.extentForRatio(900 / 16000);
+        final delta = grownExtent - metrics.extentAt(0);
+        expect(delta, greaterThan(6000), reason: 'fixture must grow a lot');
+
+        extents.submitMeasuredSize(0, pixelWidth: 900, pixelHeight: 16000);
+        await tester.pump();
+        await tester.pump();
+
+        // Without the correction the whole chapter below page 1 slides down by
+        // `delta` while the offset stays put, and the reader is dumped back
+        // onto page 1 — the reported "it randomly sent me to the pages above".
+        expect(find.text('Page 4 / 8'), findsOneWidget);
+        expect(
+          controller.offset,
+          moreOrLessEquals(metrics.offsetToPage(4) + delta, epsilon: 1),
+        );
+      },
+    );
+
+    testWidgets(
+      'a page resolving BELOW the viewport leaves the offset alone',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        final chapter = _dimensionlessChapter();
+        final extents = ReaderPageExtents(chapter.pages);
+        addTearDown(extents.dispose);
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: chapter,
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final metrics = _metricsFor(tester, extents);
+        final controller = _listController(tester);
+        controller.jumpTo(metrics.offsetToPage(2));
+        await tester.pump();
+
+        // Page 6 is far below; nothing the reader can see depends on it, so
+        // correcting for it would itself be the jump.
+        extents.submitMeasuredSize(5, pixelWidth: 900, pixelHeight: 16000);
+        await tester.pump();
+        await tester.pump();
+
+        expect(
+          controller.offset,
+          moreOrLessEquals(metrics.offsetToPage(2), epsilon: 0.01),
+        );
+        expect(find.text('Page 2 / 8'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a page only ever changes extent once',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        final chapter = _dimensionlessChapter();
+        final extents = ReaderPageExtents(chapter.pages);
+        addTearDown(extents.dispose);
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: chapter,
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final metrics = _metricsFor(tester, extents);
+        final controller = _listController(tester);
+        controller.jumpTo(metrics.offsetToPage(4));
+        await tester.pump();
+
+        extents.submitMeasuredSize(0, pixelWidth: 900, pixelHeight: 16000);
+        await tester.pump();
+        await tester.pump();
+        final settled = controller.offset;
+
+        // A second, contradictory measurement of the same page must be ignored:
+        // acting on it would move the reader a second time for one page.
+        extents.submitMeasuredSize(0, pixelWidth: 900, pixelHeight: 900);
+        await tester.pump();
+        await tester.pump();
+
+        expect(controller.offset, moreOrLessEquals(settled, epsilon: 0.01));
+        expect(find.text('Page 4 / 8'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'no page counter floats over the reading area',
+      (tester) async {
+        final prefs = await _freshPrefs();
+        await tester.binding.setSurfaceSize(const Size(430, 932));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: _sampleChapter(),
+              scrollStorageKey: '1',
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // The overlay pill rendered exactly "1 / 2" at the top of the page.
+        expect(find.text('1 / 2'), findsNothing);
+
+        // Let the controls auto-hide, which is precisely when that pill used to
+        // appear on top of the artwork.
+        await tester.pump(const Duration(milliseconds: 3500));
+        expect(find.text('1 / 2'), findsNothing);
+
+        // The bottom bar's counter is the one the owner wants kept.
+        expect(find.text('Page 1 / 2'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'dragging the bottom rail to the end jumps to the last page',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        final chapter = _scrubChapter();
+        final extents = ReaderPageExtents(chapter.pages);
+        addTearDown(extents.dispose);
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: chapter,
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Page 1 / 6'), findsOneWidget);
+
+        final rail = tester.getRect(find.byType(Slider));
+        await tester.dragFrom(rail.center, Offset(rail.width, 0));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Page 6 / 6'), findsOneWidget);
+        // The seek has to resolve through the same geometry the list is laid
+        // out from; a second estimator would land somewhere near it, not on it.
+        expect(
+          _listController(tester).offset,
+          moreOrLessEquals(
+            _metricsFor(tester, extents).offsetToPage(6),
+            epsilon: 1,
+          ),
+        );
+      },
+    );
+
+    testWidgets(
+      'tapping the bottom rail jumps to that point in the chapter',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        final chapter = _scrubChapter();
+        final extents = ReaderPageExtents(chapter.pages);
+        addTearDown(extents.dispose);
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: chapter,
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final rail = tester.getRect(find.byType(Slider));
+        await tester.tapAt(rail.center);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Halfway along a six-page rail is page 3 or 4 depending on where the
+        // track padding falls; either way the reader has moved into the middle
+        // of the chapter rather than staying put.
+        final page = _metricsFor(tester, extents)
+            .pageAtOffset(_listController(tester).offset);
+        expect(page, inInclusiveRange(3, 4));
+        expect(find.text('Page $page / 6'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'the bottom rail runs right-to-left in a right-to-left chapter',
+      (tester) async {
+        final prefs = await _freshPrefs({
+          _readingDirectionKey: ReadingDirection.rightToLeft.name,
+        });
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              chapter: _scrubChapter(),
+              scrollStorageKey: '1',
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(find.text('Page 1 / 6'), findsOneWidget);
+
+        // The chapter starts on the right, so the rail does too: dragging the
+        // thumb LEFT has to move forward. In a left-to-right chapter the same
+        // gesture would go backwards and this would stay on page 1.
+        final rail = tester.getRect(find.byType(Slider));
+        await tester.dragFrom(rail.center, Offset(-rail.width, 0));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final controller = _listController(tester);
+        expect(find.text('Page 1 / 6'), findsNothing);
+        // Dragged to the far end of the rail, so the reader is as deep into the
+        // chapter as it goes — proof the gesture ran forward, not backward.
+        expect(
+          controller.offset,
+          moreOrLessEquals(controller.position.maxScrollExtent, epsilon: 1),
+        );
       },
     );
 

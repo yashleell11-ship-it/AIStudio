@@ -11,6 +11,8 @@ import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dar
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
+import 'package:manhwamaniacs/features/settings/repositories/auto_download_settings_repository.dart';
+import 'package:manhwamaniacs/features/settings/repositories/auto_download_settings_repository_impl.dart';
 import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository_impl.dart';
 import 'package:manhwamaniacs/features/settings/services/image_cache_service.dart';
@@ -33,6 +35,50 @@ final settingsApiUrlProvider = FutureProvider.autoDispose<String>((ref) async {
   final saved = await storage.getApiUrl();
   return saved ?? ref.watch(apiBaseUrlProvider);
 });
+
+// ── Automatic downloads ───────────────────────────────────────────────────
+
+final autoDownloadSettingsRepositoryProvider =
+    Provider<AutoDownloadSettingsRepository>(
+  (ref) => AutoDownloadSettingsRepositoryImpl(ref.watch(dioProvider)),
+  name: 'autoDownloadSettingsRepository',
+);
+
+/// The global "download new chapters of followed series automatically" switch,
+/// read from `GET /updates/settings`. Off unless the owner turns it on — the
+/// server ships it `False` and nothing in the app flips it implicitly.
+final autoDownloadNewChaptersProvider =
+    AsyncNotifierProvider.autoDispose<AutoDownloadNewChaptersController, bool>(
+  AutoDownloadNewChaptersController.new,
+  name: 'autoDownloadNewChapters',
+);
+
+class AutoDownloadNewChaptersController extends AutoDisposeAsyncNotifier<bool> {
+  @override
+  Future<bool> build() async {
+    final result = await ref
+        .read(autoDownloadSettingsRepositoryProvider)
+        .getAutoDownloadEnabled();
+    if (result.isErr) throw result.error;
+    return result.value;
+  }
+
+  /// Optimistically flips the switch so it responds instantly; rolls back and
+  /// returns the [AppError] if the write fails.
+  Future<AppError?> setEnabled(bool value) async {
+    final previous = state.valueOrNull;
+    state = AsyncData(value);
+    final result = await ref
+        .read(autoDownloadSettingsRepositoryProvider)
+        .setAutoDownloadEnabled(value);
+    if (result.isErr) {
+      state = AsyncData(previous ?? !value);
+      return result.error;
+    }
+    state = AsyncData(result.value);
+    return null;
+  }
+}
 
 // ── Mature content (per-profile) ───────────────────────────────────────────
 

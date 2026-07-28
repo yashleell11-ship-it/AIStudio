@@ -130,6 +130,25 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.7.0",
+        build=21,
+        date="July 2026",
+        highlights=[
+            "The reader no longer throws you backwards mid-chapter. Pages were "
+            "laid out on a guess and resized once the image loaded, shoving "
+            "everything below them",
+            "Drag the bar at the bottom of the reader to jump anywhere in a "
+            "chapter",
+            "The page counter is gone from the page itself — it lives in the "
+            "bottom bar only",
+            "Download confirmations no longer pop up over what you are reading",
+            "New chapters do not download by themselves any more, and the "
+            "download settings are in Settings where you can see them",
+            "A downloaded series and a source series now look and work the "
+            "same — same layout, same actions, same chapter list",
+        ],
+    ),
+    ChangelogEntry(
         version="1.6.0",
         build=20,
         date="July 2026",

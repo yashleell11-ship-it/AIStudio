@@ -8,6 +8,7 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_scrub.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -233,17 +234,18 @@ class ReaderTopBar extends StatelessWidget {
 
 // ── Bottom bar ────────────────────────────────────────────────────────────────
 
-/// Minimal bottom bar: previous/next chapter within thumb reach, a slim
-/// progress bar and the page indicator. One-handed by design.
-class ReaderBottomBar extends StatelessWidget {
+/// Minimal bottom bar: previous/next chapter within thumb reach, the page
+/// indicator and a draggable position rail. One-handed by design.
+class ReaderBottomBar extends StatefulWidget {
   const ReaderBottomBar({
     super.key,
     required this.visiblePage,
     required this.pageCount,
-    required this.scrollProgress,
+    required this.direction,
     required this.visible,
     required this.hasPrevious,
     required this.hasNext,
+    this.onSeekToPage,
     this.onPreviousChapter,
     this.onNextChapter,
     this.onSettings,
@@ -251,10 +253,16 @@ class ReaderBottomBar extends StatelessWidget {
 
   final int visiblePage;
   final int pageCount;
-  final int scrollProgress;
+
+  /// Reading direction, so a right-to-left chapter runs its rail the same way
+  /// it runs its pages: the start of the chapter is on the right.
+  final ReadingDirection direction;
   final bool visible;
   final bool hasPrevious;
   final bool hasNext;
+
+  /// Jump the reader to a page. ``null`` leaves the rail read-only.
+  final ValueChanged<int>? onSeekToPage;
   final VoidCallback? onPreviousChapter;
   final VoidCallback? onNextChapter;
 
@@ -263,9 +271,24 @@ class ReaderBottomBar extends StatelessWidget {
   final VoidCallback? onSettings;
 
   @override
+  State<ReaderBottomBar> createState() => _ReaderBottomBarState();
+}
+
+class _ReaderBottomBarState extends State<ReaderBottomBar> {
+  /// Where the thumb is being dragged to, which is not the same as where the
+  /// reader has landed. The visible page is measured back from the scroll
+  /// offset, and letting that tug the thumb mid-drag makes it stick.
+  int? _dragPage;
+
+  @override
   Widget build(BuildContext context) {
+    final pageCount = widget.pageCount;
+    final page = _dragPage ?? widget.visiblePage;
+    final seek = widget.onSeekToPage;
+    final enabled = seek != null && readerScrubEnabled(pageCount);
+
     return _AnimatedBar(
-      visible: visible,
+      visible: widget.visible,
       slideFrom: const Offset(0, 1),
       child: SafeArea(
         top: false,
@@ -284,7 +307,7 @@ class ReaderBottomBar extends StatelessWidget {
             child: Row(
               children: [
                 IconButton(
-                  onPressed: hasPrevious ? onPreviousChapter : null,
+                  onPressed: widget.hasPrevious ? widget.onPreviousChapter : null,
                   icon: const Icon(Icons.skip_previous_rounded),
                   tooltip: 'Previous chapter',
                   color: AppColors.primary,
@@ -295,20 +318,52 @@ class ReaderBottomBar extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(
-                        'Page $visiblePage / $pageCount',
+                        'Page ${readerScrubValue(page, pageCount).round()}'
+                        ' / $pageCount',
                         style: AppTypography.labelSm.copyWith(
                           color: AppColors.muted,
                         ),
                       ),
-                      const SizedBox(height: AppSpacing.xs),
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(AppRadius.full),
-                        child: LinearProgressIndicator(
-                          value: scrollProgress / 100,
-                          minHeight: 3,
-                          backgroundColor: AppColors.fg.withAlpha(26),
-                          valueColor: const AlwaysStoppedAnimation<Color>(
-                            AppColors.primary,
+                      // A real Slider rather than a hand-rolled drag on a
+                      // painted rail: touch slop, drag, tap-to-jump, keyboard
+                      // and the screen-reader increment/decrement actions all
+                      // come with it.
+                      SliderTheme(
+                        data: SliderTheme.of(context).copyWith(
+                          trackHeight: 3,
+                          activeTrackColor: AppColors.primary,
+                          inactiveTrackColor: AppColors.fg.withAlpha(26),
+                          thumbColor: AppColors.primary,
+                          // No tick marks: one per page turns the rail into a
+                          // dotted line on a long chapter.
+                          activeTickMarkColor: Colors.transparent,
+                          inactiveTickMarkColor: Colors.transparent,
+                          thumbShape:
+                              const RoundSliderThumbShape(enabledThumbRadius: 6),
+                          overlayShape:
+                              const RoundSliderOverlayShape(overlayRadius: 14),
+                        ),
+                        child: Directionality(
+                          textDirection: widget.direction.reverseScroll
+                              ? TextDirection.rtl
+                              : TextDirection.ltr,
+                          child: Slider(
+                            value: readerScrubValue(page, pageCount),
+                            min: 1,
+                            max: readerScrubMax(pageCount),
+                            divisions: readerScrubDivisions(pageCount),
+                            semanticFormatterCallback: (value) =>
+                                'Page ${readerScrubPage(value, pageCount)}'
+                                ' of $pageCount',
+                            onChanged: enabled
+                                ? (value) {
+                                    final target =
+                                        readerScrubPage(value, pageCount);
+                                    setState(() => _dragPage = target);
+                                    seek(target);
+                                  }
+                                : null,
+                            onChangeEnd: (_) => setState(() => _dragPage = null),
                           ),
                         ),
                       ),
@@ -316,15 +371,15 @@ class ReaderBottomBar extends StatelessWidget {
                   ),
                 ),
                 IconButton(
-                  onPressed: hasNext ? onNextChapter : null,
+                  onPressed: widget.hasNext ? widget.onNextChapter : null,
                   icon: const Icon(Icons.skip_next_rounded),
                   tooltip: 'Next chapter',
                   color: AppColors.primary,
                   disabledColor: AppColors.muted.withAlpha(70),
                 ),
-                if (onSettings != null)
+                if (widget.onSettings != null)
                   IconButton(
-                    onPressed: onSettings,
+                    onPressed: widget.onSettings,
                     icon: const Icon(Icons.tune_rounded, size: 20),
                     // Distinct from the top bar's canonical 'Reader settings'
                     // gear so the single settings finder stays unambiguous.
@@ -390,6 +445,12 @@ class ChapterEdgePrompt extends StatelessWidget {
 }
 
 enum EdgeDirection { previous, next }
+
+// There is deliberately no page-count overlay inside the reading area. It used
+// to float over the top of the page whenever the controls were hidden, which
+// put a permanent "20 / 20" badge on top of the artwork — the one place a
+// reader is looking. The count lives in the bottom bar, next to the rail that
+// can act on it.
 
 // ── Reader settings + more sheet ──────────────────────────────────────────────
 
@@ -705,57 +766,6 @@ class _SheetNavButton extends StatelessWidget {
         ),
       ),
       child: child,
-    );
-  }
-}
-
-// ── Minimal page indicator (shown when controls are hidden) ──────────────────
-
-class ReaderPageIndicator extends StatelessWidget {
-  const ReaderPageIndicator({
-    super.key,
-    required this.visiblePage,
-    required this.pageCount,
-    required this.visible,
-  });
-
-  final int visiblePage;
-  final int pageCount;
-  final bool visible;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedOpacity(
-      duration: const Duration(milliseconds: _controlsAnimMs),
-      opacity: visible ? 0 : 1,
-      child: IgnorePointer(
-        ignoring: visible,
-        child: SafeArea(
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: Padding(
-              padding: const EdgeInsets.only(top: AppSpacing.sm),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xs,
-                ),
-                decoration: BoxDecoration(
-                  color: AppColors.panel.withAlpha(140),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                  border: Border.all(color: AppColors.glassEdge),
-                ),
-                child: Text(
-                  '$visiblePage / $pageCount',
-                  style: AppTypography.labelSm.copyWith(
-                    color: AppColors.muted,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
