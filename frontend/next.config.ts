@@ -24,6 +24,26 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // The service worker and the policy it imports must never be answered from
+  // the HTTP cache. A worker the browser cannot see has changed is a worker
+  // that keeps serving an old app shell, which is the one failure mode of this
+  // whole feature that a user cannot get out of on their own.
+  //
+  // `Service-Worker-Allowed: /` lets /sw.js claim the whole origin regardless
+  // of where it is served from, and the offline fallback is revalidated for the
+  // same reason as the worker: it is the page shown when everything else failed.
+  async headers() {
+    return [
+      {
+        source: "/:path(sw.js|sw-policy.js|offline-fallback.html)",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+    ];
+  },
+
   images: {
     remotePatterns: [
       {

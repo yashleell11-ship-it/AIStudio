@@ -3,14 +3,19 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { CommandPalette } from "@/components/command-palette";
 import { mobileNav } from "@/config/nav";
 import { useShortcut } from "@/lib/keyboard";
 import { ScrollContainerProvider } from "@/lib/scroll-container";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
+// Direct, not via the `@/features/preferences` barrel: that barrel also exports
+// the settings panels, and the shell wraps every page.
+import { useApplyReadingTheme } from "@/features/preferences/theme-store";
 import { isPublicAuthPath } from "@/features/auth/access";
 import { useCurrentUser } from "@/features/auth/hooks";
 import { AuthPending } from "@/features/auth/components/auth-pending";
+import { isSessionUnresolved, resolveSessionGate } from "@/features/offline/session-gate";
 import { UpdateBanner } from "@/features/updates";
 import {
   isPickerPath,
@@ -31,6 +36,12 @@ import { Topbar } from "./topbar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
+  // Above the auth branch on purpose: the reading theme paints the login and
+  // register screens too. Without a profile there is no scoped value to read,
+  // so those screens land on the OS preference — which is the right answer for
+  // a screen that belongs to nobody yet.
+  useApplyReadingTheme();
+
   if (isPublicAuthPath(pathname)) {
     return <>{children}</>;
   }
@@ -47,7 +58,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: user, isLoading } = useCurrentUser();
+  const { data: user, isLoading, error: sessionError } = useCurrentUser();
   const activeProfile = useActiveProfileStore((s) => s.activeProfile);
   const profilesHydrated = useActiveProfileStore((s) => s.hasHydrated);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
@@ -90,18 +101,29 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   // Route guard: once the /auth/me probe settles, send unauthenticated visitors
   // to /login. `useCurrentUser` reports 401 as `null` (not an error), so a
   // missing session is `!user` here.
+  //
+  // A probe that never REACHED the server is a different thing and must not
+  // redirect: offline, /login is just as unreachable as the page being left,
+  // so the reader would be bounced away from chapters already saved on the
+  // device. See `features/offline/session-gate.ts`.
+  const sessionGate = resolveSessionGate({
+    isLoading,
+    hasUser: Boolean(user),
+    error: sessionError,
+  });
+
   useEffect(() => {
-    if (!isLoading && !user) {
+    if (sessionGate === "redirect") {
       router.replace("/login");
     }
-  }, [isLoading, user, router]);
+  }, [sessionGate, router]);
 
   // Profile gate: a signed-in visitor who hasn't chosen a reading profile is
   // routed to the picker. This runs AFTER auth (never instead of the remembered
   // login) and waits for the persisted selection to hydrate, so a reload never
   // bounces to the picker before the last choice is restored.
   useEffect(() => {
-    if (isLoading || !user) return;
+    if (isSessionUnresolved(sessionGate)) return;
     if (
       shouldRedirectToPicker({
         authenticated: true,
@@ -112,10 +134,12 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
     ) {
       router.replace(PROFILE_PICKER_PATH);
     }
-  }, [isLoading, user, profilesHydrated, activeProfile, pathname, router]);
+  }, [sessionGate, profilesHydrated, activeProfile, pathname, router]);
 
-  // Resolving the session, or redirecting an unauthenticated visitor.
-  if (isLoading || !user) {
+  // Resolving the session, or redirecting an unauthenticated visitor. An
+  // unanswered probe is neither: the app renders on what this device already
+  // has, and the guard above takes over the moment the server can be reached.
+  if (isSessionUnresolved(sessionGate)) {
     return <AuthPending />;
   }
 
@@ -134,9 +158,12 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
       className="flex h-dvh w-full overflow-hidden bg-bg transition-[background] duration-500"
       style={{ background: shellBackground }}
     >
+      {/* First tab stop on every page. `focus:` rather than `focus-visible:`
+          so it also appears for a pointer-driven focus, and z-60 so it is not
+          covered by the topbar or the update banner. */}
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-fg"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-[70] focus:rounded-lg focus:bg-primary focus:px-4 focus:py-2 focus:font-medium focus:text-primary-fg focus:shadow-glow"
       >
         Skip to content
       </a>
@@ -173,6 +200,11 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
 
       {/* Fixed to the layout root, outside the reader scroll container. */}
       <UpdateBanner />
+
+      {/* Always mounted so its ⌘K binding is registered; renders nothing until
+          opened. Inside the authenticated shell because half of what it offers
+          (the library, the installed sources, sign out) needs a session. */}
+      <CommandPalette />
     </div>
   );
 }

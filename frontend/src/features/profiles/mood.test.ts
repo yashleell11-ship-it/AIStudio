@@ -3,6 +3,7 @@ import {
   MOODS,
   MOOD_BASE,
   MOOD_LABELS,
+  MOOD_SURFACE,
   MOOD_TINT,
   isTintedMood,
   moodPickerBackground,
@@ -32,21 +33,30 @@ describe("mood palette", () => {
 });
 
 describe("moodShellBackground", () => {
-  it("returns the flat base for the default mood", () => {
-    expect(moodShellBackground("default")).toBe(MOOD_BASE);
+  it("returns the flat themed surface for the default mood", () => {
+    expect(moodShellBackground("default")).toBe(MOOD_SURFACE);
   });
 
-  it("mixes the tint over the base for a tinted mood", () => {
+  it("mixes the tint over the themed surface for a tinted mood", () => {
     const bg = moodShellBackground("romantic");
     expect(bg).toContain(MOOD_TINT.romantic);
-    expect(bg).toContain(MOOD_BASE);
+    expect(bg).toContain(MOOD_SURFACE);
     expect(bg).toContain("color-mix");
+  });
+
+  it("never hard-codes the dark base", () => {
+    // The shell paints this over everything, so a literal here would survive a
+    // theme switch and leave a light theme sitting on a near-black page.
+    for (const mood of MOODS) {
+      expect(moodShellBackground(mood)).not.toContain(MOOD_BASE);
+      expect(moodPickerBackground(mood)).not.toContain(MOOD_BASE);
+    }
   });
 });
 
 describe("moodPickerBackground", () => {
-  it("returns the base for default and a gradient for a tinted mood", () => {
-    expect(moodPickerBackground("default")).toBe(MOOD_BASE);
+  it("returns the themed surface for default and a gradient for a tinted mood", () => {
+    expect(moodPickerBackground("default")).toBe(MOOD_SURFACE);
     expect(moodPickerBackground("horror")).toContain(MOOD_TINT.horror);
   });
 });

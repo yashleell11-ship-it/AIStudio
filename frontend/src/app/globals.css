@@ -2,7 +2,14 @@
 
 /*
  * Eclipse Warm design tokens. Tailwind v4 turns each `--color-*` into utilities.
- * Dark-first palette with amber primary and warm rose accent.
+ *
+ * These literals are the DARK theme — the original Eclipse Warm palette, kept
+ * verbatim so the default look is byte-identical to before reading themes
+ * existed. The `:root` block further down re-points every one of them at a
+ * `--mm-*` ROLE variable; the theme blocks then only have to restate the roles.
+ * Keeping literals here (rather than `var()`) matters: Tailwind reads these
+ * values at build time to emit the static fallbacks its opacity modifiers use
+ * outside `@supports (color: color-mix(...))`.
  */
 @theme {
   --color-bg: #0A0A0A;
@@ -67,12 +74,290 @@
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.37);
 }
 
+/* ==========================================================================
+   READING THEMES
+   ==========================================================================
+
+   One attribute on the root (`<html data-theme="…">`) repaints the whole app.
+   There is no second stylesheet: every themeable colour in the app already
+   resolves through a `--color-*` custom property (Tailwind v4 emits
+   `color: var(--color-muted)` and, for opacity modifiers,
+   `color-mix(in oklab, var(--color-muted) 70%, transparent)`), so re-pointing
+   the property is enough — including for the `/70`-style variants.
+
+   The indirection below exists because the palette has many ALIASES of the
+   same role (`--color-bg`, `--color-background`, `--color-bg-void`,
+   `--color-obsidian` and `--color-abyss` are all "the page background"). Every
+   alias is fanned out here once, onto a `--mm-*` role variable; a theme then
+   restates ~20 roles instead of ~45 aliases and cannot leave one behind.
+
+   These rules are UNLAYERED, so they win over Tailwind's `@layer theme`
+   regardless of selector specificity.
+
+   Eclipse Warm survives all four: amber/rose stay the accent family
+   everywhere. The light themes deepen it to burnt amber (#92400E) purely so
+   accent TEXT clears WCAG AA on paper — same family, more ink.
+*/
+
+:root {
+  /* ---- Role values: the dark theme, and the only place its hexes live ---- */
+  --mm-bg: #0A0A0A;
+  --mm-surface: #111111;
+  --mm-elevated: #181818;
+  --mm-fg: #DDE4EA;
+  --mm-muted: #9AA8B4;
+  --mm-border: rgba(221, 228, 234, 0.12);
+
+  /* The inverted "contrast section" band (ContrastSection / .bg-bg-light). */
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #0C0C0C;
+  --mm-contrast-border: rgba(12, 12, 12, 0.12);
+
+  --mm-primary: #F59E0B;
+  --mm-primary-hover: #C2410C;
+  --mm-primary-fg: #0C0C0C;
+  --mm-primary-tint: #F6C177;
+  --mm-accent: #BE4C00;
+  --mm-accent-fg: #FFFFFF;
+  --mm-accent-warm: #C2410C;
+
+  --mm-danger: #ef4444;
+  --mm-success: #10b981;
+  --mm-warning: #F59E0B;
+
+  --mm-glass-panel: rgba(17, 17, 17, 0.7);
+  --mm-glass-card: rgba(24, 24, 24, 0.6);
+  --mm-glass-border: rgba(221, 228, 234, 0.1);
+  --mm-hero-from: #9A8B7A;
+  --mm-hero-to: #E8DFD0;
+  --mm-scrollbar: rgba(100, 116, 139, 0.3);
+  --mm-scrollbar-hover: rgba(100, 116, 139, 0.5);
+  --mm-glow: 0 0 24px rgba(245, 158, 11, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #F59E0B;
+
+  /* ---- Alias fan-out: every Tailwind token, pointed at its role ---- */
+  --color-bg: var(--mm-bg);
+  --color-background: var(--mm-bg);
+  --color-bg-void: var(--mm-bg);
+  /* The reader surface follows the reading theme — a sepia reader on a
+     near-black page would defeat the point of choosing sepia. */
+  --color-obsidian: var(--mm-bg);
+  --color-abyss: var(--mm-bg);
+
+  --color-surface: var(--mm-surface);
+  --color-bg-surface: var(--mm-surface);
+  --color-sidebar: var(--mm-surface);
+  --color-surface-2: var(--mm-elevated);
+  --color-bg-elevated: var(--mm-elevated);
+
+  --color-fg: var(--mm-fg);
+  --color-text-primary: var(--mm-fg);
+  --color-muted: var(--mm-muted);
+  --color-muted-foreground: var(--mm-muted);
+  --color-text-muted: var(--mm-muted);
+  --color-border: var(--mm-border);
+  --color-border-subtle: var(--mm-border);
+
+  --color-bg-light: var(--mm-contrast-bg);
+  --color-text-dark: var(--mm-contrast-fg);
+  --color-border-light: var(--mm-contrast-border);
+
+  --color-primary: var(--mm-primary);
+  --color-primary-hover: var(--mm-primary-hover);
+  --color-primary-fg: var(--mm-primary-fg);
+  --color-primary-foreground: var(--mm-primary-fg);
+  --color-accent: var(--mm-accent);
+  --color-accent-fg: var(--mm-accent-fg);
+  --color-accent-amber: var(--mm-primary);
+  --color-accent-rose: var(--mm-accent);
+  --color-accent-warm: var(--mm-accent-warm);
+
+  --color-danger: var(--mm-danger);
+  --color-success: var(--mm-success);
+  --color-warning: var(--mm-warning);
+
+  /* Legacy violet/cyan names, repointed warm (see docs/DESIGN_SYSTEM.md). */
+  --color-violet-400: var(--mm-primary-tint);
+  --color-violet-500: var(--mm-primary);
+  --color-violet-600: var(--mm-primary-hover);
+  --color-cyan-400: var(--mm-primary-tint);
+  --color-cyan-500: var(--mm-accent);
+
+  --shadow-glow: var(--mm-glow);
+  --shadow-glass: var(--mm-glass-shadow);
+
+  /*
+   * NOT themed, on purpose: `--color-void` / `--color-panel` are used almost
+   * exclusively as SCRIMS over cover artwork (`from-void/95`, `via-panel`),
+   * with `text-white` on top. A scrim that followed a light theme would put
+   * white text on a pale wash. They stay dark in every theme.
+   */
+  --color-void: #111111;
+  --color-panel: #111111;
+}
+
+/*
+ * Dark needs no block: it is the `:root` role set above. Declared only so the
+ * attribute is a complete, closed set for anything reading it back.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+/* True black for OLED panels: pixels are actually off at #000, and the text
+   is lifted a little because there is no surface glow to read against. */
+:root[data-theme="midnight"] {
+  color-scheme: dark;
+  --mm-bg: #000000;
+  --mm-surface: #070707;
+  --mm-elevated: #101010;
+  --mm-fg: #E7EDF3;
+  --mm-muted: #A6B3BF;
+  --mm-border: rgba(221, 228, 234, 0.14);
+  --mm-glass-panel: rgba(7, 7, 7, 0.72);
+  --mm-glass-card: rgba(16, 16, 16, 0.62);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+}
+
+/* Warm paper. Surfaces get LIGHTER as they rise, which keeps the app's many
+   `bg-white/5`-style elevation overlays reading as lifts rather than vanishing
+   — that is why the base is #E8DCC6 paper and not white. */
+:root[data-theme="sepia"] {
+  color-scheme: light;
+  --mm-bg: #E8DCC6;
+  --mm-surface: #F0E7D5;
+  --mm-elevated: #F7F0E2;
+  --mm-fg: #2B2318;
+  --mm-muted: #635340;
+  --mm-border: rgba(43, 35, 24, 0.18);
+
+  --mm-contrast-bg: #1A1512;
+  --mm-contrast-fg: #F2E9D8;
+  --mm-contrast-border: rgba(242, 233, 216, 0.16);
+
+  --mm-primary: #92400E;
+  --mm-primary-hover: #7C2D12;
+  --mm-primary-fg: #FFF7ED;
+  --mm-primary-tint: #B45309;
+  --mm-accent: #9A3412;
+  --mm-accent-warm: #B45309;
+
+  /* Deeper than their dark-theme counterparts: a status colour is body-sized
+     text, so it has to clear 4.5:1 against paper, which the usual mid-tone
+     emerald/amber do not. Asserted in `theme-contrast.test.ts`. */
+  --mm-danger: #B91C1C;
+  --mm-success: #065F46;
+  --mm-warning: #854D0E;
+
+  --mm-glass-panel: rgba(240, 231, 213, 0.72);
+  --mm-glass-card: rgba(247, 240, 226, 0.66);
+  --mm-glass-border: rgba(43, 35, 24, 0.12);
+  --mm-hero-from: #8A5A2B;
+  --mm-hero-to: #33251A;
+  --mm-scrollbar: rgba(99, 83, 64, 0.35);
+  --mm-scrollbar-hover: rgba(99, 83, 64, 0.55);
+  --mm-glow: 0 2px 16px rgba(146, 64, 14, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(43, 35, 24, 0.12);
+  --mm-focus: #92400E;
+}
+
+/* Neutral daylight. Same "elevation gets lighter" rule as sepia. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --mm-bg: #EFEDE9;
+  --mm-surface: #F7F5F2;
+  --mm-elevated: #FCFBF9;
+  --mm-fg: #1A1917;
+  --mm-muted: #5A5751;
+  --mm-border: rgba(26, 25, 23, 0.16);
+
+  --mm-contrast-bg: #171614;
+  --mm-contrast-fg: #F4F2EE;
+  --mm-contrast-border: rgba(244, 242, 238, 0.16);
+
+  --mm-primary: #92400E;
+  --mm-primary-hover: #7C2D12;
+  --mm-primary-fg: #FFFFFF;
+  --mm-primary-tint: #B45309;
+  --mm-accent: #9A3412;
+  --mm-accent-warm: #B45309;
+
+  /* See the sepia block: paper needs deeper status colours to clear AA. */
+  --mm-danger: #B91C1C;
+  --mm-success: #065F46;
+  --mm-warning: #854D0E;
+
+  --mm-glass-panel: rgba(247, 245, 242, 0.72);
+  --mm-glass-card: rgba(252, 251, 249, 0.66);
+  --mm-glass-border: rgba(26, 25, 23, 0.1);
+  --mm-hero-from: #8A6A48;
+  --mm-hero-to: #2B211A;
+  --mm-scrollbar: rgba(90, 87, 81, 0.35);
+  --mm-scrollbar-hover: rgba(90, 87, 81, 0.55);
+  --mm-glow: 0 2px 16px rgba(146, 64, 14, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(26, 25, 23, 0.12);
+  --mm-focus: #92400E;
+}
+
+/*
+ * FIRST PAINT ONLY. Until the client has resolved the active profile it cannot
+ * know the stored theme, so `data-theme` is absent and the app would paint dark
+ * at a viewer who asked their OS for light. This mirrors what
+ * `initialReadingTheme()` will pick for someone with no stored choice, so the
+ * two agree and there is no flash. The moment a theme is applied the attribute
+ * lands and `:not([data-theme])` stops matching — which is what makes
+ * prefers-color-scheme an INITIAL value and not an override.
+ *
+ * Must stay in step with `:root[data-theme="light"]` above; the "light theme
+ * and the prefers-color-scheme fallback agree" case in
+ * `src/features/preferences/theme.test.ts` parses this file and fails if they
+ * drift.
+ */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --mm-bg: #EFEDE9;
+    --mm-surface: #F7F5F2;
+    --mm-elevated: #FCFBF9;
+    --mm-fg: #1A1917;
+    --mm-muted: #5A5751;
+    --mm-border: rgba(26, 25, 23, 0.16);
+
+    --mm-contrast-bg: #171614;
+    --mm-contrast-fg: #F4F2EE;
+    --mm-contrast-border: rgba(244, 242, 238, 0.16);
+
+    --mm-primary: #92400E;
+    --mm-primary-hover: #7C2D12;
+    --mm-primary-fg: #FFFFFF;
+    --mm-primary-tint: #B45309;
+    --mm-accent: #9A3412;
+    --mm-accent-warm: #B45309;
+
+    --mm-danger: #B91C1C;
+    --mm-success: #065F46;
+    --mm-warning: #854D0E;
+
+    --mm-glass-panel: rgba(247, 245, 242, 0.72);
+    --mm-glass-card: rgba(252, 251, 249, 0.66);
+    --mm-glass-border: rgba(26, 25, 23, 0.1);
+    --mm-hero-from: #8A6A48;
+    --mm-hero-to: #2B211A;
+    --mm-scrollbar: rgba(90, 87, 81, 0.35);
+    --mm-scrollbar-hover: rgba(90, 87, 81, 0.55);
+    --mm-glow: 0 2px 16px rgba(146, 64, 14, 0.18);
+    --mm-glass-shadow: 0 8px 24px rgba(26, 25, 23, 0.12);
+    --mm-focus: #92400E;
+  }
+}
+
 html {
   color-scheme: dark;
 }
 
 body {
-  background-color: #0A0A0A;
+  background-color: var(--mm-bg);
   color: var(--color-fg);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -91,7 +376,7 @@ main {
 }
 
 .hero-heading {
-  background: linear-gradient(180deg, #9A8B7A 0%, #E8DFD0 100%);
+  background: linear-gradient(180deg, var(--mm-hero-from) 0%, var(--mm-hero-to) 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -111,15 +396,15 @@ main {
 }
 
 .glass-panel {
-  background: rgba(17, 17, 17, 0.7);
+  background: var(--mm-glass-panel);
   backdrop-filter: blur(20px);
-  border: 1px solid rgba(221, 228, 234, 0.1);
+  border: 1px solid var(--mm-glass-border);
 }
 
 .glass-card {
-  background: rgba(24, 24, 24, 0.6);
+  background: var(--mm-glass-card);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(221, 228, 234, 0.1);
+  border: 1px solid var(--mm-glass-border);
 }
 
 .text-glow {
@@ -169,7 +454,7 @@ main {
 .empty-state {
   border-radius: 1rem;
   border: 1px dashed color-mix(in srgb, var(--color-border) 50%, transparent);
-  background: rgba(17, 17, 17, 0.7);
+  background: var(--mm-glass-panel);
   backdrop-filter: blur(20px);
   padding: 3rem;
   text-align: center;
@@ -177,7 +462,7 @@ main {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(100, 116, 139, 0.3) transparent;
+  scrollbar-color: var(--mm-scrollbar) transparent;
 }
 
 *::-webkit-scrollbar {
@@ -190,19 +475,51 @@ main {
 }
 
 *::-webkit-scrollbar-thumb {
-  background: rgba(100, 116, 139, 0.3);
+  background: var(--mm-scrollbar);
   border-radius: 9999px;
 }
 
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(100, 116, 139, 0.5);
+  background: var(--mm-scrollbar-hover);
 }
 
 ::selection {
   background-color: color-mix(in srgb, var(--color-primary) 35%, transparent);
 }
 
+/*
+ * Baseline focus ring.
+ *
+ * In `@layer base` on purpose: components that style their own focus (the
+ * `focus-visible:outline-none focus-visible:ring-2` pairing used across
+ * `components/ui`) live in `@layer utilities`, which wins, so they are
+ * untouched. Everything that never got an explicit focus style — bare links,
+ * `tabIndex` containers, anything added later — inherits a visible ring here
+ * instead of relying on the UA default, which is nearly invisible on
+ * near-black.
+ */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--mm-focus);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * Reduced motion.
+ *
+ * The JS-driven effects docs/DESIGN_SYSTEM.md names — marquee parallax, magnet,
+ * per-character reveal, sticky scale — opt out in their own components via
+ * `use-prefers-reduced-motion`, because they animate through React state and a
+ * CSS override cannot reach them. This block covers everything else: CSS
+ * transitions, keyframe animations (`animate-pulse` skeletons keep their final
+ * frame), smooth scrolling, and view transitions.
+ */
 @media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+
   *,
   *::before,
   *::after {

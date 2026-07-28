@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#0A0A0A" />
+    <title>Offline · ManhwaManiacs</title>
+    <!--
+      Served by the service worker when a navigation fails and no copy of the
+      requested page has been stored. It is deliberately standalone: no bundle,
+      no font download, no API call — every one of those is the thing that just
+      failed. Fonts are the system stack for the same reason; the app's Syne /
+      DM Sans are fetched from the build output that may not be cached yet.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0a0a;
+        --surface: #111111;
+        --fg: #dde4ea;
+        --muted: #9aa8b4;
+        --primary: #f59e0b;
+        --border: rgba(221, 228, 234, 0.12);
+      }
+      * {
+        box-sizing: border-box;
+      }
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+      }
+      body {
+        background: var(--bg);
+        color: var(--fg);
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 1.5rem;
+      }
+      main {
+        width: 100%;
+        max-width: 26rem;
+        text-align: center;
+      }
+      .mark {
+        width: 72px;
+        height: 72px;
+        border-radius: 1.25rem;
+        margin: 0 auto 1.5rem;
+        display: block;
+        box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
+      }
+      h1 {
+        font-size: 1.5rem;
+        line-height: 1.2;
+        margin: 0 0 0.75rem;
+        letter-spacing: 0.02em;
+      }
+      p {
+        margin: 0 0 1.5rem;
+        color: var(--muted);
+        font-size: 0.9375rem;
+        line-height: 1.6;
+      }
+      .actions {
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+      a,
+      button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        height: 2.75rem;
+        padding: 0 1.25rem;
+        border-radius: 0.625rem;
+        font: inherit;
+        font-weight: 500;
+        font-size: 0.9375rem;
+        text-decoration: none;
+        cursor: pointer;
+        transition: background-color 0.2s ease, border-color 0.2s ease;
+      }
+      button {
+        background: var(--primary);
+        color: #0c0c0c;
+        border: none;
+      }
+      button:hover {
+        background: #c2410c;
+        color: #fff;
+      }
+      a {
+        background: rgba(255, 255, 255, 0.04);
+        color: var(--fg);
+        border: 1px solid var(--border);
+      }
+      a:hover {
+        border-color: rgba(245, 158, 11, 0.4);
+        background: rgba(245, 158, 11, 0.1);
+      }
+      .note {
+        margin: 1.5rem 0 0;
+        font-size: 0.8125rem;
+        color: var(--muted);
+        opacity: 0.8;
+      }
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: var(--surface);
+        font-size: 0.75rem;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--muted);
+      }
+      .dot {
+        width: 0.5rem;
+        height: 0.5rem;
+        border-radius: 999px;
+        background: #ef4444;
+      }
+      body.online .dot {
+        background: #10b981;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <img class="mark" src="/icons/icon-192.png" alt="" width="72" height="72" />
+      <span class="status"><span class="dot"></span><span id="state">No connection</span></span>
+      <h1>This page needs the server</h1>
+      <p>
+        ManhwaManiacs can't reach your library right now. Chapters you saved for offline
+        reading are still on this device and open as normal.
+      </p>
+      <div class="actions">
+        <button type="button" id="retry">Try again</button>
+        <a href="/offline">Saved chapters</a>
+      </div>
+      <p class="note">This page is served from your device by the app's service worker.</p>
+    </main>
+    <script>
+      // Only two behaviours, both offline-safe: retry the page the user wanted,
+      // and notice when the network comes back so the retry is worth pressing.
+      document.getElementById("retry").addEventListener("click", function retry() {
+        window.location.reload();
+      });
+      function render() {
+        var online = window.navigator.onLine;
+        document.body.classList.toggle("online", online);
+        document.getElementById("state").textContent = online
+          ? "Back online"
+          : "No connection";
+      }
+      window.addEventListener("online", render);
+      window.addEventListener("offline", render);
+      render();
+    </script>
+  </body>
+</html>
