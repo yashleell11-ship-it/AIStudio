@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { RefreshCw, Search } from "lucide-react";
+import { useState } from "react";
+import { ArrowLeftRight, RefreshCw, Search } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,6 +23,7 @@ import {
   useUpdateTracker,
 } from "../hooks";
 import type { SeriesTracker, UpdateNotification } from "../types";
+import { MigrateSeriesDialog } from "./MigrateSeriesDialog";
 import { UpdateSettingsPanel } from "./UpdateSettingsPanel";
 
 function formatWhen(value: string | null): string {
@@ -44,6 +46,11 @@ function TrackerRow({
   onToggle: (id: number, enabled: boolean) => void;
   busy: boolean;
 }) {
+  const [migrateOpen, setMigrateOpen] = useState(false);
+  // Downloaded trackers are derived from the download rows and would simply be
+  // recreated at the old source on the next sync, so the endpoint refuses them.
+  const canMigrate = tracker.track_kind === "followed";
+
   return (
     <div className="rounded-xl border border-border/40 bg-white/[0.02] p-4 transition-colors hover:border-primary/30">
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -74,6 +81,12 @@ function TrackerRow({
           <Button size="sm" variant="secondary" disabled={busy} onClick={() => onCheck(tracker.id)}>
             Check now
           </Button>
+          {canMigrate ? (
+            <Button size="sm" variant="secondary" disabled={busy} onClick={() => setMigrateOpen(true)}>
+              <ArrowLeftRight className="size-3.5" aria-hidden />
+              Move source
+            </Button>
+          ) : null}
           {tracker.track_kind === "followed" ? (
             <Button size="sm" variant="ghost" disabled={busy} onClick={() => onUnfollow(tracker.id)}>
               Unfollow
@@ -81,6 +94,10 @@ function TrackerRow({
           ) : null}
         </div>
       </div>
+
+      {canMigrate && migrateOpen ? (
+        <MigrateSeriesDialog tracker={tracker} onClose={() => setMigrateOpen(false)} />
+      ) : null}
     </div>
   );
 }

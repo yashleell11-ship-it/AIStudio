@@ -1,21 +1,28 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { ShieldAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
+import { PROFILE_PICKER_PATH } from "@/features/profiles/access";
 import { ApiError } from "@/types/api";
-import { useContentPreferences, useSetMatureContent } from "../hooks";
+import {
+  useContentPreferences,
+  useMatureToggleBlockReason,
+  useSetMatureContent,
+} from "../hooks";
 
 export function MatureContentPanel() {
   const preferences = useContentPreferences();
   const mutation = useSetMatureContent();
+  const blockReason = useMatureToggleBlockReason();
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const enabled = preferences.data?.mature_content_enabled ?? false;
-  const busy = preferences.isLoading || mutation.isPending;
+  const busy = preferences.isLoading || mutation.isPending || blockReason !== null;
 
   const apply = async (next: boolean) => {
     setError(null);
@@ -69,6 +76,21 @@ export function MatureContentPanel() {
         </div>
       ) : (
         <>
+          {blockReason ? (
+            <div className="mb-3 flex items-start gap-3 rounded-xl border border-warning/30 bg-warning/10 p-3">
+              <ShieldAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+              <div className="text-sm text-fg/90">
+                <p>{blockReason}</p>
+                <Link
+                  href={PROFILE_PICKER_PATH}
+                  className="mt-1 inline-block text-primary hover:underline"
+                >
+                  Choose a profile
+                </Link>
+              </div>
+            </div>
+          ) : null}
+
           <div className="flex items-start justify-between gap-4 rounded-xl border border-border bg-surface-2/40 px-4 py-3 transition-colors hover:border-primary/30">
             <div className="min-w-0">
               <p className="text-sm font-medium text-fg">Show mature (18+) content</p>

@@ -9,8 +9,11 @@ import {
 } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { KeyboardProvider } from "@/lib/keyboard";
+import { setStorageScope } from "@/lib/scoped-storage";
 import { isAuthQueryKey, isUnauthorizedError } from "@/features/auth/access";
-import { CURRENT_USER_QUERY_KEY } from "@/features/auth/hooks";
+import { CURRENT_USER_QUERY_KEY, useCurrentUser } from "@/features/auth/hooks";
+import { discardLegacyRecentSearches } from "@/features/library/recent-searches";
+import { adoptLegacySourceProgress } from "@/features/sources/source-progress";
 import { isProfileScopeError, useActiveProfileStore } from "@/features/profiles";
 
 /**
@@ -111,9 +114,52 @@ function ProfileCacheBoundary({ children }: { children: React.ReactNode }) {
 }
 
 /**
+ * Publishes the (user, profile) that client-side stores namespace their
+ * localStorage keys with, and runs the one-time migration of the keys written
+ * before the app had profiles.
+ *
+ * `ProfileCacheBoundary` above drops the *query* cache on a switch; nothing it
+ * does touches localStorage, so without this the online reading positions and
+ * recent searches of the profile that just left stay readable by the next one.
+ * Clearing those keys on switch is not the fix — that would delete each
+ * profile's own data every time the browser changes hands.
+ *
+ * Publishing from an effect is late by one render: a store read during that
+ * first pass sees no scope and returns empty, then re-reads when the scope
+ * lands (both scoped stores subscribe to scope changes). Reading empty for a
+ * frame is the safe direction; reading a shared blob is not.
+ *
+ * `useCurrentUser` is already mounted by everything rendered below — the
+ * shell's route guard and the login/register screens' own session check — so
+ * subscribing here costs no extra request.
+ */
+function ProfileStorageBoundary({ children }: { children: React.ReactNode }) {
+  const { data: user } = useCurrentUser();
+  const userId = user?.id ?? null;
+  const profileId = useActiveProfileStore((s) => s.activeProfile?.id ?? null);
+
+  useEffect(() => {
+    if (userId === null || profileId === null) {
+      // Signed out, or between profiles: no scope at all, so scoped reads
+      // return nothing instead of falling back to a device-global blob.
+      setStorageScope(null);
+      return;
+    }
+    setStorageScope({ userId, profileId });
+    // Both are no-ops once the pre-scoping key is gone, so running them on
+    // every switch costs one miss and needs no "already migrated" flag.
+    adoptLegacySourceProgress();
+    discardLegacyRecentSearches();
+  }, [userId, profileId]);
+
+  return <>{children}</>;
+}
+
+/**
  * Client-side providers shared by the whole app.
  * - TanStack Query owns server/cache state.
  * - ProfileCacheBoundary isolates cached data per reading profile.
+ * - ProfileStorageBoundary isolates localStorage per reading profile.
  * - KeyboardProvider owns the global shortcut listener.
  * Rendered inside the root layout, wrapping only `children`.
  */
@@ -123,7 +169,9 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={queryClient}>
       <ProfileCacheBoundary>
-        <KeyboardProvider>{children}</KeyboardProvider>
+        <ProfileStorageBoundary>
+          <KeyboardProvider>{children}</KeyboardProvider>
+        </ProfileStorageBoundary>
       </ProfileCacheBoundary>
     </QueryClientProvider>
   );

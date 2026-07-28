@@ -1,5 +1,8 @@
 import { http } from "@/services/http";
 import type {
+  MigrateTrackerRequest,
+  MigrationCandidatesResponse,
+  MigrationPlan,
   SeriesTracker,
   UpdateNotification,
   UpdateRun,
@@ -26,6 +29,20 @@ export const updatesApi = {
 
   unfollow: (trackerId: number) =>
     http.delete<{ deleted: boolean }>(`/updates/trackers/${trackerId}`),
+
+  migrationCandidates: (
+    trackerId: number,
+    params?: { q?: string; per_page?: number },
+  ) =>
+    http.get<MigrationCandidatesResponse>(
+      `/updates/trackers/${trackerId}/migration-candidates`,
+      { query: params },
+    ),
+
+  // Preview and commit are the same call; `dry_run` decides whether anything
+  // is written. Both return the identical shape.
+  migrateTracker: (trackerId: number, body: MigrateTrackerRequest) =>
+    http.post<MigrationPlan>(`/updates/trackers/${trackerId}/migrate`, body),
 
   syncDownloaded: () =>
     http.post<{ created: number; updated: number; total: number }>(

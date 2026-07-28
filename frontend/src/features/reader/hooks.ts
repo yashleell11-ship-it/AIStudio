@@ -1,6 +1,12 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { readerApi } from "./api";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
+import { readerApi, toReaderChapterContent } from "./api";
 import { readerDebug } from "./debug";
+import type { ReaderPage } from "./types";
 
 const READER_KEY = ["reader"] as const;
 const READER_CHAPTER_STALE_MS = 5 * 60_000;
@@ -24,6 +30,26 @@ export function prefetchReaderChapter(
     .then(() => {
       readerDebug("api-prefetch-complete", { chapterId, scope: "local" });
     });
+}
+
+/**
+ * Pull a chapter into the cache and hand back its pages.
+ *
+ * Unlike `prefetchReaderChapter` this resolves the payload, which the reader
+ * needs so it can warm the first few images of the chapter it is about to
+ * reach. `ensureQueryData` reuses whatever is already cached rather than
+ * re-fetching a chapter the user just came from.
+ */
+export async function ensureReaderChapterPages(
+  queryClient: QueryClient,
+  chapterId: number,
+): Promise<ReadonlyArray<ReaderPage>> {
+  if (chapterId <= 0) return [];
+  const payload = await queryClient.ensureQueryData({
+    queryKey: readerChapterQueryKey(chapterId),
+    queryFn: () => readerApi.getChapter(chapterId),
+  });
+  return toReaderChapterContent(payload).pages;
 }
 
 export function useReaderChapter(chapterId: number) {

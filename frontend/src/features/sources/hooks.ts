@@ -1,7 +1,24 @@
-import { useInfiniteQuery, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from "@tanstack/react-query";
 import { readerDebug } from "@/features/reader/debug";
-import { sourcesApi } from "./api";
-import type { SourceChapterSummary } from "./types";
+import { useActiveProfileStore } from "@/features/profiles/store";
+import { ApiError } from "@/types/api";
+import { sourceImageUrl, sourcesApi } from "./api";
+import {
+  replaceSearchGroup,
+  searchGroupFromSourceSeries,
+  searchGroupWithError,
+} from "./global-search";
+import type {
+  GlobalSearchResponse,
+  SourceChapterSummary,
+  SourcePin,
+} from "./types";
 
 const SOURCES_KEY = ["sources"] as const;
 const SOURCE_READER_STALE_MS = 5 * 60_000;
@@ -59,23 +76,134 @@ export function useSources() {
   });
 }
 
+export interface FederatedSearchParams {
+  q: string;
+  page?: number;
+  per_page?: number;
+}
+
+export function federatedSearchQueryKey(params: FederatedSearchParams) {
+  return [...SOURCES_KEY, "search", params] as const;
+}
+
 /**
  * Federated search across the local library and every enabled remote source.
  * Mirrors the local-library `useSearch`: only runs for a non-empty query, keeps
  * previous results while a new query loads (no flicker), and reuses the same
  * short staleTime as the global default so repeated searches stay cached.
  */
-export function useFederatedSearch(params: {
-  q: string;
-  page?: number;
-  per_page?: number;
-}) {
+export function useFederatedSearch(params: FederatedSearchParams) {
   return useQuery({
-    queryKey: [...SOURCES_KEY, "search", params],
+    queryKey: federatedSearchQueryKey(params),
     queryFn: () => sourcesApi.federatedSearch(params),
     enabled: params.q.length > 0,
     placeholderData: (previous) => previous,
     staleTime: SEARCH_STALE_MS,
+  });
+}
+
+/**
+ * Re-query one source whose search section failed, patching that section into
+ * the cached federated response.
+ *
+ * Goes to the source's own browse endpoint instead of re-running
+ * `/sources/search`: a second federated call pays for every installed source to
+ * fix one, and would also replace the sections the user is already reading.
+ * `mutation.variables` names the source currently retrying, so only that
+ * section shows a spinner.
+ */
+export function useRetrySearchSource(params: FederatedSearchParams) {
+  const queryClient = useQueryClient();
+  const key = federatedSearchQueryKey(params);
+
+  const patch = (
+    sourceId: string,
+    rebuild: (
+      previous: GlobalSearchResponse,
+      group: GlobalSearchResponse["groups"][number],
+    ) => GlobalSearchResponse,
+  ) => {
+    queryClient.setQueryData<GlobalSearchResponse>(key, (previous) => {
+      if (!previous) return previous;
+      const group = previous.groups.find((entry) => entry.source === sourceId);
+      // A newer query already replaced these results; the retry answer is stale.
+      if (!group) return previous;
+      return rebuild(previous, group);
+    });
+  };
+
+  return useMutation({
+    mutationFn: (sourceId: string) =>
+      sourcesApi.listSeries(sourceId, { query: params.q }),
+    onSuccess: (page, sourceId) => {
+      patch(sourceId, (previous, group) =>
+        replaceSearchGroup(
+          previous,
+          searchGroupFromSourceSeries(group, page, sourceImageUrl),
+        ),
+      );
+    },
+    onError: (error, sourceId) => {
+      const message =
+        error instanceof ApiError ? error.message : "This source did not answer.";
+      patch(sourceId, (previous, group) =>
+        replaceSearchGroup(previous, searchGroupWithError(group, message)),
+      );
+    },
+  });
+}
+
+export function sourcePinsQueryKey(profileId: number | null) {
+  return [...SOURCES_KEY, "pins", profileId] as const;
+}
+
+/**
+ * The active profile's pinned sources.
+ *
+ * The profile id is part of the cache key on purpose: pins are stored per
+ * `(user_id, profile_id)`, so a switch must never render the previous profile's
+ * shortcuts out of cache. The `ProfileCacheBoundary` already drops
+ * profile-scoped queries on a switch; keying makes a stale hit structurally
+ * impossible rather than dependent on that boundary firing.
+ *
+ * Disabled without an active profile: the write path requires `X-Profile-Id`,
+ * and a profile-less read answers for the account's unscoped bucket, which is a
+ * different set that must not be shown as "your pins".
+ */
+export function useSourcePins() {
+  const profileId = useActiveProfileStore((state) => state.activeProfile?.id ?? null);
+  return useQuery({
+    queryKey: sourcePinsQueryKey(profileId),
+    queryFn: () => sourcesApi.listPins(),
+    enabled: profileId !== null,
+  });
+}
+
+/**
+ * Replace the pinned set, optimistically. Callers pass the complete next list
+ * (see `pins.ts`), which is also the shape the endpoint takes.
+ */
+export function useReplaceSourcePins() {
+  const queryClient = useQueryClient();
+  const profileId = useActiveProfileStore((state) => state.activeProfile?.id ?? null);
+  const key = sourcePinsQueryKey(profileId);
+  return useMutation({
+    mutationFn: (next: SourcePin[]) =>
+      sourcesApi.replacePins(next.map((pin) => pin.source_id)),
+    onMutate: async (next) => {
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<SourcePin[]>(key);
+      queryClient.setQueryData<SourcePin[]>(key, next);
+      return { previous };
+    },
+    onError: (_error, _next, context) => {
+      queryClient.setQueryData<SourcePin[] | undefined>(key, context?.previous);
+    },
+    onSuccess: (server) => {
+      // The server resolves each pin's display name, icon and 18+ flag, so its
+      // answer supersedes the optimistic rows rather than merely confirming them.
+      queryClient.setQueryData<SourcePin[]>(key, server);
+    },
   });
 }
 

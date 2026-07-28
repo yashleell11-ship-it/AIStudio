@@ -1,9 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { libraryApi } from "./api";
 import type { SeriesFilter, SeriesSort } from "./types";
 
 const LIBRARY_KEY = ["library"] as const;
 const INTELLIGENCE_KEY = ["intelligence"] as const;
+/**
+ * Membership sits under its own root rather than inside `LIBRARY_KEY` so the
+ * broad `invalidateQueries({ queryKey: LIBRARY_KEY })` used by other mutations
+ * cannot wipe the optimistic state of every visible toggle. Being a root key
+ * also means the `ProfileCacheBoundary` drops it on a profile switch, which is
+ * required: the bit is per (user, profile).
+ */
+const MEMBERSHIP_KEY = ["library-membership"] as const;
 
 // --- Series ---
 
@@ -64,6 +72,78 @@ export function useToggleFavorite() {
       queryClient.invalidateQueries({
         queryKey: [...LIBRARY_KEY, "series", data.series_id],
       });
+    },
+  });
+}
+
+// --- Library membership ---
+
+export function libraryMembershipQueryKey(seriesId: number) {
+  return [...MEMBERSHIP_KEY, seriesId] as const;
+}
+
+/**
+ * Whether `seriesId` is on the active profile's shelf, as displayed.
+ *
+ * There is nothing to fetch: `in_library` rides on the series payload
+ * (`_series_summary`, backend/services/library_intelligence_service.py:1570),
+ * and callers reached through a membership-gated read (the library grid, local
+ * search hits, recommendations, similar) know it is `true` by construction.
+ * `seed` is that answer.
+ *
+ * The query entry is kept because the add/remove mutation writes into it —
+ * optimistically on click, then the server's own answer — so every control for
+ * the same series flips together and the state survives the refetch the write
+ * triggers.
+ */
+export function useLibraryMembership(seriesId: number, seed: boolean) {
+  return useQuery({
+    queryKey: libraryMembershipQueryKey(seriesId),
+    // No fetcher: the payload already carried the answer, so a refetch could
+    // only invent one. `skipToken` disables the query outright.
+    queryFn: skipToken,
+    initialData: seed,
+  });
+}
+
+/**
+ * Add or remove a series for the active profile, optimistically.
+ *
+ * The membership bit decides what every gated read returns, so a successful
+ * write invalidates the library and discovery caches: a removed series has to
+ * disappear from the grid, an added one has to appear in it.
+ */
+export function useSetLibraryMembership() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ seriesId, inLibrary }: { seriesId: number; inLibrary: boolean }) =>
+      inLibrary ? libraryApi.addToLibrary(seriesId) : libraryApi.removeFromLibrary(seriesId),
+    onMutate: async ({ seriesId, inLibrary }) => {
+      const key = libraryMembershipQueryKey(seriesId);
+      await queryClient.cancelQueries({ queryKey: key });
+      const previous = queryClient.getQueryData<boolean | null>(key);
+      queryClient.setQueryData(key, inLibrary);
+      return { previous };
+    },
+    onError: (_error, { seriesId }, context) => {
+      const key = libraryMembershipQueryKey(seriesId);
+      if (context?.previous === undefined) {
+        // Nothing was known before the optimistic write; dropping the entry
+        // restores "unknown" (setQueryData ignores an undefined value).
+        queryClient.removeQueries({ queryKey: key, exact: true });
+        return;
+      }
+      queryClient.setQueryData(key, context.previous);
+    },
+    onSuccess: (membership) => {
+      queryClient.setQueryData(
+        libraryMembershipQueryKey(membership.series_id),
+        membership.in_library,
+      );
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
+      void queryClient.invalidateQueries({ queryKey: INTELLIGENCE_KEY });
     },
   });
 }

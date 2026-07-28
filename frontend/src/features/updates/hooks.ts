@@ -1,6 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { remapSourceSeriesProgress } from "@/features/sources/source-progress";
 import { updatesApi } from "./api";
-import type { SeriesTracker, UpdateNotification } from "./types";
+import type {
+  MigrateTrackerRequest,
+  SeriesTracker,
+  UpdateNotification,
+} from "./types";
 
 const UPDATES_KEY = ["updates"] as const;
 
@@ -188,6 +193,66 @@ export function useUpdateTracker() {
       updatesApi.updateTracker(id, body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: [...UPDATES_KEY, "trackers"] });
+    },
+  });
+}
+
+// --- Source migration ---
+
+/**
+ * Candidate targets for repointing a followed series.
+ *
+ * Backed by the federated search fan-out, so it is slow and best fetched only
+ * while the migration dialog is open — hence the explicit `enabled` flag. It
+ * inherits the fan-out's partial-failure semantics: a large `sources_failed` is
+ * routine, not an error.
+ */
+export function useMigrationCandidates(
+  trackerId: number,
+  query: string,
+  enabled: boolean,
+) {
+  return useQuery({
+    queryKey: [...UPDATES_KEY, "migration-candidates", trackerId, query],
+    queryFn: () => updatesApi.migrationCandidates(trackerId, { q: query || undefined }),
+    enabled,
+    // A fan-out across every source is far too expensive to refetch on a whim.
+    staleTime: 5 * 60_000,
+  });
+}
+
+/**
+ * Preview or perform a source migration.
+ *
+ * On a real (non-dry-run) migration the returned `chapter_map` is replayed over
+ * the local online-progress store before anything else: progress for a remote
+ * series lives only in the browser, so the server cannot move it and a commit
+ * that skipped this step would silently reset the user's place. Trackers and
+ * notifications are then refetched, since both were rewritten server-side.
+ */
+export function useMigrateTracker() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      trackerId,
+      body,
+    }: {
+      trackerId: number;
+      body: MigrateTrackerRequest;
+    }) => updatesApi.migrateTracker(trackerId, body),
+    onSuccess: (plan) => {
+      if (!plan.applied) {
+        return;
+      }
+      remapSourceSeriesProgress(
+        { source: plan.from.source, seriesId: plan.from.series_id },
+        { source: plan.to.source, seriesId: plan.to.series_id },
+        plan.chapter_map,
+      );
+      void queryClient.invalidateQueries({ queryKey: [...UPDATES_KEY, "trackers"] });
+      void queryClient.invalidateQueries({
+        queryKey: [...UPDATES_KEY, "notifications"],
+      });
     },
   });
 }

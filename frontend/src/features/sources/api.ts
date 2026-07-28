@@ -6,6 +6,7 @@ import type {
   SourceBrowseMode,
   SourceGenre,
   SourceChapterSummary,
+  SourcePin,
   SourceSeriesDetail,
   SourceSummary,
 } from "./types";
@@ -45,6 +46,13 @@ export const sourcesApi = {
   // Federated search across the local library AND every enabled remote source.
   federatedSearch: (params: { q: string; page?: number; per_page?: number }) =>
     http.get<GlobalSearchResponse>("/sources/search", { query: params }),
+
+  listPins: () => http.get<SourcePin[]>("/sources/pins"),
+
+  // Whole-set replace, not add/remove: the client owns the ordering, sends the
+  // list it wants, and gets that exact list back.
+  replacePins: (sourceIds: string[]) =>
+    http.put<SourcePin[]>("/sources/pins", { source_ids: sourceIds }),
 
   browseModes: (sourceId: string) =>
     http.get<SourceBrowseMode[]>(`/sources/${encodeURIComponent(sourceId)}/browse-modes`),

@@ -14,6 +14,7 @@ import {
   useFollowSeries,
   useUnfollowTracker,
 } from "@/features/updates/hooks";
+import { MigrateSeriesDialog } from "@/features/updates/components/MigrateSeriesDialog";
 import { ApiError } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { sourceImageUrl } from "../api";
@@ -48,6 +49,7 @@ export function SourceSeriesDetailView({
   const [selectedChapterIds, setSelectedChapterIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<ChapterSortOrder>("newest");
+  const [migrateOpen, setMigrateOpen] = useState(false);
   const { map: progressMap, latest: latestRead } = useSourceSeriesProgress(
     sourceId,
     seriesId,
@@ -285,6 +287,11 @@ export function SourceSeriesDetailView({
                   ? "Unfollow"
                   : "Follow"}
             </Button>
+            {followedTracker ? (
+              <Button variant="secondary" onClick={() => setMigrateOpen(true)}>
+                Move to another source
+              </Button>
+            ) : null}
             <Button variant="secondary" disabled={downloadBusy || chapters.length === 0} onClick={downloadSeries}>
               Download Entire Series
             </Button>
@@ -304,6 +311,13 @@ export function SourceSeriesDetailView({
           {feedback && <p className="mt-3 text-sm text-muted">{feedback}</p>}
         </div>
       </div>
+
+      {followedTracker && migrateOpen ? (
+        <MigrateSeriesDialog
+          tracker={followedTracker}
+          onClose={() => setMigrateOpen(false)}
+        />
+      ) : null}
 
       <Card className="mt-8">
         <CardHeader className="flex-row items-center justify-between gap-3">

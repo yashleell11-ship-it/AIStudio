@@ -1,9 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef } from "react";
-import { useAddBookmark, useAdjacentChapter, useReaderChapter, useSaveProgress } from "../hooks";
+import { useQueryClient } from "@tanstack/react-query";
+import {
+  ensureReaderChapterPages,
+  useAddBookmark,
+  useAdjacentChapter,
+  useReaderChapter,
+  useSaveProgress,
+} from "../hooks";
 import { toReaderChapterContent } from "../api";
 import { readerDebug } from "../debug";
+import { readerSeriesKey } from "../preferences";
 import { ApiError } from "@/types/api";
 import { ChapterReader } from "./ChapterReader";
 
@@ -20,6 +28,7 @@ export function BasicReader({ seriesId, chapterId, initialPage = 1 }: BasicReade
     !Number.isFinite(chapterId) ||
     chapterId <= 0;
   const resolvedChapterId = invalidRoute ? 0 : chapterId;
+  const queryClient = useQueryClient();
   const chapterQuery = useReaderChapter(resolvedChapterId);
   const saveProgress = useSaveProgress();
   const addBookmark = useAddBookmark();
@@ -61,6 +70,15 @@ export function BasicReader({ seriesId, chapterId, initialPage = 1 }: BasicReade
       : null;
   const nextChapterHref =
     nextChapter.data?.id != null ? `/reader/${seriesId}/${nextChapter.data.id}` : null;
+
+  const nextChapterId = nextChapter.data?.id ?? null;
+  const preloadNextChapter = useCallback(
+    () =>
+      nextChapterId != null
+        ? ensureReaderChapterPages(queryClient, nextChapterId)
+        : Promise.resolve([]),
+    [nextChapterId, queryClient],
+  );
 
   const persistProgress = useCallback(
     (page: number) => {
@@ -132,12 +150,14 @@ export function BasicReader({ seriesId, chapterId, initialPage = 1 }: BasicReade
       isLoading={!invalidRoute && chapterQuery.isPending && chapterQuery.data === undefined}
       error={routeError ?? chapterQuery.error}
       scrollKey={String(chapterId)}
+      seriesKey={readerSeriesKey(null, seriesId)}
       initialPage={initialPage}
       previousChapterHref={previousChapterHref}
       nextChapterHref={nextChapterHref}
       backHref={`/library/${seriesId}`}
       onBookmark={handleBookmark}
       onPageProgress={handlePageProgress}
+      preloadNextChapter={preloadNextChapter}
       bookmarkPending={addBookmark.isPending}
       showBookmark
     />
