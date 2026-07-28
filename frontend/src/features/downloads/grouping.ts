@@ -101,3 +101,234 @@ export function visibleGroupItems(group: SeriesDownloadGroup): DownloadItem[] {
       return priorityA - priorityB;
     });
 }
+
+// ---------------------------------------------------------------------------
+// Queue state: the six statuses the backend actually writes, what each one
+// means, and which actions the API will accept for it.
+//
+// Every status below is written somewhere in backend/services/download_manager.py
+// or backend/services/download_service.py; there is no seventh. Keeping the
+// list closed here is what lets the view render an honest badge for each row
+// instead of title-casing whatever string arrived.
+// ---------------------------------------------------------------------------
+
+export type DownloadStatus =
+  | "queued"
+  | "downloading"
+  | "paused"
+  | "failed"
+  | "completed"
+  | "cancelled";
+
+export type DownloadStatusTone =
+  | "active"
+  | "pending"
+  | "paused"
+  | "failed"
+  | "done"
+  | "neutral";
+
+export interface DownloadStatusDescriptor {
+  status: string;
+  label: string;
+  tone: DownloadStatusTone;
+  /** One line explaining what this state means for the chapter. */
+  description: string;
+}
+
+const STATUS_DESCRIPTORS: Record<DownloadStatus, Omit<DownloadStatusDescriptor, "status">> = {
+  downloading: {
+    label: "Downloading",
+    tone: "active",
+    description: "Pages are transferring right now.",
+  },
+  queued: {
+    label: "Queued",
+    tone: "pending",
+    description: "Waiting for a free download worker.",
+  },
+  paused: {
+    label: "Paused",
+    tone: "paused",
+    description: "Held by you; resume to put it back in the queue.",
+  },
+  failed: {
+    label: "Failed",
+    tone: "failed",
+    description: "The download stopped with an error and will not retry itself.",
+  },
+  completed: {
+    label: "Completed",
+    tone: "done",
+    description: "Imported into the local library.",
+  },
+  cancelled: {
+    label: "Cancelled",
+    tone: "neutral",
+    description: "Removed from the queue before it finished.",
+  },
+};
+
+/**
+ * Label, tone, and meaning for one download status. An unrecognised status is
+ * reported as-is rather than guessed at, so a backend that grows a new state
+ * shows up as an obvious unknown instead of being mislabelled.
+ */
+export function describeDownloadStatus(status: string): DownloadStatusDescriptor {
+  const known = STATUS_DESCRIPTORS[status as DownloadStatus];
+  if (known) {
+    return { status, ...known };
+  }
+  return {
+    status,
+    label: status || "Unknown",
+    tone: "neutral",
+    description: "Reported by the server but not recognised by this client.",
+  };
+}
+
+// The action predicates below mirror the server's own state checks exactly, so
+// a disabled button means "the API would reject this", not a guess:
+//   retry  -> failed | paused          (download_service.retry)
+//   resume -> paused | failed          (download_service.resume)
+//   pause  -> anything but completed/cancelled, but only queued/downloading
+//             work is actually interruptible, so that is what the UI offers
+//   cancel -> anything but completed   (already-cancelled excluded here: the
+//             API accepts it, but it is a no-op the user cannot see)
+//   move   -> queued AND queue_state "pending" (download_service.move_queue_item)
+
+export function canRetryDownload(item: DownloadItem): boolean {
+  return item.status === "failed" || item.status === "paused";
+}
+
+export function canResumeDownload(item: DownloadItem): boolean {
+  return item.status === "paused" || item.status === "failed";
+}
+
+export function canPauseDownload(item: DownloadItem): boolean {
+  return item.status === "queued" || item.status === "downloading";
+}
+
+export function canCancelDownload(item: DownloadItem): boolean {
+  return item.status !== "completed" && item.status !== "cancelled";
+}
+
+export function canMoveDownload(item: DownloadItem): boolean {
+  return item.status === "queued" && item.queue_state === "pending";
+}
+
+export interface DownloadPartition {
+  downloading: DownloadItem[];
+  queued: DownloadItem[];
+  paused: DownloadItem[];
+  failed: DownloadItem[];
+  completed: DownloadItem[];
+  cancelled: DownloadItem[];
+  /** Anything the backend reported that is none of the above. */
+  other: DownloadItem[];
+}
+
+function byUpdatedAtDesc(a: DownloadItem, b: DownloadItem): number {
+  return b.updated_at.localeCompare(a.updated_at);
+}
+
+/**
+ * Splits a flat download list into one bucket per status.
+ *
+ * Failures are sorted newest-first because that is the order the owner reads
+ * them in: the most recent error is the one that explains why the queue is
+ * stuck now. The other buckets keep the server's order (created_at desc).
+ */
+export function partitionDownloads(items: DownloadItem[]): DownloadPartition {
+  const partition: DownloadPartition = {
+    downloading: [],
+    queued: [],
+    paused: [],
+    failed: [],
+    completed: [],
+    cancelled: [],
+    other: [],
+  };
+
+  for (const item of items) {
+    switch (item.status) {
+      case "downloading":
+        partition.downloading.push(item);
+        break;
+      case "queued":
+        partition.queued.push(item);
+        break;
+      case "paused":
+        partition.paused.push(item);
+        break;
+      case "failed":
+        partition.failed.push(item);
+        break;
+      case "completed":
+        partition.completed.push(item);
+        break;
+      case "cancelled":
+        partition.cancelled.push(item);
+        break;
+      default:
+        partition.other.push(item);
+        break;
+    }
+  }
+
+  partition.failed.sort(byUpdatedAtDesc);
+  return partition;
+}
+
+/** One distinct failure message and how many chapters hit it. */
+export interface FailureReason {
+  message: string;
+  count: number;
+  /** Chapters that failed with this exact message, newest first. */
+  items: DownloadItem[];
+}
+
+export interface FailureSummary {
+  /** Every failed chapter, newest failure first. */
+  items: DownloadItem[];
+  count: number;
+  /** How many distinct series the failures span. */
+  seriesCount: number;
+  /** Ids the retry endpoint will accept, newest first. */
+  retriableIds: number[];
+  /**
+   * Failures collapsed by error message. A dead connector fails every chapter
+   * of a series with the same string, so this turns forty identical rows into
+   * one line the owner can actually read.
+   */
+  reasons: FailureReason[];
+}
+
+/** Placeholder used when the backend recorded a failure with no error text. */
+export const UNKNOWN_FAILURE_MESSAGE = "No error message was recorded.";
+
+export function summarizeFailures(items: DownloadItem[]): FailureSummary {
+  const failed = partitionDownloads(items).failed;
+  const reasons = new Map<string, FailureReason>();
+
+  for (const item of failed) {
+    const message = item.error?.trim() || UNKNOWN_FAILURE_MESSAGE;
+    const reason = reasons.get(message);
+    if (reason) {
+      reason.count += 1;
+      reason.items.push(item);
+    } else {
+      reasons.set(message, { message, count: 1, items: [item] });
+    }
+  }
+
+  return {
+    items: failed,
+    count: failed.length,
+    seriesCount: new Set(failed.map((item) => seriesGroupKey(item.source, item.series_id))).size,
+    retriableIds: failed.filter(canRetryDownload).map((item) => item.id),
+    reasons: Array.from(reasons.values()).sort(
+      (a, b) => b.count - a.count || a.message.localeCompare(b.message),
+    ),
+  };
+}

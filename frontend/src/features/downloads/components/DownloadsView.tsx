@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import {
   AlertCircle,
+  ArrowDown,
+  ArrowUp,
   CheckCircle2,
   ChevronDown,
   ChevronUp,
@@ -11,6 +13,7 @@ import {
   Pause,
   Play,
   RotateCcw,
+  TriangleAlert,
   X,
   Zap,
 } from "lucide-react";
@@ -20,11 +23,19 @@ import { HeroHeading } from "@/components/premium/HeroHeading";
 import { ApiError } from "@/types/api";
 import { cn } from "@/lib/cn";
 import {
+  canCancelDownload,
+  canMoveDownload,
+  canPauseDownload,
+  canResumeDownload,
+  canRetryDownload,
+  describeDownloadStatus,
   groupDownloadsBySeries,
   seriesCanCancel,
   seriesCanPause,
   seriesCanResume,
+  summarizeFailures,
   visibleGroupItems,
+  type DownloadStatusTone,
 } from "../grouping";
 import {
   useCancelAllDownloads,
@@ -32,6 +43,7 @@ import {
   useCancelSeries,
   useDownloadMetrics,
   useDownloads,
+  useMoveDownload,
   usePauseAllDownloads,
   usePauseDownload,
   usePauseSeries,
@@ -39,6 +51,7 @@ import {
   useResumeDownload,
   useResumeSeries,
   useRetryDownload,
+  useRetryFailedDownloads,
 } from "../hooks";
 import type { DownloadItem, SeriesDownloadGroup } from "../types";
 
@@ -78,28 +91,34 @@ function formatEta(seconds: number | null | undefined): string {
   return `${minutes}m ${remainder}s`;
 }
 
-function statusLabel(status: string): string {
-  if (status === "failed") {
-    return "Error";
-  }
-  return status.charAt(0).toUpperCase() + status.slice(1);
-}
+// One colour per queue state, keyed off the shared descriptor rather than the
+// raw string, so the badge, the filter chip, and the metrics tile can never
+// disagree about what "failed" is called or what colour it is.
+const TONE_BADGE_CLASS: Record<DownloadStatusTone, string> = {
+  active: "border-primary/40 bg-primary/15 text-primary",
+  pending: "border-accent/40 bg-accent/15 text-accent",
+  paused: "border-warning/40 bg-warning/15 text-warning",
+  failed: "border-danger/40 bg-danger/15 text-danger",
+  done: "border-success/40 bg-success/15 text-success",
+  neutral: "border-border bg-surface-2 text-muted",
+};
 
-function statusBadgeClass(status: string): string {
-  switch (status) {
-    case "downloading":
-      return "border-primary/40 bg-primary/15 text-primary";
-    case "queued":
-      return "border-accent/40 bg-accent/15 text-accent";
-    case "paused":
-      return "border-warning/40 bg-warning/15 text-warning";
-    case "failed":
-      return "border-danger/40 bg-danger/15 text-danger";
-    case "completed":
-      return "border-success/40 bg-success/15 text-success";
-    default:
-      return "border-border bg-surface-2 text-muted";
-  }
+function StatusBadge({ status }: { status: string }) {
+  const descriptor = describeDownloadStatus(status);
+  return (
+    <span
+      title={descriptor.description}
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium",
+        TONE_BADGE_CLASS[descriptor.tone],
+      )}
+    >
+      {descriptor.tone === "active" && (
+        <span className="mr-1.5 size-1.5 animate-pulse rounded-full bg-primary" />
+      )}
+      {descriptor.label}
+    </span>
+  );
 }
 
 function matchesFilter(item: DownloadItem, filter: FilterTab): boolean {
@@ -166,13 +185,14 @@ function StatTile({
   label: string;
   value: string;
   icon?: React.ComponentType<{ className?: string }>;
-  accent?: "amber" | "rose" | "success" | "warning";
+  accent?: "amber" | "rose" | "success" | "warning" | "danger";
 }) {
   const accentStyles = {
     amber: "from-primary/20 to-primary/5 text-primary",
     rose: "from-accent/20 to-accent/5 text-accent",
     success: "from-success/20 to-success/5 text-success",
     warning: "from-warning/20 to-warning/5 text-warning",
+    danger: "from-danger/20 to-danger/5 text-danger",
   };
 
   return (
@@ -251,22 +271,27 @@ function FilterChip({
   );
 }
 
+interface RowActions {
+  onPause: (id: number) => void;
+  onResume: (id: number) => void;
+  onCancel: (id: number) => void;
+  onRetry: (id: number) => void;
+  onMove: (id: number, direction: "up" | "down") => void;
+}
+
 function DownloadRow({
   item,
   onPause,
   onResume,
   onCancel,
   onRetry,
+  onMove,
   busy,
-}: {
+}: RowActions & {
   item: DownloadItem;
-  onPause: (id: number) => void;
-  onResume: (id: number) => void;
-  onCancel: (id: number) => void;
-  onRetry: (id: number) => void;
   busy: boolean;
 }) {
-  const isActive = item.status === "downloading" || item.status === "queued";
+  const descriptor = describeDownloadStatus(item.status);
 
   return (
     <div className="glass-card rounded-xl p-4 transition-colors hover:border-primary/30">
@@ -279,17 +304,7 @@ function DownloadRow({
               <p className="truncate font-medium text-fg">{item.series_title}</p>
               <p className="mt-0.5 truncate text-sm text-muted">{item.chapter_title}</p>
             </div>
-            <span
-              className={cn(
-                "inline-flex shrink-0 items-center rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize",
-                statusBadgeClass(item.status),
-              )}
-            >
-              {item.status === "downloading" && (
-                <span className="mr-1.5 size-1.5 animate-pulse rounded-full bg-primary" />
-              )}
-              {statusLabel(item.status)}
-            </span>
+            <StatusBadge status={item.status} />
           </div>
 
           <div className="mt-3 space-y-2">
@@ -319,19 +334,30 @@ function DownloadRow({
             </div>
           </div>
 
-          {item.error && (
-            <p className="mt-2 flex items-start gap-1.5 text-sm text-danger">
-              <AlertCircle className="mt-0.5 size-3.5 shrink-0" aria-hidden />
-              {item.error}
-            </p>
+          {item.error ? (
+            <div className="mt-2 rounded-lg border border-danger/25 bg-danger/5 p-2.5">
+              <p className="flex items-start gap-1.5 text-xs font-semibold uppercase tracking-wider text-danger">
+                <AlertCircle className="mt-px size-3.5 shrink-0" aria-hidden />
+                Error reported by the server
+              </p>
+              {/* Wrapped, not truncated: this string is the only explanation
+                  the owner gets for why the chapter stopped. */}
+              <p className="mt-1 break-words font-mono text-xs leading-relaxed text-danger">
+                {item.error}
+              </p>
+            </div>
+          ) : (
+            <p className="mt-2 text-xs text-muted">{descriptor.description}</p>
           )}
 
           {item.retry_count > 0 && (
-            <p className="mt-1 text-xs text-muted">Retries: {item.retry_count}</p>
+            <p className="mt-1 text-xs text-muted">
+              Retried {item.retry_count} time{item.retry_count === 1 ? "" : "s"} already.
+            </p>
           )}
 
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            {isActive && (
+            {canPauseDownload(item) && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -343,19 +369,7 @@ function DownloadRow({
                 Pause
               </Button>
             )}
-            {(item.status === "paused" || item.status === "failed") && (
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={busy}
-                onClick={() => onResume(item.id)}
-                className="gap-1.5"
-              >
-                <Play className="size-3.5" aria-hidden />
-                Resume
-              </Button>
-            )}
-            {item.status === "failed" && (
+            {canRetryDownload(item) && (
               <Button
                 variant="secondary"
                 size="sm"
@@ -367,7 +381,22 @@ function DownloadRow({
                 Retry
               </Button>
             )}
-            {item.status !== "completed" && item.status !== "cancelled" && (
+            {/* Resume and retry both re-queue the chapter; retry additionally
+                bumps `retry_count`, so it is the one offered for a failure and
+                this stays for a chapter the user paused deliberately. */}
+            {canResumeDownload(item) && item.status === "paused" && (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy}
+                onClick={() => onResume(item.id)}
+                className="gap-1.5"
+              >
+                <Play className="size-3.5" aria-hidden />
+                Resume
+              </Button>
+            )}
+            {canCancelDownload(item) && (
               <Button
                 variant="ghost"
                 size="sm"
@@ -378,6 +407,28 @@ function DownloadRow({
                 <X className="size-3.5" aria-hidden />
                 Cancel
               </Button>
+            )}
+            {canMoveDownload(item) && (
+              <span className="ml-auto inline-flex items-center gap-1">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={busy}
+                  aria-label={`Move ${item.chapter_title} earlier in the queue`}
+                  onClick={() => onMove(item.id, "up")}
+                >
+                  <ArrowUp className="size-3.5" aria-hidden />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  disabled={busy}
+                  aria-label={`Move ${item.chapter_title} later in the queue`}
+                  onClick={() => onMove(item.id, "down")}
+                >
+                  <ArrowDown className="size-3.5" aria-hidden />
+                </Button>
+              </span>
             )}
           </div>
         </div>
@@ -401,6 +452,143 @@ function CompletedRow({ item }: { item: DownloadItem }) {
   );
 }
 
+/**
+ * Everything that failed, pulled out of the per-series accordions and put at
+ * the top of the page.
+ *
+ * A failed chapter never retries itself, so it is the only queue state that
+ * needs the owner. Buried inside a collapsed series group — behind a filter tab
+ * they have to know to click — is exactly how forty dead chapters go unnoticed.
+ */
+function FailuresPanel({
+  items,
+  busy,
+  onRetryAll,
+  onRetry,
+  onCancel,
+}: {
+  items: DownloadItem[];
+  busy: boolean;
+  onRetryAll: (ids: number[]) => void;
+  onRetry: (id: number) => void;
+  onCancel: (id: number) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const summary = useMemo(() => summarizeFailures(items), [items]);
+
+  if (summary.count === 0) {
+    return null;
+  }
+
+  return (
+    <section className="mb-6 rounded-2xl border border-danger/30 bg-danger/[0.07] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-danger/15 text-danger">
+            <TriangleAlert className="size-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h2 className="font-semibold text-fg">
+              {summary.count} chapter{summary.count === 1 ? "" : "s"} failed
+            </h2>
+            <p className="mt-0.5 text-sm text-muted">
+              Across {summary.seriesCount} series. Failed downloads do not retry on their own.
+            </p>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            size="sm"
+            disabled={busy || summary.retriableIds.length === 0}
+            onClick={() => onRetryAll(summary.retriableIds)}
+            className="gap-1.5"
+          >
+            <RotateCcw className="size-3.5" aria-hidden />
+            Retry all {summary.retriableIds.length}
+          </Button>
+          <Button
+            size="sm"
+            variant="secondary"
+            onClick={() => setExpanded((value) => !value)}
+            className="gap-1.5"
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="size-3.5" aria-hidden />
+                Hide chapters
+              </>
+            ) : (
+              <>
+                <ChevronDown className="size-3.5" aria-hidden />
+                Show chapters
+              </>
+            )}
+          </Button>
+        </div>
+      </div>
+
+      {/* One line per distinct error: a dead connector fails every chapter with
+          the same string, and forty copies of it is not a report. */}
+      <ul className="mt-4 space-y-2">
+        {summary.reasons.map((reason) => (
+          <li key={reason.message} className="flex items-start gap-2">
+            <Badge className="shrink-0 border-danger/30 bg-danger/15 text-danger">
+              {reason.count}×
+            </Badge>
+            <span className="min-w-0 break-words font-mono text-xs leading-relaxed text-fg">
+              {reason.message}
+            </span>
+          </li>
+        ))}
+      </ul>
+
+      {expanded && (
+        <ul className="mt-4 space-y-2">
+          {summary.items.map((item) => (
+            <li
+              key={item.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/40 bg-black/10 px-3 py-2"
+            >
+              <div className="min-w-0">
+                <p className="truncate text-sm font-medium text-fg">
+                  {item.series_title}
+                  <span className="text-muted"> · {item.chapter_title}</span>
+                </p>
+                <p className="text-xs text-muted">
+                  {item.source} · failed {formatBytes(item.bytes_downloaded)} in ·{" "}
+                  {item.retry_count} previous retr{item.retry_count === 1 ? "y" : "ies"}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button
+                  size="sm"
+                  variant="secondary"
+                  disabled={busy}
+                  onClick={() => onRetry(item.id)}
+                  className="gap-1.5"
+                >
+                  <RotateCcw className="size-3.5" aria-hidden />
+                  Retry
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  disabled={busy}
+                  onClick={() => onCancel(item.id)}
+                  className="gap-1.5 text-muted hover:text-danger"
+                >
+                  <X className="size-3.5" aria-hidden />
+                  Cancel
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function SeriesGroupCard({
   group,
   filter,
@@ -412,6 +600,7 @@ function SeriesGroupCard({
   onResumeItem,
   onCancelItem,
   onRetryItem,
+  onMoveItem,
 }: {
   group: SeriesDownloadGroup;
   filter: FilterTab;
@@ -423,6 +612,7 @@ function SeriesGroupCard({
   onResumeItem: (id: number) => void;
   onCancelItem: (id: number) => void;
   onRetryItem: (id: number) => void;
+  onMoveItem: (id: number, direction: "up" | "down") => void;
 }) {
   const [expanded, setExpanded] = useState(true);
   const rows = visibleGroupItems(group).filter((item) => matchesFilter(item, filter));
@@ -464,8 +654,15 @@ function SeriesGroupCard({
             {group.paused > 0 && (
               <Badge variant="warning">{group.paused} paused</Badge>
             )}
+            {/* Failed is danger, not warning: "paused" is a choice the owner
+                made and "failed" is not, so they must not read alike. */}
             {group.failed > 0 && (
-              <Badge variant="warning">{group.failed} failed</Badge>
+              <Badge className="border-danger/30 bg-danger/15 text-danger">
+                {group.failed} failed
+              </Badge>
+            )}
+            {group.completed > 0 && (
+              <Badge variant="success">{group.completed} completed</Badge>
             )}
           </div>
         </div>
@@ -509,6 +706,7 @@ function SeriesGroupCard({
               onResume={onResumeItem}
               onCancel={onCancelItem}
               onRetry={onRetryItem}
+              onMove={onMoveItem}
             />
           ))}
         </div>
@@ -551,6 +749,8 @@ export function DownloadsView() {
   const pauseAllMutation = usePauseAllDownloads();
   const resumeAllMutation = useResumeAllDownloads();
   const cancelAllMutation = useCancelAllDownloads();
+  const moveMutation = useMoveDownload();
+  const retryFailedMutation = useRetryFailedDownloads();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [filterTab, setFilterTab] = useState<FilterTab>("all");
   const [completedOpen, setCompletedOpen] = useState(true);
@@ -565,7 +765,9 @@ export function DownloadsView() {
     cancelSeriesMutation.isPending ||
     pauseAllMutation.isPending ||
     resumeAllMutation.isPending ||
-    cancelAllMutation.isPending;
+    cancelAllMutation.isPending ||
+    moveMutation.isPending ||
+    retryFailedMutation.isPending;
 
   const items = useMemo(() => downloadsQuery.data ?? [], [downloadsQuery.data]);
   const metrics = metricsQuery.data;
@@ -633,6 +835,23 @@ export function DownloadsView() {
       await action();
     } catch (error) {
       setFeedback(error instanceof ApiError ? error.message : `Failed to ${label.toLowerCase()}.`);
+    }
+  };
+
+  // Reports what the loop actually achieved. A retry the server refuses (a row
+  // that is no longer failed, say) must not be reported as success, and must
+  // not stop the remaining chapters from being retried either.
+  const retryAllFailed = async (ids: number[]) => {
+    setFeedback(null);
+    try {
+      const result = await retryFailedMutation.mutateAsync(ids);
+      setFeedback(
+        result.rejected.length === 0
+          ? `Re-queued ${result.retried} chapter${result.retried === 1 ? "" : "s"}.`
+          : `Re-queued ${result.retried} of ${result.requested}. ${result.rejected.length} refused: ${result.rejected[0].message}`,
+      );
+    } catch (error) {
+      setFeedback(error instanceof ApiError ? error.message : "Failed to retry downloads.");
     }
   };
 
@@ -712,7 +931,7 @@ export function DownloadsView() {
               <StatTile label="Active" value={String(metrics.active)} accent="amber" />
               <StatTile label="Queued" value={String(metrics.queued)} accent="rose" />
               <StatTile label="Completed" value={String(metrics.completed)} accent="success" />
-              <StatTile label="Failed" value={String(metrics.failed)} accent="warning" />
+              <StatTile label="Failed" value={String(metrics.failed)} accent="danger" />
               <StatTile
                 label="Speed"
                 value={formatSpeed(metrics.overall_speed_bps, metrics.overall_speed_mbps)}
@@ -726,6 +945,14 @@ export function DownloadsView() {
                 accent="rose"
               />
             </div>
+            {/* GET /downloads/metrics counts Download rows across every account
+                (backend/services/download_manager.py:201-207) while the list
+                below is filtered to this account, so on a shared instance the
+                two legitimately disagree. Say so rather than let it read as a
+                bug. */}
+            <p className="mt-3 text-xs text-muted">
+              Totals cover every account on this server. The queue below is yours.
+            </p>
           </div>
         )}
 
@@ -734,6 +961,14 @@ export function DownloadsView() {
             {feedback}
           </p>
         )}
+
+        <FailuresPanel
+          items={items}
+          busy={busy}
+          onRetryAll={retryAllFailed}
+          onRetry={(id) => runItem(() => retryMutation.mutateAsync(id), "Retry chapter")}
+          onCancel={(id) => runItem(() => cancelMutation.mutateAsync(id), "Cancel chapter")}
+        />
 
         {hasQueueWork && (
           <div className="mb-6 flex flex-wrap gap-2">
@@ -765,7 +1000,7 @@ export function DownloadsView() {
               tone="warning"
             />
             <FilterChip
-              label="Error"
+              label="Failed"
               count={filterCount(items, "failed")}
               active={filterTab === "failed"}
               onClick={() => setFilterTab("failed")}
@@ -839,6 +1074,12 @@ export function DownloadsView() {
                 onResumeItem={(id) => runItem(() => resumeMutation.mutateAsync(id), "Resume chapter")}
                 onCancelItem={(id) => runItem(() => cancelMutation.mutateAsync(id), "Cancel chapter")}
                 onRetryItem={(id) => runItem(() => retryMutation.mutateAsync(id), "Retry chapter")}
+                onMoveItem={(downloadId, direction) =>
+                  runItem(
+                    () => moveMutation.mutateAsync({ downloadId, direction }),
+                    "Reorder chapter",
+                  )
+                }
               />
             ))}
           </div>

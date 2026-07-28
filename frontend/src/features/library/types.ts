@@ -108,15 +108,19 @@ export interface ChapterDetail {
   pages: PageInfo[];
 }
 
+/** `GET /library/continue-reading` (backend/services/library_service.py:896-937). */
 export interface ContinueReadingItem {
   series_id: number;
   series_title: string;
   chapter_id: number;
   chapter_title: string;
   last_page: number;
+  /** Continuous-mode resume offset; the rail links by page, not by pixel. */
+  scroll_offset_px: number;
   progress_pct: number;
   last_read_at: string;
   cover_path: string | null;
+  cover_url: string;
 }
 
 export interface ImportResponse {
@@ -137,7 +141,20 @@ export interface ScanStatus {
   error: string | null;
 }
 
-export type SeriesSort = "title" | "updated" | "recent" | "date_added" | "author" | "year" | "total_chapters";
+/**
+ * The `sort` values `list_series` branches on, plus `sort_title` — the route's
+ * default and what its `else` branch does
+ * (backend/services/library_service.py:622-637). No client-only aliases: a value
+ * the server does not name would sort by title while pretending otherwise.
+ */
+export type SeriesSort =
+  | "sort_title"
+  | "updated"
+  | "recent"
+  | "date_added"
+  | "author"
+  | "year"
+  | "total_chapters";
 export type SeriesFilter = "all" | "reading" | "unread";
 
 // --- Collections ---

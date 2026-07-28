@@ -1,4 +1,5 @@
 import {
+  Activity,
   Bell,
   BookOpen,
   Bookmark,
@@ -64,6 +65,9 @@ export const navSections: NavSection[] = [
 export const secondaryNav: NavItem[] = [
   { href: "/profiles/manage", label: "Profiles", icon: Users },
   { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
+  // Instance health. Admin-only for the same reason Settings is: it reports on
+  // the server, not on the reader.
+  { href: "/admin/status", label: "Status", icon: Activity, adminOnly: true },
 ];
 
 /**
