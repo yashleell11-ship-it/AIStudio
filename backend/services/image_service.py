@@ -11,7 +11,7 @@ from threading import Lock
 from core.errors import AppError
 from database.models import Page
 from services.library_service import LibraryService
-from utils.path_utils import validate_path_under_roots
+from utils.path_utils import sorted_archive_image_members, validate_path_under_roots
 
 logger = logging.getLogger(__name__)
 
@@ -93,25 +93,21 @@ class ImageService:
         file_path = Path(page.file_path)
         if file_path.suffix.lower() in {".cbz", ".zip"}:
             validate_path_under_roots(file_path, roots)
-            member = archive_member
-            if not member:
-                chapter = page.chapter
-                members = sorted(
-                    [
-                        name
-                        for name in zipfile.ZipFile(file_path).namelist()
-                        if not name.endswith("/")
-                    ]
-                )
-                if page.number <= len(members):
-                    member = members[page.number - 1]
-            if not member:
-                raise AppError(
-                    "Archive page not found.",
-                    code="page_not_found",
-                    status_code=404,
-                )
             with zipfile.ZipFile(file_path, "r") as zf:
+                member = archive_member
+                if not member:
+                    # Must be the SAME ordering the scanner used when it handed
+                    # this page its number, or page N serves someone else's
+                    # image. See sorted_archive_image_members().
+                    members = sorted_archive_image_members(zf.namelist())
+                    if 1 <= page.number <= len(members):
+                        member = members[page.number - 1]
+                if not member:
+                    raise AppError(
+                        "Archive page not found.",
+                        code="page_not_found",
+                        status_code=404,
+                    )
                 data = zf.read(member)
             media_type = mimetypes.guess_type(member)[0] or "image/jpeg"
             return None, media_type, data
@@ -170,7 +166,12 @@ class ImageService:
         roots = library_service.get_library_roots()
         if cover.suffix.lower() in {".cbz", ".zip"}:
             with zipfile.ZipFile(cover, "r") as zf:
-                members = [name for name in zf.namelist() if not name.endswith("/")]
+                # cover_path for an archive chapter is the archive itself, and
+                # the cover it stands for is that chapter's page 1 -- so use the
+                # same member ordering the scanner numbered pages with. Raw
+                # namelist() order picked whatever the zip writer happened to
+                # store first, often ComicInfo.xml or the last page.
+                members = sorted_archive_image_members(zf.namelist())
                 if not members:
                     raise AppError("Cover archive is empty.", code="cover_not_found", status_code=404)
                 data = zf.read(members[0])

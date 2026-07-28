@@ -93,6 +93,25 @@ async def federated_search(
     )
 
 
+# NOTE: like ``/search`` above, this literal route MUST stay ahead of the
+# ``/{source_id}/...`` routes or FastAPI captures "health" as a source id.
+@router.get("/health")
+def list_source_health(service: BrowseDep, response: Response) -> list[dict[str, object]]:
+    """List sources with their recorded reachability, worst first.
+
+    Same rows and same 18+ gate as ``GET /sources`` -- health is stored
+    globally (a site being down is a property of the site) but is only ever
+    read back through the caller's own gated source list, so a mature source's
+    health never reaches a profile that cannot see the source.
+
+    Nothing is hidden here: a dead source is listed and flagged, because the
+    failure this endpoint exists to fix is a source dying silently.
+    """
+    items = service.list_source_health()
+    set_list_total_header(response, len(items))
+    return items
+
+
 # NOTE: like ``/search`` above, both literal ``/pins`` routes MUST stay ahead of
 # the ``/{source_id}/...`` routes or FastAPI captures "pins" as a source id.
 @router.get("/pins")
