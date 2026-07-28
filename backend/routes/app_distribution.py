@@ -130,6 +130,29 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.5.0",
+        build=19,
+        date="July 2026",
+        highlights=[
+            "Downloaded series now actually appear in your library — they were "
+            "being filed where no profile could see them",
+            "Imported CBZ files showed the wrong image for almost every page. "
+            "Fixed, and every existing archive corrects itself on next open",
+            "Search no longer reports a source's error text verbatim, which "
+            "could carry another account's search terms",
+            "Dead sources are now recorded and shown instead of silently "
+            "returning nothing forever",
+            "On the website: read offline. Install it as an app, save a "
+            "chapter, and it opens with no connection at all",
+            "The website reader gained keyboard shortcuts, page spreads, fit "
+            "and zoom controls, and a scrubbable progress bar",
+            "Your library on the web now has multi-select, filters that live in "
+            "the URL, and a Continue Reading row",
+            "Reading position, searches and reader settings no longer follow "
+            "you between profiles on a shared browser",
+        ],
+    ),
+    ChangelogEntry(
         version="1.4.0",
         build=18,
         date="July 2026",
