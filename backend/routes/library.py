@@ -177,7 +177,34 @@ def list_series(
 
 @router.get("/series/{series_id}")
 def get_series(series_id: int, intel: IntelDep) -> dict[str, object]:
-    """Return series detail with chapter list, tags, and collections."""
+    """Return series detail with chapter list, tags, and collections.
+
+    Source-link fields, which is what lets a *local* series page offer Follow at
+    all (until now Follow existed only on the source-browse page, so a downloaded
+    series -- the one the user cared enough to download -- could not be followed
+    and got no update checks or new-chapter notifications):
+
+    - ``source_id``:         ``str | None`` -- connector id the series came from.
+    - ``source_series_id``:  ``str | None`` -- that connector's id for the series.
+    - ``is_followed``:       ``bool``       -- this (user, profile) has a
+      ``track_kind="followed"`` tracker for that pair. A ``"downloaded"`` tracker
+      does NOT count; it exists for every downloaded series and would otherwise
+      render every one of them as already-followed.
+    - ``follow_tracker_id``: ``int | None`` -- that tracker's id, so Unfollow
+      (``DELETE /updates/trackers/{id}``) needs no lookup round trip.
+
+    All four are null/false for a hand-imported CBZ folder, which has no origin
+    to track. The first two are answered from local rows only, so they stay
+    correct while the source itself is dead, offline or rate-limited.
+
+    Follow is ``POST /updates/trackers/follow`` with ``{source, series_id,
+    series_title}`` -- ``source`` is ``source_id`` here and ``series_id`` is
+    ``source_series_id`` here (the tracker's own field names differ).
+
+    Unchanged: this is behind the object-level read check (core.library_authz)
+    and the 18+ gate, both of which 404 -- so the source identity is never
+    disclosed for a series the caller cannot read.
+    """
     return intel.get_series_detail(series_id)
 
 

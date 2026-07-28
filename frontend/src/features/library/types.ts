@@ -74,10 +74,27 @@ export interface SeriesDetail extends SeriesSummary {
   chapters: ChapterSummary[];
   tags: Tag[];
   collections: CollectionRef[];
-  /** Online source id this series is linked to, or null. */
+  /**
+   * Online source id this series is linked to, or null for a hand-imported
+   * folder. Resolved from local rows only
+   * (backend/services/library_intelligence_service.py:1715), so it stays
+   * correct while the source itself is dead, offline or rate-limited.
+   */
   source_id?: string | null;
-  /** The source's series id, or null. */
+  /** The source's series id, or null. Null iff `source_id` is null. */
   source_series_id?: string | null;
+  /**
+   * Whether this (user, profile) has a `track_kind="followed"` tracker for
+   * `(source_id, source_series_id)`. A `"downloaded"` tracker does NOT count —
+   * every downloaded series has one, and counting it would render all of them
+   * as already-followed. Always false when `source_id` is null.
+   */
+  is_followed?: boolean;
+  /**
+   * Id of that tracker, so Unfollow (`DELETE /updates/trackers/{id}`) needs no
+   * lookup round trip. Non-null iff `is_followed` is true.
+   */
+  follow_tracker_id?: number | null;
 }
 
 /**

@@ -9,7 +9,6 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
 import 'package:manhwamaniacs/features/downloads/utils/queue_download_feedback.dart';
-import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
 import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
@@ -17,7 +16,7 @@ import 'package:manhwamaniacs/features/sources/providers/source_series_download_
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/features/sources/widgets/source_chapter_download_status_badge.dart';
-import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
@@ -314,7 +313,8 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
           ),
         ],
         const SizedBox(height: AppSpacing.lg),
-        _FollowButton(
+        SeriesFollowButton(
+          key: const Key('follow-toggle'),
           sourceId: widget.sourceId,
           seriesId: widget.seriesId,
           seriesTitle: series.title,
@@ -459,104 +459,6 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
             },
           ),
       ],
-    );
-  }
-}
-
-/// Follow / Unfollow button for the currently-viewed source series.
-///
-/// Reads follow state from [updatesProvider] (the shared trackers cache) via
-/// [UpdatesNotifier.trackerFor] -- the single lookup implementation, not
-/// duplicated here. This widget is the only part of the screen that watches
-/// [updatesProvider], so tracker/notification changes elsewhere never rebuild
-/// the rest of [SourceSeriesDetailScreen]. The button is disabled while a
-/// follow or unfollow action is in flight (`actionPending`) or while the
-/// trackers list has not yet loaded (so we never show a stale "Follow" label
-/// for a series the user is already following).
-class _FollowButton extends ConsumerWidget {
-  const _FollowButton({
-    required this.sourceId,
-    required this.seriesId,
-    required this.seriesTitle,
-  });
-
-  final String sourceId;
-  final String seriesId;
-  final String seriesTitle;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final updatesAsync = ref.watch(updatesProvider);
-    final state = updatesAsync.valueOrNull;
-    final loading = updatesAsync.isLoading;
-    final actionPending = state?.actionPending ?? false;
-
-    // While the trackers list is loading for the first time we cannot know
-    // whether this series is followed, so keep the button disabled to avoid
-    // a misleading label.
-    final tracker = ref
-        .read(updatesProvider.notifier)
-        .trackerFor(source: sourceId, seriesId: seriesId);
-    final isFollowed = tracker != null;
-    final busy = actionPending || (loading && state == null);
-
-    String label;
-    if (busy) {
-      label = isFollowed ? 'Unfollowing…' : 'Following…';
-    } else {
-      label = isFollowed ? 'Unfollow' : 'Follow';
-    }
-
-    return SizedBox(
-      width: double.infinity,
-      child: FilledButton.icon(
-        onPressed:
-            busy ? null : () => _toggle(context, ref, isFollowed, tracker?.id),
-        icon: isFollowed
-            ? const Icon(Icons.notifications_off_outlined)
-            : const Icon(Icons.notifications_active_outlined),
-        label: Text(label),
-      ),
-    );
-  }
-
-  Future<void> _toggle(
-    BuildContext context,
-    WidgetRef ref,
-    bool isFollowed,
-    int? trackerId,
-  ) async {
-    final messenger = ScaffoldMessenger.of(context);
-    final notifier = ref.read(updatesProvider.notifier);
-    final AppError? error;
-    if (isFollowed && trackerId != null) {
-      error = await notifier.deleteTracker(trackerId);
-    } else {
-      error = await notifier.followSeries(
-        source: sourceId,
-        seriesId: seriesId,
-        seriesTitle: seriesTitle,
-      );
-    }
-    if (error == null) {
-      // The trackers cache was refreshed by the action, so the button label
-      // already reflects the new followed state; confirm it to the user.
-      messenger.showSnackBar(
-        SnackBar(
-          content: Text(
-            isFollowed
-                ? 'Unfollowed'
-                : 'Following — you\'ll be notified of new chapters',
-          ),
-        ),
-      );
-      return;
-    }
-    // A per-profile guard rejection hands off to the picker instead of a raw
-    // error; anything else surfaces inline.
-    if (recoverFromProfileScopeError(ref, error)) return;
-    messenger.showSnackBar(
-      SnackBar(content: Text(error.userMessage)),
     );
   }
 }

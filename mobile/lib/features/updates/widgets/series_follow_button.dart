@@ -1,0 +1,153 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
+import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+
+/// Follow / Unfollow control for a series, identified by the *source* pair
+/// ([sourceId], [seriesId]) that trackers are keyed by.
+///
+/// Shared by the source-browse series page and the local (downloaded) series
+/// page so the two read as one feature: same control, same labels, same place.
+/// Following is what schedules update checks and new-chapter notifications, and
+/// until this widget was reachable from the local page a *downloaded* series --
+/// the one the owner cared enough to download -- could not be followed at all.
+///
+/// Follow state comes from [updatesProvider] (the shared trackers cache) via
+/// [UpdatesNotifier.trackerFor] -- the single lookup implementation, not
+/// duplicated here -- and the mutations go through the same notifier, so a
+/// follow made on either page lands in the one cache that the Updates tab and
+/// the Library (followed) shelf both watch. That is why no extra invalidation
+/// is needed here: `followSeries`/`deleteTracker` already refresh it.
+///
+/// This widget is the only part of either screen that watches [updatesProvider],
+/// so tracker/notification changes elsewhere never rebuild the rest of the page.
+///
+/// The button is disabled while a follow or unfollow is in flight
+/// (`actionPending`, which doubles as the double-tap guard) and while the
+/// trackers list has not loaded yet.
+class SeriesFollowButton extends ConsumerWidget {
+  const SeriesFollowButton({
+    super.key,
+    required this.sourceId,
+    required this.seriesId,
+    required this.seriesTitle,
+    this.initialIsFollowed,
+    this.initialFollowTrackerId,
+  });
+
+  /// Connector id the series belongs to (the tracker API's `source`).
+  final String sourceId;
+
+  /// The connector's own id for the series (the tracker API's `series_id`).
+  final String seriesId;
+
+  /// Title recorded on the tracker, shown on the Updates/Library shelves.
+  final String seriesTitle;
+
+  /// Follow state already known from the page's own payload, used only until
+  /// the trackers cache resolves. `GET /library/series/{id}` reports
+  /// `is_followed`/`follow_tracker_id` for the active (user, profile), so the
+  /// local page can render a truthful "Unfollow" on the very first frame
+  /// instead of flashing "Follow" at a series the user already follows.
+  ///
+  /// Null means "the caller has no payload to seed from" — the source-browse
+  /// page, which learns follow state only from the trackers cache. That is a
+  /// third state, not the same as `false`: `false` is an answer, null is the
+  /// absence of one, and only the latter warrants a placeholder label.
+  final bool? initialIsFollowed;
+
+  /// Tracker id matching [initialIsFollowed]; non-null iff that is true.
+  final int? initialFollowTrackerId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final updatesAsync = ref.watch(updatesProvider);
+    final state = updatesAsync.valueOrNull;
+    final loading = updatesAsync.isLoading;
+    final actionPending = state?.actionPending ?? false;
+
+    // Once the trackers list has loaded it is authoritative -- it reflects
+    // follows/unfollows made on other screens since this page was built, which
+    // the payload seed cannot. Before then fall back to the seed, which may
+    // itself be null when the caller had nothing to seed from.
+    final tracker = state == null
+        ? null
+        : ref
+            .read(updatesProvider.notifier)
+            .trackerFor(source: sourceId, seriesId: seriesId);
+    final bool? followed = state == null ? initialIsFollowed : tracker != null;
+    final trackerId = state == null ? initialFollowTrackerId : tracker?.id;
+    final isFollowed = followed ?? false;
+
+    // Disabled while an action is in flight -- which is also the double-tap
+    // guard -- and until the trackers cache lands, so a tap can never act on a
+    // seeded tracker id the server may have changed since the page loaded.
+    final disabled = actionPending || (loading && state == null);
+
+    final String label;
+    if (actionPending) {
+      label = isFollowed ? 'Unfollowing…' : 'Following…';
+    } else if (followed == null && disabled) {
+      // Neither cache nor seed: we genuinely do not know yet, so show the
+      // placeholder rather than assert "Follow" at a series the user may
+      // already follow. With a seed we do know, and say so plainly.
+      label = 'Following…';
+    } else {
+      label = isFollowed ? 'Unfollow' : 'Follow';
+    }
+
+    return SizedBox(
+      width: double.infinity,
+      child: FilledButton.icon(
+        onPressed: disabled
+            ? null
+            : () => _toggle(context, ref, isFollowed, trackerId),
+        icon: isFollowed
+            ? const Icon(Icons.notifications_off_outlined)
+            : const Icon(Icons.notifications_active_outlined),
+        label: Text(label),
+      ),
+    );
+  }
+
+  Future<void> _toggle(
+    BuildContext context,
+    WidgetRef ref,
+    bool isFollowed,
+    int? trackerId,
+  ) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final notifier = ref.read(updatesProvider.notifier);
+    final AppError? error;
+    if (isFollowed && trackerId != null) {
+      error = await notifier.deleteTracker(trackerId);
+    } else {
+      error = await notifier.followSeries(
+        source: sourceId,
+        seriesId: seriesId,
+        seriesTitle: seriesTitle,
+      );
+    }
+    if (error == null) {
+      // The trackers cache was refreshed by the action, so the button label
+      // already reflects the new followed state; confirm it to the user.
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text(
+            isFollowed
+                ? 'Unfollowed'
+                : 'Following — you\'ll be notified of new chapters',
+          ),
+        ),
+      );
+      return;
+    }
+    // A per-profile guard rejection hands off to the picker instead of a raw
+    // error; anything else surfaces inline.
+    if (recoverFromProfileScopeError(ref, error)) return;
+    messenger.showSnackBar(
+      SnackBar(content: Text(error.userMessage)),
+    );
+  }
+}

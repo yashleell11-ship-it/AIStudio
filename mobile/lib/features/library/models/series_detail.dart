@@ -36,6 +36,8 @@ class SeriesDetail extends SeriesSummary {
     required this.collections,
     this.sourceId,
     this.sourceSeriesId,
+    this.isFollowed = false,
+    this.followTrackerId,
   });
 
   final List<ChapterSummary> chapters;
@@ -48,6 +50,22 @@ class SeriesDetail extends SeriesSummary {
 
   /// The source's series id (e.g. 'killer-pietro-a80d257e'), or null.
   final String? sourceSeriesId;
+
+  /// Whether the active (user, profile) follows this series for new-chapter
+  /// notifications. Always false when [sourceId] is null: a hand-imported CBZ
+  /// folder has no origin to check for updates. A "downloaded" tracker does
+  /// not count -- the backend only reports `track_kind="followed"` here, so
+  /// every downloaded series does not read as already-followed.
+  final bool isFollowed;
+
+  /// Id of the followed tracker behind [isFollowed], so Unfollow can DELETE it
+  /// without a lookup round trip. Non-null iff [isFollowed] is true.
+  final int? followTrackerId;
+
+  /// True when this series can be followed at all — i.e. it resolves back to
+  /// the source it was downloaded from. The two ids are always both set or
+  /// both null, but both are checked so callers can use them non-null.
+  bool get hasSourceLink => sourceId != null && sourceSeriesId != null;
 
   @override
   SeriesDetail copyWith({bool? isFavorite, ReadingProgress? readingProgress}) {
@@ -82,6 +100,8 @@ class SeriesDetail extends SeriesSummary {
       collections: collections,
       sourceId: sourceId,
       sourceSeriesId: sourceSeriesId,
+      isFollowed: isFollowed,
+      followTrackerId: followTrackerId,
     );
   }
 
@@ -124,6 +144,11 @@ class SeriesDetail extends SeriesSummary {
           .toList(),
       sourceId: json['source_id'] as String?,
       sourceSeriesId: json['source_series_id'] as String?,
+      // The backend always sends `is_followed` as a real bool, but a null
+      // guard keeps an older server (which omits it) rendering "Follow"
+      // rather than crashing the whole series page on a cast.
+      isFollowed: json['is_followed'] as bool? ?? false,
+      followTrackerId: json['follow_tracker_id'] as int?,
     );
   }
 }

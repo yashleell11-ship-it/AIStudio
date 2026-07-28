@@ -35,8 +35,10 @@ import { sourceReaderChapterPath } from "@/features/sources/hooks";
 import { ApiError } from "@/types/api";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { cn } from "@/lib/cn";
+import { resolveSeriesFollowLink } from "../follow-link";
 import { LibraryMembershipButton } from "./LibraryMembershipButton";
 import { SeriesCard } from "./SeriesCard";
+import { SeriesFollowButton } from "./SeriesFollowButton";
 
 interface SeriesDetailViewProps {
   seriesId: number;
@@ -150,6 +152,9 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
 
   const sourceId = series.source_id ?? null;
   const sourceSeriesId = series.source_series_id ?? null;
+  // Null for a hand-imported folder, which has no origin to follow — the
+  // control is then omitted outright rather than shown disabled.
+  const followLink = resolveSeriesFollowLink(series);
 
   const downloadChapter = (sourceChapterId: string) => {
     if (!sourceId || !sourceSeriesId) return;
@@ -225,6 +230,17 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                   seriesId={series.id}
                   inLibrary={series.in_library}
                 />
+                {/* Follow lives here, not only on the source page: this is the
+                    page a downloaded chapter's back button lands on, so this is
+                    where the owner of a downloaded series can ask to be told
+                    about new chapters. */}
+                {followLink ? (
+                  <SeriesFollowButton
+                    seriesId={series.id}
+                    seriesTitle={series.title}
+                    link={followLink}
+                  />
+                ) : null}
                 <Button
                   variant={series.is_favorite ? "primary" : "secondary"}
                   onClick={() => toggleFavorite.mutate(series.id)}

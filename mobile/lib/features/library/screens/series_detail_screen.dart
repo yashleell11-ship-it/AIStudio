@@ -16,6 +16,7 @@ import 'package:manhwamaniacs/features/library/providers/series_detail_provider.
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/series_display.dart';
 import 'package:manhwamaniacs/features/library/widgets/series_detail/series_detail_skeleton.dart';
+import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -380,6 +381,25 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
                         : path;
                     context.push(uri);
                   },
+                ),
+              ],
+              // Follow sits directly under the read CTA, exactly as it does on
+              // the source-browse page, so arriving here from a downloaded
+              // chapter does not read as a different feature.
+              //
+              // Shown only when the series resolves back to a source: a
+              // hand-imported CBZ folder has no origin to check for updates,
+              // and a button that is always there but sometimes fails is worse
+              // than one that is absent when it cannot work.
+              if (_series.hasSourceLink) ...[
+                const SizedBox(height: AppSpacing.lg),
+                SeriesFollowButton(
+                  key: const Key('follow-toggle'),
+                  sourceId: _series.sourceId!,
+                  seriesId: _series.sourceSeriesId!,
+                  seriesTitle: _series.title,
+                  initialIsFollowed: _series.isFollowed,
+                  initialFollowTrackerId: _series.followTrackerId,
                 ),
               ],
               if (_series.tags.isNotEmpty) ...[

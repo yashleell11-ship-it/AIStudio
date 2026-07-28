@@ -459,7 +459,19 @@ class LibraryIntelligenceService:
     ) -> dict[str, object]:
         """Update series metadata. Only fields present are updated."""
         series = self._db.query(Series).filter(Series.id == series_id).first()
-        if not series:
+        # Gated identically to get_series_detail, on both axes, because it ends
+        # by returning ``_series_detail`` -- the same payload, now including the
+        # series' originating source. This is the second entrance to that
+        # serializer; leaving it open would mean the source identity (and the
+        # chapter list, and the caller's own collections) was readable through
+        # PATCH for a series the caller may not read, which is the leak
+        # ``core.library_authz`` was just added to close. Same 404 as its
+        # siblings: a distinct code would confirm the id exists.
+        if (
+            not series
+            or (not self._mature_enabled() and is_mature_rating(series.content_rating))
+            or not self._can_read(series_id)
+        ):
             raise AppError(
                 "Series not found.",
                 code="series_not_found",
@@ -1685,18 +1697,44 @@ class LibraryIntelligenceService:
             for chapter in chapters
         ]
 
-        # Default: local-only chapter list with no source linkage. If the series
-        # is source-linked we enrich this with the source's full catalog below;
-        # any failure degrades gracefully back to these local chapters.
+        # Where this series came from, resolved ONCE from local rows and stated
+        # unconditionally. It used to be filled in only from the merge below --
+        # i.e. only when the connector was reachable AND returned a non-empty
+        # catalog -- so a downloaded series on a dead, offline or rate-limited
+        # source reported source_id=None. That is precisely the series the owner
+        # cared enough to download, and with no source identity the local series
+        # page had nothing to offer Follow on: no update checks, no new-chapter
+        # notifications. The link is a local database fact and must not depend on
+        # a network call to be true.
+        #
+        # Resolved here rather than inside the merge so the identity in this
+        # payload and the identity the merge used are the same tuple by
+        # construction; two resolutions of "where did this come from" that can
+        # disagree is the bug this code keeps re-growing. Deliberately outside
+        # the try below: that except exists to swallow *connector* failures, and
+        # a local query failing is not something to report as "no source".
+        resolved = self._resolve_source_link(series, chapters)
+        detail["source_id"] = resolved[0] if resolved else None
+        detail["source_series_id"] = resolved[1] if resolved else None
+
+        # Follow state for THIS (user, profile), so the client renders Follow vs
+        # Unfollow (and can act on it) without a second round trip. Null/false
+        # for a hand-imported CBZ folder: there is genuinely nothing to track.
+        followed = self._followed_tracker(*resolved) if resolved else None
+        detail["is_followed"] = followed is not None
+        detail["follow_tracker_id"] = followed.id if followed else None
+
+        # Default: local-only chapter list. If the series is source-linked we
+        # enrich this with the source's full catalog below; any failure degrades
+        # gracefully back to these local chapters -- but no longer takes the
+        # source identity down with it.
         detail["chapters"] = local_chapters
-        detail["source_id"] = None
-        detail["source_series_id"] = None
         try:
-            merged = self._merge_source_chapters(series, chapters, local_chapters)
+            merged = self._merge_source_chapters(
+                series, chapters, local_chapters, resolved
+            )
             if merged is not None:
-                detail["source_id"] = merged["source_id"]
-                detail["source_series_id"] = merged["source_series_id"]
-                detail["chapters"] = merged["chapters"]
+                detail["chapters"] = merged
         except Exception:  # noqa: BLE001 - never fail series detail on source issues
             logger.warning(
                 "Source chapter merge failed for series_id=%s; "
@@ -1743,6 +1781,26 @@ class LibraryIntelligenceService:
              local chapters (a per-chapter download link).
 
         Returns ``None`` when the series has no source linkage at all.
+
+        Deliberately NOT scoped to (user, profile): "which source did this series
+        come from" is a property of the series, and a download made under one
+        profile has to still resolve for a sibling profile reading it -- the same
+        account-level call ``core.library_authz`` makes and for the same reason.
+        Whether the *caller* follows it is the separate, profile-scoped question
+        ``_followed_tracker`` answers.
+
+        This is the resolver the detail path uses, in preference to the
+        equivalent ``LibraryService.resolve_source_link`` (library_service.py:763),
+        on two grounds. Cost: this one takes the chapters the caller already
+        loaded and probes ``source_chapter_links`` by ``local_chapter_id IN (...)``
+        on ``ix_source_chapter_links_local``, where the LibraryService copy
+        re-joins ``chapters`` to re-read rows already in memory. Cycle: importing
+        ``LibraryService`` here is the import cycle the duplicated membership
+        helpers above exist to dodge. The two implementations must agree; the
+        preference order above is verbatim theirs, and
+        ``test_series_source_link.py`` pins them against each other so a change to
+        either fails rather than silently letting the detail page and the cover
+        route disagree about where a series came from.
         """
         tracker = (
             self._db.query(SeriesTracker)
@@ -1765,19 +1823,53 @@ class LibraryIntelligenceService:
                 return link.source, link.series_id
         return None
 
+    def _followed_tracker(self, source: str, source_series_id: str) -> SeriesTracker | None:
+        """This (user, profile)'s *follow* row for a remote series, if any.
+
+        Scoped with exactly the tuple ``UpdateService.follow_series`` uses for its
+        duplicate check (update_service.py:480) and that ``uq_series_tracker``
+        enforces: (user_id, profile_id, source, series_id, track_kind). Anything
+        looser would report one profile's follow as another's -- and the tracker
+        is what decides who gets the new-chapter notification, so a wrong answer
+        here is a notification sent to, or withheld from, the wrong person.
+
+        ``track_kind`` is load-bearing, not incidental: the download pipeline
+        writes a ``"downloaded"`` tracker for every series it downloads
+        (``sync_downloaded_trackers``), so matching on (source, series_id) alone
+        would report every downloaded series as already-followed -- hiding the
+        Follow button on exactly the series this field exists to expose it for.
+        """
+        return (
+            self._db.query(SeriesTracker)
+            .filter(
+                SeriesTracker.user_id == self._user_id,
+                SeriesTracker.profile_id == self._profile_id,
+                SeriesTracker.source == source,
+                SeriesTracker.series_id == source_series_id,
+                SeriesTracker.track_kind == "followed",
+            )
+            .order_by(SeriesTracker.id.asc())
+            .first()
+        )
+
     def _merge_source_chapters(
         self,
         series: Series,
         chapters: list[Chapter],
         local_chapters: list[dict[str, object]],
-    ) -> dict[str, object] | None:
-        """Merge the source's full chapter catalog with local chapters.
+        resolved: tuple[str, str] | None,
+    ) -> list[dict[str, object]] | None:
+        """Merge the source's full chapter catalog into the local chapter list.
 
-        Returns ``{"source_id", "source_series_id", "chapters"}`` or ``None`` when
-        the series is not source-linked or the source returns no catalog. Raises
-        on connector/network failure -- the caller degrades to local-only.
+        ``resolved`` is the caller's already-resolved ``(source,
+        source_series_id)`` -- passed in rather than re-derived so the detail
+        payload and this merge cannot name different origins for one series, and
+        so a detail request costs one link resolution, not two.
+
+        Returns the merged chapters, or ``None`` when the series is not
+        source-linked or the source returns no catalog. Raises on
+        connector/network failure -- the caller degrades to local-only.
         """
-        resolved = self._resolve_source_link(series, chapters)
         if not resolved:
             return None
         source, source_series_id = resolved
@@ -1845,11 +1937,7 @@ class LibraryIntelligenceService:
                 natural_sort_key(str(e.get("title") or "")),
             )
         )
-        return {
-            "source_id": source,
-            "source_series_id": source_series_id,
-            "chapters": merged,
-        }
+        return merged
 
     def _collection_summary(self, collection: Collection) -> dict[str, object]:
         series_count = (
