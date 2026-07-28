@@ -46,9 +46,21 @@ export function useSeriesList(params: {
   });
 }
 
+/**
+ * Key of one series' detail payload (`GET /library/series/{id}`).
+ *
+ * Exported because the payload now carries state a *write* elsewhere changes —
+ * `is_followed`/`follow_tracker_id` move when the Follow control fires — and
+ * that invalidation has to name the same key `useSeries` reads, not a
+ * hand-copied lookalike that silently stops matching.
+ */
+export function seriesQueryKey(seriesId: number | null) {
+  return [...LIBRARY_KEY, "series", seriesId] as const;
+}
+
 export function useSeries(seriesId: number | null) {
   return useQuery({
-    queryKey: [...LIBRARY_KEY, "series", seriesId],
+    queryKey: seriesQueryKey(seriesId),
     queryFn: () => libraryApi.getSeries(seriesId!),
     enabled: seriesId !== null,
   });

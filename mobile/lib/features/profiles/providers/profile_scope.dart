@@ -36,7 +36,10 @@ final List<void Function(Ref ref)> profileScopedInvalidators = [
   (ref) => ref.invalidate(readingHistoryProvider),
   // Bookmarks.
   (ref) => ref.invalidate(bookmarksProvider),
-  // Per-series detail (progress/bookmark state) — family, all instances.
+  // Per-series detail (progress/bookmark state, and the `is_followed` /
+  // `follow_tracker_id` the local series page seeds its Follow button from —
+  // follows are per (user, profile), so profile A's must never seed B's
+  // button) — family, all instances.
   (ref) => ref.invalidate(seriesDetailProvider),
   // Collections list + open collection detail.
   (ref) => ref.invalidate(collectionsProvider),

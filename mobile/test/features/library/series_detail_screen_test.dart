@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -18,6 +20,9 @@ import 'package:manhwamaniacs/features/library/repositories/library_repository.d
 import 'package:manhwamaniacs/features/library/screens/series_detail_screen.dart';
 import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -156,8 +161,97 @@ class _FakeSeriesDetailRepository implements LibraryRepository {
       throw UnimplementedError();
 }
 
-SeriesDetail _sampleSeriesDetail() {
+/// Fake updates repository backing the Follow control. Records which tracker
+/// endpoint was hit so the tests can tell Follow (POST /updates/trackers/follow)
+/// from Unfollow (DELETE /updates/trackers/{id}) apart, and echoes new follows
+/// back through [listTrackers] the way the server would.
+class _FakeUpdatesRepository implements UpdatesRepository {
+  _FakeUpdatesRepository({this.trackers = const []});
+
+  List<SeriesTracker> trackers;
+  String? followedSource;
+  String? followedSeriesId;
+  String? followedTitle;
+  int? deletedTrackerId;
+
+  /// When set, [listTrackers] awaits this, so a test can hold the trackers
+  /// cache in flight and assert what the button renders from the payload alone.
+  Completer<void>? listTrackersGate;
+
+  @override
+  Future<Result<void>> followSeries({
+    required String source,
+    required String seriesId,
+    required String seriesTitle,
+  }) async {
+    followedSource = source;
+    followedSeriesId = seriesId;
+    followedTitle = seriesTitle;
+    trackers = [
+      ...trackers,
+      SeriesTracker(
+        id: 999,
+        source: source,
+        seriesId: seriesId,
+        seriesTitle: seriesTitle,
+        trackKind: TrackKind.followed,
+        enabled: true,
+        notify: true,
+        autoDownload: false,
+        knownChapterCount: 0,
+      ),
+    ];
+    return const Ok(null);
+  }
+
+  @override
+  Future<Result<void>> deleteTracker(int trackerId) async {
+    deletedTrackerId = trackerId;
+    trackers = trackers.where((t) => t.id != trackerId).toList();
+    return const Ok(null);
+  }
+
+  @override
+  Future<Result<List<SeriesTracker>>> listTrackers() async {
+    if (listTrackersGate != null) await listTrackersGate!.future;
+    return Ok(trackers);
+  }
+
+  @override
+  Future<Result<List<UpdateNotification>>> listNotifications({
+    bool unreadOnly = false,
+    int limit = 100,
+  }) async =>
+      const Ok([]);
+
+  @override
+  Future<Result<int>> getUnreadCount() async => const Ok(0);
+
+  @override
+  Future<Result<void>> markRead(int notificationId) async => const Ok(null);
+
+  @override
+  Future<Result<void>> markAllRead() async => const Ok(null);
+
+  @override
+  Future<Result<void>> triggerCheck() async => const Ok(null);
+
+  @override
+  Future<Result<void>> updateTracker(int trackerId, {bool? autoDownload}) =>
+      throw UnimplementedError();
+}
+
+SeriesDetail _sampleSeriesDetail({
+  String? sourceId,
+  String? sourceSeriesId,
+  bool isFollowed = false,
+  int? followTrackerId,
+}) {
   return SeriesDetail(
+    sourceId: sourceId,
+    sourceSeriesId: sourceSeriesId,
+    isFollowed: isFollowed,
+    followTrackerId: followTrackerId,
     id: 1,
     libraryId: 1,
     title: 'Solo Leveling',
@@ -209,7 +303,10 @@ SeriesDetail _sampleSeriesDetail() {
   );
 }
 
-Future<Widget> _buildSeriesDetailApp(SeriesDetail detail) async {
+Future<Widget> _buildSeriesDetailApp(
+  SeriesDetail detail, {
+  _FakeUpdatesRepository? updatesRepo,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
@@ -219,6 +316,9 @@ Future<Widget> _buildSeriesDetailApp(SeriesDetail detail) async {
       sharedPrefsProvider.overrideWithValue(prefs),
       libraryRepositoryProvider.overrideWithValue(
         _FakeSeriesDetailRepository(detail),
+      ),
+      updatesRepositoryProvider.overrideWithValue(
+        updatesRepo ?? _FakeUpdatesRepository(),
       ),
       seriesDetailProvider(1).overrideWith((ref) async => detail),
     ],
@@ -245,6 +345,202 @@ void main() {
       expect(find.text('Chapter 1'), findsOneWidget);
       expect(find.text('Reading'), findsOneWidget);
       expect(find.textContaining('Favorites'), findsOneWidget);
+    });
+  });
+
+  group('SeriesDetailScreen Follow control', () {
+    /// Widens the surface so the whole detail column lays out; the Follow
+    /// control sits below the read CTA and would otherwise be off-screen.
+    void useTallSurface(WidgetTester tester) {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+    }
+
+    testWidgets('is absent for a series with no source link', (tester) async {
+      useTallSurface(tester);
+      final fakeUpdates = _FakeUpdatesRepository();
+
+      // A hand-imported CBZ folder: source_id/source_series_id are null, so
+      // there is nothing to track and no control should be offered at all --
+      // not even a disabled one.
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(),
+          updatesRepo: fakeUpdates,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('follow-toggle')), findsNothing);
+      expect(find.text('Follow'), findsNothing);
+      expect(find.text('Unfollow'), findsNothing);
+    });
+
+    testWidgets('shows Follow for an unfollowed source-linked series and '
+        'following flips it to Unfollow', (tester) async {
+      useTallSurface(tester);
+      final fakeUpdates = _FakeUpdatesRepository();
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(
+            sourceId: 'mangadex',
+            sourceSeriesId: 'manga-1',
+          ),
+          updatesRepo: fakeUpdates,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('follow-toggle')), findsOneWidget);
+      expect(find.text('Follow'), findsOneWidget);
+
+      await tester.ensureVisible(find.text('Follow'));
+      await tester.tap(find.text('Follow'));
+      await tester.pumpAndSettle();
+
+      // The tracker API renames the pair: source_id -> source,
+      // source_series_id -> series_id.
+      expect(fakeUpdates.followedSource, 'mangadex');
+      expect(fakeUpdates.followedSeriesId, 'manga-1');
+      expect(fakeUpdates.followedTitle, 'Solo Leveling');
+      expect(find.text('Unfollow'), findsOneWidget);
+      expect(find.text('Follow'), findsNothing);
+    });
+
+    testWidgets('reflects the already-followed state from the payload before '
+        'the trackers list loads', (tester) async {
+      useTallSurface(tester);
+      final fakeUpdates = _FakeUpdatesRepository(
+        trackers: [
+          const SeriesTracker(
+            id: 42,
+            source: 'mangadex',
+            seriesId: 'manga-1',
+            seriesTitle: 'Solo Leveling',
+            trackKind: TrackKind.followed,
+            enabled: true,
+            notify: true,
+            autoDownload: false,
+            knownChapterCount: 0,
+          ),
+        ],
+      )..listTrackersGate = Completer<void>();
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(
+            sourceId: 'mangadex',
+            sourceSeriesId: 'manga-1',
+            isFollowed: true,
+            followTrackerId: 42,
+          ),
+          updatesRepo: fakeUpdates,
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // The trackers request is still gated, so this label can only have come
+      // from the detail payload -- the point of shipping is_followed on it.
+      expect(find.text('Unfollow'), findsOneWidget);
+      expect(find.text('Follow'), findsNothing);
+
+      // ...but the control stays disabled until the cache lands, so a tap can
+      // never act on a tracker id the payload named and the server has since
+      // dropped.
+      final button = tester.widget<FilledButton>(
+        find.ancestor(
+          of: find.text('Unfollow'),
+          matching: find.byType(FilledButton),
+        ),
+      );
+      expect(button.onPressed, isNull);
+
+      fakeUpdates.listTrackersGate!.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(find.text('Unfollow'), findsOneWidget);
+    });
+
+    testWidgets('unfollowing deletes the tracker the payload named',
+        (tester) async {
+      useTallSurface(tester);
+      final fakeUpdates = _FakeUpdatesRepository(
+        trackers: [
+          const SeriesTracker(
+            id: 42,
+            source: 'mangadex',
+            seriesId: 'manga-1',
+            seriesTitle: 'Solo Leveling',
+            trackKind: TrackKind.followed,
+            enabled: true,
+            notify: true,
+            autoDownload: false,
+            knownChapterCount: 0,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(
+            sourceId: 'mangadex',
+            sourceSeriesId: 'manga-1',
+            isFollowed: true,
+            followTrackerId: 42,
+          ),
+          updatesRepo: fakeUpdates,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Unfollow'));
+      await tester.tap(find.text('Unfollow'));
+      await tester.pumpAndSettle();
+
+      expect(fakeUpdates.deletedTrackerId, 42);
+      expect(find.text('Follow'), findsOneWidget);
+      expect(find.text('Unfollow'), findsNothing);
+    });
+
+    testWidgets('a downloaded-only tracker does not count as followed',
+        (tester) async {
+      useTallSurface(tester);
+      // Every downloaded series gets a `downloaded` tracker; if the button
+      // treated those as follows, every downloaded series would render as
+      // already-followed and could never be followed for real.
+      final fakeUpdates = _FakeUpdatesRepository(
+        trackers: [
+          const SeriesTracker(
+            id: 7,
+            source: 'mangadex',
+            seriesId: 'manga-1',
+            seriesTitle: 'Solo Leveling',
+            trackKind: TrackKind.downloaded,
+            enabled: true,
+            notify: false,
+            autoDownload: false,
+            knownChapterCount: 0,
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        await _buildSeriesDetailApp(
+          _sampleSeriesDetail(
+            sourceId: 'mangadex',
+            sourceSeriesId: 'manga-1',
+          ),
+          updatesRepo: fakeUpdates,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Follow'), findsOneWidget);
+      expect(find.text('Unfollow'), findsNothing);
     });
   });
 }

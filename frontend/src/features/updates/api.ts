@@ -21,8 +21,17 @@ export const updatesApi = {
   trackers: (params?: { track_kind?: string; source?: string }) =>
     http.get<SeriesTracker[]>("/updates/trackers", { query: params }),
 
-  follow: (body: { source: string; series_id: string; series_title: string }) =>
-    http.post<SeriesTracker>("/updates/trackers/follow", body),
+  // `genres` is the caller's already-in-hand genre list (routes/updates.py:45-53).
+  // Advisory and optional: it is the only machine-readable adult signal most
+  // sources expose, and taking it from the caller keeps a write path off the
+  // scrapers. Absent or empty means "no signal" — the tracker's rating stays
+  // *unknown* (badged, overridable), never silently "safe".
+  follow: (body: {
+    source: string;
+    series_id: string;
+    series_title: string;
+    genres?: string[];
+  }) => http.post<SeriesTracker>("/updates/trackers/follow", body),
 
   updateTracker: (trackerId: number, body: Partial<SeriesTracker>) =>
     http.patch<SeriesTracker>(`/updates/trackers/${trackerId}`, body),
