@@ -1,44 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 
 void main() {
   group('page_layout', () {
-    const page = ReaderPage(
-      id: '1',
-      number: 1,
-      imageUrl: '/pages/1.jpg',
-      width: 800,
-      height: 1200,
-    );
-
-    test('estimatePageHeight scales with zoom', () {
-      final normal = estimatePageHeight(page, 400, 1);
-      final zoomed = estimatePageHeight(page, 400, 2);
-      expect(zoomed, greaterThan(normal));
-    });
-
-    test('resolveVisiblePage tracks scroll offset', () {
-      final pages = List.generate(
-        3,
-        (index) => ReaderPage(
-          id: '${index + 1}',
-          number: index + 1,
-          imageUrl: '/pages/${index + 1}.jpg',
-          width: 800,
-          height: 1200,
-        ),
-      );
-
-      final pageHeight = estimatePageHeight(page, 400, 1);
-      expect(
-        resolveVisiblePage(pages, pageHeight + 10, 400, 1),
-        2,
-      );
-    });
-
     test('resolveInitialScrollTop prefers saved scroll', () {
       expect(
         resolveInitialScrollTop(

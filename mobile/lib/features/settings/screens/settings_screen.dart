@@ -38,7 +38,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 5, vsync: this);
   }
 
   @override
@@ -77,6 +77,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
           tabAlignment: TabAlignment.start,
           tabs: const [
             Tab(text: 'General'),
+            // Downloads sits second, not buried at the bottom of General:
+            // it is the tab with the knobs people go looking for (how many
+            // chapters at once, does anything download on its own).
+            Tab(text: 'Downloads'),
             Tab(text: 'Server'),
             Tab(text: 'About'),
             Tab(text: 'Debug'),
@@ -87,6 +91,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen>
         controller: _tabController,
         children: [
           const _GeneralSettingsPanel(),
+          const _DownloadsPanel(),
           _ServerSettingsPanel(controller: _apiUrlController),
           const _AboutPanel(),
           const _DebugPanel(),
@@ -133,8 +138,32 @@ class _GeneralSettingsPanel extends StatelessWidget {
         _SectionHeading('Default reader preferences'),
         SizedBox(height: AppSpacing.sm),
         _ReaderDefaultsSection(),
+      ],
+    );
+  }
+}
+
+// ── Downloads ────────────────────────────────────────────────────────────
+
+class _DownloadsPanel extends StatelessWidget {
+  const _DownloadsPanel();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      padding: const EdgeInsets.all(AppSpacing.xl2),
+      children: const [
+        // Automatic first: "is this app downloading things I didn't ask for?"
+        // is the question that brings people to this tab.
+        _SectionHeading('Automatic downloads'),
+        SizedBox(height: AppSpacing.sm),
+        _AutoDownloadToggle(),
         SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('Download preferences'),
+        _SectionHeading('Network'),
+        SizedBox(height: AppSpacing.sm),
+        _WifiOnlyToggle(),
+        SizedBox(height: AppSpacing.xl2),
+        _SectionHeading('Download speed'),
         SizedBox(height: AppSpacing.sm),
         _DownloadPreferencesSection(),
       ],
@@ -656,6 +685,83 @@ class _ReaderDefaultsSection extends ConsumerWidget {
   }
 }
 
+/// The master switch for downloads nobody asked for.
+///
+/// Backed by `auto_download_enabled` on `GET`/`PUT /updates/settings` — the
+/// flag the update scheduler checks before queueing a newly discovered chapter.
+/// It is off on a fresh server and nothing in the app turns it on implicitly,
+/// so this is purely an opt-in the owner can see and control.
+class _AutoDownloadToggle extends ConsumerWidget {
+  const _AutoDownloadToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final async = ref.watch(autoDownloadNewChaptersProvider);
+
+    // Initial load failed with nothing cached: a retry card, never a switch
+    // whose position is a guess about what the server is doing.
+    if (async.hasError && !async.hasValue) {
+      return _SectionErrorCard(
+        label: 'the automatic download setting',
+        onRetry: () => ref.invalidate(autoDownloadNewChaptersProvider),
+      );
+    }
+
+    return GlassCard(
+      // SwitchListTile paints its splash on the nearest Material ancestor;
+      // GlassCard only supplies one when onTap is set.
+      child: Material(
+        color: Colors.transparent,
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Download new chapters automatically'),
+          subtitle: const Text(
+            'When a series you follow gets a new chapter, download it in the '
+            'background. Off by default — leave it off and chapters only '
+            'download when you ask for them.',
+          ),
+          value: async.valueOrNull ?? false,
+          onChanged: async.isLoading
+              ? null
+              : (value) => _onToggle(context, ref, value),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _onToggle(BuildContext context, WidgetRef ref, bool value) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final error = await ref
+        .read(autoDownloadNewChaptersProvider.notifier)
+        .setEnabled(value);
+    if (error == null) return;
+    messenger.showSnackBar(SnackBar(content: Text(error.userMessage)));
+  }
+}
+
+class _WifiOnlyToggle extends ConsumerWidget {
+  const _WifiOnlyToggle();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final wifiOnly = ref.watch(wifiOnlyDownloadsProvider);
+
+    return GlassCard(
+      child: Material(
+        color: Colors.transparent,
+        child: SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Wi-Fi only'),
+          subtitle: const Text('Only download chapters while connected to Wi-Fi'),
+          value: wifiOnly,
+          onChanged: (value) =>
+              ref.read(wifiOnlyDownloadsProvider.notifier).setEnabled(value),
+        ),
+      ),
+    );
+  }
+}
+
 class _DownloadPreferencesSection extends ConsumerStatefulWidget {
   const _DownloadPreferencesSection();
 
@@ -671,131 +777,99 @@ class _DownloadPreferencesSectionState
 
   @override
   Widget build(BuildContext context) {
-    final wifiOnly = ref.watch(wifiOnlyDownloadsProvider);
     final settingsAsync = ref.watch(downloadSettingsProvider);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        GlassCard(
-          // SwitchListTile paints on the nearest Material ancestor; GlassCard
-          // doesn't provide one unless onTap is set.
-          child: Material(
-            color: Colors.transparent,
-            child: SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const Text('Wi-Fi only'),
-              subtitle:
-                  const Text('Only download chapters while connected to Wi-Fi'),
-              value: wifiOnly,
-              onChanged: (value) => ref
-                  .read(wifiOnlyDownloadsProvider.notifier)
-                  .setEnabled(value),
-            ),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.lg),
-        settingsAsync.when(
-          loading: () => const SkeletonBox(width: double.infinity, height: 180),
-          // Isolated retry, not a full-tab error: a failed GET /downloads/settings
-          // (which surfaces as UnknownError → "Something went wrong…") stays
-          // contained to this section while the Wi-Fi toggle above still renders.
-          error: (error, _) => _SectionErrorCard(
-            label: 'download preferences',
-            onRetry: () {
-              _draft = null;
-              ref.invalidate(downloadSettingsProvider);
-            },
-          ),
-          data: (settings) {
-            _draft ??= settings;
-            final draft = _draft!;
+    return settingsAsync.when(
+      loading: () => const SkeletonBox(width: double.infinity, height: 180),
+      // Isolated retry, not a full-tab error: a failed GET /downloads/settings
+      // (which surfaces as UnknownError → "Something went wrong…") stays
+      // contained to this section while the toggles above still render.
+      error: (error, _) => _SectionErrorCard(
+        label: 'download preferences',
+        onRetry: () {
+          _draft = null;
+          ref.invalidate(downloadSettingsProvider);
+        },
+      ),
+      data: (settings) {
+        _draft ??= settings;
+        final draft = _draft!;
 
-            return GlassCard(
-              child: Column(
-                children: [
-                  _SliderField(
-                    label: 'Concurrent chapters',
-                    value: draft.concurrentChapters.toDouble(),
-                    min: 1,
-                    max: 8,
-                    divisions: 7,
-                    onChanged: (value) => setState(
-                      () => _draft = DownloadSettings(
-                        concurrentChapters: value.round(),
-                        pageConcurrency: draft.pageConcurrency,
-                        retryCount: draft.retryCount,
-                        retryDelaySeconds: draft.retryDelaySeconds,
-                        timeoutSeconds: draft.timeoutSeconds,
-                        activeDownloadCount: draft.activeDownloadCount,
-                      ),
-                    ),
-                  ),
-                  _SliderField(
-                    label: 'Page concurrency',
-                    value: draft.pageConcurrency.toDouble(),
-                    min: 1,
-                    max: 16,
-                    divisions: 15,
-                    onChanged: (value) => setState(
-                      () => _draft = DownloadSettings(
-                        concurrentChapters: draft.concurrentChapters,
-                        pageConcurrency: value.round(),
-                        retryCount: draft.retryCount,
-                        retryDelaySeconds: draft.retryDelaySeconds,
-                        timeoutSeconds: draft.timeoutSeconds,
-                        activeDownloadCount: draft.activeDownloadCount,
-                      ),
-                    ),
-                  ),
-                  _SliderField(
-                    label: 'Retry count',
-                    value: draft.retryCount.toDouble(),
-                    min: 0,
-                    max: 10,
-                    divisions: 10,
-                    onChanged: (value) => setState(
-                      () => _draft = DownloadSettings(
-                        concurrentChapters: draft.concurrentChapters,
-                        pageConcurrency: draft.pageConcurrency,
-                        retryCount: value.round(),
-                        retryDelaySeconds: draft.retryDelaySeconds,
-                        timeoutSeconds: draft.timeoutSeconds,
-                        activeDownloadCount: draft.activeDownloadCount,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  FilledButton(
-                    onPressed: _saving
-                        ? null
-                        : () async {
-                            setState(() => _saving = true);
-                            final error = await ref
-                                .read(settingsActionsProvider)
-                                .saveDownloadSettings(draft);
-                            if (!context.mounted) return;
-                            setState(() => _saving = false);
-                            if (error == null) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text('Download settings saved.'),
-                                ),
-                              );
-                            } else {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                SnackBar(content: Text(error.userMessage)),
-                              );
-                            }
-                          },
-                    child: Text(_saving ? 'Saving…' : 'Save download settings'),
-                  ),
-                ],
+        return GlassCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Maxima mirror the server's own bounds (_SETTING_BOUNDS,
+              // backend/services/download_service.py:29-34). Page concurrency
+              // used to offer 16, which the API rejects with a 422 — a slider
+              // position that cannot be saved is worse than no slider.
+              _SliderField(
+                label: 'Chapters at once',
+                value: draft.concurrentChapters.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                onChanged: (value) => setState(
+                  () => _draft = draft.copyWith(concurrentChapters: value.round()),
+                ),
               ),
-            );
-          },
-        ),
-      ],
+              _SliderField(
+                label: 'Pages at once',
+                value: draft.pageConcurrency.toDouble(),
+                min: 1,
+                max: 10,
+                divisions: 9,
+                onChanged: (value) => setState(
+                  () => _draft = draft.copyWith(pageConcurrency: value.round()),
+                ),
+              ),
+              _SliderField(
+                label: 'Retry count',
+                value: draft.retryCount.toDouble(),
+                min: 0,
+                max: 10,
+                divisions: 10,
+                onChanged: (value) => setState(
+                  () => _draft = draft.copyWith(retryCount: value.round()),
+                ),
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                settings.activeDownloadCount == 1
+                    ? '1 chapter downloading right now'
+                    : '${settings.activeDownloadCount} chapters downloading '
+                        'right now',
+                style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+              ),
+              const SizedBox(height: AppSpacing.md),
+              FilledButton(
+                onPressed: _saving
+                    ? null
+                    : () async {
+                        setState(() => _saving = true);
+                        final error = await ref
+                            .read(settingsActionsProvider)
+                            .saveDownloadSettings(draft);
+                        if (!context.mounted) return;
+                        setState(() => _saving = false);
+                        if (error == null) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Download settings saved.'),
+                            ),
+                          );
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text(error.userMessage)),
+                          );
+                        }
+                      },
+                child: Text(_saving ? 'Saving…' : 'Save download settings'),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

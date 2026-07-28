@@ -815,7 +815,6 @@ void main() {
       expect(fakeDownloads.lastChapterIds, ['manga-1:1', 'manga-1:2']);
       expect(find.textContaining('Queued 2 chapters'), findsOneWidget);
       expect(find.textContaining('Skipped 1 already downloaded'), findsOneWidget);
-      expect(find.text('Downloads'), findsOneWidget);
     });
 
     testWidgets('Download Series queues the series and shows snackbar',
@@ -846,7 +845,8 @@ void main() {
       expect(find.textContaining('Queued 3 chapters'), findsOneWidget);
     });
 
-    testWidgets('per-chapter download button queues one chapter', (tester) async {
+    testWidgets('per-chapter download button queues one chapter silently',
+        (tester) async {
       final fakeUpdates = _FakeUpdatesRepository();
       final fakeDownloads = _RecordingDownloadsRepository(
         chaptersResponse: const Ok(QueueDownloadResponse(queued: [9], skipped: [])),
@@ -867,87 +867,21 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(fakeDownloads.lastChapterIds, ['manga-1:1']);
-      expect(find.textContaining('Queued 1 chapter'), findsOneWidget);
-    });
-
-    testWidgets('snackbar Downloads action navigates to downloads screen',
-        (tester) async {
-      SharedPreferences.setMockInitialValues({});
-      final prefs = await SharedPreferences.getInstance();
-      final fakeUpdates = _FakeUpdatesRepository();
-      final fakeDownloads = _RecordingDownloadsRepository(
-        seriesResponse: const Ok(QueueDownloadResponse(
-          queued: [1],
-          skipped: [],
-        ),),
-      );
-
-      String? navigatedLocation;
-      final router = GoRouter(
-        initialLocation: '/sources/mangadex/series/manga-1',
-        routes: [
-          GoRoute(
-            path: '/sources/:sourceId/series/:seriesId',
-            builder: (_, state) => SourceSeriesDetailScreen(
-              sourceId: state.pathParameters['sourceId']!,
-              seriesId: state.pathParameters['seriesId']!,
-            ),
-          ),
-          GoRoute(
-            path: Routes.downloads,
-            builder: (_, state) {
-              navigatedLocation = state.uri.toString();
-              return const Scaffold(body: Center(child: Text('DOWNLOADS')));
-            },
-          ),
-        ],
-      );
-
-      await tester.binding.setSurfaceSize(const Size(430, 932));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: [
-            sharedPrefsProvider.overrideWithValue(prefs),
-            apiBaseUrlOverride('http://example.test'),
-            sourcesRepositoryProvider.overrideWithValue(
-              _FakeSourcesRepository(
-                _series(),
-                [_chapter(id: 'manga-1:1', number: 1)],
-              ),
-            ),
-            updatesRepositoryProvider.overrideWithValue(fakeUpdates),
-            downloadsRepositoryProvider.overrideWithValue(fakeDownloads),
-            downloadsProvider.overrideWith(() => _FakeDownloadsNotifier(fakeDownloads)),
-          ],
-          child: MaterialApp.router(routerConfig: router),
-        ),
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      final downloadSeriesButton = find.byKey(const Key('download-series'), skipOffstage: false);
-      await tester.ensureVisible(downloadSeriesButton);
-      await tester.pumpAndSettle();
-      await tester.tap(downloadSeriesButton);
-      await tester.pumpAndSettle();
-
-      await tester.tap(find.text('Downloads'));
-      await tester.pumpAndSettle();
-
-      expect(navigatedLocation, Routes.downloads);
-      expect(find.text('DOWNLOADS'), findsOneWidget);
+      // A one-chapter queue shows no bar (see shouldShowQueueDownloadFeedback):
+      // the row the user just tapped flips to its queued state, which points at
+      // the thing that changed instead of covering the page with a banner.
+      expect(find.byType(SnackBar), findsNothing);
     });
 
     testWidgets('ignores duplicate queue requests while pending', (tester) async {
       final fakeUpdates = _FakeUpdatesRepository();
       final fakeDownloads = _RecordingDownloadsRepository(
-        seriesResponse: const Ok(QueueDownloadResponse(queued: [1], skipped: [])),
+        // Two chapters, so the queue confirmation is one the user gets to see:
+        // a single-chapter queue is deliberately silent.
+        seriesResponse: const Ok(QueueDownloadResponse(queued: [1, 2], skipped: [])),
         delay: const Duration(milliseconds: 50),
       );
-      
+
       await _pumpScreen(
         tester,
         updatesRepo: fakeUpdates,
@@ -964,12 +898,12 @@ void main() {
       // Tap twice quickly
       await tester.tap(button, warnIfMissed: false);
       await tester.tap(button, warnIfMissed: false);
-      
+
       // Wait for the async task to complete
       await tester.pumpAndSettle();
 
       expect(fakeDownloads.queueSeriesCallCount, 1);
-      expect(find.textContaining('Queued 1 chapter'), findsOneWidget);
+      expect(find.textContaining('Queued 2 chapters'), findsOneWidget);
     });
 
     testWidgets('clears pending state and preserves selection on failure', (tester) async {
@@ -1020,12 +954,13 @@ void main() {
       expect(fakeDownloads.queueChaptersCallCount, 1);
       
       // Try again with success response
-      fakeDownloads.chaptersResponse = const Ok(QueueDownloadResponse(queued: [1], skipped: []));
+      fakeDownloads.chaptersResponse =
+          const Ok(QueueDownloadResponse(queued: [1, 2], skipped: []));
       await tester.tap(downloadButton);
       await tester.pumpAndSettle();
 
       expect(fakeDownloads.queueChaptersCallCount, 2);
-      expect(find.textContaining('Queued 1 chapter'), findsOneWidget);
+      expect(find.textContaining('Queued 2 chapters'), findsOneWidget);
     });
   });
 

@@ -30,6 +30,7 @@ import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/features/settings/repositories/auto_download_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
 import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
@@ -269,10 +270,27 @@ DownloadSettings _sampleDownloadSettings() => const DownloadSettings(
       concurrentChapters: 2,
       pageConcurrency: 4,
       retryCount: 3,
-      retryDelaySeconds: 5,
-      timeoutSeconds: 30,
+      // Fractional on purpose: these two are floats server-side.
+      retryDelaySeconds: 0.75,
+      timeoutSeconds: 30.0,
       activeDownloadCount: 0,
     );
+
+class _StubAutoDownloadRepo implements AutoDownloadSettingsRepository {
+  /// Starts off, matching a fresh server.
+  bool enabled = false;
+  bool? saved;
+
+  @override
+  Future<Result<bool>> getAutoDownloadEnabled() async => Ok(enabled);
+
+  @override
+  Future<Result<bool>> setAutoDownloadEnabled(bool value) async {
+    saved = value;
+    enabled = value;
+    return Ok(value);
+  }
+}
 
 final _testPackageInfo = PackageInfo(
   appName: 'ManhwaManiacs',
@@ -296,6 +314,13 @@ class _ThrowingMatureController extends MatureContentController {
   @override
   Future<bool> build() async =>
       throw const UnknownError(message: 'boom');
+}
+
+/// Same idea for the Downloads tab's auto-download switch: prove it degrades to
+/// a retry card rather than rendering a switch whose position is a guess.
+class _ThrowingAutoDownloadController extends AutoDownloadNewChaptersController {
+  @override
+  Future<bool> build() async => throw const UnknownError(message: 'boom');
 }
 
 Future<ProviderContainer> _pumpSettings(
@@ -326,6 +351,10 @@ Future<ProviderContainer> _pumpSettings(
       // The Content section's 18+ toggle builds on the General tab and would
       // otherwise fire a real GET /settings; stub the repo so tests stay offline.
       matureSettingsRepositoryProvider.overrideWithValue(_StubMatureRepo()),
+      // The Downloads tab's auto-download switch reads GET /updates/settings;
+      // stub it so the tab builds offline.
+      autoDownloadSettingsRepositoryProvider
+          .overrideWithValue(_StubAutoDownloadRepo()),
       ..._metadataCacheProviderOverrides(),
       ...extraOverrides,
     ],
@@ -363,6 +392,13 @@ Future<void> _scrollToText(WidgetTester tester, String text) async {
   await tester.pump();
 }
 
+/// Download settings live on their own tab now — reaching them is two steps,
+/// not a long scroll down General.
+Future<void> _openDownloadsTab(WidgetTester tester) async {
+  await tester.tap(find.text('Downloads'));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -390,9 +426,51 @@ void main() {
 
       await _scrollToText(tester, 'DEFAULT READER PREFERENCES');
       expect(find.text('DEFAULT READER PREFERENCES'), findsOneWidget);
+    });
 
-      await _scrollToText(tester, 'DOWNLOAD PREFERENCES');
-      expect(find.text('DOWNLOAD PREFERENCES'), findsOneWidget);
+    testWidgets('download settings have their own tab, not a General footer',
+        (tester) async {
+      await _pumpSettings(tester);
+      await _openDownloadsTab(tester);
+
+      // Section headings are uppercased by _SectionHeading.
+      expect(find.text('AUTOMATIC DOWNLOADS'), findsOneWidget);
+      expect(find.text('NETWORK'), findsOneWidget);
+      expect(find.text('DOWNLOAD SPEED'), findsOneWidget);
+      expect(find.text('Chapters at once'), findsOneWidget);
+    });
+
+    testWidgets('automatic downloads are off unless the server says otherwise',
+        (tester) async {
+      await _pumpSettings(tester);
+      await _openDownloadsTab(tester);
+
+      final toggle = tester.widget<SwitchListTile>(
+        find.ancestor(
+          of: find.text('Download new chapters automatically'),
+          matching: find.byType(SwitchListTile),
+        ),
+      );
+      expect(toggle.value, isFalse);
+    });
+
+    testWidgets('turning automatic downloads on writes it through to the server',
+        (tester) async {
+      final repo = _StubAutoDownloadRepo();
+      final container = await _pumpSettings(
+        tester,
+        extraOverrides: [
+          autoDownloadSettingsRepositoryProvider.overrideWithValue(repo),
+        ],
+      );
+      await _openDownloadsTab(tester);
+
+      await tester.tap(find.text('Download new chapters automatically'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(repo.saved, isTrue);
+      expect(container.read(autoDownloadNewChaptersProvider).valueOrNull, isTrue);
     });
 
     testWidgets('tapping the Server tab shows the server URL field', (tester) async {
@@ -449,21 +527,18 @@ void main() {
     });
 
     testWidgets(
-        'General tab survives a failed download + mature load with per-section '
-        'retries and no global error', (tester) async {
+        'General tab survives a failed mature load with a per-section retry '
+        'and no global error', (tester) async {
       await _pumpSettings(
         tester,
         extraOverrides: [
-          // Both network-backed General sections fail to load.
-          downloadSettingsProvider
-              .overrideWith((ref) async => throw const UnknownError(message: 'boom')),
           matureContentProvider.overrideWith(_ThrowingMatureController.new),
         ],
       );
       await tester.pump(const Duration(milliseconds: 100));
 
-      // The whole-tab "Something went wrong" red-out must be gone: neither
-      // failing section renders UnknownError.userMessage.
+      // The whole-tab "Something went wrong" red-out must be gone: the failing
+      // section must not render UnknownError.userMessage.
       expect(find.text('Something went wrong — please try again.'), findsNothing);
 
       // Assert top-to-bottom (scrollUntilVisible only scrolls downward): the
@@ -473,34 +548,57 @@ void main() {
         find.text("Couldn't load the mature content setting."),
         findsOneWidget,
       );
+      // …carrying its own Retry affordance (asserted here, while the card is
+      // still on screen — ListView disposes children it scrolls past)…
+      expect(find.widgetWithText(TextButton, 'Retry'), findsOneWidget);
 
-      // …the local Theme/Language sections still render (never network-backed)…
+      // …and the local Theme/Language sections still render (never
+      // network-backed).
       await _scrollToText(tester, 'THEME');
       expect(find.text('THEME'), findsOneWidget);
       await _scrollToText(tester, 'LANGUAGE');
       expect(find.text('LANGUAGE'), findsOneWidget);
+    });
 
-      // …the local Wi-Fi toggle still renders even though the download settings
-      // call below it failed…
-      await _scrollToText(tester, 'Wi-Fi only');
-      expect(find.text('Wi-Fi only'), findsOneWidget);
+    testWidgets(
+        'Downloads tab degrades per-section when both network reads fail',
+        (tester) async {
+      await _pumpSettings(
+        tester,
+        extraOverrides: [
+          downloadSettingsProvider
+              .overrideWith((ref) async => throw const UnknownError(message: 'boom')),
+          autoDownloadNewChaptersProvider
+              .overrideWith(_ThrowingAutoDownloadController.new),
+        ],
+      );
+      await _openDownloadsTab(tester);
+      await tester.pump(const Duration(milliseconds: 100));
 
-      // …and the Download preferences section shows its own isolated retry card.
-      await _scrollToText(tester, "Couldn't load download preferences.");
+      expect(find.text('Something went wrong — please try again.'), findsNothing);
+
+      // Each network-backed section carries its own retry card…
       expect(
-        find.text("Couldn't load download preferences."),
+        find.text("Couldn't load the automatic download setting."),
         findsOneWidget,
       );
-
-      // Each failed section carries its own Retry affordance.
-      expect(find.widgetWithText(TextButton, 'Retry'), findsWidgets);
+      expect(find.text("Couldn't load download preferences."), findsOneWidget);
+      // …while the purely local Wi-Fi toggle between them still renders.
+      expect(find.text('Wi-Fi only'), findsOneWidget);
+      expect(find.widgetWithText(TextButton, 'Retry'), findsNWidgets(2));
     });
 
     testWidgets('every tab opens without throwing during build',
         (tester) async {
       await _pumpSettings(tester);
 
-      for (final tab in const ['General', 'Server', 'About', 'Debug']) {
+      for (final tab in const [
+        'General',
+        'Downloads',
+        'Server',
+        'About',
+        'Debug',
+      ]) {
         await tester.tap(find.text(tab));
         await tester.pumpAndSettle();
         // A build-time throw in any panel would have surfaced as a test
@@ -568,8 +666,8 @@ void main() {
 
     testWidgets('toggling Wi-Fi only persists the preference', (tester) async {
       final container = await _pumpSettings(tester);
+      await _openDownloadsTab(tester);
 
-      await _scrollToText(tester, 'Wi-Fi only');
       await tester.tap(find.text('Wi-Fi only'));
       await tester.pump();
 
@@ -580,10 +678,11 @@ void main() {
     testWidgets('existing download concurrency settings still load and save',
         (tester) async {
       await _pumpSettings(tester);
+      await _openDownloadsTab(tester);
 
-      await _scrollToText(tester, 'Concurrent chapters');
-      expect(find.text('Concurrent chapters'), findsOneWidget);
-      expect(find.text('Page concurrency'), findsOneWidget);
+      await _scrollToText(tester, 'Chapters at once');
+      expect(find.text('Chapters at once'), findsOneWidget);
+      expect(find.text('Pages at once'), findsOneWidget);
       expect(find.text('Retry count'), findsOneWidget);
 
       await _scrollToText(tester, 'Save download settings');

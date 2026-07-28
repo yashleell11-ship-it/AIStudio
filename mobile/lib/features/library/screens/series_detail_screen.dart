@@ -1,28 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
 import 'package:manhwamaniacs/features/downloads/utils/queue_download_feedback.dart';
+import 'package:manhwamaniacs/features/downloads/utils/source_chapter_download_status.dart';
 import 'package:manhwamaniacs/features/library/models/chapter.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/series_display.dart';
 import 'package:manhwamaniacs/features/library/widgets/series_detail/series_detail_skeleton.dart';
+import 'package:manhwamaniacs/features/sources/providers/source_series_download_status_provider.dart';
+import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
-import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_sort.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_tile.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_detail_body.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_detail_chips.dart';
+import 'package:manhwamaniacs/shared/widgets/series_detail/series_detail_meta.dart';
 
+/// The library (downloaded) series page.
+///
+/// Deliberately built from the same shared parts as the source-browse series
+/// page (`SourceSeriesDetailScreen`): same app bar, same header, same action
+/// order, same chapter rows, same Newest/Oldest sort. Arriving here by tapping
+/// a chapter title in the reader used to land on a page that looked and behaved
+/// like a different app; everything that differs now is a difference in what is
+/// actually known about the series, not in how it is presented.
 class SeriesDetailScreen extends ConsumerWidget {
   const SeriesDetailScreen({super.key, required this.seriesId});
 
@@ -31,8 +46,23 @@ class SeriesDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final seriesAsync = ref.watch(seriesDetailProvider(seriesId));
+    // Name the screen after the series, matching the source page.
+    final title = seriesAsync.valueOrNull?.title;
 
     return Scaffold(
+      appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () => context.canPop()
+              ? context.pop()
+              : context.go(Routes.libraryBrowse),
+        ),
+        title: Text(
+          title == null || title.isEmpty ? 'Series' : title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
       body: seriesAsync.when(
         loading: () => const SeriesDetailSkeleton(),
         error: (error, _) => _SeriesDetailError(
@@ -60,8 +90,13 @@ class _SeriesDetailContent extends ConsumerStatefulWidget {
 class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
   late SeriesDetail _series;
 
-  /// Source chapter ids currently being enqueued for download.
-  final Set<String> _downloadingChapterIds = {};
+  /// Source chapter ids ticked for a bulk download.
+  final Set<String> _selectedChapterIds = {};
+
+  /// A queue request is in flight; guards double taps on every download control.
+  bool _downloadPending = false;
+
+  SeriesChapterSortOrder _sortOrder = SeriesChapterSortOrder.newest;
 
   /// Captured in [didChangeDependencies] so [dispose] can hide the snackbar
   /// without an (unsafe) inherited-widget lookup on a deactivated element.
@@ -111,33 +146,41 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
 
   /// Open a remote-only chapter in the source reader.
   void _readOnline(ChapterSummary chapter) {
-    final sourceId = _series.sourceId;
-    final sourceSeriesId = _series.sourceSeriesId;
     final sourceChapterId = chapter.sourceChapterId;
-    if (sourceId == null || sourceSeriesId == null || sourceChapterId == null) {
-      return;
-    }
+    if (!_series.hasSourceLink || sourceChapterId == null) return;
     context.push(
-      RoutePaths.sourceReader(sourceId, sourceSeriesId, sourceChapterId),
+      RoutePaths.sourceReader(
+        _series.sourceId!,
+        _series.sourceSeriesId!,
+        sourceChapterId,
+      ),
     );
   }
 
-  /// Enqueue a remote-only chapter for download via the downloads provider.
-  Future<void> _downloadChapter(ChapterSummary chapter) async {
-    final sourceId = _series.sourceId;
-    final sourceSeriesId = _series.sourceSeriesId;
-    final sourceChapterId = chapter.sourceChapterId;
-    if (sourceId == null || sourceSeriesId == null || sourceChapterId == null) {
-      return;
-    }
-    if (_downloadingChapterIds.contains(sourceChapterId)) return;
+  void _toggleChapter(String sourceChapterId) {
+    setState(() {
+      if (_selectedChapterIds.contains(sourceChapterId)) {
+        _selectedChapterIds.remove(sourceChapterId);
+      } else {
+        _selectedChapterIds.add(sourceChapterId);
+      }
+    });
+  }
 
-    setState(() => _downloadingChapterIds.add(sourceChapterId));
+  void _showQueueFeedback(QueueDownloadResponse response) {
+    if (!mounted) return;
+    showQueueDownloadSnackBar(context, response);
+  }
+
+  Future<void> _queueChapters(List<String> chapterIds) async {
+    if (!_series.hasSourceLink || chapterIds.isEmpty || _downloadPending) return;
+
+    setState(() => _downloadPending = true);
     try {
       final result = await ref.read(downloadsProvider.notifier).queueChapters(
-            sourceId: sourceId,
-            seriesId: sourceSeriesId,
-            chapterIds: [sourceChapterId],
+            sourceId: _series.sourceId!,
+            seriesId: _series.sourceSeriesId!,
+            chapterIds: chapterIds,
             seriesTitle: _series.title,
           );
       if (!mounted) return;
@@ -147,25 +190,242 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
         );
         return;
       }
-      showQueueDownloadSnackBar(context, result.value);
+      setState(() => _selectedChapterIds.removeAll(chapterIds));
+      _showQueueFeedback(result.value);
     } finally {
       if (mounted) {
-        setState(() => _downloadingChapterIds.remove(sourceChapterId));
+        setState(() => _downloadPending = false);
       }
     }
   }
 
-  Widget _buildChapterRow(
-    BuildContext context,
+  Future<void> _downloadSeries() async {
+    if (!_series.hasSourceLink || _downloadPending) return;
+
+    setState(() => _downloadPending = true);
+    try {
+      final result = await ref.read(downloadsProvider.notifier).queueSeries(
+            sourceId: _series.sourceId!,
+            seriesId: _series.sourceSeriesId!,
+          );
+      if (!mounted) return;
+      if (result.isErr) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(result.error.userMessage)),
+        );
+        return;
+      }
+      _showQueueFeedback(result.value);
+    } finally {
+      if (mounted) {
+        setState(() => _downloadPending = false);
+      }
+    }
+  }
+
+  /// Newest chapter for the header meta line — the highest-numbered row in the
+  /// list the page is about to render, so the line and the list agree.
+  String? _latestChapterLabel() {
+    final newest = sortSeriesChapters(
+      _series.chapters,
+      numberOf: (chapter) => chapter.number,
+      order: SeriesChapterSortOrder.newest,
+    ).firstOrNull;
+    if (newest == null) return null;
+    return chapterLabel(number: newest.number, title: newest.title).primary;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final baseUrl = ref.watch(apiBaseUrlProvider);
+    final progress = _series.readingProgress;
+    final continueChapterId = progress?.chapterId ?? _series.firstChapterId;
+    final continuePage = progress?.lastPage;
+    final hasSourceLink = _series.hasSourceLink;
+
+    // Live download state for the chapters that are not on disk yet. Only
+    // meaningful for a series that resolves back to a source, and the family
+    // key needs both ids non-null, so it is watched only in that case.
+    final downloadLookup = hasSourceLink
+        ? ref.watch(
+            sourceSeriesChapterDownloadLookupProvider(
+              (
+                sourceId: _series.sourceId!,
+                seriesId: _series.sourceSeriesId!,
+              ),
+            ),
+          )
+        : const SourceChapterDownloadLookup.empty();
+
+    final sortedChapters = sortSeriesChapters(
+      _series.chapters,
+      numberOf: (chapter) => chapter.number,
+      order: _sortOrder,
+    );
+
+    final language = languageLabel(_series.language);
+    final statusChips = <SeriesDetailChip>[
+      if (_series.readingStatus.isNotEmpty)
+        SeriesDetailChip(
+          label: readingStatusLabel(_series.readingStatus).toUpperCase(),
+          color: readingStatusColor(_series.readingStatus),
+        ),
+      // An empty language would render an empty pill -- a box with nothing in
+      // it says less than no box.
+      if (language.isNotEmpty) SeriesDetailChip(label: language),
+      if (_series.year != null) SeriesDetailChip(label: '${_series.year}'),
+    ];
+
+    return SeriesDetailBody(
+      cover: Hero(
+        tag: seriesCoverHeroTag(_series.id),
+        child: SeriesCoverImage(
+          url: seriesCoverUrl(baseUrl, _series.id),
+          borderRadius: 0,
+        ),
+      ),
+      title: _series.title,
+      originalTitle: _series.originalTitle,
+      author: _series.author,
+      artist: _series.artist,
+      metaLine: seriesDetailMetaLine(
+        latestChapterLabel: _latestChapterLabel(),
+        // The rendered list is authoritative; the payload count is a fallback
+        // for a series whose chapters were not expanded.
+        chapterCount: _series.chapters.isNotEmpty
+            ? _series.chapters.length
+            : _series.chapterCount,
+        // Page count and read percentage are library-only facts -- the source
+        // catalog cannot know either -- but they belong on the same line as
+        // everything else rather than in a separate row of their own.
+        pageCount: _series.pageCount,
+        readPct: progress?.progressPct,
+      ),
+      description: _series.description,
+      primaryAction: continueChapterId == null
+          ? null
+          : PrimaryPillButton(
+              key: const Key('read-primary'),
+              expanded: true,
+              icon: progress != null
+                  ? Icons.play_arrow_rounded
+                  : Icons.menu_book_outlined,
+              label: progress != null ? 'Continue' : 'Start Reading',
+              onPressed: () {
+                final path =
+                    '${RoutePaths.seriesDetail(_series.id)}/chapters/$continueChapterId/read';
+                context.push(
+                  continuePage != null ? '$path?page=$continuePage' : path,
+                );
+              },
+            ),
+      // Shown only when the series resolves back to a source: a hand-imported
+      // CBZ folder has no origin to check for updates, and a button that is
+      // always there but sometimes fails is worse than one that is absent when
+      // it cannot work.
+      followAction: hasSourceLink
+          ? SeriesFollowButton(
+              key: const Key('follow-toggle'),
+              sourceId: _series.sourceId!,
+              seriesId: _series.sourceSeriesId!,
+              seriesTitle: _series.title,
+              initialIsFollowed: _series.isFollowed,
+              initialFollowTrackerId: _series.followTrackerId,
+            )
+          : null,
+      secondaryActions: [
+        // Downloads lead, in the same order as the source page, so the two
+        // action rows line up; Favourite is the library-only extra and follows.
+        if (hasSourceLink) ...[
+          OutlinedButton.icon(
+            key: const Key('download-series'),
+            onPressed: _downloadPending ? null : _downloadSeries,
+            icon: const Icon(Icons.download_outlined),
+            label: const Text('Download Series'),
+          ),
+          OutlinedButton.icon(
+            key: const Key('download-selected'),
+            onPressed: _downloadPending || _selectedChapterIds.isEmpty
+                ? null
+                : () => _queueChapters(_selectedChapterIds.toList()),
+            icon: const Icon(Icons.playlist_add_check_outlined),
+            label: const Text('Download Selected'),
+          ),
+        ],
+        OutlinedButton.icon(
+          key: const Key('favorite-toggle'),
+          onPressed: _toggleFavorite,
+          icon: Icon(
+            _series.isFavorite ? Icons.star : Icons.star_border,
+            color: _series.isFavorite ? AppColors.warning : null,
+          ),
+          label: Text(_series.isFavorite ? 'Favorited' : 'Add Favorite'),
+          style: OutlinedButton.styleFrom(
+            foregroundColor:
+                _series.isFavorite ? AppColors.warning : AppColors.fg,
+            side: BorderSide(
+              color: _series.isFavorite
+                  ? AppColors.warning.withAlpha(77)
+                  : AppColors.border,
+            ),
+            backgroundColor: _series.isFavorite
+                ? AppColors.warning.withAlpha(26)
+                : AppColors.fg.withAlpha(13),
+          ),
+        ),
+      ],
+      details: [
+        // Reading status / language / year keep the pill treatment they had,
+        // now in the same slot the source page uses for status and genres.
+        if (statusChips.isNotEmpty) SeriesDetailChipRow(chips: statusChips),
+        if (_series.tags.isNotEmpty)
+          SeriesDetailChipRow(
+            chips: [
+              for (final tag in _series.tags)
+                SeriesDetailChip(label: tag.name, color: tag.color),
+            ],
+          ),
+        if (_series.collections.isNotEmpty)
+          Text.rich(
+            TextSpan(
+              style: AppTypography.body.copyWith(color: AppColors.muted),
+              children: [
+                const TextSpan(text: 'In collections: '),
+                for (var i = 0; i < _series.collections.length; i++) ...[
+                  if (i > 0) const TextSpan(text: ', '),
+                  TextSpan(
+                    text: _series.collections[i].name,
+                    style: const TextStyle(color: AppColors.primary),
+                  ),
+                ],
+              ],
+            ),
+          ),
+      ],
+      sortOrder: _sortOrder,
+      onSortOrderChanged: (order) => setState(() => _sortOrder = order),
+      emptyChapters: const EmptyState(
+        icon: Icons.menu_book_outlined,
+        message: 'No chapters available',
+        subtitle: 'Nothing has been downloaded for this series yet.',
+      ),
+      chapterTiles: [
+        for (final chapter in sortedChapters)
+          _buildChapterTile(chapter, downloadLookup),
+      ],
+    );
+  }
+
+  Widget _buildChapterTile(
     ChapterSummary chapter,
-    int index,
-    ReadingProgress? progress,
+    SourceChapterDownloadLookup downloadLookup,
   ) {
+    final progress = _series.readingProgress;
+    final sourceChapterId = chapter.sourceChapterId;
     final canReadLocal = chapter.isDownloaded && chapter.id != null;
-    final canReadOnline = _series.sourceId != null &&
-        _series.sourceSeriesId != null &&
-        chapter.sourceChapterId != null;
-    final isCurrent = chapter.id != null && progress?.chapterId == chapter.id;
+    final canReadOnline = _series.hasSourceLink && sourceChapterId != null;
+    final isLastRead =
+        progress != null && chapter.id != null && progress.chapterId == chapter.id;
 
     VoidCallback? onTap;
     if (canReadLocal) {
@@ -176,556 +436,61 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       onTap = () => _readOnline(chapter);
     }
 
-    final onDownload = (!chapter.isDownloaded && canReadOnline)
-        ? () => _downloadChapter(chapter)
-        : null;
-    final downloading = chapter.sourceChapterId != null &&
-        _downloadingChapterIds.contains(chapter.sourceChapterId);
+    // A chapter already on disk is a finished download; anything else takes its
+    // state from the live queue. Both render through the same badge, so a
+    // downloaded chapter and a just-downloaded one do not look like different
+    // kinds of thing.
+    final downloadStatus = chapter.isDownloaded
+        ? SourceChapterDownloadUiStatus.completed
+        : (sourceChapterId == null
+            ? SourceChapterDownloadUiStatus.none
+            : downloadLookup.statusFor(sourceChapterId));
 
-    return _ChapterRow(
-      chapter: chapter,
-      index: index,
-      isCurrent: isCurrent,
+    final selectable = canReadOnline && !chapter.isDownloaded;
+
+    return SeriesChapterTile(
+      key: Key('chapter-${chapter.id ?? sourceChapterId ?? chapter.title}'),
+      label: chapterLabel(number: chapter.number, title: chapter.title),
+      progressText: seriesChapterProgressText(
+        pageCount: chapter.pageCount,
+        page: isLastRead ? progress.lastPage : null,
+        completed: chapter.isRead,
+      ),
+      inProgress: isLastRead && !chapter.isRead,
+      downloadStatus: downloadStatus,
+      statusBadgeKey: sourceChapterId == null
+          ? null
+          : Key('chapter-status-$sourceChapterId'),
+      isRead: chapter.isRead,
+      // "Reading" marks the chapter Continue would resume -- the last one
+      // opened, and only while it is unfinished.
+      isCurrent: isLastRead && !chapter.isRead,
       onTap: onTap,
-      onDownload: onDownload,
-      downloading: downloading,
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final baseUrl = ref.watch(apiBaseUrlProvider);
-    final coverUrl = seriesCoverUrl(baseUrl, _series.id);
-    final progress = _series.readingProgress;
-    final continueChapterId = progress?.chapterId ?? _series.firstChapterId;
-    final continuePage = progress?.lastPage;
-    final canRead = continueChapterId != null;
-    final numberFormat = NumberFormat.decimalPattern();
-
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Stack(
-            children: [
-              SizedBox(
-                height: 320,
-                width: double.infinity,
-                child: SeriesCoverImage(
-                  url: coverUrl,
-                  borderRadius: 0,
-                ),
-              ),
-              Positioned.fill(
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topCenter,
-                      end: Alignment.bottomCenter,
-                      stops: const [0.0, 0.4, 1.0],
-                      colors: [
-                        AppColors.bg.withAlpha(100),
-                        AppColors.bg.withAlpha(160),
-                        AppColors.bg,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: MediaQuery.paddingOf(context).top + AppSpacing.sm,
-                left: AppSpacing.sm,
-                child: IconButton.filledTonal(
-                  onPressed: () => context.canPop()
-                      ? context.pop()
-                      : context.go(Routes.libraryBrowse),
-                  icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 18),
-                  style: IconButton.styleFrom(
-                    backgroundColor: AppColors.sidebar.withAlpha(200),
-                    foregroundColor: AppColors.fg,
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl2,
-            0,
-            AppSpacing.xl2,
-            AppSpacing.xl3,
-          ),
-          sliver: SliverList(
-            delegate: SliverChildListDelegate([
-              Transform.translate(
-                offset: const Offset(0, -60),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Center(
-                      child: Container(
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(AppRadius.xl),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withAlpha(100),
-                              blurRadius: 24,
-                              offset: const Offset(0, 8),
-                            ),
-                          ],
-                        ),
-                        child: Hero(
-                          tag: seriesCoverHeroTag(_series.id),
-                          child: SeriesCoverImage(
-                            url: coverUrl,
-                            width: 160,
-                            height: 240,
-                            borderRadius: AppRadius.xl,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: AppSpacing.xl3),
-                    Text(_series.title, style: AppTypography.h1),
-                    if (_series.originalTitle != null) ...[
-                      const SizedBox(height: AppSpacing.xs),
-                      Text(
-                        _series.originalTitle!,
-                        style: AppTypography.body.copyWith(
-                          color: AppColors.muted,
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: AppSpacing.lg),
-                    OutlinedButton.icon(
-                      onPressed: _toggleFavorite,
-                      icon: Icon(
-                        _series.isFavorite ? Icons.star : Icons.star_border,
-                        color:
-                            _series.isFavorite ? AppColors.warning : null,
-                      ),
-                      label: Text(
-                        _series.isFavorite ? 'Favorited' : 'Add Favorite',
-                      ),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor:
-                            _series.isFavorite ? AppColors.warning : AppColors.fg,
-                        side: BorderSide(
-                          color: _series.isFavorite
-                              ? AppColors.warning.withAlpha(77)
-                              : AppColors.border,
-                        ),
-                        backgroundColor: _series.isFavorite
-                            ? AppColors.warning.withAlpha(26)
-                            : AppColors.fg.withAlpha(13),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (_series.author != null)
-                Text(
-                  'by ${_series.author}',
-                  style: AppTypography.bodyLg.copyWith(color: AppColors.muted),
-                ),
-              if (_series.artist != null)
-                Text(
-                  'Art by ${_series.artist}',
-                  style: AppTypography.caption,
-                ),
-              const SizedBox(height: AppSpacing.lg),
-              Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
-                children: [
-                  if (_series.readingStatus.isNotEmpty)
-                    _InfoChip(
-                      label: readingStatusLabel(_series.readingStatus)
-                          .toUpperCase(),
-                      color: readingStatusColor(_series.readingStatus),
-                    ),
-                  _InfoChip(label: languageLabel(_series.language)),
-                  if (_series.year != null) _InfoChip(label: '${_series.year}'),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              Wrap(
-                spacing: AppSpacing.lg,
-                children: [
-                  Text('${_series.chapterCount} chapters', style: AppTypography.body),
-                  Text(
-                    '${numberFormat.format(_series.pageCount)} pages',
-                    style: AppTypography.body,
-                  ),
-                  if (progress != null)
-                    Text(
-                      '${progress.progressPct.round()}% read',
-                      style: AppTypography.body.copyWith(
-                        color: AppColors.primary,
-                      ),
-                    ),
-                ],
-              ),
-              if (canRead) ...[
-                const SizedBox(height: AppSpacing.xl2),
-                PrimaryPillButton(
-                  expanded: true,
-                  icon: Icons.play_arrow,
-                  label: progress != null ? 'Continue Reading' : 'Start Reading',
-                  onPressed: () {
-                    final path =
-                        '${RoutePaths.seriesDetail(_series.id)}/chapters/$continueChapterId/read';
-                    final uri = continuePage != null
-                        ? '$path?page=$continuePage'
-                        : path;
-                    context.push(uri);
-                  },
-                ),
-              ],
-              // Follow sits directly under the read CTA, exactly as it does on
-              // the source-browse page, so arriving here from a downloaded
-              // chapter does not read as a different feature.
-              //
-              // Shown only when the series resolves back to a source: a
-              // hand-imported CBZ folder has no origin to check for updates,
-              // and a button that is always there but sometimes fails is worse
-              // than one that is absent when it cannot work.
-              if (_series.hasSourceLink) ...[
-                const SizedBox(height: AppSpacing.lg),
-                SeriesFollowButton(
-                  key: const Key('follow-toggle'),
-                  sourceId: _series.sourceId!,
-                  seriesId: _series.sourceSeriesId!,
-                  seriesTitle: _series.title,
-                  initialIsFollowed: _series.isFollowed,
-                  initialFollowTrackerId: _series.followTrackerId,
-                ),
-              ],
-              if (_series.tags.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xl2),
-                Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
-                  children: _series.tags
-                      .map(
-                        (tag) => Chip(
-                          label: Text(tag.name),
-                          backgroundColor: tag.color?.withAlpha(38) ??
-                              AppColors.fg.withAlpha(13),
-                          side: const BorderSide(color: AppColors.border),
-                        ),
-                      )
-                      .toList(),
-                ),
-              ],
-              if (_series.collections.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
-                Text.rich(
-                  TextSpan(
-                    style: AppTypography.body.copyWith(color: AppColors.muted),
-                    children: [
-                      const TextSpan(text: 'In collections: '),
-                      for (var i = 0; i < _series.collections.length; i++) ...[
-                        if (i > 0) const TextSpan(text: ', '),
-                        TextSpan(
-                          text: _series.collections[i].name,
-                          style: const TextStyle(color: AppColors.primary),
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-              ],
-              if (_series.description != null &&
-                  _series.description!.trim().isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.xl2),
-                Text(
-                  _series.description!,
-                  style: AppTypography.body.copyWith(height: 1.6),
-                ),
-              ],
-              const SizedBox(height: AppSpacing.xl3),
-              Row(
-                children: [
-                  const Icon(
-                      Icons.menu_book_outlined,
-                      size: 16,
-                      color: AppColors.primary,
-                    ),
-                  const SizedBox(width: AppSpacing.sm),
-                  Text(
-                    'CHAPTERS (${_series.chapters.length})',
-                    style: AppTypography.label.copyWith(
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: AppSpacing.lg),
-              if (_series.chapters.isEmpty)
-                GlassCard(
-                  padding: const EdgeInsets.all(AppSpacing.xl2),
-                  child: Text(
-                    'No chapters found for this series.',
-                    style: AppTypography.body.copyWith(color: AppColors.muted),
-                  ),
-                )
-              else
-                GlassCard(
-                  child: Column(
-                    children: [
-                      for (var i = 0; i < _series.chapters.length; i++) ...[
-                        if (i > 0)
-                          Divider(
-                            height: 1,
-                            color: AppColors.border.withAlpha(77),
-                          ),
-                        _buildChapterRow(context, _series.chapters[i], i, progress),
-                      ],
-                    ],
-                  ),
-                ),
-            ]),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _InfoChip extends StatelessWidget {
-  const _InfoChip({required this.label, this.color});
-
-  final String label;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
-      ),
-      decoration: BoxDecoration(
-        color: (color ?? AppColors.fg).withAlpha(13),
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: AppColors.border.withAlpha(128)),
-      ),
-      child: Text(
-        label,
-        style: AppTypography.caption.copyWith(
-          color: color ?? AppColors.muted,
-          fontWeight: FontWeight.w500,
-        ),
-      ),
-    );
-  }
-}
-
-class _ChapterRow extends StatelessWidget {
-  const _ChapterRow({
-    required this.chapter,
-    required this.index,
-    required this.isCurrent,
-    required this.onTap,
-    this.onDownload,
-    this.downloading = false,
-  });
-
-  final ChapterSummary chapter;
-  final int index;
-  final bool isCurrent;
-  final VoidCallback? onTap;
-
-  /// Enqueue this (remote-only) chapter for download. Null when downloaded.
-  final VoidCallback? onDownload;
-
-  /// Whether a download for this chapter is currently in flight.
-  final bool downloading;
-
-  @override
-  Widget build(BuildContext context) {
-    final chapterNumber = chapter.number?.round() ?? (index + 1);
-    final isRemoteOnly = !chapter.isDownloaded;
-    final titleColor = chapter.isRead
-        ? AppColors.muted
-        : (isCurrent ? AppColors.fg : AppColors.fg.withAlpha(220));
-
-    return Material(
-      // Darken completed (read) rows so unread chapters stand out.
-      color: chapter.isRead ? AppColors.bg.withAlpha(90) : Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        splashColor: AppColors.primary.withAlpha(15),
-        highlightColor: AppColors.primary.withAlpha(8),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl,
-            vertical: AppSpacing.lg,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 38,
-                height: 38,
-                alignment: Alignment.center,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [
-                      isCurrent
-                          ? AppColors.primary.withAlpha(50)
-                          : AppColors.fg.withAlpha(13),
-                      isCurrent
-                          ? AppColors.primary.withAlpha(20)
-                          : AppColors.fg.withAlpha(6),
-                    ],
-                  ),
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                  border: isCurrent
-                      ? Border.all(color: AppColors.primary.withAlpha(80))
-                      : null,
-                ),
-                child: Text(
-                  '$chapterNumber',
-                  style: AppTypography.caption.copyWith(
-                    fontFeatures: const [FontFeature.tabularFigures()],
-                    color: isCurrent ? AppColors.primary : AppColors.muted,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppSpacing.lg),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      chapter.title,
-                      style: AppTypography.labelLg.copyWith(color: titleColor),
-                    ),
-                    const SizedBox(height: AppSpacing.xxs),
-                    Wrap(
-                      spacing: AppSpacing.xs,
-                      runSpacing: AppSpacing.xxs,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        if (chapter.pageCount > 0)
-                          Text(
-                            '${chapter.pageCount} pages',
-                            style: AppTypography.caption,
-                          ),
-                        if (chapter.isDownloaded)
-                          const _StateBadge(
-                            label: 'Downloaded',
-                            color: AppColors.success,
-                            icon: Icons.download_done_rounded,
-                          )
-                        else
-                          const _StateBadge(
-                            label: 'Online',
-                            color: AppColors.primary,
-                            icon: Icons.cloud_outlined,
-                          ),
-                        if (chapter.isRead)
-                          const _StateBadge(
-                            label: 'Read',
-                            color: AppColors.muted,
-                            icon: Icons.check_rounded,
-                          ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              if (isCurrent)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.md,
-                    vertical: AppSpacing.xxs,
-                  ),
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withAlpha(40),
-                    borderRadius: BorderRadius.circular(AppRadius.full),
-                    border: Border.all(color: AppColors.primary.withAlpha(80)),
-                  ),
-                  child: Text(
-                    'Reading',
-                    style: AppTypography.caption.copyWith(
-                      color: AppColors.primary,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 0.4,
-                    ),
-                  ),
-                )
-              else if (isRemoteOnly && onDownload != null)
-                IconButton(
-                  tooltip: 'Download Chapter',
-                  onPressed: downloading ? null : onDownload,
-                  icon: downloading
-                      ? const SizedBox(
-                          width: 18,
-                          height: 18,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Icon(
-                          Icons.download_outlined,
-                          color: AppColors.primary,
-                          size: 20,
-                        ),
-                )
-              else
-                const Icon(Icons.chevron_right_rounded, color: AppColors.muted, size: 20),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-/// Small pill badge marking a chapter's state (Downloaded / Online / Read).
-class _StateBadge extends StatelessWidget {
-  const _StateBadge({
-    required this.label,
-    required this.color,
-    required this.icon,
-  });
-
-  final String label;
-  final Color color;
-  final IconData icon;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: 1,
-      ),
-      decoration: BoxDecoration(
-        color: color.withAlpha(26),
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: color.withAlpha(77)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 11, color: color),
-          const SizedBox(width: 3),
-          Text(
-            label,
-            style: AppTypography.caption.copyWith(
-              color: color,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.2,
-            ),
-          ),
-        ],
-      ),
+      // The checkbox stays present (disabled) on already-downloaded rows so the
+      // list keeps one alignment instead of two.
+      selection: _series.hasSourceLink
+          ? SeriesChapterSelection(
+              checkboxKey: sourceChapterId == null
+                  ? null
+                  : Key('select-$sourceChapterId'),
+              selected: sourceChapterId != null &&
+                  _selectedChapterIds.contains(sourceChapterId),
+              onChanged: !selectable || _downloadPending
+                  ? null
+                  : (_) => _toggleChapter(sourceChapterId),
+            )
+          : null,
+      download: canReadOnline
+          ? SeriesChapterDownloadAction(
+              buttonKey: Key('download-$sourceChapterId'),
+              retryable: downloadLookup.isRetryable(sourceChapterId),
+              onPressed: chapter.isDownloaded ||
+                      _downloadPending ||
+                      downloadLookup.isDownloadDisabled(sourceChapterId)
+                  ? null
+                  : () => _queueChapters([sourceChapterId]),
+            )
+          : null,
     );
   }
 }

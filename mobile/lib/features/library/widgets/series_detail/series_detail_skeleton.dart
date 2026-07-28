@@ -2,50 +2,46 @@ import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
+/// Loading placeholder for the series page.
+///
+/// Mirrors the real layout (`SeriesDetailBody`): full-width 2:3 cover, then the
+/// title/credit/summary lines, then the chapter list. A skeleton whose blocks
+/// sit somewhere else than the content that replaces them reads as the page
+/// jumping, which is exactly what it exists to avoid.
 class SeriesDetailSkeleton extends StatelessWidget {
   const SeriesDetailSkeleton({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: SkeletonBox(width: double.infinity, height: 280),
-        ),
-        SliverPadding(
-          padding: EdgeInsets.all(AppSpacing.xl2),
-          sliver: SliverToBoxAdapter(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SkeletonBox(width: 140, height: 210, borderRadius: 16),
-                    SizedBox(width: AppSpacing.xl2),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          SkeletonBox(width: double.infinity, height: 32),
-                          SizedBox(height: AppSpacing.md),
-                          SkeletonBox(width: 180, height: 16),
-                          SizedBox(height: AppSpacing.lg),
-                          SkeletonBox(width: double.infinity, height: 96),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: AppSpacing.xl3),
-                SkeletonBox(width: 160, height: 16),
-                SizedBox(height: AppSpacing.lg),
-                SkeletonBox(width: double.infinity, height: 200),
-              ],
+    return const SingleChildScrollView(
+      padding: EdgeInsets.all(AppSpacing.xl2),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AspectRatio(
+            aspectRatio: 2 / 3,
+            child: SkeletonBox(
+              width: double.infinity,
+              height: double.infinity,
+              borderRadius: 12,
             ),
           ),
-        ),
-      ],
+          SizedBox(height: AppSpacing.xl2),
+          SkeletonBox(width: 220, height: 32),
+          SizedBox(height: AppSpacing.md),
+          SkeletonBox(width: 140, height: 16),
+          SizedBox(height: AppSpacing.sm),
+          SkeletonBox(width: 200, height: 14),
+          SizedBox(height: AppSpacing.lg),
+          SkeletonBox(width: double.infinity, height: 72),
+          SizedBox(height: AppSpacing.xl2),
+          SkeletonBox(width: double.infinity, height: 48, borderRadius: 999),
+          SizedBox(height: AppSpacing.xl3),
+          SkeletonBox(width: 120, height: 20),
+          SizedBox(height: AppSpacing.lg),
+          ChapterListSkeleton(),
+        ],
+      ),
     );
   }
 }
