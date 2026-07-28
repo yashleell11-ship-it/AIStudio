@@ -42,7 +42,12 @@ interface ChapterReaderProps {
   initialPage?: number;
   previousChapterHref: string | null;
   nextChapterHref: string | null;
-  backHref: string;
+  /**
+   * This chapter's own series page. It is both where the reader exits to and
+   * where the "Series" control jumps, so a chapter opened from search, Updates
+   * or a deep link still reaches its chapter list without retracing history.
+   */
+  seriesHref: string;
   onBookmark?: (page: number) => void;
   onPageProgress?: (page: number, pageCount: number) => void;
   /** Resolves the next chapter's payload so the reader can pull it early. */
@@ -71,7 +76,7 @@ export function ChapterReader({
   initialPage = 1,
   previousChapterHref,
   nextChapterHref,
-  backHref,
+  seriesHref,
   onBookmark,
   onPageProgress,
   preloadNextChapter,
@@ -449,9 +454,21 @@ export function ChapterReader({
         fullscreen.exit();
         return;
       default:
-        router.push(backHref);
+        router.push(seriesHref);
     }
-  }, [backHref, fullscreen, helpOpen, router]);
+  }, [fullscreen, helpOpen, router, seriesHref]);
+
+  /**
+   * Leave the chapter for its series page.
+   *
+   * Fullscreen belongs to the document, not to the reader, so it survives a
+   * client-side navigation: without dropping it first the chapter list would
+   * open in a fullscreened window with no browser chrome to get out of.
+   */
+  const openSeries = useCallback(() => {
+    fullscreen.exit();
+    router.push(seriesHref);
+  }, [fullscreen, router, seriesHref]);
 
   useReaderShortcuts({
     direction,
@@ -464,6 +481,7 @@ export function ChapterReader({
     onToggleHelp: () => setHelpOpen((open) => !open),
     onPreviousChapter: goPreviousChapter,
     onNextChapter: goNextChapter,
+    onOpenSeries: openSeries,
     onBookmark: handleBookmark,
     onZoomIn: zoomIn,
     onZoomOut: zoomOut,
@@ -505,10 +523,10 @@ export function ChapterReader({
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 bg-bg p-6 text-center">
         <p className="text-danger">{message}</p>
         <Link
-          href={backHref}
+          href={seriesHref}
           className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
         >
-          Go back
+          Go to series
         </Link>
       </div>
     );
@@ -630,7 +648,8 @@ export function ChapterReader({
           onBookmark={onBookmark ? handleBookmark : undefined}
           previousChapterHref={previousChapterHref}
           nextChapterHref={nextChapterHref}
-          backHref={backHref}
+          seriesHref={seriesHref}
+          onOpenSeries={openSeries}
           bookmarkPending={bookmarkPending}
           showBookmark={showBookmark}
           visible={controlsVisible}

@@ -64,6 +64,7 @@ Future<Widget> _reader({
         chapter: _chapter(),
         scrollStorageKey: '1',
         onBack: () {},
+        onOpenSeries: () {},
       ),
     ),
   );

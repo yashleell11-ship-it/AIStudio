@@ -6,6 +6,7 @@ import {
   ArrowLeftRight,
   ArrowRightLeft,
   Bookmark,
+  BookOpen,
   ChevronLeft,
   ChevronRight,
   Columns2,
@@ -24,8 +25,10 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { formatKeyCombo } from "@/lib/keyboard";
 import { Button } from "@/components/ui/button";
 import { usePrefersReducedMotion } from "@/components/premium/use-prefers-reduced-motion";
+import { SERIES_SHORTCUT_KEYS } from "../keymap";
 import type { FitMode, ReadingDirection, ReadingMode } from "../types";
 import { ScrubBar } from "./ScrubBar";
 
@@ -117,7 +120,10 @@ interface ReaderControlsProps {
   onBookmark?: () => void;
   previousChapterHref: string | null;
   nextChapterHref: string | null;
-  backHref: string;
+  /** This chapter's series page — a real href, so it opens in a new tab too. */
+  seriesHref: string;
+  /** Plain-click / shortcut route to `seriesHref`, which also drops fullscreen. */
+  onOpenSeries: () => void;
   bookmarkPending?: boolean;
   showBookmark?: boolean;
   visible?: boolean;
@@ -148,7 +154,8 @@ export function ReaderControls({
   onBookmark,
   previousChapterHref,
   nextChapterHref,
-  backHref,
+  seriesHref,
+  onOpenSeries,
   bookmarkPending,
   showBookmark = true,
   visible = true,
@@ -377,11 +384,27 @@ export function ReaderControls({
                   <span className="text-muted"> · {scrollProgress}%</span>
                 </p>
               </div>
+              {/*
+                Out of the chapter and into its own series page. A real Link so
+                middle-click and "open in new tab" behave, but a plain click is
+                handled by the reader, which leaves fullscreen on the way out.
+              */}
               <Link
-                href={backHref}
-                className="shrink-0 rounded-lg px-3 py-1.5 text-xs text-muted transition-colors hover:bg-white/10 hover:text-fg"
+                href={seriesHref}
+                // Hint rendered from the binding itself, so the tooltip cannot
+                // drift from the key the registry actually listens for.
+                title={`Go to series page (${formatKeyCombo(SERIES_SHORTCUT_KEYS).join(" ")})`}
+                onClick={(event) => {
+                  if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+                    return;
+                  }
+                  event.preventDefault();
+                  onOpenSeries();
+                }}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-muted transition-colors hover:bg-white/10 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
               >
-                Back
+                <BookOpen className="size-4 text-primary" />
+                Series
               </Link>
             </div>
 

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { matchesCombo } from "@/lib/keyboard/match";
 import {
   HELP_SHORTCUT_KEYS,
+  SERIES_SHORTCUT_KEYS,
   horizontalTurn,
   horizontalTurnDescription,
   resolveEscapeTarget,
@@ -32,6 +33,29 @@ describe("reader key bindings", () => {
     expect(matchesCombo(keyEvent(" "), "space")).toBe(true);
     expect(matchesCombo(keyEvent(" ", { shiftKey: true }), "space")).toBe(false);
     expect(matchesCombo(keyEvent(" ", { shiftKey: true }), "shift+space")).toBe(true);
+  });
+
+  it("jumps to the series page on a bare S", () => {
+    expect(matchesCombo(keyEvent("s"), SERIES_SHORTCUT_KEYS)).toBe(true);
+    expect(matchesCombo(keyEvent("S", { shiftKey: true }), SERIES_SHORTCUT_KEYS)).toBe(
+      false,
+    );
+  });
+
+  it("leaves the browser's own Ctrl/⌘+S alone", () => {
+    expect(matchesCombo(keyEvent("s", { ctrlKey: true }), SERIES_SHORTCUT_KEYS)).toBe(
+      false,
+    );
+    expect(matchesCombo(keyEvent("s", { metaKey: true }), SERIES_SHORTCUT_KEYS)).toBe(
+      false,
+    );
+  });
+
+  it("does not collide with a key the reader already binds", () => {
+    const bound = ["a", "d", "h", "j", "k", "l", "b", "f", "0", "-", "=", "?"];
+    for (const key of bound) {
+      expect(matchesCombo(keyEvent(key), SERIES_SHORTCUT_KEYS)).toBe(false);
+    }
   });
 
   it("binds the page keys the registry will actually receive", () => {

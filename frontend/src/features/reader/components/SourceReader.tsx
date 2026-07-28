@@ -5,6 +5,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toRemoteReaderChapterContent } from "../api";
 import { readerDebug } from "../debug";
 import { readerSeriesKey } from "../preferences";
+import { seriesPageHref } from "../series-link";
 import { ChapterReader } from "./ChapterReader";
 import { useDownloads, useQueueChapters } from "@/features/downloads/hooks";
 import { sourcesApi } from "@/features/sources/api";
@@ -215,7 +216,7 @@ export function SourceReader({
         initialPage={initialPage}
         previousChapterHref={previousChapterHref}
         nextChapterHref={nextChapterHref}
-        backHref={`/sources/${sourceId}/series/${encodeURIComponent(seriesId)}`}
+        seriesHref={seriesPageHref({ scope: "source", sourceId, seriesId })}
         showBookmark={false}
         onPageProgress={handlePageProgress}
         preloadNextChapter={preloadNextChapter}

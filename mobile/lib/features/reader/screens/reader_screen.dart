@@ -8,6 +8,7 @@ import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_image_url.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
@@ -113,6 +114,9 @@ class _LocalReaderBody extends ConsumerWidget {
       scrollStorageKey: chapterId.toString(),
       initialPage: initialPage,
       onBack: () => context.pop(),
+      // The reader route carries the series id, so the series page is reachable
+      // without a lookup no matter how this chapter was opened.
+      onOpenSeries: () => openLibrarySeriesFromReader(context, seriesId),
       onPreviousChapter: previousChapter != null
           ? () => context.go(RoutePaths.reader(seriesId, previousChapter.id))
           : null,

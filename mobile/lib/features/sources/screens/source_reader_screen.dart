@@ -9,6 +9,7 @@ import 'package:manhwamaniacs/core/network/network_connectivity.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/utils/local_reader_handoff.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
@@ -230,6 +231,13 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
           onSaveProgress: (page) => _saveProgress(page, chapter.pageCount),
           onBack: () => context.go(
             RoutePaths.sourceSeriesDetail(widget.sourceId, widget.seriesId),
+          ),
+          // Straight to this source's series page — the connector series id can
+          // contain `/`, so the encoding in RoutePaths is what keeps it intact.
+          onOpenSeries: () => openSourceSeriesFromReader(
+            context,
+            sourceId: widget.sourceId,
+            seriesId: widget.seriesId,
           ),
           onPreviousChapter: chapter.previousChapterId != null
               ? () => context.go(

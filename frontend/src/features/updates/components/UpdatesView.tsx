@@ -124,7 +124,7 @@ function NotificationRow({
         </div>
         <div className="flex gap-2">
           <Link
-            href={`/sources/${item.source}/series/${item.series_id}`}
+            href={`/sources/${encodeURIComponent(item.source)}/series/${encodeURIComponent(item.series_id)}`}
             className="inline-flex h-8 items-center rounded-lg bg-surface-2 px-3 text-sm font-medium text-fg hover:bg-border"
           >
             Open
