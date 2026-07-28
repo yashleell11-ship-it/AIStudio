@@ -62,6 +62,15 @@ export interface ChapterSummary {
 }
 
 export interface SeriesDetail extends SeriesSummary {
+  /**
+   * Whether the active (user, profile) has this series on their shelf.
+   *
+   * Only the detail payload carries it, and only it needs to: `GET
+   * /library/series/{id}` answers for any catalog series, gated or not, so a
+   * series can be on screen without having been added. Every list endpoint
+   * INNER JOINs membership instead, making it true by construction there.
+   */
+  in_library: boolean;
   chapters: ChapterSummary[];
   tags: Tag[];
   collections: CollectionRef[];
@@ -69,6 +78,16 @@ export interface SeriesDetail extends SeriesSummary {
   source_id?: string | null;
   /** The source's series id, or null. */
   source_series_id?: string | null;
+}
+
+/**
+ * Answer of `POST`/`DELETE /library/series/{id}/add` — the per-(user, profile)
+ * membership bit after the write, which is what the toggle displays next.
+ * See {@link SeriesDetail.in_library} for the read side.
+ */
+export interface LibraryMembership {
+  series_id: number;
+  in_library: boolean;
 }
 
 export interface PageInfo {

@@ -10,6 +10,8 @@ import {
 } from "react";
 import {
   BookOpen,
+  ChevronDown,
+  ChevronUp,
   Clock,
   Search,
   SlidersHorizontal,
@@ -19,13 +21,21 @@ import { ApiError } from "@/types/api";
 import { Input } from "@/components/ui/input";
 import { useShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
-import { useFederatedSearch, useSources } from "@/features/sources/hooks";
-import { globalSearchScopeLabel } from "@/features/sources/global-search";
-import { GlobalSearchResultCard } from "./GlobalSearchResultCard";
+import { useFederatedSearch, useRetrySearchSource } from "@/features/sources/hooks";
+import {
+  globalSearchScopeLabel,
+  searchGroupKey,
+  searchResultCount,
+  splitSearchGroups,
+} from "@/features/sources/global-search";
+import {
+  getRecentSearchesServerSnapshot,
+  getRecentSearchesSnapshot,
+  subscribeRecentSearches,
+  writeRecentSearch,
+} from "@/features/library/recent-searches";
+import { GlobalSearchGroupSection } from "./GlobalSearchGroupSection";
 import { SearchResultCardSkeleton } from "./SearchResultCard";
-
-const RECENT_SEARCHES_KEY = "manhwamaniacs:recent-searches";
-const MAX_RECENT_SEARCHES = 4;
 
 const TRENDING_SUGGESTIONS = [
   "fantasy",
@@ -37,56 +47,6 @@ const TRENDING_SUGGESTIONS = [
   "horror",
   "sci-fi",
 ] as const;
-
-function readRecentSearches(): string[] {
-  if (typeof window === "undefined") {
-    return [];
-  }
-  try {
-    const raw = window.localStorage.getItem(RECENT_SEARCHES_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw) as unknown;
-    if (!Array.isArray(parsed)) {
-      return [];
-    }
-    return parsed.filter((item): item is string => typeof item === "string").slice(0, MAX_RECENT_SEARCHES);
-  } catch {
-    return [];
-  }
-}
-
-function writeRecentSearch(term: string) {
-  const trimmed = term.trim();
-  if (trimmed.length < 2 || typeof window === "undefined") {
-    return;
-  }
-  const existing = readRecentSearches().filter(
-    (item) => item.toLowerCase() !== trimmed.toLowerCase(),
-  );
-  const next = [trimmed, ...existing].slice(0, MAX_RECENT_SEARCHES);
-  window.localStorage.setItem(RECENT_SEARCHES_KEY, JSON.stringify(next));
-  window.dispatchEvent(new Event("manhwamaniacs:recent-searches"));
-}
-
-function subscribeRecentSearches(onStoreChange: () => void) {
-  const handler = () => onStoreChange();
-  window.addEventListener("manhwamaniacs:recent-searches", handler);
-  window.addEventListener("storage", handler);
-  return () => {
-    window.removeEventListener("manhwamaniacs:recent-searches", handler);
-    window.removeEventListener("storage", handler);
-  };
-}
-
-function getRecentSearchesSnapshot() {
-  return readRecentSearches();
-}
-
-function getRecentSearchesServerSnapshot() {
-  return [] as string[];
-}
 
 function SuggestionChip({
   label,
@@ -126,18 +86,16 @@ function SectionLabel({
 export function SearchView() {
   const [query, setQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState(false);
+  const [quietOpen, setQuietOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement>(null);
   const lastPersistedRef = useRef<string | null>(null);
   const trimmedQuery = query.trim();
-  const searchQuery = useFederatedSearch({ q: trimmedQuery, page: 1, per_page: 40 });
-  const sourcesQuery = useSources();
-  const sourceNames = useMemo(() => {
-    const map: Record<string, string> = {};
-    for (const source of sourcesQuery.data ?? []) {
-      map[source.id] = source.name;
-    }
-    return map;
-  }, [sourcesQuery.data]);
+  const searchParams = useMemo(
+    () => ({ q: trimmedQuery, page: 1, per_page: 40 }),
+    [trimmedQuery],
+  );
+  const searchQuery = useFederatedSearch(searchParams);
+  const retrySource = useRetrySearchSource(searchParams);
   const recentSearches = useSyncExternalStore(
     subscribeRecentSearches,
     getRecentSearchesSnapshot,
@@ -179,14 +137,30 @@ export function SearchView() {
         : null;
 
   const hasQuery = trimmedQuery.length > 0;
-  const results = searchQuery.data?.items ?? [];
-  const resultCount = results.length;
+  // The flat `items` list is the backend's legacy view; sections are rendered
+  // from `groups` so a source that failed or returned nothing says so itself.
+  const groups = useMemo(() => searchQuery.data?.groups ?? [], [searchQuery.data]);
+  const { visible, quiet } = useMemo(() => splitSearchGroups(groups), [groups]);
+  const resultCount = searchResultCount(groups);
   const scopeLabel = searchQuery.data
     ? globalSearchScopeLabel(
         searchQuery.data.sources_queried,
         searchQuery.data.sources_failed,
       )
     : null;
+
+  const renderGroup = (group: (typeof groups)[number]) => {
+    // Null for the local library group — there is no remote call to retry.
+    const sourceId = group.source;
+    return (
+      <GlobalSearchGroupSection
+        key={searchGroupKey(group)}
+        group={group}
+        isRetrying={retrySource.isPending && retrySource.variables === sourceId}
+        onRetry={sourceId ? () => retrySource.mutate(sourceId) : undefined}
+      />
+    );
+  };
 
   return (
     <div className="min-h-full bg-bg px-6 py-8 md:px-10">
@@ -303,7 +277,7 @@ export function SearchView() {
                   <SearchResultCardSkeleton key={index} />
                 ))}
               </div>
-            ) : results.length === 0 ? (
+            ) : visible.length === 0 && quiet.length === 0 ? (
               <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-10 text-center">
                 <p className="text-lg font-medium text-fg">No results found</p>
                 <p className="mt-2 text-sm text-muted">
@@ -311,15 +285,31 @@ export function SearchView() {
                 </p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {results.map((item) => (
-                  <GlobalSearchResultCard
-                    key={`${item.kind}:${item.source ?? "local"}:${item.series_id}`}
-                    item={item}
-                    sourceNames={sourceNames}
-                  />
-                ))}
-              </div>
+              <>
+                {visible.map(renderGroup)}
+
+                {quiet.length > 0 ? (
+                  <div className="mt-2">
+                    <button
+                      type="button"
+                      onClick={() => setQuietOpen((open) => !open)}
+                      aria-expanded={quietOpen}
+                      className="inline-flex items-center gap-2 rounded-full border border-border/50 bg-white/[0.03] px-4 py-2 text-sm text-muted transition-colors hover:border-primary/30 hover:text-fg"
+                    >
+                      {quietOpen ? (
+                        <ChevronUp className="size-4" aria-hidden />
+                      ) : (
+                        <ChevronDown className="size-4" aria-hidden />
+                      )}
+                      {quietOpen ? "Hide" : "Show"} {quiet.length}{" "}
+                      {quiet.length === 1 ? "source" : "sources"} with no matches
+                    </button>
+                    {quietOpen ? (
+                      <div className="mt-4">{quiet.map(renderGroup)}</div>
+                    ) : null}
+                  </div>
+                ) : null}
+              </>
             )}
           </section>
         ) : null}

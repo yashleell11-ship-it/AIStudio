@@ -1,13 +1,17 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { toRemoteReaderChapterContent } from "../api";
 import { readerDebug } from "../debug";
+import { readerSeriesKey } from "../preferences";
 import { ChapterReader } from "./ChapterReader";
 import { useDownloads, useQueueChapters } from "@/features/downloads/hooks";
+import { sourcesApi } from "@/features/sources/api";
 import { setSourceChapterProgress } from "@/features/sources/source-progress";
 import {
   sourceReaderChapterPath,
+  sourceReaderChapterQueryKey,
   useSourceChapters,
   useSourceReaderChapter,
 } from "@/features/sources/hooks";
@@ -41,6 +45,7 @@ export function SourceReader({
   chapterId,
   initialPage = 1,
 }: SourceReaderProps) {
+  const queryClient = useQueryClient();
   const chapterQuery = useSourceReaderChapter(sourceId, seriesId, chapterId);
   const chaptersQuery = useSourceChapters(sourceId, seriesId);
   const downloadsQuery = useDownloads();
@@ -179,6 +184,18 @@ export function SourceReader({
     ? sourceReaderChapterPath(sourceId, seriesId, chapter.nextChapterId)
     : null;
 
+  // Reuses the reader chapter's own query entry, so arriving at the next chapter
+  // is a cache read rather than a second scrape of the same page list.
+  const nextChapterId = chapter?.nextChapterId ?? null;
+  const preloadNextChapter = useCallback(async () => {
+    if (!nextChapterId) return [];
+    const payload = await queryClient.ensureQueryData({
+      queryKey: sourceReaderChapterQueryKey(sourceId, seriesId, nextChapterId),
+      queryFn: () => sourcesApi.getReaderChapter(sourceId, seriesId, nextChapterId),
+    });
+    return toRemoteReaderChapterContent(payload).pages;
+  }, [nextChapterId, queryClient, seriesId, sourceId]);
+
   return (
     <>
       {autoQueueNotice && (
@@ -194,12 +211,14 @@ export function SourceReader({
         isLoading={chapterQuery.isPending && chapterQuery.data === undefined}
         error={chapterQuery.error}
         scrollKey={`${sourceId}:${seriesId}:${chapterId}`}
+        seriesKey={readerSeriesKey(sourceId, seriesId)}
         initialPage={initialPage}
         previousChapterHref={previousChapterHref}
         nextChapterHref={nextChapterHref}
         backHref={`/sources/${sourceId}/series/${encodeURIComponent(seriesId)}`}
         showBookmark={false}
         onPageProgress={handlePageProgress}
+        preloadNextChapter={preloadNextChapter}
       />
     </>
   );

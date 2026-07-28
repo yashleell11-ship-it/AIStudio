@@ -6,6 +6,7 @@ import type {
   CollectionDetail,
   ContinueReadingItem,
   ImportResponse,
+  LibraryMembership,
   MetadataQuality,
   ReadingCalendarItem,
   ReadingHistoryItem,
@@ -80,6 +81,16 @@ export const libraryApi = {
     http.post<{ series_id: number; is_favorite: boolean }>(
       `/library/series/${seriesId}/favorite`,
     ),
+
+  // --- Library membership ---
+  // Adding/removing only flips `user_series_state.in_library` for the active
+  // (user, profile): favourites, reading status and progress survive a remove,
+  // so re-adding restores the shelf exactly as it was.
+  addToLibrary: (seriesId: number) =>
+    http.post<LibraryMembership>(`/library/series/${seriesId}/add`),
+
+  removeFromLibrary: (seriesId: number) =>
+    http.delete<LibraryMembership>(`/library/series/${seriesId}/add`),
 
   // --- Recommendations ---
   recommendations: (limit = 10) =>

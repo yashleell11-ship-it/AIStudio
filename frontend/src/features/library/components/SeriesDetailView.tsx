@@ -35,6 +35,7 @@ import { sourceReaderChapterPath } from "@/features/sources/hooks";
 import { ApiError } from "@/types/api";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { cn } from "@/lib/cn";
+import { LibraryMembershipButton } from "./LibraryMembershipButton";
 import { SeriesCard } from "./SeriesCard";
 
 interface SeriesDetailViewProps {
@@ -216,22 +217,31 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                   <p className="mt-1 text-sm italic text-muted">{series.original_title}</p>
                 ) : null}
               </div>
-              <Button
-                variant={series.is_favorite ? "primary" : "secondary"}
-                onClick={() => toggleFavorite.mutate(series.id)}
-                aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
-                className={cn(
-                  "shrink-0 rounded-full",
-                  series.is_favorite
-                    ? "bg-primary/20 text-primary hover:bg-primary/30"
-                    : "border border-border/50 bg-white/5 hover:bg-white/10",
-                )}
-              >
-                <Star
-                  className={cn("size-4", series.is_favorite && "fill-primary")}
+              <div className="flex shrink-0 flex-wrap items-start gap-2">
+                {/* This route is NOT membership-gated — `GET /library/series/{id}`
+                    answers for any catalog series — so the shelf state comes from
+                    the payload's own `in_library` rather than being assumed. */}
+                <LibraryMembershipButton
+                  seriesId={series.id}
+                  inLibrary={series.in_library}
                 />
-                {series.is_favorite ? "Favorited" : "Add Favorite"}
-              </Button>
+                <Button
+                  variant={series.is_favorite ? "primary" : "secondary"}
+                  onClick={() => toggleFavorite.mutate(series.id)}
+                  aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                  className={cn(
+                    "rounded-full",
+                    series.is_favorite
+                      ? "bg-primary/20 text-primary hover:bg-primary/30"
+                      : "border border-border/50 bg-white/5 hover:bg-white/10",
+                  )}
+                >
+                  <Star
+                    className={cn("size-4", series.is_favorite && "fill-primary")}
+                  />
+                  {series.is_favorite ? "Favorited" : "Add Favorite"}
+                </Button>
+              </div>
             </div>
 
             {series.author ? (

@@ -8,6 +8,7 @@ import { coverUrl } from "@/features/library/api";
 import { useToggleFavorite } from "@/features/library/hooks";
 import type { SeriesSummary } from "@/features/library/types";
 import { cn } from "@/lib/cn";
+import { LibraryMembershipButton } from "./LibraryMembershipButton";
 
 interface SeriesCardProps {
   series: SeriesSummary;
@@ -102,25 +103,41 @@ function SeriesCardContent({
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            toggleFavorite.mutate(series.id);
-          }}
-          className={cn(
-            "absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm transition-opacity",
-            isHovered || series.is_favorite
-              ? "opacity-100"
-              : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
-            series.is_favorite ? "text-amber-400" : "text-white/70 hover:text-white",
-          )}
-          aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
-          title={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
-        >
-          {series.is_favorite ? "★" : "☆"}
-        </button>
+        <div className="absolute right-2 top-2 z-10 flex items-center gap-1.5">
+          {/* Every list that renders a card (library, local search hits,
+              recommendations, similar) INNER JOINs membership server-side, so
+              the series on screen is on the shelf by construction. */}
+          <LibraryMembershipButton
+            seriesId={series.id}
+            inLibrary
+            compact
+            className={cn(
+              "transition-opacity",
+              isHovered
+                ? "opacity-100"
+                : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
+            )}
+          />
+          <button
+            type="button"
+            onClick={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              toggleFavorite.mutate(series.id);
+            }}
+            className={cn(
+              "flex size-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm transition-opacity",
+              isHovered || series.is_favorite
+                ? "opacity-100"
+                : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
+              series.is_favorite ? "text-amber-400" : "text-white/70 hover:text-white",
+            )}
+            aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
+            title={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
+          >
+            {series.is_favorite ? "★" : "☆"}
+          </button>
+        </div>
       </div>
 
       <div className="mt-2 flex items-center justify-between px-0.5 text-xs">
@@ -216,21 +233,29 @@ export function SeriesListItem({ series }: SeriesCardProps) {
           {progress != null ? ` · ${Math.round(progress.progress_pct)}% read` : ""}
         </p>
       </div>
-      <button
-        type="button"
-        onClick={(event) => {
-          event.preventDefault();
-          event.stopPropagation();
-          toggleFavorite.mutate(series.id);
-        }}
-        className={cn(
-          "flex size-9 shrink-0 items-center justify-center rounded-full bg-white/5 transition-colors hover:bg-white/10",
-          series.is_favorite ? "text-amber-400" : "text-muted",
-        )}
-        aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
-      >
-        {series.is_favorite ? "★" : "☆"}
-      </button>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <LibraryMembershipButton
+          seriesId={series.id}
+          inLibrary
+          compact
+          className="size-9 bg-white/5 hover:bg-white/10"
+        />
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            toggleFavorite.mutate(series.id);
+          }}
+          className={cn(
+            "flex size-9 items-center justify-center rounded-full bg-white/5 transition-colors hover:bg-white/10",
+            series.is_favorite ? "text-amber-400" : "text-muted",
+          )}
+          aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
+        >
+          {series.is_favorite ? "★" : "☆"}
+        </button>
+      </div>
     </div>
   );
 

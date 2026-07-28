@@ -10,19 +10,13 @@ import type { GlobalSearchItem } from "@/features/sources/types";
 interface GlobalSearchResultCardProps {
   item: GlobalSearchItem;
   /**
-   * Resolved display names keyed by source id (from the installed sources list).
-   * Falls back to a prettified source id when a source isn't resolved yet.
+   * Set false inside a per-source section: the section header already names the
+   * source, so repeating it on every row is noise.
    */
-  sourceNames?: Record<string, string>;
+  showSourceBadge?: boolean;
 }
 
-function SourceBadge({
-  item,
-  sourceNames,
-}: {
-  item: GlobalSearchItem;
-  sourceNames?: Record<string, string>;
-}) {
+function SourceBadge({ item }: { item: GlobalSearchItem }) {
   if (item.kind === "local") {
     return (
       <span className="inline-flex items-center gap-1 rounded-md border border-cyan-400/30 bg-cyan-400/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-cyan-300">
@@ -31,8 +25,7 @@ function SourceBadge({
       </span>
     );
   }
-  const source = item.source ?? "source";
-  const label = sourceNames?.[source] ?? prettifySourceId(source);
+  const label = prettifySourceId(item.source ?? "source");
   return (
     <span className="inline-flex items-center gap-1 rounded-md border border-primary/30 bg-primary/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-primary">
       <Globe className="size-3" aria-hidden />
@@ -43,7 +36,7 @@ function SourceBadge({
 
 export function GlobalSearchResultCard({
   item,
-  sourceNames,
+  showSourceBadge = true,
 }: GlobalSearchResultCardProps) {
   return (
     <Link href={globalSearchHref(item)}>
@@ -75,7 +68,10 @@ export function GlobalSearchResultCard({
           ) : null}
 
           <div className="mt-auto flex flex-wrap items-center gap-2 pt-3">
-            <SourceBadge item={item} sourceNames={sourceNames} />
+            {showSourceBadge ? <SourceBadge item={item} /> : null}
+            {item.chapter_count ? (
+              <span className="text-xs text-muted">{item.chapter_count} chapters</span>
+            ) : null}
           </div>
         </div>
       </article>

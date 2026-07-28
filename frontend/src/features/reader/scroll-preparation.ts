@@ -68,6 +68,27 @@ export function restoreChapterScroll(
   return true;
 }
 
+/**
+ * Jump the reader container to an absolute offset. Unlike
+ * {@link restoreChapterScroll} this also accepts 0, so a jump back to page one
+ * is not silently dropped.
+ */
+export function setReaderScrollTop(
+  element: HTMLElement | null,
+  scrollTop: number,
+): void {
+  if (!element) return;
+  const target = Math.max(0, Math.round(scrollTop));
+  if (element.scrollTop === target) return;
+  element.scrollTop = target;
+}
+
+/** Scroll the reader container by a delta, for the Space / Shift+Space keys. */
+export function scrollReaderBy(element: HTMLElement | null, delta: number): void {
+  if (!element || delta === 0) return;
+  element.scrollBy({ top: delta, behavior: "smooth" });
+}
+
 export function clearChapterScrollPreparation(scrollKey: string): void {
   syncedScrollTargets.delete(scrollKey);
 }

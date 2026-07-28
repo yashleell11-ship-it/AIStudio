@@ -3,23 +3,94 @@
 import Link from "next/link";
 import { useState } from "react";
 import {
+  ArrowLeftRight,
+  ArrowRightLeft,
   Bookmark,
   ChevronLeft,
   ChevronRight,
+  Columns2,
+  Keyboard,
+  Maximize,
+  Minimize,
   Minus,
+  MoveHorizontal,
+  MoveVertical,
   Plus,
   RotateCcw,
   Rows3,
+  ScrollText,
   Settings2,
+  Square,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
 import { usePrefersReducedMotion } from "@/components/premium/use-prefers-reduced-motion";
+import type { FitMode, ReadingDirection, ReadingMode } from "../types";
+import { ScrubBar } from "./ScrubBar";
 
 const linkButtonClass =
   "inline-flex h-9 items-center justify-center gap-1 rounded-lg px-3 text-sm font-medium text-muted transition-colors hover:bg-white/10 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40";
+
+interface SegmentOption<T extends string> {
+  value: T;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  disabled?: boolean;
+  title?: string;
+}
+
+/**
+ * Warm segmented picker used by the mode / fit / direction rows. Kept local to
+ * the reader: it is a settings-sheet affordance, not a shared primitive.
+ */
+function Segmented<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+}: {
+  label: string;
+  value: T;
+  options: SegmentOption<T>[];
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 py-2">
+      <span className="text-sm font-medium text-fg">{label}</span>
+      <div
+        role="group"
+        aria-label={label}
+        className="flex items-center gap-1 rounded-xl border border-border/60 bg-white/[0.03] p-1"
+      >
+        {options.map((option) => {
+          const Icon = option.icon;
+          const active = option.value === value;
+          return (
+            <Button
+              key={option.value}
+              variant="ghost"
+              size="sm"
+              disabled={option.disabled}
+              title={option.title}
+              aria-pressed={active}
+              onClick={() => onChange(option.value)}
+              className={cn(
+                "gap-1.5 px-2.5 transition-colors hover:bg-white/10",
+                active
+                  ? "bg-primary/15 text-primary hover:text-primary"
+                  : "text-muted hover:text-fg",
+              )}
+            >
+              <Icon className="size-4" />
+              <span className="hidden sm:inline">{option.label}</span>
+            </Button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 interface ReaderControlsProps {
   chapterTitle: string;
@@ -30,6 +101,17 @@ interface ReaderControlsProps {
   onZoomIn: () => void;
   onZoomOut: () => void;
   onZoomReset: () => void;
+  readingMode: ReadingMode;
+  onReadingModeChange: (mode: ReadingMode) => void;
+  fitMode: FitMode;
+  onFitModeChange: (mode: FitMode) => void;
+  direction: ReadingDirection;
+  onDirectionChange: (direction: ReadingDirection) => void;
+  onSeekPage: (page: number) => void;
+  fullscreen: boolean;
+  fullscreenSupported: boolean;
+  onToggleFullscreen: () => void;
+  onShowShortcuts: () => void;
   pageGap?: boolean;
   onTogglePageGap?: () => void;
   onBookmark?: () => void;
@@ -50,6 +132,17 @@ export function ReaderControls({
   onZoomIn,
   onZoomOut,
   onZoomReset,
+  readingMode,
+  onReadingModeChange,
+  fitMode,
+  onFitModeChange,
+  direction,
+  onDirectionChange,
+  onSeekPage,
+  fullscreen,
+  fullscreenSupported,
+  onToggleFullscreen,
+  onShowShortcuts,
   pageGap = false,
   onTogglePageGap,
   onBookmark,
@@ -74,6 +167,8 @@ export function ReaderControls({
       setSettingsOpen(false);
     }
   }
+
+  const continuous = readingMode === "continuous";
 
   return (
     <>
@@ -100,7 +195,7 @@ export function ReaderControls({
         aria-hidden={!settingsOpen}
       >
         <div className="pointer-events-auto mx-auto max-w-3xl px-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-          <div className="rounded-t-3xl border border-border bg-surface-2 p-5 shadow-glass">
+          <div className="max-h-[75vh] overflow-y-auto rounded-t-3xl border border-border bg-surface-2 p-5 shadow-glass">
             <div className="mb-4 flex items-center justify-between">
               <p className="font-display text-base tracking-wide text-fg">Reader settings</p>
               <Button
@@ -113,6 +208,64 @@ export function ReaderControls({
                 <X className="size-4" />
               </Button>
             </div>
+
+            <Segmented<ReadingMode>
+              label="Layout"
+              value={readingMode}
+              onChange={onReadingModeChange}
+              options={[
+                { value: "single", label: "Single", icon: Square },
+                { value: "double", label: "Double", icon: Columns2 },
+                { value: "continuous", label: "Strip", icon: ScrollText },
+              ]}
+            />
+
+            <Segmented<ReadingDirection>
+              label="Direction"
+              value={direction}
+              onChange={onDirectionChange}
+              options={[
+                {
+                  value: "ltr",
+                  label: "LTR",
+                  icon: ArrowLeftRight,
+                  title: "Left to right — webtoons and western comics",
+                },
+                {
+                  value: "rtl",
+                  label: "RTL",
+                  icon: ArrowRightLeft,
+                  title: "Right to left — manga",
+                },
+              ]}
+            />
+
+            <Segmented<FitMode>
+              label="Fit"
+              value={fitMode}
+              onChange={onFitModeChange}
+              options={[
+                { value: "width", label: "Width", icon: MoveHorizontal },
+                {
+                  value: "height",
+                  label: "Height",
+                  icon: MoveVertical,
+                  disabled: continuous,
+                  title: continuous
+                    ? "A continuous strip has no single page height to fit"
+                    : undefined,
+                },
+                {
+                  value: "original",
+                  label: "Original",
+                  icon: Maximize,
+                  disabled: continuous,
+                  title: continuous
+                    ? "Continuous scrolling always fits the reading column"
+                    : undefined,
+                },
+              ]}
+            />
 
             <div className="flex items-center justify-between gap-3 py-2">
               <span className="text-sm font-medium text-fg">Zoom</span>
@@ -147,6 +300,9 @@ export function ReaderControls({
                 </Button>
               </div>
             </div>
+            <p className="-mt-1 mb-1 text-xs text-muted">
+              Hold Ctrl (or ⌘) while scrolling to zoom; scrolling on its own always scrolls.
+            </p>
 
             {onTogglePageGap ? (
               <div className="flex items-center justify-between gap-3 py-2">
@@ -169,11 +325,41 @@ export function ReaderControls({
                 </Button>
               </div>
             ) : null}
+
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
+              {fullscreenSupported ? (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggleFullscreen}
+                  aria-pressed={fullscreen}
+                  className="gap-2 text-muted hover:bg-white/10 hover:text-fg"
+                >
+                  {fullscreen ? (
+                    <Minimize className="size-4" />
+                  ) : (
+                    <Maximize className="size-4" />
+                  )}
+                  {fullscreen ? "Exit fullscreen" : "Fullscreen"}
+                </Button>
+              ) : (
+                <span />
+              )}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={onShowShortcuts}
+                className="gap-2 text-muted hover:bg-white/10 hover:text-fg"
+              >
+                <Keyboard className="size-4" />
+                Shortcuts
+              </Button>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Glass bottom bar — amber progress, chapter nav, and the settings gear. */}
+      {/* Glass bottom bar — amber scrubber, chapter nav, and the settings gear. */}
       <div
         className={cn(
           "pointer-events-none fixed inset-x-0 bottom-0 z-30",
@@ -199,10 +385,12 @@ export function ReaderControls({
               </Link>
             </div>
 
-            <Progress
-              value={scrollProgress}
-              className="mb-4 h-1.5 bg-white/10 [&>div]:shadow-[0_0_10px_rgba(245,158,11,0.45)]"
-              aria-label="Chapter scroll progress"
+            <ScrubBar
+              className="mb-4"
+              page={visiblePage}
+              pageCount={pageCount}
+              direction={direction}
+              onSeek={onSeekPage}
             />
 
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -243,6 +431,25 @@ export function ReaderControls({
                   >
                     <Bookmark className="size-4" />
                     Save
+                  </Button>
+                ) : null}
+                {fullscreenSupported ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onToggleFullscreen}
+                    aria-label={fullscreen ? "Exit fullscreen" : "Enter fullscreen"}
+                    aria-pressed={fullscreen}
+                    className={cn(
+                      "size-9 hover:bg-white/10 hover:text-fg",
+                      fullscreen ? "bg-primary/15 text-primary" : "text-muted",
+                    )}
+                  >
+                    {fullscreen ? (
+                      <Minimize className="size-4" />
+                    ) : (
+                      <Maximize className="size-4" />
+                    )}
                   </Button>
                 ) : null}
                 <Button
