@@ -9,19 +9,25 @@ import {
   Download,
   History,
   Keyboard,
+  Palette,
   ShieldAlert,
 } from "lucide-react";
 import { DownloadSettingsPanel } from "@/features/downloads";
 import { NotificationSettingsPanel } from "@/features/updates";
 import { useCurrentUser } from "@/features/auth/hooks";
-import { MatureContentPanel } from "@/features/preferences";
+import { AppearancePanel, MatureContentPanel } from "@/features/preferences";
 import { KeyboardShortcutsPanel } from "@/components/settings/keyboard-shortcuts-panel";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { GlassPanel } from "@/components/premium/GlassPanel";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
 
-type SettingsTab = "notifications" | "downloads" | "content" | "shortcuts";
+type SettingsTab =
+  | "appearance"
+  | "notifications"
+  | "downloads"
+  | "content"
+  | "shortcuts";
 
 const NAV_ITEMS: {
   id: SettingsTab;
@@ -29,6 +35,12 @@ const NAV_ITEMS: {
   icon: React.ComponentType<{ className?: string }>;
   description: string;
 }[] = [
+  {
+    id: "appearance",
+    label: "Appearance",
+    icon: Palette,
+    description: "Reading theme",
+  },
   {
     id: "notifications",
     label: "Notifications",
@@ -87,7 +99,7 @@ function ShortcutCard({
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("notifications");
+  const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
   // System status is instance-wide health, so the entry point is only offered
   // to the account the API marks as admin — the same flag the sidebar uses.
   const { data: user } = useCurrentUser();
@@ -103,7 +115,8 @@ export default function SettingsPage() {
             Settings
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            Configure automatic updates, downloads, and keyboard shortcuts.
+            Choose your reading theme, and configure automatic updates, downloads,
+            and keyboard shortcuts.
           </p>
         </FadeIn>
 
@@ -164,6 +177,7 @@ export default function SettingsPage() {
 
           <FadeIn y={20} delay={0.15} className="min-w-0 flex-1">
             <div className="space-y-6">
+              {activeTab === "appearance" && <AppearancePanel />}
               {activeTab === "notifications" && <NotificationSettingsPanel />}
               {activeTab === "downloads" && <DownloadSettingsPanel />}
               {activeTab === "content" && <MatureContentPanel />}

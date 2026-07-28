@@ -1,3 +1,17 @@
+import { readScopedString, writeScopedString } from "@/lib/scoped-storage";
+
+/**
+ * Where you were in a chapter, per (user, profile).
+ *
+ * Was device-global: two profiles on one browser that opened the same chapter
+ * shared a scroll position, so one persona's place silently moved another's --
+ * and it disclosed that they had read it at all. Same leak already closed for
+ * source progress, recent searches and reader preferences; this file was skipped
+ * at the time only because another agent held the reader directory.
+ *
+ * With no active profile there is no store rather than a shared one, so a
+ * position written before sign-in is never inherited by whoever signs in.
+ */
 const SCROLL_PREFIX = "manhwamaniacs-reader-scroll:";
 
 function storageKey(chapterKey: string | number): string {
@@ -5,14 +19,12 @@ function storageKey(chapterKey: string | number): string {
 }
 
 export function readScrollPosition(chapterKey: string | number): number | null {
-  if (typeof window === "undefined") return null;
-  const raw = window.localStorage.getItem(storageKey(chapterKey));
+  const raw = readScopedString(storageKey(chapterKey));
   if (raw == null) return null;
   const value = Number(raw);
   return Number.isFinite(value) && value >= 0 ? value : null;
 }
 
 export function writeScrollPosition(chapterKey: string | number, scrollTop: number): void {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(storageKey(chapterKey), String(Math.round(scrollTop)));
+  writeScopedString(storageKey(chapterKey), String(Math.round(scrollTop)));
 }

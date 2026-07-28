@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useScrollContainer } from "@/lib/scroll-container";
 import { cn } from "@/lib/cn";
+import { OfflineChapterControl } from "@/features/offline";
 import { ApiError } from "@/types/api";
 import { readerDebug } from "../debug";
 import { effectiveFitMode, wheelZoomSteps, zoomBy } from "../fit";
@@ -532,6 +533,19 @@ export function ChapterReader({
       onClick={continuous ? () => toggleControls() : undefined}
       role="presentation"
     >
+      {/*
+        Saves this chapter's pages to the device, using the very URLs resolved
+        above — the reader's own page loading is untouched, the service worker
+        just answers those requests from the cache when the network is gone.
+      */}
+      <div onClick={(event) => event.stopPropagation()} role="presentation">
+        <OfflineChapterControl
+          chapter={chapter}
+          visiblePage={visiblePage}
+          visible={controlsVisible}
+        />
+      </div>
+
       <div
         className={cn(
           "pointer-events-none fixed left-1/2 top-4 z-20 -translate-x-1/2 transition-opacity duration-300",

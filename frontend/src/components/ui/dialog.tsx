@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { cn } from "@/lib/cn";
 import { Button } from "@/components/ui/button";
 
@@ -18,6 +18,10 @@ const FOCUSABLE =
 export function Dialog({ open, onClose, title, children, className }: DialogProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  // Per-instance: a fixed "dialog-title" id collides the moment two dialogs are
+  // mounted at once (a confirm inside a sheet), and duplicate ids make
+  // `aria-labelledby` point at whichever the browser found first.
+  const titleId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -58,9 +62,14 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Click-outside target only. Hidden from assistive tech and out of the
+          tab order: announcing a full-screen "Close dialog" button before the
+          dialog's own content is noise, and Escape plus the Close button below
+          already give keyboard and screen-reader users the same way out. */}
       <button
         type="button"
-        aria-label="Close dialog"
+        aria-hidden
+        tabIndex={-1}
         className="absolute inset-0 bg-bg/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
@@ -68,14 +77,14 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
         ref={panelRef}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="dialog-title"
+        aria-labelledby={titleId}
         className={cn(
           "glass-panel relative z-10 w-full max-w-lg rounded-2xl border border-border/50 p-6 shadow-glass",
           className,
         )}
       >
         <div className="mb-4 flex items-start justify-between gap-4">
-          <h2 id="dialog-title" className="text-lg font-semibold text-fg">
+          <h2 id={titleId} className="text-lg font-semibold text-fg">
             {title}
           </h2>
           <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">

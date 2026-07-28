@@ -32,8 +32,24 @@ export const MOOD_LABELS: Record<Mood, string> = {
   default: "Default",
 };
 
-/** The Eclipse Warm void base (matches `--color-bg-void` in globals.css). */
+/** The Eclipse Warm void base (the dark theme's `--color-bg-void`). */
 export const MOOD_BASE = "#0A0A0A";
+
+/**
+ * What the tints are actually mixed over: the ACTIVE reading theme's page
+ * background, not the literal above.
+ *
+ * The shell paints this as an inline `background`, so it covers every surface
+ * beneath it. Hard-coding #0A0A0A meant that picking Sepia or Daylight left the
+ * whole app near-black with light panels floating on it — the theme applied to
+ * everything except the one element drawn on top. Reading the variable makes
+ * the mood a TINT over whatever the theme is, which is what a mood was always
+ * meant to be.
+ *
+ * `MOOD_BASE` stays a literal because `MOOD_TINT.default` is a colour, and
+ * because it documents what "untinted" resolves to on the default theme.
+ */
+export const MOOD_SURFACE = "var(--color-bg-void)";
 
 /**
  * The per-mood tint, mixed at a low ratio over {@link MOOD_BASE}. Each hue is
@@ -62,9 +78,9 @@ export function isTintedMood(mood: Mood): boolean {
  * shell is visually identical to before profiles existed.
  */
 export function moodShellBackground(mood: Mood): string {
-  if (!isTintedMood(mood)) return MOOD_BASE;
+  if (!isTintedMood(mood)) return MOOD_SURFACE;
   const tint = MOOD_TINT[mood];
-  return `radial-gradient(130% 105% at 50% -12%, color-mix(in srgb, ${tint} 24%, ${MOOD_BASE}) 0%, ${MOOD_BASE} 62%)`;
+  return `radial-gradient(130% 105% at 50% -12%, color-mix(in srgb, ${tint} 24%, ${MOOD_SURFACE}) 0%, ${MOOD_SURFACE} 62%)`;
 }
 
 /**
@@ -72,15 +88,17 @@ export function moodShellBackground(mood: Mood): string {
  * picker, where the tint is the whole point of the screen.
  */
 export function moodPickerBackground(mood: Mood): string {
-  if (!isTintedMood(mood)) return MOOD_BASE;
+  if (!isTintedMood(mood)) return MOOD_SURFACE;
   const tint = MOOD_TINT[mood];
-  return `radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, ${tint} 34%, ${MOOD_BASE}) 0%, ${MOOD_BASE} 70%)`;
+  return `radial-gradient(120% 90% at 50% 0%, color-mix(in srgb, ${tint} 34%, ${MOOD_SURFACE}) 0%, ${MOOD_SURFACE} 70%)`;
 }
 
 /** A translucent accent derived from the mood tint, for rings/badges. Untinted
- * moods fall back to the Eclipse Warm amber accent (`--color-accent-amber`). */
+ * moods fall back to the Eclipse Warm amber accent — read from the token rather
+ * than repeated as a literal, so it deepens with the paper themes the way every
+ * other accent does. */
 export function moodAccent(mood: Mood, alphaPercent = 60): string {
-  const tint = isTintedMood(mood) ? MOOD_TINT[mood] : "#F59E0B";
+  const tint = isTintedMood(mood) ? MOOD_TINT[mood] : "var(--color-accent-amber)";
   return `color-mix(in srgb, ${tint} ${alphaPercent}%, transparent)`;
 }
 

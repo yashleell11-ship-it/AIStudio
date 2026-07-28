@@ -117,8 +117,13 @@ export function Sidebar() {
           if (items.length === 0) return null;
           return (
             <div key={section.label} className="flex flex-col gap-0.5">
+              {/* Full-strength muted, not `text-muted/70`: the modifier
+                  compiles to a colour-mix with transparent, which lands at
+                  4.4:1 on the near-black page and fails WCAG AA. See the
+                  opacity-modifier case in
+                  features/preferences/theme-contrast.test.ts. */}
               {!collapsed ? (
-                <p className="px-3 pb-1 pt-2 font-display text-xs uppercase tracking-widest text-muted/70">
+                <p className="px-3 pb-1 pt-2 font-display text-xs uppercase tracking-widest text-muted">
                   {section.label}
                 </p>
               ) : null}

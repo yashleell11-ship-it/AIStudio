@@ -1,0 +1,64 @@
+import type { MetadataRoute } from "next";
+
+/**
+ * Web app manifest — what makes the web client installable.
+ *
+ * This is the whole point of the PWA route: on iOS, on-device offline reading
+ * is a 5-6 week native project gated by sideloading, a Podfile.lock only a
+ * cloud Mac can regenerate, and no dependable background execution (see
+ * docs/OFFLINE_READING.md). Installed from the browser there is no app store,
+ * no certificate and no 7-day re-sign — the same reader, saved to the home
+ * screen.
+ *
+ * `display: standalone` (not `fullscreen`) keeps the status bar: the reader is
+ * used in bed and knowing the time and the battery level matters more than the
+ * last 40px. The reader's own fullscreen toggle still exists for the strip.
+ *
+ * Icons reuse the shipping brand mark from
+ * `mobile/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png`,
+ * downscaled — no new artwork. The same file is declared `maskable` because it
+ * genuinely is: the white "M" occupies x 0.269-0.731, y 0.341-0.658 of the
+ * canvas, so its furthest corner sits 0.28 of the canvas from the centre, well
+ * inside the 0.4 safe-zone radius an adaptive mask can crop to, and the amber
+ * gradient behind it is full-bleed so there is no transparent corner to expose.
+ */
+export default function manifest(): MetadataRoute.Manifest {
+  return {
+    name: "ManhwaManiacs",
+    short_name: "Manhwa",
+    description:
+      "Read and manage your manga & manhwa library — with chapters saved for offline reading.",
+    // Landing on the library rather than "/" because an installed icon is
+    // pressed to read, and "/" is a dashboard that needs the network to be
+    // interesting. /library renders from cache with saved chapters on it.
+    start_url: "/library",
+    scope: "/",
+    display: "standalone",
+    orientation: "portrait-primary",
+    // Matches --color-bg in globals.css. The splash and the OS chrome have to
+    // be the same near-black as the app or the launch flashes white.
+    background_color: "#0A0A0A",
+    theme_color: "#0A0A0A",
+    categories: ["books", "entertainment"],
+    icons: [
+      {
+        src: "/icons/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "/icons/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
+      },
+    ],
+  };
+}
