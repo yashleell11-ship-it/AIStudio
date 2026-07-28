@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 from core.config import get_settings
 from core.content_rating import mature_rating_predicate, resolve_mature_gate
 from core.errors import AppError
+from core.library_authz import series_read_allowed
 from database.models import (
     Bookmark,
     Chapter,
@@ -162,6 +163,32 @@ class LibraryService:
     def _mature_enabled(self) -> bool:
         """The active 18+ gate for this (user, profile)."""
         return resolve_mature_gate(self._db, self._profile_id, self._user_id)
+
+    def _can_read(self, series_id: int) -> bool:
+        """Object-level read authorization: has this ACCOUNT claimed the series?
+
+        Deliberately account-scoped and deliberately separate from the 18+ gate
+        — every fetch-by-id below applies both. See core.library_authz for the
+        full rule and why each arm of it exists.
+        """
+        return series_read_allowed(self._db, self._user_id, series_id)
+
+    def assert_series_readable(self, series_id: int) -> None:
+        """Public form of :meth:`_can_read` for collaborators that hold a
+        LibraryService but not the caller identity — today ``ImageService.
+        get_cover_path``, which must authorize *before* it takes the
+        source-cover shortcut and therefore cannot rely on ``get_series``.
+
+        404 ``series_not_found``, byte-identical to a series that does not
+        exist: a 403 would confirm the id.
+        """
+        if not self._can_read(series_id):
+            raise AppError(
+                "Series not found.",
+                code="series_not_found",
+                status_code=404,
+                details={"series_id": series_id},
+            )
 
     def _apply_mature_filter(self, query):
         """Hide adult-rated series from a ``Series`` query while 18+ is off.
@@ -777,7 +804,14 @@ class LibraryService:
             .filter(Series.id == series_id)
             .first()
         )
-        if not series:
+        # Two independent gates, both required. The 18+ filter above answers
+        # "may this profile see adult content right now"; this answers "has this
+        # account any claim on THIS series" -- the object-level authorization
+        # that filtering on the row id alone never provided, and which is what
+        # let a sibling profile or a different account fetch any series by
+        # guessing its id. Same 404 either way; the codes must not diverge or
+        # the denial becomes an existence oracle.
+        if not series or not self._can_read(series_id):
             raise AppError(
                 "Series not found.",
                 code="series_not_found",
@@ -823,7 +857,10 @@ class LibraryService:
             .filter(Chapter.id == chapter_id)
             .first()
         )
-        if not chapter:
+        # Authorized through the OWNING series -- a chapter has no claim of its
+        # own. Reported as chapter_not_found, not series_not_found: the denial
+        # has to be indistinguishable from a chapter id that was never real.
+        if not chapter or not self._can_read(chapter.series_id):
             raise AppError(
                 "Chapter not found.",
                 code="chapter_not_found",
@@ -893,13 +930,22 @@ class LibraryService:
         return {"series_id": series_id, "in_library": in_library}
 
     def get_page(self, page_id: int) -> Page:
+        # This backs BOTH /reader/page/{id}/image and /library/pages/{id}/image
+        # (via ImageService.serve_page), and it was the least guarded read in the
+        # app: no ownership check AND no 18+ filter, unlike get_series /
+        # get_chapter. A page image is the content itself, so it needs the
+        # stricter of the two, not the looser -- both gates are applied here.
         page = (
-            self._db.query(Page)
-            .options(joinedload(Page.chapter))
+            self._apply_mature_filter(
+                self._db.query(Page)
+                .options(joinedload(Page.chapter))
+                .join(Chapter, Chapter.id == Page.chapter_id)
+                .join(Series, Series.id == Chapter.series_id)
+            )
             .filter(Page.id == page_id)
             .first()
         )
-        if not page:
+        if not page or not self._can_read(page.chapter.series_id):
             raise AppError(
                 "Page not found.",
                 code="page_not_found",

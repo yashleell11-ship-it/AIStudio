@@ -46,6 +46,7 @@ from core.content_rating import (
     resolve_mature_gate,
 )
 from core.errors import AppError
+from core.library_authz import series_read_allowed
 from core.profile_context import ProfileContext, resolve_profile_context
 from database.models import (
     Chapter,
@@ -189,6 +190,17 @@ class LibraryIntelligenceService:
     def _scope_library(self, query):
         """Narrow a ``Series`` query to what this (user, profile) added."""
         return query.join(UserSeriesState, self._library_on())
+
+    def _can_read(self, series_id: int) -> bool:
+        """Object-level read authorization, shared verbatim with LibraryService.
+
+        The membership helpers above are duplicated between the two services to
+        dodge an import cycle; the authorization rule deliberately is NOT. It
+        lives in core.library_authz so /library/series/{id} (this service) and
+        /reader/chapter/{id} (LibraryService) cannot drift into disagreeing
+        about who may read what.
+        """
+        return series_read_allowed(self._db, self._user_id, series_id)
 
     def _library_series_id_query(self):
         """This (user, profile)'s series ids as a query, for aggregates that
@@ -497,7 +509,15 @@ class LibraryIntelligenceService:
     def get_metadata_quality(self, series_id: int) -> dict[str, object]:
         """Return metadata completeness score and gaps."""
         series = self._db.query(Series).filter(Series.id == series_id).first()
-        if not series:
+        # Same family as get_series_detail and gated with it, on both axes: the
+        # response names which of title/author/description/rating are present,
+        # which is enough to identify a series by id without ever opening it --
+        # and to confirm that an 18+ series the gate is hiding exists.
+        if (
+            not series
+            or (not self._mature_enabled() and is_mature_rating(series.content_rating))
+            or not self._can_read(series_id)
+        ):
             raise AppError(
                 "Series not found.",
                 code="series_not_found",
@@ -554,7 +574,13 @@ class LibraryIntelligenceService:
           - same language                +1
         """
         source = self._db.query(Series).filter(Series.id == series_id).first()
-        if not source:
+        # The candidates were always scoped to the caller's own library, so this
+        # never leaked content -- but answering 404 for an unknown id and [] for
+        # a real one made it an existence oracle for series ids, which is the
+        # same disclosure the reader's 404-not-403 rule exists to deny. Nothing
+        # legitimate is lost: this hangs off the series detail page, which now
+        # requires the same claim.
+        if not source or not self._can_read(series_id):
             raise AppError(
                 "Series not found.",
                 code="series_not_found",
@@ -1594,8 +1620,16 @@ class LibraryIntelligenceService:
         # mature *sources* (BrowseService._get_connector): a 403 would confirm
         # the series exists, and the whole point of the gate is that nothing
         # about adult content surfaces while it is off. The row is untouched.
-        if not series or (
-            not self._mature_enabled() and is_mature_rating(series.content_rating)
+        #
+        # ``_can_read`` is the second, independent gate: this endpoint returns
+        # the full chapter list, so leaving it on the row id alone kept the
+        # object-level leak open on /library/series/{id} even once the reader
+        # was fixed. Both denials use the same code for the same reason the 18+
+        # one does.
+        if (
+            not series
+            or (not self._mature_enabled() and is_mature_rating(series.content_rating))
+            or not self._can_read(series_id)
         ):
             raise AppError(
                 "Series not found.",

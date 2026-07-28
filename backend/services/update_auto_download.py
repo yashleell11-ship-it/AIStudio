@@ -23,7 +23,22 @@ def auto_download_new_chapters(
     if not chapters:
         return
 
-    service = DownloadService(db, get_download_manager())
+    # Queue AS the follower. The tracker row is the only place the follower's
+    # identity survives into the scheduler, which has no request context -- and
+    # without it every Download this creates is (NULL, NULL), so the worker
+    # files the resulting library membership in the unowned bucket and the whole
+    # point of following a series (its chapters arriving in YOUR library)
+    # silently never happens.
+    #
+    # Side effect, and the correct one: the 18+ enqueue gate now resolves
+    # against the follower's own profile rather than the global fallback, so
+    # auto-download honours the same gate the manual enqueue does.
+    service = DownloadService(
+        db,
+        get_download_manager(),
+        user_id=tracker.user_id,
+        profile_id=tracker.profile_id,
+    )
     chapter_ids = [chapter.id for chapter in chapters]
     chapter_titles = {chapter.id: chapter.title for chapter in chapters}
 

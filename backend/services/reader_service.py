@@ -6,7 +6,9 @@ from typing import Annotated
 from fastapi import Depends
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from core.content_rating import is_mature_rating, resolve_mature_gate
 from core.errors import AppError
+from core.library_authz import series_read_allowed
 from core.time_utils import utcnow
 from core.profile_context import ProfileContext, resolve_profile_context
 from database.models import Bookmark, Chapter, Page, ReadingProgress, Series, User
@@ -279,8 +281,29 @@ class ReaderService:
         chapter_id: int,
         direction: str,
     ) -> dict[str, object] | None:
-        chapter = self._db.query(Chapter).filter(Chapter.id == chapter_id).first()
-        if not chapter:
+        chapter = (
+            self._db.query(Chapter)
+            .options(joinedload(Chapter.series))
+            .filter(Chapter.id == chapter_id)
+            .first()
+        )
+        # Ungated until now, and it answers with a neighbouring chapter's title
+        # and number -- so it walked a series the caller may not read, one id at
+        # a time. Both gates, in the same order and with the same 404 as
+        # LibraryService.get_chapter, so /reader/chapter/{id} and
+        # /reader/chapter/{id}/adjacent cannot disagree about a series: the 18+
+        # filter (per-profile) and the object-level claim (per-account).
+        hidden_by_gate = (
+            chapter is not None
+            and chapter.series is not None
+            and is_mature_rating(chapter.series.content_rating)
+            and not resolve_mature_gate(self._db, self._profile_id, self._user_id)
+        )
+        if (
+            not chapter
+            or hidden_by_gate
+            or not series_read_allowed(self._db, self._user_id, chapter.series_id)
+        ):
             raise AppError(
                 "Chapter not found.",
                 code="chapter_not_found",

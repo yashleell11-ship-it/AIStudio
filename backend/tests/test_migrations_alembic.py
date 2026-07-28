@@ -164,6 +164,92 @@ def test_run_alembic_migrations_is_idempotent(tmp_path):
     assert rev1 == rev2
 
 
+def test_tracker_membership_backfill_rescues_stranded_auto_downloads(tmp_path):
+    """f3b71d0c9e42's data step.
+
+    Object-level read authorization requires the caller's account to have a
+    claim on a series. Auto-downloads never recorded one: the update checker
+    built its DownloadService with no owner, so the Download was (NULL, NULL)
+    and the worker filed membership in the unowned bucket. Every chapter that
+    arrived because the owner *followed* a series would otherwise be readable
+    only via the unowned-bucket fallback, and would never reach their grid.
+
+    The bridge is source_chapter_links, NOT series_trackers.local_series_id —
+    nothing has ever written that column. A tracker with no user_id names no
+    account and is left alone.
+    """
+    db_url = f"sqlite:///{tmp_path / 'membership.db'}"
+    engine = create_engine(db_url)
+    _alembic_upgrade(db_url, "e6d1c73f9a24")  # the revision before the backfill
+
+    with engine.begin() as conn:
+        conn.execute(text("PRAGMA foreign_keys=OFF"))
+        conn.execute(
+            text(
+                "INSERT INTO libraries (id,name,root_path,scan_interval_minutes,"
+                "created_at) VALUES (1,'Main','/lib',60,'2026-01-01')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO series (id,library_id,title,folder_path,sort_title,"
+                "content_rating,language,is_favorite,reading_status,total_chapters,"
+                "read_chapters,total_pages,is_created,created_at,updated_at) VALUES "
+                "(1,1,'Followed','/lib/f','followed','unknown','ko',0,'unread',0,0,0,0,"
+                "'2026-01-01','2026-01-01'),"
+                "(2,1,'Unrelated','/lib/u','unrelated','unknown','ko',0,'unread',0,0,0,0,"
+                "'2026-01-01','2026-01-01')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO chapters (id,series_id,title,page_count,sort_key,is_read,"
+                "created_at,updated_at) VALUES "
+                "(1,1,'c1',1,'0001',0,'2026-01-01','2026-01-01'),"
+                "(2,2,'c1',1,'0001',0,'2026-01-01','2026-01-01')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO source_chapter_links "
+                "(source,series_id,chapter_id,local_chapter_id,created_at) VALUES "
+                "('mangadex','remote-1','rc-1',1,'2026-01-01'),"
+                "('mangadex','remote-2','rc-1',2,'2026-01-01')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO series_trackers (user_id,profile_id,source,series_id,"
+                "series_title,track_kind,enabled,notify,auto_download,"
+                "known_chapter_ids,created_at,updated_at) VALUES "
+                # follower with an account: rescued
+                "(7,3,'mangadex','remote-1','Followed','followed',1,1,1,'[]',"
+                " '2026-01-01','2026-01-01'),"
+                # tracker naming no account: skipped, nothing to attribute it to
+                "(NULL,NULL,'mangadex','remote-2','Unrelated','followed',1,1,1,'[]',"
+                " '2026-01-01','2026-01-01')"
+            )
+        )
+
+    run_alembic_migrations(engine)
+
+    with engine.connect() as conn:
+        rows = conn.execute(
+            text(
+                "SELECT user_id, profile_id, series_id, in_library "
+                "FROM user_series_state ORDER BY series_id"
+            )
+        ).all()
+    assert rows == [(7, 3, 1, 1)]
+
+    # Idempotent: a second pass must not duplicate the row.
+    run_alembic_migrations(engine)
+    with engine.connect() as conn:
+        assert conn.execute(
+            text("SELECT COUNT(*) FROM user_series_state")
+        ).scalar() == 1
+
+
 def test_tracker_maturity_backfill_stamps_existing_adult_source_follows(tmp_path):
     """a7c3e51b90d4's data step.
 

@@ -170,6 +170,11 @@ def test_cover_of_an_archive_series_is_page_one(tmp_path: Path) -> None:
     _write_cbz(cbz, ["ComicInfo.xml", "10.jpg", "2.jpg", "1.jpg"])
 
     class _StubLibraryService:
+        def assert_series_readable(self, series_id: int):
+            # get_cover_path now authorizes before the source-cover shortcut;
+            # this stub stands in for a caller that already passed.
+            return None
+
         def resolve_source_link(self, series_id: int):
             return None
 

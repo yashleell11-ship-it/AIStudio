@@ -143,6 +143,14 @@ class ImageService:
         return file_path, media_type
 
     def get_cover_path(self, library_service: LibraryService, series_id: int) -> tuple[Path | bytes, str]:
+        # Authorize FIRST, before the source-cover shortcut below. That shortcut
+        # returns bytes without ever calling get_series, so every source-linked
+        # series -- i.e. everything that arrived via download, the common case --
+        # would have had its cover served on a path no get_series-side check can
+        # see. The cover is the single most identifying artefact of a series, so
+        # this route has to carry the same object-level gate as the reader.
+        library_service.assert_series_readable(series_id)
+
         # For source-linked (imported/downloaded) series, prefer the real source
         # cover. Local imports were baking a chapter's first page (often a
         # credits/title page) into cover_path; serving the source cover fixes

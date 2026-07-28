@@ -254,7 +254,19 @@ class TestLibraryIsolation:
         assert mine["is_favorite"] is True
         assert mine["reading_progress"]["last_page"] == 7
 
-        theirs = b.get(f"/library/series/{env['series']}", headers=env["hb"]).json()
+        # An account with no claim on this series no longer gets a neutral
+        # payload — it gets nothing. Object-level authorization landed on top of
+        # the state scoping this test was written for; see
+        # test_reader_authorization.py.
+        assert (
+            b.get(f"/library/series/{env['series']}", headers=env["hb"]).status_code
+            == 404
+        )
+
+        # The state scoping itself is still what is under test, proved on the
+        # sibling profile: same account, so it MAY read the series (one
+        # household, one filesystem), and it still sees none of Alpha's state.
+        theirs = a.get(f"/library/series/{env['series']}", headers=env["ha2"]).json()
         assert theirs["is_favorite"] is False
         assert theirs["reading_progress"] is None
         assert theirs["reading_status"] == "unread"
@@ -271,6 +283,9 @@ class TestLibraryIsolation:
         assert patched.status_code == 200, patched.text
         assert patched.json()["reading_status"] == "completed"
 
+        # B must first have a claim of its own to read the series at all;
+        # favouriting from Browse is one, and it must not inherit A's status.
+        b.post(f"/library/series/{env['series']}/favorite", headers=env["hb"])
         theirs = b.get(f"/library/series/{env['series']}", headers=env["hb"]).json()
         assert theirs["reading_status"] == "unread"
 
@@ -322,6 +337,17 @@ class TestLibraryIsolation:
         a.post(f"/library/series/{env['series']}/add", headers=env["ha"])
         a.post(f"/library/series/{env['other']}/add", headers=env["ha"])
 
+        # B has no claim on the series, so it cannot even name it as the source.
+        assert (
+            b.get(
+                f"/library/series/{env['series']}/similar", headers=env["hb"]
+            ).status_code
+            == 404
+        )
+
+        # And once B does have a claim, the candidates still come only from B's
+        # own library -- which is empty.
+        b.post(f"/library/series/{env['series']}/favorite", headers=env["hb"])
         assert (
             b.get(f"/library/series/{env['series']}/similar", headers=env["hb"]).json()
             == []
@@ -351,6 +377,13 @@ class TestLibraryIsolation:
         assert denied.status_code == 404
         assert denied.json()["code"] == "collection_not_found"
 
+        # B cannot reach the series detail at all until it has its own claim;
+        # once it does, A's collection is still not named on the shared series.
+        assert (
+            b.get(f"/library/series/{env['series']}", headers=env["hb"]).status_code
+            == 404
+        )
+        b.post(f"/library/series/{env['series']}/favorite", headers=env["hb"])
         detail = b.get(f"/library/series/{env['series']}", headers=env["hb"]).json()
         assert detail["collections"] == []
 
@@ -404,3 +437,82 @@ class TestLibraryIsolation:
             ).status_code
             == 404
         )
+
+
+def test_deleting_a_profile_does_not_strand_its_series(db_session):
+    """Read authorization asks whether the ACCOUNT holds a claim, and every
+    profile-scoped row cascades away with the profile. Deleting the only
+    profile that claimed a series therefore took the account's last claim with
+    it, leaving the files on disk with nothing able to reach them."""
+    from core.library_authz import series_read_allowed
+    from database.models import Library, ReadingProfile, Series, UserSeriesState
+    from services.auth_service import AuthService
+    from services.profile_service import ProfileService
+
+    db = db_session
+    user = AuthService(db).register(username="claimowner", password="supersecret1")
+
+    doomed = ReadingProfile(user_id=user.id, name="doomed")
+    keeper = ReadingProfile(user_id=user.id, name="keeper")
+    db.add_all([doomed, keeper])
+    db.commit()
+
+    lib = Library(name="m", root_path="/lib-claims")
+    db.add(lib)
+    db.commit()
+
+    def mkseries(title: str) -> int:
+        s = Series(
+            library_id=lib.id,
+            title=title,
+            sort_title=title.lower(),
+            folder_path=f"/lib-claims/{title}",
+        )
+        db.add(s)
+        db.commit()
+        return s.id
+
+    only_doomed = mkseries("OnlyDoomed")
+    shared = mkseries("Shared")
+
+    db.add_all(
+        [
+            UserSeriesState(user_id=user.id, profile_id=doomed.id, series_id=only_doomed, in_library=True),
+            UserSeriesState(user_id=user.id, profile_id=doomed.id, series_id=shared, in_library=True),
+            UserSeriesState(user_id=user.id, profile_id=keeper.id, series_id=shared, in_library=True),
+        ]
+    )
+    db.commit()
+
+    assert series_read_allowed(db, user.id, only_doomed)
+
+    ProfileService(db, user_id=user.id).delete_profile(doomed.id)
+
+    # The account can still reach both: the orphan was re-homed, the shared one
+    # is still claimed by the surviving profile.
+    assert series_read_allowed(db, user.id, only_doomed)
+    assert series_read_allowed(db, user.id, shared)
+
+    # ...but the rescued claim is not resurrected into a library grid.
+    rescued = (
+        db.query(UserSeriesState)
+        .filter(
+            UserSeriesState.user_id == user.id,
+            UserSeriesState.profile_id.is_(None),
+            UserSeriesState.series_id == only_doomed,
+        )
+        .one()
+    )
+    assert not rescued.in_library
+
+    # No duplicate account-level row was minted for the still-claimed series.
+    assert (
+        db.query(UserSeriesState)
+        .filter(
+            UserSeriesState.user_id == user.id,
+            UserSeriesState.profile_id.is_(None),
+            UserSeriesState.series_id == shared,
+        )
+        .count()
+        == 0
+    )
