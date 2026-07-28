@@ -15,7 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from core.errors import AppError
-from database.models import ReadingProfile, User
+from database.models import ReadingProfile, User, UserSeriesState
 from database.session import get_db
 from services.auth_service import get_current_user
 
@@ -185,8 +185,56 @@ class ProfileService:
 
     def delete_profile(self, profile_id: int) -> None:
         profile = self._get_owned(profile_id)
+        self._preserve_account_claims(profile_id)
         self._db.delete(profile)
         self._db.commit()
+
+    def _preserve_account_claims(self, profile_id: int) -> None:
+        """Keep the account able to reach content this profile was the last to claim.
+
+        Every profile-scoped table cascades on delete, and read authorization
+        asks whether the ACCOUNT holds any claim on a series. So deleting the
+        only profile that ever claimed a series takes the account's last claim
+        with it: the Series row and the downloaded files survive on disk while
+        nothing can reach them, and no UI can even offer to delete them.
+
+        Re-home those claims to the account's profile-less bucket with
+        in_library false -- reachable, but not resurrected into a library grid
+        the user did not put them in. Anything another profile still claims is
+        left alone; this only rescues what would otherwise be orphaned.
+        """
+        claimed = {
+            row.series_id
+            for row in self._db.query(UserSeriesState.series_id)
+            .filter(
+                UserSeriesState.user_id == self._user_id,
+                UserSeriesState.profile_id == profile_id,
+            )
+            .all()
+        }
+        if not claimed:
+            return
+
+        still_claimed = {
+            row.series_id
+            for row in self._db.query(UserSeriesState.series_id)
+            .filter(
+                UserSeriesState.user_id == self._user_id,
+                UserSeriesState.profile_id != profile_id,
+                UserSeriesState.series_id.in_(claimed),
+            )
+            .all()
+        }
+        for series_id in sorted(claimed - still_claimed):
+            self._db.add(
+                UserSeriesState(
+                    user_id=self._user_id,
+                    profile_id=None,
+                    series_id=series_id,
+                    in_library=False,
+                )
+            )
+        self._db.flush()
 
 
 def get_profile_service(

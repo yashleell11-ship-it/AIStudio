@@ -63,6 +63,17 @@ class TestOcrLibraryIntegration:
             file_path=str(img_path),
         )
         db_session.add(page)
+        # The membership row a real import writes (LibraryService._persist_scan:
+        # "an import is the operator saying 'these are mine'"). Hand-seeded rows
+        # have to include it now that reads are authorized against it — without
+        # it this series is claimed by nobody and get_series/get_chapter 404,
+        # which is the intended behaviour, not an OCR bug. (None, None) matches
+        # the unscoped LibraryService these tests construct.
+        db_session.add(
+            UserSeriesState(
+                user_id=None, profile_id=None, series_id=series.id, in_library=True
+            )
+        )
         db_session.commit()
         return lib, series, chapter, page
 
