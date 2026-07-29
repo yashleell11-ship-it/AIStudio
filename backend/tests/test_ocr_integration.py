@@ -342,6 +342,16 @@ class TestOcrLibraryIntegration:
                 engine="tesseract",
             )
             db_session.add(ct)
+            # Search is scoped to readable series; this drives the unscoped
+            # service, so claim each series in the legacy (NULL-owner) bucket.
+            db_session.add(
+                UserSeriesState(
+                    user_id=None,
+                    profile_id=None,
+                    series_id=series.id,
+                    in_library=True,
+                )
+            )
 
         db_session.commit()
 

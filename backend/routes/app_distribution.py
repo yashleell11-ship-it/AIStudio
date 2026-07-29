@@ -130,6 +130,21 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.8.0",
+        build=22,
+        date="July 2026",
+        highlights=[
+            "Reading history works. Nothing had ever recorded a reading "
+            "session, so the screen was always empty — as were the statistics "
+            "built from it",
+            "OCR text and OCR search are now yours alone. Search used to look "
+            "across every account's library",
+            "A series downloaded from an 18+ source is now marked as such, so "
+            "turning 18+ off actually hides it",
+            "Several sources fixed, including Tapas and Bbato",
+        ],
+    ),
+    ChangelogEntry(
         version="1.7.0",
         build=21,
         date="July 2026",

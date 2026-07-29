@@ -11,7 +11,7 @@ from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Se
 
 STORY_API_BASE = "https://story-api.tapas.io/cosmos/api/v1/landing"
 SITE_BASE = "https://tapas.io"
-BROWSE_PAGE_SIZE = 200
+BROWSE_PAGE_SIZE = 30
 EPISODE_PAGE_SIZE = 20
 SEARCH_PAGE_SIZE = 30
 
@@ -235,10 +235,21 @@ def episode_to_chapter(entry: dict[str, Any], *, series_slug: str) -> Chapter | 
     if episode_id is None:
         return None
     scene = entry.get("scene")
-    number = float(scene) if isinstance(scene, (int, float)) else None
-    title = str(entry.get("title") or "").strip() or (
-        f"Episode {int(number)}" if number is not None and number == int(number) else f"Episode {scene}"
-    )
+    number: float | None = None
+    if isinstance(scene, (int, float)) and scene != 0:
+        number = float(scene)
+    title = str(entry.get("title") or "").strip()
+    if number is None and title:
+        match = re.search(r"Episode\s+(\d+(?:\.\d+)?)", title, re.I)
+        if match:
+            try:
+                number = float(match.group(1))
+            except ValueError:
+                number = None
+    if not title:
+        title = (
+            f"Episode {int(number)}" if number is not None and number == int(number) else f"Episode {scene}"
+        )
     chapter_id = make_chapter_id(series_slug, episode_id)
     return Chapter(
         id=chapter_id,
