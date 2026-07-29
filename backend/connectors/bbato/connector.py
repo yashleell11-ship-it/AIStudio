@@ -62,7 +62,7 @@ class BbatoConnector(SourceConnector):
             SITE_BASE,
             headers=HTML_HEADERS,
             user_agent=BROWSER_USER_AGENT,
-            min_interval=0.35,
+            min_interval=0.15,
         )
         self._series_cache: TTLCache[Series] = TTLCache(ttl_seconds=300.0)
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
@@ -153,39 +153,17 @@ class BbatoConnector(SourceConnector):
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         if page < 1:
             page = 1
-        collected: list[Series] = []
-        scan_page = page
-        max_scan = page + 4
-        total_pages = 1
-        while len(collected) < PAGE_SIZE and scan_page <= max_scan:
-            path = listing_path(scan_page, sort=sort)
-            html = self._fetch_html(path)
-            listing = parse_series_list(html, page=scan_page, page_size=PAGE_SIZE, sort=sort)
-            total_pages = max(total_pages, listing.page_size and listing.page or total_pages)
-            for series in listing.items:
-                if self._series_has_chapters(series.id):
-                    collected.append(series)
-                if len(collected) >= PAGE_SIZE:
-                    break
-            if not listing.has_more:
-                break
-            scan_page += 1
-        result = PaginatedSeriesList(
-            items=collected[:PAGE_SIZE],
-            page=page,
-            page_size=PAGE_SIZE,
-            total=max(len(collected), PAGE_SIZE * scan_page),
-            api_has_more=len(collected) >= PAGE_SIZE or scan_page <= max_scan,
-        )
+        path = listing_path(page, sort=sort)
+        html = self._fetch_html(path)
+        listing = parse_series_list(html, page=page, page_size=PAGE_SIZE, sort=sort)
         logger.info(
-            "Bbato browse sort=%r page=%d count=%d has_more=%s scanned_through=%d",
+            "Bbato browse sort=%r page=%d count=%d has_more=%s",
             normalize_type_sort(sort),
             page,
-            len(result.items),
-            result.has_more,
-            scan_page,
+            len(listing.items),
+            listing.has_more,
         )
-        return result
+        return listing
 
     def search_series(self, query: str, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         if page < 1:
@@ -239,12 +217,12 @@ class BbatoConnector(SourceConnector):
         series = parse_series_detail(html, api_key)
         if series is None:
             return None
-        chapters = self.get_chapters(api_key)
-        if chapters:
+        embedded = parse_chapters_from_series(html, api_key)
+        if embedded:
             series = replace(
                 series,
-                chapter_count=len(chapters),
-                latest_chapter=chapters[-1].title,
+                latest_chapter=embedded[-1].title,
+                chapter_count=series.chapter_count or len(embedded),
             )
         self._series_cache.set(api_key, series)
         return series

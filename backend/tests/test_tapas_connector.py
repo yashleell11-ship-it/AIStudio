@@ -42,6 +42,13 @@ def test_episode_to_chapter_and_pages():
     assert chapter.id == "solo-leveling-comic:2099900"
     assert parse_chapter_id(chapter.id) == ("solo-leveling-comic", "2099900")
 
+    latest = episode_to_chapter(
+        {"id": 999, "title": "Episode 104", "scene": 0},
+        series_slug="262684",
+    )
+    assert latest is not None
+    assert latest.number == 104.0
+
     html = (
         '<img class="content__img js-lazy" '
         'data-src="https://us-a.tapas.io/pc/5d/page-1.jpg?token=abc" />'
@@ -93,15 +100,7 @@ def test_tapas_browse_with_mock(tapas_connector: TapasConnector):
         }
     }
 
-    def fake_get_json(path: str, *, params=None):
-        if path == "/ranking":
-            return payload
-        if path.endswith("?"):
-            return {"data": {"id": 331138, "title": "In Bed With the Male Lead", "url": "in-bed-with-the-male-lead"}}
-        raise AssertionError(path)
-
-    with patch.object(tapas_connector._story_api, "get_json", side_effect=fake_get_json):
-        with patch.object(tapas_connector._site, "get_json", side_effect=fake_get_json):
-            listing = tapas_connector.get_series_list(1)
+    with patch.object(tapas_connector._story_api, "get_json", return_value=payload):
+        listing = tapas_connector.get_series_list(1)
     assert len(listing.items) == 1
-    assert listing.items[0].id == "in-bed-with-the-male-lead"
+    assert listing.items[0].id == "331138"

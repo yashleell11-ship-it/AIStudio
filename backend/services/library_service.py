@@ -52,9 +52,24 @@ from utils.path_utils import (
     validate_path_under_roots,
 )
 from connectors.local_filesystem.scanner import ScanResult
+from connectors.registry import list_installed_connectors
 from database.models import ChapterProgress
 
 logger = logging.getLogger(__name__)
+
+#: ``Series.content_rating`` as shipped by the schema (``models.Series``) and by
+#: the raw-SQL bootstrap (``database.session``). A real third state, not a
+#: synonym for "safe": nothing populates a rating on folder import, and
+#: core.content_rating deliberately keeps unknown *visible* so turning the 18+
+#: gate off does not blank a folder-imported library.
+UNRATED_CONTENT_RATING = "unknown"
+
+#: What :meth:`LibraryService.inherit_source_content_rating` stores when a series
+#: inherits its source's maturity. Must be a member of
+#: ``core.content_rating.MATURE_CONTENT_RATINGS`` so it round-trips through both
+#: ``is_mature_rating`` and ``mature_rating_predicate`` -- the stored rating is
+#: read back by the Python gate and the SQL gate alike.
+SOURCE_INHERITED_MATURE_RATING = "adult"
 
 
 def _chapter_sort_key(chapter: Chapter) -> tuple[float, list[int | str]]:
@@ -451,6 +466,128 @@ class LibraryService:
                 status_code=404,
                 details={"series_id": series_id},
             )
+
+    # ------------------------------------------------------------------
+    # Collaborator gates
+    #
+    # The /ocr/* surface reads the same content this service guards (a
+    # chapter's transcript, a page's transcript, and a full-text index over
+    # both), but through its own service and its own tables. These three
+    # methods exist so it applies THIS gate rather than growing a second one:
+    # both halves of the rule -- object-level authorization
+    # (core.library_authz.series_read_allowed) and the per-profile 18+ filter --
+    # stay defined exactly once, in the place that already had to get them
+    # right. See routes/ocr.py and services/ocr_search.py for the callers.
+    # ------------------------------------------------------------------
+
+    def assert_series_visible(self, series_id: int) -> None:
+        """404 ``series_not_found`` unless BOTH gates pass on the series itself.
+
+        The difference from :meth:`assert_series_readable` is the 18+ half.
+        That method is authorization-only on purpose -- ``ImageService.
+        get_cover_path`` calls it *before* the source-cover shortcut and picks
+        the 18+ gate up from ``get_series`` further down. A caller that will not
+        go on to call ``get_series`` (the OCR router does not) has to ask for
+        both here, or a profile with 18+ off could still address, by id, a series
+        that its library grid, its detail screen and its reader all 404.
+        """
+        visible = (
+            self.scope_readable_series(
+                self._db.query(Series.id).filter(Series.id == series_id)
+            ).first()
+        )
+        if visible is None:
+            raise AppError(
+                "Series not found.",
+                code="series_not_found",
+                status_code=404,
+                details={"series_id": series_id},
+            )
+
+    def _readable_chapter_series(self, chapter_id: int) -> int | None:
+        """The owning series id of ``chapter_id``, or ``None`` if this caller
+        may not read it -- for *either* reason. Both gates, resolved in one
+        query plus the shared predicate, exactly as ``get_chapter`` does."""
+        row = (
+            self._apply_mature_filter(
+                self._db.query(Chapter.series_id).join(
+                    Series, Series.id == Chapter.series_id
+                )
+            )
+            .filter(Chapter.id == chapter_id)
+            .first()
+        )
+        if row is None or not self._can_read(row[0]):
+            return None
+        return row[0]
+
+    def can_read_chapter(self, chapter_id: int) -> bool:
+        """Bool form, for callers that already report an unreadable id some
+        other way (``OcrJobService.queue_chapters`` reports it as *skipped*,
+        which is what it already does for an id that does not exist)."""
+        return self._readable_chapter_series(chapter_id) is not None
+
+    def assert_chapter_readable(self, chapter_id: int) -> None:
+        """404 ``chapter_not_found`` unless both gates pass.
+
+        Same code and same status as ``get_chapter``'s own denial, and as a
+        chapter id that was never real -- a distinct code would confirm the id,
+        which is the disclosure.
+        """
+        if self._readable_chapter_series(chapter_id) is None:
+            raise AppError(
+                "Chapter not found.",
+                code="chapter_not_found",
+                status_code=404,
+                details={"chapter_id": chapter_id},
+            )
+
+    def assert_page_readable(self, page_id: int) -> None:
+        """404 ``page_not_found`` unless both gates pass on the owning series.
+
+        The page-level counterpart of :meth:`assert_chapter_readable`; mirrors
+        ``get_page``, which applies the stricter of the two gates because a page
+        is the content itself.
+        """
+        row = (
+            self._apply_mature_filter(
+                self._db.query(Chapter.series_id)
+                .select_from(Page)
+                .join(Chapter, Chapter.id == Page.chapter_id)
+                .join(Series, Series.id == Chapter.series_id)
+            )
+            .filter(Page.id == page_id)
+            .first()
+        )
+        if row is None or not self._can_read(row[0]):
+            raise AppError(
+                "Page not found.",
+                code="page_not_found",
+                status_code=404,
+                details={"page_id": page_id},
+            )
+
+    def scope_readable_series(self, query):
+        """Narrow a query that joins ``Series`` to the rows this caller may read.
+
+        The list-shaped form of the same two gates. Used by OCR search, which
+        used to join ChapterText -> Chapter -> Series with no scoping at all and
+        was therefore a full-text search across every account's library.
+
+        The authorization half cannot be expressed as a filter without restating
+        ``series_read_allowed``'s five arms in SQL, and a *duplicated
+        authorization rule* is precisely the thing core.library_authz exists to
+        prevent -- so the shared predicate is called once per distinct candidate
+        series instead. Bounded by the number of distinct series that matched the
+        text, not by the size of the catalog or by the number of hits, and each
+        call is one round trip of covered EXISTS.
+        """
+        scoped = self._apply_mature_filter(query)
+        candidates = [row[0] for row in scoped.with_entities(Series.id).distinct()]
+        allowed = [
+            series_id for series_id in candidates if self._can_read(series_id)
+        ]
+        return scoped.filter(Series.id.in_(allowed))
 
     def _apply_mature_filter(self, query):
         """Hide adult-rated series from a ``Series`` query while 18+ is off.
@@ -1076,6 +1213,82 @@ class LibraryService:
         if link and link.source and link.series_id:
             return link.source, link.series_id
         return None
+
+    def inherit_source_content_rating(self, series_id: int) -> str | None:
+        """Stamp a source-linked series with its *source's* maturity.
+
+        The hole this closes: ``Series.content_rating`` defaults to "unknown"
+        for every import and download, and the 18+ gate deliberately keeps
+        unknown visible -- so a series downloaded from an adult source was not
+        marked adult and showed up on the home page and in the library of a
+        profile with 18+ switched OFF. The source's own maturity was known the
+        whole time (``ConnectorDescriptor.mature``); nothing was writing it down
+        for the local row.
+
+        This is rule 3 of :func:`core.content_rating.resolve_tracker_rating`
+        applied to a local ``Series`` instead of a followed tracker: *a series
+        whose chapters came from an 18+ source is 18+ by construction*. Same
+        signal, same direction, same reason -- the failure the owner cares about
+        is adult content appearing where he did not expect it, and a false hide
+        costs one toggle while a false show costs the thing the gate exists for.
+
+        Three things it deliberately does NOT do:
+
+        * **Never downgrades.** It only ever writes when the stored rating is
+          still the unset default, so a rating a user set, or one captured from
+          the source's own metadata (``rating_from_genres`` at follow time),
+          survives untouched -- including a deliberate "safe" on one series from
+          an otherwise-adult source.
+        * **Never marks a hand-imported folder.** Inheritance requires a real
+          source link (:meth:`resolve_source_link`: a tracker bound to this
+          series, or a ``source_chapter_links`` row for one of its chapters).
+          A folder the owner dropped in has no source to inherit from and stays
+          "unknown", i.e. stays visible -- which is the whole reason unknown is
+          not folded into mature.
+        * **Never writes "safe".** A non-mature source says nothing about the
+          series; it only fails to say "adult". Writing "safe" would be
+          manufacturing a rating and would block a later, better signal.
+
+        Returns the rating it stored, or ``None`` when nothing was written.
+        Callers commit -- this only flushes, so it composes with the download
+        worker's transaction.
+        """
+        series = self._db.get(Series, series_id)
+        if series is None:
+            return None
+
+        # An explicit rating -- from the user or from the source's metadata --
+        # is a stronger signal than "which site did the bytes come from", and
+        # overwriting it is how a user's own verdict gets silently reverted.
+        current = (series.content_rating or "").strip().lower()
+        if current and current != UNRATED_CONTENT_RATING:
+            return None
+
+        link = self.resolve_source_link(series_id)
+        if link is None:
+            return None
+
+        descriptor = next(
+            (
+                item
+                for item in list_installed_connectors(include_mature=True)
+                if item.source_type == link[0]
+            ),
+            None,
+        )
+        if descriptor is None or not descriptor.mature:
+            return None
+
+        series.content_rating = SOURCE_INHERITED_MATURE_RATING
+        series.updated_at = utcnow()
+        self._db.flush()
+        logger.info(
+            "series_id=%s inherited rating '%s' from adult source '%s'",
+            series_id,
+            SOURCE_INHERITED_MATURE_RATING,
+            link[0],
+        )
+        return SOURCE_INHERITED_MATURE_RATING
 
     def get_series(self, series_id: int) -> dict[str, object]:
         # Gated like the grid, not just like the detail screen. This method is

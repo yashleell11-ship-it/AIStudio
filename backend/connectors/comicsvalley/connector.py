@@ -282,7 +282,6 @@ class ComicsValleyConnector(SourceConnector):
             self._log_request("browse", path, params=params, status="error", detail=str(exc))
             raise
         listing = parse_series_list(html, page=page, page_size=PAGE_SIZE)
-        listing = self._enrich_browse_listing(listing)
         self._log_request(
             "browse",
             path,
@@ -310,7 +309,6 @@ class ComicsValleyConnector(SourceConnector):
             self._log_request("search", path, params=params, status="error", detail=str(exc))
             raise
         listing = parse_search_results(html, page=page, query=normalized, page_size=PAGE_SIZE)
-        listing = self._enrich_browse_listing(listing)
         self._log_request(
             "search",
             path,

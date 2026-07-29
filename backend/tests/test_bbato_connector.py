@@ -65,9 +65,8 @@ def test_browse_page_2_differs(bbato_connector: BbatoConnector):
         return page1
 
     with patch.object(bbato_connector, "_fetch_html", side_effect=fake_fetch):
-        with patch.object(bbato_connector, "_series_has_chapters", return_value=True):
-            first = bbato_connector.get_series_list(1)
-            second = bbato_connector.get_series_list(2)
+        first = bbato_connector.get_series_list(1)
+        second = bbato_connector.get_series_list(2)
 
     assert first.items[0].id != second.items[0].id
     assert first.has_more is True
@@ -165,8 +164,7 @@ def test_browse_by_genre(bbato_connector: BbatoConnector):
 def test_manhwa_browse_mode_path(bbato_connector: BbatoConnector):
     html = _load("listing_page1.html")
     with patch.object(bbato_connector, "_fetch_html", return_value=html) as mock_fetch:
-        with patch.object(bbato_connector, "_series_has_chapters", return_value=True):
-            bbato_connector.get_series_list(1, sort="manhwa")
+        bbato_connector.get_series_list(1, sort="manhwa")
     mock_fetch.assert_called()
     assert mock_fetch.call_args[0][0].startswith("/type/manhwa")
 

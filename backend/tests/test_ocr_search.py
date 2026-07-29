@@ -8,7 +8,7 @@ Production improvements tested:
 
 from __future__ import annotations
 
-from database.models import Chapter, ChapterText, Library, Series
+from database.models import Chapter, ChapterText, Library, Series, UserSeriesState
 from services.ocr_search import OcrSearchService
 
 
@@ -29,6 +29,18 @@ class TestOcrSearchService:
             folder_path="/tmp/test/s/c1",
         )
         db_session.add(chapter)
+        # OCR search is scoped to series the caller may read, exactly like the
+        # reader -- a transcript must not be findable when the chapter it came
+        # from is not. These tests drive the unscoped service, so the claim goes
+        # in the legacy (NULL-owner) bucket that caller is restricted to.
+        db_session.add(
+            UserSeriesState(
+                user_id=None,
+                profile_id=None,
+                series_id=series.id,
+                in_library=True,
+            )
+        )
         db_session.flush()
         return series, chapter
 

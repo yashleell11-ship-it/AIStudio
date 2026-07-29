@@ -143,7 +143,7 @@ class DoujinsConnector(SourceConnector):
                 seen.add(series.id)
                 items.append(series)
             # Homepage typically exposes ~20 day panes; stop once we have a solid catalog
-            if day_offset >= 14 and len(items) >= HOME_PAGE_SIZE * 3:
+            if day_offset >= 7 and len(items) >= HOME_PAGE_SIZE * 2:
                 break
 
         self._latest_cache.set("latest", items)

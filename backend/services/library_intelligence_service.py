@@ -808,6 +808,11 @@ class LibraryIntelligenceService:
         Gate-filtered by the session's series: history carries the title, so
         leaving it unfiltered would name every adult series the profile has
         read while the grid pretends they do not exist.
+
+        ``id`` breaks ties on ``started_at``: sessions are opened by
+        ``ReaderService`` as the user reads, and flipping between two chapters
+        can open two of them inside the same second — without the tiebreaker
+        their order on the history screen is whatever SQLite happens to return.
         """
         sessions = (
             self._gate_sessions(self._scope_sessions(self._db.query(ReadingSession)))
@@ -815,7 +820,7 @@ class LibraryIntelligenceService:
                 selectinload(ReadingSession.series),
                 selectinload(ReadingSession.chapter),
             )
-            .order_by(ReadingSession.started_at.desc())
+            .order_by(ReadingSession.started_at.desc(), ReadingSession.id.desc())
             .limit(limit)
             .all()
         )
@@ -871,7 +876,7 @@ class LibraryIntelligenceService:
             self._gate_sessions(self._scope_sessions(self._db.query(ReadingSession)))
             .options(selectinload(ReadingSession.chapter))
             .filter(ReadingSession.series_id == series_id)
-            .order_by(ReadingSession.started_at.desc())
+            .order_by(ReadingSession.started_at.desc(), ReadingSession.id.desc())
             .limit(limit)
             .all()
         )

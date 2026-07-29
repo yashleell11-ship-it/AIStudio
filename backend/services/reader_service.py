@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated
 
 from fastapi import Depends
@@ -11,9 +11,43 @@ from core.errors import AppError
 from core.library_authz import series_read_allowed
 from core.time_utils import utcnow
 from core.profile_context import ProfileContext, resolve_profile_context
-from database.models import Bookmark, Chapter, Page, ReadingProgress, Series, User
+from database.models import (
+    Bookmark,
+    Chapter,
+    ChapterProgress,
+    Page,
+    ReadingProgress,
+    ReadingSession,
+    Series,
+    User,
+)
 from database.session import get_db
 from utils.path_utils import natural_sort_key
+
+#: How long a stretch of reading one chapter may go quiet before the next
+#: progress post is treated as a *new* reading session rather than more of the
+#: previous one.
+#:
+#: Why a gap rule at all: ``POST /reader/progress`` is called repeatedly while
+#: a chapter is read (the clients debounce, but a chapter still produces many
+#: posts). Writing one ``ReadingSession`` per post would put hundreds of
+#: identical rows per chapter into the history screen and inflate every
+#: session-derived statistic (pages/week, velocity, streak) by however often
+#: the client happened to flush. A session has to mean "one continuous stretch
+#: of reading this chapter", so posts are folded into the open session and only
+#: a real interruption opens a new one.
+#:
+#: Why 30 minutes: the threshold has to be longer than every pause that happens
+#: *within* one sitting -- a slow page fetch, the app backgrounded for a phone
+#: call, lingering on a double-page spread, a coffee break -- and shorter than
+#: the gap that a reader would themselves call "picking it back up later". Ten
+#: minutes splits a single evening's reading into several entries; two hours
+#: welds this morning's chapter onto tonight's. Thirty minutes is also the
+#: long-standing web-analytics inactivity timeout, so the derived numbers match
+#: the intuition people already have about what a "session" is. It is a product
+#: judgement, not a measurement: change it here and both history and the
+#: statistics that read these rows move together.
+READING_SESSION_IDLE_GAP = timedelta(minutes=30)
 
 
 def _chapter_sort_key(chapter: Chapter) -> tuple[float, list[int | str]]:
@@ -71,6 +105,8 @@ class ReaderService:
         else:
             progress_pct = min(100.0, (last_page / page_count) * 100.0)
 
+        now = utcnow()
+
         progress = (
             self._db.query(ReadingProgress)
             .filter(
@@ -95,9 +131,32 @@ class ReaderService:
             progress.chapter_id = chapter_id
             progress.last_page = last_page
             progress.progress_pct = progress_pct
-            progress.last_read_at = utcnow()
+            progress.last_read_at = now
             if scroll_offset_px is not None:
                 progress.scroll_offset_px = scroll_offset_px
+
+        # ReadingProgress is a single "where am I in this series" bookmark that
+        # is overwritten in place, so nothing about it is historical. The two
+        # calls below are what actually make reading *history* and the reading
+        # statistics exist: without them the reading_sessions and
+        # chapter_progress tables are never written by any code path and every
+        # surface that reads them (history, calendar, streak, velocity,
+        # pages-this-week, per-series completed-chapter counts) is permanently
+        # empty. Both fold into the same transaction as the progress row, so a
+        # page turn is still one commit.
+        self._record_chapter_progress(
+            chapter_id=chapter_id,
+            last_page=last_page,
+            page_count=page_count,
+            scroll_offset_px=scroll_offset_px,
+            now=now,
+        )
+        self._record_reading_session(
+            series_id=series_id,
+            chapter_id=chapter_id,
+            last_page=last_page,
+            now=now,
+        )
 
         self._db.commit()
         self._db.refresh(progress)
@@ -109,6 +168,150 @@ class ReaderService:
             "progress_pct": progress.progress_pct,
             "last_read_at": progress.last_read_at.isoformat(),
         }
+
+    # ------------------------------------------------------------------
+    # Reading history capture
+    #
+    # Both helpers are UPSERTS keyed on rows that already exist after the first
+    # post of a chapter, so the number of *rows* a chapter read produces is
+    # fixed no matter how often the client posts: one chapter_progress row per
+    # (user, profile, chapter) for all time, and one reading_sessions row per
+    # continuous stretch (see READING_SESSION_IDLE_GAP). Every later post in the
+    # same stretch is an UPDATE of those same two rows. That bound is the point
+    # — this runs on every page turn against single-writer SQLite.
+    # ------------------------------------------------------------------
+
+    def _record_chapter_progress(
+        self,
+        *,
+        chapter_id: int,
+        last_page: int,
+        page_count: int,
+        scroll_offset_px: int | None,
+        now: datetime,
+    ) -> None:
+        """Upsert this (user, profile)'s per-chapter read state.
+
+        ``chapter_progress`` is the single source of truth for "which chapters
+        has this profile finished": both services derive their per-caller
+        completed-chapter counts from it (``_read_chapter_map``). The
+        denormalized ``series.read_chapters`` column is deliberately NOT written
+        here — it aggregates *every* account on the instance and is recomputed
+        from this same table by the library scan, so writing it from a
+        per-profile request is exactly the second source of truth that could
+        disagree.
+        """
+        # Completion is defined off the chapter's page count; a chapter whose
+        # pages have not been indexed yet (page_count 0) can never be completed
+        # rather than being trivially complete at page 1.
+        completed = page_count > 0 and last_page >= page_count
+
+        progress = (
+            self._db.query(ChapterProgress)
+            .filter(
+                ChapterProgress.chapter_id == chapter_id,
+                ChapterProgress.user_id == self._user_id,
+                ChapterProgress.profile_id == self._profile_id,
+            )
+            .first()
+        )
+        if progress is None:
+            self._db.add(
+                ChapterProgress(
+                    user_id=self._user_id,
+                    profile_id=self._profile_id,
+                    chapter_id=chapter_id,
+                    last_page=last_page,
+                    scroll_offset_px=scroll_offset_px or 0,
+                    is_completed=completed,
+                    completed_at=now if completed else None,
+                    time_spent_seconds=0,
+                    started_at=now,
+                    last_read_at=now,
+                )
+            )
+            return
+
+        # Time spent is accumulated from the gap between consecutive posts, and
+        # only while that gap is inside the session window: a post arriving
+        # after a two-hour break must not bill those two hours as reading. The
+        # same threshold that decides session boundaries decides this, so the
+        # two can never tell different stories about one stretch of reading.
+        elapsed = now - (progress.last_read_at or now)
+        if timedelta(0) < elapsed <= READING_SESSION_IDLE_GAP:
+            progress.time_spent_seconds += int(elapsed.total_seconds())
+
+        progress.last_page = last_page
+        if scroll_offset_px is not None:
+            progress.scroll_offset_px = scroll_offset_px
+        progress.last_read_at = now
+        # Completion is sticky. Scrolling back from the last page is normal
+        # (re-reading a panel, hitting "previous"); un-completing there would
+        # make the completed-chapter count on the series card flicker down and
+        # back up as the reader moves around inside a chapter they finished.
+        if completed and not progress.is_completed:
+            progress.is_completed = True
+            progress.completed_at = now
+
+    def _record_reading_session(
+        self,
+        *,
+        series_id: int,
+        chapter_id: int,
+        last_page: int,
+        now: datetime,
+    ) -> None:
+        """Open, extend or roll over this (user, profile)'s reading session.
+
+        The boundary rule: the most recent session for this (user, profile,
+        chapter) is *extended* when its last recorded activity is no older than
+        ``READING_SESSION_IDLE_GAP``; otherwise the reader is considered to have
+        come back later and a new session row is opened. Sessions are per
+        chapter, so moving to the next chapter always opens a new one — that is
+        what makes history readable ("Ch. 12, 14 pages") instead of one endless
+        row per series.
+        """
+        session = (
+            self._db.query(ReadingSession)
+            .filter(
+                ReadingSession.chapter_id == chapter_id,
+                ReadingSession.user_id == self._user_id,
+                ReadingSession.profile_id == self._profile_id,
+            )
+            .order_by(ReadingSession.started_at.desc(), ReadingSession.id.desc())
+            .first()
+        )
+
+        if session is not None:
+            # ``ended_at`` is maintained as "last activity seen", not written
+            # once at some explicit close. There is no close event to hang it
+            # on — a reader closes the app, loses signal, or puts the phone
+            # down — so a session that waited for one would sit unterminated
+            # forever and report a NULL end time in history.
+            last_seen = session.ended_at or session.started_at
+            if last_seen is not None and timedelta(0) <= now - last_seen <= READING_SESSION_IDLE_GAP:
+                session.start_page = min(session.start_page, last_page)
+                session.end_page = max(session.end_page, last_page)
+                # Pages read is the span actually covered by this stretch, so
+                # it stays consistent with start_page/end_page and cannot be
+                # inflated by paging back and forth over the same pages.
+                session.pages_read = session.end_page - session.start_page + 1
+                session.ended_at = now
+                return
+
+        self._db.add(
+            ReadingSession(
+                user_id=self._user_id,
+                profile_id=self._profile_id,
+                series_id=series_id,
+                chapter_id=chapter_id,
+                start_page=last_page,
+                end_page=last_page,
+                pages_read=1,
+                started_at=now,
+                ended_at=now,
+            )
+        )
 
     def get_progress(self, series_id: int) -> dict[str, object] | None:
         progress = (

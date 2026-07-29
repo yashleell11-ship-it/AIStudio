@@ -7,24 +7,47 @@ Production improvements:
 - Pagination with total count
 - Configurable snippet length and context window
 - Better snippet extraction centred on the best match location
+
+Scoping
+-------
+
+This is a request-facing service only (the OCR pipeline writes ChapterText; it
+never searches it), so unlike ``OcrJobService`` it carries the caller's
+identity. It has to: the join ChapterText -> Chapter -> Series used to have no
+user scoping whatsoever, which made one query a full-text search across every
+account's library -- the single widest read in the app, returning series titles,
+chapter titles and a snippet of the text itself.
+
+The scoping rule is not defined here. It is ``LibraryService.
+scope_readable_series``, i.e. the same two gates the reader applies, so a
+transcript can never be reachable through search when the chapter it came from
+is not reachable through ``/reader/chapter/{id}``.
 """
 
 from __future__ import annotations
 
 import re
-from typing import Any
+from typing import Annotated, Any
 
+from fastapi import Depends
 from sqlalchemy import func
 from sqlalchemy.orm import Session, joinedload
 
 from database.models import Chapter, ChapterText, Series
+from database.session import get_db
+from services.library_service import LibraryService, get_library_service
 
 
 class OcrSearchService:
     """Search service for OCR-extracted text."""
 
-    def __init__(self, db: Session) -> None:
+    def __init__(self, db: Session, library: LibraryService | None = None) -> None:
         self._db = db
+        # The gate, not a copy of it. Defaults to the unscoped service so a
+        # direct ``OcrSearchService(db)`` behaves like every other unscoped
+        # caller in the codebase -- restricted to the legacy (NULL-owner)
+        # bucket, never exempt from the rule.
+        self._library = library if library is not None else LibraryService(db)
 
     def search(
         self,
@@ -67,6 +90,13 @@ class OcrSearchService:
             base_query = base_query.filter(
                 ChapterText.full_text.ilike(pattern)
             )
+
+        # Scope AFTER the text filter and BEFORE the count: the caller's own
+        # ``total`` and ``has_more`` must describe their own result set, or
+        # paging walks off the end of a list they were never shown -- and the
+        # count alone would still leak how many chapters elsewhere in the
+        # household matched the term.
+        base_query = self._library.scope_readable_series(base_query)
 
         total = base_query.count()
         rows = (
@@ -168,3 +198,17 @@ class OcrSearchService:
             )
 
         return snippet
+
+
+def get_ocr_search_service(
+    db: Annotated[Session, Depends(get_db)],
+    library: Annotated[LibraryService, Depends(get_library_service)],
+) -> OcrSearchService:
+    """Build the search service around the request's own gate.
+
+    ``get_library_service`` resolves the (account, profile) from the session and
+    the ``X-Profile-Id`` header, so search inherits the identical scoping the
+    library and reader routers get -- including the lenient header handling that
+    both clients rely on during boot and mid-profile-switch.
+    """
+    return OcrSearchService(db, library)

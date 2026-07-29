@@ -716,6 +716,21 @@ class DownloadManager:
         else:
             link.local_chapter_id = local_chapter.id
         db.flush()
+
+        # Now that the series has a real source link, let it inherit the
+        # source's maturity. Deliberately AFTER the flush above: on the first
+        # chapter of a new series the link is created right here, and
+        # LibraryService.resolve_source_link -- which is what distinguishes a
+        # downloaded series from a hand-imported folder -- cannot see it any
+        # earlier. (_index_downloaded_series ran before this block, so doing it
+        # inside _persist_scan would find no link and silently skip.)
+        #
+        # A series downloaded from an 18+ source is 18+; without this it stayed
+        # at the schema default "unknown", and the gate keeps unknown visible on
+        # purpose, so it appeared for profiles with 18+ switched off. Never
+        # overwrites an existing rating and never touches a series with no
+        # source link -- see LibraryService.inherit_source_content_rating.
+        library.inherit_source_content_rating(local_chapter.series_id)
         return local_chapter
 
     def _index_downloaded_series(

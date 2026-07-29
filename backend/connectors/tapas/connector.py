@@ -58,9 +58,21 @@ class TapasConnector(SourceConnector):
     MATURE = False
 
     def __init__(self) -> None:
-        self._story_api = DdgSyncHttpClient(STORY_API_BASE, headers=HTML_HEADERS)
-        self._site = DdgSyncHttpClient(SITE_BASE, headers=JSON_HEADERS)
-        self._site_html = DdgSyncHttpClient(SITE_BASE, headers=HTML_HEADERS)
+        self._story_api = DdgSyncHttpClient(
+            STORY_API_BASE,
+            headers=HTML_HEADERS,
+            min_interval=0.05,
+        )
+        self._site = DdgSyncHttpClient(
+            SITE_BASE,
+            headers=JSON_HEADERS,
+            min_interval=0.05,
+        )
+        self._site_html = DdgSyncHttpClient(
+            SITE_BASE,
+            headers=HTML_HEADERS,
+            min_interval=0.05,
+        )
         self._numeric_id_cache: TTLCache[int] = TTLCache(ttl_seconds=3600.0)
         self._series_cache: TTLCache[Series] = TTLCache(ttl_seconds=300.0)
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
@@ -115,26 +127,15 @@ class TapasConnector(SourceConnector):
     def _normalize_series_id(self, series_id: str) -> str:
         return series_id.strip().strip("/")
 
-    def _resolve_slug_from_numeric(self, numeric_id: int) -> str | None:
-        try:
-            payload = self._site.get_json(f"/series/{numeric_id}?")
-        except ConnectorHttpError:
-            return None
-        if not isinstance(payload, dict):
-            return None
-        data = payload.get("data")
-        if not isinstance(data, dict):
-            return None
-        slug = data.get("url")
-        if isinstance(slug, str) and slug.strip():
-            self._numeric_id_cache.set(slug.strip(), numeric_id)
-            return slug.strip()
-        return None
-
     def _resolve_numeric_id(self, series_slug: str) -> int | None:
         cached = self._numeric_id_cache.get(series_slug)
         if cached is not None:
             return cached
+        normalized = series_slug.strip()
+        if normalized.isdigit():
+            numeric = int(normalized)
+            self._numeric_id_cache.set(series_slug, numeric)
+            return numeric
         try:
             payload = self._site.get_json(f"/series/{series_slug}?")
         except ConnectorHttpError:
@@ -150,6 +151,9 @@ class TapasConnector(SourceConnector):
         numeric = data.get("id")
         if isinstance(numeric, int):
             self._numeric_id_cache.set(series_slug, numeric)
+            slug = data.get("url")
+            if isinstance(slug, str) and slug.strip():
+                self._numeric_id_cache.set(slug.strip(), numeric)
             return numeric
         return None
 
@@ -188,22 +192,10 @@ class TapasConnector(SourceConnector):
         if not isinstance(payload, dict):
             raise ConnectorHttpError("Expected JSON object from Tapas story-api.")
         listing = landing_response_to_paginated(payload, page=page)
-        resolved_items: list[Series] = []
         for item in listing.items:
-            if item.id.isdigit():
-                slug = self._resolve_slug_from_numeric(int(item.id))
-                if slug:
-                    resolved_items.append(replace(item, id=slug))
-                    continue
-            self._resolve_numeric_id(item.id)
-            resolved_items.append(item)
-        return PaginatedSeriesList(
-            items=resolved_items,
-            page=listing.page,
-            page_size=listing.page_size,
-            total=listing.total,
-            api_has_more=listing.api_has_more,
-        )
+            if not item.id.isdigit():
+                self._resolve_numeric_id(item.id)
+        return listing
 
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         if page < 1:
@@ -256,6 +248,35 @@ class TapasConnector(SourceConnector):
         logger.info("Tapas search query=%r page=%d count=%d", normalized, page, len(listing.items))
         return listing
 
+    def _peek_episode_stats(self, series_slug: str) -> tuple[int | None, str | None]:
+        numeric_id = self._resolve_numeric_id(series_slug)
+        if numeric_id is None:
+            return None, None
+        try:
+            payload = self._site.get_json(
+                f"/series/{numeric_id}/episodes",
+                params={"page": 1, "sort": "NEWEST", "max_limit": 1},
+            )
+        except ConnectorHttpError:
+            return None, None
+        if not isinstance(payload, dict):
+            return None, None
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return None, None
+        pagination = data.get("pagination")
+        total = pagination.get("total") if isinstance(pagination, dict) else None
+        chapter_count = int(total) if isinstance(total, int) else None
+        episodes = data.get("episodes")
+        latest_title = None
+        if isinstance(episodes, list) and episodes:
+            first = episodes[0]
+            if isinstance(first, dict):
+                title = first.get("title")
+                if isinstance(title, str) and title.strip():
+                    latest_title = title.strip()
+        return chapter_count, latest_title
+
     def get_series(self, series_id: str) -> Series | None:
         slug = self._normalize_series_id(series_id)
         cached = self._series_cache.get(slug)
@@ -278,12 +299,12 @@ class TapasConnector(SourceConnector):
             series = parse_series_info_html(info_html, series)
         except ConnectorHttpError:
             pass
-        chapters = self.get_chapters(slug)
-        if chapters:
+        chapter_count, latest_chapter = self._peek_episode_stats(slug)
+        if chapter_count is not None or latest_chapter is not None:
             series = replace(
                 series,
-                chapter_count=len(chapters),
-                latest_chapter=chapters[-1].title,
+                chapter_count=chapter_count if chapter_count is not None else series.chapter_count,
+                latest_chapter=latest_chapter or series.latest_chapter,
             )
         self._series_cache.set(slug, series)
         return series
