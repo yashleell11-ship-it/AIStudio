@@ -51,7 +51,7 @@ secs() { # seconds -> compact duration
 while true; do
   # One round-trip per tick. Tab-separated so a series title with spaces
   # cannot shift the fields.
-  SNAPSHOT=$(docker exec "$CONTAINER" python - <<'PY' 2>/dev/null || true
+  SNAPSHOT=$(docker exec -i "$CONTAINER" python - <<'PY' 2>/dev/null || true
 from database.session import SessionLocal
 from database.models import Download
 from sqlalchemy import case, func
