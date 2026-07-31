@@ -15,6 +15,20 @@ const nextConfig: NextConfig = {
   // frontend is exposed) and sidesteps CORS entirely. The backend serves its
   // routes at the root, so /api/sources -> {backend}/sources and, critically,
   // /api/health -> {backend}/health (the health contract deploy.sh + Caddy probe).
+  // "/" is not a page. The app opens on the library, matching the mobile
+  // client, where `Routes.home` is a bare redirect to `Routes.library`.
+  //
+  // Done here rather than with `redirect()` in a server component because that
+  // renders the whole authenticated shell — auth probe included — and only then
+  // swaps route on the client, which is a visible flash on the most common
+  // entry point there is. This answers 307 before any React runs.
+  //
+  // Temporary, not permanent: browsers cache a 308 aggressively and a reader
+  // who has one pinned would be stuck with it long after any future change.
+  async redirects() {
+    return [{ source: "/", destination: "/library", permanent: false }];
+  },
+
   async rewrites() {
     return [
       {

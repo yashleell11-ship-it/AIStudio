@@ -17,7 +17,11 @@ export function HeroHeading({ children, className, as = "h1" }: HeroHeadingProps
   return (
     <Tag
       className={cn(
-        "hero-heading font-display text-[clamp(2.5rem,8vw,6rem)] font-black uppercase leading-none tracking-tight",
+        // The lower bound is 1.75rem, not 2.5rem: at 2.5rem an eight-letter
+        // word ("SETTINGS") in this weight is wider than a 390px phone, and the
+        // last letter was being clipped off the right edge. Above ~500px the
+        // 8vw term wins and nothing changes.
+        "hero-heading font-display text-[clamp(1.75rem,8vw,6rem)] font-black uppercase leading-none tracking-tight",
         className,
       )}
     >

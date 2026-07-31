@@ -1,13 +1,10 @@
-import { Suspense } from "react";
-import { LibraryView } from "@/features/library";
+import { LibraryShelfView } from "@/features/library";
 
+/**
+ * The Library tab: followed series only. The full, filterable catalogue lives
+ * one level down at /library/browse — the same split the mobile client makes
+ * between `DashboardScreen` and `LibraryScreen`.
+ */
 export default function LibraryPage() {
-  return (
-    // The view's filters and sort live in the query string, and `useSearchParams`
-    // has to sit under a Suspense boundary or it opts the whole route out of
-    // static rendering.
-    <Suspense fallback={<div className="p-6 text-muted">Loading library…</div>}>
-      <LibraryView />
-    </Suspense>
-  );
+  return <LibraryShelfView />;
 }

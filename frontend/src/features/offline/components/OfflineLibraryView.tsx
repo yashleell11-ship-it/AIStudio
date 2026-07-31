@@ -113,7 +113,7 @@ export function OfflineLibraryView() {
           <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">
             On this device
           </p>
-          <HeroHeading className="text-[2.75rem] leading-none md:text-6xl">
+          <HeroHeading className="text-[clamp(1.75rem,9vw,2.75rem)] leading-none md:text-6xl">
             Offline
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">

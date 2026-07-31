@@ -186,7 +186,9 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
             className={cn(
               "flex-1 overflow-y-auto outline-none",
               isReaderChapter && "bg-obsidian",
-              !isReaderChapter && "max-md:pb-16",
+              // Clears the floating tab pill (56px tall + its 16px inset and
+              // safe-area padding) so the last row of covers is never under it.
+              !isReaderChapter && "max-md:pb-24",
             )}
           >
             {children}
@@ -217,8 +219,17 @@ function isTabActive(pathname: string, href: string): boolean {
 }
 
 /**
- * Bottom tab bar for narrow viewports (`md:hidden`). Mirrors the desktop
- * sidebar's amber active state and is driven by `mobileNav` from the nav config.
+ * Bottom tab bar for narrow viewports (`md:hidden`).
+ *
+ * A floating, rounded, frosted pill rather than a full-bleed bar — the same
+ * shape as the Flutter client's `NavigationBar`: inset by 16px, 20px radius,
+ * near-black surface at ~0.85 alpha over a backdrop blur, a subtle warm-neutral
+ * border, and a soft black + amber shadow. The active destination gets an amber
+ * wash behind it and only the active label is shown, matching
+ * `NavigationDestinationLabelBehavior.onlyShowSelected`.
+ *
+ * `pb-[env(safe-area-inset-bottom)]` keeps it clear of the iOS home indicator
+ * when the site is installed and running edge to edge.
  */
 function MobileBottomNav() {
   const pathname = usePathname();
@@ -226,26 +237,38 @@ function MobileBottomNav() {
   return (
     <nav
       aria-label="Primary"
-      className="glass-panel absolute inset-x-0 bottom-0 z-30 flex h-16 items-stretch border-t border-border md:hidden"
+      className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden"
     >
-      {mobileNav.map((item) => {
-        const active = isTabActive(pathname, item.href);
-        const Icon = item.icon;
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            aria-current={active ? "page" : undefined}
-            className={cn(
-              "flex flex-1 flex-col items-center justify-center gap-1 text-[0.65rem] font-medium uppercase tracking-widest transition-colors",
-              active ? "text-primary" : "text-muted hover:text-fg",
-            )}
-          >
-            <Icon className="size-5 shrink-0" aria-hidden />
-            <span className="truncate">{item.label}</span>
-          </Link>
-        );
-      })}
+      <div className="pointer-events-auto flex items-stretch gap-1 rounded-[20px] border border-border bg-surface/85 p-1.5 shadow-[0_6px_20px_rgba(0,0,0,0.43),0_4px_24px_rgba(245,158,11,0.09)] backdrop-blur-[18px]">
+        {mobileNav.map((item) => {
+          const active = isTabActive(pathname, item.href);
+          const Icon = item.icon;
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 transition-colors",
+                active ? "bg-primary/12 text-primary" : "text-muted hover:text-fg",
+              )}
+            >
+              <Icon className="size-[22px] shrink-0" aria-hidden />
+              {/* Only the active label renders, so five destinations fit a phone
+                  without truncating. The inactive labels stay in the tree for
+                  assistive tech. */}
+              <span
+                className={cn(
+                  "max-w-full truncate text-[0.6875rem] font-semibold leading-none",
+                  !active && "sr-only",
+                )}
+              >
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

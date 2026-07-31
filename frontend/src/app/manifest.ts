@@ -29,8 +29,8 @@ export default function manifest(): MetadataRoute.Manifest {
     description:
       "Read and manage your manga & manhwa library — with chapters saved for offline reading.",
     // Landing on the library rather than "/" because an installed icon is
-    // pressed to read, and "/" is a dashboard that needs the network to be
-    // interesting. /library renders from cache with saved chapters on it.
+    // pressed to read. "/" is now a bare redirect here anyway, and naming the
+    // destination directly saves the installed window a round trip on launch.
     start_url: "/library",
     scope: "/",
     display: "standalone",
