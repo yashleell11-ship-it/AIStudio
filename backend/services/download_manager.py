@@ -6,6 +6,7 @@ import logging
 import threading
 import time
 from concurrent.futures import Future, ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -34,6 +35,10 @@ from services.download_support import (
     sha256_bytes,
     sha256_file,
     verify_image_file,
+)
+from services.download_scheduling import (
+    DEFAULT_PER_SOURCE_LIMIT,
+    select_round_robin,
 )
 from services.import_cleanup import normalize_folder_path
 from services.library_service import LibraryService
@@ -114,6 +119,19 @@ class _SpeedTracker:
 #: ``_dispatch()`` already reads it fresh on every call.
 MAX_CONCURRENT_CHAPTER_DOWNLOADS = 10
 
+#: How far down the pending queue the dispatcher looks when spreading work
+#: across sources. It must exceed the worker count by enough to reach past one
+#: source's backlog and find the others behind it.
+_DISPATCH_LOOKAHEAD = 500
+
+
+@dataclass(frozen=True, slots=True)
+class _Candidate:
+    """A pending row reduced to what scheduling needs."""
+
+    id: int
+    source: str
+
 
 class DownloadManager:
     """Connector-agnostic download queue with adaptive worker concurrency."""
@@ -128,6 +146,11 @@ class DownloadManager:
         self._warn_free_bytes = 500 * 1024 * 1024
         self._executor: ThreadPoolExecutor | None = None
         self._active_ids: set[int] = set()
+        # Which source each in-flight download belongs to, so the scheduler can
+        # count running work against the per-source limit. Without it, every
+        # dispatch pass would top each source back up and the cap would not hold.
+        self._active_sources: dict[int, str] = {}
+        self._per_source_limit = DEFAULT_PER_SOURCE_LIMIT
         self._pool_lock = threading.Lock()
         self._stop_event = threading.Event()
         self._speed = _SpeedTracker()
@@ -330,6 +353,9 @@ class DownloadManager:
 
             db = SessionLocal()
             try:
+                # Deliberately over-fetch: the round-robin needs to SEE other
+                # sources to spread across them. Limiting to `available` here
+                # is what made one source's backlog fill every worker slot.
                 pending = (
                     db.query(Download)
                     .join(DownloadQueue)
@@ -338,17 +364,30 @@ class DownloadManager:
                         DownloadQueue.state == "pending",
                     )
                     .order_by(DownloadQueue.priority.asc(), Download.created_at.asc())
-                    .limit(available)
+                    .limit(_DISPATCH_LOOKAHEAD)
                     .all()
                 )
-                download_ids = [item.id for item in pending]
+                candidates = [
+                    _Candidate(id=item.id, source=item.source)
+                    for item in pending
+                    if item.id not in self._active_ids
+                ]
             finally:
                 db.close()
+
+            download_ids = select_round_robin(
+                candidates,
+                available=available,
+                per_source_limit=self._per_source_limit,
+                in_flight=list(self._active_sources.values()),
+            )
+            by_id = {item.id: item.source for item in candidates}
 
             for download_id in download_ids:
                 if download_id in self._active_ids:
                     continue
                 self._active_ids.add(download_id)
+                self._active_sources[download_id] = by_id.get(download_id, "")
                 self._executor.submit(self._run_download, download_id)
 
     def _run_download(self, download_id: int) -> None:
@@ -360,6 +399,7 @@ class DownloadManager:
         finally:
             with self._pool_lock:
                 self._active_ids.discard(download_id)
+                self._active_sources.pop(download_id, None)
             self._speed.pop(download_id)
             if not self._stop_event.is_set():
                 self._dispatch()
