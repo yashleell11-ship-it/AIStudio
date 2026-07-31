@@ -7,7 +7,6 @@ import {
   Download,
   Globe,
   History,
-  Home,
   Library,
   Menu,
   ScanText,
@@ -35,14 +34,19 @@ export interface NavSection {
   items: NavItem[];
 }
 
-/** Primary pillars of the app, in sidebar order. */
+/**
+ * Primary pillars of the app, in sidebar order.
+ *
+ * No "Home" entry: `/` is a bare redirect to `/library`, exactly as on mobile.
+ * "Library" is the followed shelf; "Browse all" is the full catalogue that
+ * used to live at `/library`.
+ */
 export const primaryNav: NavItem[] = [
-  { href: "/", label: "Home", icon: Home },
   { href: "/library", label: "Library", icon: Library },
+  { href: "/library/browse", label: "Browse all", icon: BookOpen },
   { href: "/sources", label: "Sources", icon: Globe },
   { href: "/updates", label: "Updates", icon: Bell },
   { href: "/downloads", label: "Downloads", icon: Download },
-  { href: "/reader", label: "Reader", icon: BookOpen },
   { href: "/search", label: "Search", icon: Search },
 ];
 
@@ -75,13 +79,18 @@ export const secondaryNav: NavItem[] = [
 ];
 
 /**
- * Mobile bottom-tab bar — max 5 destinations. "More" is the catch-all that
- * opens Settings (the mobile hub for every secondary route).
+ * Mobile bottom-tab bar — the same five destinations, in the same order, as the
+ * Flutter client's `NavigationBar`. Someone who uses both should not have to
+ * learn two apps.
+ *
+ * "More" opens `/more`, not Settings. Five tabs cannot hold the whole app and a
+ * phone has no sidebar, so without a real hub every route outside these five
+ * would be reachable only by typing a URL.
  */
 export const mobileNav: NavItem[] = [
-  { href: "/", label: "Home", icon: Home },
   { href: "/library", label: "Library", icon: Library },
   { href: "/sources", label: "Sources", icon: Globe },
-  { href: "/updates", label: "Updates", icon: Bell },
-  { href: "/settings", label: "More", icon: Menu },
+  { href: "/downloads", label: "Downloads", icon: Download },
+  { href: "/search", label: "Search", icon: Search },
+  { href: "/more", label: "More", icon: Menu },
 ];

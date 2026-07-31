@@ -1,18 +1,31 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
-import { Pin, PinOff } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Pin, PinOff, Search, Telescope } from "lucide-react";
 import { ApiError } from "@/types/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
 import { useReplaceSourcePins, useSourcePins, useSources } from "../hooks";
-import { removeSourcePin, toggleSourcePin, unpinnedSources } from "../pins";
+import { removeSourcePin, toggleSourcePin } from "../pins";
+import { type SourcesFilter, sourceSections } from "../source-filter";
 import type { SourcePin, SourceSummary } from "../types";
 import { SourceLogo } from "./SourceLogo";
 
-const TILE_CLASS =
-  "group relative flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface p-5 text-center transition duration-200";
+/**
+ * The Sources screen: a searchable row list with a Pinned section.
+ *
+ * This replaced a logo grid. DESIGN_SYSTEM.md records why (2026-07-27): the
+ * grid was designed when the catalogue was small, and at ~50 sources it gave no
+ * way to find one and no room for a pin affordance. The mobile client was
+ * rebuilt as a row list then; the web was not, so the two screens have been
+ * different apps ever since. This is the web catching up — same search field,
+ * same All/Pinned/18+ chips, same Pinned-above-All ordering, same 44px logo and
+ * 44px pin target per row.
+ */
+
+/** 44px — the minimum comfortable touch target, and the mobile row's logo size. */
+const LOGO_SIZE = 44;
 
 function PinToggle({
   pinned,
@@ -29,7 +42,7 @@ function PinToggle({
     <button
       type="button"
       onClick={(event) => {
-        // The tile is a Link; keep the click on the button.
+        // The row is a Link; keep the click on the button.
         event.preventDefault();
         event.stopPropagation();
         onToggle();
@@ -39,10 +52,8 @@ function PinToggle({
       aria-label={label}
       title={label}
       className={cn(
-        "absolute right-2 top-2 z-10 flex size-8 items-center justify-center rounded-full bg-void/70 backdrop-blur-sm transition-opacity disabled:opacity-40",
-        pinned
-          ? "text-primary opacity-100"
-          : "text-muted opacity-100 hover:text-fg sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100",
+        "flex size-11 shrink-0 items-center justify-center rounded-full transition-colors disabled:opacity-40",
+        pinned ? "text-primary" : "text-muted hover:bg-fg/10 hover:text-fg",
       )}
     >
       {pinned ? <PinOff className="size-4" aria-hidden /> : <Pin className="size-4" aria-hidden />}
@@ -50,70 +61,124 @@ function PinToggle({
   );
 }
 
-function SourceTile({
-  id,
-  name,
-  iconUrl,
+const ROW_CLASS =
+  "flex items-center gap-3 rounded-2xl border border-border bg-surface px-3 py-2.5 transition-colors";
+
+function SourceRowCard({
+  source,
   pinned,
-  available,
+  unavailable,
   busy,
   onTogglePin,
 }: {
-  id: string;
-  name: string;
-  iconUrl: string | null;
+  source: SourceSummary;
   pinned: boolean;
-  available: boolean;
+  unavailable: boolean;
   busy: boolean;
   onTogglePin: () => void;
 }) {
   const body = (
     <>
       <SourceLogo
-        id={id}
-        name={name}
-        iconUrl={iconUrl}
-        size={72}
-        className="bg-surface-2/80"
+        id={source.id}
+        name={source.name}
+        iconUrl={source.icon_url ?? null}
+        size={LOGO_SIZE}
+        className="shrink-0 bg-surface-2/80"
       />
-      <p className="line-clamp-2 w-full font-display text-sm leading-snug text-fg">{name}</p>
+      <div className="min-w-0 flex-1">
+        <div className="flex items-center gap-2">
+          {/* Body face, not the display face — these are ~50 rows of proper
+              nouns, and Syne at this size is decorative rather than legible. */}
+          <p className="truncate text-sm font-medium text-fg">{source.name}</p>
+          {source.mature ? (
+            <span className="shrink-0 rounded-full bg-danger/15 px-1.5 py-px text-[0.625rem] font-bold tracking-wide text-danger">
+              18+
+            </span>
+          ) : null}
+        </div>
+        {unavailable ? (
+          <p className="mt-0.5 truncate text-xs text-muted">Unavailable</p>
+        ) : source.description ? (
+          <p className="mt-0.5 truncate text-xs text-muted">{source.description}</p>
+        ) : null}
+      </div>
     </>
   );
+
   const toggle = (
     <PinToggle
       pinned={pinned}
-      label={pinned ? `Unpin ${name}` : `Pin ${name}`}
+      label={pinned ? `Unpin ${source.name}` : `Pin ${source.name}`}
       busy={busy}
       onToggle={onTogglePin}
     />
   );
 
-  // A pin whose connector no longer resolves (removed, renamed, or hidden by
-  // the 18+ gate) is kept visible but not linkable, so it can be cleared
-  // instead of quietly disappearing from an ordering the user arranged.
-  if (!available) {
+  // A pin whose connector no longer resolves stays visible but is not linkable,
+  // so it can be cleared instead of quietly vanishing from the ordering.
+  if (unavailable) {
     return (
-      <div className={cn(TILE_CLASS, "opacity-60")}>
+      <div className={cn(ROW_CLASS, "opacity-60")}>
         {body}
-        <span className="text-[10px] uppercase tracking-wide text-muted">Unavailable</span>
         {toggle}
       </div>
     );
   }
 
   return (
-    <Link href={`/sources/${id}`} className={cn(TILE_CLASS, "hover:scale-105 hover:border-primary/40")}>
-      {body}
+    <div className={cn(ROW_CLASS, "hover:border-primary/40")}>
+      <Link
+        href={`/sources/${source.id}`}
+        className="flex min-w-0 flex-1 items-center gap-3 outline-none focus-visible:ring-2 focus-visible:ring-primary"
+      >
+        {body}
+      </Link>
       {toggle}
-    </Link>
+    </div>
   );
 }
 
-function SourceGrid({ children }: { children: React.ReactNode }) {
+function SectionHeader({ icon: Icon, title }: { icon: typeof Pin; title: string }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-      {children}
+    <div className="mb-2 flex items-center gap-2">
+      <Icon className="size-3.5 text-primary" aria-hidden />
+      <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted">
+        {title}
+      </h2>
     </div>
+  );
+}
+
+const CHIPS: Array<{ value: SourcesFilter; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "pinned", label: "Pinned" },
+  { value: "mature", label: "18+" },
+];
+
+function FilterChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+        active
+          ? "border-primary/40 bg-primary/12 text-primary"
+          : "border-border text-muted hover:text-fg",
+      )}
+    >
+      {label}
+    </button>
   );
 }
 
@@ -122,25 +187,30 @@ export function SourcesListView() {
   const pinsQuery = useSourcePins();
   const replacePins = useReplaceSourcePins();
   const [pinError, setPinError] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const [filter, setFilter] = useState<SourcesFilter>("all");
+
+  const sources = useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
+  const pins = useMemo(() => pinsQuery.data ?? [], [pinsQuery.data]);
+  const { pinned, rest } = useMemo(
+    () => sourceSections({ sources, pins, query, filter }),
+    [sources, pins, query, filter],
+  );
 
   if (sourcesQuery.isLoading) {
     return (
-      <div className="page-shell">
-        <div className="page-container">
-          <div className="mb-8">
-            <div className="h-10 w-32 animate-pulse rounded-lg bg-surface-2" />
-          </div>
-          <SourceGrid>
-            {Array.from({ length: 12 }).map((_, index) => (
-              <div
-                key={index}
-                className="flex flex-col items-center gap-3 rounded-3xl border border-border bg-surface p-5"
-              >
-                <div className="aspect-square w-full max-w-[72px] animate-pulse rounded-2xl bg-surface-2" />
-                <div className="h-3 w-16 animate-pulse rounded bg-surface-2" />
+      <div className="px-5 pb-8 pt-6 md:px-8">
+        <div className="h-9 w-32 animate-pulse rounded-lg bg-surface-2" />
+        <div className="mt-5 space-y-2">
+          {Array.from({ length: 10 }).map((_, index) => (
+            <div key={index} className={cn(ROW_CLASS, "gap-3")}>
+              <div className="size-11 shrink-0 animate-pulse rounded-xl bg-surface-2" />
+              <div className="flex-1 space-y-2">
+                <div className="h-3.5 w-36 animate-pulse rounded bg-surface-2" />
+                <div className="h-2.5 w-24 animate-pulse rounded bg-surface-2" />
               </div>
-            ))}
-          </SourceGrid>
+            </div>
+          ))}
         </div>
       </div>
     );
@@ -161,13 +231,11 @@ export function SourcesListView() {
     );
   }
 
-  const sources = sourcesQuery.data ?? [];
-  const pins = pinsQuery.data ?? [];
-  const rest = unpinnedSources(sources, pins);
   // `PUT /sources/pins` replaces the WHOLE set, so a toggle computed before the
   // current set has been read would delete every pin this client has not seen.
   // No editing until the server's list is actually in hand.
   const pinsLoaded = pinsQuery.isSuccess;
+  const busy = replacePins.isPending || !pinsLoaded;
 
   const applyPins = async (next: SourcePin[]) => {
     setPinError(null);
@@ -183,90 +251,114 @@ export function SourcesListView() {
   const togglePin = (source: SourceSummary) => applyPins(toggleSourcePin(pins, source));
   const unpin = (sourceId: string) => applyPins(removeSourcePin(pins, sourceId));
 
+  const nothingMatches = pinned.length === 0 && rest.length === 0;
+
   return (
-    <div className="page-shell">
-      <div className="page-container">
-        <div className="mb-8">
-          <h1 className="page-title">Sources</h1>
+    <div className="px-5 pb-8 pt-6 md:px-8">
+      <h1 className="font-display text-3xl font-bold text-fg">Sources</h1>
+
+      {/* With ~50 installed connectors the search field is the single
+          highest-value control on this screen, so it leads. */}
+      <div className="mt-4 space-y-3">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted"
+            aria-hidden
+          />
+          <input
+            type="search"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Filter sources…"
+            aria-label="Filter sources"
+            className="h-11 w-full rounded-full border border-border bg-surface pl-9 pr-4 text-sm text-fg outline-none placeholder:text-muted focus:border-primary/40 focus:ring-2 focus:ring-primary/30"
+          />
         </div>
-
-        {pinError ? (
-          <div className="mb-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {pinError}
-          </div>
-        ) : null}
-
-        {pinsQuery.isError ? (
-          <div className="mb-6 flex flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-white/[0.02] px-4 py-3 text-sm text-muted">
-            <span className="min-w-0 flex-1">
-              Your pinned sources could not be loaded, so pinning is unavailable until
-              they are.
-            </span>
-            <Button variant="secondary" size="sm" onClick={() => pinsQuery.refetch()}>
-              Try again
-            </Button>
-          </div>
-        ) : null}
-
-        {sources.length === 0 ? (
-          <div className="empty-state">
-            <p className="text-lg font-medium text-fg">No sources installed</p>
-          </div>
-        ) : (
-          <div className="space-y-10">
-            {pins.length > 0 ? (
-              <section>
-                <div className="mb-3 flex items-center gap-2">
-                  <Pin className="size-3.5 text-primary" aria-hidden />
-                  <h2 className="text-[11px] font-semibold uppercase tracking-widest text-muted">
-                    Pinned
-                  </h2>
-                </div>
-                <SourceGrid>
-                  {pins.map((pin) => (
-                    <SourceTile
-                      key={pin.source_id}
-                      id={pin.source_id}
-                      name={pin.name}
-                      iconUrl={pin.icon_url}
-                      pinned
-                      available={pin.available}
-                      busy={replacePins.isPending || !pinsLoaded}
-                      onTogglePin={() => void unpin(pin.source_id)}
-                    />
-                  ))}
-                </SourceGrid>
-              </section>
-            ) : null}
-
-            <section>
-              {pins.length > 0 ? (
-                <h2 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted">
-                  All sources
-                </h2>
-              ) : null}
-              {rest.length === 0 ? (
-                <p className="text-sm text-muted">Every installed source is pinned.</p>
-              ) : (
-                <SourceGrid>
-                  {rest.map((source) => (
-                    <SourceTile
-                      key={source.id}
-                      id={source.id}
-                      name={source.name}
-                      iconUrl={source.icon_url ?? null}
-                      pinned={false}
-                      available
-                      busy={replacePins.isPending || !pinsLoaded}
-                      onTogglePin={() => void togglePin(source)}
-                    />
-                  ))}
-                </SourceGrid>
-              )}
-            </section>
-          </div>
-        )}
+        <div className="flex gap-2">
+          {CHIPS.map((chip) => (
+            <FilterChip
+              key={chip.value}
+              label={chip.label}
+              active={filter === chip.value}
+              onClick={() => setFilter(chip.value)}
+            />
+          ))}
+        </div>
       </div>
+
+      {pinError ? (
+        <div className="mt-4 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
+          {pinError}
+        </div>
+      ) : null}
+
+      {pinsQuery.isError ? (
+        <div className="mt-4 flex flex-wrap items-center gap-3 rounded-xl border border-border/50 bg-white/[0.02] px-4 py-3 text-sm text-muted">
+          <span className="min-w-0 flex-1">
+            Your pinned sources could not be loaded, so pinning is unavailable until
+            they are.
+          </span>
+          <Button variant="secondary" size="sm" onClick={() => pinsQuery.refetch()}>
+            Try again
+          </Button>
+        </div>
+      ) : null}
+
+      {sources.length === 0 ? (
+        <p className="mt-10 text-center text-sm text-muted">No sources installed</p>
+      ) : nothingMatches ? (
+        <div className="mt-10 text-center">
+          <p className="text-sm font-medium text-fg">
+            {filter === "pinned" ? "No pinned sources" : "No sources match"}
+          </p>
+          <p className="mt-1 text-xs text-muted">
+            {filter === "pinned"
+              ? "Tap the pin on any source to keep it at the top."
+              : "Try a different name."}
+          </p>
+        </div>
+      ) : (
+        <div className="mt-6 space-y-8">
+          {pinned.length > 0 ? (
+            <section>
+              <SectionHeader icon={Pin} title="Pinned" />
+              <div className="space-y-2">
+                {pinned.map((row) => (
+                  <SourceRowCard
+                    key={row.source.id}
+                    source={row.source}
+                    pinned
+                    unavailable={row.unavailable}
+                    busy={busy}
+                    onTogglePin={() => void unpin(row.source.id)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+
+          {rest.length > 0 ? (
+            <section>
+              <SectionHeader
+                icon={Telescope}
+                title={pinned.length > 0 ? "All sources" : "Sources"}
+              />
+              <div className="space-y-2">
+                {rest.map((source) => (
+                  <SourceRowCard
+                    key={source.id}
+                    source={source}
+                    pinned={false}
+                    unavailable={false}
+                    busy={busy}
+                    onTogglePin={() => void togglePin(source)}
+                  />
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      )}
     </div>
   );
 }

@@ -173,7 +173,7 @@ export function UpdatesView() {
       <div className="page-container mx-auto max-w-6xl space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <HeroHeading className="text-[2.75rem] leading-none md:text-6xl">
+          <HeroHeading className="text-[clamp(1.75rem,9vw,2.75rem)] leading-none md:text-6xl">
             Updates
           </HeroHeading>
           <p className="mt-2 text-sm text-muted">

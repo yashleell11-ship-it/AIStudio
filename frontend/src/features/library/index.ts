@@ -1,5 +1,6 @@
 export { LibraryView } from "./components/LibraryView";
-export { DashboardView } from "./components/DashboardView";
+export { LibraryShelfView } from "./components/LibraryShelfView";
+export { FollowedSeriesCard } from "./components/FollowedSeriesCard";
 export { SeriesDetailView } from "./components/SeriesDetailView";
 export { CollectionsView } from "./components/CollectionsView";
 export { CollectionDetailView } from "./components/CollectionDetailView";

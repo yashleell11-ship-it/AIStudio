@@ -1,3 +1,14 @@
+/** Connector reachability, as last observed by the server. */
+export interface SourceHealth {
+  status: string;
+  consecutive_failures: number;
+  demoted: boolean;
+  last_ok_at: string | null;
+  last_error_at: string | null;
+  last_error: string | null;
+  last_checked_at: string | null;
+}
+
 export interface SourceSummary {
   id: string;
   name: string;
@@ -5,6 +16,13 @@ export interface SourceSummary {
   browsable: boolean;
   supports_import: boolean;
   icon_url?: string | null;
+  /**
+   * 18+ connector. `GET /sources` has always carried this — the web type just
+   * never modelled it, which is why the web listing had no way to badge or
+   * filter adult sources while the mobile one did.
+   */
+  mature?: boolean;
+  health?: SourceHealth | null;
 }
 
 /**
