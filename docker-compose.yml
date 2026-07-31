@@ -21,7 +21,10 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-production}
       - MM_DB_PATH=/data/manhwamaniacs.db
-      - MM_DOWNLOADS_PATH=/data/downloads
+      # Downloads live on the 1TB spindle, not the app SSD that holds the
+      # docker volume. Chapter images are the only thing here that grows
+      # without bound -- the DB and settings stay on /data.
+      - MM_DOWNLOADS_PATH=${MM_DOWNLOADS_PATH:-/downloads}
       - MM_SETTINGS_PATH=/data/settings.json
       # Auth (see docs/AUTH.md). Admin-only endpoints are gated by the session
       # user's is_admin, not a token — the first registered account bootstraps as
@@ -63,6 +66,10 @@ services:
     networks: [internal, edge]
     volumes:
       - data:/data
+      # Chapter images, on the 1TB disk. Bound rather than a named volume so
+      # the library survives a `docker volume rm` and can be backed up with
+      # ordinary file tools. Host dir is owned 1000:1000 to match the app user.
+      - ${MM_DOWNLOADS_HOST_DIR:-/storage/manhwamaniacs/downloads}:/downloads
       # Read-only APK drop + live pubspec (version label) + marketing screenshots
       # (landing imagery). The ./apk dir is created by the deploy even when empty, so
       # a missing APK reads as "not built yet" instead of a broken bind mount.
