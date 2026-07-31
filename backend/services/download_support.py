@@ -15,6 +15,7 @@ import httpx
 
 from connectors.base import SourceConnector
 from core.errors import AppError
+from services.download_scheduling import connector_min_interval, pace_source
 from services.outbound_security import validate_outbound_url
 
 logger = logging.getLogger(__name__)
@@ -274,6 +275,16 @@ def _fetch_image_attempt(
     headers: dict[str, str] = dict(connector.image_fetch_headers())
     if existing > 0:
         headers["Range"] = f"bytes={existing}-"
+
+    # Honour the site's own request interval. Connector metadata calls have
+    # always been paced; this path never was, and it is where the volume is --
+    # a chapter is dozens to hundreds of images, a listing is one request. An
+    # unthrottled bulk run is how a source starts answering 403, which this
+    # module treats as permanent and never retries.
+    pace_source(
+        getattr(connector, "source_type", "") or connector.__class__.__name__,
+        connector_min_interval(connector),
+    )
 
     try:
         with httpx.stream(
