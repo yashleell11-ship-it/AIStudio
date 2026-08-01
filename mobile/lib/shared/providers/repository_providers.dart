@@ -11,6 +11,8 @@ import 'package:manhwamaniacs/features/settings/repositories/backup_repository.d
 import 'package:manhwamaniacs/features/settings/repositories/backup_repository_impl.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository_impl.dart';
+import 'package:manhwamaniacs/features/updates/repositories/source_migration_repository.dart';
+import 'package:manhwamaniacs/features/updates/repositories/source_migration_repository_impl.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository_impl.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -51,4 +53,9 @@ final sourcesRepositoryProvider = Provider<SourcesRepository>(
 final updatesRepositoryProvider = Provider<UpdatesRepository>(
   (ref) => UpdatesRepositoryImpl(ref.watch(dioProvider)),
   name: 'updatesRepository',
+);
+
+final sourceMigrationRepositoryProvider = Provider<SourceMigrationRepository>(
+  (ref) => SourceMigrationRepositoryImpl(ref.watch(dioProvider)),
+  name: 'sourceMigrationRepository',
 );
