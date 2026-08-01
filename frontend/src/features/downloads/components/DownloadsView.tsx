@@ -862,7 +862,7 @@ export function DownloadsView() {
       <div className="mx-auto max-w-5xl">
         <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <HeroHeading className="text-[clamp(1.75rem,9vw,2.75rem)] leading-none md:text-6xl">
+            <HeroHeading className="leading-none md:text-6xl">
               Downloads
             </HeroHeading>
             <p className="mt-2 text-sm text-muted">

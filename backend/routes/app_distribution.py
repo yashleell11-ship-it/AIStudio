@@ -456,24 +456,24 @@ _FEATURES: list[tuple[str, str, str]] = [
 # (filename, title, caption) — screenshots served from SCREENSHOTS_DIR.
 _SHOWCASE: list[tuple[str, str, str]] = [
     (
-        "series-detail-screenshot.png",
-        "Every series, at a glance",
-        "Continue reading, full chapter list and live progress tracking.",
+        "shot-library-screenshot.png",
+        "Your shelf, and nothing else",
+        "The series you follow, with unread counts — no feed, no filler.",
     ),
     (
-        "reader-screenshot.png",
-        "A reader built for bingeing",
-        "Distraction-free pages with per-chapter progress and instant chapter jumps.",
+        "shot-sources-screenshot.png",
+        "Fifty sources, one search",
+        "Filter by name, pin the ones you use, and keep 18+ behind its own gate.",
     ),
     (
-        "downloads-screenshot.png",
-        "Downloads that behave",
-        "Pause, resume, retry and reorder — grouped by series with speed and ETA.",
+        "shot-browse-screenshot.png",
+        "Everything on your server",
+        "The full local catalogue, filterable, however large it grows.",
     ),
     (
-        "search-screenshot.png",
-        "Find your next obsession",
-        "Fast search across every source with recent and trending shortcuts.",
+        "shot-more-screenshot.png",
+        "The rest of the app",
+        "Updates, collections, history, statistics and offline reading.",
     ),
 ]
 
@@ -684,14 +684,12 @@ def build_ios_source(request: Request) -> dict:
                 ),
                 "iconURL": f"{base}/app/media/app-icon.png",
                 "category": "entertainment",
+                # Kept in step with _SHOWCASE by construction rather than by
+                # hand: two hand-maintained lists of the same filenames is how
+                # the SideStore manifest ends up pointing at images the landing
+                # page no longer ships.
                 "screenshots": [
-                    f"{base}/app/media/{name}"
-                    for name in (
-                        "reader-screenshot.png",
-                        "search-screenshot.png",
-                        "series-detail-screenshot.png",
-                        "downloads-screenshot.png",
-                    )
+                    f"{base}/app/media/{name}" for name, _title, _caption in _SHOWCASE
                 ],
                 "versions": versions,
             }

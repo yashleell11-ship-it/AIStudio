@@ -67,7 +67,7 @@ export function LibraryShelfView() {
       <FadeIn>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <HeroHeading className="text-[clamp(2rem,7vw,3rem)]">Library</HeroHeading>
+            <HeroHeading className="text-[clamp(1.5rem,6.5vw,3rem)]">Library</HeroHeading>
             <p className="mt-1 text-xs text-muted">
               {followed.length === 1
                 ? "1 series followed"

@@ -151,7 +151,7 @@ export function LibraryToolbar({
     <div className="mb-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <HeroHeading className="text-[clamp(1.75rem,9vw,2.75rem)] leading-none md:text-6xl">
+          <HeroHeading className="leading-none md:text-6xl">
             Library
           </HeroHeading>
           <p className="mt-2 text-sm text-muted">

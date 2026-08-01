@@ -45,7 +45,7 @@ export function OcrSearchView() {
     <div className="page-shell">
       <div className="page-container space-y-8">
         <header>
-          <HeroHeading className="text-[clamp(1.75rem,9vw,2.75rem)] leading-none md:text-6xl">
+          <HeroHeading className="leading-none md:text-6xl">
             OCR Search
           </HeroHeading>
           <p className="mt-2 text-sm text-muted">

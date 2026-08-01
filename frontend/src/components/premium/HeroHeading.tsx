@@ -17,11 +17,16 @@ export function HeroHeading({ children, className, as = "h1" }: HeroHeadingProps
   return (
     <Tag
       className={cn(
-        // The lower bound is 1.75rem, not 2.5rem: at 2.5rem an eight-letter
-        // word ("SETTINGS") in this weight is wider than a 390px phone, and the
-        // last letter was being clipped off the right edge. Above ~500px the
-        // 8vw term wins and nothing changes.
-        "hero-heading font-display text-[clamp(1.75rem,8vw,6rem)] font-black uppercase leading-none tracking-tight",
+        // Sized off MEASURED width, not guesswork. Syne in this weight renders
+        // roughly 1.25em per uppercase character, so "Downloads" at the old
+        // 8vw was 417px inside a 364px column on a 412px phone -- the last
+        // letters were clipped clean off. 6.5vw keeps a ten-character heading
+        // inside the gutter at every phone width.
+        //
+        // `break-words` is the backstop, because no single ratio can be right
+        // for headings spanning "More" to "Recommendations": a word that still
+        // will not fit wraps instead of running off the edge.
+        "hero-heading font-display text-[clamp(1.5rem,6.5vw,6rem)] font-black uppercase leading-none tracking-tight break-words",
         className,
       )}
     >
