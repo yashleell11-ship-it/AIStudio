@@ -92,6 +92,62 @@ class SourceProgressNotifier
     await _persist(next);
   }
 
+  /// Replay a migration's chapter map over this store, returning how many
+  /// records carried over.
+  ///
+  /// Online reading progress for a non-downloaded remote series exists only
+  /// here — the server has no read model for it — so a migration that did not
+  /// do this would repoint the tracker and silently lose the reader's place.
+  ///
+  /// Three rules, matching the web's `applyProgressRemap` so both clients agree
+  /// about the shared store:
+  ///
+  ///  * **Copies, never moves.** The records under the old (source, series) are
+  ///    left alone, so migrating back loses nothing and replaying the same map
+  ///    is a no-op.
+  ///  * A chapter with no target (`toChapterId == null`) is skipped — there is
+  ///    nowhere to put it.
+  ///  * A target that already holds *newer* progress is never overwritten.
+  ///    Nearest-match can collapse two old chapters onto one target, and the
+  ///    most recently read of them is the one that says where the reader is.
+  Future<int> remapSeriesProgress({
+    required String fromSourceId,
+    required String fromSeriesId,
+    required String toSourceId,
+    required String toSeriesId,
+    required Map<String, String> carriedChapterIds,
+  }) async {
+    final next = {...state};
+    var carried = 0;
+
+    for (final entry in carriedChapterIds.entries) {
+      final source = next[sourceProgressKey(
+        sourceId: fromSourceId,
+        seriesId: fromSeriesId,
+        chapterId: entry.key,
+      )];
+      if (source == null) continue;
+
+      final targetKey = sourceProgressKey(
+        sourceId: toSourceId,
+        seriesId: toSeriesId,
+        chapterId: entry.value,
+      );
+      final existing = next[targetKey];
+      if (existing != null && !existing.updatedAt.isBefore(source.updatedAt)) {
+        continue;
+      }
+
+      next[targetKey] = source;
+      carried += 1;
+    }
+
+    if (carried == 0) return 0;
+    state = next;
+    await _persist(next);
+    return carried;
+  }
+
   Future<void> _persist(Map<String, SourceChapterProgress> map) async {
     final key = _key;
     if (key == null) return;

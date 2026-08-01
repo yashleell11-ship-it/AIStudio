@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/features/updates/widgets/migrate_series_sheet.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/ghost_pill_button.dart';
@@ -330,13 +331,24 @@ class _TrackerCard extends StatelessWidget {
               ),
             ),
           ],
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: actionPending ? null : onDelete,
-              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-              child: const Text('Remove'),
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              // Only a followed series can move: a downloaded copy stays with
+              // the source its files came from.
+              if (followed)
+                TextButton(
+                  onPressed: actionPending
+                      ? null
+                      : () => showMigrateSeriesSheet(context, tracker: tracker),
+                  child: const Text('Move source'),
+                ),
+              TextButton(
+                onPressed: actionPending ? null : onDelete,
+                style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                child: const Text('Remove'),
+              ),
+            ],
           ),
         ],
       ),

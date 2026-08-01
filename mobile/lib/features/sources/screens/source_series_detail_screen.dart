@@ -16,6 +16,7 @@ import 'package:manhwamaniacs/features/sources/providers/source_progress_provide
 import 'package:manhwamaniacs/features/sources/providers/source_series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
+import 'package:manhwamaniacs/features/updates/widgets/migrate_series_button.dart';
 import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
@@ -275,6 +276,10 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
               : () => _queueChapters(_selectedChapterIds.toList()),
           icon: const Icon(Icons.playlist_add_check_outlined),
           label: const Text('Download Selected'),
+        ),
+        MigrateSeriesButton(
+          sourceId: widget.sourceId,
+          seriesId: widget.seriesId,
         ),
       ],
       details: [
