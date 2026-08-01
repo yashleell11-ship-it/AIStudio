@@ -59,7 +59,7 @@ export function StatusScreen({
       </p>
 
       <div className="-mt-[0.35em]">
-        <HeroHeading className="text-[clamp(2rem,6vw,3.5rem)]">{title}</HeroHeading>
+        <HeroHeading className="text-[clamp(1.5rem,6vw,3.5rem)]">{title}</HeroHeading>
       </div>
 
       <div className="mt-4 max-w-md text-sm leading-relaxed text-muted">

@@ -95,10 +95,10 @@ def test_changelog_payload(client: TestClient):
 def test_media_serves_known_screenshot(client: TestClient, tmp_path: Path, monkeypatch):
     shots = tmp_path / "screenshots"
     shots.mkdir()
-    (shots / "reader-screenshot.png").write_bytes(b"\x89PNG\r\n\x1a\n fake png")
+    (shots / "shot-library-screenshot.png").write_bytes(b"\x89PNG\r\n\x1a\n fake png")
     monkeypatch.setattr("routes.app_distribution.SCREENSHOTS_DIR", shots)
 
-    response = client.get("/app/media/reader-screenshot.png")
+    response = client.get("/app/media/shot-library-screenshot.png")
     assert response.status_code == 200
     assert response.content.startswith(b"\x89PNG")
 
