@@ -29,7 +29,8 @@ from core.errors import AppError
 
 # Tables that must exist for an uploaded file to be considered a genuine
 # ManhwaManiacs backup, rather than an arbitrary or corrupt SQLite file.
-_REQUIRED_TABLES = {"series", "chapters", "pages", "downloads"}
+# Source-native schema (spec §3): the catalog tables are gone.
+_REQUIRED_TABLES = {"users", "followed_series", "chapter_progress", "alembic_version"}
 
 
 def backup_filename() -> str:
