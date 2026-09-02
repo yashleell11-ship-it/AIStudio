@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pytest
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -40,7 +40,45 @@ def db_engine(tmp_path: Path):
         poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
+    _create_chapter_ocr_fts(engine)
     return engine
+
+
+# The chapter_ocr FTS5 virtual table + sync triggers live in the Alembic
+# baseline as raw DDL (not ORM-mapped), so ``create_all`` does not build them.
+# Mirror them here so OCR search works against the test schema.
+_FTS_DDL = (
+    """
+    CREATE VIRTUAL TABLE chapter_ocr_fts USING fts5(
+        full_text, content='chapter_ocr', content_rowid='id',
+        tokenize='unicode61 remove_diacritics 2'
+    )
+    """,
+    """
+    CREATE TRIGGER chapter_ocr_fts_ai AFTER INSERT ON chapter_ocr BEGIN
+        INSERT INTO chapter_ocr_fts(rowid, full_text) VALUES (new.id, new.full_text);
+    END
+    """,
+    """
+    CREATE TRIGGER chapter_ocr_fts_ad AFTER DELETE ON chapter_ocr BEGIN
+        INSERT INTO chapter_ocr_fts(chapter_ocr_fts, rowid, full_text)
+        VALUES ('delete', old.id, old.full_text);
+    END
+    """,
+    """
+    CREATE TRIGGER chapter_ocr_fts_au AFTER UPDATE ON chapter_ocr BEGIN
+        INSERT INTO chapter_ocr_fts(chapter_ocr_fts, rowid, full_text)
+        VALUES ('delete', old.id, old.full_text);
+        INSERT INTO chapter_ocr_fts(rowid, full_text) VALUES (new.id, new.full_text);
+    END
+    """,
+)
+
+
+def _create_chapter_ocr_fts(engine) -> None:
+    with engine.begin() as conn:
+        for stmt in _FTS_DDL:
+            conn.execute(text(stmt))
 
 
 @pytest.fixture
