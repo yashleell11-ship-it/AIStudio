@@ -17,7 +17,6 @@ dependencies = [
     "alembic==1.18.5",
     "httpx==0.28.1",
     "curl_cffi==0.15.0",
-    "pytesseract==0.3.13",
     "argon2-cffi==25.1.0",
     "slowapi==0.1.10",
 ]

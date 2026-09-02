@@ -8,7 +8,10 @@
 # reverse-proxies /api/* to `backend` over a private per-project network. `backend`
 # also joins `edge` so Caddy can serve it directly on the app.<host> subdomain (the
 # Android APK landing page + download); it still never exposes a host port. Persistent
-# state (SQLite DB + downloaded pages) lives on the `data` volume mounted into backend.
+# state is only the metadata SQLite DB + settings.json, on the `data` volume mounted
+# into backend. Chapter images are never stored server-side — clients download them
+# directly through the source image proxy (see
+# docs/superpowers/specs/2026-09-03-backend-source-native-design.md).
 services:
   backend:
     build:
@@ -21,10 +24,6 @@ services:
     environment:
       - APP_ENV=${APP_ENV:-production}
       - MM_DB_PATH=/data/manhwamaniacs.db
-      # Downloads live on the 1TB spindle, not the app SSD that holds the
-      # docker volume. Chapter images are the only thing here that grows
-      # without bound -- the DB and settings stay on /data.
-      - MM_DOWNLOADS_PATH=${MM_DOWNLOADS_PATH:-/downloads}
       - MM_SETTINGS_PATH=/data/settings.json
       # Auth (see docs/AUTH.md). Admin-only endpoints are gated by the session
       # user's is_admin, not a token — the first registered account bootstraps as
@@ -40,10 +39,6 @@ services:
       # users table is always claimable by whoever registers first. Closing that
       # window means creating the owner account, not flipping this flag.
       - MM_REGISTRATION_ENABLED=${MM_REGISTRATION_ENABLED:-false}
-      # Absolute host dirs a library import may read from (comma-separated).
-      # Empty ⇒ only the downloads path is importable. Set this (and mount the
-      # dir) to import an existing on-disk library.
-      - MM_IMPORT_ROOTS=${MM_IMPORT_ROOTS:-}
       # Latest Android APK served at app.<host>/app/download. The deploy populates
       # ./apk/app-release.apk (see ops/deploy.sh); mounted read-only below. The
       # pubspec (version label) and screenshots (landing imagery) are addressed by
@@ -66,10 +61,6 @@ services:
     networks: [internal, edge]
     volumes:
       - data:/data
-      # Chapter images, on the 1TB disk. Bound rather than a named volume so
-      # the library survives a `docker volume rm` and can be backed up with
-      # ordinary file tools. Host dir is owned 1000:1000 to match the app user.
-      - ${MM_DOWNLOADS_HOST_DIR:-/storage/manhwamaniacs/downloads}:/downloads
       # Read-only APK drop + live pubspec (version label) + marketing screenshots
       # (landing imagery). The ./apk dir is created by the deploy even when empty, so
       # a missing APK reads as "not built yet" instead of a broken bind mount.

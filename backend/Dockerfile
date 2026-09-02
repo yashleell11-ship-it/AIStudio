@@ -1,8 +1,9 @@
 # ManhwaManiacs backend — FastAPI on uvicorn (:8000), non-root.
 # This container is internal-only: the frontend proxies /api/* to it over the
-# per-environment private compose network. Persistent state (SQLite DB +
-# downloaded pages) lives on the mounted /data volume via MM_DB_PATH /
-# MM_DOWNLOADS_PATH so it survives image rebuilds.
+# per-environment private compose network. Persistent state is only the metadata
+# SQLite DB + settings.json on the mounted /data volume (via MM_DB_PATH /
+# MM_SETTINGS_PATH) so it survives image rebuilds. Chapter images are never
+# stored server-side — clients download them through the source image proxy.
 
 FROM python:3.13-slim AS run
 WORKDIR /app
@@ -11,25 +12,20 @@ ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1
 
-# tesseract-ocr is the only system dependency (pytesseract shells out to it).
-# Everything else ships as manylinux wheels (curl_cffi bundles its own libcurl).
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends tesseract-ocr \
-    && rm -rf /var/lib/apt/lists/*
-
+# No system dependencies: everything ships as manylinux wheels (curl_cffi
+# bundles its own libcurl). OCR now runs on the client, not the server.
 COPY requirements.txt ./
 RUN pip install -r requirements.txt
 
 COPY . .
 
-# Non-root, with a writable data dir for the DB + downloads.
+# Non-root, with a writable data dir for the metadata DB + settings.json.
 RUN useradd -u 1000 -m app \
-    && mkdir -p /data/downloads \
+    && mkdir -p /data \
     && chown -R app:app /data /app
 USER app
 
 ENV MM_DB_PATH=/data/manhwamaniacs.db \
-    MM_DOWNLOADS_PATH=/data/downloads \
     MM_SETTINGS_PATH=/data/settings.json
 
 EXPOSE 8000

@@ -50,39 +50,9 @@ class Settings(BaseModel):
         "http://localhost:3000",
         "http://127.0.0.1:3000",
     ]
-    downloads_path: str = str(REPO_ROOT / "library" / "downloads")
-    # Absolute directories a library import is permitted to read from. A folder
-    # import (admin-only) is rejected unless it resolves under one of these
-    # roots (or an already-registered library root / the downloads path) — this
-    # prevents mounting arbitrary host paths like "/" or "/etc". Set via
-    # MM_IMPORT_ROOTS (comma-separated). Empty by default: on a fresh instance an
-    # admin must configure it (or import under the downloads path) before the
-    # first import.
-    import_roots: list[str] = []
-    # How many chapters may download at once, across all series. User-
-    # configurable from Settings -> Downloads; defaults to fully sequential.
-    download_concurrent_chapters: int = 1
-    # Concurrent page fetches *within* a single chapter. Page images have no
-    # server-side rate limit of their own (unlike connector metadata calls),
-    # so this is the only throttle on how many page requests hit a source at
-    # once. Independent of download_concurrent_chapters -- this is a page
-    # limit, not a chapter limit.
-    download_page_concurrency: int = 4
-    download_retry_count: int = 4
-    download_retry_delay_seconds: float = 0.75
-    download_timeout_seconds: float = 30.0
-
-    # OCR pipeline settings
-    ocr_engine: str = "tesseract"
-    ocr_workers: int = 2
-    ocr_language: str = "eng"
-    ocr_max_retries: int = 3
-    ocr_max_page_retries: int = 2
-    ocr_retry_backoff_base: float = 1.0
-    ocr_auto_queue: bool = False
-    ocr_max_image_pixels: int = 50_000_000
-    ocr_queue_depth_limit: int = 1000
-    ocr_enable_preprocessing: bool = True
+    # TTL (minutes) for source_series_cache rows before a live connector
+    # refetch is forced. Overridable via MM_SOURCE_CACHE_TTL_MINUTES.
+    source_cache_ttl_minutes: int = 360
 
     # Automatic update system
     update_workers: int = 1
@@ -125,14 +95,9 @@ def get_settings() -> Settings:
     db_path_override = os.getenv("MM_DB_PATH")
     if db_path_override:
         data["db_path"] = db_path_override
-    downloads_override = os.getenv("MM_DOWNLOADS_PATH")
-    if downloads_override:
-        data["downloads_path"] = downloads_override
-    import_roots_override = os.getenv("MM_IMPORT_ROOTS")
-    if import_roots_override is not None:
-        data["import_roots"] = [
-            p.strip() for p in import_roots_override.split(",") if p.strip()
-        ]
+    cache_ttl_override = os.getenv("MM_SOURCE_CACHE_TTL_MINUTES")
+    if cache_ttl_override and cache_ttl_override.strip():
+        data["source_cache_ttl_minutes"] = int(cache_ttl_override.strip())
 
     # Auth deployment overrides.
     reg_override = os.getenv("MM_REGISTRATION_ENABLED")
