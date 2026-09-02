@@ -68,8 +68,10 @@ class Settings(BaseModel):
     session_cookie_samesite: str = "lax"
 
     # Inbound rate limiting (slowapi). Protects expensive/abusable endpoints
-    # from brute force and abuse: auth (login/register), library/backup imports,
-    # and source proxying (browse/search/image). Values are slowapi rate strings
+    # from brute force and abuse: auth (login/register), the admin backup
+    # restore-upload, and source proxying (browse/search/image). rate_limit_import
+    # is the (legacy-named) backing key for the backup bucket. Values are slowapi
+    # rate strings
     # ("10/minute", "100/hour"); override each bucket via its env var. Disable
     # entirely with MM_RATE_LIMIT_ENABLED=false (e.g. for load tests). Limits are
     # keyed by client IP (X-Forwarded-For aware, since we run behind Caddy).

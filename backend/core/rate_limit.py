@@ -3,8 +3,8 @@
 A single process-wide limiter, keyed by the real client IP (X-Forwarded-For
 aware, since the app runs behind Caddy/Cloudflare, so the socket peer is the
 proxy). Applied selectively to the expensive/abusable endpoints — auth
-(login/register), library/backup imports, and source proxying (browse/search/
-image) — via the per-bucket limit callables below.
+(login/register), the admin backup restore-upload, and source proxying
+(browse/search/image) — via the per-bucket limit callables below.
 
 The limit *values* are read from Settings on every request, so they stay
 env-configurable (MM_RATE_LIMIT_AUTH / _IMPORT / _SOURCES) without touching
@@ -48,8 +48,16 @@ def auth_limit() -> str:
     return get_settings().rate_limit_auth
 
 
-def import_limit() -> str:
+def backup_limit() -> str:
+    """Limit for the admin backup restore-upload endpoint. (The old ``import``
+    bucket had one other user — folder library import — which is gone; spec
+    §6.) ``rate_limit_import`` remains the backing setting/env key for
+    compatibility."""
     return get_settings().rate_limit_import
+
+
+# Back-compat alias — `routes/backup.py` historically imported this name.
+import_limit = backup_limit
 
 
 def sources_limit() -> str:
