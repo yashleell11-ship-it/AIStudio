@@ -1,3 +1,13 @@
+> **SUPERSEDED (2026-09-03) by
+> [`superpowers/specs/2026-09-03-backend-source-native-design.md`](superpowers/specs/2026-09-03-backend-source-native-design.md).**
+> The NAS-primary / phone-mirror model described below — where a "download" fills
+> the NAS and the phone mirrors from it — is replaced by **phone-only client
+> downloads**: there is no server-side library or `/downloads` volume, and clients
+> pull chapter bytes directly through the source image proxy. This file is kept
+> because its transport batching, local-store isolation, progress furthest-wins
+> merge, and eviction / read-then-expire design are still referenced by the new
+> spec and the web/mobile client sub-projects (1b / 1c).
+
 # Offline reading — design
 
 True on-device offline reading: chapters stored on the **phone**, readable with no server and no

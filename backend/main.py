@@ -23,25 +23,7 @@ from core.rate_limit import limiter, rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from database.session import SessionLocal, init_db
 from services.auth_service import AuthService
-from services.download_manager import get_download_manager
-from services.ocr_pipeline import get_ocr_manager
-from services.update_auto_download import auto_download_new_chapters
 from services.update_scheduler import get_update_manager
-from services.update_service import register_new_chapters_callback
-from services.import_cleanup import ImportCleanupService
-
-
-def run_startup_migrations() -> None:
-    init_db()
-    db = SessionLocal()
-    try:
-        ImportCleanupService(db).merge_all_orphans_global()
-        db.commit()
-    except Exception:
-        db.rollback()
-        raise
-    finally:
-        db.close()
 
 
 def prune_expired_sessions() -> None:
@@ -61,7 +43,6 @@ def prune_expired_sessions() -> None:
 
 def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> FastAPI:
     settings = get_settings()
-    register_new_chapters_callback(auto_download_new_chapters)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
@@ -69,17 +50,11 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
             logging.getLogger("uvicorn.error").info(
                 "Applied a staged database restore before startup."
             )
+        init_db()
         if run_migrations:
-            run_startup_migrations()
             prune_expired_sessions()
-        else:
-            init_db()
-        manager = get_download_manager()
-        ocr_manager = get_ocr_manager()
         update_manager = get_update_manager()
         if run_workers:
-            manager.start()
-            ocr_manager.start()
             update_manager.start()
         startup_logger = logging.getLogger("uvicorn.error")
         validate_registry()
@@ -87,8 +62,6 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
         _log_registered_routes(_app)
         yield
         if run_workers:
-            manager.stop()
-            ocr_manager.stop()
             update_manager.stop()
 
     # Interactive API docs + the OpenAPI schema publish the full endpoint map

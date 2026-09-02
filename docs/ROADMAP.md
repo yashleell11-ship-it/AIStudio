@@ -13,6 +13,38 @@
 
 ---
 
+## 2026-09-03 — VPS slim-down pivot
+
+The product is moving off the household NAS onto a **VPS with ≤20 GB of disk**.
+Chapter images are the only unbounded thing and cannot live on that box, so:
+
+- **Server-side downloads are removed entirely.** The `DownloadManager`, the
+  `/downloads` volume, the disk scanner, library import, and the server-side OCR
+  runner are all deleted. The backend becomes a connector + image-proxy +
+  metadata store.
+- **Downloads are client-side only.** Phone and web clients pull chapter bytes
+  directly through the existing source image proxy and store them on-device.
+- **The backend is rebuilt source-native.** Everything keys on
+  `(source_id, series_key, chapter_key)` opaque connector strings; the catalog
+  tables (`libraries`/`series`/`chapters`/`pages`/`downloads`/…) are dropped and
+  the DB is wiped with a fresh Alembic baseline.
+- **Multi-user is kept and finished.** Multiple accounts, each with multiple
+  profiles, with **per-profile** data isolation (follows, progress, collections,
+  bookmarks, notifications). This supersedes the "Phase 4 future" framing below.
+- **OCR dialogue search is kept, client-driven.** The phone runs OCR on
+  downloaded pages and uploads the text; the server only ingests + searches.
+
+Three sub-projects, all on branch `feat/vps-slim-source-native`, not merged to
+`main` until all three land: **1a backend** (this pivot), **1b web client**,
+**1c mobile client**.
+
+Source of truth:
+[`superpowers/specs/2026-09-03-backend-source-native-design.md`](superpowers/specs/2026-09-03-backend-source-native-design.md).
+This also supersedes the NAS-primary model in
+[`OFFLINE_READING.md`](OFFLINE_READING.md).
+
+---
+
 ## What ManhwaManiacs is
 
 A self-hosted **manga / manhwa / manhua reader and multi-source aggregator**:
