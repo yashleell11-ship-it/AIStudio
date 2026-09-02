@@ -25,6 +25,12 @@ services:
       - APP_ENV=${APP_ENV:-production}
       - MM_DB_PATH=/data/manhwamaniacs.db
       - MM_SETTINGS_PATH=/data/settings.json
+      # TTL (minutes) for source_series_cache — the read-through connector
+      # metadata cache that lets the library grid / continue-reading strip /
+      # notifications render titles+covers without a connector call every time.
+      # Default 360 (6h); a row past its TTL is refetched on next read, and a
+      # stale row is still served if the connector is down (spec §3.10).
+      - MM_SOURCE_CACHE_TTL_MINUTES=${MM_SOURCE_CACHE_TTL_MINUTES:-360}
       # Auth (see docs/AUTH.md). Admin-only endpoints are gated by the session
       # user's is_admin, not a token — the first registered account bootstraps as
       # admin. Cookies are Secure by default (all envs are HTTPS behind Caddy).

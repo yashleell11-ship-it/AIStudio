@@ -1,22 +1,38 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any, Callable
 
 import pytest
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
-from database.models import Base
-from services.download_manager import reset_download_manager_for_tests
-from services.library_service import get_page_dimension_backfill
-from services.ocr_engine import _clear_easyocr_cache
-from services.ocr_pipeline import reset_ocr_manager_for_tests
+from database.models import (
+    Base,
+    Bookmark,
+    ChapterProgress,
+    FollowedSeries,
+    ReadingProfile,
+    User,
+)
+from database.session import get_db
 from services.update_scheduler import reset_update_manager_for_tests
+
+
+# ---------------------------------------------------------------------------
+# Database
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture
 def db_engine(tmp_path: Path):
+    """A fresh SQLite database with the full ORM schema.
+
+    ``create_all`` (not Alembic) — fast, and the schema is single-baseline now
+    so there is no migration path to exercise here. ``test_migrations_alembic``
+    covers the baseline itself.
+    """
     db_path = tmp_path / "test.db"
     engine = create_engine(
         f"sqlite:///{db_path}",
@@ -28,8 +44,12 @@ def db_engine(tmp_path: Path):
 
 
 @pytest.fixture
-def db_session(db_engine):
-    session_factory = sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+def session_factory(db_engine):
+    return sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+
+
+@pytest.fixture
+def db_session(session_factory):
     session = session_factory()
     try:
         yield session
@@ -37,79 +57,78 @@ def db_session(db_engine):
         session.close()
 
 
+# ---------------------------------------------------------------------------
+# Global-singleton hygiene
+# ---------------------------------------------------------------------------
+
+
 @pytest.fixture(autouse=True)
-def reset_ocr_manager():
-    """Ensure the global OCR manager and EasyOCR cache are reset before/after every test."""
-    _clear_easyocr_cache()
-    reset_ocr_manager_for_tests()
+def _isolate_process_db(tmp_path_factory, monkeypatch):
+    """Point the process-wide engine at a throwaway database.
+
+    ``create_app()``'s lifespan calls ``init_db()`` unconditionally, which runs
+    the Alembic baseline against ``settings.db_path``. Left at the default that
+    is the developer's real ``manhwamaniacs.db`` (which may carry a pre-baseline
+    ``alembic_version`` stamp). Every test either overrides ``get_db`` or drives
+    its own engine, so the process engine only needs to exist and be at head.
+    """
+    import database.session as dbs
+    from core.config import get_settings
+
+    db_file = tmp_path_factory.mktemp("procdb") / "process.db"
+    monkeypatch.setenv("MM_DB_PATH", str(db_file))
+    get_settings.cache_clear()
+    dbs.get_engine.cache_clear()
+    monkeypatch.setattr(
+        dbs,
+        "SessionLocal",
+        sessionmaker(
+            bind=dbs.get_engine(),
+            autoflush=False,
+            autocommit=False,
+            expire_on_commit=False,
+        ),
+    )
     yield
-    _clear_easyocr_cache()
-    reset_ocr_manager_for_tests()
+    get_settings.cache_clear()
+    dbs.get_engine.cache_clear()
 
 
 @pytest.fixture(autouse=True)
 def reset_update_manager():
-    """Ensure the global update manager is reset before and after every test."""
+    """Reset the process-wide update scheduler around every test."""
     reset_update_manager_for_tests()
     yield
     reset_update_manager_for_tests()
 
 
-@pytest.fixture(autouse=True)
-def reset_download_manager():
-    """Reset the global download-manager singleton before and after every test.
-    Without this, a manager started by one test can pick up (and transition) a
-    later test's freshly-queued downloads, making assertions order-dependent."""
-    reset_download_manager_for_tests(None)
-    yield
-    reset_download_manager_for_tests(None)
-
-
-@pytest.fixture(autouse=True)
-def disable_page_dimension_backfill():
-    """Keep the opportunistic page-dimension filler inert across the suite.
-
-    Reading a chapter enqueues its series for background measurement. The
-    worker writes through ``SessionLocal`` (the real process engine), and
-    ``_is_application_database`` already declines to enqueue from a test
-    fixture's session -- but a test that builds the app without overriding
-    ``get_db`` would slip past that guard and spawn a thread writing to the
-    developer's actual database. Off by default; the tests that exercise the
-    scheduler turn it back on for themselves."""
-    backfill = get_page_dimension_backfill()
-    backfill.reset()
-    backfill.set_enabled(False)
-    yield
-    backfill.reset()
-    backfill.set_enabled(False)
+# ---------------------------------------------------------------------------
+# Auth
+# ---------------------------------------------------------------------------
 
 
 @pytest.fixture(autouse=True)
 def default_auth(monkeypatch, request):
-    """The whole API now requires a session (services.auth_service.
-    enforce_authentication on api_router). For the suite, resolve every request
-    to a default admin so existing endpoint tests keep working without threading
-    real login flows through each one.
+    """Resolve every request to a default in-memory admin (``id is None``).
 
-    Implementation: monkeypatch ``AuthService.resolve_session`` (evaluated per
-    request, so it also covers module-level ``TestClient(app)`` instances) to
-    return an *in-memory* admin with ``id is None``. That id is deliberate: the
-    per-user query scoping (``WHERE user_id = :id``) then renders ``IS NULL`` and
-    matches exactly the legacy/anonymous rows these tests seed directly — i.e.
-    the pre-auth behaviour, minus the 401 gate. Nothing is persisted, so tests
-    that seed owner-less rows need no changes.
+    The per-user query scoping then renders ``WHERE user_id IS NULL`` — the
+    pre-auth behaviour, minus the 401 gate. Nothing is persisted.
 
-    Tests that exercise real authentication/authorization opt out with
-    ``@pytest.mark.real_auth`` (then unauthenticated == 401, and they drive
-    register/login themselves)."""
+    Opt out with ``@pytest.mark.real_auth`` (unauthenticated == 401, drive
+    register/login yourself), or use the ``as_user`` fixture to resolve
+    requests to specific seeded accounts via a bearer token.
+    """
     if request.node.get_closest_marker("real_auth"):
         yield
         return
+    if "as_user" in request.fixturenames:
+        # as_user installs its own resolver.
+        yield
+        return
 
-    from database.models import User
     from services import auth_service
 
-    def _resolve_default_admin(self, token):  # noqa: ARG001 - token ignored in tests
+    def _resolve_default_admin(self, token):  # noqa: ARG001
         return User(
             username="testadmin",
             password_hash="x",
@@ -123,12 +142,57 @@ def default_auth(monkeypatch, request):
     yield
 
 
+@pytest.fixture
+def as_user(monkeypatch, session_factory):
+    """Resolve requests to a specific seeded account.
+
+    The test sends ``Authorization: Bearer uid:<id>`` (or passes
+    ``headers=as_user(uid)``); ``resolve_session`` looks the user up by id in a
+    fresh session on the test engine and returns a detached ``User`` carrying
+    the real id, so per-user / per-profile scoping and ``X-Profile-Id``
+    ownership checks all work.
+    """
+    from services import auth_service
+
+    def _resolve(self, token):  # noqa: ARG001
+        if not token or not token.startswith("uid:"):
+            return None
+        try:
+            uid = int(token.split(":", 1)[1])
+        except ValueError:
+            return None
+        with session_factory() as s:
+            row = s.get(User, uid)
+            if row is None:
+                return None
+            return User(
+                id=row.id,
+                username=row.username,
+                password_hash=row.password_hash,
+                is_admin=bool(row.is_admin),
+                is_active=bool(row.is_active),
+            )
+
+    monkeypatch.setattr(auth_service.AuthService, "resolve_session", _resolve)
+
+    def _headers(user_id: int, profile_id: int | None = None) -> dict[str, str]:
+        h = {"Authorization": f"Bearer uid:{user_id}"}
+        if profile_id is not None:
+            h["X-Profile-Id"] = str(profile_id)
+        return h
+
+    return _headers
+
+
+# ---------------------------------------------------------------------------
+# Rate limiting
+# ---------------------------------------------------------------------------
+
+
 @pytest.fixture(autouse=True)
 def rate_limit_toggle(request, monkeypatch):
-    """The inbound rate limiter is ON by default in production. Disable it for
-    the suite so the many rapid requests endpoint tests make never trip a 429;
-    tests that specifically exercise limiting opt in with ``@pytest.mark.
-    rate_limit`` (and get a fresh limiter storage)."""
+    """Inbound rate limiter is OFF for the suite; opt in with
+    ``@pytest.mark.rate_limit`` (and get a fresh limiter storage)."""
     from core.rate_limit import limiter
 
     enabled = request.node.get_closest_marker("rate_limit") is not None
@@ -138,20 +202,167 @@ def rate_limit_toggle(request, monkeypatch):
     yield
 
 
-@pytest.fixture(autouse=True)
-def allow_tmp_imports(tmp_path_factory, monkeypatch):
-    """Library import containment (LibraryService._allowed_import_roots) rejects
-    any folder outside the configured import roots. Endpoint tests import
-    fixtures created under pytest's tmp directories, so register that base as an
-    allowed import root for the whole suite. Dedicated containment tests still
-    prove that paths *outside* this base (e.g. ``/etc``, ``/``) are rejected.
+# ---------------------------------------------------------------------------
+# App / client
+# ---------------------------------------------------------------------------
 
-    Set it through the env var and clear the settings cache so the allowance
-    survives the ``get_settings.cache_clear()`` that some client fixtures do."""
-    from core.config import get_settings
 
-    base = str(tmp_path_factory.getbasetemp())
-    monkeypatch.setenv("MM_IMPORT_ROOTS", base)
-    get_settings.cache_clear()
-    yield
-    get_settings.cache_clear()
+@pytest.fixture
+def app(session_factory):
+    from main import create_app
+
+    def override_get_db():
+        db = session_factory()
+        try:
+            yield db
+        finally:
+            db.close()
+
+    application = create_app(run_migrations=False, run_workers=False)
+    application.dependency_overrides[get_db] = override_get_db
+    return application
+
+
+@pytest.fixture
+def client(app):
+    from fastapi.testclient import TestClient
+
+    with TestClient(app) as test_client:
+        yield test_client
+
+
+# ---------------------------------------------------------------------------
+# Seed helpers
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def make_user(db_session: Session) -> Callable[..., User]:
+    counter = {"n": 0}
+
+    def _make(username: str | None = None, *, is_admin: bool = False) -> User:
+        counter["n"] += 1
+        row = User(
+            username=username or f"user{counter['n']}",
+            password_hash="x",
+            is_admin=is_admin,
+            is_active=True,
+        )
+        db_session.add(row)
+        db_session.commit()
+        db_session.refresh(row)
+        return row
+
+    return _make
+
+
+@pytest.fixture
+def make_profile(db_session: Session) -> Callable[..., ReadingProfile]:
+    def _make(
+        user_id: int,
+        name: str = "Profile",
+        *,
+        mature_content_enabled: bool = False,
+        sort_order: int = 0,
+    ) -> ReadingProfile:
+        row = ReadingProfile(
+            user_id=user_id,
+            name=name,
+            mature_content_enabled=mature_content_enabled,
+            sort_order=sort_order,
+        )
+        db_session.add(row)
+        db_session.commit()
+        db_session.refresh(row)
+        return row
+
+    return _make
+
+
+@pytest.fixture
+def seed_follow(db_session: Session) -> Callable[..., FollowedSeries]:
+    def _make(
+        user_id: int,
+        profile_id: int,
+        *,
+        source_id: str = "mangadex",
+        series_key: str = "series-1",
+        title: str = "Series One",
+        known_chapters: str = "[]",
+        **extra: Any,
+    ) -> FollowedSeries:
+        row = FollowedSeries(
+            user_id=user_id,
+            profile_id=profile_id,
+            source_id=source_id,
+            series_key=series_key,
+            title=title,
+            known_chapters=known_chapters,
+            **extra,
+        )
+        db_session.add(row)
+        db_session.commit()
+        db_session.refresh(row)
+        return row
+
+    return _make
+
+
+@pytest.fixture
+def seed_progress(db_session: Session) -> Callable[..., ChapterProgress]:
+    def _make(
+        user_id: int,
+        profile_id: int,
+        *,
+        source_id: str = "mangadex",
+        series_key: str = "series-1",
+        chapter_key: str = "ch-1",
+        chapter_number: float | None = 1.0,
+        last_page: int = 1,
+        **extra: Any,
+    ) -> ChapterProgress:
+        row = ChapterProgress(
+            user_id=user_id,
+            profile_id=profile_id,
+            source_id=source_id,
+            series_key=series_key,
+            chapter_key=chapter_key,
+            chapter_number=chapter_number,
+            last_page=last_page,
+            **extra,
+        )
+        db_session.add(row)
+        db_session.commit()
+        db_session.refresh(row)
+        return row
+
+    return _make
+
+
+@pytest.fixture
+def seed_bookmark(db_session: Session) -> Callable[..., Bookmark]:
+    def _make(
+        user_id: int,
+        profile_id: int,
+        *,
+        source_id: str = "mangadex",
+        series_key: str = "series-1",
+        chapter_key: str = "ch-1",
+        page: int = 3,
+        note: str | None = None,
+    ) -> Bookmark:
+        row = Bookmark(
+            user_id=user_id,
+            profile_id=profile_id,
+            source_id=source_id,
+            series_key=series_key,
+            chapter_key=chapter_key,
+            page=page,
+            note=note,
+        )
+        db_session.add(row)
+        db_session.commit()
+        db_session.refresh(row)
+        return row
+
+    return _make

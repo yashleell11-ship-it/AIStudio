@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 from typing import Annotated, Any
+from urllib.parse import quote
 
 from fastapi import Depends
 from sqlalchemy import func, select
@@ -564,7 +565,7 @@ class FollowedSeriesService:
             "series_key": row.series_key,
             "title": row.title,
             "cover_url": row.cover_url
-            or f"/sources/{row.source_id}/series/{row.series_key}/cover",
+            or f"/sources/{row.source_id}/series/{quote(row.series_key, safe='')}/cover",
             "is_favorite": bool(row.is_favorite),
             "reading_status": row.reading_status,
             "notify": bool(row.notify),
