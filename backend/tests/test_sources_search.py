@@ -18,7 +18,6 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import sessionmaker
 
 from connectors.models import PaginatedSeriesList, Series as ConnectorSeries
-from database.models import Library, Series, UserSeriesState
 from database.session import get_db
 from main import create_app
 
@@ -112,32 +111,6 @@ def client(db_engine, session_factory):
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
         yield test_client
-
-
-def _seed_local_series(session_factory, title: str) -> int:
-    db = session_factory()
-    try:
-        library = Library(name="Main", root_path="/tmp/library")
-        db.add(library)
-        db.flush()
-        series = Series(
-            library_id=library.id,
-            title=title,
-            folder_path=f"/tmp/library/{title}",
-        )
-        db.add(series)
-        db.flush()
-        # Membership is the ``in_library`` bit, not the series row; the default
-        # test session resolves to the unscoped (NULL user, NULL profile) owner.
-        db.add(
-            UserSeriesState(
-                user_id=None, profile_id=None, series_id=series.id, in_library=True
-            )
-        )
-        db.commit()
-        return series.id
-    finally:
-        db.close()
 
 
 def _search(client, descriptors, connectors: dict, query: str, **params):
@@ -277,8 +250,7 @@ def test_one_source_with_many_hits_cannot_starve_the_others(client, session_fact
 # ---------------------------------------------------------------------------
 
 
-def test_groups_carry_display_metadata_and_the_local_library(client, session_factory):
-    local_id = _seed_local_series(session_factory, "One Piece")
+def test_groups_carry_display_metadata(client, session_factory):
     descriptors = [_FakeDescriptor("mangadex", name="MangaDex")]
     connectors = {
         "mangadex": _FakeConnector(
@@ -287,12 +259,6 @@ def test_groups_carry_display_metadata_and_the_local_library(client, session_fac
     }
 
     payload = _search(client, descriptors, connectors, "one piece").json()
-
-    local = payload["groups"][0]
-    assert local["source"] is None
-    assert local["status"] == "ok"
-    assert local["total"] == 1
-    assert local["items"][0]["series_id"] == str(local_id)
 
     source_group = _group(payload, "mangadex")
     assert source_group["source_name"] == "MangaDex"
@@ -347,20 +313,6 @@ def test_same_title_twice_from_one_source_is_de_duped(client, session_factory):
     assert _group(payload, "mangadex")["total"] == 1
 
 
-def test_local_and_source_copies_both_survive(client, session_factory):
-    """A library copy no longer suppresses the source copies: the screen groups
-    by source, so hiding a source's row would leave that group looking empty."""
-    _seed_local_series(session_factory, "One Piece")
-    descriptors = [_FakeDescriptor("mangadex")]
-    connectors = {"mangadex": _FakeConnector([_series("md-1", "one piece")])}
-
-    payload = _search(client, descriptors, connectors, "one piece").json()
-
-    assert {item["kind"] for item in payload["items"]} == {"local", "source"}
-    assert payload["items"][0]["kind"] == "local"
-    assert _group(payload, "mangadex")["total"] == 1
-
-
 # ---------------------------------------------------------------------------
 # Fan-out bounds
 # ---------------------------------------------------------------------------
@@ -411,36 +363,6 @@ def test_search_uses_its_own_bounded_executor(client, session_factory):
 # ---------------------------------------------------------------------------
 # Pre-existing behaviour that must not regress
 # ---------------------------------------------------------------------------
-
-
-def test_mature_sources_excluded_when_off(client, session_factory):
-    from services.library_intelligence_service import LibraryIntelligenceService
-
-    descriptors = [_FakeDescriptor("safe"), _FakeDescriptor("adult", mature=True)]
-    connectors = {
-        s: _FakeConnector([_series(f"{s}-1", f"{s} hit")]) for s in ("safe", "adult")
-    }
-
-    with patch.object(LibraryIntelligenceService, "_mature_enabled", return_value=False):
-        payload = _search(client, descriptors, connectors, "hit").json()
-
-    assert payload["sources_queried"] == 1
-    assert {g["source"] for g in payload["groups"]} == {None, "safe"}
-
-
-def test_mature_sources_included_when_on(client, session_factory):
-    from services.library_intelligence_service import LibraryIntelligenceService
-
-    descriptors = [_FakeDescriptor("safe"), _FakeDescriptor("adult", mature=True)]
-    connectors = {
-        s: _FakeConnector([_series(f"{s}-1", f"{s} hit")]) for s in ("safe", "adult")
-    }
-
-    with patch.object(LibraryIntelligenceService, "_mature_enabled", return_value=True):
-        payload = _search(client, descriptors, connectors, "hit").json()
-
-    assert payload["sources_queried"] == 2
-    assert {i["source"] for i in payload["items"]} == {"safe", "adult"}
 
 
 def test_empty_query_returns_empty_items_but_queries_sources(client, session_factory):

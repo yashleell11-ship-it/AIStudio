@@ -23,7 +23,9 @@ import services.backup_service as backup_service
 from core.errors import AppError, register_error_handlers
 from routes.backup import router as backup_router
 
-_REQUIRED_TABLES = ("series", "chapters", "pages", "downloads")
+# Source-native: the backup validator now requires the new baseline tables
+# (services.backup_service._REQUIRED_TABLES).
+_REQUIRED_TABLES = ("users", "followed_series", "chapter_progress", "alembic_version")
 
 
 def _make_real_db(path: Path, *, with_tables: bool = True) -> None:
@@ -32,9 +34,9 @@ def _make_real_db(path: Path, *, with_tables: bool = True) -> None:
         if with_tables:
             for table in _REQUIRED_TABLES:
                 connection.execute(f"CREATE TABLE {table} (id INTEGER PRIMARY KEY)")
-            connection.execute("ALTER TABLE series ADD COLUMN title TEXT")
+            connection.execute("ALTER TABLE users ADD COLUMN username TEXT")
             connection.execute(
-                "INSERT INTO series (id, title) VALUES (1, 'Solo Leveling')"
+                "INSERT INTO users (id, username) VALUES (1, 'owner')"
             )
         else:
             connection.execute("CREATE TABLE unrelated (id INTEGER PRIMARY KEY)")
@@ -79,11 +81,11 @@ def test_create_backup_snapshot_is_a_consistent_copy(real_db_path):
         connection = sqlite3.connect(str(snapshot_path))
         try:
             row = connection.execute(
-                "SELECT title FROM series WHERE id = 1"
+                "SELECT username FROM users WHERE id = 1"
             ).fetchone()
         finally:
             connection.close()
-        assert row == ("Solo Leveling",)
+        assert row == ("owner",)
     finally:
         snapshot_path.unlink(missing_ok=True)
         snapshot_path.parent.rmdir()
@@ -149,7 +151,7 @@ def test_apply_pending_restore_swaps_the_file_in(tmp_path, real_db_path):
     upload = tmp_path / "uploaded.db"
     _make_real_db(upload)
     connection = sqlite3.connect(str(upload))
-    connection.execute("UPDATE series SET title = 'Restored Series' WHERE id = 1")
+    connection.execute("UPDATE users SET username = 'restored' WHERE id = 1")
     connection.commit()
     connection.close()
 
@@ -158,10 +160,10 @@ def test_apply_pending_restore_swaps_the_file_in(tmp_path, real_db_path):
 
     connection = sqlite3.connect(str(real_db_path))
     try:
-        row = connection.execute("SELECT title FROM series WHERE id = 1").fetchone()
+        row = connection.execute("SELECT username FROM users WHERE id = 1").fetchone()
     finally:
         connection.close()
-    assert row == ("Restored Series",)
+    assert row == ("restored",)
     assert backup_restore.pending_restore_path().exists() is False
 
 

@@ -35,6 +35,7 @@ class ProfileCreate(BaseModel):
     avatar_key: str | None = Field(default=None, max_length=64)
     mood: Mood = "default"
     sort_order: int | None = Field(default=None, ge=0)
+    mature_content_enabled: bool | None = None
 
 
 class ProfileUpdate(BaseModel):
@@ -42,6 +43,7 @@ class ProfileUpdate(BaseModel):
     avatar_key: str | None = Field(default=None, max_length=64)
     mood: Mood | None = None
     sort_order: int | None = Field(default=None, ge=0)
+    mature_content_enabled: bool | None = None
 
 
 @router.get("")
@@ -58,6 +60,7 @@ def create_profile(body: ProfileCreate, service: ProfileDep) -> dict[str, object
         avatar_key=body.avatar_key,
         mood=body.mood,
         sort_order=body.sort_order,
+        mature_content_enabled=body.mature_content_enabled,
     )
     return service.serialize(profile)
 
@@ -73,6 +76,7 @@ def update_profile(
         avatar_key=body.avatar_key,
         mood=body.mood,
         sort_order=body.sort_order,
+        mature_content_enabled=body.mature_content_enabled,
     )
     return service.serialize(profile)
 

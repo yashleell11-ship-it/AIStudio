@@ -123,6 +123,7 @@ class ProfileService:
         avatar_key: str | None = None,
         mood: str | None = None,
         sort_order: int | None = None,
+        mature_content_enabled: bool | None = None,
     ) -> ReadingProfile:
         clean_name = self._validate_name(name)
         clean_mood = self._validate_mood(mood or "default")
@@ -154,7 +155,11 @@ class ProfileService:
             avatar_key=clean_avatar,
             mood=clean_mood,
             sort_order=sort_order,
-            mature_content_enabled=get_settings().mature_content_enabled,
+            mature_content_enabled=(
+                get_settings().mature_content_enabled
+                if mature_content_enabled is None
+                else bool(mature_content_enabled)
+            ),
         )
         self._db.add(profile)
         self._db.commit()
@@ -169,8 +174,11 @@ class ProfileService:
         avatar_key: str | None = None,
         mood: str | None = None,
         sort_order: int | None = None,
+        mature_content_enabled: bool | None = None,
     ) -> ReadingProfile:
         profile = self._get_owned(profile_id)
+        if mature_content_enabled is not None:
+            profile.mature_content_enabled = bool(mature_content_enabled)
         if name is not None:
             profile.name = self._validate_name(name)
         if avatar_key is not None:
