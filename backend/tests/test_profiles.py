@@ -53,6 +53,15 @@ def test_create_appends_sort_order_when_omitted(db_session, users):
     assert (a.sort_order, b.sort_order) == (0, 1)
 
 
+def test_mature_content_enabled_is_settable_on_create_and_update(db_session, users):
+    svc = ProfileService(db_session, user_id=users["alice"])
+    p = svc.create_profile(name="Adult", mature_content_enabled=True)
+    assert bool(p.mature_content_enabled) is True
+
+    updated = svc.update_profile(p.id, mature_content_enabled=False)
+    assert bool(updated.mature_content_enabled) is False
+
+
 def test_update_profile(db_session, users):
     svc = ProfileService(db_session, user_id=users["alice"])
     created = svc.create_profile(name="Old", mood="default")
