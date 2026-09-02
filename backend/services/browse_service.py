@@ -29,8 +29,6 @@ from connectors.registry import (
     list_installed_connectors,
     registry_snapshot,
 )
-from services.nas_listing import PAGE_SIZE as NAS_PAGE_SIZE
-from services.nas_listing import nas_listing
 from services.outbound_security import validate_outbound_url
 from services.source_health import (
     SourceHealthState,
@@ -296,9 +294,6 @@ def _serialize_paginated(
     )
 
 
-#: Sort id for the NAS view. Not a value any connector emits, so it can never
-#: collide with a source's own catalog mode.
-NAS_MODE = "nas"
 
 
 class BrowseService:
@@ -501,11 +496,8 @@ class BrowseService:
         modes = [
             {"id": mode.id, "label": mode.label} for mode in connector.list_browse_modes()
         ]
-        # Injected here rather than declared on each connector: NAS is not a
-        # catalog the source offers, it is a view of what this server already
-        # holds from it. Every one of the ~50 connectors gets it for free, and
-        # none of them can forget to.
-        modes.append({"id": NAS_MODE, "label": "NAS"})
+        # The old "NAS" browse mode (a view of server-held downloads) is gone:
+        # source-native, nothing is stored server-side (spec §1, §5.1).
         return modes
 
     def list_genres(self, source_id: str) -> list[dict[str, str]]:
@@ -527,25 +519,6 @@ class BrowseService:
         normalized_genre = genre.strip() if genre else None
         if normalized_sort == "default":
             normalized_sort = None
-
-        # NAS is answered from this server's own downloads, so it returns
-        # before any connector call. _get_connector still runs above: an
-        # unknown or gated source must 404 the same way it does for every
-        # other mode, rather than quietly serving a local listing for a source
-        # this caller is not allowed to see.
-        if normalized_sort == NAS_MODE:
-            if self._db is None:
-                listing = PaginatedSeriesList(page=page, page_size=NAS_PAGE_SIZE)
-            else:
-                listing = nas_listing(
-                    self._db,
-                    source_id=source_id,
-                    user_id=self._user_id,
-                    profile_id=self._profile_id,
-                    page=page,
-                    query=normalized_query,
-                )
-            return _serialize_paginated(listing, source_id)
 
         try:
             if normalized_genre and normalized_query:

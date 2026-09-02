@@ -31,7 +31,7 @@ from database.models import ReadingProfile
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from connectors.registry import ConnectorDescriptor
-    from database.models import SeriesTracker
+    from database.models import FollowedSeries
 
 #: Series ``content_rating`` values (compared case-insensitively) that denote
 #: adult / 18+ content. Mirrors common source vocabularies -- e.g. MangaDex
@@ -107,10 +107,14 @@ def resolve_mature_gate(
 
 
 def resolve_tracker_rating(
-    tracker: SeriesTracker,
+    followed: FollowedSeries,
     descriptor: ConnectorDescriptor | None,
 ) -> str:
     """Maturity of a *followed remote* series, resolved in priority order.
+
+    Source-native (spec §3.2): the signals now live on the ``followed_series``
+    row (``mature_override`` + ``content_rating``, same semantics as the old
+    ``series_trackers`` columns).
 
     A tracker has no local ``Series`` row to read ``content_rating`` off
     (``SeriesTracker.local_series_id`` is never written), and
@@ -142,17 +146,21 @@ def resolve_tracker_rating(
     (serialized as ``rating: "unknown"``) so the client can badge it and offer
     the one-tap override that writes rule 1.
     """
-    if tracker.mature_override is not None:
-        return TRACKER_RATING_MATURE if tracker.mature_override else TRACKER_RATING_SAFE
-    if tracker.content_rating:
+    if followed.mature_override is not None:
+        return TRACKER_RATING_MATURE if followed.mature_override else TRACKER_RATING_SAFE
+    if followed.content_rating:
         return (
             TRACKER_RATING_MATURE
-            if is_mature_rating(tracker.content_rating)
+            if is_mature_rating(followed.content_rating)
             else TRACKER_RATING_SAFE
         )
     if descriptor is not None and descriptor.mature:
         return TRACKER_RATING_MATURE
     return TRACKER_RATING_UNKNOWN
+
+
+#: Source-native alias. New callers should use this name.
+resolve_followed_rating = resolve_tracker_rating
 
 
 def rating_from_genres(genres: tuple[str, ...] | list[str] | None) -> str | None:
