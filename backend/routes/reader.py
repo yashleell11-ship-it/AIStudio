@@ -1,130 +1,126 @@
+"""Source-native reader endpoints (spec §4.1)."""
+
 from __future__ import annotations
 
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Response
-from fastapi.responses import FileResponse, Response
 from pydantic import BaseModel, Field
 
 from core.profile_context import require_profile_context
-from services.image_service import ImageService, get_image_service
-from services.library_service import LibraryService, get_library_service
+from services.progress_service import (
+    ProgressInput,
+    ProgressService,
+    get_progress_service,
+)
 from services.reader_service import ReaderService, get_reader_service
-from utils.api_pagination import set_list_total_header, set_progress_found_header
+from utils.api_pagination import set_list_total_header
 
 router = APIRouter(prefix="/reader", tags=["reader"])
 
-
-LibraryDep = Annotated[LibraryService, Depends(get_library_service)]
 ReaderDep = Annotated[ReaderService, Depends(get_reader_service)]
-ImageDep = Annotated[ImageService, Depends(get_image_service)]
+ProgressDep = Annotated[ProgressService, Depends(get_progress_service)]
 
 
 class ProgressRequest(BaseModel):
-    series_id: int = Field(ge=1)
-    chapter_id: int = Field(ge=1)
-    last_page: int = Field(ge=1)
-    scroll_offset_px: int | None = Field(default=None, ge=0)
+    source_id: str = Field(min_length=1, max_length=64)
+    series_key: str = Field(min_length=1, max_length=512)
+    chapter_key: str = Field(min_length=1, max_length=512)
+    chapter_number: float | None = None
+    last_page: int = Field(default=1, ge=1)
+    page_count: int = Field(default=0, ge=0)
+    scroll_offset_px: int = Field(default=0, ge=0)
+    is_completed: bool = False
+    time_spent_seconds: int = Field(default=0, ge=0)
+
+    def to_input(self) -> ProgressInput:
+        return ProgressInput(
+            source_id=self.source_id,
+            series_key=self.series_key,
+            chapter_key=self.chapter_key,
+            chapter_number=self.chapter_number,
+            last_page=self.last_page,
+            page_count=self.page_count,
+            scroll_offset_px=self.scroll_offset_px,
+            is_completed=self.is_completed,
+            time_spent_seconds=self.time_spent_seconds,
+        )
 
 
 class BookmarkRequest(BaseModel):
-    series_id: int = Field(ge=1)
-    chapter_id: int = Field(ge=1)
+    source_id: str = Field(min_length=1, max_length=64)
+    series_key: str = Field(min_length=1, max_length=512)
+    chapter_key: str = Field(min_length=1, max_length=512)
     page: int = Field(ge=1)
     note: str | None = None
 
 
-@router.get("/chapter/{chapter_id}")
-def get_reader_chapter(chapter_id: int, service: LibraryDep) -> dict[str, object]:
-    """Return chapter with ordered pages for the reader."""
-    return service.get_chapter(chapter_id)
-
-
-@router.get("/page/{page_id}/image")
-def get_reader_page_image(
-    page_id: int,
-    service: LibraryDep,
-    image_service: ImageDep,
-) -> Response:
-    """Serve a page image for the reader."""
-    payload, media_type = image_service.serve_page(service, page_id)
-    if isinstance(payload, bytes):
-        return Response(
-            content=payload,
-            media_type=media_type,
-            headers={"Cache-Control": "max-age=86400"},
-        )
-    return FileResponse(
-        payload,
-        media_type=media_type,
-        headers={"Cache-Control": "max-age=86400"},
-    )
+@router.get("/chapter/manifest")
+def chapter_manifest(
+    service: ReaderDep,
+    source: str = Query(..., min_length=1),
+    series: str = Query(..., min_length=1),
+    chapter: str = Query(..., min_length=1),
+) -> dict[str, object]:
+    """The download plan for a chapter: ordered page list + prev/next keys."""
+    return service.manifest(source, series, chapter)
 
 
 @router.post("/progress", dependencies=[Depends(require_profile_context)])
-def save_progress(body: ProgressRequest, service: ReaderDep) -> dict[str, object]:
-    """Save reading progress for a series."""
-    return service.save_progress(
-        series_id=body.series_id,
-        chapter_id=body.chapter_id,
-        last_page=body.last_page,
-        scroll_offset_px=body.scroll_offset_px,
-    )
+def save_progress(body: ProgressRequest, service: ProgressDep) -> dict[str, object]:
+    """Save reading progress. Applies the furthest-wins merge (never rewinds)."""
+    return service.save_one(body.to_input())
 
 
-@router.get("/progress/{series_id}")
-def get_progress(
-    series_id: int,
-    service: ReaderDep,
+@router.post("/progress/batch", dependencies=[Depends(require_profile_context)])
+def save_progress_batch(
+    body: list[ProgressRequest], service: ProgressDep
+) -> dict[str, object]:
+    """Offline-sync catch-up: an array of progress pushes, each merged."""
+    return service.save_batch([item.to_input() for item in body])
+
+
+@router.get("/progress/series")
+def get_series_progress(
+    service: ProgressDep,
+    source: str = Query(..., min_length=1),
+    series: str = Query(..., min_length=1),
+) -> list[dict[str, object]]:
+    """Every stored chapter position for one series."""
+    return service.get_series_progress(source, series)
+
+
+@router.get("/history")
+def reading_history(
+    service: ProgressDep,
     response: Response,
-) -> dict[str, object] | None:
-    """Return saved reading progress for a series."""
-    progress = service.get_progress(series_id)
-    set_progress_found_header(response, progress is not None)
-    return progress
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> list[dict[str, object]]:
+    items = service.reading_history(limit=limit, offset=offset)
+    set_list_total_header(response, len(items))
+    return items
 
 
-@router.delete(
-    "/progress/{series_id}",
-    status_code=204,
-    dependencies=[Depends(require_profile_context)],
-)
-def delete_progress(series_id: int, service: ReaderDep) -> None:
-    """Clear saved reading progress for a series."""
-    service.delete_progress(series_id)
-
-
-@router.post("/bookmarks", dependencies=[Depends(require_profile_context)])
-def create_bookmark(body: BookmarkRequest, service: ReaderDep) -> dict[str, object]:
-    """Bookmark the current page."""
+@router.post("/bookmark", dependencies=[Depends(require_profile_context)])
+def create_bookmark(body: BookmarkRequest, service: ProgressDep) -> dict[str, object]:
     return service.add_bookmark(
-        series_id=body.series_id,
-        chapter_id=body.chapter_id,
+        source_id=body.source_id,
+        series_key=body.series_key,
+        chapter_key=body.chapter_key,
         page=body.page,
         note=body.note,
     )
 
 
 @router.get("/bookmarks")
-def list_all_bookmarks(
-    service: ReaderDep,
-    response: Response,
-    limit: int = Query(200, ge=1, le=500),
-) -> list[dict[str, object]]:
-    """List the most recent bookmarks across every series (Bookmark Manager)."""
-    items = service.list_all_bookmarks(limit=limit)
-    set_list_total_header(response, len(items))
-    return items
-
-
-@router.get("/bookmarks/{series_id}")
 def list_bookmarks(
-    series_id: int,
-    service: ReaderDep,
+    service: ProgressDep,
     response: Response,
+    source: str | None = None,
+    series: str | None = None,
 ) -> list[dict[str, object]]:
-    """List bookmarks for a series."""
-    items = service.list_bookmarks(series_id)
+    items = service.list_bookmarks(source_id=source, series_key=series)
     set_list_total_header(response, len(items))
     return items
 
@@ -134,16 +130,5 @@ def list_bookmarks(
     status_code=204,
     dependencies=[Depends(require_profile_context)],
 )
-def delete_bookmark(bookmark_id: int, service: ReaderDep) -> None:
-    """Remove a bookmark."""
+def delete_bookmark(bookmark_id: int, service: ProgressDep) -> None:
     service.delete_bookmark(bookmark_id)
-
-
-@router.get("/chapter/{chapter_id}/adjacent")
-def adjacent_chapter(
-    chapter_id: int,
-    service: ReaderDep,
-    direction: str = Query("next", pattern="^(previous|next)$"),
-) -> dict[str, object] | None:
-    """Return the previous or next chapter in a series."""
-    return service.get_adjacent_chapter(chapter_id, direction)
