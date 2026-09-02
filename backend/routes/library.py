@@ -1,107 +1,39 @@
+"""Per-profile library (source-native, spec §4.2).
+
+A series is in the library iff a ``followed_series`` row exists for it. All
+endpoints are scoped to the request's ``(user_id, profile_id)``.
+"""
+
 from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Request
-from fastapi.responses import FileResponse, Response
+from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 
 from core.profile_context import require_profile_context
-from core.rate_limit import import_limit, limiter
-from services.auth_service import require_admin_user
-from services.image_service import ImageService, get_image_service
-from services.library_intelligence_service import (
-    LibraryIntelligenceService,
-    get_library_intelligence_service,
+from services.followed_series_service import (
+    FollowedSeriesService,
+    get_followed_series_service,
 )
-from services.library_service import LibraryService, get_library_service
 from utils.api_pagination import set_list_total_header
 
 router = APIRouter(prefix="/library", tags=["library"])
 
-ServiceDep = Annotated[LibraryService, Depends(get_library_service)]
-IntelDep = Annotated[LibraryIntelligenceService, Depends(get_library_intelligence_service)]
+ServiceDep = Annotated[FollowedSeriesService, Depends(get_followed_series_service)]
 
 
-class ImportRequest(BaseModel):
-    folder_path: str = Field(min_length=1, max_length=1024)
+class FollowRequest(BaseModel):
+    source_id: str = Field(min_length=1, max_length=64)
+    series_key: str = Field(min_length=1, max_length=512)
 
 
-class ImportResponse(BaseModel):
-    status: str
-    library_id: int
-    series_count: int
-    chapter_count: int
-    page_count: int
-    removed_orphans: int = 0
-
-
-class ReadingProgressSummary(BaseModel):
-    series_id: int
-    chapter_id: int
-    last_page: int
-    scroll_offset_px: int = 0
-    progress_pct: float
-    last_read_at: str
-
-
-class OcrSummary(BaseModel):
-    completed: int
-    processing: int
-    failed: int
-    not_started: int
-    total: int
-
-
-class SeriesSummary(BaseModel):
-    id: int
-    library_id: int
-    title: str
-    sort_title: str
-    original_title: str | None = None
-    author: str | None = None
-    artist: str | None = None
-    description: str | None = None
-    status: str | None = None
-    content_rating: str | None = None
-    language: str | None = None
-    year: int | None = None
-    cover_path: str | None = None
-    cover_url: str
-    folder_path: str
-    is_favorite: bool = False
-    reading_status: str = "unread"
-    chapter_count: int
-    read_chapters: int = 0
-    page_count: int
-    total_chapters: int | None = None
-    total_pages: int | None = None
-    first_chapter_id: int | None = None
-    created_at: str
-    updated_at: str
-    reading_progress: ReadingProgressSummary | None = None
-    ocr_summary: OcrSummary | None = None
-
-
-class SeriesListResponse(BaseModel):
-    items: list[SeriesSummary]
-    total: int
-    page: int
-    per_page: int
-    has_next: bool
-    page_size: int
-    has_more: bool
-    total_pages: int
-
-
-class ScanStatusResponse(BaseModel):
-    running: bool
-    progress_pct: float
-    message: str
-    series_count: int
-    chapter_count: int
-    page_count: int
-    error: str | None = None
+class SeriesPatchRequest(BaseModel):
+    is_favorite: bool | None = None
+    reading_status: str | None = None
+    notify: bool | None = None
+    mature_override: bool | None = None
+    sort_order: int | None = None
 
 
 class CollectionCreateRequest(BaseModel):
@@ -115,204 +47,84 @@ class CollectionUpdateRequest(BaseModel):
     sort_order: int | None = None
 
 
+class CollectionSeriesRequest(BaseModel):
+    source_id: str = Field(min_length=1, max_length=64)
+    series_key: str = Field(min_length=1, max_length=512)
+
+
 class TagCreateRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
     category: str = Field(default="custom")
     color: str | None = Field(default=None, max_length=16)
 
 
-class LibraryMembershipResponse(BaseModel):
-    series_id: int
-    in_library: bool
+class SeriesTagRequest(BaseModel):
+    source_id: str = Field(min_length=1, max_length=64)
+    series_key: str = Field(min_length=1, max_length=512)
+    tag_id: int = Field(ge=1)
 
 
-class SeriesUpdateRequest(BaseModel):
-    title: str | None = None
-    author: str | None = None
-    artist: str | None = None
-    description: str | None = None
-    status: str | None = None
-    content_rating: str | None = None
-    language: str | None = None
-    year: int | None = None
-    reading_status: str | None = None
-    is_favorite: bool | None = None
-
-ImageDep = Annotated[ImageService, Depends(get_image_service)]
+# ---------------------------------------------------------------------------
+# Followed series
+# ---------------------------------------------------------------------------
 
 
-@router.get("/series", response_model=SeriesListResponse)
+@router.get("/series")
 def list_series(
     service: ServiceDep,
     page: int = Query(1, ge=1),
     per_page: int = Query(40, ge=1, le=200),
-    sort: str = Query("sort_title"),
+    sort: str = Query("title"),
     search: str | None = None,
-    status: str | None = None,
     reading_status: str | None = None,
-    collection_id: int | None = None,
-    tag_id: int | None = None,
-    library_id: int | None = None,
     is_favorite: bool | None = None,
-    language: str | None = None,
-    has_chapters: bool | None = None,
-) -> SeriesListResponse:
-    """Return a paginated list of series in the library."""
-    result = service.list_series(
+) -> dict[str, object]:
+    """Paginated list of the profile's followed series."""
+    return service.list_series(
         page=page,
         per_page=per_page,
         sort=sort,
         search=search,
-        status=status,
         reading_status=reading_status,
-        collection_id=collection_id,
-        tag_id=tag_id,
-        library_id=library_id,
         is_favorite=is_favorite,
-        language=language,
-        has_chapters=has_chapters,
     )
-    return SeriesListResponse(**result)
 
 
-@router.get("/series/{series_id}")
-def get_series(series_id: int, intel: IntelDep) -> dict[str, object]:
-    """Return series detail with chapter list, tags, and collections.
-
-    Source-link fields, which is what lets a *local* series page offer Follow at
-    all (until now Follow existed only on the source-browse page, so a downloaded
-    series -- the one the user cared enough to download -- could not be followed
-    and got no update checks or new-chapter notifications):
-
-    - ``source_id``:         ``str | None`` -- connector id the series came from.
-    - ``source_series_id``:  ``str | None`` -- that connector's id for the series.
-    - ``is_followed``:       ``bool``       -- this (user, profile) has a
-      ``track_kind="followed"`` tracker for that pair. A ``"downloaded"`` tracker
-      does NOT count; it exists for every downloaded series and would otherwise
-      render every one of them as already-followed.
-    - ``follow_tracker_id``: ``int | None`` -- that tracker's id, so Unfollow
-      (``DELETE /updates/trackers/{id}``) needs no lookup round trip.
-
-    All four are null/false for a hand-imported CBZ folder, which has no origin
-    to track. The first two are answered from local rows only, so they stay
-    correct while the source itself is dead, offline or rate-limited.
-
-    Follow is ``POST /updates/trackers/follow`` with ``{source, series_id,
-    series_title}`` -- ``source`` is ``source_id`` here and ``series_id`` is
-    ``source_series_id`` here (the tracker's own field names differ).
-
-    Unchanged: this is behind the object-level read check (core.library_authz)
-    and the 18+ gate, both of which 404 -- so the source identity is never
-    disclosed for a series the caller cannot read.
-    """
-    return intel.get_series_detail(series_id)
+@router.get("/series/{followed_id}")
+def get_series(followed_id: int, service: ServiceDep) -> dict[str, object]:
+    """Followed-series detail: snapshot + cached meta + live chapter list."""
+    return service.get_detail(followed_id)
 
 
-@router.patch("/series/{series_id}", dependencies=[Depends(require_profile_context)])
+@router.patch(
+    "/series/{followed_id}", dependencies=[Depends(require_profile_context)]
+)
 def patch_series(
-    series_id: int,
-    body: SeriesUpdateRequest,
-    intel: IntelDep,
+    followed_id: int, body: SeriesPatchRequest, service: ServiceDep
 ) -> dict[str, object]:
-    """Update series metadata.
-
-    Guarded: ``reading_status``/``is_favorite`` in the body land on the caller's
-    own per-profile state, so an active profile has to be named.
-    """
-    return intel.update_series_metadata(
-        series_id,
-        **body.model_dump(exclude_none=True),
-    )
+    """Update favorite / reading_status / notify / mature_override / sort_order."""
+    return service.patch(followed_id, **body.model_dump(exclude_unset=True))
 
 
-@router.post(
-    "/series/{series_id}/favorite",
-    dependencies=[Depends(require_profile_context)],
-)
-def toggle_favorite(series_id: int, intel: IntelDep) -> dict[str, object]:
-    """Toggle the favorite status of a series for the active profile."""
-    return intel.toggle_favorite(series_id)
-
-
-@router.post(
-    "/series/{series_id}/add",
-    response_model=LibraryMembershipResponse,
-    dependencies=[Depends(require_profile_context)],
-)
-def add_series_to_library(series_id: int, service: ServiceDep) -> LibraryMembershipResponse:
-    """Add a catalog series to the active profile's library."""
-    return LibraryMembershipResponse(**service.set_in_library(series_id, True))
+@router.post("/follow", dependencies=[Depends(require_profile_context)])
+def follow_series(body: FollowRequest, service: ServiceDep) -> dict[str, object]:
+    """Follow a series (add it to the profile's library)."""
+    return service.follow(body.source_id, body.series_key)
 
 
 @router.delete(
-    "/series/{series_id}/add",
-    response_model=LibraryMembershipResponse,
+    "/follow/{followed_id}",
+    status_code=204,
     dependencies=[Depends(require_profile_context)],
 )
-def remove_series_from_library(
-    series_id: int, service: ServiceDep
-) -> LibraryMembershipResponse:
-    """Remove a series from the active profile's library.
-
-    Favourite, reading status and progress are kept, so re-adding restores the
-    shelf exactly as it was.
-    """
-    return LibraryMembershipResponse(**service.set_in_library(series_id, False))
+def unfollow_series(followed_id: int, service: ServiceDep) -> None:
+    """Unfollow a series. Reading progress (keyed by source/series) survives."""
+    service.unfollow(followed_id)
 
 
-@router.get("/series/{series_id}/similar")
-def similar_series(
-    series_id: int,
-    intel: IntelDep,
-    response: Response,
-    limit: int = Query(10, ge=1, le=50),
-) -> list[dict[str, object]]:
-    """Return series similar to the given one."""
-    items = intel.get_similar_series(series_id, limit=limit)
-    set_list_total_header(response, len(items))
-    return items
-
-
-@router.get("/series/{series_id}/metadata-quality")
-def metadata_quality(
-    series_id: int,
-    intel: IntelDep,
-) -> dict[str, object]:
-    """Return metadata completeness score and suggestions for a series."""
-    return intel.get_metadata_quality(series_id)
-
-
-@router.get("/series/{series_id}/reading-history")
-def series_reading_history(
-    series_id: int,
-    intel: IntelDep,
-    limit: int = Query(50, ge=1, le=200),
-) -> list[dict[str, object]]:
-    """Return reading history for a specific series."""
-    return intel.get_series_reading_history(series_id, limit=limit)
-
-
-@router.get("/reading-calendar")
-def reading_calendar(
-    intel: IntelDep,
-    days: int = Query(30, ge=1, le=365),
-) -> list[dict[str, object]]:
-    """Return daily reading aggregates for the last N days."""
-    return intel.get_reading_calendar(days=days)
-
-
-@router.get("/chapters/{chapter_id}")
-def get_chapter(chapter_id: int, service: ServiceDep) -> dict[str, object]:
-    """Return chapter detail with ordered page list."""
-    return service.get_chapter(chapter_id)
-
-
-@router.get("/libraries")
-def list_libraries(service: ServiceDep, response: Response) -> list[dict[str, object]]:
-    """Return configured library roots (for mobile library filtering)."""
-    items = service.list_libraries()
-    set_list_total_header(response, len(items))
-    return items
+# ---------------------------------------------------------------------------
+# Strips / stats
+# ---------------------------------------------------------------------------
 
 
 @router.get("/continue-reading")
@@ -321,104 +133,71 @@ def continue_reading(
     response: Response,
     limit: int = Query(10, ge=1, le=50),
 ) -> list[dict[str, object]]:
-    """Return in-progress series for the Continue Reading strip."""
-    items = service.get_continue_reading(limit=limit)
-    set_list_total_header(response, len(items))
-    return items
-
-
-@router.get("/reading-history")
-def reading_history(
-    intel: IntelDep,
-    response: Response,
-    limit: int = Query(50, ge=1, le=200),
-) -> list[dict[str, object]]:
-    """Return recent reading activity."""
-    items = intel.get_reading_history(limit=limit)
-    set_list_total_header(response, len(items))
-    return items
-
-
-@router.get("/recently-added")
-def recently_added(
-    intel: IntelDep,
-    response: Response,
-    limit: int = Query(10, ge=1, le=50),
-) -> list[dict[str, object]]:
-    """Return recently added series."""
-    items = intel.get_recently_added(limit=limit)
+    items = service.continue_reading(limit=limit)
     set_list_total_header(response, len(items))
     return items
 
 
 @router.get("/recently-updated")
 def recently_updated(
-    intel: IntelDep,
+    service: ServiceDep,
     response: Response,
     limit: int = Query(10, ge=1, le=50),
 ) -> list[dict[str, object]]:
-    """Return recently updated series."""
-    items = intel.get_recently_updated(limit=limit)
+    items = service.recently_updated(limit=limit)
     set_list_total_header(response, len(items))
     return items
 
 
 @router.get("/recommendations")
 def recommendations(
-    intel: IntelDep,
+    service: ServiceDep,
     response: Response,
     limit: int = Query(10, ge=1, le=50),
 ) -> list[dict[str, object]]:
-    """Return recommended series based on reading history."""
-    items = intel.get_recommendations(limit=limit)
+    items = service.recommendations(limit=limit)
     set_list_total_header(response, len(items))
     return items
 
 
 @router.get("/statistics")
-def statistics(intel: IntelDep) -> dict[str, object]:
-    """Return library statistics."""
-    return intel.get_statistics()
+def statistics(service: ServiceDep) -> dict[str, object]:
+    return service.statistics()
 
 
-@router.post("/import", response_model=ImportResponse, dependencies=[Depends(require_admin_user)])
-@limiter.limit(import_limit)
-def import_library(
-    body: ImportRequest, request: Request, response: Response, service: ServiceDep
-) -> ImportResponse:
-    """Scan a folder and import series, chapters, and pages into the database."""
-    result = service.import_folder(body.folder_path)
-    return ImportResponse(**result)
+@router.get("/search")
+def search(
+    service: ServiceDep,
+    q: str = Query(..., min_length=1),
+    page: int = Query(1, ge=1),
+    per_page: int = Query(20, ge=1, le=200),
+) -> dict[str, object]:
+    """Search over the profile's followed series (title LIKE)."""
+    return service.search(q, page=page, per_page=per_page)
 
 
-@router.get("/scan-status", response_model=ScanStatusResponse)
-def scan_status(service: ServiceDep) -> ScanStatusResponse:
-    """Poll current library scan progress."""
-    return ScanStatusResponse(**service.get_scan_status())
-
-
-# ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Collections
-# ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 @router.get("/collections")
-def list_collections(intel: IntelDep, response: Response) -> list[dict[str, object]]:
-    """Return all collections."""
-    items = intel.list_collections()
+def list_collections(service: ServiceDep, response: Response) -> list[dict[str, object]]:
+    items = service.list_collections()
     set_list_total_header(response, len(items))
     return items
 
 
 @router.post("/collections", dependencies=[Depends(require_profile_context)])
-def create_collection(body: CollectionCreateRequest, intel: IntelDep) -> dict[str, object]:
-    """Create a new collection (scoped to the active profile)."""
-    return intel.create_collection(name=body.name, description=body.description)
+def create_collection(
+    body: CollectionCreateRequest, service: ServiceDep
+) -> dict[str, object]:
+    return service.create_collection(name=body.name, description=body.description)
 
 
 @router.get("/collections/{collection_id}")
-def get_collection(collection_id: int, intel: IntelDep) -> dict[str, object]:
-    """Return collection detail with series list."""
-    return intel.get_collection(collection_id)
+def get_collection(collection_id: int, service: ServiceDep) -> dict[str, object]:
+    return service.get_collection(collection_id)
 
 
 @router.patch(
@@ -426,16 +205,10 @@ def get_collection(collection_id: int, intel: IntelDep) -> dict[str, object]:
     dependencies=[Depends(require_profile_context)],
 )
 def update_collection(
-    collection_id: int,
-    body: CollectionUpdateRequest,
-    intel: IntelDep,
+    collection_id: int, body: CollectionUpdateRequest, service: ServiceDep
 ) -> dict[str, object]:
-    """Update collection metadata."""
-    return intel.update_collection(
-        collection_id,
-        name=body.name,
-        description=body.description,
-        sort_order=body.sort_order,
+    return service.update_collection(
+        collection_id, **body.model_dump(exclude_unset=True)
     )
 
 
@@ -444,159 +217,78 @@ def update_collection(
     status_code=204,
     dependencies=[Depends(require_profile_context)],
 )
-def delete_collection(collection_id: int, intel: IntelDep) -> None:
-    """Delete a collection."""
-    intel.delete_collection(collection_id)
+def delete_collection(collection_id: int, service: ServiceDep) -> None:
+    service.delete_collection(collection_id)
 
 
 @router.post(
-    "/collections/{collection_id}/series/{series_id}",
+    "/collections/{collection_id}/series",
     dependencies=[Depends(require_profile_context)],
 )
 def add_series_to_collection(
-    collection_id: int,
-    series_id: int,
-    intel: IntelDep,
+    collection_id: int, body: CollectionSeriesRequest, service: ServiceDep
 ) -> dict[str, object]:
-    """Add a series to a collection."""
-    return intel.add_series_to_collection(collection_id, series_id)
-
-
-class CollectionReorderRequest(BaseModel):
-    series_ids: list[int]
-
-
-@router.post(
-    "/collections/{collection_id}/reorder",
-    dependencies=[Depends(require_profile_context)],
-)
-def reorder_collection_series(
-    collection_id: int,
-    body: CollectionReorderRequest,
-    intel: IntelDep,
-) -> dict[str, object]:
-    """Reorder series within a collection."""
-    return intel.reorder_collection_series(collection_id, body.series_ids)
+    return service.add_series_to_collection(
+        collection_id, body.source_id, body.series_key
+    )
 
 
 @router.delete(
-    "/collections/{collection_id}/series/{series_id}",
+    "/collections/{collection_id}/series",
     status_code=204,
     dependencies=[Depends(require_profile_context)],
 )
 def remove_series_from_collection(
-    collection_id: int,
-    series_id: int,
-    intel: IntelDep,
+    collection_id: int, body: CollectionSeriesRequest, service: ServiceDep
 ) -> None:
-    """Remove a series from a collection."""
-    intel.remove_series_from_collection(collection_id, series_id)
+    service.remove_series_from_collection(
+        collection_id, body.source_id, body.series_key
+    )
 
 
-# ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Tags
-# ------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 @router.get("/tags")
 def list_tags(
-    intel: IntelDep,
-    response: Response,
-    category: str | None = None,
+    service: ServiceDep, response: Response, category: str | None = None
 ) -> list[dict[str, object]]:
-    """Return all tags, optionally filtered by category."""
-    items = intel.list_tags(category=category)
+    items = service.list_tags(category=category)
     set_list_total_header(response, len(items))
     return items
 
 
-@router.post("/tags")
-def create_tag(body: TagCreateRequest, intel: IntelDep) -> dict[str, object]:
-    """Create a new tag."""
-    return intel.create_tag(name=body.name, category=body.category, color=body.color)
+@router.post("/tags", dependencies=[Depends(require_profile_context)])
+def create_tag(body: TagCreateRequest, service: ServiceDep) -> dict[str, object]:
+    return service.create_tag(
+        name=body.name, category=body.category, color=body.color
+    )
 
 
-@router.delete("/tags/{tag_id}", status_code=204)
-def delete_tag(tag_id: int, intel: IntelDep) -> None:
-    """Delete a tag."""
-    intel.delete_tag(tag_id)
+@router.delete(
+    "/tags/{tag_id}",
+    status_code=204,
+    dependencies=[Depends(require_profile_context)],
+)
+def delete_tag(tag_id: int, service: ServiceDep) -> None:
+    service.delete_tag(tag_id)
 
 
-class TagAddRequest(BaseModel):
-    tag_id: int = Field(ge=1)
-
-
-@router.post("/series/{series_id}/tags")
+@router.post("/series-tags", dependencies=[Depends(require_profile_context)])
 def add_tag_to_series(
-    series_id: int,
-    body: TagAddRequest,
-    intel: IntelDep,
+    body: SeriesTagRequest, service: ServiceDep
 ) -> dict[str, object]:
-    """Add a tag to a series."""
-    return intel.add_tag_to_series(series_id, body.tag_id)
+    return service.add_tag_to_series(body.source_id, body.series_key, body.tag_id)
 
 
-@router.delete("/series/{series_id}/tags/{tag_id}", status_code=204)
+@router.delete(
+    "/series-tags",
+    status_code=204,
+    dependencies=[Depends(require_profile_context)],
+)
 def remove_tag_from_series(
-    series_id: int,
-    tag_id: int,
-    intel: IntelDep,
+    body: SeriesTagRequest, service: ServiceDep
 ) -> None:
-    """Remove a tag from a series."""
-    intel.remove_tag_from_series(series_id, tag_id)
-
-
-# ------------------------------------------------------------------
-# Search
-# ------------------------------------------------------------------
-
-@router.get("/search")
-def search(
-    intel: IntelDep,
-    q: str = Query(..., min_length=1),
-    page: int = Query(1, ge=1),
-    per_page: int = Query(20, ge=1, le=200),
-) -> dict[str, object]:
-    """Search across series titles, authors, and descriptions."""
-    return intel.search_series(q, page=page, per_page=per_page)
-
-
-@router.get("/pages/{page_id}/image")
-def get_page_image(
-    page_id: int,
-    service: ServiceDep,
-    image_service: ImageDep,
-) -> Response:
-    """Serve a page image file."""
-    payload, media_type = image_service.serve_page(service, page_id)
-    if isinstance(payload, bytes):
-        return Response(
-            content=payload,
-            media_type=media_type,
-            headers={"Cache-Control": "max-age=86400"},
-        )
-    return FileResponse(
-        payload,
-        media_type=media_type,
-        headers={"Cache-Control": "max-age=86400"},
-    )
-
-
-@router.get("/covers/{series_id}")
-def get_series_cover(
-    series_id: int,
-    service: ServiceDep,
-    image_service: ImageDep,
-) -> Response:
-    """Serve a series cover image."""
-    payload, media_type = image_service.get_cover_path(service, series_id)
-    if isinstance(payload, bytes):
-        return Response(
-            content=payload,
-            media_type=media_type,
-            headers={"Cache-Control": "max-age=86400"},
-        )
-    return FileResponse(
-        payload,
-        media_type=media_type,
-        headers={"Cache-Control": "max-age=86400"},
-    )
+    service.remove_tag_from_series(body.source_id, body.series_key, body.tag_id)
