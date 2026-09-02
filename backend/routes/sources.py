@@ -8,11 +8,7 @@ from pydantic import BaseModel, Field
 
 from core.rate_limit import limiter, sources_limit
 from services.browse_service import BrowseService, get_browse_service
-from services.library_intelligence_service import (
-    LibraryIntelligenceService,
-    get_library_intelligence_service,
-)
-from services.reading_service import ReadingService, get_reading_service
+from services.reader_service import ReaderService, get_reader_service
 from services.source_pin_service import (
     SourcePinService,
     get_source_pin_service,
@@ -24,10 +20,7 @@ router = APIRouter(prefix="/sources", tags=["sources"])
 
 
 BrowseDep = Annotated[BrowseService, Depends(get_browse_service)]
-ReadingDep = Annotated[ReadingService, Depends(get_reading_service)]
-IntelDep = Annotated[
-    LibraryIntelligenceService, Depends(get_library_intelligence_service)
-]
+ReaderDep = Annotated[ReaderService, Depends(get_reader_service)]
 PinDep = Annotated[SourcePinService, Depends(get_source_pin_service)]
 PinWriteDep = Annotated[SourcePinService, Depends(require_source_pin_service)]
 
@@ -53,43 +46,21 @@ def list_sources(service: BrowseDep, response: Response) -> list[dict[str, objec
 async def federated_search(
     request: Request,
     service: BrowseDep,
-    intel: IntelDep,
     q: str = Query("", description="Search query"),
     page: int = Query(1, ge=1),
     per_page: int = Query(40, ge=1, le=200),
 ) -> dict[str, object]:
-    """Search the local library and every browsable source in parallel."""
-    base_url = str(request.base_url)
-    query = q.strip()
+    """Search every browsable source in parallel.
 
-    # Local library hits (kind:"local"). Skip on empty query -- the library
-    # search rejects blank input -- but still report sources as queried.
-    local_items: list[dict[str, object]] = []
-    local_has_more = False
-    if query:
-        local_result = intel.search_series(query, page=page, per_page=per_page)
-        local_has_more = bool(local_result.get("has_more"))
-        for summary in local_result.get("items", []):
-            local_items.append(
-                {
-                    "kind": "local",
-                    "source": None,
-                    "series_id": str(summary["id"]),
-                    "title": summary["title"],
-                    "cover_url": f"{base_url.rstrip('/')}/library/covers/{summary['id']}",
-                    "author": summary.get("author"),
-                    "extra": None,
-                }
-            )
-
+    Source-native: there is no local catalog to search — the library is the
+    per-profile ``followed_series`` set, searched via ``GET /library/search``.
+    """
     return await service.federated_search(
-        query,
+        q.strip(),
         page=page,
         per_page=per_page,
-        include_mature=intel.mature_content_enabled,
-        local_items=local_items,
-        local_has_more=local_has_more,
-        base_url=base_url,
+        include_mature=service._gate_open(),
+        base_url=str(request.base_url),
     )
 
 
@@ -232,7 +203,7 @@ def get_source_reader_chapter(
     source_id: str,
     series_id: str,
     chapter_id: str,
-    service: ReadingDep,
+    service: ReaderDep,
 ) -> dict[str, object]:
-    """Return a unified reader payload, preferring local copies when available."""
+    """Return the online reader payload for a chapter, straight from the source."""
     return service.resolve_source_chapter(source_id, series_id, chapter_id)
