@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useReducer, useRef } from "react";
+import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 import { usePrefersReducedMotion } from "@/components/premium/use-prefers-reduced-motion";
 import {
   CINEMA_IDLE_MS,
@@ -116,11 +116,14 @@ export function useCinema({
 
   useEffect(() => clearIdle, [clearIdle]);
 
-  return {
-    enabled: state.enabled,
-    chromeVisible: !state.enabled || state.chrome === "shown",
-    reducedMotion,
-    toggle,
-    notifyActivity,
-  };
+  return useMemo(
+    () => ({
+      enabled: state.enabled,
+      chromeVisible: !state.enabled || state.chrome === "shown",
+      reducedMotion,
+      toggle,
+      notifyActivity,
+    }),
+    [state.enabled, state.chrome, reducedMotion, toggle, notifyActivity],
+  );
 }
