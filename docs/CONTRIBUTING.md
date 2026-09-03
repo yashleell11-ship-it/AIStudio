@@ -3,8 +3,7 @@
 This document establishes how contributions are made to ManhwaManiacs — by humans and AI
 agents alike. Read it before writing any code.
 
-Cross-references: [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md) ·
-[ROADMAP.md](ROADMAP.md)
+Cross-references: [ARCHITECTURE.md](ARCHITECTURE.md) · [ROADMAP.md](ROADMAP.md)
 
 ---
 
@@ -12,10 +11,11 @@ Cross-references: [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-0
 
 Read these documents in this order:
 
-1. [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md) — the real
-   current architecture, subsystem-by-subsystem state, known debt, and the priority
-   roadmap (§9).
-2. [ROADMAP.md](ROADMAP.md) — what the product is today and which phase you're working in.
+1. [ARCHITECTURE.md](ARCHITECTURE.md) — the system on one page: what runs
+   where, the data model, how a chapter reaches web/mobile, deploy.
+2. [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md) — the identity model, where things
+   live, rules that will bite you, and current sub-project status.
+3. [ROADMAP.md](ROADMAP.md) — the product-level narrative and phase history.
 
 Do not write code until you understand the context for your change. Read the files
 you will modify before modifying them.
@@ -26,18 +26,14 @@ you will modify before modifying them.
 
 ```
 aistudio/
-├─ frontend/        Next.js 16 application (TypeScript, Tailwind v4)
-├─ backend/         FastAPI application (Python 3.11+)
+├─ frontend/        Next.js 16 web app (TypeScript, Tailwind v4)
+├─ backend/         FastAPI application (Python 3.11+, pyproject.toml)
+├─ mobile/          Flutter app (Android + sideloaded iOS)
+├─ ops/vps/         VPS deploy: docker-compose.yml, deploy.sh, push.sh
 ├─ config/
-│  └─ settings.json Runtime configuration for the backend
-├─ docs/            All project documentation
-├─ memory/          Creation studio data (characters, world, etc.)
-├─ projects/        User-created manhwa projects
-└─ covers/          Generated thumbnails (runtime, not committed)
+│  └─ settings.json Runtime configuration for the backend (gitignored)
+└─ docs/            Project documentation — see docs/ARCHITECTURE.md first
 ```
-
-See [ARCHITECTURE_REVIEW_2026-07-11.md § 5](ARCHITECTURE_REVIEW_2026-07-11.md#5-folder-organization)
-for the current folder organization of `frontend/src/` and `backend/`.
 
 ---
 
@@ -45,13 +41,12 @@ for the current folder organization of `frontend/src/` and `backend/`.
 
 ### 3.1 Backend
 
-Requirements: Python 3.11+, Ollama (optional for non-AI features).
+Requirements: Python 3.11+.
 
-```powershell
-# From the backend/ directory
-python -m venv venv
-venv\Scripts\activate
-pip install -r requirements.txt
+```bash
+cd backend
+python3 -m venv .venv && . .venv/bin/activate
+pip install -e .
 uvicorn main:app --reload
 ```
 
@@ -62,30 +57,24 @@ uvicorn main:app --reload
 
 Requirements: Node.js 20+.
 
-```powershell
-# From the frontend/ directory
+```bash
+cd frontend
 npm install
 npm run dev
 ```
 
-→ App available at `http://localhost:3000`
+→ App available at `http://localhost:3000`, proxying `/api/*` to the backend
+(`BACKEND_INTERNAL_URL`, default `http://127.0.0.1:8000` — see `next.config.ts`).
 
-### 3.3 Optional: configure API URL
+### 3.3 Mobile
 
-Create `frontend/.env.local`:
+Requirements: the Flutter SDK.
+
+```bash
+cd mobile
+flutter pub get
+flutter run --dart-define=API_URL=http://127.0.0.1:8000
 ```
-NEXT_PUBLIC_API_URL=http://127.0.0.1:8000
-```
-
-Omitting this file defaults to `http://127.0.0.1:8000`.
-
-### 3.4 Windows-specific notes
-
-- Run commands individually. Never use `&&` or `||` between commands.
-- Use PowerShell, not Command Prompt.
-- `venv\Scripts\activate` (backslash) on Windows; `venv/bin/activate` on Linux/macOS.
-- See [archive/PROJECT_RULES.md § 13](archive/PROJECT_RULES.md#13-windows-compatibility-rules)
-  (archived) for the full list of Windows compatibility requirements.
 
 ---
 
@@ -234,7 +223,8 @@ Rules:
 - Always lowercase.
 - Use hyphens, not underscores or spaces.
 - Keep it under 50 characters.
-- Branch from `main`. Never branch from another feature branch.
+- Branch from `master` (the trunk — see `CLAUDE_HANDOFF.md`). Never branch from
+  another feature branch.
 - One logical change per branch. Do not combine a bug fix with a new feature.
 
 ---
@@ -381,62 +371,44 @@ For every file changed, the reviewer verifies:
 
 ## 9. Testing Checklist
 
-Run these commands separately (never chain with `&&`):
+Run these commands separately:
 
-```powershell
-# TypeScript type checking
-npx tsc --noEmit
+```bash
+# Frontend: type checking, lint, unit tests, production build
+cd frontend && npm run typecheck && npm run lint && npm run test && npm run build
 
-# Production build (catches runtime errors that tsc misses)
-npm run build
+# Backend: the test suite
+cd backend && .venv/bin/pytest
 
-# Lint
-npm run lint
-
-# Backend tests (when they exist)
-python -m pytest
+# Mobile
+cd mobile && flutter analyze && flutter test
 ```
 
-All four must pass. Zero tolerance for failures.
+Zero tolerance for failures.
 
 ### Continuous integration
 
 `.forgejo/workflows/ci.yml` runs on every push to `master`/`develop`/`main` and
-on every pull request. It has three jobs that mirror the checklist above:
-
-- **backend** — `pip install -r requirements.txt` then `pytest`.
-- **frontend** — `npm ci`, then `npm run typecheck`, `lint`, `test`, `build`.
-- **mobile** — `flutter pub get`, `flutter analyze`, `flutter test`.
-
-CI is the correctness gate that keeps the trunk releasable; it is independent of
-the deploy pipelines (staging/production/preview). Get your change green locally
-before opening a PR — CI should confirm, not discover.
+on every pull request, with three jobs mirroring the checklist above:
+**backend** (`pip install -r requirements.txt` + `pytest`), **frontend**
+(`npm ci`, `typecheck`, `lint`, `test`, `build`), **mobile** (`flutter pub get`,
+`analyze`, `test`). Get your change green locally before opening a PR — CI
+should confirm, not discover.
 
 ### Writing tests
 
-**Backend tests** go in `backend/tests/`. Use `pytest`. Use `tmp_path` for file
-fixtures. Use a fresh in-memory SQLite database per test.
+**Backend tests** live in `backend/tests/` (80+ files as of this writing) and
+run with `pytest`; the fixtures in `conftest.py` (`db_session`, `client`,
+`as_user`, `default_auth`) give you an isolated in-memory-SQLite app and a
+pre-authenticated `TestClient` — read an existing test in the module you're
+touching before writing a new one, the idiom varies by layer (service unit
+test vs. HTTP route test).
 
-```python
-# backend/tests/test_library_service.py
-def test_scan_detects_series(tmp_path):
-    # Arrange: create a known folder structure
-    series_dir = tmp_path / "My Series"
-    chapter_dir = series_dir / "Chapter 001"
-    chapter_dir.mkdir(parents=True)
-    (chapter_dir / "001.jpg").write_bytes(b"...")
+**Frontend tests** live next to what they test as `*.test.ts(x)` and run with
+`vitest` (`npm run test`); mock at the `services/http.ts` boundary, never make
+real HTTP calls in tests.
 
-    # Act
-    service = LibraryService(db=in_memory_db())
-    result = service.scan_library(str(tmp_path))
-
-    # Assert
-    assert result.series_count == 1
-    assert result.chapter_count == 1
-```
-
-**Frontend tests** (when added, Phase 2+): test feature hooks and components in
-isolation. Mock at the `services/http.ts` boundary — never make real HTTP calls in tests.
+**Mobile tests** live under `mobile/test/` and run with `flutter test`.
 
 ---
 
@@ -447,9 +419,8 @@ When your change touches any of the following, update the corresponding document
 | Change | Update required |
 |--------|----------------|
 | Completed roadmap task | `ROADMAP.md` (mark complete, update dates) |
-| Major architectural change | `ARCHITECTURE_REVIEW_2026-07-11.md` (or a dated follow-up review) |
+| Major architectural change | `ARCHITECTURE.md`, and the relevant deeper doc it links to |
 | New API endpoint | FastAPI docstring (auto-generates OpenAPI spec) |
-| New shortcut | `CONTRIBUTING.md` (keyboard reference, when added) |
 
 Documentation is not optional. An undocumented change is an incomplete change.
 
@@ -469,9 +440,13 @@ what already exists without reading the existing implementation first.
 ### 11.2 Read the relevant docs
 
 For any non-trivial change:
-1. Read [ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md) for the
-   subsystem map, dependency graph, and known debt for the layer being changed.
-2. Read [ROADMAP.md](ROADMAP.md) to confirm which phase/milestone the change belongs to.
+1. Read [ARCHITECTURE.md](ARCHITECTURE.md) for the system map, then the deeper
+   doc it links to for the layer being changed (AUTH.md, OFFLINE_READING.md,
+   SOURCES.md, VPS_OPERATIONS.md, or the relevant spec under
+   `docs/superpowers/specs/`).
+2. Read [ROADMAP.md](ROADMAP.md) and [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md) §5
+   to confirm which phase/sub-project the change belongs to and what's already
+   landed.
 
 For frontend changes specifically:
 - Read `frontend/node_modules/next/dist/docs/` for the relevant Next.js 16 API before
@@ -585,8 +560,8 @@ in [ROADMAP.md](ROADMAP.md). "I have implemented X" must be verified by:
 When a non-obvious decision is made during development — a tradeoff, a deviation from
 the planned approach, a discovery that changes the design — document it.
 
-If the decision is architectural: note it in a dated follow-up to
-[ARCHITECTURE_REVIEW_2026-07-11.md](ARCHITECTURE_REVIEW_2026-07-11.md).
+If the decision is architectural: update [ARCHITECTURE.md](ARCHITECTURE.md) or
+the relevant spec under `docs/superpowers/specs/`.
 
 If the decision changes the phase plan: update [ROADMAP.md](ROADMAP.md).
 
