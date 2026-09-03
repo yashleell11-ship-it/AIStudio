@@ -58,6 +58,11 @@ const nextConfig: NextConfig = {
     ];
   },
 
+  // Covers and reader pages proxy through the backend on the SAME origin
+  // (`/api/**`), so the `next/image` optimizer never needs a remotePatterns
+  // entry for them — and in practice they render with `unoptimized` anyway
+  // (already-sized JPEG/WebP from a proxy). These entries exist only for the
+  // few dev/prod cases where an absolute backend URL reaches `next/image`.
   images: {
     remotePatterns: [
       {
@@ -70,6 +75,11 @@ const nextConfig: NextConfig = {
         protocol: "http",
         hostname: "localhost",
         port: "8000",
+        pathname: "/**",
+      },
+      {
+        protocol: "https",
+        hostname: "manhwamaniacs.xyz",
         pathname: "/**",
       },
     ],
