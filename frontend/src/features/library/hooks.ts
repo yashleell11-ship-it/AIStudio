@@ -74,10 +74,13 @@ export function useFollowedIndex() {
     queryFn: () => libraryApi.listSeries({ per_page: 200, sort: "title" }),
   });
   const index = new Map<string, number>();
+  const titles = new Map<string, string>();
   for (const row of query.data?.items ?? []) {
-    index.set(`${row.source_id}:${row.series_key}`, row.id);
+    const key = `${row.source_id}:${row.series_key}`;
+    index.set(key, row.id);
+    if (row.title) titles.set(key, row.title);
   }
-  return { ...query, index };
+  return { ...query, index, titles };
 }
 
 export function followKey(ref: SeriesId): string {
