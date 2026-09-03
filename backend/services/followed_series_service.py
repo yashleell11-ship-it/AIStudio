@@ -494,6 +494,14 @@ class FollowedSeriesService:
     def get_collection(self, collection_id: int) -> dict[str, Any]:
         self._require_owner()
         row = self._owned_collection(collection_id)
+        # Production sessions are built with ``expire_on_commit=False``, so a
+        # ``series`` collection loaded earlier in this same request survives
+        # the commit that changed membership and would serialize one write
+        # behind. ``add_series_to_collection`` does exactly that: it reads
+        # ``row.series`` for the new ``sort_order``, inserts, commits, then
+        # calls this method. Expire the relationship so the reads below come
+        # from the database rather than the identity map.
+        self._db.expire(row, ["series"])
         payload = self._serialize_collection(row)
         payload["series"] = [
             {

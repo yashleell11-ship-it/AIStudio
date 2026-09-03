@@ -234,6 +234,56 @@ def test_collections_crud_and_series_membership(api, h):
     assert api.get("/library/collections/999999", headers=h).status_code == 404
 
 
+def test_add_series_response_is_not_one_write_behind(api, h):
+    """POST .../series must return membership *including* the row it just added.
+
+    Regression for a stale identity-map read: production ``SessionLocal`` sets
+    ``expire_on_commit=False``, and ``add_series_to_collection`` touches
+    ``collection.series`` (for the new ``sort_order``) *before* inserting. Left
+    unexpired, that collection survives the commit, so the response served the
+    membership as it stood one write earlier — the first POST returned an empty
+    list, the second returned only the first key. Clients that trust the
+    documented response shape rather than refetching rendered stale membership.
+
+    The suite only sees this because ``session_factory`` mirrors production's
+    ``expire_on_commit=False``; under SQLAlchemy's expiring default every
+    commit hides the bug behind a free reload.
+    """
+    cid = api.post(
+        "/library/collections", json={"name": "Fresh"}, headers=h
+    ).json()["id"]
+
+    first = api.post(
+        f"/library/collections/{cid}/series",
+        json={"source_id": SRC, "series_key": S1},
+        headers=h,
+    )
+    assert first.status_code == 200, first.text
+    assert [s["series_key"] for s in first.json()["series"]] == [S1]
+    assert first.json()["series_count"] == 1
+
+    second = api.post(
+        f"/library/collections/{cid}/series",
+        json={"source_id": SRC, "series_key": S2},
+        headers=h,
+    )
+    assert second.status_code == 200, second.text
+    assert [s["series_key"] for s in second.json()["series"]] == [S1, S2]
+    assert second.json()["series_count"] == 2
+    # sort_order is derived from the membership count at insert time, so a
+    # stale read would also have handed both rows the same position.
+    assert [s["sort_order"] for s in second.json()["series"]] == [0, 1]
+
+    # A re-add of an existing key is a no-op that still reports the truth.
+    repeat = api.post(
+        f"/library/collections/{cid}/series",
+        json={"source_id": SRC, "series_key": S1},
+        headers=h,
+    ).json()
+    assert [s["series_key"] for s in repeat["series"]] == [S1, S2]
+    assert repeat["series_count"] == 2
+
+
 # --- tags -------------------------------------------------------------
 
 
