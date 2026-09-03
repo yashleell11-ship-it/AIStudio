@@ -560,3 +560,45 @@ export function ChapterEdgePrompt({ href, direction, label }: ChapterEdgePromptP
     </div>
   );
 }
+
+interface ChapterEndCardProps {
+  /** Real href for the next chapter (middle-click / open-in-new-tab). */
+  href: string;
+  /** Short label, e.g. "Ch 41". */
+  label: string;
+  /** Swap into the next chapter with no route navigation. */
+  onAdvance: () => void;
+}
+
+/**
+ * End-of-chapter affordance for the continuous strip (spec §3.3.4). Slides up
+ * as the reader reaches the bottom (the CSS animation collapses to an instant
+ * appearance under reduced motion); a tap — or a continued downward scroll,
+ * handled by `ChapterReader` — swaps straight into the next chapter, which is
+ * already prefetched, with no full-page navigation.
+ */
+export function ChapterEndCard({ href, label, onAdvance }: ChapterEndCardProps) {
+  return (
+    <div className="mx-auto flex w-full max-w-3xl justify-center overflow-hidden px-4 pb-10 pt-4">
+      <Link
+        href={href}
+        onClick={(event) => {
+          event.stopPropagation();
+          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          onAdvance();
+        }}
+        className="glass-card group reader-end-card-enter flex w-full max-w-md flex-col items-center gap-1 rounded-2xl px-6 py-5 text-center shadow-glass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted">
+          Next chapter
+        </span>
+        <span className="flex items-center gap-1.5 text-base font-semibold text-fg">
+          {label}
+          <ChevronRight className="size-4 text-primary transition-transform group-hover:translate-x-0.5" />
+        </span>
+        <span className="mt-0.5 text-xs text-muted">Tap or keep scrolling</span>
+      </Link>
+    </div>
+  );
+}
