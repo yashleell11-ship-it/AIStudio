@@ -19,7 +19,11 @@ LibraryQuery readLibraryQuery(SharedPreferences prefs) {
     final favoritesOnly = parsed['favoritesOnly'] as bool? ?? false;
 
     return LibraryQuery(
-      sort: _parseEnum(LibrarySort.values, sortName, LibrarySort.recent),
+      sort: _parseEnum(
+        LibrarySort.values,
+        sortName,
+        LibrarySort.recentlyUpdated,
+      ),
       filter: _parseFilter(filterName),
       favoritesOnly: favoritesOnly,
       viewMode: _parseEnum(

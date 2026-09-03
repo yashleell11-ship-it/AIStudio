@@ -7,10 +7,9 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
-import 'package:manhwamaniacs/features/updates/widgets/migrate_series_sheet.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/ghost_pill_button.dart';
@@ -23,8 +22,7 @@ class UpdatesScreen extends ConsumerWidget {
   const UpdatesScreen({super.key});
 
   /// Awaits an action that returns an [AppError] on failure and surfaces it as
-  /// a SnackBar, matching the download banner's failure feedback in this
-  /// module. Silent on success.
+  /// a SnackBar. Silent on success.
   Future<void> _run(BuildContext context, Future<AppError?> action) async {
     final error = await action;
     if (error != null && context.mounted) {
@@ -80,7 +78,7 @@ class UpdatesScreen extends ConsumerWidget {
                     const HeroHeading(text: 'Updates', fontSize: 40),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${state.unreadCount} unread · ${state.trackers.length} tracked series',
+                      '${state.unreadCount} unread · ${state.followed.length} followed series',
                       style: AppTypography.body.copyWith(color: AppColors.muted),
                     ),
                     const SizedBox(height: AppSpacing.xl2),
@@ -113,7 +111,7 @@ class UpdatesScreen extends ConsumerWidget {
                 const EmptyState(
                   icon: Icons.notifications_none,
                   message: 'No update notifications',
-                  subtitle: 'Follow series or sync downloads to get notified.',
+                  subtitle: 'Follow series to get notified of new chapters.',
                 )
               else
                 ...state.notifications.map(
@@ -131,32 +129,23 @@ class UpdatesScreen extends ConsumerWidget {
                   ),
                 ),
               const SizedBox(height: AppSpacing.xl2),
-              const _SectionHeader(title: 'Tracked series'),
+              const _SectionHeader(title: 'Followed series'),
               const SizedBox(height: AppSpacing.md),
-              if (state.trackers.isEmpty)
+              if (state.followed.isEmpty)
                 const EmptyState(
                   icon: Icons.rss_feed,
-                  message: 'No tracked series',
-                  subtitle: 'Track series from sources to monitor new chapters.',
+                  message: 'No followed series',
+                  subtitle: 'Follow series from sources to monitor new chapters.',
                 )
               else
-                ...state.trackers.map(
-                  (tracker) => Padding(
+                ...state.followed.map(
+                  (series) => Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: _TrackerCard(
-                      tracker: tracker,
+                    child: _FollowedSeriesCard(
+                      series: series,
                       actionPending: state.actionPending,
-                      onDelete: () =>
-                          _run(context, notifier.deleteTracker(tracker.id)),
-                      onAutoDownloadChanged: tracker.trackKind == TrackKind.followed
-                          ? (enabled) => _run(
-                              context,
-                              notifier.setTrackerAutoDownload(
-                                tracker.id,
-                                enabled,
-                              ),
-                            )
-                          : null,
+                      onRemove: () =>
+                          _run(context, notifier.unfollow(series.id)),
                     ),
                   ),
                 ),
@@ -216,7 +205,7 @@ class _NotificationCard extends StatelessWidget {
             children: [
               Expanded(
                 child: Text(
-                  notification.seriesTitle,
+                  notification.chapterTitle,
                   style: AppTypography.labelLg,
                 ),
               ),
@@ -225,7 +214,7 @@ class _NotificationCard extends StatelessWidget {
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            notification.chapterTitle,
+            notification.sourceId,
             style: AppTypography.body.copyWith(color: AppColors.muted),
           ),
           if (date != null) ...[
@@ -273,22 +262,19 @@ class _NewBadge extends StatelessWidget {
   }
 }
 
-class _TrackerCard extends StatelessWidget {
-  const _TrackerCard({
-    required this.tracker,
-    required this.onDelete,
-    this.onAutoDownloadChanged,
+class _FollowedSeriesCard extends StatelessWidget {
+  const _FollowedSeriesCard({
+    required this.series,
+    required this.onRemove,
     this.actionPending = false,
   });
 
-  final SeriesTracker tracker;
-  final VoidCallback onDelete;
-  final ValueChanged<bool>? onAutoDownloadChanged;
+  final FollowedSeries series;
+  final VoidCallback onRemove;
   final bool actionPending;
 
   @override
   Widget build(BuildContext context) {
-    final followed = tracker.trackKind == TrackKind.followed;
     return GlassPanel(
       padding: const EdgeInsets.all(AppSpacing.lg),
       child: Column(
@@ -296,57 +282,28 @@ class _TrackerCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(child: Text(tracker.seriesTitle, style: AppTypography.labelLg)),
-              _KindBadge(label: followed ? 'Followed' : 'Downloaded'),
+              Expanded(child: Text(series.title, style: AppTypography.labelLg)),
+              _KindBadge(label: series.sourceId),
             ],
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
-            // knownChapterCount is 0 until the first successful update check --
-            // follow_series creates the tracker without it -- so a freshly
-            // followed series would otherwise be labelled "0 chapters", which
-            // reads as "this series has none" rather than "not checked yet".
-            tracker.knownChapterCount > 0
-                ? '${tracker.source} · ${tracker.knownChapterCount} chapters'
-                : tracker.source,
+            // chapterCount is 0 until the first successful update check --
+            // follow() creates the row without it -- so a freshly followed
+            // series would otherwise be labelled "0 chapters", which reads as
+            // "this series has none" rather than "not checked yet".
+            series.chapterCount > 0
+                ? '${series.chapterCount} chapters'
+                : 'Not checked yet',
             style: AppTypography.body.copyWith(color: AppColors.muted),
           ),
-          if (tracker.lastError != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(
-              tracker.lastError!,
-              style: AppTypography.caption.copyWith(color: AppColors.warning),
-            ),
-          ],
-          if (onAutoDownloadChanged != null) ...[
-            const SizedBox(height: AppSpacing.sm),
-            Material(
-              type: MaterialType.transparency,
-              child: SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                activeThumbColor: AppColors.primary,
-                title: const Text('Auto download new chapters'),
-                value: tracker.autoDownload,
-                onChanged: actionPending ? null : onAutoDownloadChanged,
-              ),
-            ),
-          ],
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              // Only a followed series can move: a downloaded copy stays with
-              // the source its files came from.
-              if (followed)
-                TextButton(
-                  onPressed: actionPending
-                      ? null
-                      : () => showMigrateSeriesSheet(context, tracker: tracker),
-                  child: const Text('Move source'),
-                ),
               TextButton(
-                onPressed: actionPending ? null : onDelete,
+                onPressed: actionPending ? null : onRemove,
                 style: TextButton.styleFrom(foregroundColor: AppColors.danger),
-                child: const Text('Remove'),
+                child: const Text('Unfollow'),
               ),
             ],
           ),

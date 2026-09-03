@@ -1,11 +1,12 @@
+/// One new-chapter notification
+/// (`backend/services/update_service.py`'s `serialize_notification`).
 class UpdateNotification {
   const UpdateNotification({
     required this.id,
-    required this.trackerId,
-    required this.source,
-    required this.seriesId,
-    required this.seriesTitle,
-    required this.chapterId,
+    required this.followedSeriesId,
+    required this.sourceId,
+    required this.seriesKey,
+    required this.chapterKey,
     required this.chapterTitle,
     this.chapterNumber,
     required this.isRead,
@@ -13,11 +14,10 @@ class UpdateNotification {
   });
 
   final int id;
-  final int trackerId;
-  final String source;
-  final String seriesId;
-  final String seriesTitle;
-  final String chapterId;
+  final int? followedSeriesId;
+  final String sourceId;
+  final String seriesKey;
+  final String chapterKey;
   final String chapterTitle;
   final double? chapterNumber;
   final bool isRead;
@@ -26,15 +26,12 @@ class UpdateNotification {
   factory UpdateNotification.fromJson(Map<String, dynamic> json) =>
       UpdateNotification(
         id: json['id'] as int,
-        trackerId: json['tracker_id'] as int,
-        source: json['source'] as String,
-        seriesId: json['series_id'] as String,
-        seriesTitle: json['series_title'] as String,
-        chapterId: json['chapter_id'] as String,
+        followedSeriesId: json['followed_series_id'] as int?,
+        sourceId: json['source_id'] as String,
+        seriesKey: json['series_key'] as String,
+        chapterKey: json['chapter_key'] as String,
         chapterTitle: json['chapter_title'] as String,
-        chapterNumber: json['chapter_number'] != null
-            ? (json['chapter_number'] as num).toDouble()
-            : null,
+        chapterNumber: (json['chapter_number'] as num?)?.toDouble(),
         isRead: json['is_read'] as bool,
         createdAt: json['created_at'] != null
             ? DateTime.tryParse(json['created_at'] as String)

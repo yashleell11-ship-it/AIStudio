@@ -4,61 +4,58 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 
-/// Follow / Unfollow control for a series, identified by the *source* pair
-/// ([sourceId], [seriesId]) that trackers are keyed by.
+/// Follow / Unfollow control for a series, identified by the opaque
+/// `(sourceId, seriesKey)` pair `POST /library/follow` is keyed by.
 ///
-/// Shared by the source-browse series page and the local (downloaded) series
+/// Shared by the source-browse series page and the library (followed) series
 /// page so the two read as one feature: same control, same labels, same place.
-/// Following is what schedules update checks and new-chapter notifications, and
-/// until this widget was reachable from the local page a *downloaded* series --
-/// the one the owner cared enough to download -- could not be followed at all.
+/// Following is what schedules update checks and new-chapter notifications.
 ///
-/// Follow state comes from [updatesProvider] (the shared trackers cache) via
-/// [UpdatesNotifier.trackerFor] -- the single lookup implementation, not
-/// duplicated here -- and the mutations go through the same notifier, so a
-/// follow made on either page lands in the one cache that the Updates tab and
-/// the Library (followed) shelf both watch. That is why no extra invalidation
-/// is needed here: `followSeries`/`deleteTracker` already refresh it.
+/// Follow state comes from [updatesProvider] (the shared followed-series
+/// cache) via [UpdatesNotifier.followedFor] -- the single lookup
+/// implementation, not duplicated here -- and the mutations go through the
+/// same notifier, so a follow made on either page lands in the one cache that
+/// the Updates tab and the Library (followed) shelf both watch. That is why
+/// no extra invalidation is needed here: `followSeries`/`unfollow` already
+/// refresh it.
 ///
 /// This widget is the only part of either screen that watches [updatesProvider],
-/// so tracker/notification changes elsewhere never rebuild the rest of the page.
+/// so notification/followed-list changes elsewhere never rebuild the rest of
+/// the page.
 ///
 /// The button is disabled while a follow or unfollow is in flight
 /// (`actionPending`, which doubles as the double-tap guard) and while the
-/// trackers list has not loaded yet.
+/// followed-series cache has not loaded yet.
 class SeriesFollowButton extends ConsumerWidget {
   const SeriesFollowButton({
     super.key,
     required this.sourceId,
-    required this.seriesId,
-    required this.seriesTitle,
+    required this.seriesKey,
     this.initialIsFollowed,
-    this.initialFollowTrackerId,
+    this.initialFollowedId,
   });
 
-  /// Connector id the series belongs to (the tracker API's `source`).
+  /// Connector id the series belongs to.
   final String sourceId;
 
-  /// The connector's own id for the series (the tracker API's `series_id`).
-  final String seriesId;
-
-  /// Title recorded on the tracker, shown on the Updates/Library shelves.
-  final String seriesTitle;
+  /// The connector's own id for the series.
+  final String seriesKey;
 
   /// Follow state already known from the page's own payload, used only until
-  /// the trackers cache resolves. `GET /library/series/{id}` reports
-  /// `is_followed`/`follow_tracker_id` for the active (user, profile), so the
-  /// local page can render a truthful "Unfollow" on the very first frame
-  /// instead of flashing "Follow" at a series the user already follows.
+  /// the followed-series cache resolves. `GET /library/series/{id}` is
+  /// reached only once already following, so the library series page can
+  /// seed a truthful "Unfollow" on the very first frame instead of flashing
+  /// "Follow" at a series the user already follows.
   ///
   /// Null means "the caller has no payload to seed from" — the source-browse
-  /// page, which learns follow state only from the trackers cache. That is a
-  /// third state, not the same as `false`: `false` is an answer, null is the
-  /// absence of one, and only the latter warrants a placeholder label.
+  /// page, which learns follow state only from the followed-series cache.
+  /// That is a third state, not the same as `false`: `false` is an answer,
+  /// null is the absence of one, and only the latter warrants a placeholder
+  /// label.
   final bool? initialIsFollowed;
 
-  /// Tracker id matching [initialIsFollowed]; non-null iff that is true.
-  final int? initialFollowTrackerId;
+  /// Followed-row id matching [initialIsFollowed]; non-null iff that is true.
+  final int? initialFollowedId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -67,22 +64,22 @@ class SeriesFollowButton extends ConsumerWidget {
     final loading = updatesAsync.isLoading;
     final actionPending = state?.actionPending ?? false;
 
-    // Once the trackers list has loaded it is authoritative -- it reflects
-    // follows/unfollows made on other screens since this page was built, which
-    // the payload seed cannot. Before then fall back to the seed, which may
-    // itself be null when the caller had nothing to seed from.
-    final tracker = state == null
+    // Once the followed-series list has loaded it is authoritative -- it
+    // reflects follows/unfollows made on other screens since this page was
+    // built, which the payload seed cannot. Before then fall back to the
+    // seed, which may itself be null when the caller had nothing to seed from.
+    final series = state == null
         ? null
         : ref
             .read(updatesProvider.notifier)
-            .trackerFor(source: sourceId, seriesId: seriesId);
-    final bool? followed = state == null ? initialIsFollowed : tracker != null;
-    final trackerId = state == null ? initialFollowTrackerId : tracker?.id;
+            .followedFor(sourceId: sourceId, seriesKey: seriesKey);
+    final bool? followed = state == null ? initialIsFollowed : series != null;
+    final followedId = state == null ? initialFollowedId : series?.id;
     final isFollowed = followed ?? false;
 
     // Disabled while an action is in flight -- which is also the double-tap
-    // guard -- and until the trackers cache lands, so a tap can never act on a
-    // seeded tracker id the server may have changed since the page loaded.
+    // guard -- and until the followed-series cache lands, so a tap can never
+    // act on a seeded id the server may have changed since the page loaded.
     final disabled = actionPending || (loading && state == null);
 
     final String label;
@@ -102,7 +99,7 @@ class SeriesFollowButton extends ConsumerWidget {
       child: FilledButton.icon(
         onPressed: disabled
             ? null
-            : () => _toggle(context, ref, isFollowed, trackerId),
+            : () => _toggle(context, ref, isFollowed, followedId),
         icon: isFollowed
             ? const Icon(Icons.notifications_off_outlined)
             : const Icon(Icons.notifications_active_outlined),
@@ -115,23 +112,19 @@ class SeriesFollowButton extends ConsumerWidget {
     BuildContext context,
     WidgetRef ref,
     bool isFollowed,
-    int? trackerId,
+    int? followedId,
   ) async {
     final messenger = ScaffoldMessenger.of(context);
     final notifier = ref.read(updatesProvider.notifier);
     final AppError? error;
-    if (isFollowed && trackerId != null) {
-      error = await notifier.deleteTracker(trackerId);
+    if (isFollowed && followedId != null) {
+      error = await notifier.unfollow(followedId);
     } else {
-      error = await notifier.followSeries(
-        source: sourceId,
-        seriesId: seriesId,
-        seriesTitle: seriesTitle,
-      );
+      error = await notifier.followSeries(sourceId: sourceId, seriesKey: seriesKey);
     }
     if (error == null) {
-      // The trackers cache was refreshed by the action, so the button label
-      // already reflects the new followed state; confirm it to the user.
+      // The followed-series cache was refreshed by the action, so the button
+      // label already reflects the new followed state; confirm it to the user.
       messenger.showSnackBar(
         SnackBar(
           content: Text(
