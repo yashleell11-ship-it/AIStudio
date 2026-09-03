@@ -263,6 +263,13 @@ manhwamaniacs.xyz:80 {
 	import sec
 	import zip
 	import logroll manhwamaniacs
+	# cloudflared forwards the ORIGINAL edge scheme in X-Forwarded-Proto, so a
+	# plain-http hit at the Cloudflare edge is detectable here even though the
+	# tunnel hop is always http. Without this the apex served the real login
+	# page over cleartext (the www host always redirected; the apex did not).
+	@insecure header X-Forwarded-Proto http
+	redir @insecure https://manhwamaniacs.xyz{uri} 308
+	header Strict-Transport-Security "max-age=300"
 	reverse_proxy manhwamaniacs-frontend:3000
 }
 
@@ -271,6 +278,9 @@ app.manhwamaniacs.xyz:80 {
 	import sec
 	import zip
 	import logroll manhwamaniacs-app
+	@insecure header X-Forwarded-Proto http
+	redir @insecure https://app.manhwamaniacs.xyz{uri} 308
+	header Strict-Transport-Security "max-age=300"
 	reverse_proxy manhwamaniacs-backend:8000
 }
 CADDYEOF
