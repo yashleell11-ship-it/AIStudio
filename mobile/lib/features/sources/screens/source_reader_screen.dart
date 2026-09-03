@@ -124,10 +124,10 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
           ),
           // Straight to this source's series page — the connector series id can
           // contain `/`, so the encoding in RoutePaths is what keeps it intact.
-          onOpenSeries: () => openSourceSeriesFromReader(
+          onOpenSeries: () => openSeriesFromReader(
             context,
             sourceId: widget.sourceId,
-            seriesId: widget.seriesId,
+            seriesKey: widget.seriesId,
           ),
           onPreviousChapter: chapter.previousChapterId != null
               ? () => context.go(

@@ -96,10 +96,10 @@ class _ManifestReaderBody extends ConsumerWidget {
       scrollStorageKey: '$sourceId:$seriesKey:$chapterKey',
       initialPage: initialPage,
       onBack: () => context.pop(),
-      onOpenSeries: () => openSourceSeriesFromReader(
+      onOpenSeries: () => openSeriesFromReader(
         context,
         sourceId: sourceId,
-        seriesId: seriesKey,
+        seriesKey: seriesKey,
       ),
       onPreviousChapter: manifest.prev != null
           ? () => context.go(

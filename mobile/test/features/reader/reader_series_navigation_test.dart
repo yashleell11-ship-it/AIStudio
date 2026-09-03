@@ -8,15 +8,12 @@ import 'package:manhwamaniacs/app/app.dart';
 import 'package:manhwamaniacs/app/router/app_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
-import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
-import 'package:manhwamaniacs/features/library/screens/series_detail_screen.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
+import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/features/reader/screens/reader_screen.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_reader_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
@@ -34,80 +31,62 @@ import '../../support/test_overrides.dart';
 // spells the same id encoded or decoded depending on how it was reached.
 const _slashSeriesId = 'toonily/series-a';
 const _slashChapterId = 'toonily/series-a/ch-1';
+const _followedId = 7;
 
-const _localSeriesId = 7;
-const _localChapterId = 42;
+/// The manifest-driven reader (followed series) reads from the same
+/// `(sourceId, seriesKey)` pair as the source-browse reader — a different
+/// connector here just to keep the two apart in assertions.
+const _libSourceId = 'mangadex';
+const _libSeriesKey = 'solo-leveling';
+const _libChapterKey = '1';
 
-const _localChapter = ChapterDetail(
-  id: _localChapterId,
-  seriesId: _localSeriesId,
-  title: 'Chapter 1',
-  pageCount: 2,
-  pages: [
-    PageInfo(
-      id: 101,
-      chapterId: _localChapterId,
-      number: 1,
-      filePath: '/pages/1.jpg',
-      width: 800,
-      height: 1200,
-    ),
-    PageInfo(
-      id: 102,
-      chapterId: _localChapterId,
-      number: 2,
-      filePath: '/pages/2.jpg',
-      width: 800,
-      height: 1200,
-    ),
-  ],
-);
-
-ReaderChapter _sourceChapter() => const ReaderChapter(
-      id: _slashChapterId,
-      seriesId: _slashSeriesId,
-      title: 'Chapter 1',
+ChapterManifest _libManifest() => const ChapterManifest(
+      sourceId: _libSourceId,
+      seriesKey: _libSeriesKey,
+      chapterKey: _libChapterKey,
+      chapterNumber: 1,
       pageCount: 2,
-      mode: ReaderMode.remote,
-      sourceId: 'toonily',
-      seriesTitle: 'Series A',
+      prev: null,
+      next: null,
       pages: [
-        ReaderPage(
-          id: 'p1',
-          number: 1,
-          imageUrl: 'http://example.test/sources/toonily/pages/p1/image',
-          width: 800,
-          height: 1200,
-        ),
-        ReaderPage(
-          id: 'p2',
-          number: 2,
-          imageUrl: 'http://example.test/sources/toonily/pages/p2/image',
-          width: 800,
-          height: 1200,
-        ),
+        ManifestPage(number: 1, url: '/sources/$_libSourceId/pages/p1/image'),
+        ManifestPage(number: 2, url: '/sources/$_libSourceId/pages/p2/image'),
       ],
     );
 
-/// The library reader flushes reading progress from its `dispose()` — which is
-/// exactly what the jump to the series page triggers. Through the real
+ChapterManifest _sourceChapterManifest() => const ChapterManifest(
+      sourceId: 'toonily',
+      seriesKey: _slashSeriesId,
+      chapterKey: _slashChapterId,
+      chapterNumber: 1,
+      pageCount: 2,
+      prev: null,
+      next: null,
+      pages: [
+        ManifestPage(number: 1, url: '/sources/toonily/pages/p1/image'),
+        ManifestPage(number: 2, url: '/sources/toonily/pages/p2/image'),
+      ],
+    );
+
+/// The manifest reader flushes reading progress from its `dispose()` — which
+/// is exactly what the jump to the series page triggers. Through the real
 /// repository that becomes an HTTP request whose timeout Timer outlives the
-/// test, so serve it locally instead. Every other call is out of scope here and
-/// `noSuchMethod` says so loudly rather than quietly returning nothing.
-class _ProgressOnlyLibraryRepository implements LibraryRepository {
+/// test, so serve it locally instead. Every other call is out of scope here
+/// and `noSuchMethod` says so loudly rather than quietly returning nothing.
+class _ProgressOnlyReaderRepository implements ReaderRepository {
   @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
-  }) async =>
-      Ok(
+  Future<Result<ReadingProgress>> saveProgress(ProgressPush push) async => Ok(
         ReadingProgress(
-          seriesId: seriesId,
-          chapterId: chapterId,
-          lastPage: lastPage,
-          progressPct: 0,
-          lastReadAt: DateTime.utc(2024),
+          id: 1,
+          sourceId: push.sourceId,
+          seriesKey: push.seriesKey,
+          chapterKey: push.chapterKey,
+          chapterNumber: push.chapterNumber,
+          lastPage: push.lastPage,
+          pageCount: push.pageCount,
+          scrollOffsetPx: push.scrollOffsetPx,
+          isCompleted: push.isCompleted,
+          timeSpentSeconds: push.timeSpentSeconds,
         ),
       );
 
@@ -115,12 +94,18 @@ class _ProgressOnlyLibraryRepository implements LibraryRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
+/// The source-browse reader's online reading position is client-side only
+/// (`sourceProgressProvider`), so no repository override is needed for it.
+
 /// Series-detail payloads are irrelevant here — only the route we land on is.
 /// A completer that never completes parks each destination on its skeleton
 /// without leaving a pending Timer behind to fail teardown.
 List<Override> _pendingSeriesDetails() => [
-      seriesDetailProvider(_localSeriesId)
+      seriesDetailProvider(_followedId)
           .overrideWith((ref) => Completer<SeriesDetail>().future),
+      sourceSeriesDetailProvider(
+        (sourceId: _libSourceId, seriesId: _libSeriesKey),
+      ).overrideWith((ref) => Completer<SourceSeriesDetailData>().future),
       sourceSeriesDetailProvider(
         (sourceId: 'toonily', seriesId: _slashSeriesId),
       ).overrideWith((ref) => Completer<SourceSeriesDetailData>().future),
@@ -139,24 +124,20 @@ Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
     overrides: [
       apiBaseUrlOverride('http://example.test'),
       sharedPrefsProvider.overrideWithValue(prefs),
-      libraryRepositoryProvider
-          .overrideWithValue(_ProgressOnlyLibraryRepository()),
+      readerRepositoryProvider.overrideWithValue(_ProgressOnlyReaderRepository()),
       authenticatedAuthOverride(),
       activeProfileOverride(),
       profileSessionReadyOverride(),
-      readerChapterProvider(_localChapterId)
-          .overrideWith((ref) async => _localChapter),
-      adjacentChapterProvider((chapterId: _localChapterId, direction: 'previous'))
-          .overrideWith((ref) async => null),
-      adjacentChapterProvider((chapterId: _localChapterId, direction: 'next'))
-          .overrideWith((ref) async => null),
+      chapterManifestProvider(
+        (sourceId: _libSourceId, seriesKey: _libSeriesKey, chapterKey: _libChapterKey),
+      ).overrideWith((ref) async => _libManifest()),
       sourceReaderChapterProvider(
         (
           sourceId: 'toonily',
           seriesId: _slashSeriesId,
           chapterId: _slashChapterId,
         ),
-      ).overrideWith((ref) async => _sourceChapter()),
+      ).overrideWith((ref) async => _sourceChapterManifest().toReaderChapter('http://example.test')),
       ..._pendingSeriesDetails(),
     ],
   );
@@ -197,23 +178,24 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('Reader → series page', () {
-    testWidgets('a local chapter lands on the library series route',
+    testWidgets('a followed-series chapter lands on the source series route',
         (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
 
-      router.go(RoutePaths.reader(_localSeriesId, _localChapterId));
+      router.go(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey));
       await _settleReader(tester);
       expect(find.byType(ReaderScreen), findsOneWidget);
 
       await _tapTitle(tester);
 
-      expect(_fullPath(router), Routes.seriesDetail);
+      expect(_fullPath(router), Routes.sourceSeriesDetail);
       expect(find.byType(ReaderScreen), findsNothing);
-      final series = tester.widget<SeriesDetailScreen>(
-        find.byType(SeriesDetailScreen),
+      final series = tester.widget<SourceSeriesDetailScreen>(
+        find.byType(SourceSeriesDetailScreen),
       );
-      expect(series.seriesId, _localSeriesId);
+      expect(series.sourceId, _libSourceId);
+      expect(series.seriesId, _libSeriesKey);
     });
 
     testWidgets('a source chapter lands on the source series route with a '
@@ -244,7 +226,7 @@ void main() {
       final container = await _pumpApp(tester);
       final router = _router(container);
 
-      router.go(RoutePaths.reader(_localSeriesId, _localChapterId));
+      router.go(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey));
       await _settleReader(tester);
 
       await tester.tap(find.byTooltip('Reader settings'));
@@ -254,7 +236,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
-      expect(_fullPath(router), Routes.seriesDetail);
+      expect(_fullPath(router), Routes.sourceSeriesDetail);
       expect(find.byType(ReaderScreen), findsNothing);
     });
   });
@@ -265,40 +247,65 @@ void main() {
   // same page key, which Navigator asserts on — hence pop-when-beneath and
   // go-otherwise instead of an unconditional push.
   group('Reader → series page keeps the back stack sane', () {
-    testWidgets('pops onto the series page already beneath instead of '
+    testWidgets('pops onto the source series page already beneath instead of '
         'stacking a second copy', (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
 
-      // Exactly how the series screen opens a chapter: push the reader on top
-      // of the live series page.
-      router.go(RoutePaths.seriesDetail(_localSeriesId));
+      // Exactly how the source series screen opens a chapter: push the
+      // reader on top of the live series page.
+      router.go(RoutePaths.sourceSeriesDetail(_libSourceId, _libSeriesKey));
       await _settleReader(tester);
-      unawaited(router.push(RoutePaths.reader(_localSeriesId, _localChapterId)));
+      unawaited(
+        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+      );
       await _settleReader(tester);
 
       await _tapTitle(tester);
 
-      expect(_fullPath(router), Routes.seriesDetail);
+      expect(_fullPath(router), Routes.sourceSeriesDetail);
       // One copy, not two: the jump returned to the existing page.
       expect(
-        find.byType(SeriesDetailScreen, skipOffstage: false),
+        find.byType(SourceSeriesDetailScreen, skipOffstage: false),
         findsOneWidget,
       );
 
       // And the round trip is repeatable without the stack creeping upwards.
-      unawaited(router.push(RoutePaths.reader(_localSeriesId, _localChapterId)));
+      unawaited(
+        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+      );
       await _settleReader(tester);
       await _tapTitle(tester);
 
-      expect(_fullPath(router), Routes.seriesDetail);
+      expect(_fullPath(router), Routes.sourceSeriesDetail);
       expect(
-        find.byType(SeriesDetailScreen, skipOffstage: false),
+        find.byType(SourceSeriesDetailScreen, skipOffstage: false),
         findsOneWidget,
       );
     });
 
-    testWidgets('still reaches the series page when the reader was opened from '
+    testWidgets(
+        'pops onto the followed series page beneath it, even though the '
+        'reader route carries no follow-row id to match against', (tester) async {
+      final container = await _pumpApp(tester);
+      final router = _router(container);
+
+      // Exactly how the followed series screen opens a chapter: push the
+      // reader on top of the live series page.
+      router.go(RoutePaths.seriesDetail(_followedId));
+      await _settleReader(tester);
+      unawaited(
+        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+      );
+      await _settleReader(tester);
+
+      await _tapTitle(tester);
+
+      expect(_fullPath(router), Routes.seriesDetail);
+      expect(find.byType(ReaderScreen), findsNothing);
+    });
+
+    testWidgets('still reaches a series page when the reader was opened from '
         'somewhere else, and leaves it poppable', (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
@@ -307,14 +314,16 @@ void main() {
       // /library, so the series page is not underneath it.
       router.go(Routes.library);
       await _settleReader(tester);
-      unawaited(router.push(RoutePaths.reader(_localSeriesId, _localChapterId)));
+      unawaited(
+        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+      );
       await _settleReader(tester);
       expect(find.byType(ReaderScreen), findsOneWidget);
 
       await _tapTitle(tester);
 
-      expect(_fullPath(router), Routes.seriesDetail);
-      expect(find.byType(SeriesDetailScreen), findsOneWidget);
+      expect(_fullPath(router), Routes.sourceSeriesDetail);
+      expect(find.byType(SourceSeriesDetailScreen), findsOneWidget);
       // Nested under the tab root, so back / the iOS edge-swipe still work.
       expect(router.canPop(), isTrue);
     });

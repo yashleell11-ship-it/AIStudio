@@ -1,6 +1,7 @@
 import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 
 /// `GET /reader/chapter/manifest` — the download plan for a chapter: ordered
 /// page list plus adjacent chapter keys. Mirrors the web's `ChapterManifest`
@@ -44,7 +45,7 @@ class ChapterManifest {
   /// Build a [ReaderChapter] (the shape [ReaderContent] renders) from this
   /// manifest — the sole content builder for the manifest-driven reader.
   ReaderChapter toReaderChapter(String apiBaseUrl) {
-    final title = chapterNumber != null ? 'Chapter $chapterNumber' : 'Chapter';
+    final title = chapterLabel(number: chapterNumber, title: null).primary;
     return ReaderChapter(
       id: chapterKey,
       seriesId: seriesKey,
