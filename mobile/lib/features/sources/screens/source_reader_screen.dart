@@ -1,26 +1,14 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/core/network/network_connectivity.dart';
-import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
-import 'package:manhwamaniacs/features/reader/utils/local_reader_handoff.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
-import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_reader_provider.dart';
-import 'package:manhwamaniacs/features/sources/providers/source_series_download_status_provider.dart';
-import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
-
-/// How many upcoming chapters to eagerly download while the reader is open.
-const _autoQueueAhead = 2;
 
 /// Online source chapter reader.
 ///
@@ -29,10 +17,9 @@ const _autoQueueAhead = 2;
 /// series, so progress is persisted client-side via [sourceProgressProvider]
 /// (the shared cross-platform contract) rather than the library progress API.
 ///
-/// While a chapter is open the reader also eagerly queues the next
-/// [_autoQueueAhead] chapters for download so reading can continue offline —
-/// but only on Wi-Fi (quietly checked, never prompting) and only for chapters
-/// not already queued/downloading/completed.
+// TODO(1c-M3): re-add eager next-chapter download queuing (was gated on
+// Wi-Fi and the now-deleted server download queue) once the on-device store
+// ships.
 class SourceReaderScreen extends ConsumerStatefulWidget {
   const SourceReaderScreen({
     super.key,
@@ -52,10 +39,6 @@ class SourceReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
-  /// Chapters whose auto-download has already been handled this session, so the
-  /// queue fires at most once per chapter open (not on every rebuild).
-  final Set<String> _autoQueueHandled = {};
-
   Future<void> _saveProgress(int page, int pageCount) async {
     // ReaderContent flushes progress from its dispose(), by which point this
     // state (and its ref/context) may already be deactivated — swallow that
@@ -71,84 +54,6 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
     } catch (_) {
       // ignore: best-effort client-side progress persistence
     }
-  }
-
-  /// Compute and queue the next [_autoQueueAhead] chapters after [chapterId].
-  /// No-op when off Wi-Fi (silently) or when there is nothing fresh to queue.
-  ///
-  /// Entirely best-effort: eager prefetch must never surface into the reader,
-  /// so a failed chapter-list fetch, connectivity check or queue call is
-  /// swallowed rather than crashing the reading experience.
-  Future<void> _autoQueueNext(String chapterId) async {
-    try {
-      final detail = await ref.read(
-        sourceSeriesDetailProvider(
-          (sourceId: widget.sourceId, seriesId: widget.seriesId),
-        ).future,
-      );
-      if (!mounted) return;
-
-      // Order ascending by chapter number (nulls last) to find what comes next.
-      final ordered = [...detail.chapters]..sort((a, b) {
-          final an = a.number;
-          final bn = b.number;
-          if (an == null && bn == null) return 0;
-          if (an == null) return 1;
-          if (bn == null) return -1;
-          return an.compareTo(bn);
-        });
-      final index = ordered.indexWhere((c) => c.id == chapterId);
-      if (index < 0) return;
-      final upcoming = ordered
-          .skip(index + 1)
-          .take(_autoQueueAhead)
-          .toList(growable: false);
-      if (upcoming.isEmpty) return;
-
-      // Quiet Wi-Fi gate: skip auto-queue entirely off Wi-Fi. Mirrors
-      // checkWifiForDownload but runs off the widget's WidgetRef and never
-      // prompts, so an automatic queue can never show the blocking Wi-Fi dialog.
-      if (ref.read(wifiOnlyDownloadsProvider)) {
-        final onWifi = await ref.read(networkConnectivityProvider).isOnWifi();
-        if (!onWifi) return;
-      }
-      if (!mounted) return;
-
-      final lookup = ref.read(
-        sourceSeriesChapterDownloadLookupProvider(
-          (sourceId: widget.sourceId, seriesId: widget.seriesId),
-        ),
-      );
-      final chapterIds = [
-        for (final chapter in upcoming)
-          if (!lookup.isDownloadDisabled(chapter.id)) chapter.id,
-      ];
-      if (chapterIds.isEmpty) return;
-
-      final result = await ref.read(downloadsProvider.notifier).queueChapters(
-            sourceId: widget.sourceId,
-            seriesId: widget.seriesId,
-            chapterIds: chapterIds,
-            seriesTitle: detail.series.title,
-          );
-      if (!mounted || result.isErr) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Downloading next chapters'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-    } catch (_) {
-      // Best-effort prefetch — ignore any failure (chapter list unavailable,
-      // ref disposed mid-flight, queue error) and leave reading unaffected.
-    }
-  }
-
-  void _scheduleAutoQueue(String chapterId) {
-    if (!_autoQueueHandled.add(chapterId)) return;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) unawaited(_autoQueueNext(chapterId));
-    });
   }
 
   @override
@@ -186,18 +91,6 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
         );
       },
       data: (chapter) {
-        if (chapter.mode == ReaderMode.local) {
-          final librarySeriesId = int.tryParse(chapter.seriesId);
-          final libraryChapterId = int.tryParse(chapter.id);
-          if (librarySeriesId != null && libraryChapterId != null) {
-            return LocalReaderHandoff(
-              seriesId: librarySeriesId,
-              chapterId: libraryChapterId,
-              initialPage: widget.initialPage,
-            );
-          }
-        }
-
         if (chapter.pages.isEmpty) {
           return ReaderErrorState(
             error: const UnknownError(
@@ -215,9 +108,6 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
             ),
           );
         }
-
-        // Eagerly download the next chapters (once per chapter open).
-        _scheduleAutoQueue(widget.chapterId);
 
         return ReaderContent(
           key: ValueKey(

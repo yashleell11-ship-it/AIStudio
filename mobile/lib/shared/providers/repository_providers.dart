@@ -1,18 +1,16 @@
 ﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/auth/repositories/auth_repository.dart';
 import 'package:manhwamaniacs/features/auth/repositories/auth_repository_impl.dart';
-import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
-import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository_impl.dart';
 import 'package:manhwamaniacs/features/library/repositories/global_search_repository.dart';
 import 'package:manhwamaniacs/features/library/repositories/global_search_repository_impl.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository_impl.dart';
+import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
+import 'package:manhwamaniacs/features/reader/repositories/reader_repository_impl.dart';
 import 'package:manhwamaniacs/features/settings/repositories/backup_repository.dart';
 import 'package:manhwamaniacs/features/settings/repositories/backup_repository_impl.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository_impl.dart';
-import 'package:manhwamaniacs/features/updates/repositories/source_migration_repository.dart';
-import 'package:manhwamaniacs/features/updates/repositories/source_migration_repository_impl.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository_impl.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -37,9 +35,9 @@ final backupRepositoryProvider = Provider<BackupRepository>(
   name: 'backupRepository',
 );
 
-final downloadsRepositoryProvider = Provider<DownloadsRepository>(
-  (ref) => DownloadsRepositoryImpl(ref.watch(dioProvider)),
-  name: 'downloadsRepository',
+final readerRepositoryProvider = Provider<ReaderRepository>(
+  (ref) => ReaderRepositoryImpl(ref.watch(dioProvider)),
+  name: 'readerRepository',
 );
 
 final sourcesRepositoryProvider = Provider<SourcesRepository>(
@@ -53,9 +51,4 @@ final sourcesRepositoryProvider = Provider<SourcesRepository>(
 final updatesRepositoryProvider = Provider<UpdatesRepository>(
   (ref) => UpdatesRepositoryImpl(ref.watch(dioProvider)),
   name: 'updatesRepository',
-);
-
-final sourceMigrationRepositoryProvider = Provider<SourceMigrationRepository>(
-  (ref) => SourceMigrationRepositoryImpl(ref.watch(dioProvider)),
-  name: 'sourceMigrationRepository',
 );

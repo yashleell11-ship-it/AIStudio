@@ -1,43 +1,34 @@
+/// A saved reading position, source-native (`POST /reader/bookmark`,
+/// `GET /reader/bookmarks`). Rows carry no series/chapter titles — only the
+/// identity triple, matching `backend/services/progress_service.py`.
 class Bookmark {
   const Bookmark({
     required this.id,
-    required this.seriesId,
-    this.seriesTitle,
-    required this.chapterId,
-    this.chapterTitle,
+    required this.sourceId,
+    required this.seriesKey,
+    required this.chapterKey,
     required this.page,
     this.note,
-    required this.createdAt,
+    this.createdAt,
   });
 
   final int id;
-  final int seriesId;
-  final String? seriesTitle;
-  final int chapterId;
-  final String? chapterTitle;
+  final String sourceId;
+  final String seriesKey;
+  final String chapterKey;
   final int page;
   final String? note;
-  final DateTime createdAt;
+  final DateTime? createdAt;
 
   factory Bookmark.fromJson(Map<String, dynamic> json) => Bookmark(
         id: json['id'] as int,
-        seriesId: json['series_id'] as int,
-        seriesTitle: json['series_title'] as String?,
-        chapterId: json['chapter_id'] as int,
-        chapterTitle: json['chapter_title'] as String?,
+        sourceId: json['source_id'] as String,
+        seriesKey: json['series_key'] as String,
+        chapterKey: json['chapter_key'] as String,
         page: json['page'] as int,
         note: json['note'] as String?,
-        createdAt: DateTime.parse(json['created_at'] as String),
+        createdAt: json['created_at'] != null
+            ? DateTime.tryParse(json['created_at'] as String)
+            : null,
       );
-
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'series_id': seriesId,
-        'series_title': seriesTitle,
-        'chapter_id': chapterId,
-        'chapter_title': chapterTitle,
-        'page': page,
-        'note': note,
-        'created_at': createdAt.toIso8601String(),
-      };
 }
