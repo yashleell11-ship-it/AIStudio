@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 
 /// Cover image for a library series or source series.
@@ -29,7 +30,10 @@ class SeriesCoverImage extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final headers = apiImageHttpHeaders(ref.watch(authTokenStoreProvider).token);
+    final headers = apiImageHttpHeaders(
+      ref.watch(authTokenStoreProvider).token,
+      profileId: ref.watch(activeProfileProvider)?.id,
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius),

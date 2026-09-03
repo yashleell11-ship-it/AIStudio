@@ -5,9 +5,18 @@
 library;
 
 /// HTTP headers for proxied library/source cover and reader page images.
-Map<String, String>? apiImageHttpHeaders(String? bearerToken) {
+///
+/// [profileId] is the active reading profile (`X-Profile-Id`). The image proxy
+/// resolves the 18+ gate from that header exactly like the JSON routes do —
+/// without it a mature-enabled profile's request falls back to the instance
+/// default gate and the proxy 404s covers/pages the same profile's JSON calls
+/// can see. Passed as a plain value so this file stays profile-agnostic.
+Map<String, String>? apiImageHttpHeaders(String? bearerToken, {int? profileId}) {
   if (bearerToken == null || bearerToken.isEmpty) return null;
-  return {'Authorization': 'Bearer $bearerToken'};
+  return {
+    'Authorization': 'Bearer $bearerToken',
+    if (profileId != null) 'X-Profile-Id': '$profileId',
+  };
 }
 
 /// Resolve a relative API path (e.g. `/sources/.../cover`) to an absolute URL.
