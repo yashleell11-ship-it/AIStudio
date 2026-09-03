@@ -27,8 +27,17 @@ from database.models import Base  # noqa: E402
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+if config.config_file_name is not None and not config.attributes.get("db_url"):
+    # Only load alembic.ini's logging config when Alembic is driven from its
+    # own CLI (no ``db_url`` attribute -- see ``_resolve_url`` above). The
+    # programmatic path (``database.session.run_alembic_migrations``, called
+    # at app boot) always sets ``config.attributes["db_url"]``; running
+    # ``fileConfig`` there would tear down every logger already configured by
+    # the app (``disable_existing_loggers`` defaults to True), silencing all
+    # backend logging from that point on. Even on the CLI path, pass
+    # ``disable_existing_loggers=False`` so this can't clobber loggers set up
+    # by modules already imported above (e.g. ``database.models``).
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = Base.metadata
 

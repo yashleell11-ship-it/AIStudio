@@ -105,10 +105,13 @@ class AuroraScansConnector(SourceConnector):
         params: dict[str, Any] = {
             "page": page,
             "perPage": PAGE_SIZE,
-            "sort": resolve_sort(sort),
         }
         if query:
+            # /series/search rejects the `sort` param with a 400; only the
+            # browse endpoint (/series) accepts it.
             params["q"] = query
+        else:
+            params["sort"] = resolve_sort(sort)
         if genre:
             params["genre"] = genre.strip().lower().replace(" ", "-")
         return params

@@ -5,6 +5,7 @@ from unittest.mock import patch
 
 import pytest
 
+from connectors.http.client import ConnectorHttpError
 from connectors.webtoons.connector import WebtoonsConnector
 from connectors.webtoons.mappers import (
     IMAGE_HOSTS,
@@ -155,6 +156,68 @@ def test_get_chapters_paginates_via_canonical_path(webtoons_connector: WebtoonsC
     assert any(
         "/en/super-hero/unordinary/list?title_no=679&page=2" == p for p in captured
     ), captured
+
+
+def test_get_series_falls_back_to_canvas_path_on_originals_404(
+    webtoons_connector: WebtoonsConnector,
+):
+    """Regression test: every Canvas title 404'd in production because the
+    cold-cache placeholder guess (``/en/_/_/list``) is Originals-shaped and
+    WEBTOON does not redirect it for Canvas titles the way it does for
+    Originals. ``get_series`` must retry with the Canvas-shaped placeholder
+    (``/en/canvas/_/list``) and succeed."""
+    canvas_detail = _load("detail_canvas.html")
+    captured: list[str] = []
+
+    def fake(path: str, *, params=None):
+        captured.append(path)
+        if path == "/en/_/_/list?title_no=843210":
+            raise ConnectorHttpError("Not Found", status_code=404)
+        return canvas_detail
+
+    with patch.object(webtoons_connector._http, "get_text", side_effect=fake):
+        series = webtoons_connector.get_series("843210")
+
+    assert captured == [
+        "/en/_/_/list?title_no=843210",
+        "/en/canvas/_/list?title_no=843210",
+    ]
+    assert series is not None
+    assert series.title == "Late Bloomer"
+    assert series.canonical_path == "/en/canvas/late-bloomer/list?title_no=843210"
+    # The real genre/slug learned from the successful fallback must be
+    # cached, so subsequent calls go straight to the canonical path.
+    assert webtoons_connector._slug_cache.get("843210") == ("canvas", "late-bloomer")
+
+
+def test_get_chapters_falls_back_to_canvas_path_then_paginates_canonically(
+    webtoons_connector: WebtoonsConnector,
+):
+    """Same fallback, exercised through get_chapters: page 1 needs the
+    Canvas-shaped retry, and once the real slug is learned, page 2 (empty,
+    ending pagination) must be requested against the canonical Canvas path —
+    never the Originals placeholder again."""
+    canvas_detail = _load("detail_canvas.html")
+    captured: list[str] = []
+
+    def fake(path: str, *, params=None):
+        captured.append(path)
+        if path == "/en/_/_/list?title_no=843210":
+            raise ConnectorHttpError("Not Found", status_code=404)
+        if path == "/en/canvas/_/list?title_no=843210":
+            return canvas_detail
+        return "<html><body>no more episodes here</body></html>"
+
+    with patch.object(webtoons_connector._http, "get_text", side_effect=fake):
+        chapters = webtoons_connector.get_chapters("843210")
+
+    assert len(chapters) == 2
+    assert all(parse_chapter_id(c.id)[2] == "canvas" for c in chapters)
+    assert captured == [
+        "/en/_/_/list?title_no=843210",
+        "/en/canvas/_/list?title_no=843210",
+        "/en/canvas/late-bloomer/list?title_no=843210&page=2",
+    ]
 
 
 def test_get_chapter_pages_requests_viewer_and_parses(webtoons_connector: WebtoonsConnector):
