@@ -378,9 +378,14 @@ class ProgressService:
         ]
 
     def delete_bookmark(self, bookmark_id: int) -> None:
-        user_id, _ = self._require_owner()
+        """Delete one of *this profile's* bookmarks, or 404.
+
+        ``list_bookmarks`` is profile-scoped, so a ``user_id``-only check here
+        let a profile delete a bookmark it could not see by guessing its id.
+        """
+        user_id, profile_id = self._require_owner()
         row = self._db.get(Bookmark, bookmark_id)
-        if row is None or row.user_id != user_id:
+        if row is None or row.user_id != user_id or row.profile_id != profile_id:
             raise AppError("Bookmark not found.", code="not_found", status_code=404)
         self._db.delete(row)
         self._db.commit()

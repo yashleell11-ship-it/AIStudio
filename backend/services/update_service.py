@@ -155,9 +155,19 @@ class UpdateService:
         }
 
     def mark_notification_read(self, notification_id: int) -> dict[str, Any]:
+        """Mark one of *this profile's* notifications read, or 404.
+
+        ``_notif_scope`` (list / count / read-all) is per-profile, so the
+        ``user_id``-only check here let one profile clear a sibling's unread
+        badge by guessing an id — the notification stayed invisible to them and
+        simply vanished from the owner's count.
+        """
         row = self._db.get(UpdateNotification, notification_id)
         if row is None or (
-            self._user_id is not None and row.user_id != self._user_id
+            self._user_id is not None
+            and (
+                row.user_id != self._user_id or row.profile_id != self._profile_id
+            )
         ):
             raise AppError(
                 "Notification not found.", code="not_found", status_code=404

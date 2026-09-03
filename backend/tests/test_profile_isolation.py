@@ -241,6 +241,15 @@ def test_notifications_isolated_across_profiles(db_session, world, seed_follow):
     assert b_svc.unread_count() == 0
     assert c_svc.unread_count() == 0
 
+    # ...and a sibling cannot clear the badge it cannot see.
+    notif_id = db_session.query(UpdateNotification).one().id
+    for svc in (b_svc, c_svc):
+        with pytest.raises(AppError) as excinfo:
+            svc.mark_notification_read(notif_id)
+        assert excinfo.value.status_code == 404
+    assert a_svc.unread_count() == 1
+    assert a_svc.mark_notification_read(notif_id)["is_read"] is True
+
 
 # --- bookmarks --------------------------------------------------------
 
@@ -254,6 +263,28 @@ def test_bookmarks_isolated_across_profiles(db_session, world, seed_bookmark):
     assert len(a_bm) == 1
     assert b_bm == []
     assert c_bm == []
+
+
+def test_bookmarks_cannot_be_deleted_from_another_profile(
+    db_session, world, seed_bookmark
+):
+    """``list_bookmarks`` is profile-scoped, so the delete has to be too — an
+    id-only check let a profile delete a bookmark it could not see."""
+    bookmark = seed_bookmark(world["u1"], world["a"], chapter_key="c1", page=4)
+
+    for svc in (
+        _progress(db_session, world["u1"], world["b"]),
+        _progress(db_session, world["u2"], world["c"]),
+        _progress(db_session, world["u1"], None),
+    ):
+        with pytest.raises(AppError) as excinfo:
+            svc.delete_bookmark(bookmark.id)
+        assert excinfo.value.status_code == 404
+
+    owner = _progress(db_session, world["u1"], world["a"])
+    assert len(owner.list_bookmarks()) == 1
+    owner.delete_bookmark(bookmark.id)
+    assert owner.list_bookmarks() == []
 
 
 # --- collections -----------------------------------------------------
