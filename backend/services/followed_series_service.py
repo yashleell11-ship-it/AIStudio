@@ -104,6 +104,23 @@ class FollowedSeriesService:
             return stmt.where(ChapterProgress.profile_id.is_(None))
         return stmt.where(ChapterProgress.profile_id == self._profile_id)
 
+    def _require_profile(self) -> int:
+        """The active profile id, or a clean 400.
+
+        Profile-owned rows key on ``(user_id, profile_id, ...)`` with a NOT NULL
+        ``profile_id``, so the unscoped bucket has no row to address: a
+        ``Session.get()`` with a null key component is not a lookup, and an
+        insert would surface as an IntegrityError 500.
+        """
+        self._require_owner()
+        if self._profile_id is None:
+            raise AppError(
+                "An active profile is required for this action.",
+                code="profile_required",
+                status_code=400,
+            )
+        return self._profile_id
+
     def _gate_open(self) -> bool:
         return resolve_mature_gate(self._db, self._profile_id, self._user_id)
 
@@ -519,8 +536,20 @@ class FollowedSeriesService:
             self._db.commit()
 
     def _owned_collection(self, collection_id: int) -> Collection:
+        """Fetch a collection by id, or 404.
+
+        Collections are *created* with a ``profile_id`` and *listed* through
+        ``_collection_scope``, so a sibling profile cannot see one — but with
+        only the ``user_id`` check here it could still rename, empty or
+        ``DELETE`` one by guessing a small integer. The predicate must match
+        ``_collection_scope`` exactly, ``None`` bucket included.
+        """
         row = self._db.get(Collection, collection_id)
-        if row is None or row.user_id != self._user_id:
+        if (
+            row is None
+            or row.user_id != self._user_id
+            or row.profile_id != self._profile_id
+        ):
             raise AppError(
                 "Collection not found.", code="not_found", status_code=404
             )
@@ -539,53 +568,85 @@ class FollowedSeriesService:
 
     # --- tags -----------------------------------------------------
 
+    def _tag_scope(self, stmt):
+        stmt = stmt.where(Tag.user_id == self._user_id)
+        if self._profile_id is None:
+            return stmt.where(Tag.profile_id.is_(None))
+        return stmt.where(Tag.profile_id == self._profile_id)
+
+    def _owned_tag(self, tag_id: int) -> Tag:
+        row = self._db.get(Tag, tag_id)
+        if (
+            row is None
+            or row.user_id != self._user_id
+            or row.profile_id != self._profile_id
+        ):
+            raise AppError("Tag not found.", code="not_found", status_code=404)
+        return row
+
+    @staticmethod
+    def _serialize_tag(row: Tag) -> dict[str, Any]:
+        return {
+            "id": row.id,
+            "name": row.name,
+            "category": row.category,
+            "color": row.color,
+        }
+
     def list_tags(self, *, category: str | None = None) -> list[dict[str, Any]]:
-        stmt = select(Tag)
+        self._require_owner()
+        stmt = self._tag_scope(select(Tag))
         if category:
             stmt = stmt.where(Tag.category == category)
         rows = self._db.execute(stmt.order_by(Tag.name)).scalars().all()
-        return [
-            {"id": t.id, "name": t.name, "category": t.category, "color": t.color}
-            for t in rows
-        ]
+        return [self._serialize_tag(t) for t in rows]
 
     def create_tag(
         self, *, name: str, category: str = "custom", color: str | None = None
     ) -> dict[str, Any]:
+        """Create (or return) this profile's tag of that name.
+
+        The case-insensitive dedupe is scope-local: it used to search every
+        row in the table, so a colliding name handed the caller a tag belonging
+        to another account — a read of somebody else's data and a write that
+        then attached *their* row to *this* profile's series.
+        """
+        profile_id = self._require_profile()
         name = name.strip()
         existing = self._db.execute(
-            select(Tag).where(func.lower(Tag.name) == name.lower())
+            self._tag_scope(select(Tag).where(func.lower(Tag.name) == name.lower()))
         ).scalar_one_or_none()
         if existing is not None:
-            return {
-                "id": existing.id,
-                "name": existing.name,
-                "category": existing.category,
-                "color": existing.color,
-            }
-        row = Tag(name=name, category=category, color=color)
+            return self._serialize_tag(existing)
+        row = Tag(
+            user_id=self._user_id,
+            profile_id=profile_id,
+            name=name,
+            category=category,
+            color=color,
+        )
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)
-        return {"id": row.id, "name": row.name, "category": row.category, "color": row.color}
+        return self._serialize_tag(row)
 
     def delete_tag(self, tag_id: int) -> None:
-        row = self._db.get(Tag, tag_id)
-        if row is not None:
-            self._db.delete(row)
-            self._db.commit()
+        self._require_owner()
+        self._db.delete(self._owned_tag(tag_id))
+        self._db.commit()
 
     def add_tag_to_series(
         self, source_id: str, series_key: str, tag_id: int
     ) -> dict[str, Any]:
-        self._require_owner()
+        profile_id = self._require_profile()
+        self._owned_tag(tag_id)
         series_key = fully_unquote(series_key)
-        pk = (self._user_id, self._profile_id, source_id, series_key, tag_id)
+        pk = (self._user_id, profile_id, source_id, series_key, tag_id)
         if self._db.get(ProfileSeriesTag, pk) is None:
             self._db.add(
                 ProfileSeriesTag(
                     user_id=self._user_id,
-                    profile_id=self._profile_id,
+                    profile_id=profile_id,
                     source_id=source_id,
                     series_key=series_key,
                     tag_id=tag_id,
@@ -597,10 +658,10 @@ class FollowedSeriesService:
     def remove_tag_from_series(
         self, source_id: str, series_key: str, tag_id: int
     ) -> None:
-        self._require_owner()
+        profile_id = self._require_profile()
         row = self._db.get(
             ProfileSeriesTag,
-            (self._user_id, self._profile_id, source_id, fully_unquote(series_key), tag_id),
+            (self._user_id, profile_id, source_id, fully_unquote(series_key), tag_id),
         )
         if row is not None:
             self._db.delete(row)

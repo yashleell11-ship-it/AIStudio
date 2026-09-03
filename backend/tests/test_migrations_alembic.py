@@ -20,6 +20,12 @@ from database.models import Base
 from database.session import run_alembic_migrations
 
 _BASELINE = "0001_source_native"
+_HEAD = "0002_tags_per_profile"
+
+# Every revision, oldest first. A new migration is added here deliberately —
+# the point of the guard is that revisions arrive on purpose, not that there is
+# only ever one.
+_REVISIONS = ["0001_source_native.py", "0002_tags_per_profile.py"]
 
 # Every ORM-mapped table the baseline must create (spec §3).
 _EXPECTED_TABLES = {
@@ -70,13 +76,13 @@ def _fresh_engine(tmp_path: Path):
     return engine
 
 
-def test_baseline_is_the_only_revision():
+def test_revision_set_is_exactly_what_we_expect():
     versions_dir = Path(dbs.__file__).resolve().parents[1] / "alembic" / "versions"
     revisions = sorted(p.name for p in versions_dir.glob("*.py"))
-    assert revisions == ["0001_source_native.py"], revisions
+    assert revisions == _REVISIONS, revisions
 
 
-def test_baseline_upgrades_empty_db_to_full_schema(tmp_path):
+def test_migrations_upgrade_empty_db_to_full_schema(tmp_path):
     engine = _fresh_engine(tmp_path)
     tables = set(inspect(engine).get_table_names())
 
@@ -88,9 +94,7 @@ def test_baseline_upgrades_empty_db_to_full_schema(tmp_path):
 
     # Alembic stamped a real head revision.
     with engine.connect() as conn:
-        assert (
-            MigrationContext.configure(conn).get_current_revision() == _BASELINE
-        )
+        assert MigrationContext.configure(conn).get_current_revision() == _HEAD
 
 
 def test_baseline_creates_chapter_ocr_fts_and_triggers(tmp_path):
@@ -217,4 +221,112 @@ def test_run_alembic_migrations_is_idempotent(tmp_path):
     run_alembic_migrations(engine)  # second run: no-op at head
     with engine.connect() as conn:
         rev2 = MigrationContext.configure(conn).get_current_revision()
-    assert rev1 == rev2 == _BASELINE
+    assert rev1 == rev2 == _HEAD
+
+
+# --- 0002_tags_per_profile ------------------------------------------------
+
+
+def _upgrade_to(engine, revision: str) -> None:
+    """Upgrade ``engine``'s database to a specific revision (not just head)."""
+    from alembic import command
+    from alembic.config import Config
+
+    backend_root = Path(dbs.__file__).resolve().parents[1]
+    cfg = Config(str(backend_root / "alembic.ini"))
+    cfg.set_main_option("script_location", str(backend_root / "alembic"))
+    cfg.attributes["db_url"] = engine.url.render_as_string(hide_password=False)
+    command.upgrade(cfg, revision)
+
+
+def _seed_legacy_tag_world(engine) -> None:
+    """Two accounts, three profiles, and the old *global* tag vocabulary."""
+    with engine.begin() as conn:
+        for uid, name in ((1, "alice"), (2, "bob")):
+            conn.execute(
+                text(
+                    "INSERT INTO users (id, username, password_hash, is_admin,"
+                    " is_active, created_at, updated_at) VALUES"
+                    " (:id, :n, 'x', 0, 1, '2026-01-01', '2026-01-01')"
+                ),
+                {"id": uid, "n": name},
+            )
+        for pid, uid, name in ((10, 1, "A"), (11, 1, "B"), (20, 2, "C")):
+            conn.execute(
+                text(
+                    "INSERT INTO reading_profiles (id, user_id, name,"
+                    " avatar_key, mood, mature_content_enabled, sort_order,"
+                    " created_at) VALUES (:p, :u, :n, 'a', 'calm', 0, 0,"
+                    " '2026-01-01')"
+                ),
+                {"p": pid, "u": uid, "n": name},
+            )
+        for tid, name in ((1, "Peak"), (2, "Dropped"), (3, "Orphan")):
+            conn.execute(
+                text(
+                    "INSERT INTO tags (id, name, category, color, created_at)"
+                    " VALUES (:t, :n, 'custom', '#fff', '2026-01-01')"
+                ),
+                {"t": tid, "n": name},
+            )
+        # "Peak" is used by profile A (acct 1) and profile C (acct 2);
+        # "Dropped" only by profile B; "Orphan" by nobody.
+        for uid, pid, tid, series in (
+            (1, 10, 1, "s-a"),
+            (2, 20, 1, "s-c"),
+            (1, 11, 2, "s-b"),
+        ):
+            conn.execute(
+                text(
+                    "INSERT INTO profile_series_tags (user_id, profile_id,"
+                    " source_id, series_key, tag_id, is_ai_generated)"
+                    " VALUES (:u, :p, 'mangadex', :s, :t, 0)"
+                ),
+                {"u": uid, "p": pid, "t": tid, "s": series},
+            )
+
+
+def test_tags_migration_splits_a_shared_tag_per_profile(tmp_path):
+    """The shared "Peak" row becomes one owned tag per profile that used it,
+    and every association follows its own copy."""
+    engine = create_engine(f"sqlite:///{tmp_path / 'tags.db'}")
+    _upgrade_to(engine, _BASELINE)
+    _seed_legacy_tag_world(engine)
+    _upgrade_to(engine, "head")
+
+    with engine.connect() as conn:
+        tags = {
+            (r[1], r[2], r[3]): r[0]
+            for r in conn.execute(
+                text("SELECT id, user_id, profile_id, name FROM tags")
+            )
+        }
+        # "Peak" split in two; "Dropped" kept its single owner.
+        assert set(tags) == {
+            (1, 10, "Peak"),
+            (2, 20, "Peak"),
+            (1, 11, "Dropped"),
+        }
+        # ...and "Orphan" — used by nobody, owner unrecoverable — is gone.
+        assert not any(name == "Orphan" for (_u, _p, name) in tags)
+
+        links = {
+            (r[0], r[1], r[2]): r[3]
+            for r in conn.execute(
+                text(
+                    "SELECT user_id, profile_id, series_key, tag_id"
+                    " FROM profile_series_tags"
+                )
+            )
+        }
+        assert links[(1, 10, "s-a")] == tags[(1, 10, "Peak")]
+        assert links[(2, 20, "s-c")] == tags[(2, 20, "Peak")]
+        assert links[(1, 11, "s-b")] == tags[(1, 11, "Dropped")]
+
+        # Scope-local uniqueness replaced the global UNIQUE(name): two
+        # profiles may now both own a tag called "Peak" (proved above), and a
+        # single profile still may not own two.
+        cols = {
+            r[1] for r in conn.execute(text("PRAGMA table_info(tags)"))
+        }
+        assert {"user_id", "profile_id"} <= cols

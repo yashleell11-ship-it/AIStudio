@@ -10,7 +10,7 @@ from __future__ import annotations
 import pytest
 
 from core.errors import AppError
-from database.models import Collection, UpdateNotification
+from database.models import Collection, ProfileSeriesTag, UpdateNotification
 from services.followed_series_service import FollowedSeriesService
 from services.progress_service import ProgressInput, ProgressService
 from services.update_service import UpdateService
@@ -271,3 +271,97 @@ def test_collections_isolated_across_profiles(db_session, world):
     assert [c["name"] for c in a_cols] == ["Faves"]
     assert b_cols == []
     assert c_cols == []
+
+
+def test_collections_cannot_be_reached_by_id_from_another_profile(db_session, world):
+    """Invisible in the listing was never enough: collection ids are small
+    integers, so ``_owned_collection`` has to carry the profile predicate too
+    or a sibling profile guesses one and deletes it."""
+    col = Collection(user_id=world["u1"], profile_id=world["a"], name="Faves")
+    db_session.add(col)
+    db_session.commit()
+
+    sibling = _followed(db_session, world["u1"], world["b"])
+    stranger = _followed(db_session, world["u2"], world["c"])
+    unscoped = _followed(db_session, world["u1"], None)
+    for svc in (sibling, stranger, unscoped):
+        for call in (
+            lambda s=svc: s.get_collection(col.id),
+            lambda s=svc: s.update_collection(col.id, name="Pwned"),
+            lambda s=svc: s.delete_collection(col.id),
+            lambda s=svc: s.add_series_to_collection(col.id, "mangadex", "x"),
+        ):
+            with pytest.raises(AppError) as excinfo:
+                call()
+            assert excinfo.value.status_code == 404
+
+    db_session.refresh(col)
+    assert col.name == "Faves"
+    assert _followed(db_session, world["u1"], world["a"]).get_collection(col.id)[
+        "name"
+    ] == "Faves"
+
+
+# --- tags --------------------------------------------------------------
+
+
+def test_tags_are_isolated_across_profiles_and_accounts(db_session, world):
+    a = _followed(db_session, world["u1"], world["a"])
+    b = _followed(db_session, world["u1"], world["b"])
+    c = _followed(db_session, world["u2"], world["c"])
+    tag = a.create_tag(name="Peak")
+
+    assert [t["name"] for t in a.list_tags()] == ["Peak"]
+    assert b.list_tags() == []
+    assert c.list_tags() == []
+
+    # A colliding name is a *new* tag in another scope, never a handle on
+    # somebody else's row.
+    theirs = c.create_tag(name="peak")
+    assert theirs["id"] != tag["id"]
+    assert [t["id"] for t in c.list_tags()] == [theirs["id"]]
+
+    # ...while within one scope the case-insensitive dedupe still holds.
+    assert a.create_tag(name="PEAK")["id"] == tag["id"]
+
+
+def test_deleting_a_tag_from_another_scope_is_404(db_session, world):
+    """``DELETE /library/tags/{id}`` used to nuke a globally shared row and,
+    through the association cascade, every account's use of it."""
+    a = _followed(db_session, world["u1"], world["a"])
+    tag = a.create_tag(name="Peak")
+    a.add_tag_to_series("mangadex", "s1", tag["id"])
+
+    for svc in (
+        _followed(db_session, world["u1"], world["b"]),
+        _followed(db_session, world["u2"], world["c"]),
+    ):
+        with pytest.raises(AppError) as excinfo:
+            svc.delete_tag(tag["id"])
+        assert excinfo.value.status_code == 404
+        # ...and it cannot be attached to their series either.
+        with pytest.raises(AppError) as excinfo:
+            svc.add_tag_to_series("mangadex", "s1", tag["id"])
+        assert excinfo.value.status_code == 404
+
+    assert [t["id"] for t in a.list_tags()] == [tag["id"]]
+    assert db_session.query(ProfileSeriesTag).count() == 1
+
+    a.delete_tag(tag["id"])
+    assert a.list_tags() == []
+
+
+def test_tag_writes_need_an_active_profile(db_session, world):
+    """``profile_id`` is NOT NULL on both tag tables, so the unscoped bucket
+    has no row to address — a composite ``db.get()`` with a null key component
+    is not a lookup, and the insert would be an IntegrityError 500."""
+    unscoped = _followed(db_session, world["u1"], None)
+    for call in (
+        lambda: unscoped.create_tag(name="Peak"),
+        lambda: unscoped.add_tag_to_series("mangadex", "s1", 1),
+        lambda: unscoped.remove_tag_from_series("mangadex", "s1", 1),
+    ):
+        with pytest.raises(AppError) as excinfo:
+            call()
+        assert excinfo.value.status_code == 400
+        assert excinfo.value.code == "profile_required"

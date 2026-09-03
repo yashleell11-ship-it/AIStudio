@@ -413,12 +413,30 @@ class CollectionSeries(Base):
 
 
 class Tag(Base):
-    """Global label vocabulary — a tag is a word, not owned data."""
+    """A profile's own label vocabulary.
+
+    This used to be one global row set on the theory that "a tag is a word, not
+    owned data". It is not: the name is user-authored text, and sharing the rows
+    meant ``DELETE /library/tags/{id}`` destroyed a row every account read (plus
+    every account's associations, via the ``profile_series_tags`` cascade), and
+    ``create_tag`` handed back somebody else's row on a case-insensitive name
+    collision. Owned per ``(user_id, profile_id)`` like everything else, so the
+    uniqueness that used to be global is now scope-local (revision
+    ``0002_tags_per_profile``).
+    """
 
     __tablename__ = "tags"
+    __table_args__ = (
+        UniqueConstraint("user_id", "profile_id", "name", name="uq_tags_scope_name"),
+        Index("ix_tags_scope", "user_id", "profile_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id"), nullable=False)
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("reading_profiles.id", ondelete="CASCADE"), nullable=False
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
     category: Mapped[str] = mapped_column(String(64), nullable=False, default="custom")
     color: Mapped[str | None] = mapped_column(String(16))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
