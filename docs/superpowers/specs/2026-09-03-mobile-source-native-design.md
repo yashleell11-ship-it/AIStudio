@@ -63,6 +63,43 @@ Per OFFLINE_READING.md, condensed to what ships:
 - **Sweep:** on launch + resume — read-then-expire (48 h after `read_at`, pinned exempt, never the open chapter), then pressure eviction oldest-read-first down to the floor.
 - **UI:** Downloads tab lists saved series/chapters with real on-device sizes; per-chapter and per-series download buttons in sources/library/reader; pin toggle; storage screen shows device bytes (not server bytes).
 
+## 3b. Storage budget and where the bytes live (owner request, 2026-09-04)
+
+The owner asked for a configurable on-device cache (2 GB / 5 GB / 10 GB) and a
+"choose the folder" control in Settings. The budget is straightforward; the folder
+picker needs a correction.
+
+**iOS cannot do a user-chosen download folder safely.** An app writes to its own
+container; picking an arbitrary directory yields a *security-scoped bookmark*, which
+goes stale across reinstalls — and this build is sideloaded and re-signed every 7
+days, so a multi-GB shelf behind a bookmark is a shelf that eventually vanishes. An
+iCloud Drive selection would also try to sync every chapter. So:
+
+- **Storage lives in the app container** (`getApplicationSupportDirectory()`), per
+  OFFLINE_READING.md — survives re-signing, never purged like `NSCachesDirectory`.
+- **Make it visible instead of relocatable:** set `UIFileSharingEnabled` and
+  `LSSupportsOpeningDocumentsInPlace` in `mobile/ios/Runner/Info.plist` so the store
+  appears under *On My iPhone → ManhwaManiacs* in the Files app. The owner gets to
+  browse, copy and delete chapters — the thing a folder picker was actually for —
+  with none of the bookmark fragility. Blobs must therefore live under `Documents/`
+  rather than `Application Support/` for Files to surface them; keep the sqflite
+  index in Application Support so a user deleting the DB by hand cannot corrupt state
+  (an orphaned blob is recoverable, a half-deleted index is not).
+- **Android may have a real folder picker** (SAF / `getExternalFilesDirs`), including
+  SD-card targets. Implement it there only; the Settings UI shows the control on
+  Android and a "Manage in Files" affordance on iOS.
+
+**Budget control — Settings → Storage:**
+- Cap options **2 GB / 5 GB / 10 GB / 20 GB / Unlimited**, persisted per install
+  (not per profile — it is a device property).
+- Live usage against the cap, plus a per-series breakdown ordered by size.
+- "Free up space" runs the read-then-expire sweep immediately, then evicts
+  oldest-read-first until under the cap. Pinned series are exempt.
+- The existing **~1.5 GB free-space floor is independent of the cap and always
+  applies** — a 20 GB cap on a full phone must still stop.
+- Queue behaviour at the cap: pause with a clear reason, never silently drop a
+  queued chapter and never delete an unread one to make room.
+
 ## 4. OCR channel
 
 - Dart: `OcrEngine.recognize(List<String> imagePaths) → List<PageText>` over MethodChannel `mm/ocr`; feature flow = pick a downloaded chapter → run per page → `POST /ocr/chapter {…, pages:[{page,text,boxes}]}`. Search screen hits `/ocr/search`; coverage endpoint drives "OCR this chapter" affordances.
