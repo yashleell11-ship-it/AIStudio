@@ -131,13 +131,18 @@ Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
     overrides: [
       apiBaseUrlOverride('http://example.test'),
       sharedPrefsProvider.overrideWithValue(prefs),
-      readerRepositoryProvider.overrideWithValue(_ProgressOnlyReaderRepository()),
+      readerRepositoryProvider
+          .overrideWithValue(_ProgressOnlyReaderRepository()),
       authenticatedAuthOverride(),
       activeProfileOverride(),
-      noDownloadsStoreOverride(),
+      ...noDownloadsStoreOverrides(),
       profileSessionReadyOverride(),
       chapterManifestProvider(
-        (sourceId: _libSourceId, seriesKey: _libSeriesKey, chapterKey: _libChapterKey),
+        (
+          sourceId: _libSourceId,
+          seriesKey: _libSeriesKey,
+          chapterKey: _libChapterKey
+        ),
       ).overrideWith((ref) async => _libManifest()),
       chapterManifestProvider(
         (
@@ -152,7 +157,8 @@ Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
           seriesId: _slashSeriesId,
           chapterId: _slashChapterId,
         ),
-      ).overrideWith((ref) async => _sourceChapterManifest().toReaderChapter('http://example.test')),
+      ).overrideWith((ref) async =>
+          _sourceChapterManifest().toReaderChapter('http://example.test')),
       ..._pendingSeriesDetails(),
     ],
   );
@@ -213,7 +219,8 @@ void main() {
       expect(series.seriesId, _libSeriesKey);
     });
 
-    testWidgets('the library reader route matches a slash-bearing chapter key '
+    testWidgets(
+        'the library reader route matches a slash-bearing chapter key '
         'and hands the decoded key to the screen', (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
@@ -233,7 +240,8 @@ void main() {
           reason: 'the opaque key must round-trip through go_router verbatim');
     });
 
-    testWidgets('a source chapter lands on the source series route with a '
+    testWidgets(
+        'a source chapter lands on the source series route with a '
         'slash-bearing id intact', (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
@@ -282,7 +290,8 @@ void main() {
   // same page key, which Navigator asserts on — hence pop-when-beneath and
   // go-otherwise instead of an unconditional push.
   group('Reader → series page keeps the back stack sane', () {
-    testWidgets('pops onto the source series page already beneath instead of '
+    testWidgets(
+        'pops onto the source series page already beneath instead of '
         'stacking a second copy', (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
@@ -292,7 +301,8 @@ void main() {
       router.go(RoutePaths.sourceSeriesDetail(_libSourceId, _libSeriesKey));
       await _settleReader(tester);
       unawaited(
-        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+        router.push(
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
       );
       await _settleReader(tester);
 
@@ -307,7 +317,8 @@ void main() {
 
       // And the round trip is repeatable without the stack creeping upwards.
       unawaited(
-        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+        router.push(
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
       );
       await _settleReader(tester);
       await _tapTitle(tester);
@@ -321,7 +332,8 @@ void main() {
 
     testWidgets(
         'pops onto the followed series page beneath it, even though the '
-        'reader route carries no follow-row id to match against', (tester) async {
+        'reader route carries no follow-row id to match against',
+        (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
 
@@ -330,7 +342,8 @@ void main() {
       router.go(RoutePaths.seriesDetail(_followedId));
       await _settleReader(tester);
       unawaited(
-        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+        router.push(
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
       );
       await _settleReader(tester);
 
@@ -340,7 +353,8 @@ void main() {
       expect(find.byType(ReaderScreen), findsNothing);
     });
 
-    testWidgets('still reaches a series page when the reader was opened from '
+    testWidgets(
+        'still reaches a series page when the reader was opened from '
         'somewhere else, and leaves it poppable', (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);
@@ -350,7 +364,8 @@ void main() {
       router.go(Routes.library);
       await _settleReader(tester);
       unawaited(
-        router.push(RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+        router.push(
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
       );
       await _settleReader(tester);
       expect(find.byType(ReaderScreen), findsOneWidget);
@@ -363,7 +378,8 @@ void main() {
       expect(router.canPop(), isTrue);
     });
 
-    testWidgets('a source chapter opened from elsewhere keeps its slash-bearing '
+    testWidgets(
+        'a source chapter opened from elsewhere keeps its slash-bearing '
         'id through the rebuilt route', (tester) async {
       final container = await _pumpApp(tester);
       final router = _router(container);

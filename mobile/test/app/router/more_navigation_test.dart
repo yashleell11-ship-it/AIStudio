@@ -28,7 +28,7 @@ Future<ProviderContainer> _pumpOnMoreTab(WidgetTester tester) async {
       sharedPrefsProvider.overrideWithValue(prefs),
       authenticatedAuthOverride(),
       activeProfileOverride(),
-      noDownloadsStoreOverride(),
+      ...noDownloadsStoreOverrides(),
       profileSessionReadyOverride(),
       appUpdateProvider.overrideWith((ref) async => null),
     ],

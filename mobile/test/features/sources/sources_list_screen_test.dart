@@ -135,7 +135,7 @@ Future<void> _pumpSources(WidgetTester tester, _FakeSourcesRepository repo) asyn
         // signed-in session, so both gates have to be open here.
         authenticatedAuthOverride(),
         activeProfileOverride(),
-        noDownloadsStoreOverride(),
+        ...noDownloadsStoreOverrides(),
       ],
       child: MaterialApp.router(routerConfig: router),
     ),

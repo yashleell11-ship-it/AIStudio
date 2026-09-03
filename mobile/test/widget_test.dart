@@ -22,7 +22,7 @@ void main() {
           sharedPrefsProvider.overrideWithValue(prefs),
           authenticatedAuthOverride(),
           activeProfileOverride(),
-          noDownloadsStoreOverride(),
+          ...noDownloadsStoreOverrides(),
           profileSessionReadyOverride(),
         ],
         child: const ManhwaManiacsApp(),
