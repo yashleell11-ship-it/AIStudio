@@ -53,9 +53,33 @@ def test_search_series_uses_search_endpoint(aurorascans_connector: AuroraScansCo
 
     mock_get.assert_called_once_with(
         "/series/search",
-        params={"page": 1, "perPage": 20, "sort": "latest", "q": "dungeon"},
+        params={"page": 1, "perPage": 20, "q": "dungeon"},
     )
     assert len(listing.items) == 2
+
+
+def test_search_series_omits_sort_param(aurorascans_connector: AuroraScansConnector):
+    """/series/search returns 400 if `sort` is present; /series (browse) requires it.
+
+    Regression test for production incident: AuroraScans search sent
+    `sort=latest` on every request, upstream returned 400 for all of them,
+    and 10 consecutive failures tripped DEAD_AFTER_FAILURES, demoting a
+    healthy source. Verified in-container that the identical request minus
+    `sort` returns 200 with results.
+    """
+    listing_payload = _load("series_list.json")
+
+    with patch.object(aurorascans_connector._http, "get_json", return_value=listing_payload) as mock_get:
+        aurorascans_connector.search_series("solo", 1, sort="latest")
+
+    _, kwargs = mock_get.call_args
+    assert "sort" not in kwargs["params"], "search request must not carry `sort` — upstream returns 400"
+
+    with patch.object(aurorascans_connector._http, "get_json", return_value=listing_payload) as mock_get:
+        aurorascans_connector.get_series_list(1, sort="latest")
+
+    _, kwargs = mock_get.call_args
+    assert kwargs["params"]["sort"] == "latest", "browse listing should still send sort"
 
 
 def test_get_series_and_chapters(aurorascans_connector: AuroraScansConnector):

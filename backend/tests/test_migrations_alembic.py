@@ -9,6 +9,7 @@ matches the ORM models exactly, and is idempotent.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
 from alembic.runtime.migration import MigrationContext
@@ -220,6 +221,43 @@ def test_alembic_head_matches_models(tmp_path):
         )
     ]
     assert real == [], f"ORM models drifted from the Alembic baseline: {real}"
+
+
+def test_run_alembic_migrations_does_not_silence_existing_loggers(tmp_path, caplog):
+    """Regression test: ``alembic/env.py`` used to call ``fileConfig(...)``
+    unconditionally at import time, even when Alembic is driven
+    programmatically from app startup (``database.session.run_alembic_migrations``,
+    which ``init_db()`` calls). ``fileConfig``'s default
+    ``disable_existing_loggers=True`` silently disables every logger that
+    already exists in the process at that point — including every
+    module-level ``logging.getLogger(__name__)`` logger the app's own modules
+    already created at import time — so from that point on the running
+    backend emitted zero log lines (no request errors, no update-sweep
+    failures, no security warnings). This was invisible precisely because
+    nothing tested it.
+
+    Reproduces the real app-boot ordering: obtain a logger the way every
+    backend module does, *before* triggering migrations, then confirm it
+    still emits and reaches a handler afterward.
+    """
+    app_logger_name = "app.some_already_imported_module"
+    app_logger = logging.getLogger(app_logger_name)
+    assert not app_logger.disabled  # sanity: default state before migrating
+
+    engine = create_engine(f"sqlite:///{tmp_path / 'logging.db'}")
+    run_alembic_migrations(engine)
+
+    assert not app_logger.disabled, (
+        "run_alembic_migrations() disabled a pre-existing logger — "
+        "alembic/env.py's fileConfig() call is killing app logging again"
+    )
+
+    caplog.clear()
+    with caplog.at_level(logging.WARNING, logger=app_logger_name):
+        app_logger.warning("post-migration warning: this must be visible")
+    assert any(
+        "post-migration warning" in record.message for record in caplog.records
+    ), "logger survived but no record reached the handler — logging is still broken"
 
 
 def test_run_alembic_migrations_is_idempotent(tmp_path):

@@ -9,6 +9,12 @@ Identity scheme
 * ``series_id``  = the integer ``title_no`` (as a string). The detail/list page
   can be reached with any genre/slug in the path -- WEBTOON 301-redirects a
   placeholder path to the canonical one -- so a bare ``title_no`` round-trips.
+  This redirect only happens for **Originals**; **Canvas** titles need a
+  literal ``canvas`` genre segment instead (:func:`canvas_detail_path`), so
+  the connector tries the Originals placeholder first and falls back to the
+  Canvas placeholder on failure (``WebtoonsConnector._get_series_html``).
+  Either way the persisted ``series_id`` itself never encodes section, which
+  keeps existing ``followed_series.series_key`` rows valid across this fix.
 * ``chapter_id`` = ``"<title_no>:<episode_no>:<genre>:<series_slug>"``. The
   viewer URL needs the series' genre + slug segments; the trailing episode-slug
   segment does not matter (WEBTOON redirects it based on ``episode_no``), so it
@@ -85,16 +91,36 @@ def _to_int(value: str | None) -> int | None:
 # -- Identity helpers -------------------------------------------------------
 
 def series_detail_path(series_id: str) -> str:
-    """Path to page 1 of a series' episode-list page.
+    """Path to page 1 of an *Originals* series' episode-list page.
 
     A placeholder genre/slug is fine here: WEBTOON 301-redirects to the
     canonical path (the shared HTTP client follows redirects), so only the
     ``title_no`` query parameter is load-bearing. NOTE: that redirect *drops*
     any ``&page=N`` query param, so paginating deeper episodes MUST use the
     canonical path via :func:`series_page_path`.
+
+    This placeholder shape only works for Originals. Canvas titles are not
+    redirected from it -- they 404 -- and need :func:`canvas_detail_path`
+    instead. See ``WebtoonsConnector._get_series_html`` for the fallback that
+    tries this path first and retries with the Canvas shape on failure.
     """
     title_no = series_id.strip().strip("/")
     return f"/{LOCALE}/_/_/list?title_no={title_no}"
+
+
+def canvas_detail_path(series_id: str) -> str:
+    """Path to page 1 of a *Canvas* series' episode-list page.
+
+    Canvas titles live under a literal ``canvas`` first path segment
+    (``/<locale>/canvas/_/list?title_no=N``) rather than the Originals
+    ``/<locale>/_/_/list`` placeholder shape -- WEBTOON does not redirect the
+    Originals placeholder to a Canvas title's canonical URL, it 404s. The
+    trailing slug segment is still a don't-care placeholder here; the real
+    slug is learned from the response body (``rel=canonical`` / ``og:url``)
+    once this succeeds.
+    """
+    title_no = series_id.strip().strip("/")
+    return f"/{LOCALE}/canvas/_/list?title_no={title_no}"
 
 
 def series_page_path(genre: str, slug: str, series_id: str, page: int) -> str:

@@ -23,6 +23,7 @@ from connectors.webtoons.mappers import (
     IMAGE_REFERER,
     PAGE_SIZE,
     SITE_BASE,
+    canvas_detail_path,
     chapter_viewer_path,
     canvas_path,
     extract_slug_from_canonical_path,
@@ -180,6 +181,33 @@ class WebtoonsConnector(SourceConnector):
             return series_page_path(genre, series_slug, api_key, 1)
         return series_detail_path(api_key)
 
+    def _get_series_html(self, api_key: str, page: int) -> str:
+        """Fetch one series detail/list page's HTML.
+
+        ``_series_list_path`` guesses the Originals-shaped placeholder path
+        (``/en/_/_/list``) when the real genre/slug hasn't been learned yet
+        (cold ``_slug_cache`` -- e.g. right after a restart, before the user
+        has browsed or searched this session). That placeholder only
+        round-trips for Originals: WEBTOON 301-redirects it to the canonical
+        URL for an Originals title, but 404s it for a Canvas title instead.
+        On that failure, retry once against the Canvas-shaped placeholder
+        (``/en/canvas/_/list``). Whichever guess succeeds, the response body
+        carries the real canonical genre/slug, which the caller learns and
+        caches -- so this fallback only ever fires on the first, cold-cache
+        request for a given series; every later call (including deeper
+        pagination) goes straight to the canonical path.
+        """
+        path = self._series_list_path(api_key, page)
+        try:
+            return self._http.get_text(path)
+        except ConnectorHttpError:
+            # Only retry the cold-cache guess-and-check; if the genre/slug is
+            # already known, this path was already canonical and a fresh
+            # failure is a real error, not a wrong-section guess.
+            if page != 1 or self._slug_cache.get(api_key) is not None:
+                raise
+            return self._http.get_text(canvas_detail_path(api_key))
+
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         page = max(page, 1)
         if sort == "canvas":
@@ -263,7 +291,7 @@ class WebtoonsConnector(SourceConnector):
 
         path = self._series_list_path(api_key, 1)
         try:
-            html = self._http.get_text(path)
+            html = self._get_series_html(api_key, 1)
         except ConnectorHttpError as exc:
             self._log("detail", path, status="error", detail=str(exc))
             return None
@@ -299,7 +327,7 @@ class WebtoonsConnector(SourceConnector):
         for page in range(1, MAX_EPISODE_PAGES + 1):
             path = self._series_list_path(api_key, page)
             try:
-                html = self._http.get_text(path)
+                html = self._get_series_html(api_key, page)
             except ConnectorHttpError as exc:
                 self._log("chapters", path, status="error", detail=str(exc))
                 break
