@@ -40,12 +40,14 @@ describe("normalizeReaderPreferences", () => {
         fitMode: "height",
         direction: "rtl",
         zoom: 1.5,
+        autoScrollSpeed: 8,
       }),
     ).toEqual({
       readingMode: "double",
       fitMode: "height",
       direction: "rtl",
       zoom: 1.5,
+      autoScrollSpeed: 8,
     });
   });
 
@@ -53,12 +55,26 @@ describe("normalizeReaderPreferences", () => {
     expect(normalizeReaderPreferences({ zoom: 99 }).zoom).toBe(3);
     expect(normalizeReaderPreferences({ zoom: 0 }).zoom).toBe(0.5);
   });
+
+  it("clamps a stored auto-scroll speed that is out of range", () => {
+    expect(normalizeReaderPreferences({ autoScrollSpeed: 99 }).autoScrollSpeed).toBe(10);
+    expect(normalizeReaderPreferences({ autoScrollSpeed: 0 }).autoScrollSpeed).toBe(1);
+    expect(normalizeReaderPreferences({ autoScrollSpeed: "fast" }).autoScrollSpeed).toBe(
+      DEFAULT_READER_PREFERENCES.autoScrollSpeed,
+    );
+  });
 });
 
 describe("applyReaderPreferences", () => {
   it("patches one series without touching the others", () => {
     const store: ReaderPreferencesStore = {
-      "local:1": { readingMode: "double", fitMode: "height", direction: "rtl", zoom: 1 },
+      "local:1": {
+        readingMode: "double",
+        fitMode: "height",
+        direction: "rtl",
+        zoom: 1,
+        autoScrollSpeed: 5,
+      },
     };
 
     const next = applyReaderPreferences(store, "asurascans:x", { readingMode: "single" });
@@ -82,6 +98,7 @@ describe("applyReaderPreferences", () => {
       fitMode: "width",
       direction: "rtl",
       zoom: 1.4,
+      autoScrollSpeed: DEFAULT_READER_PREFERENCES.autoScrollSpeed,
     });
   });
 
@@ -133,5 +150,26 @@ describe("per-profile reader preferences", () => {
     expect(readReaderPreferences("local:1")).toEqual(DEFAULT_READER_PREFERENCES);
     // and nothing was parked under a bare key for a later profile to inherit
     expect(readReaderPreferencesRaw()).toBeNull();
+  });
+
+  it("remembers auto-scroll speed per series, not globally", () => {
+    setStorageScope(ALICE);
+    // A slow-panel manhwa gets a slow speed...
+    writeReaderPreferences("local:1", { autoScrollSpeed: 2 });
+    // ...and a fast gag strip gets a fast one, without disturbing the first.
+    writeReaderPreferences("local:2", { autoScrollSpeed: 9 });
+
+    expect(readReaderPreferences("local:1").autoScrollSpeed).toBe(2);
+    expect(readReaderPreferences("local:2").autoScrollSpeed).toBe(9);
+  });
+
+  it("does not let one profile inherit another's auto-scroll speed", () => {
+    setStorageScope(ALICE);
+    writeReaderPreferences("local:1", { autoScrollSpeed: 8 });
+
+    setStorageScope(BOB);
+    expect(readReaderPreferences("local:1").autoScrollSpeed).toBe(
+      DEFAULT_READER_PREFERENCES.autoScrollSpeed,
+    );
   });
 });

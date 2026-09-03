@@ -11,25 +11,34 @@ import {
   ChevronRight,
   Columns2,
   Film,
+  Flame,
+  Hand,
   Keyboard,
   Maximize,
   Minimize,
   Minus,
   MoveHorizontal,
   MoveVertical,
+  Pause,
+  Play,
   Plus,
   RotateCcw,
   Rows3,
   ScrollText,
   Settings2,
+  Sparkles,
   Square,
+  SunDim,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { formatKeyCombo } from "@/lib/keyboard";
 import { Button } from "@/components/ui/button";
+import { Slider } from "@/components/ui/slider";
 import { usePrefersReducedMotion } from "@/components/premium/use-prefers-reduced-motion";
-import { SERIES_SHORTCUT_KEYS } from "../keymap";
+import { MAX_AUTO_SCROLL_SPEED, MIN_AUTO_SCROLL_SPEED } from "../auto-scroll";
+import { AUTO_SCROLL_SHORTCUT_KEYS, SERIES_SHORTCUT_KEYS, type TapZone, type TapZoneConfig } from "../keymap";
+import { MAX_DIMMER, MAX_WARMTH } from "../overlay";
 import type { FitMode, ReadingDirection, ReadingMode } from "../types";
 import { ScrubBar } from "./ScrubBar";
 
@@ -96,6 +105,32 @@ function Segmented<T extends string>({
   );
 }
 
+/** One physical zone's action picker in the "Tap zones" settings row. */
+const TAP_ZONE_OPTIONS: SegmentOption<TapZone>[] = [
+  { value: "retreat", label: "Previous", icon: ChevronLeft },
+  { value: "toggle", label: "Toggle", icon: Hand },
+  { value: "advance", label: "Next", icon: ChevronRight },
+];
+
+function TapZoneRow({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: TapZone;
+  onChange: (action: TapZone) => void;
+}) {
+  return (
+    <Segmented<TapZone>
+      label={label}
+      value={value}
+      onChange={onChange}
+      options={TAP_ZONE_OPTIONS}
+    />
+  );
+}
+
 interface ReaderControlsProps {
   chapterTitle: string;
   scrollProgress: number;
@@ -120,6 +155,27 @@ interface ReaderControlsProps {
   onTogglePageGap?: () => void;
   cinema?: boolean;
   onToggleCinema?: () => void;
+  /** Subtle fade between page turns. Paged mode only. */
+  pageTransition?: boolean;
+  onTogglePageTransition?: () => void;
+  /** Auto-scroll only ever drives the continuous strip. */
+  autoScrollAvailable?: boolean;
+  autoScrollPlaying?: boolean;
+  onToggleAutoScroll?: () => void;
+  /** 1 (slowest) to 10 (fastest) — see `auto-scroll.ts`. */
+  autoScrollSpeed?: number;
+  onAutoScrollSpeedChange?: (speed: number) => void;
+  autoScrollReducedMotion?: boolean;
+  /** Night-reading dimmer, 0..`MAX_DIMMER`. */
+  dimmer?: number;
+  onDimmerChange?: (value: number) => void;
+  /** Night-reading warmth tint, 0..`MAX_WARMTH`. */
+  warmth?: number;
+  onWarmthChange?: (value: number) => void;
+  /** Resolved (never null) left/centre/right tap behaviour, so the settings
+   * sheet can show what's actually in effect right now. */
+  tapZones?: TapZoneConfig;
+  onTapZonesChange?: (config: TapZoneConfig) => void;
   onBookmark?: () => void;
   previousChapterHref: string | null;
   nextChapterHref: string | null;
@@ -156,6 +212,20 @@ export function ReaderControls({
   onTogglePageGap,
   cinema = false,
   onToggleCinema,
+  pageTransition = false,
+  onTogglePageTransition,
+  autoScrollAvailable = false,
+  autoScrollPlaying = false,
+  onToggleAutoScroll,
+  autoScrollSpeed,
+  onAutoScrollSpeedChange,
+  autoScrollReducedMotion = false,
+  dimmer = 0,
+  onDimmerChange,
+  warmth = 0,
+  onWarmthChange,
+  tapZones,
+  onTapZonesChange,
   onBookmark,
   previousChapterHref,
   nextChapterHref,
@@ -366,6 +436,154 @@ export function ReaderControls({
               </div>
             ) : null}
 
+            {onTogglePageTransition ? (
+              <div className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-fg">Page transition</span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    A subtle fade between page turns.
+                  </span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onTogglePageTransition}
+                  aria-label="Toggle page transition"
+                  aria-pressed={pageTransition}
+                  className={cn(
+                    "shrink-0 gap-2 transition-colors hover:bg-white/10",
+                    pageTransition
+                      ? "bg-primary/15 text-primary hover:text-primary"
+                      : "text-muted hover:text-fg",
+                  )}
+                >
+                  <Sparkles className="size-4" />
+                  {pageTransition ? "On" : "Off"}
+                </Button>
+              </div>
+            ) : null}
+
+            {autoScrollAvailable && onToggleAutoScroll ? (
+              <div className="border-t border-border/60 py-2 pt-3">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-fg">Auto-scroll</span>
+                    <span className="mt-0.5 block text-xs text-muted">
+                      Scrolls the strip for you at the speed below. Press P, tap
+                      anywhere, or scroll manually to pause.
+                    </span>
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onToggleAutoScroll}
+                    aria-label={autoScrollPlaying ? "Pause auto-scroll" : "Play auto-scroll"}
+                    aria-pressed={autoScrollPlaying}
+                    title={`${autoScrollPlaying ? "Pause" : "Play"} (${formatKeyCombo(AUTO_SCROLL_SHORTCUT_KEYS).join(" ")})`}
+                    className={cn(
+                      "shrink-0 gap-2 transition-colors hover:bg-white/10",
+                      autoScrollPlaying
+                        ? "bg-primary/15 text-primary hover:text-primary"
+                        : "text-muted hover:text-fg",
+                    )}
+                  >
+                    {autoScrollPlaying ? (
+                      <Pause className="size-4" />
+                    ) : (
+                      <Play className="size-4" />
+                    )}
+                    {autoScrollPlaying ? "Pause" : "Play"}
+                  </Button>
+                </div>
+                {onAutoScrollSpeedChange && autoScrollSpeed != null ? (
+                  <label className="mt-2 flex items-center gap-3">
+                    <span className="w-14 shrink-0 text-xs text-muted">Speed</span>
+                    <Slider
+                      value={autoScrollSpeed}
+                      min={MIN_AUTO_SCROLL_SPEED}
+                      max={MAX_AUTO_SCROLL_SPEED}
+                      step={1}
+                      onChange={onAutoScrollSpeedChange}
+                      aria-label="Auto-scroll speed"
+                    />
+                    <span className="w-6 shrink-0 text-right font-mono text-xs tabular-nums text-muted">
+                      {autoScrollSpeed}
+                    </span>
+                  </label>
+                ) : null}
+                {autoScrollReducedMotion ? (
+                  <p className="mt-1.5 text-xs text-muted">
+                    Reduced motion is on, so this never starts on its own — Play
+                    still works whenever you want it.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {onDimmerChange ? (
+              <label className="flex items-center gap-3 border-t border-border/60 py-2 pt-3">
+                <SunDim className="size-4 shrink-0 text-muted" aria-hidden />
+                <span className="w-16 shrink-0 text-sm font-medium text-fg">Brightness</span>
+                <Slider
+                  value={dimmer}
+                  min={0}
+                  max={MAX_DIMMER}
+                  step={0.01}
+                  onChange={onDimmerChange}
+                  aria-label="Dim the page"
+                />
+                <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-muted">
+                  {Math.round((1 - dimmer / MAX_DIMMER) * 100)}%
+                </span>
+              </label>
+            ) : null}
+
+            {onWarmthChange ? (
+              <label className="flex items-center gap-3 py-2">
+                <Flame className="size-4 shrink-0 text-muted" aria-hidden />
+                <span className="w-16 shrink-0 text-sm font-medium text-fg">Warmth</span>
+                <Slider
+                  value={warmth}
+                  min={0}
+                  max={MAX_WARMTH}
+                  step={0.01}
+                  onChange={onWarmthChange}
+                  aria-label="Warm the page"
+                />
+                <span className="w-9 shrink-0 text-right font-mono text-xs tabular-nums text-muted">
+                  {Math.round((warmth / MAX_WARMTH) * 100)}%
+                </span>
+              </label>
+            ) : null}
+
+            {tapZones && onTapZonesChange ? (
+              <div className="border-t border-border/60 py-2 pt-3">
+                <div className="mb-1 flex items-center gap-2">
+                  <Hand className="size-4 text-muted" aria-hidden />
+                  <span className="text-sm font-medium text-fg">Tap zones</span>
+                </div>
+                <p className="mb-1.5 text-xs text-muted">
+                  What each side of the page does when tapped. Mirrors automatically
+                  for a right-to-left series until you set your own.
+                </p>
+                <TapZoneRow
+                  label="Left"
+                  value={tapZones.left}
+                  onChange={(action) => onTapZonesChange({ ...tapZones, left: action })}
+                />
+                <TapZoneRow
+                  label="Center"
+                  value={tapZones.center}
+                  onChange={(action) => onTapZonesChange({ ...tapZones, center: action })}
+                />
+                <TapZoneRow
+                  label="Right"
+                  value={tapZones.right}
+                  onChange={(action) => onTapZonesChange({ ...tapZones, right: action })}
+                />
+              </div>
+            ) : null}
+
             <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/60 pt-3">
               {fullscreenSupported ? (
                 <Button
@@ -487,6 +705,26 @@ export function ReaderControls({
                   >
                     <Bookmark className="size-4" />
                     Save
+                  </Button>
+                ) : null}
+                {autoScrollAvailable && onToggleAutoScroll ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={onToggleAutoScroll}
+                    aria-label={autoScrollPlaying ? "Pause auto-scroll" : "Play auto-scroll"}
+                    aria-pressed={autoScrollPlaying}
+                    title={`${autoScrollPlaying ? "Pause" : "Play"} auto-scroll (${formatKeyCombo(AUTO_SCROLL_SHORTCUT_KEYS).join(" ")})`}
+                    className={cn(
+                      "size-9 hover:bg-white/10 hover:text-fg",
+                      autoScrollPlaying ? "bg-primary/15 text-primary" : "text-muted",
+                    )}
+                  >
+                    {autoScrollPlaying ? (
+                      <Pause className="size-4" />
+                    ) : (
+                      <Play className="size-4" />
+                    )}
                   </Button>
                 ) : null}
                 {fullscreenSupported ? (

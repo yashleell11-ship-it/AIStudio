@@ -2,6 +2,7 @@
 
 import { useShortcut } from "@/lib/keyboard";
 import {
+  AUTO_SCROLL_SHORTCUT_KEYS,
   CINEMA_SHORTCUT_KEYS,
   HELP_SHORTCUT_KEYS,
   SERIES_SHORTCUT_KEYS,
@@ -21,6 +22,8 @@ export interface ReaderShortcutHandlers {
   onLastPage: () => void;
   onToggleFullscreen: () => void;
   onToggleCinema: () => void;
+  /** Play/pause auto-scroll. A no-op outside continuous mode. */
+  onToggleAutoScroll: () => void;
   onEscape: () => void;
   onToggleHelp: () => void;
   onPreviousChapter: () => void;
@@ -121,6 +124,14 @@ export function useReaderShortcuts(handlers: ReaderShortcutHandlers): void {
     description: "Toggle cinema mode (hide all chrome)",
     group: GROUP,
     handler: () => handlers.onToggleCinema(),
+  });
+
+  useShortcut({
+    id: "reader.auto-scroll",
+    keys: AUTO_SCROLL_SHORTCUT_KEYS,
+    description: "Play/pause auto-scroll (continuous mode)",
+    group: GROUP,
+    handler: () => handlers.onToggleAutoScroll(),
   });
 
   useShortcut({

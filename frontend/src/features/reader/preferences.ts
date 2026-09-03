@@ -3,6 +3,7 @@ import {
   subscribeStorageScope,
   writeScopedString,
 } from "@/lib/scoped-storage";
+import { clampAutoScrollSpeed, DEFAULT_AUTO_SCROLL_SPEED } from "./auto-scroll";
 import { clampZoom } from "./fit";
 import type { FitMode, ReadingDirection, ReadingMode } from "./types";
 
@@ -27,6 +28,12 @@ export interface ReaderPreferences {
   fitMode: FitMode;
   direction: ReadingDirection;
   zoom: number;
+  /**
+   * Auto-scroll speed, 1 (slowest) to 10 (fastest) — see `auto-scroll.ts`.
+   * Per series like everything else here: a slow-panel manhwa and a fast gag
+   * strip want different speeds, and neither should inherit the other's.
+   */
+  autoScrollSpeed: number;
 }
 
 export type ReaderPreferencesStore = Record<string, ReaderPreferences>;
@@ -36,6 +43,7 @@ export const DEFAULT_READER_PREFERENCES: ReaderPreferences = {
   fitMode: "width",
   direction: "ltr",
   zoom: 1,
+  autoScrollSpeed: DEFAULT_AUTO_SCROLL_SPEED,
 };
 
 const READING_MODES: ReadingMode[] = ["single", "double", "continuous"];
@@ -68,6 +76,10 @@ export function normalizeReaderPreferences(raw: unknown): ReaderPreferences {
     fitMode: pick(FIT_MODES, value.fitMode, DEFAULT_READER_PREFERENCES.fitMode),
     direction: pick(DIRECTIONS, value.direction, DEFAULT_READER_PREFERENCES.direction),
     zoom: typeof value.zoom === "number" ? clampZoom(value.zoom) : DEFAULT_READER_PREFERENCES.zoom,
+    autoScrollSpeed:
+      typeof value.autoScrollSpeed === "number"
+        ? clampAutoScrollSpeed(value.autoScrollSpeed)
+        : DEFAULT_READER_PREFERENCES.autoScrollSpeed,
   };
 }
 

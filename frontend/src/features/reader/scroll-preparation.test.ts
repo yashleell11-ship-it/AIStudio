@@ -1,5 +1,6 @@
 import { describe, expect, it, afterEach } from "vitest";
 import {
+  advanceReaderScroll,
   clearChapterScrollPreparation,
   resolveInitialScrollTop,
   resetChapterScrollPreparationForTests,
@@ -103,6 +104,38 @@ describe("syncChapterScroll", () => {
     syncChapterScroll("chapter-1", element, 200);
 
     expect(element.scrollTop).toBe(200);
+  });
+});
+
+describe("advanceReaderScroll", () => {
+  it("moves the container forward by the given distance", () => {
+    const element = { scrollTop: 100 } as HTMLElement;
+    expect(advanceReaderScroll(element, 50)).toBe(150);
+    expect(element.scrollTop).toBe(150);
+  });
+
+  it("hands back whatever the browser actually clamped scrollTop to", () => {
+    // A real element silently clamps an out-of-range write; a plain object
+    // does not, so the setter here stands in for that clamping behaviour —
+    // the caller (auto-scroll's pause detection) must trust the read-back,
+    // never the requested distance.
+    const MAX_SCROLL_TOP = 120;
+    let value = 100;
+    const element = {
+      get scrollTop() {
+        return value;
+      },
+      set scrollTop(next: number) {
+        value = Math.min(MAX_SCROLL_TOP, next);
+      },
+    } as HTMLElement;
+
+    expect(advanceReaderScroll(element, 50)).toBe(MAX_SCROLL_TOP);
+  });
+
+  it("supports a negative distance (in case a caller ever needs to reverse)", () => {
+    const element = { scrollTop: 100 } as HTMLElement;
+    expect(advanceReaderScroll(element, -30)).toBe(70);
   });
 });
 

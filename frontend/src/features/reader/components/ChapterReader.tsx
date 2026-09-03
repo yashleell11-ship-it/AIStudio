@@ -8,9 +8,17 @@ import { cn } from "@/lib/cn";
 import { moodReaderMargin, useActiveProfileStore } from "@/features/profiles";
 import { DownloadChapterControl } from "@/features/offline";
 import { ApiError } from "@/types/api";
+import { autoScrollPxPerSecond } from "../auto-scroll";
 import { readerDebug } from "../debug";
 import { effectiveFitMode, wheelZoomSteps, zoomBy } from "../fit";
-import { resolveEscapeTarget, type PageTurn, type TapZone } from "../keymap";
+import {
+  defaultTapZoneConfig,
+  resolveEscapeTarget,
+  resolveTapZone,
+  TOGGLE_ONLY_TAP_ZONES,
+  type PageTurn,
+  type TapZone,
+} from "../keymap";
 import { estimateScrollOffsetToPage, resolveContainerWidth } from "../page-layout";
 import {
   clearChapterScrollPreparation,
@@ -23,6 +31,7 @@ import { readScrollPosition, writeScrollPosition } from "../scroll-storage";
 import { scrubPercent } from "../scrub";
 import { buildPageViews, findViewIndex, viewLeadPage } from "../spread";
 import { useReaderStore } from "../store";
+import { useAutoScroll } from "../use-auto-scroll";
 import { useCinema } from "../use-cinema";
 import { useChapterPreload } from "../use-chapter-preload";
 import { useFullscreen } from "../use-fullscreen";
@@ -101,13 +110,27 @@ export function ChapterReader({
   const controlsVisible = useReaderStore((state) => state.controlsVisible);
   const toggleControls = useReaderStore((state) => state.toggleControls);
   const setControlsVisible = useReaderStore((state) => state.setControlsVisible);
-  const { pageGap, cinema, togglePageGap, setCinema } = useReaderSettings();
+  const {
+    pageGap,
+    cinema,
+    dimmer,
+    warmth,
+    pageTransition,
+    tapZones,
+    togglePageGap,
+    setCinema,
+    togglePageTransition,
+    setDimmer,
+    setWarmth,
+    setTapZones,
+  } = useReaderSettings();
 
   const {
     readingMode,
     fitMode,
     direction,
     zoom,
+    autoScrollSpeed,
     hydrated: preferencesReady,
     update: updatePreferences,
   } = useReaderPreferences(seriesKey);
@@ -126,6 +149,20 @@ export function ChapterReader({
   const pages = useMemo(() => chapter?.pages ?? [], [chapter]);
   const chapterTitle = chapter?.title ?? "Chapter";
   const continuous = readingMode === "continuous";
+
+  /**
+   * Tap-zone customisation (reader settings §3). `tapZones` is `null` until a
+   * reader explicitly customises it, and the two views disagree about what
+   * "not customised" means: the paged stage has always turned pages from its
+   * outer edges, while the continuous strip has always toggled the chrome
+   * from anywhere (there is no single page under a thumb). Once customised,
+   * the same explicit config applies to both — the strip simply gains
+   * edge-tap page jumping if that is what the reader asked for.
+   */
+  const effectiveTapZones = useMemo(
+    () => tapZones ?? (continuous ? TOGGLE_ONLY_TAP_ZONES : defaultTapZoneConfig(direction)),
+    [tapZones, continuous, direction],
+  );
 
   // Ambient mood tint, but only in the gutters beside the page column — the page
   // itself stays pure obsidian. `default` mood → "transparent" → no wash.
@@ -150,6 +187,13 @@ export function ChapterReader({
     cinemaCtl.toggle();
     if (cinemaCtl.enabled) setControlsVisible(true);
   }, [cinemaCtl, setControlsVisible]);
+
+  const autoScroll = useAutoScroll({
+    scrollElement,
+    active: continuous && Boolean(chapter) && !isLoading && !error,
+    atBottom,
+    pxPerSecond: autoScrollPxPerSecond(autoScrollSpeed),
+  });
 
   useEffect(() => {
     readingModeRef.current = readingMode;
@@ -417,6 +461,10 @@ export function ChapterReader({
 
   const handleTap = useCallback(
     (zone: TapZone) => {
+      // A tap always hands control back from auto-scroll, even a plain toggle
+      // tap that never moves the scroll position (and so would otherwise slip
+      // past the scroll-diff pause detection in `useAutoScroll`).
+      autoScroll.pause();
       if (zone === "toggle") {
         // In cinema mode a tap reveals the chrome (and re-arms the idle timer)
         // rather than latching it on/off — the timeout owns hiding it again.
@@ -426,7 +474,7 @@ export function ChapterReader({
       }
       turnPage(zone);
     },
-    [cinemaCtl, toggleControls, turnPage],
+    [autoScroll, cinemaCtl, toggleControls, turnPage],
   );
 
   const handleBookmark = useCallback(() => {
@@ -554,6 +602,10 @@ export function ChapterReader({
     onLastPage: () => goToPage(pages.length),
     onToggleFullscreen: fullscreen.toggle,
     onToggleCinema: toggleCinema,
+    // A no-op outside continuous mode — auto-scroll only ever drives the strip.
+    onToggleAutoScroll: () => {
+      if (continuous) autoScroll.toggle();
+    },
     onEscape: handleEscape,
     onToggleHelp: () => setHelpOpen((open) => !open),
     onPreviousChapter: goPreviousChapter,
@@ -625,17 +677,40 @@ export function ChapterReader({
       )}
       style={gutterBackground ? { background: gutterBackground } : undefined}
       // The paged view owns its own clicks (edge zones turn the page), so the
-      // tap-anywhere toggle is wired only for the strip.
+      // tap-anywhere-by-default toggle is wired only for the strip. Goes
+      // through the same `resolveTapZone` + `handleTap` as the paged stage,
+      // so a customised tap-zone config applies here too.
       onClick={
         continuous
-          ? () => {
-              if (cinemaCtl.enabled) cinemaCtl.notifyActivity();
-              else toggleControls();
+          ? (event) => {
+              const rect = event.currentTarget.getBoundingClientRect();
+              handleTap(resolveTapZone(event.clientX, rect, effectiveTapZones));
             }
           : undefined
       }
       role="presentation"
     >
+      {/* Night-reading dimmer + warmth overlays. Pure CSS opacity over the
+          pages, `pointer-events-none` so they never intercept a tap or the
+          scrub bar, and z-10 keeps them beneath every piece of chrome
+          (including the page counter) so the controls stay reachable no
+          matter how far either slider is pushed. Persist per profile; see
+          `reader-settings.ts`. */}
+      {dimmer > 0 ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-10 bg-bg"
+          style={{ opacity: dimmer }}
+        />
+      ) : null}
+      {warmth > 0 ? (
+        <div
+          aria-hidden
+          className="pointer-events-none fixed inset-0 z-10 bg-primary mix-blend-multiply"
+          style={{ opacity: warmth }}
+        />
+      ) : null}
+
       {/*
         Saves this chapter's pages to the device, using the very URLs resolved
         above — the reader's own page loading is untouched, the service worker
@@ -711,8 +786,10 @@ export function ChapterReader({
           direction={direction}
           fitMode={effectiveFitMode(fitMode, readingMode)}
           zoom={zoom}
+          tapZoneConfig={effectiveTapZones}
           onTap={handleTap}
           onZoom={zoomSteps}
+          pageTransition={pageTransition}
         />
       )}
 
@@ -743,6 +820,20 @@ export function ChapterReader({
           onTogglePageGap={continuous ? togglePageGap : undefined}
           cinema={cinemaCtl.enabled}
           onToggleCinema={toggleCinema}
+          pageTransition={pageTransition}
+          onTogglePageTransition={!continuous ? togglePageTransition : undefined}
+          autoScrollAvailable={continuous}
+          autoScrollPlaying={autoScroll.playing}
+          onToggleAutoScroll={autoScroll.toggle}
+          autoScrollSpeed={autoScrollSpeed}
+          onAutoScrollSpeedChange={(speed) => updatePreferences({ autoScrollSpeed: speed })}
+          autoScrollReducedMotion={autoScroll.reducedMotion}
+          dimmer={dimmer}
+          onDimmerChange={setDimmer}
+          warmth={warmth}
+          onWarmthChange={setWarmth}
+          tapZones={effectiveTapZones}
+          onTapZonesChange={setTapZones}
           onBookmark={onBookmark ? handleBookmark : undefined}
           previousChapterHref={previousChapterHref}
           nextChapterHref={nextChapterHref}

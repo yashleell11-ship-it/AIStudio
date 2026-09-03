@@ -89,6 +89,20 @@ export function scrollReaderBy(element: HTMLElement | null, delta: number): void
   element.scrollBy({ top: delta, behavior: "smooth" });
 }
 
+/**
+ * Advance the reader container by `distance` px in one animation-frame step —
+ * auto-scroll's own driver (`use-auto-scroll.ts`). Unlike {@link scrollReaderBy}
+ * this is an immediate, un-eased jump (each call is already one small step of
+ * a continuous rAF loop, so easing it again would fight the loop's own
+ * smoothing) and it hands back the resulting `scrollTop`, since the browser
+ * may clamp it at the bottom of the content — the caller needs the real,
+ * post-clamp value to tell its own pause-detection what to expect next.
+ */
+export function advanceReaderScroll(element: HTMLElement, distance: number): number {
+  element.scrollTop = element.scrollTop + distance;
+  return element.scrollTop;
+}
+
 export function clearChapterScrollPreparation(scrollKey: string): void {
   syncedScrollTargets.delete(scrollKey);
 }
