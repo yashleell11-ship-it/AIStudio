@@ -6,13 +6,20 @@ import { ShieldCheck, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { ApiError } from "@/types/api";
+import { describeRegisterError } from "../access";
 import { useRegister } from "../hooks";
+import { passwordsMatch, toRegisterPayload, type RegisterFormValues } from "../register-payload";
 import { PasswordInput } from "./password-input";
 
 interface RegisterFormProps {
   /** When true this creates the first (admin) account rather than a normal one. */
   bootstrap: boolean;
+  /**
+   * Whether the server requires an invite code for this registration. Ignored
+   * (and the field never shown) during bootstrap — the first account never
+   * needs one.
+   */
+  showInviteCode?: boolean;
 }
 
 /** Dark surface field with an amber focus ring, matching the Eclipse Warm auth inputs. */
@@ -20,39 +27,53 @@ const authInputClass =
   "bg-surface border-border focus-visible:border-primary/40 focus-visible:ring-primary";
 
 /** Account creation. Redirects home on success; errors inline. */
-export function RegisterForm({ bootstrap }: RegisterFormProps) {
+export function RegisterForm({ bootstrap, showInviteCode = false }: RegisterFormProps) {
   const router = useRouter();
   const register = useRegister();
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [email, setEmail] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [remember, setRemember] = useState(true);
 
-  const canSubmit = !register.isPending && username.trim() !== "" && password !== "";
+  // Bootstrap never needs a code, regardless of what the caller passes — the
+  // first account on an instance always succeeds without one.
+  const displayInvite = showInviteCode && !bootstrap;
+
+  const passwordsTyped = password !== "" && confirmPassword !== "";
+  const passwordMismatch = passwordsTyped && !passwordsMatch({ password, confirmPassword });
+
+  const canSubmit =
+    !register.isPending &&
+    username.trim() !== "" &&
+    password !== "" &&
+    confirmPassword !== "" &&
+    !passwordMismatch &&
+    (!displayInvite || inviteCode.trim() !== "");
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     if (!canSubmit) return;
+    const values: RegisterFormValues = {
+      username,
+      password,
+      confirmPassword,
+      email,
+      displayName,
+      inviteCode,
+      remember,
+    };
     try {
-      await register.mutateAsync({
-        username: username.trim(),
-        password,
-        email: email.trim() || null,
-        display_name: displayName.trim() || null,
-        remember,
-      });
+      await register.mutateAsync(toRegisterPayload(values));
       router.replace("/");
     } catch {
       // Surfaced below via `register.error`.
     }
   };
 
-  const error = register.error
-    ? register.error instanceof ApiError
-      ? register.error.message
-      : "Could not create the account. Please try again."
-    : null;
+  const error = register.error ? describeRegisterError(register.error) : null;
 
   const SubmitIcon = bootstrap ? ShieldCheck : UserPlus;
   const submitLabel = bootstrap ? "Create admin account" : "Create account";
@@ -93,6 +114,48 @@ export function RegisterForm({ bootstrap }: RegisterFormProps) {
           required
         />
       </div>
+
+      <div className="space-y-1.5">
+        <label htmlFor="register-confirm-password" className="text-sm font-medium text-fg">
+          Confirm password
+        </label>
+        <PasswordInput
+          id="register-confirm-password"
+          name="confirm-password"
+          autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(event) => setConfirmPassword(event.target.value)}
+          placeholder="Type it again"
+          disabled={register.isPending}
+          className={authInputClass}
+          aria-invalid={passwordMismatch}
+          required
+        />
+        {passwordMismatch ? (
+          <p role="alert" className="text-sm text-danger">
+            Passwords don&apos;t match.
+          </p>
+        ) : null}
+      </div>
+
+      {displayInvite ? (
+        <div className="space-y-1.5">
+          <label htmlFor="register-invite-code" className="text-sm font-medium text-fg">
+            Invite code
+          </label>
+          <Input
+            id="register-invite-code"
+            name="invite-code"
+            autoComplete="off"
+            value={inviteCode}
+            onChange={(event) => setInviteCode(event.target.value)}
+            placeholder="Ask whoever invited you"
+            disabled={register.isPending}
+            className={authInputClass}
+            required
+          />
+        </div>
+      ) : null}
 
       <div className="space-y-1.5">
         <label htmlFor="register-display-name" className="text-sm font-medium text-fg">

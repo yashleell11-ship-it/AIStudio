@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/types/api";
-import { resolveRegisterAvailability } from "../access";
+import { resolveRegisterAvailability, shouldShowInviteField } from "../access";
 import { useBootstrapStatus, useCurrentUser } from "../hooks";
 import { AuthCard } from "./auth-card";
 import { AuthPending } from "./auth-pending";
@@ -90,7 +90,7 @@ export function RegisterScreen() {
         </>
       }
     >
-      <RegisterForm bootstrap={isBootstrap} />
+      <RegisterForm bootstrap={isBootstrap} showInviteCode={shouldShowInviteField(bootstrap.data)} />
     </AuthCard>
   );
 }

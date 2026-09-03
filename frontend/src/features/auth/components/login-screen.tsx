@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { ApiError } from "@/types/api";
-import { resolveLoginScreenMode } from "../access";
+import { resolveLoginScreenMode, resolveRegisterAvailability } from "../access";
 import { useBootstrapStatus, useCurrentUser } from "../hooks";
 import { AuthCard } from "./auth-card";
 import { AuthPending } from "./auth-pending";
@@ -65,7 +65,10 @@ export function LoginScreen() {
       title="Welcome back"
       subtitle="Sign in to your ManhwaManiacs library."
       footer={
-        bootstrap.data.registration_enabled ? (
+        // Only advertise signup when a registration attempt could actually
+        // succeed — never a dead link, never a hint that self-service exists
+        // when it's closed.
+        resolveRegisterAvailability(bootstrap.data) === "open" ? (
           <>
             Need an account?{" "}
             <Link
