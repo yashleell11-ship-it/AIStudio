@@ -1,122 +1,140 @@
 import { env } from "@/config/env";
-import { http } from "@/services/http";
-import type { ChapterDetail, ReadingProgress } from "@/features/library/types";
+import { http, sourceChapterQuery } from "@/services/http";
+import type { ChapterId, SeriesId } from "@/types/api";
 import type { ReaderChapterContent, ReaderPage } from "./types";
-
-export type { ReadingProgress };
 
 export interface Bookmark {
   id: number;
-  series_id: number;
-  series_title?: string | null;
-  chapter_id: number;
-  chapter_title?: string | null;
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
   page: number;
   note: string | null;
-  created_at: string;
+  created_at: string | null;
 }
 
-export interface AdjacentChapter {
+/** `GET /reader/chapter/manifest` (backend `ReaderService.manifest`). */
+export interface ChapterManifest {
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  chapter_number: number | null;
+  page_count: number;
+  pages: Array<{ number: number; url: string }>;
+  /** Adjacent chapter keys, or null at the ends. */
+  prev: string | null;
+  next: string | null;
+}
+
+/** `POST /reader/progress` push / stored row (progress-service `_serialize`). */
+export interface ReadingProgress {
   id: number;
-  series_id: number;
-  title: string;
-  number: number | null;
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  chapter_number: number | null;
+  last_page: number;
+  page_count: number;
+  scroll_offset_px: number;
+  is_completed: boolean;
+  started_at: string | null;
+  last_read_at: string | null;
+  completed_at: string | null;
+  time_spent_seconds: number;
+  /** Only on the `POST /reader/progress` response: did the stored row advance? */
+  advanced?: boolean;
 }
 
-export function readerPageImageUrl(pageId: number): string {
-  return `${env.apiUrl}/reader/page/${pageId}/image`;
+export interface ProgressPush {
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  chapter_number?: number | null;
+  last_page: number;
+  page_count?: number;
+  scroll_offset_px?: number;
+  is_completed?: boolean;
+  time_spent_seconds?: number;
 }
 
-export function toReaderChapterContent(chapter: ChapterDetail): ReaderChapterContent {
+function absoluteImageUrl(url: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  return `${env.apiUrl}${url.startsWith("/") ? "" : "/"}${url}`;
+}
+
+/** Build a renderable chapter from a manifest. The sole content builder. */
+export function manifestToChapterContent(
+  manifest: ChapterManifest,
+): ReaderChapterContent {
+  const title =
+    manifest.chapter_number != null
+      ? `Chapter ${manifest.chapter_number}`
+      : "Chapter";
   return {
-    id: String(chapter.id),
-    seriesId: String(chapter.series_id),
-    title: chapter.title,
-    pageCount: chapter.page_count,
-    mode: "local",
-    sourceId: null,
-    previousChapterId: null,
-    nextChapterId: null,
-    pages: chapter.pages.map(
+    sourceId: manifest.source_id,
+    seriesKey: manifest.series_key,
+    chapterKey: manifest.chapter_key,
+    chapterNumber: manifest.chapter_number,
+    title,
+    pageCount: manifest.page_count,
+    previousChapterKey: manifest.prev,
+    nextChapterKey: manifest.next,
+    pages: manifest.pages.map(
       (page): ReaderPage => ({
-        id: String(page.id),
+        id: `${manifest.chapter_key}:${page.number}`,
         number: page.number,
-        imageUrl: readerPageImageUrl(page.id),
-        width: page.width ?? null,
-        height: page.height ?? null,
+        imageUrl: absoluteImageUrl(page.url),
+        width: null,
+        height: null,
       }),
     ),
   };
 }
 
-export function toRemoteReaderChapterContent(payload: {
-  mode: "local" | "remote";
-  source_id: string | null;
-  series_id: string;
-  id: string;
-  title: string;
-  page_count: number;
-  pages: Array<{
-    id: string;
-    number: number;
-    width: number | null;
-    height: number | null;
-    image_url: string;
-  }>;
-  previous_chapter_id: string | null;
-  next_chapter_id: string | null;
-  series_title?: string | null;
-}): ReaderChapterContent {
+function toPush(ref: ChapterId, rest: Omit<ProgressPush, "source_id" | "series_key" | "chapter_key">): ProgressPush {
   return {
-    id: payload.id,
-    seriesId: payload.series_id,
-    title: payload.title,
-    pageCount: payload.page_count,
-    mode: payload.mode,
-    sourceId: payload.source_id,
-    seriesTitle: payload.series_title,
-    previousChapterId: payload.previous_chapter_id,
-    nextChapterId: payload.next_chapter_id,
-    pages: payload.pages.map((page) => ({
-      id: page.id,
-      number: page.number,
-      width: page.width,
-      height: page.height,
-      imageUrl: page.image_url.startsWith("http")
-        ? page.image_url
-        : `${env.apiUrl}${page.image_url}`,
-    })),
+    source_id: ref.sourceId,
+    series_key: ref.seriesKey,
+    chapter_key: ref.chapterKey,
+    ...rest,
   };
 }
 
 export const readerApi = {
-  getChapter: (chapterId: number) =>
-    http.get<ChapterDetail>(`/reader/chapter/${chapterId}`),
+  manifest: (ref: ChapterId) =>
+    http.get<ChapterManifest>("/reader/chapter/manifest", {
+      query: sourceChapterQuery(ref),
+    }),
 
-  saveProgress: (payload: {
-    series_id: number;
-    chapter_id: number;
-    last_page: number;
-  }) => http.post<ReadingProgress>("/reader/progress", payload),
+  saveProgress: (ref: ChapterId, body: Omit<ProgressPush, "source_id" | "series_key" | "chapter_key">) =>
+    http.post<ReadingProgress>("/reader/progress", toPush(ref, body)),
 
-  getProgress: (seriesId: number) =>
-    http.get<ReadingProgress | null>(`/reader/progress/${seriesId}`),
+  /** Offline-sync flush of queued progress pushes. */
+  saveProgressBatch: (pushes: ProgressPush[]) =>
+    http.post<{ saved: number; advanced: number; items: ReadingProgress[] }>(
+      "/reader/progress/batch",
+      pushes,
+    ),
 
-  addBookmark: (payload: {
-    series_id: number;
-    chapter_id: number;
-    page: number;
-    note?: string;
-  }) => http.post<Bookmark>("/reader/bookmarks", payload),
+  seriesProgress: (ref: SeriesId) =>
+    http.get<ReadingProgress[]>("/reader/progress/series", {
+      query: sourceChapterQuery(ref),
+    }),
 
-  listBookmarks: (limit = 200) =>
-    http.get<Bookmark[]>("/reader/bookmarks", { query: { limit } }),
+  addBookmark: (ref: ChapterId, page: number, note?: string) =>
+    http.post<Bookmark>("/reader/bookmark", {
+      source_id: ref.sourceId,
+      series_key: ref.seriesKey,
+      chapter_key: ref.chapterKey,
+      page,
+      note,
+    }),
+
+  listBookmarks: (ref?: Partial<SeriesId>) =>
+    http.get<Bookmark[]>("/reader/bookmarks", {
+      query: { source: ref?.sourceId, series: ref?.seriesKey },
+    }),
 
   deleteBookmark: (bookmarkId: number) =>
     http.delete<void>(`/reader/bookmarks/${bookmarkId}`),
-
-  getAdjacentChapter: (chapterId: number, direction: "previous" | "next") =>
-    http.get<AdjacentChapter | null>(`/reader/chapter/${chapterId}/adjacent`, {
-      query: { direction },
-    }),
 };

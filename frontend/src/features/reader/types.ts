@@ -1,3 +1,7 @@
+import type { ChapterId } from "@/types/api";
+
+export type { ChapterId };
+
 export interface ReaderPage {
   id: string;
   number: number;
@@ -21,17 +25,23 @@ export type FitMode = "width" | "height" | "original";
  */
 export type ReadingDirection = "ltr" | "rtl";
 
+/**
+ * A chapter ready to render, built from `GET /reader/chapter/manifest`
+ * (`manifestToChapterContent`). Source-native: there is only one content path
+ * now — pages stream from the source proxy, and the service worker transparently
+ * serves the same URLs from Cache Storage when the chapter is downloaded.
+ */
 export interface ReaderChapterContent {
-  id: string;
-  seriesId: string;
+  sourceId: string;
+  seriesKey: string;
+  chapterKey: string;
+  chapterNumber: number | null;
   title: string;
   pageCount: number;
   pages: ReaderPage[];
-  previousChapterId: string | null;
-  nextChapterId: string | null;
+  previousChapterKey: string | null;
+  nextChapterKey: string | null;
   seriesTitle?: string | null;
-  mode: "local" | "remote";
-  sourceId?: string | null;
 }
 
 export interface ReaderNavigation {

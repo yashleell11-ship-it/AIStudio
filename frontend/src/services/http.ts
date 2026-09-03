@@ -35,6 +35,36 @@ function ensureTrailingSlash(value: string): string {
 }
 
 /**
+ * Build the `{source, series, chapter}` query object every source-native
+ * endpoint takes (spec §2). Values are passed through untouched — `buildUrl`
+ * feeds them to `URLSearchParams`, which percent-encodes, so opaque keys
+ * containing `/` survive the round trip. `chapter` is omitted when absent.
+ */
+export function sourceChapterQuery(ref: {
+  sourceId: string;
+  seriesKey: string;
+  chapterKey?: string;
+}): Record<string, string> {
+  const query: Record<string, string> = {
+    source: ref.sourceId,
+    series: ref.seriesKey,
+  };
+  if (ref.chapterKey !== undefined) {
+    query.chapter = ref.chapterKey;
+  }
+  return query;
+}
+
+/**
+ * Percent-encode an opaque connector key for use as a single path segment,
+ * preserving the slash-separated form the backend's `:path` converters expect
+ * (each sub-segment encoded, joined by raw `/`).
+ */
+export function encodePathKey(key: string): string {
+  return key.split("/").map(encodeURIComponent).join("/");
+}
+
+/**
  * Typed fetch wrapper. Resolves to parsed JSON of type T or throws `ApiError`.
  * This is the single entry point for backend calls — feature services build on it.
  */
@@ -103,6 +133,6 @@ export const http = {
     request<T>(path, { ...options, method: "PUT", body }),
   patch: <T>(path: string, body?: unknown, options?: Omit<RequestOptions, "method">) =>
     request<T>(path, { ...options, method: "PATCH", body }),
-  delete: <T>(path: string, options?: Omit<RequestOptions, "method" | "body">) =>
+  delete: <T>(path: string, options?: Omit<RequestOptions, "method">) =>
     request<T>(path, { ...options, method: "DELETE" }),
 };

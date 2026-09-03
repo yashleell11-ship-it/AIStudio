@@ -1,178 +1,121 @@
-export interface ReadingProgress {
-  series_id: number;
-  chapter_id: number;
-  last_page: number;
-  progress_pct: number;
-  last_read_at: string;
+/**
+ * Source-native library types (spec §2, §3.4).
+ *
+ * The library is the per-profile set of `followed_series` rows. A series is
+ * `(source_id, series_key)`; a chapter is `(source_id, series_key,
+ * chapter_key)`. There is no local catalog, no `library_id`, no integer series
+ * id for domain identity — `followed_id` is only a handle for follow-row
+ * mutations (`PATCH`/`DELETE /library/...`).
+ */
+
+import type { SeriesId } from "@/types/api";
+
+export type { SeriesId };
+
+/** One entry in a followed series' known-chapter snapshot / live chapter list. */
+export interface KnownChapter {
+  key: string;
+  number: number | null;
+  title: string | null;
+  published_at: string | null;
+  /** Only present on the cache-backed detail chapter list. */
+  page_count?: number | null;
 }
 
-export interface SeriesSummary {
+/**
+ * A followed series as returned by `GET /library/series` items and
+ * `POST /library/follow` (backend `FollowedSeriesService.serialize`).
+ */
+export interface FollowedSeries {
+  /** `followed_id` — the follow row's PK. Use for PATCH/DELETE, never routing. */
   id: number;
-  library_id: number;
+  source_id: string;
+  series_key: string;
   title: string;
-  sort_title: string;
-  original_title: string | null;
-  author: string | null;
-  artist: string | null;
-  description: string | null;
-  status: string | null;
-  content_rating: string;
-  language: string;
-  year: number | null;
-  cover_path: string | null;
-  folder_path: string;
+  /**
+   * Ready-to-use cover URL. The backend returns either the source's own
+   * absolute URL or a backend-relative `/sources/{source}/series/{series}/cover`
+   * proxy path — resolve the relative form against the API base with
+   * `libraryCoverUrl`.
+   */
+  cover_url: string;
   is_favorite: boolean;
   reading_status: string;
+  notify: boolean;
+  sort_order: number;
+  content_rating: string;
+  /** Effective rating after gate/override resolution ("mature" | "safe" | ...). */
+  rating: string;
+  mature_override: boolean | null;
+  known_chapters: KnownChapter[];
   chapter_count: number;
-  read_chapters: number;
-  page_count: number;
-  total_chapters: number;
-  total_pages: number;
-  first_chapter_id: number | null;
-  created_at: string;
-  updated_at: string;
-  reading_progress: ReadingProgress | null;
+  last_checked_at: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 }
 
+/** `GET /library/series` — paginated followed-series list. */
 export interface SeriesListResponse {
-  items: SeriesSummary[];
+  items: FollowedSeries[];
   total: number;
   page: number;
   per_page: number;
+  page_size: number;
   has_next: boolean;
+  has_more: boolean;
+  total_pages: number;
 }
 
-export interface ChapterSummary {
-  /** Local chapter id. Null for remote-only chapters not yet downloaded. */
-  id: number | null;
-  series_id: number;
-  title: string;
-  number: number | null;
-  page_count: number;
-  folder_path: string | null;
-  archive_path: string | null;
-  /** Same as id when a local copy exists; null otherwise. */
-  local_chapter_id?: number | null;
-  /** Whether a downloaded local copy exists. */
-  is_downloaded?: boolean;
-  /** Whether the chapter is marked read. */
-  is_read?: boolean;
-  /** Source chapter id (e.g. 'killer-pietro-a80d257e:2'). Null when unknown. */
-  source_chapter_id?: string | null;
-}
-
-export interface SeriesDetail extends SeriesSummary {
-  /**
-   * Whether the active (user, profile) has this series on their shelf.
-   *
-   * Only the detail payload carries it, and only it needs to: `GET
-   * /library/series/{id}` answers for any catalog series, gated or not, so a
-   * series can be on screen without having been added. Every list endpoint
-   * INNER JOINs membership instead, making it true by construction there.
-   */
-  in_library: boolean;
-  chapters: ChapterSummary[];
-  tags: Tag[];
-  collections: CollectionRef[];
-  /**
-   * Online source id this series is linked to, or null for a hand-imported
-   * folder. Resolved from local rows only
-   * (backend/services/library_intelligence_service.py:1715), so it stays
-   * correct while the source itself is dead, offline or rate-limited.
-   */
-  source_id?: string | null;
-  /** The source's series id, or null. Null iff `source_id` is null. */
-  source_series_id?: string | null;
-  /**
-   * Whether this (user, profile) has a `track_kind="followed"` tracker for
-   * `(source_id, source_series_id)`. A `"downloaded"` tracker does NOT count —
-   * every downloaded series has one, and counting it would render all of them
-   * as already-followed. Always false when `source_id` is null.
-   */
-  is_followed?: boolean;
-  /**
-   * Id of that tracker, so Unfollow (`DELETE /updates/trackers/{id}`) needs no
-   * lookup round trip. Non-null iff `is_followed` is true.
-   */
-  follow_tracker_id?: number | null;
-}
-
-/**
- * Answer of `POST`/`DELETE /library/series/{id}/add` — the per-(user, profile)
- * membership bit after the write, which is what the toggle displays next.
- * See {@link SeriesDetail.in_library} for the read side.
- */
-export interface LibraryMembership {
-  series_id: number;
-  in_library: boolean;
-}
-
-export interface PageInfo {
-  id: number;
-  chapter_id: number;
-  number: number;
-  file_path: string;
-  width: number | null;
-  height: number | null;
-}
-
-export interface ChapterDetail {
-  id: number;
-  series_id: number;
-  title: string;
-  number: number | null;
-  page_count: number;
-  pages: PageInfo[];
-}
-
-/** `GET /library/continue-reading` (backend/services/library_service.py:896-937). */
-export interface ContinueReadingItem {
-  series_id: number;
-  series_title: string;
-  chapter_id: number;
-  chapter_title: string;
+/** Per-chapter reading position overlaid on the detail payload. */
+export interface ChapterProgressEntry {
   last_page: number;
-  /** Continuous-mode resume offset; the rail links by page, not by pixel. */
-  scroll_offset_px: number;
-  progress_pct: number;
-  last_read_at: string;
-  cover_path: string | null;
-  cover_url: string;
-}
-
-export interface ImportResponse {
-  status: string;
-  library_id: number;
-  series_count: number;
-  chapter_count: number;
-  page_count: number;
-}
-
-export interface ScanStatus {
-  running: boolean;
-  progress_pct: number;
-  message: string;
-  series_count: number;
-  chapter_count: number;
-  page_count: number;
-  error: string | null;
+  is_completed: boolean;
 }
 
 /**
- * The `sort` values `list_series` branches on, plus `sort_title` — the route's
- * default and what its `else` branch does
- * (backend/services/library_service.py:622-637). No client-only aliases: a value
- * the server does not name would sort by title while pretending otherwise.
+ * `GET /library/series/{followed_id}` — the follow row plus cache meta, the
+ * live chapter list, and a `chapter_key -> progress` overlay.
+ */
+export interface SeriesDetail extends FollowedSeries {
+  description: string | null;
+  author: string | null;
+  genres: string[] | null;
+  chapters: KnownChapter[];
+  progress: Record<string, ChapterProgressEntry>;
+}
+
+/**
+ * `POST` / `DELETE /library/follow` outcome — the follow row after the write,
+ * or `null` once unfollowed.
+ */
+export type FollowMutationResult = FollowedSeries | null;
+
+/** `GET /library/continue-reading` item (progress-service shape). */
+export interface ContinueReadingItem {
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  chapter_number: number | null;
+  last_page: number;
+  page_count: number;
+  last_read_at: string | null;
+}
+
+/**
+ * The `sort` values `GET /library/series` understands
+ * (`FollowedSeriesService.list_series`). A leading `-` reverses.
  */
 export type SeriesSort =
+  | "title"
   | "sort_title"
-  | "updated"
-  | "recent"
-  | "date_added"
-  | "author"
-  | "year"
-  | "total_chapters";
-export type SeriesFilter = "all" | "reading" | "unread";
+  | "sort_order"
+  | "updated_at"
+  | "recently_updated"
+  | "created_at"
+  | "recently_added";
+
+/** Reading-status filter used by the toolbar. `all` is the client-only default. */
+export type SeriesFilter = "all" | "unread" | "reading" | "completed" | "on_hold" | "plan_to_read" | "dropped";
 
 // --- Collections ---
 
@@ -180,11 +123,9 @@ export interface Collection {
   id: number;
   name: string;
   description: string | null;
-  cover_path: string | null;
-  series_count: number;
+  cover_url: string | null;
   sort_order: number;
-  created_at: string;
-  updated_at: string;
+  series_count: number;
 }
 
 export interface CollectionRef {
@@ -192,8 +133,14 @@ export interface CollectionRef {
   name: string;
 }
 
+export interface CollectionSeriesRef {
+  source_id: string;
+  series_key: string;
+  sort_order: number;
+}
+
 export interface CollectionDetail extends Collection {
-  series: SeriesListResponse;
+  series: CollectionSeriesRef[];
 }
 
 // --- Tags ---
@@ -203,7 +150,6 @@ export interface Tag {
   name: string;
   category: string;
   color: string | null;
-  series_count: number;
 }
 
 // --- Search ---
@@ -212,74 +158,51 @@ export type SearchResponse = SeriesListResponse;
 
 // --- Recommendations ---
 
-export type RecommendationsResponse = SeriesSummary[];
-
-// --- Reading History ---
-
-export interface ReadingHistoryItem {
-  session_id: number;
-  series_id: number;
-  series_title: string | null;
-  chapter_id: number;
-  chapter_title: string | null;
-  start_page: number;
-  end_page: number;
-  pages_read: number;
-  started_at: string | null;
-  ended_at: string | null;
+/** `GET /library/recommendations` — top genres over the followed set. */
+export interface RecommendationGenre {
+  genre: string;
+  weight: number;
 }
 
-export interface ReadingCalendarItem {
-  day: string;
-  sessions: number;
-  pages_read: number;
-  has_activity: boolean;
+export type RecommendationsResponse = RecommendationGenre[];
+
+// --- Reading history ---
+
+/** `GET /reader/history` row (progress-service `_serialize`). */
+export interface ReadingHistoryItem {
+  id: number;
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  chapter_number: number | null;
+  last_page: number;
+  page_count: number;
+  scroll_offset_px: number;
+  is_completed: boolean;
+  started_at: string | null;
+  last_read_at: string | null;
+  completed_at: string | null;
+  time_spent_seconds: number;
 }
 
 // --- Statistics ---
 
+/** `GET /library/statistics` (`FollowedSeriesService.statistics`). */
 export interface Statistics {
-  total_series: number;
-  total_chapters: number;
-  total_pages: number;
-  completed_series: number;
-  in_progress: number;
+  followed_total: number;
   favorites: number;
-  completion_rate_pct: number;
-  total_reading_time_estimate_minutes: number;
-  pages_read_this_week: number;
-  reading_streak_days: number;
-  reading_velocity_pages_per_hour: number;
-  tag_distribution: TagDistributionItem[];
-  top_authors: AuthorStat[];
-  weekly_chart: WeeklyChartItem[];
+  by_reading_status: Record<string, number>;
+  chapters_completed: number;
 }
 
-export interface TagDistributionItem {
-  name: string;
-  category: string;
-  color: string | null;
-  series_count: number;
-}
+// --- Bookmarks ---
 
-export interface AuthorStat {
-  author: string;
-  series_count: number;
-  total_pages: number;
-}
-
-export interface WeeklyChartItem {
-  day: string;
-  label: string;
-  pages_read: number;
-}
-
-// --- Metadata ---
-
-export interface MetadataQuality {
-  series_id: number;
-  score: number;
-  missing: string[];
-  suggestions: string[];
-  fields: Record<string, boolean>;
+export interface Bookmark {
+  id: number;
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  page: number;
+  note: string | null;
+  created_at: string | null;
 }
