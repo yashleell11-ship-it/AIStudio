@@ -62,8 +62,22 @@ publish_files(){
 
   # An .ipa is a zip — a truncated download would otherwise be served to phones
   # as a valid-looking file that fails to install with no useful error.
-  if ! unzip -qt "$ipa" >/dev/null 2>&1; then
-    err "downloaded .ipa is not a valid archive — refusing to publish"; return 1
+  #
+  # Pick a verifier that actually EXISTS. `unzip -qt` on a host without unzip
+  # exits non-zero exactly like a corrupt file does, so the bare check reported
+  # a perfectly good .ipa as truncated and refused to publish it for hours
+  # (that happened; the VPS image ships no unzip). Fall back to python's
+  # zipfile, and only skip the check — loudly — when neither is available.
+  if command -v unzip >/dev/null 2>&1; then
+    if ! unzip -qt "$ipa" >/dev/null 2>&1; then
+      err "downloaded .ipa is not a valid archive — refusing to publish"; return 1
+    fi
+  elif command -v python3 >/dev/null 2>&1; then
+    if ! python3 -c "import sys,zipfile; sys.exit(0 if zipfile.is_zipfile(sys.argv[1]) and zipfile.ZipFile(sys.argv[1]).testzip() is None else 1)" "$ipa"; then
+      err "downloaded .ipa is not a valid archive — refusing to publish"; return 1
+    fi
+  else
+    warn "no unzip and no python3 — cannot verify the .ipa, publishing unchecked"
   fi
 
   mkdir -p "$DEST" || { err "cannot create $DEST"; return 1; }
