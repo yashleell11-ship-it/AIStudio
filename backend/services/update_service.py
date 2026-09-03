@@ -228,7 +228,11 @@ class UpdateService:
         checked = 0
         new_found = 0
         try:
-            stmt = select(FollowedSeries).where(FollowedSeries.notify.is_(True))
+            # Sweep every followed series: ``known_chapters`` is kept fresh even
+            # when the row's ``notify`` flag is off, so flipping it on later does
+            # not backfill a notification storm. ``notify`` gates only whether a
+            # new chapter produces an ``update_notifications`` row (``_check_one``).
+            stmt = select(FollowedSeries)
             if followed_ids:
                 stmt = stmt.where(FollowedSeries.id.in_(followed_ids))
             rows = self._db.execute(stmt).scalars().all()
@@ -288,7 +292,12 @@ class UpdateService:
 
         new_chapters = [c for c in live if str(c["id"]) not in known_keys]
         settings = self.get_global_settings()
-        if new_chapters and known and _bool(settings.notify_enabled):
+        if (
+            new_chapters
+            and known
+            and _bool(row.notify)
+            and _bool(settings.notify_enabled)
+        ):
             for c in new_chapters:
                 self._db.add(
                     UpdateNotification(
