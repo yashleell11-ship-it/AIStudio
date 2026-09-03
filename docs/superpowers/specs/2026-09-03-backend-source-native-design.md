@@ -440,6 +440,51 @@ range). Well under 20 GB with room for everything else on the box.
 - **O-5 — `known_chapters` size.** Long-running series (1000+ chapters) make this
   JSON blob large on every `followed_series` row. If it bites, move to a
   `followed_series_chapter` child table. Measure first.
+  - **Measured (1a, 2026-09-03):** a 1500-entry `known_chapters` blob is ~136 KB
+    of text. `FollowedSeriesService.list_series()` over **200 such rows** —
+    the library-grid read — takes a **median ~440 ms** (min 356, max 461). ~237 ms
+    of that is `json.loads` alone (`serialize()` parses each row's blob twice);
+    the rest is SQLAlchemy materialising ~27 MB of `Text` columns it does not
+    need for the grid. Well over the ~50 ms budget.
+  - **Recommendation:** promote chapter lists to a `followed_series_chapter`
+    child table (`followed_series_id`, `key`, `number`, `title`, `published_at`),
+    so the grid read never touches them and the update sweep diffs with a scoped
+    query. Defer to a **1b/1c-era mini-spec** — it is not on the 1a critical path
+    (a realistic library is tens of rows, not 200×1500) and the clients do not
+    depend on the blob's storage shape. A cheap interim mitigation if it bites
+    before then: single-parse `known_chapters` in `serialize()` and
+    `defer()`/`load_only()` the column out of the list query.
 - **O-6 — profile deletion.** `ON DELETE CASCADE` from `reading_profiles` wipes
   that profile's follows/progress/collections/notifications. Confirm that's the
   desired behaviour (vs. reassign-to-another-profile).
+
+---
+
+## 10. Deferred (recorded during 1a implementation)
+
+### 10.1 Source-repoint ("this source died, follow it on another")
+
+**Dropped from 1a. Columns retained.**
+
+The old mobile "source migration" feature (build was present but unreachable —
+commit `2c14e2d`) let a user re-point a followed series from a dead connector to
+a live one, mapping reading progress across by `chapter_number`. It is **not**
+re-implemented in the source-native backend.
+
+- **Schema kept:** `followed_series.migrated_from_source` /
+  `migrated_from_series_key` / `migrated_at` stay in the baseline (three nullable
+  columns, no index — effectively free) so the audit trail exists the day the
+  feature returns and no migration is needed to add them back.
+- **Not built:** no repoint endpoint, no service method, no progress-remap logic,
+  no client surface. `chapter_progress` is already keyed by
+  `(source_id, series_key)` and survives an unfollow, so a manual
+  "unfollow dead / follow live / re-read" path works today without server help.
+- **Re-add trigger:** when a real followed source dies and manual re-follow
+  proves painful, write a small mini-spec (endpoint + `chapter_number`-based
+  progress remap + client confirm dialog) on top of the retained columns. Not a
+  1b/1c blocker.
+
+### 10.2 `followed_series_chapter` child table
+
+See O-5 above — the chapter-list blob is measurably slow at the 200×1500 extreme
+but not on the 1a critical path. Promote to a child table in a later mini-spec.
