@@ -161,7 +161,7 @@ class FollowedSeriesService:
     # --- CRUD --------------------------------------------------------
 
     def follow(self, source_id: str, series_key: str) -> dict[str, Any]:
-        self._require_owner()
+        self._require_profile()
         series_key = fully_unquote(series_key)
         existing = self._db.execute(
             self._scope(
@@ -458,7 +458,7 @@ class FollowedSeriesService:
     def create_collection(
         self, *, name: str, description: str | None = None
     ) -> dict[str, Any]:
-        self._require_owner()
+        self._require_profile()
         row = Collection(
             user_id=self._user_id,
             profile_id=self._profile_id,

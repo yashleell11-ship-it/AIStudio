@@ -226,6 +226,24 @@ class ProgressService:
             )
         return self._user_id, self._profile_id
 
+    def _require_profile(self) -> tuple[int, int]:
+        """Owner + active profile, for the write paths.
+
+        ``profile_id`` is NOT NULL on chapter_progress / bookmarks /
+        reading_sessions, so a write from the unscoped bucket (an account that
+        owns no profiles, which ``require_profile_context`` lets through) is an
+        IntegrityError 500. Return the documented 400 the clients already
+        handle instead.
+        """
+        user_id, profile_id = self._require_owner()
+        if profile_id is None:
+            raise AppError(
+                "An active profile is required for this action.",
+                code="profile_required",
+                status_code=400,
+            )
+        return user_id, profile_id
+
     def _scope(self, stmt):
         stmt = stmt.where(ChapterProgress.user_id == self._user_id)
         if self._profile_id is None:
@@ -235,7 +253,7 @@ class ProgressService:
         return stmt
 
     def save_one(self, payload: ProgressInput) -> dict[str, Any]:
-        user_id, profile_id = self._require_owner()
+        user_id, profile_id = self._require_profile()
         source_id = payload.source_id
         series_key = fully_unquote(payload.series_key)
         chapter_key = fully_unquote(payload.chapter_key)
@@ -352,7 +370,7 @@ class ProgressService:
         page: int,
         note: str | None = None,
     ) -> dict[str, Any]:
-        user_id, profile_id = self._require_owner()
+        user_id, profile_id = self._require_profile()
         row = Bookmark(
             user_id=user_id,
             profile_id=profile_id,
@@ -431,7 +449,7 @@ class ProgressService:
         started_at: datetime | None = None,
         ended_at: datetime | None = None,
     ) -> None:
-        user_id, profile_id = self._require_owner()
+        user_id, profile_id = self._require_profile()
         pages_read = max(0, end_page - start_page + 1)
         row = ReadingSession(
             user_id=user_id,

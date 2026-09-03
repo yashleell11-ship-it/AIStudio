@@ -59,7 +59,7 @@ def test_follows_isolated_across_profiles_and_accounts(db_session, world, seed_f
     assert c_list == []  # other account
 
 
-# --- progress ------------------------------------------------------------
+# --- ownership: the unscoped bucket is not a wildcard ---------------------
 
 
 def test_series_detail_is_404_when_the_profile_header_is_omitted(
@@ -391,6 +391,44 @@ def test_tag_writes_need_an_active_profile(db_session, world):
         lambda: unscoped.create_tag(name="Peak"),
         lambda: unscoped.add_tag_to_series("mangadex", "s1", 1),
         lambda: unscoped.remove_tag_from_series("mangadex", "s1", 1),
+    ):
+        with pytest.raises(AppError) as excinfo:
+            call()
+        assert excinfo.value.status_code == 400
+        assert excinfo.value.code == "profile_required"
+
+
+# --- the unscoped bucket cannot write profile-owned rows ------------------
+
+
+def test_profile_owned_writes_from_the_unscoped_bucket_are_a_clean_400(
+    db_session, world
+):
+    """``profile_id`` is NOT NULL on every profile-owned table, but
+    ``require_profile_context`` still lets an account that owns *no* profiles
+    through as the unscoped bucket — and registration does not create one. Each
+    of these writes was therefore an IntegrityError 500 for a fresh account;
+    they now return the documented 400 the clients already handle."""
+    library = _followed(db_session, world["u1"], None)
+    progress = _progress(db_session, world["u1"], None)
+
+    for call in (
+        lambda: library.follow("mangadex", "s1"),
+        lambda: library.create_collection(name="Faves"),
+        lambda: progress.save_one(
+            ProgressInput(source_id="mangadex", series_key="s1", chapter_key="c1")
+        ),
+        lambda: progress.add_bookmark(
+            source_id="mangadex", series_key="s1", chapter_key="c1", page=2
+        ),
+        lambda: progress.record_session(
+            source_id="mangadex",
+            series_key="s1",
+            chapter_key="c1",
+            chapter_number=1.0,
+            start_page=1,
+            end_page=2,
+        ),
     ):
         with pytest.raises(AppError) as excinfo:
             call()
