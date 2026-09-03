@@ -102,8 +102,8 @@ export default function SettingsPage() {
             Settings
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            Choose your reading theme, and configure automatic updates, downloads,
-            and keyboard shortcuts.
+            Choose your reading theme, and configure automatic updates, mature
+            content, and keyboard shortcuts.
           </p>
         </FadeIn>
 

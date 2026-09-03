@@ -11,7 +11,6 @@ import { libraryCoverUrl } from "@/features/library/api";
 import {
   useAddTagToSeries,
   usePatchSeries,
-  useRemoveTagFromSeries,
   useSeries,
   useTags,
   useToggleFavorite,
@@ -60,7 +59,6 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const toggleFavorite = useToggleFavorite();
   const patchSeries = usePatchSeries();
   const addTag = useAddTagToSeries();
-  const removeTag = useRemoveTagFromSeries();
   const [showTagPicker, setShowTagPicker] = useState(false);
 
   const sortKey = series ? `mm.chapter-sort:${series.source_id}:${series.series_key}` : null;
@@ -82,17 +80,21 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const resumeTarget = useMemo(() => {
     if (!series) return null;
     const asc = [...series.chapters].sort(chapterOrder);
-    // First chapter with progress that is not completed, else the first unread.
-    for (const chapter of asc) {
+    // First chapter with progress that is not completed, else the first unread,
+    // else the very first chapter.
+    const inProgress = asc.find((chapter) => {
       const p = series.progress[chapter.key];
-      if (p && !p.is_completed) {
-        return { chapter, page: p.last_page };
-      }
+      return p != null && !p.is_completed;
+    });
+    if (inProgress) {
+      return {
+        chapter: inProgress,
+        page: series.progress[inProgress.key]?.last_page ?? 1,
+      };
     }
-    for (const chapter of asc) {
-      if (!series.progress[chapter.key]) return { chapter, page: 1 };
-    }
-    return asc.length > 0 ? { chapter: asc[0], page: 1 } : null;
+    const firstUnread = asc.find((chapter) => !series.progress[chapter.key]);
+    const target = firstUnread ?? asc[0] ?? null;
+    return target ? { chapter: target, page: 1 } : null;
   }, [series]);
 
   if (seriesQuery.isLoading) {
@@ -279,13 +281,6 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
             ) : null}
 
             <div className="mt-6 flex flex-wrap items-center gap-2">
-              {tagsQuery.data
-                ?.filter((tag) => showTagPicker || false)
-                .map((tag) => (
-                  <Badge key={tag.id} variant="default">
-                    {tag.name}
-                  </Badge>
-                ))}
               <Button
                 variant="ghost"
                 size="sm"
