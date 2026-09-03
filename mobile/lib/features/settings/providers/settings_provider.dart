@@ -16,7 +16,6 @@ import 'package:manhwamaniacs/features/settings/services/image_cache_service.dar
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
-import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
 final settingsApiUrlProvider = FutureProvider.autoDispose<String>((ref) async {
