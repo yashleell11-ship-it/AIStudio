@@ -176,6 +176,15 @@ class _StubBrowse:
     def resolve_page_image(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
         return "image/png", b"page-bytes"
 
+    def get_series(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
+        return {"id": "solo", "title": "Solo"}
+
+    def get_chapters(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
+        return []
+
+    def get_chapter_pages(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
+        return []
+
 
 class _StubReader:
     def resolve_source_chapter(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
@@ -205,6 +214,11 @@ def sources_client(client, monkeypatch):
         "/sources/mangadex/series/solo-leveling/cover",  # proxies bytes
         "/sources/mangadex/pages/p1/image",  # proxies bytes, the hot one
         "/sources/mangadex/series/solo/chapters/c1/reader",
+        # audit finding 9: these three fetch upstream on the sync threadpool
+        # and had no limiter, contradicting this file's CONTRACT comment
+        "/sources/mangadex/series/solo/chapters",
+        "/sources/mangadex/series/solo",
+        "/sources/mangadex/chapters/c1/pages",
     ],
 )
 def test_expensive_source_routes_are_rate_limited(sources_client, path):
