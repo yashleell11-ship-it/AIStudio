@@ -3,24 +3,25 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/screens/reading_history_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/recommendations_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/statistics_screen.dart';
 import 'package:manhwamaniacs/features/more/screens/more_screen.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
@@ -30,8 +31,8 @@ import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/features/sources/screens/sources_list_screen.dart';
-import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/models/update_settings.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/features/updates/screens/updates_screen.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -43,117 +44,109 @@ import '../support/test_overrides.dart';
 FollowedSeries _series({required int id, required String title}) {
   return FollowedSeries(
     id: id,
-    libraryId: 1,
+    sourceId: 'test',
+    seriesKey: 'solo',
     title: title,
-    sortTitle: title.toLowerCase(),
-    contentRating: 'teen',
-    language: 'en',
-    folderPath: '/library/$title',
+    coverUrl: '',
     isFavorite: false,
     readingStatus: 'reading',
+    notify: true,
+    sortOrder: 0,
+    contentRating: 'safe',
+    rating: 'safe',
     chapterCount: 10,
-    readChapters: 2,
-    pageCount: 200,
-    totalChapters: 10,
-    totalPages: 200,
     createdAt: DateTime(2024),
     updatedAt: DateTime(2024, 6),
   );
 }
 
+/// `LibraryRepository` double. Only the methods each screen under test
+/// actually calls are wired; everything else throws so an unexpected call
+/// fails loudly instead of silently returning empty data.
 class _FakeIntelligenceRepository implements LibraryRepository {
   @override
-  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) async =>
-      Ok([_series(id: 1, title: 'Recommended Title')]);
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) async =>
+      const Ok([RecommendationGenre(genre: 'Action', weight: 5)]);
 
   @override
   Future<Result<LibraryStatistics>> statistics() async => const Ok(
         LibraryStatistics(
-          totalSeries: 10,
-          totalChapters: 100,
-          totalPages: 2000,
-          completedSeries: 2,
-          inProgress: 3,
+          followedTotal: 10,
           favorites: 1,
-          completionRatePct: 20,
-          totalReadingTimeEstimateMinutes: 600,
-          pagesReadThisWeek: 40,
-          readingStreakDays: 2,
-          readingVelocityPagesPerHour: 30,
+          byReadingStatus: {'reading': 3, 'completed': 2},
+          chaptersCompleted: 100,
         ),
       );
 
   @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) async => Ok([
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
+  }) async =>
+      Ok([
         ReadingHistoryItem(
-          sessionId: 1,
-          seriesId: 1,
-          seriesTitle: 'Solo Leveling',
-          chapterId: 10,
-          chapterTitle: 'Chapter 10',
-          startPage: 1,
-          endPage: 12,
-          pagesRead: 12,
-          startedAt: DateTime(2024, 6),
+          id: 1,
+          sourceId: 'test',
+          seriesKey: 'solo',
+          chapterKey: '10',
+          chapterNumber: 10,
+          lastPage: 12,
+          pageCount: 12,
+          isCompleted: true,
+          lastReadAt: DateTime(2024, 6),
         ),
-      ]);
-
-  @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) async =>
-      const Ok([
-        ReadingCalendarDay(day: '2024-06-01', sessions: 1, pagesRead: 12, hasActivity: true),
       ]);
 
   @override
   Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
+  }) async =>
+      Ok(PagedResult(items: const [], total: 0, page: 1, perPage: perPage, hasNext: false));
+
+  @override
+  Future<Result<SeriesDetail>> getSeries(int followedId) => throw UnimplementedError();
+
+  @override
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
+  Future<Result<void>> unfollow(int followedId) => throw UnimplementedError();
 
   @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<List<Collection>>> listCollections() => throw UnimplementedError();
@@ -174,6 +167,7 @@ class _FakeIntelligenceRepository implements LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   }) =>
       throw UnimplementedError();
 
@@ -181,40 +175,115 @@ class _FakeIntelligenceRepository implements LibraryRepository {
   Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
+  Future<Result<List<Tag>>> listTags({String? category}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> toggleFavorite(int seriesId) async => const Ok(null);
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> deleteTag(int tagId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+}
+
+class _EmptyReaderRepository implements ReaderRepository {
+  @override
+  Future<Result<List<Bookmark>>> listBookmarks({String? sourceId, String? seriesKey}) async =>
+      const Ok([]);
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) => throw UnimplementedError();
 
   @override
   Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
     required int page,
     String? note,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<ChapterManifest>> manifest({
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+  Future<Result<ReadingProgress>> saveProgress(ProgressPush push) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
+  Future<Result<({int saved, int advanced})>> saveProgressBatch(List<ProgressPush> pushes) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingProgress>>> seriesProgress({
+    required String sourceId,
+    required String seriesKey,
+  }) =>
+      throw UnimplementedError();
+}
+
+/// Followed-series list backing the `updatesProvider`'s shared cache — the
+/// only `LibraryRepository` method the Updates/More screens' provider chain
+/// actually reaches.
+class _FollowedOnlyLibraryRepository extends _FakeIntelligenceRepository {
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
+    int page = 1,
+    int perPage = 40,
+    String? sort,
+    String? search,
+    String? readingStatus,
+    bool? isFavorite,
+  }) async =>
+      Ok(
+        PagedResult(
+          items: [_series(id: 1, title: 'Solo Leveling')],
+          total: 1,
+          page: 1,
+          perPage: perPage,
+          hasNext: false,
+        ),
+      );
 }
 
 class _FakeUpdatesRepository implements UpdatesRepository {
@@ -226,12 +295,11 @@ class _FakeUpdatesRepository implements UpdatesRepository {
       Ok([
         UpdateNotification(
           id: 1,
-          trackerId: 1,
-          source: 'test',
-          seriesId: 'solo',
-          seriesTitle: 'Solo Leveling',
-          chapterId: 'ch-1',
-          chapterTitle: 'Chapter 1',
+          followedSeriesId: 1,
+          sourceId: 'test',
+          seriesKey: 'solo',
+          chapterKey: 'ch-1',
+          chapterTitle: 'New Chapter',
           isRead: false,
           createdAt: DateTime(2024, 6),
         ),
@@ -247,40 +315,26 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   Future<Result<void>> markAllRead() async => const Ok(null);
 
   @override
-  Future<Result<List<SeriesTracker>>> listTrackers() async => const Ok([
-        SeriesTracker(
-          id: 1,
-          source: 'test',
-          seriesId: 'solo',
-          seriesTitle: 'Solo Leveling',
-          trackKind: TrackKind.followed,
-          enabled: true,
-          notify: true,
-          autoDownload: false,
-          knownChapterCount: 10,
-        ),
-      ]);
+  Future<Result<UpdateSettings>> getSettings() => throw UnimplementedError();
 
   @override
-  Future<Result<void>> followSeries({
-    required String source,
-    required String seriesId,
-    required String seriesTitle,
-  }) async =>
-      const Ok(null);
+  Future<Result<UpdateSettings>> updateSettings({
+    bool? enabled,
+    int? checkIntervalMinutes,
+    bool? notifyEnabled,
+    bool? checkOnStartup,
+  }) =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteTracker(int trackerId) async => const Ok(null);
+  Future<Result<List<UpdateRun>>> listRuns({int limit = 20}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> updateTracker(
-    int trackerId, {
-    bool? autoDownload,
-  }) async =>
-      const Ok(null);
+  Future<Result<UpdateCheckOutcome>> triggerCheck({List<int>? followedIds}) async =>
+      const Ok(UpdateCheckOutcome(queued: false));
 
   @override
-  Future<Result<void>> triggerCheck() async => const Ok(null);
+  Future<Result<UpdateRun>> checkFollowed(int followedId) => throw UnimplementedError();
 }
 
 class _FakeSourcesRepository implements SourcesRepository {
@@ -358,6 +412,7 @@ Future<Widget> _wrap(
     overrides: [
       apiBaseUrlOverride('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
+      readerRepositoryProvider.overrideWithValue(_EmptyReaderRepository()),
       ...overrides,
     ],
     child: MaterialApp(
@@ -384,10 +439,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       // Title is rendered by HeroHeading, which uppercases its text.
       expect(find.text('READING STATISTICS'), findsWidgets);
-      expect(find.text('Total Series'), findsOneWidget);
+      expect(find.text('Followed Series'), findsOneWidget);
     });
 
-    testWidgets('RecommendationsScreen renders series card', (tester) async {
+    testWidgets('RecommendationsScreen renders a genre chip', (tester) async {
       await tester.pumpWidget(
         await _wrap(
           const RecommendationsScreen(),
@@ -398,10 +453,10 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Recommended Title'), findsWidgets);
+      expect(find.text('Action'), findsWidgets);
     });
 
-    testWidgets('ReadingHistoryScreen renders sessions', (tester) async {
+    testWidgets('ReadingHistoryScreen renders a chapter row', (tester) async {
       await tester.pumpWidget(
         await _wrap(
           const ReadingHistoryScreen(),
@@ -412,15 +467,17 @@ void main() {
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
-      expect(find.text('Solo Leveling'), findsWidgets);
+      expect(find.text('Chapter 10'), findsWidgets);
     });
 
-    testWidgets('UpdatesScreen renders notifications', (tester) async {
+    testWidgets('UpdatesScreen renders notifications and followed series',
+        (tester) async {
       await tester.pumpWidget(
         await _wrap(
           const UpdatesScreen(),
           overrides: [
             updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+            libraryRepositoryProvider.overrideWithValue(_FollowedOnlyLibraryRepository()),
           ],
         ),
       );
@@ -428,6 +485,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       // "Check all now" is now a PrimaryPillButton, which uppercases its label.
       expect(find.text('CHECK ALL NOW'), findsOneWidget);
+      expect(find.text('New Chapter'), findsWidgets);
       expect(find.text('Solo Leveling'), findsWidgets);
     });
 
@@ -449,6 +507,8 @@ void main() {
       await tester.pumpWidget(
         await _wrap(const SettingsScreen(), overrides: [
           appUpdateProvider.overrideWith((ref) async => null),
+          libraryRepositoryProvider.overrideWithValue(_FakeIntelligenceRepository()),
+          updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
         ],),
       );
       await tester.pump();
@@ -470,6 +530,7 @@ void main() {
           const MoreScreen(),
           overrides: [
             updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+            libraryRepositoryProvider.overrideWithValue(_FollowedOnlyLibraryRepository()),
             appUpdateProvider.overrideWith((ref) async => null),
           ],
         ),
@@ -496,6 +557,7 @@ void main() {
         const MoreScreen(),
         overrides: [
           updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+          libraryRepositoryProvider.overrideWithValue(_FollowedOnlyLibraryRepository()),
           appUpdateProvider.overrideWith((ref) async => updateInfo),
         ],
       );
@@ -533,6 +595,7 @@ void main() {
         platform: TargetPlatform.iOS,
         overrides: [
           updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+          libraryRepositoryProvider.overrideWithValue(_FollowedOnlyLibraryRepository()),
           appUpdateProvider.overrideWith((ref) async => updateInfo),
         ],
       );
