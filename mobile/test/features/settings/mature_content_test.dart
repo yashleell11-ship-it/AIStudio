@@ -16,6 +16,7 @@ Profile _profile(int id) => Profile(
       avatarKey: 'violet',
       mood: Mood.neutral,
       sortOrder: 0,
+      matureContentEnabled: false,
       createdAt: DateTime.utc(2024),
     );
 

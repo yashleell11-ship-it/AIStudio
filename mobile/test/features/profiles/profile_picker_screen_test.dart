@@ -19,6 +19,7 @@ Profile _profile(int id, String name, Mood mood) => Profile(
       avatarKey: 'violet',
       mood: mood,
       sortOrder: id,
+      matureContentEnabled: false,
       createdAt: DateTime.utc(2024),
     );
 

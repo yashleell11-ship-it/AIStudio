@@ -6,18 +6,15 @@ Collection _collection({
   required int id,
   required String name,
   int seriesCount = 0,
-  DateTime? updatedAt,
+  int sortOrder = 0,
   String? description,
 }) {
-  final timestamp = updatedAt ?? DateTime(2024, 1, id);
   return Collection(
     id: id,
     name: name,
     description: description,
     seriesCount: seriesCount,
-    sortOrder: id,
-    createdAt: timestamp,
-    updatedAt: timestamp,
+    sortOrder: sortOrder,
   );
 }
 
@@ -34,11 +31,11 @@ void main() {
       expect(filterCollections(items, 'missing'), isEmpty);
     });
 
-    test('sorts by name, series count, and updated date', () {
+    test('sorts by name, series count, and custom order', () {
       final items = [
-        _collection(id: 1, name: 'Zeta', seriesCount: 2, updatedAt: DateTime(2024)),
-        _collection(id: 2, name: 'Alpha', seriesCount: 5, updatedAt: DateTime(2024, 6)),
-        _collection(id: 3, name: 'Beta', seriesCount: 5, updatedAt: DateTime(2024, 3)),
+        _collection(id: 1, name: 'Zeta', seriesCount: 2, sortOrder: 2),
+        _collection(id: 2, name: 'Alpha', seriesCount: 5, sortOrder: 0),
+        _collection(id: 3, name: 'Beta', seriesCount: 5, sortOrder: 1),
       ];
 
       expect(
@@ -50,7 +47,7 @@ void main() {
         'Alpha',
       );
       expect(
-        sortCollections(items, CollectionSort.updated).first.name,
+        sortCollections(items, CollectionSort.custom).first.name,
         'Alpha',
       );
     });

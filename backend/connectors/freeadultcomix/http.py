@@ -20,6 +20,10 @@ from curl_cffi import CurlOpt
 from curl_cffi.requests import Session
 
 from connectors.http.client import RETRYABLE_STATUS, ConnectorHttpError
+from connectors.http.redirect_policy import (
+    allowed_redirect_hosts,
+    send_with_redirect_validation,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +99,7 @@ class FacSyncHttpClient:
         if headers:
             request_headers.update(headers)
         self._headers = request_headers
+        self._redirect_hosts = allowed_redirect_hosts(self._base_url)
         self._impersonate = impersonate
         self._resolve_entries = resolve_entries if resolve_entries is not None else build_resolve_entries()
         self._session = self._make_session()
@@ -140,12 +145,14 @@ class FacSyncHttpClient:
         for attempt in range(self._max_retries):
             self._rate_limit()
             try:
-                response = self._session.get(
+                response = send_with_redirect_validation(
+                    self._session,
+                    "GET",
                     url,
+                    allowed_hosts=self._redirect_hosts,
                     params=_serialize_params(params),
                     headers=self._headers,
                     timeout=self._timeout,
-                    allow_redirects=True,
                 )
                 if response.status_code in RETRYABLE_STATUS:
                     raise ConnectorHttpError(

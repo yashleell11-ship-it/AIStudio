@@ -6,7 +6,6 @@ void main() {
     test('true on tab roots', () {
       expect(isMainTabRoute(Routes.library), isTrue);
       expect(isMainTabRoute(Routes.sources), isTrue);
-      expect(isMainTabRoute(Routes.downloads), isTrue);
       expect(isMainTabRoute(Routes.search), isTrue);
       expect(isMainTabRoute(Routes.more), isTrue);
     });

@@ -1,41 +1,22 @@
-"""Shared outbound URL validation for connector image fetches."""
+"""Shared outbound URL validation for connector image fetches.
+
+The pure host/address checks live in ``connectors.http.redirect_policy`` so
+the scrape clients' per-hop redirect validation and this image-proxy
+validation share one implementation. They are re-exported here because this
+module is the historical import site (tests patch
+``services.outbound_security.is_public_address``).
+"""
 
 from __future__ import annotations
 
-import ipaddress
-import socket
 from urllib.parse import urlparse
 
 from connectors.base import SourceConnector
+from connectors.http.redirect_policy import (  # noqa: F401 - re-exported
+    host_matches_allowlist,
+    is_public_address,
+)
 from core.errors import AppError
-
-
-def host_matches_allowlist(hostname: str, allowed_hosts: frozenset[str]) -> bool:
-    return any(
-        hostname == domain or hostname.endswith(f".{domain}")
-        for domain in allowed_hosts
-    )
-
-
-def is_public_address(hostname: str) -> bool:
-    """Resolve ``hostname`` and confirm every address it maps to is public."""
-    try:
-        infos = socket.getaddrinfo(hostname, None)
-    except socket.gaierror:
-        return False
-    for info in infos:
-        ip = info[4][0]
-        address = ipaddress.ip_address(ip)
-        if (
-            address.is_private
-            or address.is_loopback
-            or address.is_link_local
-            or address.is_reserved
-            or address.is_multicast
-            or address.is_unspecified
-        ):
-            return False
-    return True
 
 
 def validate_outbound_url(url: str, connector: SourceConnector) -> str:

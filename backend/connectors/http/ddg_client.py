@@ -12,6 +12,10 @@ from urllib.parse import urljoin
 from curl_cffi.requests import Session
 
 from connectors.http.client import ConnectorHttpError, RETRYABLE_STATUS
+from connectors.http.redirect_policy import (
+    allowed_redirect_hosts,
+    send_with_redirect_validation,
+)
 
 
 def _serialize_params(params: dict[str, Any] | None) -> dict[str, str] | None:
@@ -59,6 +63,7 @@ class DdgSyncHttpClient:
         if headers:
             request_headers.update(headers)
         self._headers = request_headers
+        self._redirect_hosts = allowed_redirect_hosts(self._base_url)
         self._session = Session(impersonate=impersonate)
         domain = self._base_url.removeprefix("https://").removeprefix("http://").split("/")[0]
         # gallery-dl/kemono pattern: any __ddg2_ value satisfies the JS check screen.
@@ -93,12 +98,14 @@ class DdgSyncHttpClient:
         for attempt in range(self._max_retries):
             self._rate_limit()
             try:
-                response = self._session.get(
+                response = send_with_redirect_validation(
+                    self._session,
+                    "GET",
                     url,
+                    allowed_hosts=self._redirect_hosts,
                     params=_serialize_params(params),
                     headers=self._headers,
                     timeout=self._timeout,
-                    allow_redirects=True,
                 )
                 if response.status_code in RETRYABLE_STATUS:
                     raise ConnectorHttpError(
@@ -150,12 +157,14 @@ class DdgSyncHttpClient:
         for attempt in range(self._max_retries):
             self._rate_limit()
             try:
-                response = self._session.post(
+                response = send_with_redirect_validation(
+                    self._session,
+                    "POST",
                     url,
+                    allowed_hosts=self._redirect_hosts,
                     data=data or {},
                     headers=headers,
                     timeout=self._timeout,
-                    allow_redirects=True,
                 )
                 if response.status_code in RETRYABLE_STATUS:
                     raise ConnectorHttpError(
@@ -201,12 +210,14 @@ class DdgSyncHttpClient:
         for attempt in range(self._max_retries):
             self._rate_limit()
             try:
-                response = self._session.post(
+                response = send_with_redirect_validation(
+                    self._session,
+                    "POST",
                     url,
+                    allowed_hosts=self._redirect_hosts,
                     data=data or {},
                     headers=headers,
                     timeout=self._timeout,
-                    allow_redirects=True,
                 )
                 if response.status_code in RETRYABLE_STATUS:
                     raise ConnectorHttpError(
@@ -251,12 +262,14 @@ class DdgSyncHttpClient:
         for attempt in range(self._max_retries):
             self._rate_limit()
             try:
-                response = self._session.get(
+                response = send_with_redirect_validation(
+                    self._session,
+                    "GET",
                     url,
+                    allowed_hosts=self._redirect_hosts,
                     params=_serialize_params(params),
                     headers=headers,
                     timeout=self._timeout,
-                    allow_redirects=True,
                 )
                 if response.status_code in RETRYABLE_STATUS:
                     raise ConnectorHttpError(

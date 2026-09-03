@@ -8,6 +8,10 @@ from urllib.parse import urlparse, urlsplit
 
 from connectors.http.cf_client import CfSyncHttpClient, is_cloudflare_challenge
 from connectors.http.client import ConnectorHttpError
+from connectors.http.redirect_policy import (
+    redirect_rejection_reason,
+    send_with_redirect_validation,
+)
 
 _REDIRECT_LINK_RE = re.compile(r"redirect_link\s*=\s*'([^']+)'")
 _CHEQ_REDIRECT_RE = re.compile(r"REDIRECT_URL\s*=\s*'([^']+)'")
@@ -92,12 +96,14 @@ class FirstKissHttpClient(CfSyncHttpClient):
         url = self._resolve_url(path)
         self._rate_limit()
         try:
-            response = self._session.get(
+            response = send_with_redirect_validation(
+                self._session,
+                "GET",
                 url,
+                allowed_hosts=self._redirect_hosts,
                 params=params,
                 headers=self._headers,
                 timeout=self._timeout,
-                allow_redirects=True,
             )
         except OSError as exc:
             raise ConnectorHttpError(
@@ -130,6 +136,15 @@ class FirstKissHttpClient(CfSyncHttpClient):
         bypass_url = self._with_gate_fp(bypass_url, self._GATE_FP)
         if bypass_url.startswith("http://"):
             bypass_url = "https://" + bypass_url.removeprefix("http://")
+        # The bypass URL is extracted from HTML the site served, i.e. it is
+        # attacker-controlled if the site is hostile or parked — hold it to the
+        # same per-hop policy as a redirect Location before fetching it.
+        reason = redirect_rejection_reason(bypass_url, self._redirect_hosts)
+        if reason:
+            raise ConnectorHttpError(
+                f"Anti-bot gate redirect blocked ({reason}).",
+                status_code=403,
+            )
         return bypass_url
 
     @staticmethod
@@ -161,11 +176,13 @@ class FirstKissHttpClient(CfSyncHttpClient):
     def _fetch_html_url(self, url: str) -> tuple[str, str]:
         self._rate_limit()
         try:
-            response = self._session.get(
+            response = send_with_redirect_validation(
+                self._session,
+                "GET",
                 url,
+                allowed_hosts=self._redirect_hosts,
                 headers=self._headers,
                 timeout=self._timeout,
-                allow_redirects=True,
             )
         except OSError as exc:
             raise ConnectorHttpError(

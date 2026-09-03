@@ -4,59 +4,56 @@ import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 void main() {
   final json = {
     'id': 1,
-    'library_id': 1,
+    'source_id': 'asurascans',
+    'series_key': 'solo-leveling',
     'title': 'Solo Leveling',
-    'sort_title': 'solo leveling',
-    'original_title': null,
-    'author': 'Chugong',
-    'artist': null,
-    'description': 'A hunter awakens.',
-    'status': 'completed',
-    'content_rating': 'teen',
-    'language': 'ko',
-    'year': 2018,
-    'cover_path': '/covers/1.jpg',
-    'folder_path': '/library/solo-leveling',
+    'cover_url': '/sources/asurascans/series/solo-leveling/cover',
     'is_favorite': true,
     'reading_status': 'reading',
+    'notify': true,
+    'sort_order': 0,
+    'content_rating': 'teen',
+    'rating': 'safe',
+    'mature_override': null,
+    'known_chapters': [
+      {'key': '1', 'number': 1.0, 'title': 'Chapter 1', 'published_at': null},
+      {'key': '2', 'number': 2.0, 'title': 'Chapter 2', 'published_at': null},
+    ],
     'chapter_count': 179,
-    'read_chapters': 50,
-    'page_count': 3580,
-    'total_chapters': 179,
-    'total_pages': 3580,
-    'first_chapter_id': 101,
+    'last_checked_at': '2024-06-01T12:00:00',
     'created_at': '2024-01-01T00:00:00',
     'updated_at': '2024-06-01T00:00:00',
-    'reading_progress': {
-      'series_id': 1,
-      'chapter_id': 150,
-      'last_page': 10,
-      'progress_pct': 27.9,
-      'last_read_at': '2024-06-01T12:00:00',
-    },
   };
 
   group('FollowedSeries.fromJson', () {
     test('parses all fields', () {
       final s = FollowedSeries.fromJson(json);
       expect(s.id, 1);
+      expect(s.sourceId, 'asurascans');
+      expect(s.seriesKey, 'solo-leveling');
       expect(s.title, 'Solo Leveling');
       expect(s.isFavorite, isTrue);
+      expect(s.notify, isTrue);
       expect(s.chapterCount, 179);
-      expect(s.readingProgress, isNotNull);
-      expect(s.readingProgress!.chapterId, 150);
+      expect(s.knownChapters, hasLength(2));
+      expect(s.knownChapters.first.key, '1');
     });
 
-    test('computes readProgressPct', () {
+    test('copyWith flips favorite/status/notify without touching identity', () {
       final s = FollowedSeries.fromJson(json);
-      expect(s.readProgressPct, closeTo(50 / 179, 0.001));
+      final updated = s.copyWith(isFavorite: false, readingStatus: 'completed');
+
+      expect(updated.isFavorite, isFalse);
+      expect(updated.readingStatus, 'completed');
+      expect(updated.id, s.id);
+      expect(updated.sourceId, s.sourceId);
+      expect(updated.seriesKey, s.seriesKey);
     });
 
-    test('handles null reading_progress', () {
-      final noProgress = Map<String, dynamic>.from(json);
-      noProgress['reading_progress'] = null;
-      final s = FollowedSeries.fromJson(noProgress);
-      expect(s.readingProgress, isNull);
+    test('handles a missing/empty cover_url', () {
+      final noCover = Map<String, dynamic>.from(json)..remove('cover_url');
+      final s = FollowedSeries.fromJson(noCover);
+      expect(s.coverUrl, isEmpty);
     });
   });
 }
