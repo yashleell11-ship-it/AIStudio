@@ -7,6 +7,7 @@ import {
   type LibraryDensity,
   densityGridClassName,
 } from "@/features/library/density";
+import { useGridNavigation } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
 import { SeriesCard, SeriesListItem, type SeriesSelectHandler } from "./SeriesCard";
 import type { FollowedSeries } from "../types";
@@ -77,6 +78,16 @@ export function SeriesGrid({
   density = DEFAULT_LIBRARY_DENSITY,
   selection,
 }: SeriesGridProps) {
+  // Registered for the grid's lifetime, and only while there is something to
+  // move through — the skeleton and empty branches below leave the keys unbound
+  // rather than advertising a shortcut that does nothing.
+  const gridNavigation = useGridNavigation({
+    id: "library.grid",
+    group: "Library",
+    description: "Move through the series grid (arrows work too)",
+    enabled: !isLoading && items.length > 0,
+  });
+
   if (isLoading) {
     return (
       <div
@@ -120,6 +131,7 @@ export function SeriesGrid({
 
   return (
     <div
+      {...gridNavigation}
       className={cn(
         densityGridClassName(density),
         // Shift-click drags the browser's own text selection across every card

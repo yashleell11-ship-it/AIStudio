@@ -12,8 +12,20 @@ import {
 } from "@/features/library/density";
 import { useToggleFavorite } from "@/features/library/hooks";
 import type { FollowedSeries } from "@/features/library/types";
+import { GRID_ITEM_ATTRIBUTE } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
 import { FollowButton } from "./FollowButton";
+
+/**
+ * Marks a card as a cell of the keyboard-navigable grid, and gives it the focus
+ * ring it never had — arrow-key movement is only usable if you can see where
+ * focus landed. Spread onto whichever element is the card's tab stop.
+ */
+const gridItemProps = {
+  [GRID_ITEM_ATTRIBUTE]: "",
+  className:
+    "block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
+} as const;
 
 /** How a card reports a click on its checkbox (or on itself, in select mode). */
 export type SeriesSelectHandler = (seriesId: number, shiftKey: boolean) => void;
@@ -270,6 +282,7 @@ export function SeriesCard({
             selection.onSelect(series.id, event.shiftKey);
           }
         }}
+        {...{ [GRID_ITEM_ATTRIBUTE]: "" }}
         className="cursor-pointer select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
         {...hoverProps}
       >
@@ -279,7 +292,7 @@ export function SeriesCard({
   }
 
   return (
-    <Link href={href} {...hoverProps}>
+    <Link href={href} {...gridItemProps} {...hoverProps}>
       {content}
     </Link>
   );
@@ -379,6 +392,7 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
             selection.onSelect(series.id, event.shiftKey);
           }
         }}
+        {...{ [GRID_ITEM_ATTRIBUTE]: "" }}
         className="cursor-pointer select-none rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
       >
         {row}
@@ -386,5 +400,9 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
     );
   }
 
-  return <Link href={href}>{row}</Link>;
+  return (
+    <Link href={href} {...gridItemProps}>
+      {row}
+    </Link>
+  );
 }

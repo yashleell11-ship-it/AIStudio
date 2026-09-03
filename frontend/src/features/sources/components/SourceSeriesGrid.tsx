@@ -2,6 +2,7 @@
 
 import { SearchX, TriangleAlert } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { useGridNavigation } from "@/lib/keyboard";
 import { SourceSeriesCard } from "./SourceSeriesCard";
 import type { SourceSeriesSummary } from "../types";
 
@@ -23,6 +24,13 @@ export function SourceSeriesGrid({
   errorMessage,
   onRetry,
 }: SourceSeriesGridProps) {
+  const gridNavigation = useGridNavigation({
+    id: "sources.grid",
+    group: "Sources",
+    description: "Move through the catalog grid (arrows work too)",
+    enabled: !isLoading && !errorMessage && items.length > 0,
+  });
+
   if (errorMessage) {
     return (
       <EmptyState
@@ -63,7 +71,10 @@ export function SourceSeriesGrid({
   }
 
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+    <div
+      {...gridNavigation}
+      className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+    >
       {items.map((series) => (
         <SourceSeriesCard key={series.id} sourceId={sourceId} series={series} />
       ))}

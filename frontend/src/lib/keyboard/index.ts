@@ -12,4 +12,16 @@ export {
   shortcutCombos,
   type ShortcutGroup,
 } from "./groups";
+export {
+  GRID_VIM_KEYS,
+  gridMoveForKey,
+  measureGridColumns,
+  nextGridIndex,
+  type GridMove,
+} from "./grid-navigation";
+export {
+  GRID_ITEM_ATTRIBUTE,
+  useGridNavigation,
+  type GridNavigationProps,
+} from "./use-grid-navigation";
 export type { Shortcut, ShortcutDefinition, KeyCombo } from "./types";
