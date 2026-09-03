@@ -26,10 +26,23 @@ public deployment at manhwamaniacs.xyz is kept defensible.
   - **Mobile** reads the same token from the response body (`{ user, token }`)
     and sends it back as `Authorization: Bearer <token>`.
   - Logout on either transport revokes the same underlying session row.
-- **The first registered account becomes the admin/owner** (bootstrap). After
-  that, self-registration is gated by `MM_REGISTRATION_ENABLED`. (The old
-  "claim NULL-owned rows from the single-user era" step is gone — the DB is
-  wiped for the source-native rebuild and every owned row is
+- **The first registered account becomes the admin/owner**, but only while a
+  time-boxed **bootstrap window** is open (`MM_BOOTSTRAP_WINDOW_MINUTES`,
+  default 30, counted from the moment the users table is first observed
+  empty). After that, an empty table no longer grants uninvited registration —
+  claim the instance with `ops/vps/deploy.sh create-owner` instead. This
+  bounds how long a freshly wiped public database is an open admin-takeover
+  window. Exactly one admin is enforced at the database level (a partial
+  unique index on `users.is_admin`), not just in application code.
+- **Self-registration after bootstrap** is gated by `MM_REGISTRATION_ENABLED`
+  (deployment default is `false` — see `ops/vps/docker-compose.yml`) and,
+  when set, an invite code (`MM_REGISTRATION_INVITE_CODE`, compared in
+  constant time). `GET /auth/bootstrap-status` tells the client which form to
+  render (`bootstrap_open`, `invite_code_required`, `registration_open`) and
+  never echoes the invite code itself. Manage the invite code with
+  `ops/vps/deploy.sh set-invite-code [CODE|clear]`.
+- (The old "claim NULL-owned rows from the single-user era" step is gone — the
+  DB is wiped for the source-native rebuild and every owned row is
   `user_id`/`profile_id` NOT NULL.)
 
 Implementation: `backend/services/auth_service.py` (business logic + the global
@@ -80,10 +93,18 @@ property of the session's user (`users.is_admin`).
 
 ### Bootstrapping the first admin
 
-On a fresh instance `GET /auth/bootstrap-status` returns `needs_bootstrap: true`.
-The web login screen and the mobile login screen both detect this and present a
-"create the first admin" form. The first `POST /auth/register` succeeds
-regardless of `MM_REGISTRATION_ENABLED` and the resulting user is the admin.
+On a fresh instance `GET /auth/bootstrap-status` returns `needs_bootstrap: true`
+and, while the bootstrap window is still open, `bootstrap_open: true`. The web
+and mobile login screens key their "create the first admin" form on
+`bootstrap_open`, not `needs_bootstrap` — an empty table with an expired window
+no longer grants uninvited signup. While the window is open, `POST
+/auth/register` succeeds with no invite code regardless of
+`MM_REGISTRATION_ENABLED` and the resulting user is the admin; the
+authoritative check happens inside a serialized claim transaction
+(`AuthService.register(..., enforce_policy=True)`) so concurrent registrations
+against an empty table can't each become admin. Once the window has closed,
+claim the instance with `ops/vps/deploy.sh create-owner` (which runs inside the
+container against the same DB and needs no window).
 
 ## Inbound rate limiting
 
@@ -94,8 +115,11 @@ details}` envelope with a `Retry-After` header. Buckets (all env-configurable):
 
 | Bucket | Endpoints | Env var | Default |
 | --- | --- | --- | --- |
-| auth | `POST /auth/login`, `POST /auth/register` | `MM_RATE_LIMIT_AUTH` | `10/minute` |
+| auth | `POST /auth/login` | `MM_RATE_LIMIT_AUTH` | `10/minute` |
+| register | `POST /auth/register` — its own tighter bucket, the invite-code brute-force surface | `MM_RATE_LIMIT_REGISTER` | `5/minute;30/hour` |
+| bootstrap-status | `GET /auth/bootstrap-status` — unauthenticated, announces exactly when the bootstrap window is open | `MM_RATE_LIMIT_BOOTSTRAP_STATUS` | `30/minute;240/hour` |
 | sources | `GET /sources/{id}/series` (browse/search), cover + page image proxies | `MM_RATE_LIMIT_SOURCES` | `60/minute` |
+| import | `POST /backup/import` (backing key is legacy-named `rate_limit_import`) | `MM_RATE_LIMIT_IMPORT` | `5/minute` |
 
 Set `MM_RATE_LIMIT_ENABLED=false` to disable limiting entirely (e.g. for load
 tests). Storage is in-memory, so limits are enforced per worker process — a
@@ -107,7 +131,9 @@ brute-force/abuse backstop, not a precise cluster-wide quota.
 
 | Var | Default | Purpose |
 | --- | --- | --- |
-| `MM_REGISTRATION_ENABLED` | `true` | Allow self-service signup *after* the bootstrap admin exists. Set `false` for an invite-only / single-household instance (the first account is always allowed so the instance can be claimed). |
+| `MM_REGISTRATION_ENABLED` | `true` in code, `false` in `ops/vps/docker-compose.yml` | Allow self-service signup *after* the bootstrap admin exists. Production is closed; the owner account is created out-of-band with `ops/vps/deploy.sh create-owner`. |
+| `MM_REGISTRATION_INVITE_CODE` | unset | When `MM_REGISTRATION_ENABLED=true`, require this code on `POST /auth/register` (outside the bootstrap window). Unset + enabled means **open registration** — never run a public deployment in that state. Manage via `ops/vps/deploy.sh set-invite-code`. |
+| `MM_BOOTSTRAP_WINDOW_MINUTES` | `30` | How long, after the users table is first observed empty, an uninvited first registration is allowed and becomes admin. `0` disables uninvited bootstrap entirely (use `create-owner`). |
 | `MM_COOKIE_SECURE` | `true` | Set the session cookie `Secure` flag. Keep `true` in production (HTTPS). Set `false` only for local `http://` development, otherwise the browser will not send the cookie. |
 
 ### Rate limiting
@@ -115,8 +141,11 @@ brute-force/abuse backstop, not a precise cluster-wide quota.
 | Var | Default | Purpose |
 | --- | --- | --- |
 | `MM_RATE_LIMIT_ENABLED` | `true` | Master on/off switch. |
-| `MM_RATE_LIMIT_AUTH` | `10/minute` | Login/register bucket. |
+| `MM_RATE_LIMIT_AUTH` | `10/minute` | Login bucket. |
+| `MM_RATE_LIMIT_REGISTER` | `5/minute;30/hour` | Register bucket. |
+| `MM_RATE_LIMIT_BOOTSTRAP_STATUS` | `30/minute;240/hour` | Bootstrap-status polling bucket. |
 | `MM_RATE_LIMIT_SOURCES` | `60/minute` | Source browse/search/image bucket. |
+| `MM_RATE_LIMIT_IMPORT` | `5/minute` | Backup-restore-upload bucket. |
 
 ### Deploy paths & CORS (pre-existing)
 
