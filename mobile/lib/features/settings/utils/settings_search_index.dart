@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// One searchable entry: a setting's label, which Settings tab it lives on
-/// (0=General, 1=Downloads, 2=Server, 3=About, 4=Debug), and optional context
-/// to widen what a search term can match against.
+/// (0=General, 1=Server, 2=About, 3=Debug), and optional context to widen
+/// what a search term can match against.
 class SettingsSearchEntry {
   const SettingsSearchEntry({
     required this.label,
@@ -39,17 +39,12 @@ const List<SettingsSearchEntry> settingsSearchIndex = [
   SettingsSearchEntry(label: 'Auto next chapter', tabIndex: 0, subtitle: 'Default reader preferences'),
   SettingsSearchEntry(label: 'Lock reader controls', tabIndex: 0, subtitle: 'Default reader preferences'),
   SettingsSearchEntry(label: 'Volume key navigation', tabIndex: 0, subtitle: 'Page turn with volume buttons', androidOnly: true),
-  SettingsSearchEntry(label: 'Download new chapters automatically', tabIndex: 1, subtitle: 'Downloads, auto download, automatic'),
-  SettingsSearchEntry(label: 'Chapters at once', tabIndex: 1, subtitle: 'Downloads, concurrent chapters, how many at a time'),
-  SettingsSearchEntry(label: 'Pages at once', tabIndex: 1, subtitle: 'Downloads, page concurrency'),
-  SettingsSearchEntry(label: 'Retry count', tabIndex: 1, subtitle: 'Downloads'),
-  SettingsSearchEntry(label: 'Wi-Fi only', tabIndex: 1, subtitle: 'Downloads, mobile data'),
-  SettingsSearchEntry(label: 'Server connection', tabIndex: 2, subtitle: 'Server URL'),
-  SettingsSearchEntry(label: 'Version', tabIndex: 3, subtitle: 'About'),
-  SettingsSearchEntry(label: 'Build', tabIndex: 3, subtitle: 'About'),
-  SettingsSearchEntry(label: 'Open source licenses', tabIndex: 3, subtitle: 'About'),
-  SettingsSearchEntry(label: 'Diagnostics', tabIndex: 4, subtitle: 'Performance, FPS, device info'),
-  SettingsSearchEntry(label: 'Reset reader settings', tabIndex: 4, subtitle: 'Debug'),
+  SettingsSearchEntry(label: 'Server connection', tabIndex: 1, subtitle: 'Server URL'),
+  SettingsSearchEntry(label: 'Version', tabIndex: 2, subtitle: 'About'),
+  SettingsSearchEntry(label: 'Build', tabIndex: 2, subtitle: 'About'),
+  SettingsSearchEntry(label: 'Open source licenses', tabIndex: 2, subtitle: 'About'),
+  SettingsSearchEntry(label: 'Diagnostics', tabIndex: 3, subtitle: 'Performance, FPS, device info'),
+  SettingsSearchEntry(label: 'Reset reader settings', tabIndex: 3, subtitle: 'Debug'),
 ];
 
 /// Matching entries for [query], restricted to what [platform] actually

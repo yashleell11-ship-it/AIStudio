@@ -9,6 +9,7 @@ import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
@@ -99,11 +100,15 @@ class _BookmarkCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final created = DateFormat.yMMMd().add_jm().format(bookmark.createdAt.toLocal());
+    final created = bookmark.createdAt != null
+        ? DateFormat.yMMMd().add_jm().format(bookmark.createdAt!.toLocal())
+        : null;
+    final label = chapterLabel(number: null, title: bookmark.chapterKey);
 
     return GlassCard(
       onTap: () => context.push(
-        '${RoutePaths.reader(bookmark.seriesId, bookmark.chapterId)}?page=${bookmark.page}',
+        '${RoutePaths.reader(bookmark.sourceId, bookmark.seriesKey, bookmark.chapterKey)}'
+        '?page=${bookmark.page}',
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -112,10 +117,10 @@ class _BookmarkCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(bookmark.seriesTitle ?? 'Unknown Series', style: AppTypography.labelLg),
+                Text(label.primary, style: AppTypography.labelLg),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  bookmark.chapterTitle ?? 'Unknown Chapter',
+                  bookmark.sourceId,
                   style: AppTypography.body.copyWith(color: AppColors.muted),
                 ),
                 const SizedBox(height: AppSpacing.xs),
@@ -124,8 +129,10 @@ class _BookmarkCard extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xs),
                   Text(bookmark.note!, style: AppTypography.body),
                 ],
-                const SizedBox(height: AppSpacing.xs),
-                Text(created, style: AppTypography.caption.copyWith(color: AppColors.muted)),
+                if (created != null) ...[
+                  const SizedBox(height: AppSpacing.xs),
+                  Text(created, style: AppTypography.caption.copyWith(color: AppColors.muted)),
+                ],
               ],
             ),
           ),

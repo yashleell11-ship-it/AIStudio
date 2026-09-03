@@ -1,20 +1,23 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
-import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
-import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
+import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
+/// Recommendations — source-native (`GET /library/recommendations`). Without
+/// an external catalog there is nothing to recommend beyond the followed
+/// set's own genres, so the backend returns the top genres over what is
+/// already followed and this screen drives a genre-filtered search from them.
 class RecommendationsScreen extends ConsumerWidget {
   const RecommendationsScreen({super.key});
 
@@ -31,16 +34,13 @@ class RecommendationsScreen extends ConsumerWidget {
         title: const Text('Recommendations'),
       ),
       body: recommendationsAsync.when(
-        loading: () => GridView.builder(
+        loading: () => ListView(
           padding: const EdgeInsets.all(AppSpacing.xl2),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: AppSpacing.lg,
-            mainAxisSpacing: AppSpacing.lg,
-            childAspectRatio: 0.52,
-          ),
-          itemCount: 6,
-          itemBuilder: (_, __) => const SkeletonBox(width: double.infinity, height: 220),
+          children: const [
+            SkeletonBox(width: double.infinity, height: 44),
+            SizedBox(height: AppSpacing.md),
+            SkeletonBox(width: double.infinity, height: 44),
+          ],
         ),
         error: (error, _) => Center(
           child: Column(
@@ -58,12 +58,12 @@ class RecommendationsScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (items) {
-          if (items.isEmpty) {
+        data: (genres) {
+          if (genres.isEmpty) {
             return EmptyState(
               icon: Icons.auto_awesome_outlined,
               message: 'No recommendations yet',
-              subtitle: 'Start reading some series to get personalized recommendations.',
+              subtitle: 'Follow a few series to see the genres you read most.',
               action: PrimaryPillButton(
                 label: 'Browse Library',
                 onPressed: () => context.go(Routes.libraryBrowse),
@@ -80,24 +80,66 @@ class RecommendationsScreen extends ConsumerWidget {
                 const HeroHeading(text: 'Recommendations'),
                 const SizedBox(height: AppSpacing.xs),
                 Text(
-                  'Based on your reading history, tags, and authors.',
+                  'The genres you follow most — tap one to search for more.',
                   style: AppTypography.body.copyWith(color: AppColors.muted),
                 ),
                 const SizedBox(height: AppSpacing.xl2),
-                SeriesGrid(
-                  items: items,
-                  viewMode: LibraryViewMode.grid,
-                  onSeriesTap: (series) => context.push(RoutePaths.seriesDetail(series.id)),
-                  onToggleFavorite: (seriesId) async {
-                    await ref.read(libraryRepositoryProvider).toggleFavorite(seriesId);
-                    if (!context.mounted) return;
-                    ref.invalidate(recommendationsProvider);
-                  },
+                Wrap(
+                  spacing: AppSpacing.sm,
+                  runSpacing: AppSpacing.sm,
+                  children: [
+                    for (final genre in genres)
+                      _GenreChip(
+                        genre: genre.genre,
+                        weight: genre.weight,
+                        onTap: () {
+                          ref.read(searchQueryProvider.notifier).state = genre.genre;
+                          context.go(Routes.search);
+                        },
+                      ),
+                  ],
                 ),
               ],
             ),
           );
         },
+      ),
+    );
+  }
+}
+
+class _GenreChip extends StatelessWidget {
+  const _GenreChip({required this.genre, required this.weight, required this.onTap});
+
+  final String genre;
+  final int weight;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.panel,
+      borderRadius: BorderRadius.circular(AppRadius.full),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(AppRadius.full),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: AppSpacing.lg,
+            vertical: AppSpacing.sm,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(genre, style: AppTypography.labelLg),
+              const SizedBox(width: AppSpacing.xs),
+              Text(
+                '$weight',
+                style: AppTypography.caption.copyWith(color: AppColors.muted),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

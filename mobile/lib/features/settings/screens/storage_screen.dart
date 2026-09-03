@@ -3,19 +3,30 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
-import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
-import 'package:manhwamaniacs/features/downloads/utils/download_formatters.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
-/// The device-storage control center: how much space downloads and caches
-/// use, and one place to reclaim it. Reuses the same cache-clearing actions
-/// previously on Settings -> General (moved here, not duplicated, so
-/// "how much space am I using" lives in exactly one place).
+/// Formats a byte count as a compact human-readable size ("4.2 MB").
+String formatStorageBytes(int bytes) {
+  if (bytes <= 0) return '0 B';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var value = bytes.toDouble();
+  var unitIndex = 0;
+  while (value >= 1024 && unitIndex < units.length - 1) {
+    value /= 1024;
+    unitIndex++;
+  }
+  final formatted = unitIndex == 0 ? value.toStringAsFixed(0) : value.toStringAsFixed(1);
+  return '$formatted ${units[unitIndex]}';
+}
+
+/// The device-storage control center: how much space caches use, and one
+/// place to reclaim it.
+// TODO(1c-M3): add a downloaded-chapters storage card once the on-device
+// store ships (real on-device bytes, not the deleted server download queue).
 class StorageScreen extends ConsumerWidget {
   const StorageScreen({super.key});
 
@@ -33,118 +44,12 @@ class StorageScreen extends ConsumerWidget {
       ),
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl2),
-        children: [
-          _DownloadsStorageCard(onManage: () => context.go(Routes.downloads)),
-          const SizedBox(height: AppSpacing.xl2),
-          const _ImageCacheCard(),
-          const SizedBox(height: AppSpacing.xl2),
-          const _MetadataCacheCard(),
+        children: const [
+          _ImageCacheCard(),
+          SizedBox(height: AppSpacing.xl2),
+          _MetadataCacheCard(),
         ],
       ),
-    );
-  }
-}
-
-class _DownloadsStorageCard extends ConsumerWidget {
-  const _DownloadsStorageCard({required this.onManage});
-
-  final VoidCallback onManage;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final metricsAsync = ref.watch(storageMetricsProvider);
-
-    return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Icon(Icons.download_outlined, color: AppColors.accent, size: 20),
-              const SizedBox(width: AppSpacing.sm),
-              Text('Downloaded chapters', style: AppTypography.h4),
-            ],
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          metricsAsync.when(
-            loading: () => const Column(
-              children: [
-                SkeletonBox(width: double.infinity, height: 20),
-                SizedBox(height: AppSpacing.sm),
-                SkeletonBox(width: 160, height: 16),
-              ],
-            ),
-            error: (_, __) => Text(
-              'Unable to read download storage.',
-              style: AppTypography.body.copyWith(color: AppColors.muted),
-            ),
-            data: (metrics) => _StorageBar(
-              usedBytes: metrics.storageUsedBytes,
-              freeBytes: metrics.storageFreeBytes,
-              completedCount: metrics.completed,
-            ),
-          ),
-          const SizedBox(height: AppSpacing.lg),
-          OutlinedButton.icon(
-            onPressed: onManage,
-            icon: const Icon(Icons.tune_outlined, size: 18),
-            label: const Text('Manage downloads'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StorageBar extends StatelessWidget {
-  const _StorageBar({
-    required this.usedBytes,
-    required this.freeBytes,
-    required this.completedCount,
-  });
-
-  final int usedBytes;
-  final int freeBytes;
-  final int completedCount;
-
-  @override
-  Widget build(BuildContext context) {
-    final total = usedBytes + freeBytes;
-    final usedFraction = total > 0 ? (usedBytes / total).clamp(0.0, 1.0) : 0.0;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.full),
-          child: LinearProgressIndicator(
-            value: usedFraction,
-            minHeight: 8,
-            backgroundColor: AppColors.fg.withAlpha(26),
-            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.accent),
-          ),
-        ),
-        const SizedBox(height: AppSpacing.sm),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              '${formatDownloadBytes(usedBytes)} used',
-              style: AppTypography.bodySm.copyWith(color: AppColors.fg),
-            ),
-            Text(
-              '${formatDownloadBytes(freeBytes)} free',
-              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
-            ),
-          ],
-        ),
-        const SizedBox(height: AppSpacing.xs),
-        Text(
-          '$completedCount chapter${completedCount == 1 ? '' : 's'} downloaded',
-          style: AppTypography.caption,
-        ),
-      ],
     );
   }
 }
@@ -182,7 +87,7 @@ class _ImageCacheCard extends ConsumerWidget {
               style: AppTypography.body.copyWith(color: AppColors.muted),
             ),
             data: (bytes) => Text(
-              formatDownloadBytes(bytes),
+              formatStorageBytes(bytes),
               style: AppTypography.h3,
             ),
           ),
