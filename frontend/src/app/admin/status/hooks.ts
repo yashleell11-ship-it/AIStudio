@@ -18,3 +18,12 @@ export function useBackendHealth() {
     retry: false,
   });
 }
+
+/** Per-source reachability, worst-first (GET /sources/health). */
+export function useSourceHealth() {
+  return useQuery({
+    queryKey: ["status", "source-health"],
+    queryFn: () => statusApi.sourceHealth(),
+    refetchInterval: 30_000,
+  });
+}

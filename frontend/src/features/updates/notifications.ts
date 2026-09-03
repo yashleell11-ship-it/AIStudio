@@ -1,19 +1,12 @@
-import type { SeriesTracker, UpdateSettings } from "./types";
+import type { UpdateSettings } from "./types";
 
 /**
- * Pure logic behind the consolidated notification settings section.
+ * Pure logic behind the update-check schedule strip.
  *
- * New-chapter notifications are an AND of three switches, all of them
- * server-side (backend/services/update_service.py:1308 and
- * update_service.py:1253):
- *
- *   1. `settings.enabled`      — the checker runs at all
- *   2. `tracker.enabled`       — this series is included in a check
- *      (`_select_trackers_for_check` filters `enabled IS TRUE`)
- *   3. `settings.notify_enabled AND tracker.notify` — a notification row is written
- *
- * The UI has to model all three, because turning off any one of them silences a
- * series and only one of them is obvious from the row itself.
+ * New-chapter notifications are gated server-side by an AND of:
+ *   1. `settings.enabled`        — the checker runs at all
+ *   2. `settings.notify_enabled` — a notification row is written
+ *   3. the followed series' own `notify` flag (patched via `/library/series/{id}`)
  */
 
 /** Minutes the scheduler is allowed to overshoot before a run reads as late. */
@@ -27,9 +20,9 @@ export interface CheckSchedule {
    * When the next check is expected, as an ISO string.
    *
    * An ESTIMATE, deliberately: the scheduler thread sleeps on its own loop from
-   * process start (backend/services/update_scheduler.py:129-135) and the API
-   * exposes no next-run timestamp, so the only thing derivable client-side is
-   * "last finished run + interval". Null until a run has finished.
+   * process start and the API exposes no next-run timestamp, so the only thing
+   * derivable client-side is "last finished run + interval". Null until a run
+   * has finished.
    */
   estimatedNextRunAt: string | null;
   /** Minutes past the estimate, or null when it is not past yet. */
@@ -88,112 +81,9 @@ export function describeCheckSchedule(
     overdueByMinutes: lateByMs > 0 ? Math.floor(lateByMs / 60_000) : null,
     // One interval late is normal jitter (the scheduler sleeps from its own
     // start, not from the last run). Two is a missed cycle.
-    overdue: settings.enabled && lateByMs > intervalMs * (OVERDUE_INTERVAL_FACTOR - 1),
+    overdue:
+      settings.enabled &&
+      lateByMs > intervalMs * (OVERDUE_INTERVAL_FACTOR - 1),
     neverRun: false,
-  };
-}
-
-export interface NotificationTrackerRow {
-  tracker: SeriesTracker;
-  /**
-   * Whether this series will actually produce a notification, accounting for
-   * the global switches as well as the row's own.
-   */
-  effectiveNotify: boolean;
-  /** Why it will not, when it will not. Null when it will. */
-  silencedReason: string | null;
-  /**
-   * Another followed row in this list carries the same title. Surfaced, never
-   * merged: two follows of one story on two sources are two independent
-   * trackers server-side and each notifies on its own — that is intended, so
-   * the UI labels it instead of hiding one of them.
-   */
-  duplicateTitle: boolean;
-}
-
-function normalizeTitle(title: string): string {
-  return title.trim().toLowerCase();
-}
-
-/**
- * Builds the per-series notification list.
- *
- * No de-duplication: duplicated follows are allowed to notify separately, so
- * every tracker keeps its own row and its own switch. `duplicateTitle` just
- * marks the ones that share a title so the owner can tell why a chapter
- * announced itself twice.
- */
-export function buildNotificationRows(
-  trackers: SeriesTracker[] | undefined,
-  settings: UpdateSettings | undefined,
-): NotificationTrackerRow[] {
-  const rows = trackers ?? [];
-  const titleCounts = new Map<string, number>();
-  for (const tracker of rows) {
-    const key = normalizeTitle(tracker.series_title);
-    titleCounts.set(key, (titleCounts.get(key) ?? 0) + 1);
-  }
-
-  return rows
-    .map((tracker) => {
-      const silencedReason = notificationSilencedReason(tracker, settings);
-      return {
-        tracker,
-        effectiveNotify: silencedReason === null,
-        silencedReason,
-        duplicateTitle: (titleCounts.get(normalizeTitle(tracker.series_title)) ?? 0) > 1,
-      };
-    })
-    .sort(
-      (a, b) =>
-        a.tracker.series_title.localeCompare(b.tracker.series_title) ||
-        a.tracker.source.localeCompare(b.tracker.source),
-    );
-}
-
-/**
- * The first switch that stops this series from notifying, in the order the
- * server evaluates them, or null when nothing does. Reported one reason at a
- * time on purpose: fixing the outermost switch is what the owner has to do
- * first anyway, and listing all three at once reads as three separate faults.
- */
-export function notificationSilencedReason(
-  tracker: SeriesTracker,
-  settings: UpdateSettings | undefined,
-): string | null {
-  if (settings && !settings.enabled) {
-    return "Automatic update checks are off.";
-  }
-  if (settings && !settings.notify_enabled) {
-    return "New-chapter notifications are off for every series.";
-  }
-  if (!tracker.enabled) {
-    return "This series is excluded from update checks.";
-  }
-  if (!tracker.notify) {
-    return "Notifications are off for this series.";
-  }
-  return null;
-}
-
-export interface NotificationCoverage {
-  total: number;
-  /** Rows that will actually notify once a new chapter appears. */
-  notifying: number;
-  /** Rows silenced by their own switch or by a global one. */
-  silenced: number;
-  /** Rows whose last check recorded an error — they may be notifying nothing. */
-  failing: number;
-}
-
-export function summarizeNotificationCoverage(
-  rows: NotificationTrackerRow[],
-): NotificationCoverage {
-  const notifying = rows.filter((row) => row.effectiveNotify).length;
-  return {
-    total: rows.length,
-    notifying,
-    silenced: rows.length - notifying,
-    failing: rows.filter((row) => row.tracker.last_error !== null).length,
   };
 }

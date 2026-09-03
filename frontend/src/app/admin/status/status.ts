@@ -1,12 +1,8 @@
 import type { CheckSchedule } from "@/features/updates/notifications";
-import type {
-  SeriesTracker,
-  UpdateRun,
-  UpdateSettings,
-  UpdateSource,
-} from "@/features/updates/types";
+import type { UpdateRun, UpdateSettings } from "@/features/updates/types";
 import type { SystemStatus } from "@/services/system";
 import { ApiError } from "@/types/api";
+import type { SourceHealthRow } from "./api";
 
 /**
  * Pure status derivation for the admin status page.
@@ -14,7 +10,7 @@ import { ApiError } from "@/types/api";
  * Everything here is computed from responses that already exist:
  *   GET /health                  -> reachability, name, version
  *   GET /updates/settings, /runs -> checker schedule and run history
- *   GET /updates/trackers        -> per-source health (see deriveSourceHealth)
+ *   GET /sources/health          -> per-source reachability (see deriveSourceHealth)
  *
  * Nothing is invented. Where the backend exposes no number, the corresponding
  * field is `unknown` and the UI says so rather than showing a plausible zero.
@@ -190,130 +186,85 @@ export function deriveCheckerHealth(input: {
 
 export interface SourceHealth {
   source: string;
-  /** Display name from GET /updates/sources, when that source is installed. */
+  /** Display name from GET /sources/health. */
   name: string | null;
-  /** Followed + downloaded series pointing at this source. */
-  trackedCount: number;
-  /** Trackers whose last check recorded an error. */
-  failingCount: number;
-  /** The most recent error recorded against this source, if any. */
+  /** Consecutive failed probes recorded against this source. */
+  consecutiveFailures: number;
+  /** Whether search ordering currently pushes this source down. */
+  demoted: boolean;
+  /** The most recent error text the source raised, if any. */
   lastError: string | null;
-  /** Most recent successful-or-attempted check across this source's trackers. */
+  /** When the source was last probed (accurate to within ~6h — see 1a). */
   lastCheckedAt: string | null;
+  /** When the source last answered successfully. */
+  lastOkAt: string | null;
   state: HealthState;
   message: string;
 }
 
-function laterIso(a: string | null, b: string | null): string | null {
-  if (!a) return b;
-  if (!b) return a;
-  return a >= b ? a : b;
-}
-
 /**
- * Per-source health, derived from tracker rows.
+ * Per-source health, straight from `GET /sources/health` (1a).
  *
- * There is no source-health endpoint: `GET /sources` lists installed connectors
- * and says nothing about whether they still work. What the backend does record
- * is `SeriesTracker.last_error`, written whenever a connector throws during a
- * check and cleared on the next success (update_service.py:1282, 1301, 1336).
- * Grouping trackers by source therefore gives a genuine, if indirect, "is this
- * connector still alive" signal — and it is the only one available.
+ * Health is recorded globally by the federated-search fan-out: every installed
+ * source is probed on every search, and a row is written when the outcome
+ * changes something observable. The endpoint returns the same rows as
+ * `GET /sources`, ordered worst-first, and is already scoped by the caller's
+ * 18+ gate, so nothing here has to re-filter.
  *
- * Consequences, which the page states plainly rather than papering over:
- *   - a source with no followed/downloaded series has no signal at all
- *     (`unknown`, not `ok`);
- *   - trackers are scoped per (user, profile), so this reflects the profile the
- *     page is being viewed under.
+ * `unknown` is a real state, not a synonym for `ok`: a source installed since
+ * the last search has no evidence either way, and presenting that as healthy is
+ * how ~100 dead connectors stayed invisible.
  */
 export function deriveSourceHealth(
-  trackers: SeriesTracker[] | undefined,
-  sources: UpdateSource[] | undefined,
+  rows: SourceHealthRow[] | undefined,
 ): SourceHealth[] {
-  const names = new Map((sources ?? []).map((source) => [source.source_type, source.name]));
-  const bySource = new Map<string, SourceHealth>();
-  /** When each source's currently-reported error was recorded, for freshness. */
-  const errorRecordedAt = new Map<string, string | null>();
-
-  const ensure = (source: string): SourceHealth => {
-    const existing = bySource.get(source);
-    if (existing) return existing;
-    const created: SourceHealth = {
-      source,
-      name: names.get(source) ?? null,
-      trackedCount: 0,
-      failingCount: 0,
-      lastError: null,
-      lastCheckedAt: null,
-      state: "unknown",
-      message: "",
+  const mapped = (rows ?? []).map((row): SourceHealth => {
+    const h = row.health;
+    const base = {
+      source: row.source_id || row.id,
+      name: row.name || null,
+      consecutiveFailures: h.consecutive_failures,
+      demoted: h.demoted,
+      lastError: h.last_error,
+      lastCheckedAt: h.last_checked_at,
+      lastOkAt: h.last_ok_at,
     };
-    bySource.set(source, created);
-    return created;
-  };
-
-  // Seed every installed source so one that has quietly lost all its follows
-  // still appears, rather than vanishing from the report.
-  for (const source of sources ?? []) {
-    ensure(source.source_type);
-  }
-
-  for (const tracker of trackers ?? []) {
-    const row = ensure(tracker.source);
-    row.trackedCount += 1;
-    row.lastCheckedAt = laterIso(row.lastCheckedAt, tracker.last_checked_at);
-    if (tracker.last_error) {
-      row.failingCount += 1;
-      // Keep the error belonging to the most recently checked failing tracker:
-      // that is the freshest evidence of what is wrong.
-      const currentAt = errorRecordedAt.get(tracker.source) ?? null;
-      if (row.lastError === null || laterIso(currentAt, tracker.last_checked_at) !== currentAt) {
-        row.lastError = tracker.last_error;
-        errorRecordedAt.set(tracker.source, tracker.last_checked_at);
-      }
+    switch (h.status) {
+      case "dead":
+        return {
+          ...base,
+          state: "down",
+          message: `Unreachable on the last ${h.consecutive_failures} searches — treat as dead.`,
+        };
+      case "failing":
+        return {
+          ...base,
+          state: "warn",
+          message:
+            h.consecutive_failures === 1
+              ? "Failed its most recent probe."
+              : `Failed its last ${h.consecutive_failures} probes${h.demoted ? " (demoted in search)" : ""}.`,
+        };
+      case "unknown":
+        return {
+          ...base,
+          state: "unknown",
+          message: "Never probed yet, so there is nothing to report.",
+        };
+      case "ok":
+      default:
+        return {
+          ...base,
+          state: "ok",
+          message: "Answered its last probe.",
+        };
     }
-  }
-
-  const rows = Array.from(bySource.values()).map((row) => {
-    if (row.trackedCount === 0) {
-      return {
-        ...row,
-        state: "unknown" as HealthState,
-        message: "No followed or downloaded series uses this source, so there is nothing to report.",
-      };
-    }
-    if (row.failingCount === row.trackedCount) {
-      return {
-        ...row,
-        state: "down" as HealthState,
-        message: `Every tracked series on this source failed its last check (${row.failingCount}).`,
-      };
-    }
-    if (row.failingCount > 0) {
-      return {
-        ...row,
-        state: "warn" as HealthState,
-        message: `${row.failingCount} of ${row.trackedCount} tracked series failed their last check.`,
-      };
-    }
-    if (row.lastCheckedAt === null) {
-      return {
-        ...row,
-        state: "unknown" as HealthState,
-        message: "Tracked, but never checked yet.",
-      };
-    }
-    return {
-      ...row,
-      state: "ok" as HealthState,
-      message: `All ${row.trackedCount} tracked series checked without error.`,
-    };
   });
 
-  return rows.sort(
+  return mapped.sort(
     (a, b) =>
       STATE_SEVERITY[b.state] - STATE_SEVERITY[a.state] ||
-      b.failingCount - a.failingCount ||
+      b.consecutiveFailures - a.consecutiveFailures ||
       a.source.localeCompare(b.source),
   );
 }

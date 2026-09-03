@@ -5,7 +5,7 @@ import Link from "next/link";
 import { Loader2, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { HeroHeading } from "@/components/premium/HeroHeading";
-import { useFollowedIndex } from "@/features/library";
+import { useFollowedIndex } from "@/features/library/hooks";
 import { ApiError } from "@/types/api";
 import { useOcrSearch } from "../hooks";
 import { ocrResultHref } from "../result-link";

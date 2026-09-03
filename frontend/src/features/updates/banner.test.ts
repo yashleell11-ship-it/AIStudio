@@ -5,17 +5,17 @@ import type { UpdateNotification } from "./types";
 /**
  * The new-chapters banner's visibility is a pure function of the unread
  * notifications and the session dismissal watermark. These exercise that
- * selector directly (no renderer), matching the hook-logic test style used
- * across this suite (see hooks.test.ts).
+ * selector directly (no renderer).
  */
-function notification(overrides: Partial<UpdateNotification> = {}): UpdateNotification {
+function notification(
+  overrides: Partial<UpdateNotification> = {},
+): UpdateNotification {
   return {
     id: 1,
-    tracker_id: 1,
-    source: "mangadex",
-    series_id: "series-1",
-    series_title: "Test Series",
-    chapter_id: "ch-1",
+    followed_series_id: 1,
+    source_id: "mangadex",
+    series_key: "series-1",
+    chapter_key: "ch-1",
     chapter_title: "Chapter 1",
     chapter_number: 1,
     is_read: false,
@@ -38,26 +38,37 @@ describe("computeNewChaptersBanner", () => {
   it("shows with counts and latest id when unread and never dismissed", () => {
     const state = computeNewChaptersBanner(
       [
-        notification({ id: 3, series_id: "a" }),
-        notification({ id: 7, series_id: "b" }),
-        notification({ id: 5, series_id: "a" }),
+        notification({ id: 3, series_key: "a" }),
+        notification({ id: 7, series_key: "b" }),
+        notification({ id: 5, series_key: "a" }),
       ],
       null,
     );
     expect(state).toEqual({ show: true, count: 3, seriesCount: 2, latestId: 7 });
   });
 
-  it("counts distinct series, not notifications", () => {
+  it("counts distinct series (by source+key), not notifications", () => {
     const state = computeNewChaptersBanner(
       [
-        notification({ id: 1, series_id: "a" }),
-        notification({ id: 2, series_id: "a" }),
-        notification({ id: 3, series_id: "a" }),
+        notification({ id: 1, series_key: "a" }),
+        notification({ id: 2, series_key: "a" }),
+        notification({ id: 3, series_key: "a" }),
       ],
       null,
     );
     expect(state.count).toBe(3);
     expect(state.seriesCount).toBe(1);
+  });
+
+  it("treats the same series_key on different sources as distinct series", () => {
+    const state = computeNewChaptersBanner(
+      [
+        notification({ id: 1, source_id: "a", series_key: "x" }),
+        notification({ id: 2, source_id: "b", series_key: "x" }),
+      ],
+      null,
+    );
+    expect(state.seriesCount).toBe(2);
   });
 
   it("is hidden after dismissing at the current latest id", () => {
@@ -68,7 +79,6 @@ describe("computeNewChaptersBanner", () => {
   });
 
   it("re-appears when a newer chapter arrives after dismissal", () => {
-    // Dismissed watermark is 9; a notification with id 12 is genuinely newer.
     const state = computeNewChaptersBanner(
       [notification({ id: 9 }), notification({ id: 12 })],
       9,

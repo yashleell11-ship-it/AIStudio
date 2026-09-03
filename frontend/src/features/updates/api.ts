@@ -1,83 +1,37 @@
 import { http } from "@/services/http";
-import type {
-  MigrateTrackerRequest,
-  MigrationCandidatesResponse,
-  MigrationPlan,
-  SeriesTracker,
-  UpdateNotification,
-  UpdateRun,
-  UpdateSettings,
-  UpdateSource,
-} from "./types";
+import type { UpdateNotification, UpdateRun, UpdateSettings } from "./types";
 
 export const updatesApi = {
+  // --- settings (GET / PUT, not PATCH) ---
   settings: () => http.get<UpdateSettings>("/updates/settings"),
 
   updateSettings: (body: Partial<UpdateSettings>) =>
     http.put<UpdateSettings>("/updates/settings", body),
 
-  sources: () => http.get<UpdateSource[]>("/updates/sources"),
-
-  trackers: (params?: { track_kind?: string; source?: string }) =>
-    http.get<SeriesTracker[]>("/updates/trackers", { query: params }),
-
-  // `genres` is the caller's already-in-hand genre list (routes/updates.py:45-53).
-  // Advisory and optional: it is the only machine-readable adult signal most
-  // sources expose, and taking it from the caller keeps a write path off the
-  // scrapers. Absent or empty means "no signal" — the tracker's rating stays
-  // *unknown* (badged, overridable), never silently "safe".
-  follow: (body: {
-    source: string;
-    series_id: string;
-    series_title: string;
-    genres?: string[];
-  }) => http.post<SeriesTracker>("/updates/trackers/follow", body),
-
-  updateTracker: (trackerId: number, body: Partial<SeriesTracker>) =>
-    http.patch<SeriesTracker>(`/updates/trackers/${trackerId}`, body),
-
-  unfollow: (trackerId: number) =>
-    http.delete<{ deleted: boolean }>(`/updates/trackers/${trackerId}`),
-
-  migrationCandidates: (
-    trackerId: number,
-    params?: { q?: string; per_page?: number },
-  ) =>
-    http.get<MigrationCandidatesResponse>(
-      `/updates/trackers/${trackerId}/migration-candidates`,
-      { query: params },
-    ),
-
-  // Preview and commit are the same call; `dry_run` decides whether anything
-  // is written. Both return the identical shape.
-  migrateTracker: (trackerId: number, body: MigrateTrackerRequest) =>
-    http.post<MigrationPlan>(`/updates/trackers/${trackerId}/migrate`, body),
-
-  syncDownloaded: () =>
-    http.post<{ created: number; updated: number; total: number }>(
-      "/updates/trackers/sync-downloaded",
-    ),
-
+  // --- notifications ---
   notifications: (params?: { unread_only?: boolean; limit?: number }) =>
     http.get<UpdateNotification[]>("/updates/notifications", { query: params }),
 
-  unreadCount: () => http.get<{ count: number }>("/updates/notifications/unread-count"),
+  unreadCount: () =>
+    http.get<{ count: number }>("/updates/notifications/unread-count"),
 
   markRead: (notificationId: number) =>
-    http.patch<UpdateNotification>(`/updates/notifications/${notificationId}/read`),
-
-  markAllRead: () => http.post<{ marked_read: number }>("/updates/notifications/read-all"),
-
-  runs: (limit?: number) =>
-    http.get<UpdateRun[]>("/updates/runs", { query: limit ? { limit } : undefined }),
-
-  check: (body?: { tracker_ids?: number[] }) => http.post<UpdateRun | { queued: boolean }>(
-    "/updates/check",
-    body ?? {},
-  ),
-
-  checkTracker: (trackerId: number) =>
-    http.post<{ tracker_id: number; new_chapters: number; tracker: SeriesTracker }>(
-      `/updates/trackers/${trackerId}/check`,
+    http.patch<UpdateNotification>(
+      `/updates/notifications/${notificationId}/read`,
     ),
+
+  markAllRead: () =>
+    http.post<{ updated: number }>("/updates/notifications/read-all"),
+
+  // --- runs & manual checks ---
+  runs: (limit?: number) =>
+    http.get<UpdateRun[]>("/updates/runs", {
+      query: limit ? { limit } : undefined,
+    }),
+
+  check: (body?: { followed_ids?: number[] }) =>
+    http.post<UpdateRun | { queued: boolean }>("/updates/check", body ?? {}),
+
+  checkFollowed: (followedId: number) =>
+    http.post<UpdateRun>(`/updates/followed/${followedId}/check`),
 };

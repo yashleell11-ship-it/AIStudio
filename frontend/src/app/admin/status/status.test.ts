@@ -1,12 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { describeCheckSchedule } from "@/features/updates/notifications";
-import type {
-  SeriesTracker,
-  UpdateRun,
-  UpdateSettings,
-  UpdateSource,
-} from "@/features/updates/types";
+import type { UpdateRun, UpdateSettings } from "@/features/updates/types";
 import { ApiError } from "@/types/api";
+import type { SourceHealthRow } from "./api";
 import {
   deriveBackendHealth,
   deriveCheckerHealth,
@@ -35,37 +31,34 @@ function settings(overrides: Partial<UpdateSettings> = {}): UpdateSettings {
     enabled: true,
     check_interval_minutes: 60,
     notify_enabled: true,
-    auto_download_enabled: false,
     check_on_startup: true,
     last_run_at: "2026-07-28T11:30:00Z",
-    updated_at: null,
     ...overrides,
   };
 }
 
-function tracker(overrides: Partial<SeriesTracker> = {}): SeriesTracker {
+function sourceRow(
+  source_id: string,
+  health: Partial<SourceHealthRow["health"]> = {},
+  name = source_id,
+): SourceHealthRow {
   return {
-    id: 1,
-    source: "mangadex",
-    series_id: "series-1",
-    series_title: "Solo Leveling",
-    track_kind: "followed",
-    local_series_id: null,
-    enabled: true,
-    notify: true,
-    auto_download: false,
-    check_interval_minutes: null,
-    known_chapter_count: 10,
-    last_checked_at: "2026-07-28T11:00:00Z",
-    last_error: null,
-    created_at: null,
-    updated_at: null,
-    ...overrides,
+    id: source_id,
+    source_id,
+    name,
+    mature: false,
+    health: {
+      status: "ok",
+      consecutive_failures: 0,
+      demoted: false,
+      last_ok_at: "2026-07-28T11:00:00Z",
+      last_error_at: null,
+      last_error: null,
+      last_checked_at: "2026-07-28T11:00:00Z",
+      ...health,
+    },
   };
 }
-
-
-const source = (source_type: string, name: string): UpdateSource => ({ source_type, name });
 
 const NOON = Date.parse("2026-07-28T12:00:00Z");
 
@@ -84,7 +77,11 @@ describe("worstState", () => {
 
 describe("deriveBackendHealth", () => {
   it("is unknown while the probe is in flight", () => {
-    const health = deriveBackendHealth({ status: undefined, error: null, isLoading: true });
+    const health = deriveBackendHealth({
+      status: undefined,
+      error: null,
+      isLoading: true,
+    });
 
     expect(health.state).toBe("unknown");
     expect(health.reachable).toBe(false);
@@ -93,7 +90,10 @@ describe("deriveBackendHealth", () => {
   it("reports a transport failure as unreachable, not as an error response", () => {
     const health = deriveBackendHealth({
       status: undefined,
-      error: new ApiError(0, { code: "network_error", message: "Could not reach the server." }),
+      error: new ApiError(0, {
+        code: "network_error",
+        message: "Could not reach the server.",
+      }),
       isLoading: false,
     });
 
@@ -105,7 +105,10 @@ describe("deriveBackendHealth", () => {
   it("surfaces the server's own message when it answered with an error", () => {
     const health = deriveBackendHealth({
       status: undefined,
-      error: new ApiError(503, { code: "unavailable", message: "database is locked" }),
+      error: new ApiError(503, {
+        code: "unavailable",
+        message: "database is locked",
+      }),
       isLoading: false,
     });
 
@@ -120,7 +123,11 @@ describe("deriveBackendHealth", () => {
       isLoading: false,
     });
 
-    expect(health).toMatchObject({ state: "ok", reachable: true, version: "1.4.2" });
+    expect(health).toMatchObject({
+      state: "ok",
+      reachable: true,
+      version: "1.4.2",
+    });
   });
 
   it("warns when the API answers with a status other than online", () => {
@@ -197,7 +204,10 @@ describe("deriveCheckerHealth", () => {
   it("ignores an in-progress run when measuring the failure streak", () => {
     const health = deriveCheckerHealth({
       settings: settings(),
-      runs: [run({ id: 4, status: "running", finished_at: null }), run({ id: 3, status: "completed" })],
+      runs: [
+        run({ id: 4, status: "running", finished_at: null }),
+        run({ id: 3, status: "completed" }),
+      ],
       schedule: schedule(),
       isLoading: false,
     });
@@ -245,97 +255,80 @@ describe("deriveCheckerHealth", () => {
 });
 
 describe("deriveSourceHealth", () => {
-  it("reports an installed source with no trackers as unknown, never as healthy", () => {
-    const rows = deriveSourceHealth([], [source("mangadex", "MangaDex")]);
-
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toMatchObject({ source: "mangadex", state: "unknown", trackedCount: 0 });
+  it("returns an empty list when nothing is installed", () => {
+    expect(deriveSourceHealth(undefined)).toEqual([]);
+    expect(deriveSourceHealth([])).toEqual([]);
   });
 
-  it("is down when every tracked series on a source failed its last check", () => {
-    const rows = deriveSourceHealth(
-      [
-        tracker({ id: 1, source: "deadsource", last_error: "HTTP 522" }),
-        tracker({ id: 2, source: "deadsource", last_error: "HTTP 522" }),
-      ],
-      [source("deadsource", "Dead Source")],
-    );
+  it("maps an answering source to ok", () => {
+    const rows = deriveSourceHealth([sourceRow("mangadex", { status: "ok" }, "MangaDex")]);
 
     expect(rows[0]).toMatchObject({
-      source: "deadsource",
-      state: "down",
-      trackedCount: 2,
-      failingCount: 2,
-      lastError: "HTTP 522",
-      name: "Dead Source",
+      source: "mangadex",
+      name: "MangaDex",
+      state: "ok",
     });
   });
 
-  it("warns when only some tracked series on a source are failing", () => {
-    const rows = deriveSourceHealth(
-      [
-        tracker({ id: 1, source: "mangadex", last_error: "HTTP 404" }),
-        tracker({ id: 2, source: "mangadex", last_error: null }),
-      ],
-      [source("mangadex", "MangaDex")],
-    );
+  it("maps a failing source to warn and surfaces the streak + error", () => {
+    const rows = deriveSourceHealth([
+      sourceRow("flaky", {
+        status: "failing",
+        consecutive_failures: 2,
+        last_error: "HTTP 522",
+        demoted: false,
+      }),
+    ]);
 
     expect(rows[0].state).toBe("warn");
-    expect(rows[0].message).toBe("1 of 2 tracked series failed their last check.");
+    expect(rows[0].consecutiveFailures).toBe(2);
+    expect(rows[0].lastError).toBe("HTTP 522");
+    expect(rows[0].message).toContain("last 2 probes");
   });
 
-  it("keeps the error from the most recently checked failing tracker", () => {
-    const rows = deriveSourceHealth(
-      [
-        tracker({
-          id: 1,
-          source: "mangadex",
-          last_error: "stale error",
-          last_checked_at: "2026-07-28T09:00:00Z",
-        }),
-        tracker({
-          id: 2,
-          source: "mangadex",
-          last_error: "fresh error",
-          last_checked_at: "2026-07-28T11:00:00Z",
-        }),
-      ],
-      [],
-    );
+  it("maps a dead source to down", () => {
+    const rows = deriveSourceHealth([
+      sourceRow("gone", {
+        status: "dead",
+        consecutive_failures: 10,
+        last_error: "NXDOMAIN",
+        demoted: true,
+      }),
+    ]);
 
-    expect(rows[0].lastError).toBe("fresh error");
-    expect(rows[0].lastCheckedAt).toBe("2026-07-28T11:00:00Z");
+    expect(rows[0].state).toBe("down");
+    expect(rows[0].demoted).toBe(true);
+    expect(rows[0].message).toContain("dead");
   });
 
-  it("reports a tracked-but-never-checked source as unknown", () => {
-    const rows = deriveSourceHealth([tracker({ last_checked_at: null })], []);
+  it("maps a never-probed source to unknown, never to healthy", () => {
+    const rows = deriveSourceHealth([
+      sourceRow("fresh", {
+        status: "unknown",
+        last_ok_at: null,
+        last_checked_at: null,
+      }),
+    ]);
 
     expect(rows[0].state).toBe("unknown");
-    expect(rows[0].message).toBe("Tracked, but never checked yet.");
-  });
-
-  it("includes sources that have trackers but are no longer installed", () => {
-    const rows = deriveSourceHealth([tracker({ source: "uninstalled" })], [source("mangadex", "MangaDex")]);
-
-    expect(rows.map((row) => row.source).sort()).toEqual(["mangadex", "uninstalled"]);
-    expect(rows.find((row) => row.source === "uninstalled")?.name).toBeNull();
   });
 
   it("sorts the most broken sources first", () => {
-    const rows = deriveSourceHealth(
-      [
-        tracker({ id: 1, source: "healthy" }),
-        tracker({ id: 2, source: "broken", last_error: "boom" }),
-        tracker({ id: 3, source: "partial", last_error: "boom" }),
-        tracker({ id: 4, source: "partial" }),
-      ],
-      [source("idle", "Idle")],
-    );
+    const rows = deriveSourceHealth([
+      sourceRow("healthy", { status: "ok" }),
+      sourceRow("dead", { status: "dead", consecutive_failures: 10 }),
+      sourceRow("failing", { status: "failing", consecutive_failures: 3 }),
+      sourceRow("fresh", { status: "unknown" }),
+    ]);
 
-    expect(rows.map((row) => row.source)).toEqual(["broken", "partial", "idle", "healthy"]);
+    expect(rows.map((row) => row.source)).toEqual([
+      "dead",
+      "failing",
+      "fresh",
+      "healthy",
+    ]);
   });
 });
-
 
 describe("deriveSystemSummary", () => {
   const healthy = (state: HealthState = "ok") => ({
@@ -351,8 +344,15 @@ describe("deriveSystemSummary", () => {
       isLoading: false,
     }),
     sources: deriveSourceHealth(
-      state === "ok" ? [tracker()] : [tracker({ last_error: "boom" })],
-      [],
+      state === "ok"
+        ? [sourceRow("mangadex", { status: "ok" }, "MangaDex")]
+        : [
+            sourceRow(
+              "mangadex",
+              { status: "dead", consecutive_failures: 10, last_error: "boom" },
+              "MangaDex",
+            ),
+          ],
     ),
   });
 
@@ -369,12 +369,18 @@ describe("deriveSystemSummary", () => {
 
     expect(summary.state).toBe("down");
     expect(summary.problems).toHaveLength(1);
-    expect(summary.problems.some((problem) => problem.includes("mangadex"))).toBe(true);
+    expect(summary.problems.some((problem) => problem.includes("MangaDex"))).toBe(
+      true,
+    );
   });
 
   it("reports unknown, not healthy, while data is still arriving", () => {
     const summary = deriveSystemSummary({
-      backend: deriveBackendHealth({ status: undefined, error: null, isLoading: true }),
+      backend: deriveBackendHealth({
+        status: undefined,
+        error: null,
+        isLoading: true,
+      }),
       checker: deriveCheckerHealth({
         settings: undefined,
         runs: undefined,
