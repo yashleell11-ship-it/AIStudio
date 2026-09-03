@@ -130,6 +130,24 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.8.1",
+        build=22,
+        date="September 2026",
+        highlights=[
+            "Chapters from Toonily and the dozen sources like it open again. "
+            "Their chapter ids contain a slash, which the reader route was "
+            "encoding wrongly — every one of them dead-ended on an error screen",
+            "Covers and pages load on 18+-enabled profiles. Image requests were "
+            "missing the profile header, so the listing showed a series whose "
+            "artwork then 404'd",
+            "Accounts: you can invite someone with a code instead of leaving "
+            "registration open to anyone who finds the site",
+            "Chapter titles read \"Chapter 1\" again, not \"Chapter 1.0\"",
+            "The app now talks to the rebuilt server, which no longer stores a "
+            "single chapter image — downloads are moving onto the phone itself",
+        ],
+    ),
+    ChangelogEntry(
         version="1.8.0",
         build=22,
         date="July 2026",
