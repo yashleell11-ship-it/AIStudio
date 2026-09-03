@@ -44,15 +44,6 @@ export function useSeries(followedId: number | null) {
   });
 }
 
-/** Detail for a `(source, series_key)` that may not be followed yet. */
-export function useSeriesByKey(ref: SeriesId | null) {
-  return useQuery({
-    queryKey: [...LIBRARY_KEY, "series-by-key", ref?.sourceId, ref?.seriesKey],
-    queryFn: () => libraryApi.getSeriesByKey(ref!),
-    enabled: ref !== null,
-  });
-}
-
 export function useContinueReading(limit = 10) {
   return useQuery({
     queryKey: [...LIBRARY_KEY, "continue-reading", limit],

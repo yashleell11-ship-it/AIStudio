@@ -1,5 +1,5 @@
 import { env } from "@/config/env";
-import { http, sourceChapterQuery } from "@/services/http";
+import { http } from "@/services/http";
 import type { SeriesId } from "@/types/api";
 import type {
   Bookmark,
@@ -62,12 +62,6 @@ export const libraryApi = {
 
   getSeries: (followedId: number) =>
     http.get<SeriesDetail>(`/library/series/${followedId}`),
-
-  /** Detail for a source series that may not be followed yet. */
-  getSeriesByKey: (ref: SeriesId) =>
-    http.get<SeriesDetail>("/library/series", {
-      query: sourceChapterQuery(ref),
-    }),
 
   // --- Follow / unfollow ---
   follow: (ref: SeriesId) =>
