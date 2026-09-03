@@ -5,6 +5,7 @@ import Link from "next/link";
 import {
   Activity,
   Bell,
+  BookOpenText,
   ChevronRight,
   History,
   Keyboard,
@@ -13,14 +14,23 @@ import {
 } from "lucide-react";
 import { NotificationSettingsPanel } from "@/features/updates";
 import { useCurrentUser } from "@/features/auth/hooks";
-import { AppearancePanel, MatureContentPanel } from "@/features/preferences";
+import {
+  AppearancePanel,
+  MatureContentPanel,
+  ReaderPanel,
+} from "@/features/preferences";
 import { KeyboardShortcutsPanel } from "@/components/settings/keyboard-shortcuts-panel";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { GlassPanel } from "@/components/premium/GlassPanel";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
 
-type SettingsTab = "appearance" | "notifications" | "content" | "shortcuts";
+type SettingsTab =
+  | "appearance"
+  | "reader"
+  | "notifications"
+  | "content"
+  | "shortcuts";
 
 const NAV_ITEMS: {
   id: SettingsTab;
@@ -33,6 +43,12 @@ const NAV_ITEMS: {
     label: "Appearance",
     icon: Palette,
     description: "Reading theme",
+  },
+  {
+    id: "reader",
+    label: "Reader",
+    icon: BookOpenText,
+    description: "Page gap and cinema mode",
   },
   {
     id: "notifications",
@@ -102,8 +118,8 @@ export default function SettingsPage() {
             Settings
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            Choose your reading theme, and configure automatic updates, mature
-            content, and keyboard shortcuts.
+            Choose your reading theme, tune the reader, and configure automatic
+            updates, mature content, and keyboard shortcuts.
           </p>
         </FadeIn>
 
@@ -165,6 +181,7 @@ export default function SettingsPage() {
           <FadeIn y={20} delay={0.15} className="min-w-0 flex-1">
             <div className="space-y-6">
               {activeTab === "appearance" && <AppearancePanel />}
+              {activeTab === "reader" && <ReaderPanel />}
               {activeTab === "notifications" && <NotificationSettingsPanel />}
               {activeTab === "content" && <MatureContentPanel />}
               {activeTab === "shortcuts" && <KeyboardShortcutsPanel />}

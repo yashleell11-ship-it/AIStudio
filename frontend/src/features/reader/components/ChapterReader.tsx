@@ -23,9 +23,11 @@ import { readScrollPosition, writeScrollPosition } from "../scroll-storage";
 import { scrubPercent } from "../scrub";
 import { buildPageViews, findViewIndex, viewLeadPage } from "../spread";
 import { useReaderStore } from "../store";
+import { useCinema } from "../use-cinema";
 import { useChapterPreload } from "../use-chapter-preload";
 import { useFullscreen } from "../use-fullscreen";
 import { useReaderPreferences } from "../use-reader-preferences";
+import { useReaderSettings } from "../use-reader-settings";
 import { useReaderShortcuts } from "../use-reader-shortcuts";
 import type { ReaderChapterContent, ReadingMode } from "../types";
 import { PagedView } from "./PagedView";
@@ -88,8 +90,8 @@ export function ChapterReader({
   const scrollElement = useScrollContainer();
   const controlsVisible = useReaderStore((state) => state.controlsVisible);
   const toggleControls = useReaderStore((state) => state.toggleControls);
-  const pageGap = useReaderStore((state) => state.pageGap);
-  const togglePageGap = useReaderStore((state) => state.togglePageGap);
+  const setControlsVisible = useReaderStore((state) => state.setControlsVisible);
+  const { pageGap, cinema, togglePageGap, setCinema } = useReaderSettings();
 
   const {
     readingMode,
@@ -123,6 +125,21 @@ export function ChapterReader({
     marginWash === "transparent"
       ? undefined
       : `linear-gradient(90deg, ${marginWash} 0%, transparent calc((100% - 48rem) / 2), transparent calc(100% - (100% - 48rem) / 2), ${marginWash} 100%)`;
+
+  const cinemaCtl = useCinema({
+    persistedEnabled: cinema,
+    scrollElement,
+    active: Boolean(chapter) && !isLoading && !error,
+    onEnabledChange: setCinema,
+  });
+
+  // The chrome follows cinema mode while it is engaged; otherwise the plain
+  // tap-to-toggle store value. Turning cinema off always leaves the chrome up.
+  const chromeVisible = cinemaCtl.enabled ? cinemaCtl.chromeVisible : controlsVisible;
+  const toggleCinema = useCallback(() => {
+    cinemaCtl.toggle();
+    if (cinemaCtl.enabled) setControlsVisible(true);
+  }, [cinemaCtl, setControlsVisible]);
 
   useEffect(() => {
     readingModeRef.current = readingMode;
@@ -391,12 +408,15 @@ export function ChapterReader({
   const handleTap = useCallback(
     (zone: TapZone) => {
       if (zone === "toggle") {
-        toggleControls();
+        // In cinema mode a tap reveals the chrome (and re-arms the idle timer)
+        // rather than latching it on/off — the timeout owns hiding it again.
+        if (cinemaCtl.enabled) cinemaCtl.notifyActivity();
+        else toggleControls();
         return;
       }
       turnPage(zone);
     },
-    [toggleControls, turnPage],
+    [cinemaCtl, toggleControls, turnPage],
   );
 
   const handleBookmark = useCallback(() => {
@@ -464,9 +484,15 @@ export function ChapterReader({
         fullscreen.exit();
         return;
       default:
+        // Peel cinema mode before leaving the reader, so Escape doesn't drop
+        // the reader and the immersive chrome in one press.
+        if (cinemaCtl.enabled) {
+          toggleCinema();
+          return;
+        }
         router.push(seriesHref);
     }
-  }, [fullscreen, helpOpen, router, seriesHref]);
+  }, [cinemaCtl.enabled, fullscreen, helpOpen, router, seriesHref, toggleCinema]);
 
   /**
    * Leave the chapter for its series page.
@@ -487,6 +513,7 @@ export function ChapterReader({
     onFirstPage: () => goToPage(1),
     onLastPage: () => goToPage(pages.length),
     onToggleFullscreen: fullscreen.toggle,
+    onToggleCinema: toggleCinema,
     onEscape: handleEscape,
     onToggleHelp: () => setHelpOpen((open) => !open),
     onPreviousChapter: goPreviousChapter,
@@ -559,7 +586,14 @@ export function ChapterReader({
       style={gutterBackground ? { background: gutterBackground } : undefined}
       // The paged view owns its own clicks (edge zones turn the page), so the
       // tap-anywhere toggle is wired only for the strip.
-      onClick={continuous ? () => toggleControls() : undefined}
+      onClick={
+        continuous
+          ? () => {
+              if (cinemaCtl.enabled) cinemaCtl.notifyActivity();
+              else toggleControls();
+            }
+          : undefined
+      }
       role="presentation"
     >
       {/*
@@ -571,14 +605,17 @@ export function ChapterReader({
         <OfflineChapterControl
           chapter={chapter}
           visiblePage={visiblePage}
-          visible={controlsVisible}
+          visible={chromeVisible}
         />
       </div>
 
       <div
         className={cn(
-          "pointer-events-none fixed left-1/2 top-4 z-20 -translate-x-1/2 transition-opacity duration-300",
-          controlsVisible ? "opacity-0" : "opacity-100",
+          "pointer-events-none fixed left-1/2 top-4 z-20 -translate-x-1/2",
+          cinemaCtl.reducedMotion ? "" : "transition-opacity duration-300",
+          // Cinema mode hides even this: revealed activity brings the full
+          // control bar (which carries the page count) back instead.
+          !chromeVisible && !cinemaCtl.enabled ? "opacity-100" : "opacity-0",
         )}
       >
         <div className="glass-panel rounded-full px-4 py-1.5 font-mono text-xs tabular-nums text-primary">
@@ -656,6 +693,8 @@ export function ChapterReader({
           onShowShortcuts={() => setHelpOpen(true)}
           pageGap={pageGap}
           onTogglePageGap={continuous ? togglePageGap : undefined}
+          cinema={cinemaCtl.enabled}
+          onToggleCinema={toggleCinema}
           onBookmark={onBookmark ? handleBookmark : undefined}
           previousChapterHref={previousChapterHref}
           nextChapterHref={nextChapterHref}
@@ -663,7 +702,7 @@ export function ChapterReader({
           onOpenSeries={openSeries}
           bookmarkPending={bookmarkPending}
           showBookmark={showBookmark}
-          visible={controlsVisible}
+          visible={chromeVisible}
         />
         <ShortcutsOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       </div>

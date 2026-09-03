@@ -2,6 +2,7 @@
 
 import { useShortcut } from "@/lib/keyboard";
 import {
+  CINEMA_SHORTCUT_KEYS,
   HELP_SHORTCUT_KEYS,
   SERIES_SHORTCUT_KEYS,
   horizontalTurn,
@@ -19,6 +20,7 @@ export interface ReaderShortcutHandlers {
   onFirstPage: () => void;
   onLastPage: () => void;
   onToggleFullscreen: () => void;
+  onToggleCinema: () => void;
   onEscape: () => void;
   onToggleHelp: () => void;
   onPreviousChapter: () => void;
@@ -111,6 +113,14 @@ export function useReaderShortcuts(handlers: ReaderShortcutHandlers): void {
     description: "Toggle fullscreen",
     group: GROUP,
     handler: () => handlers.onToggleFullscreen(),
+  });
+
+  useShortcut({
+    id: "reader.cinema",
+    keys: CINEMA_SHORTCUT_KEYS,
+    description: "Toggle cinema mode (hide all chrome)",
+    group: GROUP,
+    handler: () => handlers.onToggleCinema(),
   });
 
   useShortcut({
