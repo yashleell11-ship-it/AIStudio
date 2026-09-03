@@ -17,7 +17,7 @@ import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
 import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
@@ -120,7 +120,7 @@ List<Override> _metadataCacheProviderOverrides() => [
 
 class _EmptyLibraryRepository implements LibraryRepository {
   @override
-  Future<Result<PagedResult<SeriesSummary>>> listSeries({
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
     int perPage = 20,
     String? sort,
@@ -145,19 +145,19 @@ class _EmptyLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyAdded({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyUpdated({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recommendations({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) =>
+  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) =>
       throw UnimplementedError();
 
   @override

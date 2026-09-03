@@ -12,7 +12,7 @@ import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
 import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/screens/library_screen.dart';
@@ -27,13 +27,13 @@ import '../../support/test_overrides.dart';
 class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository(this._items);
 
-  final List<SeriesSummary> _items;
+  final List<FollowedSeries> _items;
   String? lastSearch;
   String? lastReadingStatus;
   String? lastSort;
 
   @override
-  Future<Result<PagedResult<SeriesSummary>>> listSeries({
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
     int perPage = 20,
     String? sort,
@@ -47,7 +47,7 @@ class _FakeLibraryRepository implements LibraryRepository {
   }) async {
     lastSort = sort;
     lastReadingStatus = readingStatus;
-    var items = List<SeriesSummary>.from(_items);
+    var items = List<FollowedSeries>.from(_items);
     if (readingStatus != null) {
       items = items.where((item) => item.readingStatus == readingStatus).toList();
     }
@@ -115,15 +115,15 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyAdded({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyUpdated({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recommendations({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
@@ -135,7 +135,7 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) async {
+  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) async {
     lastSearch = query;
     final items = _items
         .where((item) => item.title.toLowerCase().contains(query.toLowerCase()))
@@ -191,7 +191,7 @@ Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
       libraryRepositoryProvider.overrideWithValue(
         repo ??
             _FakeLibraryRepository([
-              SeriesSummary(
+              FollowedSeries(
                 id: 1,
                 libraryId: 1,
                 title: 'Solo Leveling',
@@ -216,7 +216,7 @@ Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
                   lastReadAt: DateTime(2024, 6),
                 ),
               ),
-              SeriesSummary(
+              FollowedSeries(
                 id: 2,
                 libraryId: 1,
                 title: 'Tower of God',
@@ -266,7 +266,7 @@ void main() {
 
     testWidgets('search filters visible series', (tester) async {
       final repo = _FakeLibraryRepository([
-        SeriesSummary(
+        FollowedSeries(
           id: 1,
           libraryId: 1,
           title: 'Solo Leveling',
@@ -284,7 +284,7 @@ void main() {
           createdAt: DateTime(2024),
           updatedAt: DateTime(2024, 6),
         ),
-        SeriesSummary(
+        FollowedSeries(
           id: 2,
           libraryId: 1,
           title: 'Tower of God',
@@ -318,7 +318,7 @@ void main() {
 
     testWidgets('completed filter requests completed reading status', (tester) async {
       final repo = _FakeLibraryRepository([
-        SeriesSummary(
+        FollowedSeries(
           id: 2,
           libraryId: 1,
           title: 'Tower of God',

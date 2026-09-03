@@ -1,14 +1,9 @@
-enum LibraryFilter { all, downloaded, reading, completed }
+enum LibraryFilter { all, reading, completed }
 
-enum LibrarySort {
-  updated,
-  dateAdded,
-  title,
-  recent,
-  author,
-  year,
-  totalChapters,
-}
+/// Values `GET /library/series` understands via its `sort` query param
+/// (`FollowedSeriesService.list_series`). A leading `-` reverses; unused here
+/// since the toolbar only exposes forward orderings.
+enum LibrarySort { recentlyUpdated, recentlyAdded, title }
 
 enum LibraryViewMode { grid, list }
 
@@ -16,15 +11,14 @@ enum LibraryEmptyState { library, search, filter }
 
 /// Sort options exposed on the library browse screen.
 const libraryBrowseSortOptions = [
-  LibrarySort.recent,
-  LibrarySort.dateAdded,
+  LibrarySort.recentlyUpdated,
+  LibrarySort.recentlyAdded,
   LibrarySort.title,
 ];
 
 /// Filter chips exposed on the library browse screen.
 const libraryBrowseFilterOptions = [
   LibraryFilter.all,
-  LibraryFilter.downloaded,
   LibraryFilter.reading,
   LibraryFilter.completed,
 ];
@@ -32,7 +26,7 @@ const libraryBrowseFilterOptions = [
 class LibraryQuery {
   const LibraryQuery({
     this.search = '',
-    this.sort = LibrarySort.recent,
+    this.sort = LibrarySort.recentlyUpdated,
     this.filter = LibraryFilter.all,
     this.favoritesOnly = false,
     this.viewMode = LibraryViewMode.grid,
@@ -54,33 +48,20 @@ class LibraryQuery {
     return LibraryEmptyState.library;
   }
 
+  /// `GET /library/series` `reading_status` param — `null` clears the filter
+  /// (search or the "all" chip).
   String? get readingStatusParam {
-    if (isSearching) return null;
     return switch (filter) {
-      LibraryFilter.all || LibraryFilter.downloaded => null,
+      LibraryFilter.all => null,
       LibraryFilter.reading => 'reading',
       LibraryFilter.completed => 'completed',
     };
   }
 
-  bool? get hasChaptersParam {
-    return switch (filter) {
-      LibraryFilter.downloaded => true,
-      _ => null,
-    };
-  }
-
-  bool get usesListSeriesFetch =>
-      !isSearching || filter == LibraryFilter.downloaded;
-
   String get sortParam => switch (sort) {
-        LibrarySort.updated => 'updated',
-        LibrarySort.dateAdded => 'date_added',
+        LibrarySort.recentlyUpdated => 'recently_updated',
+        LibrarySort.recentlyAdded => 'recently_added',
         LibrarySort.title => 'title',
-        LibrarySort.recent => 'recent',
-        LibrarySort.author => 'author',
-        LibrarySort.year => 'year',
-        LibrarySort.totalChapters => 'total_chapters',
       };
 
   LibraryQuery copyWith({
@@ -115,20 +96,15 @@ class LibraryQuery {
 
 extension LibrarySortLabel on LibrarySort {
   String get label => switch (this) {
-        LibrarySort.updated => 'Recently Updated',
-        LibrarySort.dateAdded => 'Recently Added',
+        LibrarySort.recentlyUpdated => 'Recently Updated',
+        LibrarySort.recentlyAdded => 'Recently Added',
         LibrarySort.title => 'Alphabetical',
-        LibrarySort.recent => 'Recently Read',
-        LibrarySort.author => 'Author',
-        LibrarySort.year => 'Year',
-        LibrarySort.totalChapters => 'Total Chapters',
       };
 }
 
 extension LibraryFilterLabel on LibraryFilter {
   String get label => switch (this) {
         LibraryFilter.all => 'All',
-        LibraryFilter.downloaded => 'Downloaded',
         LibraryFilter.reading => 'Reading',
         LibraryFilter.completed => 'Completed',
       };

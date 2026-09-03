@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 
 void main() {
   final json = {
@@ -36,9 +36,9 @@ void main() {
     },
   };
 
-  group('SeriesSummary.fromJson', () {
+  group('FollowedSeries.fromJson', () {
     test('parses all fields', () {
-      final s = SeriesSummary.fromJson(json);
+      final s = FollowedSeries.fromJson(json);
       expect(s.id, 1);
       expect(s.title, 'Solo Leveling');
       expect(s.isFavorite, isTrue);
@@ -48,14 +48,14 @@ void main() {
     });
 
     test('computes readProgressPct', () {
-      final s = SeriesSummary.fromJson(json);
+      final s = FollowedSeries.fromJson(json);
       expect(s.readProgressPct, closeTo(50 / 179, 0.001));
     });
 
     test('handles null reading_progress', () {
       final noProgress = Map<String, dynamic>.from(json);
       noProgress['reading_progress'] = null;
-      final s = SeriesSummary.fromJson(noProgress);
+      final s = FollowedSeries.fromJson(noProgress);
       expect(s.readingProgress, isNull);
     });
   });

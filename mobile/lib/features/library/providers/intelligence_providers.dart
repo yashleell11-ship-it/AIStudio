@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 final statisticsProvider = FutureProvider.autoDispose<LibraryStatistics>((ref) async {
@@ -12,7 +12,7 @@ final statisticsProvider = FutureProvider.autoDispose<LibraryStatistics>((ref) a
 });
 
 final recommendationsProvider =
-    FutureProvider.autoDispose<List<SeriesSummary>>((ref) async {
+    FutureProvider.autoDispose<List<FollowedSeries>>((ref) async {
   final repo = ref.watch(libraryRepositoryProvider);
   final result = await repo.recommendations(limit: 12);
   if (result.isErr) throw result.error;

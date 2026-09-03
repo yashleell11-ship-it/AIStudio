@@ -8,7 +8,7 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -284,7 +284,7 @@ class RecentlyUpdatedCarousel extends ConsumerWidget {
     this.onViewAll,
   });
 
-  final List<SeriesSummary> series;
+  final List<FollowedSeries> series;
   final VoidCallback? onViewAll;
 
   @override

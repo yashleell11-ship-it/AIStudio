@@ -1,33 +1,38 @@
+/// `GET /library/continue-reading` item — progress-service shape. Carries no
+/// series/chapter title; callers resolve those by matching
+/// `(sourceId, seriesKey)` against the followed-series list they already
+/// hold, or by rendering the chapter number alone.
 class ContinueReadingItem {
   const ContinueReadingItem({
-    required this.seriesId,
-    required this.seriesTitle,
-    required this.chapterId,
-    required this.chapterTitle,
+    required this.sourceId,
+    required this.seriesKey,
+    required this.chapterKey,
+    this.chapterNumber,
     required this.lastPage,
-    required this.progressPct,
-    required this.lastReadAt,
-    this.coverPath,
+    required this.pageCount,
+    this.lastReadAt,
   });
 
-  final int seriesId;
-  final String seriesTitle;
-  final int chapterId;
-  final String chapterTitle;
+  final String sourceId;
+  final String seriesKey;
+  final String chapterKey;
+  final double? chapterNumber;
   final int lastPage;
-  final double progressPct;
-  final DateTime lastReadAt;
-  final String? coverPath;
+  final int pageCount;
+  final DateTime? lastReadAt;
+
+  double get progressPct => pageCount > 0 ? lastPage / pageCount : 0;
 
   factory ContinueReadingItem.fromJson(Map<String, dynamic> json) =>
       ContinueReadingItem(
-        seriesId: json['series_id'] as int,
-        seriesTitle: json['series_title'] as String,
-        chapterId: json['chapter_id'] as int,
-        chapterTitle: json['chapter_title'] as String,
-        lastPage: json['last_page'] as int,
-        progressPct: (json['progress_pct'] as num).toDouble(),
-        lastReadAt: DateTime.parse(json['last_read_at'] as String),
-        coverPath: json['cover_path'] as String?,
+        sourceId: json['source_id'] as String,
+        seriesKey: json['series_key'] as String,
+        chapterKey: json['chapter_key'] as String,
+        chapterNumber: (json['chapter_number'] as num?)?.toDouble(),
+        lastPage: (json['last_page'] as num?)?.toInt() ?? 1,
+        pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
+        lastReadAt: json['last_read_at'] != null
+            ? DateTime.tryParse(json['last_read_at'] as String)
+            : null,
       );
 }

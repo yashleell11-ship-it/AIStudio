@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/collections/providers/collections_provider.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 final collectionDetailProvider = AsyncNotifierProvider.autoDispose
@@ -76,7 +76,7 @@ class CollectionDetailNotifier
 }
 
 final librarySeriesPickerProvider =
-    FutureProvider.autoDispose<List<SeriesSummary>>((ref) async {
+    FutureProvider.autoDispose<List<FollowedSeries>>((ref) async {
   final repo = ref.watch(libraryRepositoryProvider);
   final result = await repo.listSeries(perPage: 200);
   if (result.isErr) throw result.error;

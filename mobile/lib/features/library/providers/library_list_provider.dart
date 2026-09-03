@@ -2,7 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
 import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_pins_provider.dart';
@@ -38,7 +38,7 @@ class LibraryQueryNotifier extends Notifier<LibraryQuery> {
 
 LibraryQuery _normalizeBrowseQuery(LibraryQuery query) {
   if (!libraryBrowseSortOptions.contains(query.sort)) {
-    return query.copyWith(sort: LibrarySort.recent);
+    return query.copyWith(sort: LibrarySort.recentlyUpdated);
   }
   return query;
 }
@@ -130,28 +130,31 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
         items: [...current.items, ...result.items],
         page: nextPage,
         hasNext: result.hasNext,
-        total: query.usesListSeriesFetch
-            ? result.total
-            : current.items.length + result.items.length,
+        total: result.total,
         isLoadingMore: false,
       ),
     );
   }
 
-  Future<void> toggleFavorite(int seriesId) async {
+  Future<void> toggleFavorite(int followedId) async {
     final current = state.valueOrNull;
     if (current == null) return;
+    final series = current.items.where((s) => s.id == followedId).firstOrNull;
+    if (series == null) return;
 
     final repo = ref.read(libraryRepositoryProvider);
-    final result = await repo.toggleFavorite(seriesId);
+    final result = await repo.patchSeries(
+      followedId,
+      isFavorite: !series.isFavorite,
+    );
     if (result.isErr) {
       state = AsyncData(current.copyWith(error: result.error));
       return;
     }
 
-    final updatedItems = current.items.map((series) {
-      if (series.id != seriesId) return series;
-      return series.copyWith(isFavorite: !series.isFavorite);
+    final updatedItems = current.items.map((s) {
+      if (s.id != followedId) return s;
+      return result.value;
     }).toList();
 
     state = AsyncData(current.copyWith(items: updatedItems, clearError: true));
@@ -162,28 +165,29 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
   /// "Favorite selected" on an already-mixed selection doesn't needlessly
   /// re-toggle series that are already favorited), and only flips items in
   /// local state whose API call actually succeeded.
-  Future<void> batchSetFavorite(Set<int> seriesIds, {required bool favorite}) async {
+  Future<void> batchSetFavorite(Set<int> followedIds, {required bool favorite}) async {
     final current = state.valueOrNull;
     if (current == null) return;
 
     final targets = current.items
-        .where((series) => seriesIds.contains(series.id) && series.isFavorite != favorite)
+        .where((series) => followedIds.contains(series.id) && series.isFavorite != favorite)
         .toList();
     if (targets.isEmpty) return;
 
     final repo = ref.read(libraryRepositoryProvider);
-    final results = await Future.wait(targets.map((series) => repo.toggleFavorite(series.id)));
+    final results = await Future.wait(
+      targets.map((series) => repo.patchSeries(series.id, isFavorite: favorite)),
+    );
 
-    final succeededIds = <int>{
+    final updatedById = <int, FollowedSeries>{
       for (var i = 0; i < targets.length; i++)
-        if (results[i].isOk) targets[i].id,
+        if (results[i].isOk) targets[i].id: results[i].value,
     };
-    if (succeededIds.isEmpty) return;
+    if (updatedById.isEmpty) return;
 
-    final updatedItems = current.items.map((series) {
-      if (!succeededIds.contains(series.id)) return series;
-      return series.copyWith(isFavorite: favorite);
-    }).toList();
+    final updatedItems = current.items
+        .map((s) => updatedById[s.id] ?? s)
+        .toList();
 
     state = AsyncData(current.copyWith(items: updatedItems, clearError: true));
   }
@@ -197,7 +201,7 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
     );
   }
 
-  Future<({List<SeriesSummary> items, int total, bool hasNext})> _fetchPage(
+  Future<({List<FollowedSeries> items, int total, bool hasNext})> _fetchPage(
     LibraryQuery query,
     int page,
   ) =>
@@ -342,24 +346,17 @@ class SearchListNotifier
   }
 }
 
-Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListPage(
+Future<({List<FollowedSeries> items, int total, bool hasNext})> fetchLibraryListPage(
   Ref ref,
   LibraryQuery query,
   int page,
 ) async {
   final repo = ref.read(libraryRepositoryProvider);
 
-  if (!query.usesListSeriesFetch) {
-    final result = await repo.search(query.search.trim(), page: page);
-    if (result.isErr) throw result.error;
-    final filtered = applySearchClientFilters(result.value, query);
-    return (
-      items: filtered,
-      total: filtered.length,
-      hasNext: result.value.length >= _searchPageSize,
-    );
-  }
-
+  // The backend's `/library/series` sort/search/filter params cover search
+  // and browse alike (`FollowedSeriesService.search` is a thin wrapper over
+  // `list_series`), so both funnel through the one call — no client-side
+  // re-sort or re-filter needed.
   final perPage = query.isSearching ? _searchPageSize : _listPageSize;
   final result = await repo.listSeries(
     page: page,
@@ -367,68 +364,14 @@ Future<({List<SeriesSummary> items, int total, bool hasNext})> fetchLibraryListP
     sort: query.sortParam,
     search: query.isSearching ? query.search.trim() : null,
     readingStatus: query.readingStatusParam,
-    hasChapters: query.hasChaptersParam,
     isFavorite: query.favoritesOnly ? true : null,
   );
   if (result.isErr) throw result.error;
 
   final paged = result.value;
-  final items = applyLibraryClientFilters(paged.items, query, sortResults: false);
   return (
-    items: items,
+    items: paged.items,
     total: paged.total,
     hasNext: paged.hasNext,
   );
-}
-
-List<SeriesSummary> applySearchClientFilters(
-  List<SeriesSummary> items,
-  LibraryQuery query,
-) =>
-    applyLibraryClientFilters(items, query, sortResults: true);
-
-List<SeriesSummary> applyLibraryClientFilters(
-  List<SeriesSummary> items,
-  LibraryQuery query, {
-  required bool sortResults,
-}) {
-  var filtered = items;
-
-  if (query.favoritesOnly) {
-    filtered = filtered.where((series) => series.isFavorite).toList();
-  }
-
-  filtered = switch (query.filter) {
-    LibraryFilter.all => filtered,
-    LibraryFilter.downloaded => filtered,
-    LibraryFilter.reading =>
-      filtered.where((series) => series.readingStatus == 'reading').toList(),
-    LibraryFilter.completed =>
-      filtered.where((series) => series.readingStatus == 'completed').toList(),
-  };
-
-  filtered = List<SeriesSummary>.from(filtered);
-  if (sortResults) {
-    filtered.sort((a, b) => _compareSeries(a, b, query.sort));
-  }
-  return filtered;
-}
-
-int _compareSeries(SeriesSummary a, SeriesSummary b, LibrarySort sort) {
-  return switch (sort) {
-    LibrarySort.title => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
-    LibrarySort.author => (a.author ?? '')
-        .toLowerCase()
-        .compareTo((b.author ?? '').toLowerCase()),
-    LibrarySort.year => (b.year ?? 0).compareTo(a.year ?? 0),
-    LibrarySort.totalChapters =>
-      b.totalChapters.compareTo(a.totalChapters),
-    LibrarySort.dateAdded => b.createdAt.compareTo(a.createdAt),
-    LibrarySort.recent =>
-      (b.readingProgress?.lastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0))
-          .compareTo(
-        a.readingProgress?.lastReadAt ?? DateTime.fromMillisecondsSinceEpoch(0),
-      ),
-    LibrarySort.updated => b.updatedAt.compareTo(a.updatedAt),
-  };
 }

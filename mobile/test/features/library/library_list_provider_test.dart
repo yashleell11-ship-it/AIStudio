@@ -13,7 +13,7 @@ import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
 import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
@@ -33,7 +33,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository(this.pages);
 
-  final Map<int, PagedResult<SeriesSummary>> pages;
+  final Map<int, PagedResult<FollowedSeries>> pages;
   int listCalls = 0;
   int searchCalls = 0;
   String? lastReadingStatus;
@@ -42,7 +42,7 @@ class _FakeLibraryRepository implements LibraryRepository {
   bool? lastHasChapters;
 
   @override
-  Future<Result<PagedResult<SeriesSummary>>> listSeries({
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
     int perPage = 20,
     String? sort,
@@ -115,15 +115,15 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyAdded({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyUpdated({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recommendations({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
@@ -135,7 +135,7 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) async {
+  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) async {
     searchCalls++;
     throw UnimplementedError('search should not be called');
   }
@@ -177,8 +177,8 @@ class _FakeLibraryRepository implements LibraryRepository {
       throw UnimplementedError();
 }
 
-SeriesSummary _series(int id) {
-  return SeriesSummary(
+FollowedSeries _series(int id) {
+  return FollowedSeries(
     id: id,
     libraryId: 1,
     title: 'Series $id',
@@ -368,7 +368,7 @@ void main() {
     test('applyLibraryClientFilters skips downloaded filter for browse', () {
       final items = [
         _series(1),
-        SeriesSummary(
+        FollowedSeries(
           id: 2,
           libraryId: 1,
           title: 'Empty',
@@ -400,7 +400,7 @@ void main() {
     test('applyLibraryClientFilters skips downloaded filter for search', () {
       final items = [
         _series(1),
-        SeriesSummary(
+        FollowedSeries(
           id: 2,
           libraryId: 1,
           title: 'Empty',
