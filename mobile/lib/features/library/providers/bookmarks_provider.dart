@@ -43,7 +43,7 @@ class BookmarksNotifier extends AutoDisposeAsyncNotifier<BookmarksState> {
   }
 
   Future<BookmarksState> _fetch() async {
-    final repo = ref.read(libraryRepositoryProvider);
+    final repo = ref.read(readerRepositoryProvider);
     final result = await repo.listBookmarks();
     if (result.isErr) throw result.error;
     return BookmarksState(bookmarks: result.value);
@@ -57,7 +57,7 @@ class BookmarksNotifier extends AutoDisposeAsyncNotifier<BookmarksState> {
     if (current != null) {
       state = AsyncData(current.copyWith(actionPending: true));
     }
-    final repo = ref.read(libraryRepositoryProvider);
+    final repo = ref.read(readerRepositoryProvider);
     final result = await repo.deleteBookmark(bookmarkId);
     if (result.isErr) {
       if (current != null) {

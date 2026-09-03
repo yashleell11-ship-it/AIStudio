@@ -5,14 +5,11 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/network/base_url.dart';
 import 'package:manhwamaniacs/core/network/dio_client.dart';
 import 'package:manhwamaniacs/core/utils/haptics.dart';
-import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
-import 'package:manhwamaniacs/features/settings/repositories/auto_download_settings_repository.dart';
-import 'package:manhwamaniacs/features/settings/repositories/auto_download_settings_repository_impl.dart';
 import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository_impl.dart';
 import 'package:manhwamaniacs/features/settings/services/image_cache_service.dart';
@@ -22,63 +19,11 @@ import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-final downloadSettingsProvider =
-    FutureProvider.autoDispose<DownloadSettings>((ref) async {
-  final repo = ref.watch(downloadsRepositoryProvider);
-  final result = await repo.getSettings();
-  if (result.isErr) throw result.error;
-  return result.value;
-});
-
 final settingsApiUrlProvider = FutureProvider.autoDispose<String>((ref) async {
   final storage = ref.watch(secureStorageProvider);
   final saved = await storage.getApiUrl();
   return saved ?? ref.watch(apiBaseUrlProvider);
 });
-
-// ── Automatic downloads ───────────────────────────────────────────────────
-
-final autoDownloadSettingsRepositoryProvider =
-    Provider<AutoDownloadSettingsRepository>(
-  (ref) => AutoDownloadSettingsRepositoryImpl(ref.watch(dioProvider)),
-  name: 'autoDownloadSettingsRepository',
-);
-
-/// The global "download new chapters of followed series automatically" switch,
-/// read from `GET /updates/settings`. Off unless the owner turns it on — the
-/// server ships it `False` and nothing in the app flips it implicitly.
-final autoDownloadNewChaptersProvider =
-    AsyncNotifierProvider.autoDispose<AutoDownloadNewChaptersController, bool>(
-  AutoDownloadNewChaptersController.new,
-  name: 'autoDownloadNewChapters',
-);
-
-class AutoDownloadNewChaptersController extends AutoDisposeAsyncNotifier<bool> {
-  @override
-  Future<bool> build() async {
-    final result = await ref
-        .read(autoDownloadSettingsRepositoryProvider)
-        .getAutoDownloadEnabled();
-    if (result.isErr) throw result.error;
-    return result.value;
-  }
-
-  /// Optimistically flips the switch so it responds instantly; rolls back and
-  /// returns the [AppError] if the write fails.
-  Future<AppError?> setEnabled(bool value) async {
-    final previous = state.valueOrNull;
-    state = AsyncData(value);
-    final result = await ref
-        .read(autoDownloadSettingsRepositoryProvider)
-        .setAutoDownloadEnabled(value);
-    if (result.isErr) {
-      state = AsyncData(previous ?? !value);
-      return result.error;
-    }
-    state = AsyncData(result.value);
-    return null;
-  }
-}
 
 // ── Mature content (per-profile) ───────────────────────────────────────────
 
@@ -327,14 +272,6 @@ class SettingsActions {
   Future<void> resetApiUrl() async {
     await ref.read(secureStorageProvider).clearApiUrl();
     ref.invalidate(settingsApiUrlProvider);
-  }
-
-  Future<AppError?> saveDownloadSettings(DownloadSettings settings) async {
-    final repo = ref.read(downloadsRepositoryProvider);
-    final result = await repo.updateSettings(settings);
-    if (result.isErr) return result.error;
-    ref.invalidate(downloadSettingsProvider);
-    return null;
   }
 
   /// Clears every cached page/cover image on disk.

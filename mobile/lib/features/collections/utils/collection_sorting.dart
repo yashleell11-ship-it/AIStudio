@@ -1,13 +1,13 @@
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 
-enum CollectionSort { name, series, updated }
+enum CollectionSort { name, series, custom }
 
 String collectionSortLabel(CollectionSort sort) {
   switch (sort) {
     case CollectionSort.series:
       return 'Most series';
-    case CollectionSort.updated:
-      return 'Recently updated';
+    case CollectionSort.custom:
+      return 'Custom order';
     case CollectionSort.name:
       return 'Name A–Z';
   }
@@ -41,8 +41,8 @@ List<Collection> sortCollections(List<Collection> items, CollectionSort sort) {
             ? b.seriesCount.compareTo(a.seriesCount)
             : a.name.compareTo(b.name),
       );
-    case CollectionSort.updated:
-      next.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
+    case CollectionSort.custom:
+      next.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
     case CollectionSort.name:
       next.sort((a, b) => a.name.compareTo(b.name));
   }
