@@ -351,9 +351,26 @@ class UpdateService:
         cache = SourceCacheService(self._db, browse)
 
         live = browse.get_chapters(row.source_id, row.series_key)
-        cache.write_through(row.source_id, row.series_key, {}, live)
-
         known = _loads(row.known_chapters)
+
+        if not live and known:
+            # A connector that *degrades* to an empty list rather than raising
+            # (markup drifted, a soft block, an empty page) is not evidence the
+            # series lost every chapter. Writing [] here is unrecoverable: the
+            # next run has no baseline, so every chapter released in between
+            # never diffs as new and never notifies. Keep the snapshot, record
+            # why, and let the next pass try again.
+            row.last_error = "Source returned no chapters; snapshot kept."
+            logger.warning(
+                "update check for %s/%s returned an empty chapter list; "
+                "keeping the %d-chapter snapshot",
+                row.source_id,
+                row.series_key,
+                len(known),
+            )
+            return 0
+
+        cache.write_through(row.source_id, row.series_key, {}, live)
         known_keys = {str(c.get("key")) for c in known}
 
         new_chapters = [c for c in live if str(c["id"]) not in known_keys]

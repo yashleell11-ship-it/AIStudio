@@ -197,3 +197,51 @@ def test_system_sweep_may_still_target_ids_across_accounts(
     )
     assert result["series_checked"] == 2
     assert result["new_chapters_found"] == 2
+
+
+def test_empty_live_list_never_erases_a_known_snapshot(
+    db_session, make_user, make_profile, seed_follow, stub_connector
+):
+    """A connector that degrades to [] instead of raising used to overwrite
+    known_chapters with []. The next run then had no baseline, so every chapter
+    released in between never diffed as new — permanently un-notifiable."""
+    user = make_user("degrader")
+    profile = make_profile(user.id, "Main")
+    row = seed_follow(
+        user.id, profile.id, source_id=SRC, series_key="flaky",
+        known_chapters=_known(("c1", 1.0), ("c2", 2.0)), notify=True,
+    )
+    stub_connector["flaky"] = []  # soft failure: empty, not an exception
+
+    UpdateService(db_session, system=True).run_check(trigger="scheduled")
+
+    db_session.refresh(row)
+    assert [c["key"] for c in json.loads(row.known_chapters)] == ["c1", "c2"]
+    assert row.last_error  # the degradation is recorded, not swallowed
+
+    # The next pass, once the source recovers, still sees c3 as new.
+    stub_connector["flaky"] = [_chap("c1", 1.0), _chap("c2", 2.0), _chap("c3", 3.0)]
+    result = UpdateService(db_session, system=True).run_check(trigger="scheduled")
+    assert result["new_chapters_found"] == 1
+    assert {n.chapter_key for n in db_session.query(UpdateNotification).all()} == {"c3"}
+    db_session.refresh(row)
+    assert row.last_error is None
+
+
+def test_empty_live_list_still_seeds_a_row_that_has_no_snapshot(
+    db_session, make_user, make_profile, seed_follow, stub_connector
+):
+    """The guard is about *losing* a baseline; a row that never had one is
+    left alone either way, and must not be reported as an error."""
+    user = make_user("emptyseed")
+    profile = make_profile(user.id, "Main")
+    row = seed_follow(
+        user.id, profile.id, source_id=SRC, series_key="nothing",
+        known_chapters="[]", notify=True,
+    )
+    stub_connector["nothing"] = []
+
+    UpdateService(db_session, system=True).run_check(trigger="scheduled")
+    db_session.refresh(row)
+    assert json.loads(row.known_chapters) == []
+    assert row.last_error is None
