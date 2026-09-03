@@ -1,5 +1,6 @@
 export { AppearancePanel } from "./components/AppearancePanel";
 export { MatureContentPanel } from "./components/MatureContentPanel";
+export { ReaderPanel } from "./components/ReaderPanel";
 export {
   useContentPreferences,
   useMatureToggleBlockReason,

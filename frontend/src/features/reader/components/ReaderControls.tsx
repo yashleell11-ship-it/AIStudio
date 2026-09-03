@@ -10,6 +10,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Columns2,
+  Film,
   Keyboard,
   Maximize,
   Minimize,
@@ -117,6 +118,8 @@ interface ReaderControlsProps {
   onShowShortcuts: () => void;
   pageGap?: boolean;
   onTogglePageGap?: () => void;
+  cinema?: boolean;
+  onToggleCinema?: () => void;
   onBookmark?: () => void;
   previousChapterHref: string | null;
   nextChapterHref: string | null;
@@ -151,6 +154,8 @@ export function ReaderControls({
   onShowShortcuts,
   pageGap = false,
   onTogglePageGap,
+  cinema = false,
+  onToggleCinema,
   onBookmark,
   previousChapterHref,
   nextChapterHref,
@@ -329,6 +334,34 @@ export function ReaderControls({
                 >
                   <Rows3 className="size-4" />
                   {pageGap ? "On" : "Off"}
+                </Button>
+              </div>
+            ) : null}
+
+            {onToggleCinema ? (
+              <div className="flex items-center justify-between gap-3 py-2">
+                <span className="min-w-0">
+                  <span className="block text-sm font-medium text-fg">Cinema mode</span>
+                  <span className="mt-0.5 block text-xs text-muted">
+                    Hides all controls after a few idle seconds. Press C, or tap to
+                    bring them back.
+                  </span>
+                </span>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={onToggleCinema}
+                  aria-label="Toggle cinema mode"
+                  aria-pressed={cinema}
+                  className={cn(
+                    "shrink-0 gap-2 transition-colors hover:bg-white/10",
+                    cinema
+                      ? "bg-primary/15 text-primary hover:text-primary"
+                      : "text-muted hover:text-fg",
+                  )}
+                >
+                  <Film className="size-4" />
+                  {cinema ? "On" : "Off"}
                 </Button>
               </div>
             ) : null}

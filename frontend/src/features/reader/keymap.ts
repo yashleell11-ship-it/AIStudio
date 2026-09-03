@@ -19,6 +19,14 @@ export const HELP_SHORTCUT_KEYS = ["shift+?", "?"];
  */
 export const SERIES_SHORTCUT_KEYS = "s";
 
+/**
+ * Combo that toggles cinema mode (auto-hiding of all reader chrome).
+ *
+ * "C" for cinema, unmodified like every other reader binding and clear of the
+ * keys already bound (A/D, H/J/K/L, B, F, S, 0/-/=).
+ */
+export const CINEMA_SHORTCUT_KEYS = "c";
+
 /** What a page-turn input resolves to once reading direction is applied. */
 export type PageTurn = "advance" | "retreat";
 
