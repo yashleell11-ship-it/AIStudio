@@ -6,7 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/series_display.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
@@ -23,7 +23,7 @@ class SearchResultCard extends ConsumerWidget {
     required this.onToggleFavorite,
   });
 
-  final SeriesSummary series;
+  final FollowedSeries series;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
 

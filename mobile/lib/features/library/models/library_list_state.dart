@@ -1,5 +1,5 @@
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 
 class LibraryListState {
   const LibraryListState({
@@ -11,7 +11,7 @@ class LibraryListState {
     this.error,
   });
 
-  final List<SeriesSummary> items;
+  final List<FollowedSeries> items;
   final int total;
   final int page;
   final bool hasNext;
@@ -21,7 +21,7 @@ class LibraryListState {
   bool get isEmpty => items.isEmpty;
 
   LibraryListState copyWith({
-    List<SeriesSummary>? items,
+    List<FollowedSeries>? items,
     int? total,
     int? page,
     bool? hasNext,

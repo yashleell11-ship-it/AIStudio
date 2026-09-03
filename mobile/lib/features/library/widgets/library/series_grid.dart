@@ -5,7 +5,7 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/series_display.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -26,7 +26,7 @@ class SeriesCard extends ConsumerWidget {
     this.selected = false,
   });
 
-  final SeriesSummary series;
+  final FollowedSeries series;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onRemove;
@@ -191,7 +191,7 @@ class SeriesListTile extends ConsumerWidget {
     this.selected = false,
   });
 
-  final SeriesSummary series;
+  final FollowedSeries series;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onRemove;
@@ -387,7 +387,7 @@ class _ProgressLabel extends StatelessWidget {
     required this.progressPct,
   });
 
-  final SeriesSummary series;
+  final FollowedSeries series;
   final double? progressPct;
 
   @override
@@ -443,12 +443,12 @@ class SeriesGrid extends ConsumerWidget {
     this.selectedIds = const {},
   });
 
-  final List<SeriesSummary> items;
+  final List<FollowedSeries> items;
   final LibraryViewMode viewMode;
-  final ValueChanged<SeriesSummary> onSeriesTap;
+  final ValueChanged<FollowedSeries> onSeriesTap;
   final ValueChanged<int> onToggleFavorite;
   final ValueChanged<int>? onRemoveSeries;
-  final ValueChanged<SeriesSummary>? onSeriesLongPress;
+  final ValueChanged<FollowedSeries>? onSeriesLongPress;
 
   /// Cover-size multiplier; higher = larger covers / fewer columns.
   final double coverScale;

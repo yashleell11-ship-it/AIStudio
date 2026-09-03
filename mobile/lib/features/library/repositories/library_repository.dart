@@ -1,55 +1,65 @@
-﻿import 'package:manhwamaniacs/core/utils/pagination.dart';
+import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 
+/// The per-profile library — source-native (spec §4.2). A series is in the
+/// library iff a `followed_series` row exists for it; identity is
+/// `(sourceId, seriesKey)`, with the row's own `id` (`followedId`) a handle
+/// for the mutation/detail routes only.
 abstract interface class LibraryRepository {
-  Future<Result<PagedResult<SeriesSummary>>> listSeries({
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
   });
 
-  Future<Result<SeriesDetail>> getSeries(int seriesId);
+  Future<Result<SeriesDetail>> getSeries(int followedId);
 
-  Future<Result<ChapterDetail>> getChapter(int chapterId);
-
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20});
-
-  Future<Result<List<SeriesSummary>>> recentlyAdded({int limit = 20});
-
-  Future<Result<List<SeriesSummary>>> recentlyUpdated({int limit = 20});
-
-  Future<Result<List<SeriesSummary>>> recommendations({int limit = 20});
-
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1});
-
-  Future<Result<ReadingProgress?>> getProgress(int seriesId);
-
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
   });
 
-  Future<Result<void>> deleteProgress(int seriesId);
+  Future<Result<void>> unfollow(int followedId);
+
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  });
+
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10});
+
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10});
+
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10});
+
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  });
+
+  Future<Result<LibraryStatistics>> statistics();
+
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
+  });
 
   Future<Result<List<Collection>>> listCollections();
 
@@ -64,37 +74,42 @@ abstract interface class LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   });
 
   Future<Result<void>> deleteCollection(int collectionId);
 
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId);
-
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId);
-
-  Future<Result<List<Tag>>> listTags();
-
-  Future<Result<void>> toggleFavorite(int seriesId);
-
-  Future<Result<LibraryStatistics>> statistics();
-
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50});
-
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30});
-
-  Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
-    required int page,
-    String? note,
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
   });
 
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200});
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  });
 
-  Future<Result<void>> deleteBookmark(int bookmarkId);
+  Future<Result<List<Tag>>> listTags({String? category});
 
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  });
+
+  Future<Result<void>> deleteTag(int tagId);
+
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  });
+
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
   });
 }

@@ -1,53 +1,63 @@
-import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+
+/// One series membership row inside a [CollectionDetail] — opaque
+/// `(sourceId, seriesKey)` identity, not a followed-series id.
+class CollectionSeriesRef {
+  const CollectionSeriesRef({
+    required this.sourceId,
+    required this.seriesKey,
+    required this.sortOrder,
+  });
+
+  final String sourceId;
+  final String seriesKey;
+  final int sortOrder;
+
+  factory CollectionSeriesRef.fromJson(Map<String, dynamic> json) =>
+      CollectionSeriesRef(
+        sourceId: json['source_id'] as String,
+        seriesKey: json['series_key'] as String,
+        sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+      );
+}
 
 class CollectionDetail {
   const CollectionDetail({
     required this.id,
     required this.name,
     this.description,
-    this.coverPath,
+    this.coverUrl,
     required this.seriesCount,
     required this.sortOrder,
-    required this.createdAt,
-    required this.updatedAt,
     required this.series,
   });
 
   final int id;
   final String name;
   final String? description;
-  final String? coverPath;
+  final String? coverUrl;
   final int seriesCount;
   final int sortOrder;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final PagedResult<SeriesSummary> series;
+  final List<CollectionSeriesRef> series;
 
   Collection toCollection() => Collection(
         id: id,
         name: name,
         description: description,
-        coverPath: coverPath,
+        coverUrl: coverUrl,
         seriesCount: seriesCount,
         sortOrder: sortOrder,
-        createdAt: createdAt,
-        updatedAt: updatedAt,
       );
 
   factory CollectionDetail.fromJson(Map<String, dynamic> json) => CollectionDetail(
         id: json['id'] as int,
         name: json['name'] as String,
         description: json['description'] as String?,
-        coverPath: json['cover_path'] as String?,
-        seriesCount: json['series_count'] as int,
-        sortOrder: json['sort_order'] as int,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        updatedAt: DateTime.parse(json['updated_at'] as String),
-        series: PagedResult.fromJson(
-          json['series'] as Map<String, dynamic>,
-          SeriesSummary.fromJson,
-        ),
+        coverUrl: json['cover_url'] as String?,
+        seriesCount: (json['series_count'] as num?)?.toInt() ?? 0,
+        sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+        series: (json['series'] as List<dynamic>? ?? const [])
+            .map((e) => CollectionSeriesRef.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
 }

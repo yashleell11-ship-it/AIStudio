@@ -13,7 +13,7 @@ import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
 import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
@@ -21,7 +21,7 @@ import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import '../../support/test_overrides.dart';
 
-SeriesSummary _series(int id, String title) => SeriesSummary(
+FollowedSeries _series(int id, String title) => FollowedSeries(
       id: id,
       libraryId: 1,
       title: title,
@@ -44,13 +44,13 @@ class _MutableCollectionsRepository implements LibraryRepository {
   _MutableCollectionsRepository({
     required this.collections,
     required Map<int, CollectionDetail> details,
-    List<SeriesSummary>? pickerSeries,
+    List<FollowedSeries>? pickerSeries,
   })  : _details = details,
         _pickerSeries = pickerSeries ?? [_series(1, 'Solo Leveling'), _series(2, 'Tower of God')];
 
   final List<Collection> collections;
   final Map<int, CollectionDetail> _details;
-  final List<SeriesSummary> _pickerSeries;
+  final List<FollowedSeries> _pickerSeries;
 
   int renameCalls = 0;
   int deleteCalls = 0;
@@ -173,7 +173,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
   }
 
   @override
-  Future<Result<PagedResult<SeriesSummary>>> listSeries({
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
     int perPage = 20,
     String? sort,
@@ -215,15 +215,15 @@ class _MutableCollectionsRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyAdded({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyUpdated({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> recommendations({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
       throw UnimplementedError();
 
   @override
@@ -235,7 +235,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) =>
+  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) =>
       throw UnimplementedError();
 
   @override
@@ -278,7 +278,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
 CollectionDetail _detail({
   required int id,
   required String name,
-  List<SeriesSummary> series = const [],
+  List<FollowedSeries> series = const [],
 }) =>
     CollectionDetail(
       id: id,

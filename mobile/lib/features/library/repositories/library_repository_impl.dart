@@ -1,20 +1,17 @@
-﻿import 'package:dio/dio.dart';
+import 'package:dio/dio.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 
 class LibraryRepositoryImpl implements LibraryRepository {
   const LibraryRepositoryImpl(this._dio);
@@ -22,17 +19,13 @@ class LibraryRepositoryImpl implements LibraryRepository {
   final Dio _dio;
 
   @override
-  Future<Result<PagedResult<SeriesSummary>>> listSeries({
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
   }) =>
       _request(
         () => _dio.get<Map<String, dynamic>>(
@@ -41,32 +34,70 @@ class LibraryRepositoryImpl implements LibraryRepository {
             'page': page,
             'per_page': perPage,
             if (sort != null) 'sort': sort,
-            if (search != null) 'search': search,
-            if (status != null) 'status': status,
+            if (search != null && search.isNotEmpty) 'search': search,
             if (readingStatus != null) 'reading_status': readingStatus,
-            if (collectionId != null) 'collection_id': collectionId,
-            if (tagId != null) 'tag_id': tagId,
             if (isFavorite != null) 'is_favorite': isFavorite,
-            if (hasChapters != null) 'has_chapters': hasChapters,
           },
         ),
-        (data) => PagedResult.fromJson(data, SeriesSummary.fromJson),
+        (data) => PagedResult.fromJson(data, FollowedSeries.fromJson),
       );
 
   @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => _request(
-        () => _dio.get<Map<String, dynamic>>('/library/series/$seriesId'),
+  Future<Result<SeriesDetail>> getSeries(int followedId) => _request(
+        () => _dio.get<Map<String, dynamic>>('/library/series/$followedId'),
         SeriesDetail.fromJson,
       );
 
   @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => _request(
-        () => _dio.get<Map<String, dynamic>>('/reader/chapter/$chapterId'),
-        ChapterDetail.fromJson,
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
+  }) =>
+      _request(
+        () => _dio.post<Map<String, dynamic>>(
+          '/library/follow',
+          data: {'source_id': sourceId, 'series_key': seriesKey},
+        ),
+        FollowedSeries.fromJson,
       );
 
   @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
+  Future<Result<void>> unfollow(int followedId) async {
+    try {
+      await _dio.delete<void>('/library/follow/$followedId');
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_extractError(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  }) =>
+      _request(
+        () => _dio.patch<Map<String, dynamic>>(
+          '/library/series/$followedId',
+          data: {
+            if (isFavorite != null) 'is_favorite': isFavorite,
+            if (readingStatus != null) 'reading_status': readingStatus,
+            if (notify != null) 'notify': notify,
+            if (matureOverride != null) 'mature_override': matureOverride,
+            if (sortOrder != null) 'sort_order': sortOrder,
+          },
+        ),
+        FollowedSeries.fromJson,
+      );
+
+  @override
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
       _requestList(
         () => _dio.get<List<dynamic>>(
           '/library/continue-reading',
@@ -76,90 +107,57 @@ class LibraryRepositoryImpl implements LibraryRepository {
       );
 
   @override
-  Future<Result<List<SeriesSummary>>> recentlyAdded({int limit = 20}) =>
-      _requestList(
-        () => _dio.get<List<dynamic>>(
-          '/library/recently-added',
-          queryParameters: {'limit': limit},
-        ),
-        SeriesSummary.fromJson,
-      );
-
-  @override
-  Future<Result<List<SeriesSummary>>> recentlyUpdated({int limit = 20}) =>
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) =>
       _requestList(
         () => _dio.get<List<dynamic>>(
           '/library/recently-updated',
           queryParameters: {'limit': limit},
         ),
-        SeriesSummary.fromJson,
+        FollowedSeries.fromJson,
       );
 
   @override
-  Future<Result<List<SeriesSummary>>> recommendations({int limit = 20}) =>
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) =>
       _requestList(
         () => _dio.get<List<dynamic>>(
           '/library/recommendations',
           queryParameters: {'limit': limit},
         ),
-        SeriesSummary.fromJson,
+        RecommendationGenre.fromJson,
       );
 
   @override
-  Future<Result<List<SeriesSummary>>> search(String query, {int page = 1}) =>
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) =>
       _request(
         () => _dio.get<Map<String, dynamic>>(
           '/library/search',
-          queryParameters: {'q': query, 'page': page},
+          queryParameters: {'q': query, 'page': page, 'per_page': perPage},
         ),
-        (data) {
-          final paged = PagedResult.fromJson(data, SeriesSummary.fromJson);
-          return paged.items;
-        },
+        (data) => PagedResult.fromJson(data, FollowedSeries.fromJson),
       );
 
   @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) async {
-    try {
-      final response = await _dio.get<Map<String, dynamic>?>('/reader/progress/$seriesId');
-      final data = response.data;
-      return Ok(data != null ? ReadingProgress.fromJson(data) : null);
-    } on DioException catch (e) {
-      return Err(_extractError(e));
-    } catch (e) {
-      return Err(UnknownError(message: e.toString(), cause: e));
-    }
-  }
+  Future<Result<LibraryStatistics>> statistics() => _request(
+        () => _dio.get<Map<String, dynamic>>('/library/statistics'),
+        LibraryStatistics.fromJson,
+      );
 
   @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
   }) =>
-      _request(
-        () => _dio.post<Map<String, dynamic>>(
-          '/reader/progress',
-          data: {
-            'series_id': seriesId,
-            'chapter_id': chapterId,
-            'last_page': lastPage,
-          },
+      _requestList(
+        () => _dio.get<List<dynamic>>(
+          '/reader/history',
+          queryParameters: {'limit': limit, 'offset': offset},
         ),
-        ReadingProgress.fromJson,
+        ReadingHistoryItem.fromJson,
       );
-
-  @override
-  Future<Result<void>> deleteProgress(int seriesId) async {
-    try {
-      await _dio.delete<void>('/reader/progress/$seriesId');
-      return const Ok(null);
-    } on DioException catch (e) {
-      return Err(_extractError(e));
-    } catch (e) {
-      return Err(UnknownError(message: e.toString(), cause: e));
-    }
-  }
 
   @override
   Future<Result<List<Collection>>> listCollections() => _requestList(
@@ -194,6 +192,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   }) =>
       _request(
         () => _dio.patch<Map<String, dynamic>>(
@@ -201,6 +200,7 @@ class LibraryRepositoryImpl implements LibraryRepository {
           data: {
             if (name != null) 'name': name,
             if (description != null) 'description': description,
+            if (sortOrder != null) 'sort_order': sortOrder,
           },
         ),
         Collection.fromJson,
@@ -219,25 +219,29 @@ class LibraryRepositoryImpl implements LibraryRepository {
   }
 
   @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) async {
-    try {
-      await _dio.post<void>('/library/collections/$collectionId/series/$seriesId');
-      return const Ok(null);
-    } on DioException catch (e) {
-      return Err(_extractError(e));
-    } catch (e) {
-      return Err(UnknownError(message: e.toString(), cause: e));
-    }
-  }
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
+      _request(
+        () => _dio.post<Map<String, dynamic>>(
+          '/library/collections/$collectionId/series',
+          data: {'source_id': sourceId, 'series_key': seriesKey},
+        ),
+        CollectionDetail.fromJson,
+      );
 
   @override
   Future<Result<void>> removeSeriesFromCollection(
-    int collectionId,
-    int seriesId,
-  ) async {
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) async {
     try {
       await _dio.delete<void>(
-        '/library/collections/$collectionId/series/$seriesId',
+        '/library/collections/$collectionId/series',
+        data: {'source_id': sourceId, 'series_key': seriesKey},
       );
       return const Ok(null);
     } on DioException catch (e) {
@@ -248,83 +252,36 @@ class LibraryRepositoryImpl implements LibraryRepository {
   }
 
   @override
-  Future<Result<List<Tag>>> listTags() => _requestList(
-        () => _dio.get<List<dynamic>>('/library/tags'),
+  Future<Result<List<Tag>>> listTags({String? category}) => _requestList(
+        () => _dio.get<List<dynamic>>(
+          '/library/tags',
+          queryParameters: {if (category != null) 'category': category},
+        ),
         Tag.fromJson,
       );
 
   @override
-  Future<Result<void>> toggleFavorite(int seriesId) async {
-    try {
-      await _dio.post<void>('/library/series/$seriesId/favorite');
-      return const Ok(null);
-    } on DioException catch (e) {
-      return Err(_extractError(e));
-    } catch (e) {
-      return Err(UnknownError(message: e.toString(), cause: e));
-    }
-  }
-
-  @override
-  Future<Result<LibraryStatistics>> statistics() => _request(
-        () => _dio.get<Map<String, dynamic>>('/library/statistics'),
-        LibraryStatistics.fromJson,
-      );
-
-  @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
-      _requestList(
-        () => _dio.get<List<dynamic>>(
-          '/library/reading-history',
-          queryParameters: {'limit': limit},
-        ),
-        ReadingHistoryItem.fromJson,
-      );
-
-  @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
-      _requestList(
-        () => _dio.get<List<dynamic>>(
-          '/library/reading-calendar',
-          queryParameters: {'days': days},
-        ),
-        ReadingCalendarDay.fromJson,
-      );
-
-  @override
-  Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
-    required int page,
-    String? note,
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
   }) =>
       _request(
         () => _dio.post<Map<String, dynamic>>(
-          '/reader/bookmarks',
+          '/library/tags',
           data: {
-            'series_id': seriesId,
-            'chapter_id': chapterId,
-            'page': page,
-            if (note != null) 'note': note,
+            'name': name,
+            'category': category,
+            if (color != null) 'color': color,
           },
         ),
-        Bookmark.fromJson,
+        Tag.fromJson,
       );
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) =>
-      _requestList(
-        () => _dio.get<List<dynamic>>(
-          '/reader/bookmarks',
-          queryParameters: {'limit': limit},
-        ),
-        Bookmark.fromJson,
-      );
-
-  @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) async {
+  Future<Result<void>> deleteTag(int tagId) async {
     try {
-      await _dio.delete<void>('/reader/bookmarks/$bookmarkId');
+      await _dio.delete<void>('/library/tags/$tagId');
       return const Ok(null);
     } on DioException catch (e) {
       return Err(_extractError(e));
@@ -334,17 +291,36 @@ class LibraryRepositoryImpl implements LibraryRepository {
   }
 
   @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
   }) async {
     try {
-      final response = await _dio.get<Map<String, dynamic>?>(
-        '/reader/chapter/$chapterId/adjacent',
-        queryParameters: {'direction': direction},
+      await _dio.post<void>(
+        '/library/series-tags',
+        data: {'source_id': sourceId, 'series_key': seriesKey, 'tag_id': tagId},
       );
-      final data = response.data;
-      return Ok(data != null ? AdjacentChapter.fromJson(data) : null);
+      return const Ok(null);
+    } on DioException catch (e) {
+      return Err(_extractError(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) async {
+    try {
+      await _dio.delete<void>(
+        '/library/series-tags',
+        data: {'source_id': sourceId, 'series_key': seriesKey, 'tag_id': tagId},
+      );
+      return const Ok(null);
     } on DioException catch (e) {
       return Err(_extractError(e));
     } catch (e) {

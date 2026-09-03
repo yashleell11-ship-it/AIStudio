@@ -10,7 +10,7 @@ import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
-import 'package:manhwamaniacs/features/library/models/series_summary.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/providers/library_display_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/library_selection_provider.dart';
@@ -65,7 +65,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     });
   }
 
-  void _showSeriesActions(SeriesSummary series) {
+  void _showSeriesActions(FollowedSeries series) {
     showModalBottomSheet<void>(
       context: context,
       showDragHandle: true,
@@ -319,8 +319,8 @@ class _LibraryBody extends StatelessWidget {
   final ValueChanged<LibrarySort> onSortChanged;
   final ValueChanged<LibraryFilter> onFilterChanged;
   final ValueChanged<LibraryViewMode> onViewModeChanged;
-  final ValueChanged<SeriesSummary> onSeriesTap;
-  final ValueChanged<SeriesSummary>? onSeriesLongPress;
+  final ValueChanged<FollowedSeries> onSeriesTap;
+  final ValueChanged<FollowedSeries>? onSeriesLongPress;
   final ValueChanged<int> onToggleFavorite;
   final bool selectionMode;
   final Set<int> selectedIds;
