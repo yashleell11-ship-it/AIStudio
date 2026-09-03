@@ -1,12 +1,17 @@
 import { describe, expect, it } from "vitest";
 import { matchesCombo } from "@/lib/keyboard/match";
 import {
+  AUTO_SCROLL_SHORTCUT_KEYS,
   HELP_SHORTCUT_KEYS,
   SERIES_SHORTCUT_KEYS,
+  TOGGLE_ONLY_TAP_ZONES,
+  defaultTapZoneConfig,
   horizontalTurn,
   horizontalTurnDescription,
   resolveEscapeTarget,
+  resolveTapZone,
   tapZone,
+  type TapZoneConfig,
 } from "./keymap";
 
 function keyEvent(
@@ -56,6 +61,16 @@ describe("reader key bindings", () => {
     for (const key of bound) {
       expect(matchesCombo(keyEvent(key), SERIES_SHORTCUT_KEYS)).toBe(false);
     }
+  });
+
+  it("plays/pauses auto-scroll on a bare P, clear of every other binding", () => {
+    expect(matchesCombo(keyEvent("p"), AUTO_SCROLL_SHORTCUT_KEYS)).toBe(true);
+    const bound = ["a", "d", "h", "j", "k", "l", "b", "c", "f", "s", "0", "-", "=", "?"];
+    for (const key of bound) {
+      expect(matchesCombo(keyEvent(key), AUTO_SCROLL_SHORTCUT_KEYS)).toBe(false);
+    }
+    // And Space (the screen-advance key) is untouched by the new binding.
+    expect(matchesCombo(keyEvent(" "), AUTO_SCROLL_SHORTCUT_KEYS)).toBe(false);
   });
 
   it("binds the page keys the registry will actually receive", () => {
@@ -121,5 +136,68 @@ describe("tapZone", () => {
     expect(tapZone(10, { left: 0, width: 0 }, "ltr")).toBe("toggle");
     expect(tapZone(-10, rect, "ltr")).toBe("toggle");
     expect(tapZone(2000, rect, "ltr")).toBe("toggle");
+  });
+});
+
+describe("defaultTapZoneConfig", () => {
+  it("matches tapZone's own LTR behaviour", () => {
+    expect(defaultTapZoneConfig("ltr")).toEqual({
+      left: "retreat",
+      center: "toggle",
+      right: "advance",
+    });
+  });
+
+  it("mirrors for RTL, matching tapZone's own RTL behaviour", () => {
+    expect(defaultTapZoneConfig("rtl")).toEqual({
+      left: "advance",
+      center: "toggle",
+      right: "retreat",
+    });
+  });
+});
+
+describe("TOGGLE_ONLY_TAP_ZONES", () => {
+  it("is the continuous strip's legacy tap-anywhere-toggles behaviour", () => {
+    expect(TOGGLE_ONLY_TAP_ZONES).toEqual({
+      left: "toggle",
+      center: "toggle",
+      right: "toggle",
+    });
+  });
+});
+
+describe("resolveTapZone", () => {
+  const rect = { left: 0, width: 1000 };
+
+  it("reproduces tapZone exactly when given the direction-derived default", () => {
+    for (const direction of ["ltr", "rtl"] as const) {
+      const config = defaultTapZoneConfig(direction);
+      for (const x of [50, 500, 950]) {
+        expect(resolveTapZone(x, rect, config)).toBe(tapZone(x, rect, direction));
+      }
+    }
+  });
+
+  it("never turns a page under TOGGLE_ONLY_TAP_ZONES, regardless of tap position", () => {
+    for (const x of [10, 250, 500, 750, 990]) {
+      expect(resolveTapZone(x, rect, TOGGLE_ONLY_TAP_ZONES)).toBe("toggle");
+    }
+  });
+
+  it("applies a fully custom mapping literally, by physical zone", () => {
+    // A left-handed one-tap-forward layout: left always advances, right always
+    // retreats, center still toggles — independent of reading direction.
+    const custom: TapZoneConfig = { left: "advance", center: "toggle", right: "retreat" };
+    expect(resolveTapZone(50, rect, custom)).toBe("advance");
+    expect(resolveTapZone(500, rect, custom)).toBe("toggle");
+    expect(resolveTapZone(950, rect, custom)).toBe("retreat");
+  });
+
+  it("falls back to the center (toggle) band on unusable geometry", () => {
+    const config = defaultTapZoneConfig("ltr");
+    expect(resolveTapZone(10, { left: 0, width: 0 }, config)).toBe("toggle");
+    expect(resolveTapZone(-10, rect, config)).toBe("toggle");
+    expect(resolveTapZone(2000, rect, config)).toBe("toggle");
   });
 });

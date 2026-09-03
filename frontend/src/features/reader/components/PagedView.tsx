@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cn } from "@/lib/cn";
 import { resolvePageFit, wheelZoomSteps } from "../fit";
-import { tapZone, type TapZone } from "../keymap";
+import { resolveTapZone, type TapZone, type TapZoneConfig } from "../keymap";
 import { PRELOAD_AHEAD_PAGED } from "../preload";
 import { spreadDisplayOrder } from "../spread";
 import type { FitMode, ReaderPage, ReadingDirection } from "../types";
@@ -31,8 +32,13 @@ interface PagedViewProps {
   direction: ReadingDirection;
   fitMode: FitMode;
   zoom: number;
+  /** Resolved left/centre/right tap behaviour — see `keymap.ts`. RTL-aware
+   * already baked in by the caller (`defaultTapZoneConfig`/`ChapterReader`). */
+  tapZoneConfig: TapZoneConfig;
   onTap: (zone: TapZone) => void;
   onZoom: (steps: number) => void;
+  /** Subtle fade between page turns (reader settings, off by default). */
+  pageTransition?: boolean;
 }
 
 export function PagedView({
@@ -43,8 +49,10 @@ export function PagedView({
   direction,
   fitMode,
   zoom,
+  tapZoneConfig,
   onTap,
   onZoom,
+  pageTransition = false,
 }: PagedViewProps) {
   const stageRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -103,9 +111,9 @@ export function PagedView({
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
       const rect = event.currentTarget.getBoundingClientRect();
-      onTap(tapZone(event.clientX, rect, direction));
+      onTap(resolveTapZone(event.clientX, rect, tapZoneConfig));
     },
-    [direction, onTap],
+    [onTap, tapZoneConfig],
   );
 
   const displayOrder = spreadDisplayOrder(view, direction);
@@ -122,7 +130,15 @@ export function PagedView({
       onClick={handleClick}
     >
       <div
-        className="m-auto flex items-center justify-center"
+        // Re-keying on the view forces React to remount this wrapper on every
+        // turn, which is what restarts the fade animation below — a CSS-only
+        // "enter" transition needs a fresh element, not a class toggle on a
+        // persistent one.
+        key={pageTransition ? view.join("-") : undefined}
+        className={cn(
+          "m-auto flex items-center justify-center",
+          pageTransition && "reader-page-transition-enter",
+        )}
         style={{ gap: `${SPREAD_GAP}px` }}
       >
         {displayOrder.map((pageNumber) => {
