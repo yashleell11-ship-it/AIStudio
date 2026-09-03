@@ -83,6 +83,15 @@ case "${1:-all}" in
     APK="$REPO/mobile/build/app/outputs/flutter-apk/app-release.apk"
     [ -f "$APK" ] || { echo "no APK at $APK — run the release build first" >&2; exit 1; }
     say "publishing $(du -h "$APK" | cut -f1) APK"
+    # The version endpoint reads the pubspec through a single-FILE bind mount,
+    # and no other push mode syncs mobile/ — so without this the box happily
+    # serves a 1.9.0 APK while /app/version still advertises the previous
+    # release. --inplace is load-bearing: replacing a bind-mounted file
+    # normally leaves the container holding the old inode, which would need a
+    # container recreate to clear.
+    say "syncing the pubspec the version endpoint reads"
+    rsync -a --inplace -e "ssh -o BatchMode=yes" \
+      "$REPO/mobile/pubspec.yaml" "$HOST:$REMOTE/mobile/pubspec.yaml"
     # Same-filesystem temp + mv so the backend never serves a half-written file.
     scp -o BatchMode=yes "$APK" "$HOST:/srv/manhwamaniacs/apk/.app-release.apk.tmp"
     ssh -o BatchMode=yes "$HOST" \
