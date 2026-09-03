@@ -137,6 +137,56 @@ def test_baseline_creates_chapter_ocr_fts_and_triggers(tmp_path):
         assert [r[0] for r in hit] == ["c1"]
 
 
+def test_create_all_also_builds_a_working_fts_index(db_engine):
+    """The other schema path: ``Base.metadata.create_all`` (every test DB, any
+    create_all bootstrap) must produce the same working ``chapter_ocr_fts`` index
+    the Alembic baseline does — via the ``after_create`` hook in database.models.
+    """
+    with db_engine.connect() as conn:
+        objects = {
+            r[0]
+            for r in conn.execute(
+                text(
+                    "SELECT name FROM sqlite_master "
+                    "WHERE type IN ('table', 'trigger')"
+                )
+            )
+        }
+    assert "chapter_ocr_fts" in objects
+    assert {
+        "chapter_ocr_fts_ai",
+        "chapter_ocr_fts_ad",
+        "chapter_ocr_fts_au",
+    } <= objects
+
+    with db_engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO chapter_ocr "
+                "(source_id, series_key, chapter_key, full_text, engine, "
+                " word_count, created_at, updated_at) "
+                "VALUES ('mangadex', 's1', 'c1', 'the phantom knight returned', "
+                " 'test', 4, '2026-01-01', '2026-01-01')"
+            )
+        )
+    with db_engine.connect() as conn:
+        hit = conn.execute(
+            text(
+                "SELECT c.chapter_key FROM chapter_ocr_fts f "
+                "JOIN chapter_ocr c ON c.id = f.rowid "
+                "WHERE chapter_ocr_fts MATCH 'phantom'"
+            )
+        ).all()
+    assert [r[0] for r in hit] == ["c1"]
+
+
+def test_create_all_fts_hook_is_idempotent(db_engine):
+    """A second ``create_all`` on the same engine must not fail on the FTS DDL."""
+    from database.models import Base
+
+    Base.metadata.create_all(bind=db_engine)  # would raise without IF NOT EXISTS
+
+
 def test_alembic_head_matches_models(tmp_path):
     """``upgrade head`` must reproduce the ORM models exactly — a model change
     without a matching migration shows up here as a non-empty diff."""
