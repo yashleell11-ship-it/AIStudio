@@ -88,10 +88,11 @@ export function useShortcut(shortcut: Shortcut): void {
     handlerRef.current = shortcut.handler;
   }, [shortcut]);
 
-  const { id, description, group, allowInInput, preventDefault } = shortcut;
+  const { id, description, group, allowInInput, preventDefault, enabled } = shortcut;
   const keys = Array.isArray(shortcut.keys) ? shortcut.keys.join("|") : shortcut.keys;
 
   useEffect(() => {
+    if (enabled === false) return;
     return register({
       id,
       description,
@@ -101,7 +102,7 @@ export function useShortcut(shortcut: Shortcut): void {
       keys: keys.includes("|") ? keys.split("|") : keys,
       handler: (event) => handlerRef.current(event),
     });
-  }, [register, id, description, group, allowInInput, preventDefault, keys]);
+  }, [register, id, description, group, allowInInput, preventDefault, keys, enabled]);
 }
 
 /** Read all registered shortcuts (e.g. to render a help overlay). */
