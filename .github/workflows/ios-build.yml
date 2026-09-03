@@ -10,7 +10,7 @@ name: Build iOS (unsigned, for sideload)
 on:
   push:
     branches:
-      - feat/profile-isolation-eclipse-warm
+      - feat/vps-slim-source-native
   workflow_dispatch:
 
 jobs:

@@ -1,0 +1,27 @@
+# ManhwaManiacs (OVH VPS) — pull the newest CI-built iOS .ipa so SideStore can
+# offer it as an over-the-air update. Closes the loop from `git push github` to
+# an Update badge on the phone.
+#
+# This is the VPS counterpart of ops/manhwamaniacs-ios-sync.cron (which targeted
+# the NAS paths). Only the branch and destination differ; the script itself is
+# shared — ops/ios-sync-cron.sh -> ops/fetch-ios-build.sh.
+#
+# Install (on the VPS, as root):
+#   sudo install -m 644 /srv/manhwamaniacs/app/ops/vps/manhwamaniacs-ios-sync.cron \
+#        /etc/cron.d/manhwamaniacs-ios-sync
+# (the installed filename must not contain a dot, or cron ignores it)
+#
+# Runs as root so it can chown the published .ipa to uid 1000, which is what the
+# backend container reads it as (see the ./ipa mount in ops/vps/docker-compose.yml).
+#
+# Credentials: none needed while the GitHub repo is public — release assets are
+# anonymously downloadable. If the repo is private, the script falls back to the
+# Actions artifact API, which needs a token with Actions:read at /root/.gh_token.
+#
+# Every 10 minutes; an iOS build takes ~5 min, so a push shows up on the phone
+# within roughly a quarter hour. A run with nothing new costs one API call.
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MM_IOS_BRANCH=feat/vps-slim-source-native
+
+*/10 * * * * root /srv/manhwamaniacs/app/ops/ios-sync-cron.sh /srv/manhwamaniacs/ipa
