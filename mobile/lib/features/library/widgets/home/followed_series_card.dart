@@ -4,9 +4,9 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
-import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/pressable.dart';
@@ -15,21 +15,21 @@ import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 /// Everything the Library card can say *truthfully* about a followed series
 /// without firing a per-series network request.
 ///
-/// `SeriesTracker.knownChapterCount` is written only by the backend update
-/// checker (`update_service._check_tracker`), so a freshly-followed series —
-/// or one whose connector is erroring — reports 0 even though the series has
-/// hundreds of chapters. Rendering "0 chapters" is therefore a lie, and the
-/// only way to get a real count on this screen would be one chapter-list
-/// request per followed series on every Library open. Instead we surface what
-/// the already-loaded updates payload knows: the newest chapter we have ever
-/// been notified about, and how many of those notifications are still unread.
+/// [FollowedSeries.chapterCount] is only refreshed by the backend update
+/// checker, so a freshly-followed series — or one whose connector is erroring
+/// — reports 0 even though the series has hundreds of chapters. Rendering "0
+/// chapters" is therefore a lie, and the only way to get a real count on this
+/// screen would be one chapter-list request per followed series on every
+/// Library open. Instead we surface what the already-loaded updates payload
+/// knows: the newest chapter we have ever been notified about, and how many
+/// of those notifications are still unread.
 class FollowedSeriesMeta {
   const FollowedSeriesMeta({
     required this.unreadCount,
     required this.latestChapterLabel,
   });
 
-  /// Unread new-chapter notifications for this tracker, counted from the same
+  /// Unread new-chapter notifications for this series, counted from the same
   /// notification page the Updates tab renders — so the two always agree.
   final int unreadCount;
 
@@ -40,15 +40,15 @@ class FollowedSeriesMeta {
   static const FollowedSeriesMeta none =
       FollowedSeriesMeta(unreadCount: 0, latestChapterLabel: null);
 
-  /// Derives the meta for [tracker] from the loaded [notifications].
-  static FollowedSeriesMeta forTracker({
-    required SeriesTracker tracker,
+  /// Derives the meta for [series] from the loaded [notifications].
+  static FollowedSeriesMeta forSeries({
+    required FollowedSeries series,
     required List<UpdateNotification> notifications,
   }) {
     var unread = 0;
     UpdateNotification? latest;
     for (final notification in notifications) {
-      if (notification.trackerId != tracker.id) continue;
+      if (notification.followedSeriesId != series.id) continue;
       if (!notification.isRead) unread++;
       if (latest == null || _isNewer(notification, latest)) {
         latest = notification;
@@ -86,12 +86,12 @@ class FollowedSeriesMeta {
 class FollowedSeriesCard extends ConsumerWidget {
   const FollowedSeriesCard({
     super.key,
-    required this.tracker,
+    required this.series,
     required this.meta,
     required this.onTap,
   });
 
-  final SeriesTracker tracker;
+  final FollowedSeries series;
   final FollowedSeriesMeta meta;
   final VoidCallback onTap;
 
@@ -100,7 +100,7 @@ class FollowedSeriesCard extends ConsumerWidget {
   String? get _subtitle {
     final latest = meta.latestChapterLabel;
     if (latest != null) return 'Latest: $latest';
-    final known = tracker.knownChapterCount;
+    final known = series.chapterCount;
     if (known <= 0) return null;
     return known == 1 ? '1 chapter' : '$known chapters';
   }
@@ -108,7 +108,7 @@ class FollowedSeriesCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final coverUrl = trackerCoverUrl(baseUrl, tracker);
+    final coverUrl = followedSeriesCoverUrl(baseUrl, series);
     final subtitle = _subtitle;
 
     return Pressable(
@@ -131,12 +131,6 @@ class FollowedSeriesCard extends ConsumerWidget {
                       top: AppSpacing.sm,
                       right: AppSpacing.sm,
                       child: _NewBadge(count: meta.unreadCount),
-                    )
-                  else if (tracker.lastError != null)
-                    const Positioned(
-                      top: AppSpacing.sm,
-                      right: AppSpacing.sm,
-                      child: _CheckFailedBadge(),
                     ),
                 ],
               ),
@@ -144,7 +138,7 @@ class FollowedSeriesCard extends ConsumerWidget {
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
-            tracker.seriesTitle,
+            series.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.label.copyWith(
@@ -192,31 +186,6 @@ class _NewBadge extends StatelessWidget {
           fontSize: 10,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,
-        ),
-      ),
-    );
-  }
-}
-
-/// Quiet marker for a tracker whose last update check failed — the state where
-/// chapter data would otherwise stay silently unknown forever.
-class _CheckFailedBadge extends StatelessWidget {
-  const _CheckFailedBadge();
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: 'Last update check failed',
-      child: Container(
-        padding: const EdgeInsets.all(AppSpacing.xxs),
-        decoration: BoxDecoration(
-          color: AppColors.bg.withValues(alpha: 0.65),
-          shape: BoxShape.circle,
-        ),
-        child: const Icon(
-          Icons.sync_problem_outlined,
-          size: 14,
-          color: AppColors.muted,
         ),
       ),
     );

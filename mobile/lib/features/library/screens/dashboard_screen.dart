@@ -8,9 +8,9 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/responsive.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/widgets/home/followed_series_card.dart';
 import 'package:manhwamaniacs/features/profiles/widgets/profile_switcher_chip.dart';
-import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
@@ -96,7 +96,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: _FollowedGrid(
               followed: followed,
               notifications: data.notifications,
-              onOpenTracker: (tracker) => _openTracker(context, tracker),
+              onOpenSeries: (series) => _openSeries(context, series),
             ),
           );
         },
@@ -104,20 +104,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
     );
   }
 
-  /// Library = followed only; downloaded-only trackers never appear here.
-  List<SeriesTracker> _followedOf(UpdatesState? state) => [
-        for (final tracker in state?.trackers ?? const <SeriesTracker>[])
-          if (tracker.trackKind == TrackKind.followed) tracker,
-      ];
+  List<FollowedSeries> _followedOf(UpdatesState? state) =>
+      state?.followed ?? const [];
 
-  void _openTracker(BuildContext context, SeriesTracker tracker) {
-    final localId = tracker.localSeriesId;
-    if (localId != null) {
-      context.push(RoutePaths.seriesDetail(localId));
-      return;
-    }
+  void _openSeries(BuildContext context, FollowedSeries series) {
     context.push(
-      RoutePaths.sourceSeriesDetail(tracker.source, tracker.seriesId),
+      RoutePaths.sourceSeriesDetail(series.sourceId, series.seriesKey),
     );
   }
 }
@@ -127,12 +119,12 @@ class _FollowedGrid extends StatelessWidget {
   const _FollowedGrid({
     required this.followed,
     required this.notifications,
-    required this.onOpenTracker,
+    required this.onOpenSeries,
   });
 
-  final List<SeriesTracker> followed;
+  final List<FollowedSeries> followed;
   final List<UpdateNotification> notifications;
-  final void Function(SeriesTracker) onOpenTracker;
+  final void Function(FollowedSeries) onOpenSeries;
 
   @override
   Widget build(BuildContext context) {
@@ -180,16 +172,16 @@ class _FollowedGrid extends StatelessWidget {
             ),
             itemCount: followed.length,
             itemBuilder: (context, index) {
-              final tracker = followed[index];
+              final series = followed[index];
               return ScrollReveal(
                 index: index,
                 child: FollowedSeriesCard(
-                  tracker: tracker,
-                  meta: FollowedSeriesMeta.forTracker(
-                    tracker: tracker,
+                  series: series,
+                  meta: FollowedSeriesMeta.forSeries(
+                    series: series,
                     notifications: notifications,
                   ),
-                  onTap: () => onOpenTracker(tracker),
+                  onTap: () => onOpenSeries(series),
                 ),
               );
             },

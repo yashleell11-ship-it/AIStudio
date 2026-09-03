@@ -22,7 +22,7 @@ class CollectionBannerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final coverUrl = collectionCoverUrl(collection.coverPath);
+    final coverUrl = collectionCoverUrl(collection.coverUrl);
 
     return Material(
       color: Colors.transparent,
@@ -174,7 +174,7 @@ class CollectionHeroBanner extends ConsumerWidget {
     this.description,
     this.seriesCount = 0,
     this.coverUrl,
-    this.coverSeriesId,
+    this.coverSeriesRef,
     required this.apiBaseUrl,
   });
 
@@ -182,13 +182,18 @@ class CollectionHeroBanner extends ConsumerWidget {
   final String? description;
   final int seriesCount;
   final String? coverUrl;
-  final int? coverSeriesId;
+
+  /// `(sourceId, seriesKey)` of the first member series, used to resolve a
+  /// cover through the source proxy when the collection has no cover of its
+  /// own.
+  final (String, String)? coverSeriesRef;
   final String apiBaseUrl;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final ref_ = coverSeriesRef;
     final resolvedCover = coverUrl ??
-        (coverSeriesId != null ? seriesCoverUrl(apiBaseUrl, coverSeriesId!) : null);
+        (ref_ != null ? sourceSeriesCoverUrl(apiBaseUrl, ref_.$1, ref_.$2) : null);
 
     return SizedBox(
       height: 220,

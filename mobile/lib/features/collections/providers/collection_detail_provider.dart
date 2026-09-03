@@ -56,18 +56,32 @@ class CollectionDetailNotifier
     return null;
   }
 
-  Future<AppError?> addSeries(int seriesId) async {
+  Future<AppError?> addSeries({
+    required String sourceId,
+    required String seriesKey,
+  }) async {
     final repo = ref.read(libraryRepositoryProvider);
-    final result = await repo.addSeriesToCollection(arg, seriesId);
+    final result = await repo.addSeriesToCollection(
+      arg,
+      sourceId: sourceId,
+      seriesKey: seriesKey,
+    );
     if (result.isErr) return result.error;
     await refresh();
     ref.invalidate(collectionsProvider);
     return null;
   }
 
-  Future<AppError?> removeSeries(int seriesId) async {
+  Future<AppError?> removeSeries({
+    required String sourceId,
+    required String seriesKey,
+  }) async {
     final repo = ref.read(libraryRepositoryProvider);
-    final result = await repo.removeSeriesFromCollection(arg, seriesId);
+    final result = await repo.removeSeriesFromCollection(
+      arg,
+      sourceId: sourceId,
+      seriesKey: seriesKey,
+    );
     if (result.isErr) return result.error;
     await refresh();
     ref.invalidate(collectionsProvider);

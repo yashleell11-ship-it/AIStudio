@@ -40,7 +40,6 @@ class SeriesCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final progress = series.readingProgress;
 
     return Pressable(
       onTap: onTap,
@@ -58,7 +57,7 @@ class SeriesCard extends ConsumerWidget {
                   Hero(
                     tag: seriesCoverHeroTag(series.id),
                     child: SeriesCoverImage(
-                      url: seriesCoverUrl(baseUrl, series.id),
+                      url: followedSeriesCoverUrl(baseUrl, series) ?? '',
                       borderRadius: AppRadius.xl,
                     ),
                   ),
@@ -169,10 +168,7 @@ class SeriesCard extends ConsumerWidget {
             ),
           ),
           const SizedBox(height: AppSpacing.xs),
-          _ProgressLabel(
-            series: series,
-            progressPct: progress?.progressPct,
-          ),
+          _ProgressLabel(series: series),
         ],
       ),
     );
@@ -202,7 +198,6 @@ class SeriesListTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final progress = series.readingProgress;
 
     return GestureDetector(
       onLongPress: onLongPress,
@@ -214,7 +209,7 @@ class SeriesListTile extends ConsumerWidget {
           Hero(
             tag: seriesCoverHeroTag(series.id),
             child: SeriesCoverImage(
-              url: seriesCoverUrl(baseUrl, series.id),
+              url: followedSeriesCoverUrl(baseUrl, series) ?? '',
               width: 64,
               height: 64,
             ),
@@ -256,19 +251,9 @@ class SeriesListTile extends ConsumerWidget {
                       ),
                   ],
                 ),
-                if (series.author != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    series.author!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption,
-                  ),
-                ],
                 const SizedBox(height: 4),
                 Text(
-                  '${series.chapterCount} chapters · ${languageLabel(series.language)}'
-                  '${progress != null ? ' · ${progress.progressPct.round()}% read' : ''}',
+                  '${series.chapterCount} chapters',
                   style: AppTypography.caption,
                 ),
               ],
@@ -382,29 +367,12 @@ class _RemoveButton extends StatelessWidget {
 }
 
 class _ProgressLabel extends StatelessWidget {
-  const _ProgressLabel({
-    required this.series,
-    required this.progressPct,
-  });
+  const _ProgressLabel({required this.series});
 
   final FollowedSeries series;
-  final double? progressPct;
 
   @override
   Widget build(BuildContext context) {
-    if (progressPct != null) {
-      return Row(
-        children: [
-          const Icon(Icons.star, size: 12, color: AppColors.warning),
-          const SizedBox(width: 4),
-          Text(
-            '${progressPct!.round()}%',
-            style: AppTypography.caption.copyWith(color: AppColors.warning),
-          ),
-        ],
-      );
-    }
-
     if (series.isFavorite) {
       return Row(
         children: [
@@ -418,14 +386,10 @@ class _ProgressLabel extends StatelessWidget {
       );
     }
 
-    if (series.readChapters > 0) {
-      return Text(
-        '${series.readChapters}/${series.chapterCount} read',
-        style: AppTypography.caption,
-      );
-    }
-
-    return Text('—', style: AppTypography.caption.copyWith(color: AppColors.muted));
+    return Text(
+      readingStatusLabel(series.readingStatus),
+      style: AppTypography.caption.copyWith(color: AppColors.muted),
+    );
   }
 }
 
