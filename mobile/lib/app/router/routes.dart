@@ -47,6 +47,9 @@ abstract final class Routes {
   // ── More ──────────────────────────────────────────────────────────────────
   static const String more = '/more';
 
+  // ── Downloads ─────────────────────────────────────────────────────────────
+  static const String downloads = '/downloads';
+
   // ── Settings ──────────────────────────────────────────────────────────────
   static const String settings = '/settings';
   static const String diagnostics = '/settings/diagnostics';

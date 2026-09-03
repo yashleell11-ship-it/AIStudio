@@ -566,6 +566,11 @@ void main() {
       await tester.runAsync(() async => Future<void>.delayed(Duration.zero));
       await tester.pump();
       await tester.pump();
+      // The list is a virtualized SliverList — the banner sits near the
+      // bottom (below the new Downloads tile), past the default cache
+      // extent, so it isn't built at all until scrolled into range.
+      await tester.drag(find.byType(Scrollable).first, const Offset(0, -800));
+      await tester.pump();
 
       expect(find.text('Update available', skipOffstage: false), findsOneWidget);
       expect(find.text('Installed', skipOffstage: false), findsOneWidget);
