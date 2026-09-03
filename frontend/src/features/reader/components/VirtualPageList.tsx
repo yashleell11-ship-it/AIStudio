@@ -17,11 +17,15 @@ import {
   recordHeight,
   type HeightSamples,
 } from "../page-metrics";
+import { PRELOAD_AHEAD_CONTINUOUS } from "../preload";
 import { restoreChapterScroll } from "../scroll-preparation";
 import { PageImage } from "./PageImage";
 
-/** Number of upcoming pages to warm into the browser cache ahead of the reader. */
-const PREFETCH_AHEAD = 2;
+/**
+ * Upcoming pages warmed into the browser cache ahead of the reader. The strip
+ * looks the furthest ahead of any mode (see `pagesAheadToWarm`).
+ */
+const PREFETCH_AHEAD = PRELOAD_AHEAD_CONTINUOUS;
 
 /** The thin separator height (`pb-2` = 0.5rem) when the page-gap setting is on. */
 const PAGE_GAP_PX = 8;

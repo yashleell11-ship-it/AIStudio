@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { resolvePageFit, wheelZoomSteps } from "../fit";
 import { tapZone, type TapZone } from "../keymap";
+import { PRELOAD_AHEAD_PAGED } from "../preload";
 import { spreadDisplayOrder } from "../spread";
 import type { FitMode, ReaderPage, ReadingDirection } from "../types";
 import { PageImage } from "./PageImage";
@@ -14,7 +15,7 @@ const SPREAD_GAP = 8;
  * Pages warmed past the current view. A paged mode holds only the visible pages
  * in the DOM, so without this every turn starts from a cold image.
  */
-const PREFETCH_AHEAD = 3;
+const PREFETCH_AHEAD = PRELOAD_AHEAD_PAGED;
 
 interface PagedViewProps {
   pages: ReaderPage[];

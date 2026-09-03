@@ -7,8 +7,23 @@
  * someone else's bandwidth on pages the reader will most likely never show.
  */
 
+import type { ReadingMode } from "./types";
+
 /** Hard cap on how far ahead chapter payloads are pulled. */
 export const MAX_PRELOAD_CHAPTERS_AHEAD = 1;
+
+/**
+ * How many upcoming pages of the CURRENT chapter to keep warmed into the browser
+ * cache, by reading mode. Continuous scrolling burns through pages fastest and
+ * shows partial pages at the seam, so it looks furthest ahead; the paged modes
+ * only ever need the next turn or two ready.
+ */
+export const PRELOAD_AHEAD_CONTINUOUS = 5;
+export const PRELOAD_AHEAD_PAGED = 3;
+
+export function pagesAheadToWarm(mode: ReadingMode): number {
+  return mode === "continuous" ? PRELOAD_AHEAD_CONTINUOUS : PRELOAD_AHEAD_PAGED;
+}
 
 /** Fraction of a chapter that must be read before the next one is pulled. */
 export const PRELOAD_TRIGGER_RATIO = 0.6;
