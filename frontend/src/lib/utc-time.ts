@@ -28,3 +28,53 @@ export function parseUtcTimestamp(value: string | null | undefined): number | nu
   const parsed = Date.parse(normalized);
   return Number.isNaN(parsed) ? null : parsed;
 }
+
+/** Copy for a timestamp that is absent, and for one that will not parse. */
+export interface UtcFormatOptions {
+  /** Rendered when there is no value at all. */
+  missing?: string;
+  /** Rendered when a value is present but unparseable. */
+  invalid?: string;
+}
+
+/**
+ * Locale date+time for a backend timestamp.
+ *
+ * Every caller used to do `new Date(value).toLocaleString()` or
+ * `Date.parse(value)` directly, which reads the backend's naive-UTC strings as
+ * LOCAL time — the run that finished a minute ago rendered as 5.5h earlier in
+ * IST, and a chapter read at 11pm was dated the previous day.
+ */
+export function formatUtcDateTime(
+  value: string | null | undefined,
+  { missing = "Never", invalid = "Unknown" }: UtcFormatOptions = {},
+): string {
+  if (!value) return missing;
+  const parsed = parseUtcTimestamp(value);
+  if (parsed === null) return invalid;
+  return new Date(parsed).toLocaleString();
+}
+
+/** Locale date (no time) for a backend timestamp. */
+export function formatUtcDate(
+  value: string | null | undefined,
+  { missing = "", invalid = "" }: UtcFormatOptions = {},
+): string {
+  if (!value) return missing;
+  const parsed = parseUtcTimestamp(value);
+  if (parsed === null) return invalid;
+  return new Date(parsed).toLocaleDateString();
+}
+
+/**
+ * Signed minutes between `nowMs` and a backend timestamp — positive for the
+ * past, negative for the future — or `null` when it cannot be read.
+ */
+export function utcMinutesFromNow(
+  value: string | null | undefined,
+  nowMs: number,
+): number | null {
+  const parsed = parseUtcTimestamp(value);
+  if (parsed === null) return null;
+  return Math.round((nowMs - parsed) / 60_000);
+}

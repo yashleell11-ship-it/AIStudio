@@ -9,6 +9,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
 import { useBookmarks, useDeleteBookmark } from "@/features/library/hooks";
 import { readerChapterHref } from "@/features/reader/reader-link";
+import { formatUtcDate } from "@/lib/utc-time";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 export function BookmarksView() {
@@ -98,7 +99,7 @@ export function BookmarksView() {
                     )}
                     {bookmark.created_at && (
                       <p className="text-xs text-muted">
-                        {new Date(bookmark.created_at).toLocaleDateString()}
+                        {formatUtcDate(bookmark.created_at)}
                       </p>
                     )}
                   </Link>

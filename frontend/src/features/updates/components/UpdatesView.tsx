@@ -9,6 +9,7 @@ import { OfflineState } from "@/components/ui/offline-state";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { useFollowedIndex } from "@/features/library/hooks";
+import { formatUtcDateTime } from "@/lib/utc-time";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { ApiError } from "@/types/api";
 import { notificationReaderHref } from "../notification-link";
@@ -22,9 +23,13 @@ import {
 } from "../hooks";
 import type { UpdateNotification } from "../types";
 
+/**
+ * Notification `created_at` and run `started_at` are UTC serialised from a
+ * naive datetime, so they go through `formatUtcDateTime` — a bare `new Date`
+ * dated every notification 5.5h early in IST.
+ */
 function formatWhen(value: string | null): string {
-  if (!value) return "Never";
-  return new Date(value).toLocaleString();
+  return formatUtcDateTime(value);
 }
 
 function NotificationRow({
