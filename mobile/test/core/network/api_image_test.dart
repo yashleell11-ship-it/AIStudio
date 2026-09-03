@@ -13,6 +13,17 @@ void main() {
     test('returns null for empty or missing token', () {
       expect(apiImageHttpHeaders(null), isNull);
       expect(apiImageHttpHeaders(''), isNull);
+      // No token means no request identity at all — a profile id alone never
+      // produces headers.
+      expect(apiImageHttpHeaders(null, profileId: 3), isNull);
+    });
+
+    test('attaches X-Profile-Id so the image proxy resolves the same 18+ gate '
+        'as the JSON routes', () {
+      expect(
+        apiImageHttpHeaders('secret-token', profileId: 7),
+        {'Authorization': 'Bearer secret-token', 'X-Profile-Id': '7'},
+      );
     });
   });
 

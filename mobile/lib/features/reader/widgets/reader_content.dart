@@ -534,7 +534,10 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       _containerWidth,
       MediaQuery.devicePixelRatioOf(context),
     );
-    final headers = apiImageHttpHeaders(ref.read(authTokenStoreProvider).token);
+    final headers = apiImageHttpHeaders(
+      ref.read(authTokenStoreProvider).token,
+      profileId: ref.read(activeProfileProvider)?.id,
+    );
     for (var i = _prefetchedThrough; i < target; i++) {
       final provider = ResizeImage.resizeIfNeeded(
         decodeWidth,

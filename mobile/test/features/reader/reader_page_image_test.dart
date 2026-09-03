@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_page_image.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 
+import '../../support/test_overrides.dart';
+
 /// Builds an uncompressed PNG of [width] x [height] black pixels.
 ///
 /// Written byte-by-byte (signature + IHDR + IDAT + IEND) so the test needs no
@@ -102,6 +104,9 @@ int _crc32(Uint8List data) {
 
 Widget _harness({required double width, required Widget child}) {
   return ProviderScope(
+    // ReaderPageImage resolves the active profile for the image proxy's
+    // X-Profile-Id header; the seeded override keeps it off SharedPreferences.
+    overrides: [activeProfileOverride()],
     child: MaterialApp(
       home: SingleChildScrollView(
         child: Center(

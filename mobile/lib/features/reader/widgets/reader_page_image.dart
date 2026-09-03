@@ -6,6 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
@@ -163,7 +164,10 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
     if (_sizeStream != null || widget.imageUrl.isEmpty) return;
 
     final headers = widget.httpHeaders ??
-        apiImageHttpHeaders(ref.read(authTokenStoreProvider).token);
+        apiImageHttpHeaders(
+          ref.read(authTokenStoreProvider).token,
+          profileId: ref.read(activeProfileProvider)?.id,
+        );
     final provider = ResizeImage.resizeIfNeeded(
       readerDecodeWidth(
         widget.viewportWidth,
@@ -216,7 +220,10 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
   @override
   Widget build(BuildContext context) {
     final headers = widget.httpHeaders ??
-        apiImageHttpHeaders(ref.watch(authTokenStoreProvider).token);
+        apiImageHttpHeaders(
+          ref.watch(authTokenStoreProvider).token,
+          profileId: ref.watch(activeProfileProvider)?.id,
+        );
 
     // Decode pages at display size, not the source's native resolution — the
     // key memory/GC win for tall webtoon strips. Kept consistent with the

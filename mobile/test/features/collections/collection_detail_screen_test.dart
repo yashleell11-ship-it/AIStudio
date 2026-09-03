@@ -305,6 +305,9 @@ Future<void> _pumpDetail(
       overrides: [
         apiBaseUrlOverride('http://127.0.0.1:8000'),
         libraryRepositoryProvider.overrideWithValue(repo),
+        // SeriesCoverImage resolves the active profile for the image proxy's
+        // X-Profile-Id header; the seeded override keeps it off SharedPreferences.
+        activeProfileOverride(),
       ],
       child: MaterialApp(
         home: CollectionDetailScreen(collectionId: collectionId),
