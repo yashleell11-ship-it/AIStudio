@@ -54,6 +54,29 @@ class Settings(BaseModel):
     # refetch is forced. Overridable via MM_SOURCE_CACHE_TTL_MINUTES.
     source_cache_ttl_minutes: int = 360
 
+    # TTL (minutes) for cached browse-listing pages (source_browse_cache).
+    # Deliberately shorter than source_cache_ttl_minutes: a "latest"-sorted
+    # grid reorders with every upstream chapter release, so six hours behind is
+    # visibly wrong there, while one hour is invisible on a grid and still
+    # absorbs virtually all repeat traffic. The TTL only controls refresh
+    # cadence, not availability — expired rows are kept and served stale when
+    # the connector is down. Overridable via MM_BROWSE_CACHE_TTL_MINUTES.
+    browse_cache_ttl_minutes: int = 60
+    # Row ceilings for the two connector caches; the oldest rows by fetched_at
+    # are evicted past these. A browse row is one serialized page (~10-16 KB
+    # for a 40-item grid) → 2000 rows ≈ 20-32 MB worst case. A series row is
+    # ~1 KB of metadata (~10 KB with a long chapter list) → 20000 rows ≈
+    # 20-200 MB worst case, in practice far less because browse write-through
+    # rows carry no chapters. Overridable via MM_BROWSE_CACHE_MAX_ROWS /
+    # MM_SOURCE_CACHE_MAX_ROWS.
+    browse_cache_max_rows: int = 2000
+    source_cache_max_rows: int = 20000
+    # Warm the *next* browse page in the background after serving one, so
+    # paging forward is instant. Never more than one page ahead, never on a
+    # stale (connector-down) serve. Overridable via MM_BROWSE_PREFETCH_ENABLED;
+    # the test suite disables it so no background threads outlive a test.
+    browse_prefetch_enabled: bool = True
+
     # Hard ceiling (bytes) for a single proxied image/cover body. A hostile
     # allowlisted upstream can otherwise stream an unbounded "image" and OOM
     # the box (each page-image request used to buffer the entire body with no
@@ -161,10 +184,21 @@ def get_settings() -> Settings:
         ("MM_UPDATE_SWEEP_DEADLINE_MINUTES", "update_sweep_deadline_minutes"),
         ("MM_MAX_FOLLOWS_PER_PROFILE", "max_follows_per_profile"),
         ("MM_BOOTSTRAP_WINDOW_MINUTES", "bootstrap_window_minutes"),
+        ("MM_BROWSE_CACHE_TTL_MINUTES", "browse_cache_ttl_minutes"),
+        ("MM_BROWSE_CACHE_MAX_ROWS", "browse_cache_max_rows"),
+        ("MM_SOURCE_CACHE_MAX_ROWS", "source_cache_max_rows"),
     ):
         value = os.getenv(env_key)
         if value and value.strip():
             data[field] = int(value.strip())
+    prefetch_override = os.getenv("MM_BROWSE_PREFETCH_ENABLED")
+    if prefetch_override is not None:
+        data["browse_prefetch_enabled"] = prefetch_override.strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
 
     # Auth deployment overrides.
     reg_override = os.getenv("MM_REGISTRATION_ENABLED")

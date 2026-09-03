@@ -587,6 +587,37 @@ class SourceSeriesCache(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class SourceBrowseCache(Base):
+    """One cached browse *page* of a source's catalog (GLOBAL, TTL).
+
+    Keyed by everything that varies the listing: ``(source_id, sort, genre,
+    page)``. ``sort`` and ``genre`` store ``""`` for "not given" so they can be
+    primary-key columns (SQLite PKs are NOT NULL). Search results
+    (``query=...``) are deliberately NOT cached: their key cardinality is
+    unbounded and each user's queries are their own.
+
+    ``payload`` is the serialized listing exactly as the browse endpoint
+    returns it (items + pagination fields), so a cache hit is a
+    ``json.loads`` away from the wire. Like ``source_series_cache`` this is
+    *purely* a cache — any row may be deleted at any time — and rows are
+    GLOBAL: the per-caller 18+ gate is applied on every read
+    (``SourceCacheService.get_browse_page``), never assumed at write time.
+
+    Bounded: the oldest rows by ``fetched_at`` are evicted once the table
+    exceeds ``settings.browse_cache_max_rows`` (hence the index).
+    """
+
+    __tablename__ = "source_browse_cache"
+    __table_args__ = (Index("ix_source_browse_cache_fetched_at", "fetched_at"),)
+
+    source_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    sort: Mapped[str] = mapped_column(String(64), primary_key=True, default="")
+    genre: Mapped[str] = mapped_column(String(128), primary_key=True, default="")
+    page: Mapped[int] = mapped_column(Integer, primary_key=True)
+    payload: Mapped[str] = mapped_column(Text, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 # ---------------------------------------------------------------------------
 # chapter_ocr FTS5 (spec §3.12)
 # ---------------------------------------------------------------------------

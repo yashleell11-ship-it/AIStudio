@@ -509,6 +509,17 @@ class BrowseService:
             )
         return connector
 
+    def ensure_visible(self, source_id: str) -> None:
+        """Enforce this caller's view of ``source_id`` — no network involved.
+
+        Raises exactly what a live browse would (404 unknown, 404 mature while
+        the caller's 18+ gate is closed, 400 not browsable). Exists so cached
+        read paths (``SourceCacheService.get_browse_page``) can apply the
+        per-caller gate on every read without touching the connector: cache
+        rows are global, the gate never is.
+        """
+        self._get_connector(source_id)
+
     def list_browse_modes(self, source_id: str) -> list[dict[str, str]]:
         connector = self._get_connector(source_id)
         modes = [
