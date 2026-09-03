@@ -25,8 +25,8 @@
  * means no cache — never a shared default.
  */
 
-export { OfflineChapterControl } from "./components/OfflineChapterControl";
-export { OfflineLibraryView } from "./components/OfflineLibraryView";
+export { DownloadChapterControl } from "./components/DownloadChapterControl";
+export { DownloadsView } from "./components/DownloadsView";
 export { ServiceWorkerBoundary } from "./components/ServiceWorkerBoundary";
 export { useOfflineState, useSavedChapter, useStorageScope } from "./hooks";
 export { chapterCacheKey, isSavableChapter } from "./save-request";

@@ -4,7 +4,6 @@ import {
   Bell,
   BookOpen,
   Bookmark,
-  CloudOff,
   Heart,
   History,
   List,
@@ -104,12 +103,6 @@ export const moreSections: MoreSection[] = [
         label: "Switch profile",
         description: "Each profile keeps its own library and progress.",
         icon: Users,
-      },
-      {
-        href: "/offline",
-        label: "Offline",
-        description: "Chapters saved in this browser, readable with no network.",
-        icon: CloudOff,
       },
       {
         href: "/settings",
