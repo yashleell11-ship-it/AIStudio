@@ -350,7 +350,7 @@ void main() {
     });
 
     test('followSeries adds the new row to the followed cache', () async {
-      final repo = _FakeLibraryRepository(followed: const []);
+      final repo = _FakeLibraryRepository();
       final container = ProviderContainer(
         overrides: [
           updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
