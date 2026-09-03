@@ -31,7 +31,7 @@ features will call **external AI APIs** (e.g. the Claude API) when implemented:
 
 Do **not** build or maintain local models, Ollama/ComfyUI integration, or an
 in-app AI studio to deliver these. See `docs/ROADMAP.md` and
-`docs/ARCHITECTURE_REVIEW_2026-07-11.md` for the current, authoritative plan.
+`docs/ARCHITECTURE.md` for the current, authoritative plan.
 
 ## Files in this archive
 
