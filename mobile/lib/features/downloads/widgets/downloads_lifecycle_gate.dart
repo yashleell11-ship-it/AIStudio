@@ -8,6 +8,7 @@ import 'package:manhwamaniacs/features/downloads/providers/progress_outbox_provi
 import 'package:manhwamaniacs/features/downloads/providers/retention_maintenance_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/storage_settings_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
+import 'package:manhwamaniacs/features/ocr/controllers/ocr_run_controller.dart';
 
 /// Wraps the app and drives every piece of 1c-M3 that has to run on a
 /// schedule rather than in response to a single user action:
@@ -55,13 +56,18 @@ class _DownloadsLifecycleGateState extends ConsumerState<DownloadsLifecycleGate>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     final controller = ref.read(downloadQueueControllerProvider.notifier);
+    final ocr = ref.read(ocrRunControllerProvider.notifier);
     if (state == AppLifecycleState.resumed) {
       controller.setForeground(true);
+      ocr.setForeground(true);
       _onActive(isLaunch: false);
     } else {
       // Foreground-only downloads (spec §3): pause before the queue's next
       // network call rather than let it race an app that's about to suspend.
       controller.setForeground(false);
+      // Same for an in-flight OCR run (spec §4) — it holds between pages
+      // rather than being cancelled, so nothing already recognized is lost.
+      ocr.setForeground(false);
     }
   }
 

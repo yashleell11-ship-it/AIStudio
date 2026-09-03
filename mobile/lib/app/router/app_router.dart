@@ -23,6 +23,7 @@ import 'package:manhwamaniacs/features/library/screens/search_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/series_detail_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/statistics_screen.dart';
 import 'package:manhwamaniacs/features/more/screens/more_screen.dart';
+import 'package:manhwamaniacs/features/ocr/screens/ocr_search_screen.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
@@ -288,6 +289,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.downloads,
         builder: (context, state) => const DownloadsScreen(),
+      ),
+      GoRoute(
+        path: Routes.ocrSearch,
+        builder: (context, state) => const OcrSearchScreen(),
       ),
       GoRoute(
         path: Routes.setup,

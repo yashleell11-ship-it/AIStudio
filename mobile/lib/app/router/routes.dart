@@ -50,6 +50,13 @@ abstract final class Routes {
   // ── Downloads ─────────────────────────────────────────────────────────────
   static const String downloads = '/downloads';
 
+  // ── OCR ───────────────────────────────────────────────────────────────────
+  /// Dialogue search over extracted chapter text. Deliberately not nested
+  /// under [search]: that route is the federated series search and lives in a
+  /// tab shell branch, while this is a pushed full-screen route reached from
+  /// More.
+  static const String ocrSearch = '/ocr/search';
+
   // ── Settings ──────────────────────────────────────────────────────────────
   static const String settings = '/settings';
   static const String diagnostics = '/settings/diagnostics';
