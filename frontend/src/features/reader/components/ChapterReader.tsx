@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useScrollContainer } from "@/lib/scroll-container";
 import { cn } from "@/lib/cn";
 import { moodReaderMargin, useActiveProfileStore } from "@/features/profiles";
-import { OfflineChapterControl } from "@/features/offline";
+import { DownloadChapterControl } from "@/features/offline";
 import { ApiError } from "@/types/api";
 import { readerDebug } from "../debug";
 import { effectiveFitMode, wheelZoomSteps, zoomBy } from "../fit";
@@ -642,7 +642,7 @@ export function ChapterReader({
         just answers those requests from the cache when the network is gone.
       */}
       <div onClick={(event) => event.stopPropagation()} role="presentation">
-        <OfflineChapterControl
+        <DownloadChapterControl
           chapter={chapter}
           visiblePage={visiblePage}
           visible={chromeVisible}

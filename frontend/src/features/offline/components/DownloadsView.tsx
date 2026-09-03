@@ -18,6 +18,7 @@ import { FadeIn } from "@/components/premium/FadeIn";
 import { GlassPanel } from "@/components/premium/GlassPanel";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
+import { readerChapterHref, seriesPageHref } from "@/features/reader/reader-link";
 import {
   clearOfflineScope,
   refreshOfflineState,
@@ -59,7 +60,7 @@ const RETENTION_OPTIONS: { label: string; value: number | null }[] = [
  * ACTIVE profile only. There is no view of another profile's downloads, from
  * here or from anywhere: they are in a cache this page never names.
  */
-export function OfflineLibraryView() {
+export function DownloadsView() {
   const scope = useStorageScope();
   const state = useOfflineState();
   const online = useOnlineStatus();
@@ -114,11 +115,11 @@ export function OfflineLibraryView() {
             On this device
           </p>
           <HeroHeading className="leading-none md:text-6xl">
-            Offline
+            Downloads
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            Chapters saved here are stored in this browser and open with no connection
-            at all. They belong to the profile that saved them.
+            Chapters downloaded here are stored in this browser and open with no
+            connection at all. They belong to the profile that downloaded them.
           </p>
           {!online ? (
             <p className="mt-3 inline-flex items-center gap-2 rounded-full border border-border/60 bg-surface px-3 py-1 text-xs text-muted">
@@ -131,7 +132,7 @@ export function OfflineLibraryView() {
         {state.readiness === "unsupported" ? (
           <Notice
             icon={TriangleAlert}
-            title="Offline reading is unavailable here"
+            title="Downloads are unavailable here"
             body="This browser has no service worker, or the page is not being served over
               a secure connection. Both are required to store chapters on the device."
           />
@@ -139,8 +140,8 @@ export function OfflineLibraryView() {
           <Notice
             icon={CloudOff}
             title="No profile selected"
-            body="Saved chapters belong to a reading profile. Choose one and its downloads
-              appear here."
+            body="Downloaded chapters belong to a reading profile. Choose one and its
+              downloads appear here."
           />
         ) : (
           <>
@@ -238,10 +239,10 @@ export function OfflineLibraryView() {
             ) : groups.length === 0 ? (
               <div className="empty-state">
                 <CloudOff className="mx-auto mb-3 size-8 text-muted" aria-hidden />
-                <p className="text-fg">Nothing saved yet</p>
+                <p className="text-fg">Nothing downloaded yet</p>
                 <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
                   Open a chapter and press{" "}
-                  <span className="text-primary">Save for offline</span> in the reader.
+                  <span className="text-primary">Download</span> in the reader.
                   Its pages are stored here and stay readable with no connection.
                 </p>
                 <Link
@@ -254,10 +255,13 @@ export function OfflineLibraryView() {
             ) : (
               <FadeIn y={20} delay={0.15} className="space-y-4">
                 {groups.map((group) => (
-                  <GlassPanel key={group.seriesId} className="overflow-hidden">
+                  <GlassPanel key={group.id} className="overflow-hidden">
                     <div className="flex items-center justify-between gap-3 border-b border-border/60 px-5 py-3">
                       <Link
-                        href={`/library/${group.seriesId}`}
+                        href={seriesPageHref({
+                          sourceId: group.sourceId,
+                          seriesKey: group.seriesKey,
+                        })}
                         className="min-w-0 truncate font-medium text-fg transition-colors hover:text-primary"
                       >
                         {group.seriesTitle}
@@ -337,7 +341,11 @@ function SavedChapterRow({
     <li className="flex items-center gap-3 border-b border-border/40 px-5 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
         <Link
-          href={`/reader/${entry.seriesId}/${entry.chapterId}`}
+          href={readerChapterHref({
+            sourceId: entry.sourceId,
+            seriesKey: entry.seriesKey,
+            chapterKey: entry.chapterKey,
+          })}
           className="block truncate text-sm text-fg transition-colors hover:text-primary"
         >
           {entry.title}

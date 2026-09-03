@@ -19,7 +19,7 @@ import { useOfflineState, useSavedChapter, useStorageScope } from "../hooks";
 import { describeEntry, savePercent } from "../format";
 import { buildSaveRequest, chapterCacheKey, isSavableChapter } from "../save-request";
 
-interface OfflineChapterControlProps {
+interface DownloadChapterControlProps {
   chapter: ReaderChapterContent;
   /** The page the reader is on, used to notice the chapter being finished. */
   visiblePage: number;
@@ -31,7 +31,7 @@ interface OfflineChapterControlProps {
 const CONFIRM_TIMEOUT_MS = 4_000;
 
 /**
- * "Save for offline", in the reader, for the chapter on screen.
+ * "Download", in the reader, for the chapter on screen.
  *
  * It hooks into the reader at the one seam that matters: the page URLs the
  * reader already resolved. Those exact URLs are handed to the worker, which
@@ -46,11 +46,11 @@ const CONFIRM_TIMEOUT_MS = 4_000;
  *   - finished → starts the 2-day timer
  *   - closed   → releases the protection
  */
-export function OfflineChapterControl({
+export function DownloadChapterControl({
   chapter,
   visiblePage,
   visible,
-}: OfflineChapterControlProps) {
+}: DownloadChapterControlProps) {
   const scope = useStorageScope();
   const state = useOfflineState();
   const queryClient = useQueryClient();
@@ -128,9 +128,9 @@ export function OfflineChapterControl({
     }
   }, [key, scope]);
 
-  // Nothing to offer: an online-source chapter cannot be stored (its pages are
-  // opaque cross-origin bytes), no profile means no cache to store it in, and a
-  // browser without a worker has nowhere to put it.
+  // Nothing to offer: a chapter with no resolved pages has nothing to store, no
+  // profile means no cache to store it in, and a browser without a worker has
+  // nowhere to put it.
   if (!savable || !scope) return null;
   if (state.readiness === "unsupported") return null;
 
@@ -159,12 +159,12 @@ export function OfflineChapterControl({
           <span className="text-muted">·</span>
           <span className="text-muted">{percent}%</span>
           <X className="size-3.5 text-muted" aria-hidden />
-          <span className="sr-only">Cancel saving this chapter for offline reading</span>
+          <span className="sr-only">Cancel downloading this chapter</span>
         </button>
       ) : entry && description?.tone === "warn" ? (
         // Incomplete, paused or stale. The useful action here is to fix it, not
         // to delete it — a chapter with holes is repaired by saving again, and
-        // the pages already stored are skipped. Deleting lives on /offline.
+        // the pages already stored are skipped. Deleting lives on /downloads.
         <button
           type="button"
           disabled={busy}
@@ -196,7 +196,7 @@ export function OfflineChapterControl({
           ) : (
             <>
               <Check className="size-3.5 text-success" aria-hidden />
-              Saved
+              Downloaded
             </>
           )}
         </button>
@@ -208,7 +208,7 @@ export function OfflineChapterControl({
           className="glass-panel flex items-center gap-2 rounded-full px-3 py-1.5 text-xs text-fg transition-colors hover:border-primary/40 hover:text-primary disabled:opacity-50"
         >
           <CloudDownload className="size-3.5" aria-hidden />
-          Save for offline
+          Download
         </button>
       )}
     </div>

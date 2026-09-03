@@ -3,7 +3,7 @@ import {
   Bell,
   BookOpen,
   Bookmark,
-  CloudOff,
+  Download,
   Globe,
   History,
   Library,
@@ -50,9 +50,9 @@ export const primaryNav: NavItem[] = [
 
 /** Secondary reading tools, grouped under a "More" header to reduce noise. */
 export const moreNav: NavItem[] = [
-  // Chapters saved to Cache Storage in THIS browser, readable with no network.
-  // TODO(1b): rename "Offline" -> "Downloads" and move to /downloads (spec §3.2).
-  { href: "/offline", label: "Offline", icon: CloudOff },
+  // Chapters saved to Cache Storage in THIS browser, readable with no network —
+  // now the only kind of download there is (the server queue is gone).
+  { href: "/downloads", label: "Downloads", icon: Download },
   { href: "/library/collections", label: "Collections", icon: List },
   { href: "/library/recommendations", label: "Recommendations", icon: Heart },
   { href: "/library/statistics", label: "Statistics", icon: BarChart3 },
@@ -77,9 +77,9 @@ export const secondaryNav: NavItem[] = [
 ];
 
 /**
- * Mobile bottom-tab bar — the same five destinations, in the same order, as the
- * Flutter client's `NavigationBar`. Someone who uses both should not have to
- * learn two apps.
+ * Mobile bottom-tab bar — Library · Sources · Downloads · Search · More
+ * (spec §3.8). "Downloads" here means chapters saved to this device; the server
+ * download queue that used to own the name is gone.
  *
  * "More" opens `/more`, not Settings. Five tabs cannot hold the whole app and a
  * phone has no sidebar, so without a real hub every route outside these five
@@ -88,6 +88,7 @@ export const secondaryNav: NavItem[] = [
 export const mobileNav: NavItem[] = [
   { href: "/library", label: "Library", icon: Library },
   { href: "/sources", label: "Sources", icon: Globe },
+  { href: "/downloads", label: "Downloads", icon: Download },
   { href: "/search", label: "Search", icon: Search },
   { href: "/more", label: "More", icon: Menu },
 ];

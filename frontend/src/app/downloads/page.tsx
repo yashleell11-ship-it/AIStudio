@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import { OfflineLibraryView } from "@/features/offline";
+import { DownloadsView } from "@/features/offline";
 
 export const metadata: Metadata = {
-  title: "Offline · ManhwaManiacs",
+  title: "Downloads · ManhwaManiacs",
   description: "Chapters saved on this device, and what they cost in storage.",
 };
 
-export default function OfflinePage() {
-  return <OfflineLibraryView />;
+export default function DownloadsPage() {
+  return <DownloadsView />;
 }
