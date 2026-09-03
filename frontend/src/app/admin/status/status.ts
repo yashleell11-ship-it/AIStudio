@@ -15,7 +15,6 @@ import { ApiError } from "@/types/api";
  *   GET /health                  -> reachability, name, version
  *   GET /updates/settings, /runs -> checker schedule and run history
  *   GET /updates/trackers        -> per-source health (see deriveSourceHealth)
- *   GET /downloads, /metrics     -> queue depth and failures
  *
  * Nothing is invented. Where the backend exposes no number, the corresponding
  * field is `unknown` and the UI says so rather than showing a plausible zero.

@@ -50,8 +50,8 @@ export const primaryNav: NavItem[] = [
 
 /** Secondary reading tools, grouped under a "More" header to reduce noise. */
 export const moreNav: NavItem[] = [
-  // Chapters stored in THIS browser, as opposed to /downloads, which is what
-  // the server has fetched. The two are different places and different bytes.
+  // Chapters saved to Cache Storage in THIS browser, readable with no network.
+  // TODO(1b): rename "Offline" -> "Downloads" and move to /downloads (spec §3.2).
   { href: "/offline", label: "Offline", icon: CloudOff },
   { href: "/library/collections", label: "Collections", icon: List },
   { href: "/library/recommendations", label: "Recommendations", icon: Heart },

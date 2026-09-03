@@ -6,7 +6,6 @@ import {
   Activity,
   AlertCircle,
   CheckCircle2,
-  ChevronRight,
   CircleHelp,
   Clock,
   RefreshCw,
