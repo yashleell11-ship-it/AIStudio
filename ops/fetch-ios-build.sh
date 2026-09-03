@@ -17,7 +17,7 @@
 #      which is exactly why the release path exists and is preferred.
 #
 # Usage:
-#   ops/fetch-ios-build.sh [dest-dir]        # default: /srv/apps/manhwamaniacs/production/ipa
+#   ops/fetch-ios-build.sh [dest-dir]        # default: /srv/manhwamaniacs/ipa
 #
 # Exit codes: 0 published, 1 error, 2 nothing new to do.
 # =============================================================================
@@ -25,9 +25,9 @@ set -uo pipefail
 
 REPO="${MM_IOS_REPO:-yashleell11-ship-it/AIStudio}"
 WORKFLOW="${MM_IOS_WORKFLOW:-ios-build.yml}"
-BRANCH="${MM_IOS_BRANCH:-feat/profile-isolation-eclipse-warm}"
+BRANCH="${MM_IOS_BRANCH:-feat/vps-slim-source-native}"
 ARTIFACT="${MM_IOS_ARTIFACT:-ManhwaManiacs-ipa}"
-DEST="${1:-/srv/apps/manhwamaniacs/production/ipa}"
+DEST="${1:-/srv/manhwamaniacs/ipa}"
 STAMP="$DEST/.published-run"
 
 c_grn=$'\033[32m'; c_red=$'\033[31m'; c_ylw=$'\033[33m'; c_rst=$'\033[0m'
