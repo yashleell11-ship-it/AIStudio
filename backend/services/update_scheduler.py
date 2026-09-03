@@ -132,7 +132,30 @@ class UpdateSchedulerManager:
             sleep_seconds = max(interval_minutes * 60, 60)
             if self._stop_event.wait(timeout=sleep_seconds):
                 break
+            self._tick()
+
+    def _tick(self) -> None:
+        """One scheduler cycle: trigger a sweep iff scheduled checks are on.
+
+        ``settings.enabled`` used to change only the sleep interval — the
+        sweep itself ran regardless, so "disabled" still hammered every
+        upstream on the config-default cadence (noted in audit findings
+        1/5/6/7). Disabled now means no scheduled sweep; manual checks via
+        ``POST /updates/check`` still work.
+        """
+        if self._scheduled_checks_enabled():
             self.trigger_check(trigger="scheduled")
+
+    def _scheduled_checks_enabled(self) -> bool:
+        db = SessionLocal()
+        try:
+            return bool(UpdateService(db).get_global_settings().enabled)
+        except Exception:
+            # Fail open: a transient DB error must not silently kill the
+            # update feature.
+            return True
+        finally:
+            db.close()
 
     def _current_interval_minutes(self) -> int:
         db = SessionLocal()
