@@ -1,3 +1,4 @@
+import { encodePathKey } from "@/services/http";
 import type { ChapterId, SeriesId } from "@/types/api";
 
 /**
@@ -6,13 +7,9 @@ import type { ChapterId, SeriesId } from "@/types/api";
  * catch-all so opaque keys containing `/` survive.
  */
 export function readerChapterHref(ref: ChapterId, page?: number): string {
-  const chapterSegments = ref.chapterKey
-    .split("/")
-    .map(encodeURIComponent)
-    .join("/");
   const base = `/reader/${encodeURIComponent(ref.sourceId)}/${encodeURIComponent(
     ref.seriesKey,
-  )}/${chapterSegments}`;
+  )}/${encodePathKey(ref.chapterKey)}`;
   return page && page > 1 ? `${base}?page=${page}` : base;
 }
 
