@@ -330,6 +330,62 @@ PYEOF
 EOF
 }
 
+# -----------------------------------------------------------------------------
+# install-timers: automate the iOS build pickup.
+#
+# iOS builds happen on GitHub's cloud Mac; this box has to pull the result before
+# a phone can see it. That pull was manual, which meant a green CI build could sit
+# unpublished indefinitely while SideStore kept advertising an older version — the
+# update badge simply never appeared. A timer closes that loop.
+#
+# Idempotent: safe to re-run after every deploy.
+# -----------------------------------------------------------------------------
+cmd_install_timers(){
+  local script="$REPO/ops/fetch-ios-build.sh"
+  [ -x "$script" ] || { echo "!! $script missing or not executable" >&2; exit 1; }
+
+  echo ">> writing systemd units"
+  sudo tee /etc/systemd/system/mm-fetch-ios.service >/dev/null <<EOF
+[Unit]
+Description=Publish the newest CI-built ManhwaManiacs iOS .ipa for SideStore
+Documentation=file://$REPO/ops/fetch-ios-build.sh
+# Nothing to fetch without egress; the script exits 2 ("nothing new") on failure
+# to reach GitHub, which systemd would otherwise log as a hard failure.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=ubuntu
+Group=ubuntu
+ExecStart=$script $DATA_ROOT/ipa
+# 2 = "nothing new to publish", the ordinary outcome on most runs.
+SuccessExitStatus=0 2
+TimeoutStartSec=600
+EOF
+
+  sudo tee /etc/systemd/system/mm-fetch-ios.timer >/dev/null <<'EOF'
+[Unit]
+Description=Check for a new ManhwaManiacs iOS build every 15 minutes
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=15min
+# Catch up after a reboot rather than waiting a full interval.
+Persistent=true
+# Keeps a fleet of timers from stampeding GitHub on the same second.
+RandomizedDelaySec=60
+
+[Install]
+WantedBy=timers.target
+EOF
+
+  sudo systemctl daemon-reload
+  sudo systemctl enable --now mm-fetch-ios.timer
+  echo ">> timer active:"
+  systemctl list-timers mm-fetch-ios.timer --no-pager | head -3
+}
+
 case "${1:-deploy}" in
   deploy)          cmd_deploy ;;
   create-owner)    cmd_create_owner ;;
@@ -337,5 +393,6 @@ case "${1:-deploy}" in
   set-invite-code) cmd_set_invite_code "${2:-}" ;;
   logs)            cmd_logs ;;
   edge)            cmd_edge ;;
-  *) echo "usage: $0 {deploy|create-owner|reset-accounts|set-invite-code [CODE|clear]|logs|edge}"; exit 2 ;;
+  install-timers)  cmd_install_timers ;;
+  *) echo "usage: $0 {deploy|create-owner|reset-accounts|set-invite-code [CODE|clear]|logs|edge|install-timers}"; exit 2 ;;
 esac
