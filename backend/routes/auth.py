@@ -16,7 +16,12 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from core.config import get_settings
 from core.errors import AppError
-from core.rate_limit import auth_limit, limiter, register_limit
+from core.rate_limit import (
+    auth_limit,
+    bootstrap_status_limit,
+    limiter,
+    register_limit,
+)
 from database.models import User
 from services.auth_service import (
     REMEMBER_ME_TTL,
@@ -157,10 +162,21 @@ def _client_meta(request: Request) -> tuple[str | None, str | None]:
 
 
 @router.get("/bootstrap-status", response_model=BootstrapStatus)
-def bootstrap_status(auth: AuthDep) -> BootstrapStatus:
+@limiter.limit(bootstrap_status_limit)
+def bootstrap_status(
+    request: Request,
+    response: Response,  # slowapi injects X-RateLimit-* headers into this
+    auth: AuthDep,
+) -> BootstrapStatus:
     """Public: report whether the instance still needs its first (admin) account
     and what a registration attempt would currently require, so the client can
-    render the right form. Never echoes the invite code."""
+    render the right form. Never echoes the invite code.
+
+    Rate-limited (MM_RATE_LIMIT_BOOTSTRAP_STATUS): ``bootstrap_open`` tells an
+    unauthenticated caller exactly when an empty instance can be claimed, so an
+    unthrottled version is a free polling oracle for timing a registration
+    burst at the reset-accounts window. Normal clients call this once per
+    launch and never notice the limit."""
     settings = get_settings()
     needs_bootstrap = auth.user_count() == 0
     bootstrap_open = needs_bootstrap and auth.bootstrap_window_open()
@@ -191,6 +207,12 @@ def register(
     match (403 ``invite_code_required`` / ``invite_code_invalid``). See
     ``AuthService.ensure_registration_allowed``. Rate-limited on its own
     tight bucket (``MM_RATE_LIMIT_REGISTER``) against invite brute force.
+
+    The ``ensure_registration_allowed`` call here is only the cheap pre-flight
+    (fail before the Argon2 hash); the authoritative permission check and the
+    first-account-becomes-admin decision both happen atomically inside
+    ``register``'s serialized claim transaction (``enforce_policy=True``), so
+    concurrent registrations cannot each observe an empty users table.
     """
     auth.ensure_registration_allowed(body.invite_code)
     user = auth.register(
@@ -198,6 +220,8 @@ def register(
         body.password,
         email=body.email,
         display_name=body.display_name,
+        invite_code=body.invite_code,
+        enforce_policy=True,
     )
     user_agent, ip = _client_meta(request)
     token, _ = auth.create_session(

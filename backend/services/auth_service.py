@@ -15,6 +15,7 @@ from typing import Annotated
 
 from fastapi import Cookie, Depends, Header, Request
 from sqlalchemy import delete, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from core.auth import (
@@ -75,7 +76,21 @@ class AuthService:
         if state is None:
             state = BootstrapState(id=1, empty_since=utcnow())
             self.db.add(state)
-            self.db.commit()
+            try:
+                self.db.commit()
+            except IntegrityError:
+                # Two requests observed the empty table at the same instant and
+                # both tried to create the singleton row; keep the winner's.
+                self.db.rollback()
+                state = self.db.get(BootstrapState, 1)
+                if state is None:
+                    # Gone again already: the bootstrap claim committed between
+                    # our rollback and re-read, so users now exist and the
+                    # window no longer applies.
+                    return None
+                return state.empty_since + timedelta(
+                    minutes=max(get_settings().bootstrap_window_minutes, 0)
+                )
             logger.warning(
                 "users table is empty: bootstrap registration is OPEN — the "
                 "first account to register becomes admin (window closes at %s, "
@@ -109,8 +124,13 @@ class AuthService:
           3. If an invite code is configured, the supplied one must match —
              compared in constant time (403 ``invite_code_required`` /
              ``invite_code_invalid``).
+
+        This is the *pre-flight* check the route runs before the expensive
+        Argon2 hash. It reads shared state without any lock, so its verdict
+        can go stale under concurrency — the authoritative decision is
+        re-taken inside :meth:`register`'s claim transaction
+        (``enforce_policy=True``).
         """
-        settings = get_settings()
         if self.user_count() == 0:
             if self.bootstrap_window_open():
                 return
@@ -120,6 +140,12 @@ class AuthService:
                 "ops/vps/deploy.sh reset-accounts, or claim the instance with "
                 "create-owner)."
             )
+        self._ensure_invited(invite_code)
+
+    def _ensure_invited(self, invite_code: str | None) -> None:
+        """The post-bootstrap registration rules: ``registration_enabled`` must
+        be on, and a configured invite code must match (constant time)."""
+        settings = get_settings()
         if not settings.registration_enabled:
             raise AppError(
                 "Registration is disabled.",
@@ -143,6 +169,28 @@ class AuthService:
                     status_code=403,
                 )
 
+    def _ensure_registration_allowed_locked(
+        self, invite_code: str | None, user_count: int
+    ) -> None:
+        """Authoritative re-run of the registration rules *inside* the claim
+        transaction (see :meth:`register`).
+
+        MUST NOT commit — a commit would release the ``BEGIN IMMEDIATE`` lock
+        mid-claim — so unlike the pre-flight it never lazily stamps
+        ``bootstrap_state``: an empty table with no marker row means the window
+        would start *now*, which is open iff a nonzero window is configured
+        (matching :meth:`bootstrap_window_open` semantics for minutes=0).
+        """
+        if user_count == 0:
+            state = self.db.get(BootstrapState, 1)
+            empty_since = state.empty_since if state is not None else utcnow()
+            deadline = empty_since + timedelta(
+                minutes=max(get_settings().bootstrap_window_minutes, 0)
+            )
+            if utcnow() < deadline:
+                return
+        self._ensure_invited(invite_code)
+
     def get_user(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
 
@@ -165,6 +213,37 @@ class AuthService:
             )
         return normalized
 
+    def _begin_immediate_claim(self) -> None:
+        """Open a SQLite write transaction NOW (``BEGIN IMMEDIATE``) on this
+        session's connection.
+
+        pysqlite defers ``BEGIN`` until the first DML, so plain SELECTs run in
+        autocommit — which made the bootstrap claim a textbook check-then-act
+        race: every concurrent request could observe ``user_count() == 0``
+        before any of them committed. Taking the write lock up front makes
+        everything from the count to the commit one atomic unit; a concurrent
+        claimer blocks inside ``BEGIN IMMEDIATE`` (up to the connection's busy
+        timeout, 5s) and then reads the winner's committed row.
+
+        Deliberately scoped to the registration path only — an
+        ``isolation_level="IMMEDIATE"`` connect arg would turn *every* ORM
+        transaction in the process into an eager write lock and serialize
+        read-mostly requests against the update sweep on this 2-vCore box.
+        Here the lock is taken *after* Argon2 hashing and held only for a few
+        sub-millisecond statements. IMMEDIATE also cannot deadlock the sweep's
+        writers: SQLite has a single writer lock, waiters queue on the busy
+        timeout, and (unlike a deferred read-then-write transaction) we never
+        upgrade a read lock into a write lock.
+        """
+        conn = self.db.connection()
+        raw = getattr(conn.connection, "dbapi_connection", None)
+        if raw is not None and getattr(raw, "in_transaction", False):
+            # A DBAPI-level transaction is already open (an earlier statement
+            # in this session wrote something), so the write lock is already
+            # held/pending and a second BEGIN would error.
+            return
+        conn.exec_driver_sql("BEGIN IMMEDIATE")
+
     def register(
         self,
         username: str,
@@ -172,41 +251,104 @@ class AuthService:
         *,
         email: str | None = None,
         display_name: str | None = None,
+        invite_code: str | None = None,
+        enforce_policy: bool = False,
     ) -> User:
+        """Create an account; the first account in an empty users table becomes
+        the admin/owner (bootstrap).
+
+        The whole claim — "is the table empty?" → INSERT → consume the
+        ``bootstrap_state`` marker — runs inside one ``BEGIN IMMEDIATE`` write
+        transaction, so concurrent registrations serialize: exactly one can
+        observe the empty table, and every loser re-observes a table that
+        already has its owner.
+
+        ``enforce_policy=True`` (the HTTP route) re-runs the registration
+        permission rules *inside* that transaction. Without it, a request that
+        raced the bootstrap claim and lost would fall through and be created
+        as a regular user even with ``registration_enabled`` off — a quieter
+        cousin of the multi-admin bug. The default (False) serves the operator
+        CLI (``ops/vps/deploy.sh create-owner``), which deliberately bypasses
+        the self-service rules; it still gets the serialized claim and the
+        single-admin index.
+        """
         normalized = self._validate_username(username)
         pw_error = validate_password_strength(password)
         if pw_error:
             raise AppError(pw_error, code="weak_password", status_code=422)
         if self.get_by_username(normalized) is not None:
+            # Optimistic pre-check for the friendly 409; the UNIQUE constraint
+            # (caught below) is the authoritative guard under concurrency.
             raise AppError(
                 "That username is already taken.",
                 code="username_taken",
                 status_code=409,
             )
-        # The very first account is the admin/owner (bootstrap).
-        is_admin = self.user_count() == 0
-        user = User(
-            username=normalized,
-            email=(email or None),
-            display_name=(display_name or None),
-            password_hash=hash_password(password),
-            is_admin=is_admin,
-            is_active=True,
-        )
-        self.db.add(user)
+        # Argon2 is deliberately slow (CPU-bound, ~100ms): hash BEFORE taking
+        # the write lock so concurrent registrations do not serialize the
+        # whole database behind password hashing.
+        password_hash = hash_password(password)
+
+        self._begin_immediate_claim()
+        try:
+            # Authoritative: read under the write lock, so a lost race sees
+            # the winner's committed account.
+            count = self.user_count()
+            if enforce_policy:
+                self._ensure_registration_allowed_locked(invite_code, count)
+            # The very first account is the admin/owner (bootstrap).
+            is_admin = count == 0
+            user = User(
+                username=normalized,
+                email=(email or None),
+                display_name=(display_name or None),
+                password_hash=password_hash,
+                is_admin=is_admin,
+                is_active=True,
+            )
+            self.db.add(user)
+            if is_admin:
+                # Consume the bootstrap claim token in the SAME transaction as
+                # the INSERT: the window is closed by the act of claiming it,
+                # not by a later observation — and a later wipe starts a
+                # *fresh* window instead of inheriting this stale timestamp.
+                state = self.db.get(BootstrapState, 1)
+                if state is not None:
+                    self.db.delete(state)
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            detail = str(exc.orig or exc)
+            # SQLite reports a partial-unique-index violation by column
+            # ("UNIQUE constraint failed: users.is_admin"); match the index
+            # name too in case a future SQLite phrases it that way.
+            if "users.is_admin" in detail or "uq_users_single_admin" in detail:
+                # Belt-and-braces: the partial unique index refused a second
+                # admin row. Unreachable while the claim above is serialized,
+                # but a lost race must fail loudly — never mint a second owner.
+                raise AppError(
+                    "This instance already has an owner.",
+                    code="bootstrap_already_claimed",
+                    status_code=409,
+                ) from exc
+            if "users.username" in detail:
+                raise AppError(
+                    "That username is already taken.",
+                    code="username_taken",
+                    status_code=409,
+                ) from exc
+            raise
+        except Exception:
+            # Includes AppError from the locked policy re-check: roll back so
+            # the write lock is released before the error propagates.
+            self.db.rollback()
+            raise
         if is_admin:
-            # Bootstrap complete: retire the empty-table marker in the same
-            # commit, so a later wipe starts a *fresh* window instead of
-            # inheriting this (now stale) timestamp.
-            state = self.db.get(BootstrapState, 1)
-            if state is not None:
-                self.db.delete(state)
             logger.info(
                 "Bootstrap complete: first account %r registered and is the "
                 "admin/owner.",
                 normalized,
             )
-        self.db.commit()
         self.db.refresh(user)
         # No "claim NULL-owned rows" step: the DB is a fresh source-native
         # baseline (spec §5.3) — every per-profile table is user_id/profile_id

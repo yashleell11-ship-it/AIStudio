@@ -145,6 +145,15 @@ class Settings(BaseModel):
     # are combined with ";" (slowapi/limits parse_many), so a burst cap and an
     # hourly cap both apply.
     rate_limit_register: str = "5/minute;30/hour"
+    # GET /auth/bootstrap-status is unauthenticated and announces exactly when
+    # the bootstrap window is open — i.e. a free polling oracle for the moment
+    # a freshly wiped instance can be claimed. A real client calls it about
+    # once per app launch (to pick the login/register/claim UI), so the
+    # per-minute burst never touches normal use — even a household of devices
+    # behind one NAT — while a watcher polling every second or two trips it
+    # within the first minute, and the hourly cap keeps sustained surveillance
+    # slow and loud. (MM_RATE_LIMIT_BOOTSTRAP_STATUS)
+    rate_limit_bootstrap_status: str = "30/minute;240/hour"
     rate_limit_import: str = "5/minute"
     rate_limit_sources: str = "60/minute"
     # The request header carrying the real client IP, written by the *outermost*
@@ -220,6 +229,7 @@ def get_settings() -> Settings:
     for env_key, field in (
         ("MM_RATE_LIMIT_AUTH", "rate_limit_auth"),
         ("MM_RATE_LIMIT_REGISTER", "rate_limit_register"),
+        ("MM_RATE_LIMIT_BOOTSTRAP_STATUS", "rate_limit_bootstrap_status"),
         ("MM_RATE_LIMIT_IMPORT", "rate_limit_import"),
         ("MM_RATE_LIMIT_SOURCES", "rate_limit_sources"),
     ):

@@ -11,6 +11,7 @@ from sqlalchemy import (
     String,
     Text,
     UniqueConstraint,
+    text,
 )
 from sqlalchemy import event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -34,6 +35,19 @@ class User(Base):
     __table_args__ = (
         UniqueConstraint("username", name="uq_users_username"),
         Index("ix_users_username", "username"),
+        # Single-admin invariant (household model): at most ONE row may have
+        # is_admin=1 — the owner. The application already serializes the
+        # bootstrap claim (AuthService.register, BEGIN IMMEDIATE); this partial
+        # unique index is the DB-level backstop so any future lost race or new
+        # code path fails loudly instead of silently minting a second owner.
+        # There is deliberately no admin-promotion path in the product; if
+        # co-admins ever become a feature, drop this index in that migration.
+        Index(
+            "uq_users_single_admin",
+            "is_admin",
+            unique=True,
+            sqlite_where=text("is_admin = 1"),
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
