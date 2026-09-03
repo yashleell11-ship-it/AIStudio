@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useScrollContainer } from "@/lib/scroll-container";
 import { cn } from "@/lib/cn";
+import { moodReaderMargin, useActiveProfileStore } from "@/features/profiles";
 import { OfflineChapterControl } from "@/features/offline";
 import { ApiError } from "@/types/api";
 import { readerDebug } from "../debug";
@@ -113,6 +114,15 @@ export function ChapterReader({
   const pages = useMemo(() => chapter?.pages ?? [], [chapter]);
   const chapterTitle = chapter?.title ?? "Chapter";
   const continuous = readingMode === "continuous";
+
+  // Ambient mood tint, but only in the gutters beside the page column — the page
+  // itself stays pure obsidian. `default` mood → "transparent" → no wash.
+  const mood = useActiveProfileStore((state) => state.activeProfile?.mood ?? "default");
+  const marginWash = moodReaderMargin(mood);
+  const gutterBackground =
+    marginWash === "transparent"
+      ? undefined
+      : `linear-gradient(90deg, ${marginWash} 0%, transparent calc((100% - 48rem) / 2), transparent calc(100% - (100% - 48rem) / 2), ${marginWash} 100%)`;
 
   useEffect(() => {
     readingModeRef.current = readingMode;
@@ -546,6 +556,7 @@ export function ChapterReader({
         "relative flex flex-col bg-bg",
         continuous ? "min-h-full scroll-smooth" : "h-full overflow-hidden",
       )}
+      style={gutterBackground ? { background: gutterBackground } : undefined}
       // The paged view owns its own clicks (edge zones turn the page), so the
       // tap-anywhere toggle is wired only for the strip.
       onClick={continuous ? () => toggleControls() : undefined}

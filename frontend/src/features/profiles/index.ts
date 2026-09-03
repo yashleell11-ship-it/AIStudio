@@ -27,6 +27,7 @@ export {
   MOOD_BASE,
   moodShellBackground,
   moodPickerBackground,
+  moodReaderMargin,
   moodAccent,
   isTintedMood,
   toMood,
