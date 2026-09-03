@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from core import auth as auth_primitives
 from core.config import get_settings
 from core.errors import AppError
+from core.time_utils import utcnow
 from database.models import User, UserSession
 from database.session import get_db
 from main import create_app
@@ -143,6 +144,31 @@ def test_session_lifecycle_create_resolve_revoke(db_session):
     assert svc.resolve_session("bogus-token") is None
     assert svc.revoke_token(token) is True
     assert svc.resolve_session(token) is None
+
+
+def test_resolving_a_session_does_not_write_on_every_request(db_session):
+    """Each page image is its own authenticated request, so a client pulling a
+    chapter must not open one write transaction per page (SQLite has a single
+    writer, shared with the update scheduler)."""
+    from datetime import timedelta
+
+    svc = _svc(db_session)
+    user = svc.register("owner", "supersecret")
+    token, session = svc.create_session(user)
+
+    # A burst of reads right after login leaves the timestamp alone.
+    fresh = session.last_used_at
+    for _ in range(5):
+        assert svc.resolve_session(token).id == user.id
+    db_session.refresh(session)
+    assert session.last_used_at == fresh
+
+    # Once it is genuinely stale, the next read records the visit.
+    session.last_used_at = utcnow() - timedelta(minutes=5)
+    db_session.commit()
+    assert svc.resolve_session(token).id == user.id
+    db_session.refresh(session)
+    assert (utcnow() - session.last_used_at).total_seconds() < 5
 
 
 def test_expired_session_is_rejected_and_pruned(db_session):
