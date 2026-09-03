@@ -7,6 +7,7 @@ import { CommandPalette } from "@/components/command-palette";
 import { mobileNav } from "@/config/nav";
 import { useShortcut } from "@/lib/keyboard";
 import { ScrollContainerProvider } from "@/lib/scroll-container";
+import { isImmersiveReaderPath } from "@/lib/reader-route";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
 // Direct, not via the `@/features/preferences` barrel: that barrel also exports
@@ -66,9 +67,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
   const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
 
-  const isReaderChapter =
-    /^\/reader\/\d+\/\d+/.test(pathname) ||
-    /^\/reader\/online\//.test(pathname);
+  const isReaderChapter = isImmersiveReaderPath(pathname);
 
   const assignScrollContainer = useCallback((node: HTMLElement | null) => {
     setScrollContainer(node);
