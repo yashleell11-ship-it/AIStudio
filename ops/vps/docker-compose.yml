@@ -39,6 +39,11 @@ services:
       - MM_APK_PATH=/app/apk/app-release.apk
       - MM_IPA_PATH=/app/ipa/ManhwaManiacs.ipa
       - MM_PUBSPEC_PATH=/app/mobile/pubspec.yaml
+      # REPO_ROOT resolves to / inside this image (code lives at /app), so the
+      # config's REPO_ROOT-relative default lands on /mobile/... and misses the
+      # mount. Both media paths must be explicit or the SideStore listing shows
+      # a blank icon and broken screenshots.
+      - MM_SCREENSHOTS_DIR=/app/mobile/screenshots
     volumes:
       - /srv/manhwamaniacs/data:/data
       # APK / IPA drop-in (populated by the mobile build pipeline — 1c). Dirs
@@ -47,6 +52,9 @@ services:
       - /srv/manhwamaniacs/apk:/app/apk:ro
       - /srv/manhwamaniacs/ipa:/app/ipa:ro
       - ../../mobile/pubspec.yaml:/app/mobile/pubspec.yaml:ro
+      # App icon + marketing screenshots for /app/media (SideStore listing and
+      # the install landing page).
+      - ../../mobile/docs/screenshots:/app/mobile/screenshots:ro
     networks: [edge]
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"]
