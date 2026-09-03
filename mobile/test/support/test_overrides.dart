@@ -1,12 +1,19 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
+import 'package:manhwamaniacs/features/downloads/providers/retention_maintenance_provider.dart';
+import 'package:manhwamaniacs/features/downloads/services/blob_store.dart';
+import 'package:manhwamaniacs/features/downloads/services/retention_maintenance.dart';
+import 'package:manhwamaniacs/features/downloads/store/downloads_db.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
 /// Overrides [apiBaseUrlProvider] for widget/provider tests.
 Override apiBaseUrlOverride(String url) =>
@@ -61,16 +68,58 @@ class _ReadyProfileSessionNotifier extends ProfileSessionReadyNotifier {
 Override profileSessionReadyOverride() =>
     profileSessionReadyProvider.overrideWith(_ReadyProfileSessionNotifier.new);
 
-/// Forces [downloadsStoreProvider] to `null` regardless of the auth/profile
-/// overrides above — otherwise a full-app widget test with
-/// [authenticatedAuthOverride] + [activeProfileOverride] resolves a *real*
-/// [DownloadsStore], and any screen it mounts that touches the on-device
-/// store (the reader, series detail, Settings → Storage, …) reaches real
-/// `sqflite`/`path_provider` platform channels with no native handler
-/// registered in a widget test. Use this in every full-app test unless it is
-/// specifically exercising downloads — those use the FFI-backed harness in
-/// `test/support/downloads_test_support.dart` instead.
-Override noDownloadsStoreOverride() => downloadsStoreProvider.overrideWithValue(null);
+/// Keeps the on-device chapter store entirely out of a full-app widget
+/// test's way — otherwise:
+///
+/// - With [authenticatedAuthOverride] + [activeProfileOverride], any screen
+///   the test mounts that touches the store (the reader, series detail,
+///   Settings → Storage, …) resolves a *real* [DownloadsStore], reaching
+///   real `sqflite`/`path_provider` platform channels with no native handler
+///   registered in a widget-test host.
+/// - `DownloadsLifecycleGate` (mounted unconditionally at the app root —
+///   `app.dart`) runs its retention sweep on every launch/resume
+///   *regardless* of auth state, via `retentionMaintenanceProvider`, which
+///   is deliberately cross-scope and so isn't covered by overriding
+///   [downloadsStoreProvider] alone.
+///
+/// Either path ends the same way: `downloads_scope.dart`'s defensive
+/// `.timeout(...)` on the open call creates a real `Timer` to guard against
+/// exactly this — an unresponsive platform channel — and a widget test
+/// whose pump budget ends before that timeout elapses fails
+/// `AutomatedTestWidgetsFlutterBinding`'s "no pending Timer after teardown"
+/// invariant instead.
+///
+/// The fix is the same one `test/support/downloads_test_support.dart` uses
+/// for the downloads feature's own tests: open a real (throwaway,
+/// auto-deleted) SQLite database via `sqflite_common_ffi` instead of the
+/// real plugin, so `downloadsDatabaseProvider`/`blobStoreProvider` resolve
+/// almost instantly with no platform channel touched at all — an *empty*
+/// store, not a *null* one for those two, since `RetentionMaintenance` (used
+/// by `DownloadsLifecycleGate`'s launch/resume sweep regardless of auth
+/// state) needs a real, queryable database rather than a value it would
+/// have to special-case. [downloadsStoreProvider] itself is still forced to
+/// `null`, which is the actual "no scope" isolation contract — every screen
+/// this drives shows "nothing downloaded" from that, not from the
+/// database being fake.
+List<Override> noDownloadsStoreOverrides() {
+  sqfliteFfiInit();
+  databaseFactory = databaseFactoryFfi;
+  final tempDir = Directory.systemTemp.createTempSync('mm-no-downloads-test-');
+  final dbPath = '${tempDir.path}/downloads.db';
+  final blobsDir = Directory('${tempDir.path}/blobs');
+
+  Future<Database> openDb() => openDownloadsDatabase(overridePath: dbPath);
+  Future<BlobStore> openBlobs() async => BlobStore(rootDirectory: blobsDir);
+
+  return [
+    downloadsStoreProvider.overrideWithValue(null),
+    downloadsDatabaseProvider.overrideWith((ref) => openDb()),
+    blobStoreProvider.overrideWith((ref) => openBlobs()),
+    retentionMaintenanceProvider.overrideWith(
+      (ref) => RetentionMaintenance(database: openDb(), blobStore: openBlobs()),
+    ),
+  ];
+}
 
 const setupCompletedPrefKey = 'settings_setup_completed';
 

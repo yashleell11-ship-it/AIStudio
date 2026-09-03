@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/router/app_router.dart';
 import 'package:manhwamaniacs/app/theme/app_theme.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/downloads_lifecycle_gate.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/settings/widgets/whats_new_auto_show.dart';
 
@@ -29,7 +30,9 @@ class ManhwaManiacsApp extends ConsumerWidget {
       // Any AppBar's own AnnotatedRegion sits deeper in the tree and still wins.
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: AppTheme.systemOverlayStyle,
-        child: WhatsNewAutoShow(child: child ?? const SizedBox.shrink()),
+        child: DownloadsLifecycleGate(
+          child: WhatsNewAutoShow(child: child ?? const SizedBox.shrink()),
+        ),
       ),
     );
   }

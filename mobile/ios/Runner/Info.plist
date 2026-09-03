@@ -65,6 +65,21 @@
 	</dict>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<!--
+		On-device chapter store (1c-M3, spec Sec3b). iOS gives a sideloaded app
+		no safe user-chosen download folder (a security-scoped bookmark goes
+		stale across the 7-day re-sign this build lives under), so instead of a
+		folder picker the blob tree lives under Documents/mm-store/blobs and is
+		made VISIBLE: with both keys set, it appears under
+		Files -> On My iPhone -> ManhwaManiacs, letting the owner browse, copy
+		and delete downloaded chapters by hand. The sqflite index stays in
+		Application Support (not exposed here) so a user deleting files this
+		way can only ever orphan a blob, never corrupt the index.
+	-->
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>

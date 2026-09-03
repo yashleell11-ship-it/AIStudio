@@ -96,6 +96,7 @@ void main() {
           sharedPrefsProvider.overrideWithValue(prefs),
           secureStorageProvider.overrideWithValue(storage),
           authRepositoryProvider.overrideWithValue(_UnreachableAuthRepository()),
+          ...noDownloadsStoreOverrides(),
         ],
         child: const ManhwaManiacsApp(),
       ),

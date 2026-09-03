@@ -39,6 +39,7 @@ void main() {
           authenticatedAuthOverride(),
           profilesProvider.overrideWith(_EmptyProfilesNotifier.new),
           appUpdateProvider.overrideWith((ref) async => null),
+          ...noDownloadsStoreOverrides(),
         ],
       );
       addTearDown(container.dispose);

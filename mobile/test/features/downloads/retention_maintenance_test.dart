@@ -47,7 +47,7 @@ void main() {
   group('read-then-expire sweep', () {
     test('deletes a chapter only once its read_at is past the interval',
         () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's');
       await store.markRead(id);
@@ -64,7 +64,12 @@ void main() {
       final db = await harness.openDatabase();
       await db.rawUpdate(
         "UPDATE saved_chapters SET read_at = ? WHERE chapter_key = 'c1'",
-        [DateTime.now().toUtc().subtract(const Duration(hours: 49)).toIso8601String()],
+        [
+          DateTime.now()
+              .toUtc()
+              .subtract(const Duration(hours: 49))
+              .toIso8601String()
+        ],
       );
 
       final deleted =
@@ -74,19 +79,18 @@ void main() {
     });
 
     test('never touches an unread chapter', () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's');
       // Never marked read — read_at stays null.
 
-      final deleted =
-          await maintenance.sweepExpired(interval: Duration.zero);
+      final deleted = await maintenance.sweepExpired(interval: Duration.zero);
       expect(deleted, 0);
       expect(await store.getChapter(id), isNotNull);
     });
 
     test('never touches a pinned chapter even when expired', () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's');
       await store.markRead(id);
@@ -95,15 +99,13 @@ void main() {
         pinned: true,
       );
 
-      final deleted =
-          await maintenance.sweepExpired(interval: Duration.zero);
+      final deleted = await maintenance.sweepExpired(interval: Duration.zero);
       expect(deleted, 0);
       expect(await store.getChapter(id), isNotNull);
     });
 
-    test('never deletes the chapter currently open, even if expired',
-        () async {
-      final store = await harness.storeFor('u1p1');
+    test('never deletes the chapter currently open, even if expired', () async {
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's');
       await store.markRead(id);
@@ -117,20 +119,19 @@ void main() {
     });
 
     test('re-opening (clearing read_at) cancels a pending expiry', () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's');
       await store.markRead(id);
       await store.clearReadStamp(id); // "re-opened it"
 
-      final deleted =
-          await maintenance.sweepExpired(interval: Duration.zero);
+      final deleted = await maintenance.sweepExpired(interval: Duration.zero);
       expect(deleted, 0);
       expect(await store.getChapter(id), isNotNull);
     });
 
     test('interval null (Settings: Off) never deletes anything', () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's');
       await store.markRead(id);
@@ -141,8 +142,8 @@ void main() {
     });
 
     test('sweeps across every profile on the device, not just one', () async {
-      final storeA = await harness.storeFor('u1p1');
-      final storeB = await harness.storeFor('u1p2');
+      final storeA = harness.storeFor('u1p1');
+      final storeB = harness.storeFor('u1p2');
       const idA = (sourceId: 'asura', seriesKey: 's', chapterKey: 'a');
       const idB = (sourceId: 'asura', seriesKey: 's', chapterKey: 'b');
       await _download(storeA, chapterKey: 'a', seriesKey: 's');
@@ -159,7 +160,7 @@ void main() {
 
   group('cap pressure eviction', () {
     test('evicts oldest-read-first until under the target', () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const idOld = (sourceId: 'asura', seriesKey: 's', chapterKey: 'old');
       const idMid = (sourceId: 'asura', seriesKey: 's', chapterKey: 'mid');
       const idNew = (sourceId: 'asura', seriesKey: 's', chapterKey: 'new');
@@ -191,7 +192,7 @@ void main() {
     });
 
     test('pinned series are exempt from pressure eviction', () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const idPinned =
           (sourceId: 'asura', seriesKey: 'pinned-series', chapterKey: 'p1');
       const idPlain =
@@ -227,7 +228,7 @@ void main() {
 
     test('never evicts an unread chapter, even under pressure at zero target',
         () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's');
       // Never read.
@@ -243,7 +244,7 @@ void main() {
     });
 
     test('never evicts the chapter currently open', () async {
-      final store = await harness.storeFor('u1p1');
+      final store = harness.storeFor('u1p1');
       const id = (sourceId: 'asura', seriesKey: 's', chapterKey: 'c1');
       await _download(store, chapterKey: 'c1', seriesKey: 's', pageSize: 100);
       await store.markRead(id);
@@ -259,8 +260,8 @@ void main() {
 
     test('evicts across every profile to satisfy the device-wide cap',
         () async {
-      final storeA = await harness.storeFor('u1p1');
-      final storeB = await harness.storeFor('u1p2');
+      final storeA = harness.storeFor('u1p1');
+      final storeB = harness.storeFor('u1p2');
       const idA = (sourceId: 'asura', seriesKey: 's', chapterKey: 'a');
       const idB = (sourceId: 'asura', seriesKey: 's', chapterKey: 'b');
       await _download(storeA, chapterKey: 'a', seriesKey: 's', pageSize: 100);

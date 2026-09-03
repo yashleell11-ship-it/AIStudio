@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/storage_cap.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
@@ -77,7 +76,8 @@ class _ScriptedReaderRepository implements ReaderRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) => throw UnimplementedError();
+  Future<Result<void>> deleteBookmark(int bookmarkId) =>
+      throw UnimplementedError();
 }
 
 ChapterManifest _manifestWithPages(int pageCount) => ChapterManifest(
@@ -170,7 +170,7 @@ void main() {
     await controller.enqueueChapter(id: _id);
     await controller.debugWaitUntilIdle();
 
-    final store = await harness.storeFor('u1p1');
+    final store = harness.storeFor('u1p1');
     final chapter = await store.getChapter(_id);
     expect(chapter!.state, DownloadChapterState.complete);
     expect(chapter.pageCount, 3);
@@ -182,7 +182,7 @@ void main() {
 
   test('resumes only the missing pages after a simulated kill mid-chapter',
       () async {
-    final store = await harness.storeFor('u1p1');
+    final store = harness.storeFor('u1p1');
     final rowId = await store.ensureQueued(id: _id);
     await store.updateManifestInfo(rowId: rowId, pageCount: 3);
     await store.savePage(rowId: rowId, pageNumber: 1, bytes: [1]);
@@ -208,7 +208,7 @@ void main() {
     expect(requestedUrls, hasLength(2));
     expect(requestedUrls.any((u) => u.contains('/1/image')), isFalse);
 
-    final resumedStore = await harness.storeFor('u1p1');
+    final resumedStore = harness.storeFor('u1p1');
     expect((await resumedStore.getChapter(_id))!.state,
         DownloadChapterState.complete);
   });
@@ -237,7 +237,8 @@ void main() {
     expect(maxInFlight, greaterThan(0));
   });
 
-  test('bounded retry: a permanently-broken manifest is marked failed, not '
+  test(
+      'bounded retry: a permanently-broken manifest is marked failed, not '
       'retried forever', () async {
     final repo = _ScriptedReaderRepository(
       () async => const Err(NetworkError(message: 'offline')),
@@ -254,7 +255,7 @@ void main() {
     await controller.debugWaitUntilIdle();
 
     expect(repo.calls, kMaxChapterManifestRetries);
-    final store = await harness.storeFor('u1p1');
+    final store = harness.storeFor('u1p1');
     final chapter = await store.getChapter(_id);
     expect(chapter!.state, DownloadChapterState.failed);
     expect(chapter.error, isNotNull);
@@ -278,7 +279,7 @@ void main() {
 
     await controller.enqueueChapter(id: _id);
     await controller.debugWaitUntilIdle();
-    final store = await harness.storeFor('u1p1');
+    final store = harness.storeFor('u1p1');
     expect((await store.getChapter(_id))!.state, DownloadChapterState.failed);
 
     shouldFail = false;
@@ -307,7 +308,7 @@ void main() {
     expect(state.isDownloading, isFalse);
 
     // The chapter was never even started — still queued, not dropped.
-    final store = await harness.storeFor('u1p1');
+    final store = harness.storeFor('u1p1');
     expect((await store.getChapter(_id))!.state, DownloadChapterState.queued);
   });
 
@@ -336,12 +337,11 @@ void main() {
     final state = container.read(downloadQueueControllerProvider);
     expect(state.pauseReason, DownloadQueuePauseReason.cap);
 
-    final store = await harness.storeFor('u1p1');
+    final store = harness.storeFor('u1p1');
     expect((await store.getChapter(_id))!.state, DownloadChapterState.queued);
   });
 
-  test('a backgrounded app pauses the queue instead of downloading',
-      () async {
+  test('a backgrounded app pauses the queue instead of downloading', () async {
     var fetchCount = 0;
     final container = buildContainer(
       readerRepository: _ScriptedReaderRepository(
