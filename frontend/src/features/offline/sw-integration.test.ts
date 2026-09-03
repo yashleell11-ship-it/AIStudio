@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   API_BASE,
   ORIGIN,
@@ -15,29 +15,54 @@ import {
  * then does what it decided — which cache the bytes land in, what comes back
  * with the network down, and what a profile switch can and cannot see. Those
  * are the failures that would only otherwise be found on a train.
+ *
+ * URLs are source-native (spec §3.2): the chapter payload is
+ * `/reader/chapter/manifest?source=&series=&chapter=` and a page is
+ * `/sources/{source}/pages/{page}/image`.
  */
 
 const ALICE = { userId: 1, profileId: 10 };
 const BOB = { userId: 1, profileId: 11 };
-const ALICE_CACHE = "mm-offline-c1-u1p10";
-const BOB_CACHE = "mm-offline-c1-u1p11";
+const ALICE_CACHE = "mm-offline-c2-u1p10";
+const BOB_CACHE = "mm-offline-c2-u1p11";
 
-const PAGE_ONE = `${API_BASE}/reader/page/1/image`;
-const PAGE_TWO = `${API_BASE}/reader/page/2/image`;
-const PAYLOAD = `${API_BASE}/reader/chapter/50`;
+const SOURCE = "asura";
+const SERIES = "series/solo-levelling";
+const CHAPTER = "ch/50";
+const KEY = `chapter:${SOURCE}:${SERIES}:${CHAPTER}`;
 
-const CHAPTER_BODY = JSON.stringify({ id: 50, pages: [{ id: 1 }, { id: 2 }] });
+const PAGE_ONE = `${API_BASE}/sources/${SOURCE}/pages/p1/image`;
+const PAGE_TWO = `${API_BASE}/sources/${SOURCE}/pages/p2/image`;
+const PAYLOAD =
+  `${API_BASE}/reader/chapter/manifest` +
+  `?source=${SOURCE}&series=${encodeURIComponent(SERIES)}&chapter=${encodeURIComponent(CHAPTER)}`;
+const DOCUMENT_URL = `${ORIGIN}/reader/${SOURCE}/${encodeURIComponent(SERIES)}/ch/50`;
+
+const CHAPTER_BODY = JSON.stringify({
+  source_id: SOURCE,
+  series_key: SERIES,
+  chapter_key: CHAPTER,
+  chapter_number: 50,
+  page_count: 2,
+  pages: [
+    { number: 1, url: PAGE_ONE },
+    { number: 2, url: PAGE_TWO },
+  ],
+  prev: "ch/49",
+  next: "ch/51",
+});
 
 function savePayload(scope: { userId: number; profileId: number }) {
   return {
-    key: "chapter:50",
-    chapterId: "50",
-    seriesId: "7",
+    key: KEY,
+    sourceId: SOURCE,
+    seriesKey: SERIES,
+    chapterKey: CHAPTER,
     title: "Chapter 50",
     seriesTitle: "Solo Levelling",
     scope,
     profileId: scope.profileId,
-    documentUrl: `${ORIGIN}/reader/7/50`,
+    documentUrl: DOCUMENT_URL,
     payloadUrl: PAYLOAD,
     payloadJson: CHAPTER_BODY,
     imageUrls: [PAGE_ONE, PAGE_TWO],
@@ -64,43 +89,46 @@ beforeEach(() => {
   route(harness, "/icons/icon-512.png", { body: "icon" });
   route(harness, "/manifest.webmanifest", { body: "{}" });
   route(harness, "/library", { body: "<html>library</html>" });
-  route(harness, "/offline", { body: "<html>offline library</html>" });
+  route(harness, "/downloads", { body: "<html>downloads</html>" });
   route(harness, PAGE_ONE, { body: "page-one-bytes", headers: { "content-type": "image/jpeg" } });
   route(harness, PAGE_TWO, { body: "page-two-bytes", headers: { "content-type": "image/jpeg" } });
   route(harness, PAYLOAD, { body: CHAPTER_BODY });
-  route(harness, `${ORIGIN}/reader/7/50`, { body: "<html>reader</html>" });
+  route(harness, DOCUMENT_URL, { body: "<html>reader</html>" });
 });
 
 describe("install and activate", () => {
   it("precaches the offline fallback so there is always something to render", async () => {
     await harness.dispatchInstall();
-    const shell = harness.cacheFor("mm-shell-v1");
+    const shell = harness.cacheFor("mm-shell-v2");
     expect(await shell?.match("/offline-fallback.html")).toBeTruthy();
   });
 
   it("warms the installed app's start_url", async () => {
     await harness.dispatchInstall();
     await harness.dispatchActivate();
-    const pages = harness.cacheFor("mm-pages-v1");
+    const pages = harness.cacheFor("mm-pages-v2");
     expect(await pages?.match("/library")).toBeTruthy();
   });
 
-  it("warms /offline, the one page the offline fallback links to", async () => {
+  it("warms /downloads, the one page the offline fallback links to", async () => {
     await harness.dispatchInstall();
     await harness.dispatchActivate();
-    const pages = harness.cacheFor("mm-pages-v1");
-    expect(await pages?.match("/offline")).toBeTruthy();
+    const pages = harness.cacheFor("mm-pages-v2");
+    expect(await pages?.match("/downloads")).toBeTruthy();
   });
 
   it("drops a superseded generation but never another profile's downloads", async () => {
-    await harness.storage.open("mm-shell-v0");
+    await harness.storage.open("mm-shell-v1");
+    await harness.storage.open("mm-offline-c1-u1p10");
     await harness.storage.open(BOB_CACHE);
     await harness.storage.open("some-other-app");
     await harness.dispatchInstall();
     await harness.dispatchActivate();
 
     const names = await harness.cacheNames();
-    expect(names).not.toContain("mm-shell-v0");
+    expect(names).not.toContain("mm-shell-v1");
+    // The old content generation is orphaned by the source-native migration.
+    expect(names).not.toContain("mm-offline-c1-u1p10");
     expect(names).toContain(BOB_CACHE);
     expect(names).toContain("some-other-app");
   });
@@ -118,12 +146,12 @@ describe("saving a chapter", () => {
     expect(await cache?.match(PAGE_ONE)).toBeTruthy();
     expect(await cache?.match(PAGE_TWO)).toBeTruthy();
     expect(await cache?.match(PAYLOAD)).toBeTruthy();
-    expect(await cache?.match(`${ORIGIN}/reader/7/50`)).toBeTruthy();
+    expect(await cache?.match(DOCUMENT_URL)).toBeTruthy();
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"].status).toBe("ready");
-    expect(index?.entries["chapter:50"].savedPages).toBe(2);
-    expect(index?.entries["chapter:50"].bytes).toBeGreaterThan(0);
+    expect(index?.entries[KEY].status).toBe("ready");
+    expect(index?.entries[KEY].savedPages).toBe(2);
+    expect(index?.entries[KEY].bytes).toBeGreaterThan(0);
   });
 
   it("uses the payload the page already had instead of asking again", async () => {
@@ -159,9 +187,9 @@ describe("saving a chapter", () => {
     });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"].status).toBe("partial");
-    expect(index?.entries["chapter:50"].savedPages).toBe(1);
-    expect(index?.entries["chapter:50"].failed).toBe(1);
+    expect(index?.entries[KEY].status).toBe("partial");
+    expect(index?.entries[KEY].savedPages).toBe(1);
+    expect(index?.entries[KEY].failed).toBe(1);
   });
 
   it("refuses to save with no profile, rather than picking one", async () => {
@@ -184,7 +212,7 @@ describe("saving a chapter", () => {
     });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"].status).toBe("paused");
+    expect(index?.entries[KEY].status).toBe("paused");
   });
 });
 
@@ -202,7 +230,7 @@ describe("reading with no network", () => {
     expect(await outcome.response?.text()).toBe("page-one-bytes");
   });
 
-  it("serves the saved chapter payload so the reader can render at all", async () => {
+  it("serves the saved chapter manifest so the reader can render at all", async () => {
     await boot();
     await harness.dispatchMessage({
       type: "mm-offline/save-chapter",
@@ -231,8 +259,8 @@ describe("reading with no network", () => {
 
   it("opens a saved chapter's document that was never visited as a document", async () => {
     // The realistic path to a saved chapter: the user clicked through to the
-    // reader inside the SPA, so the browser NEVER issued a navigation for
-    // /reader/7/50 and the document cache has no copy of it. Saving fetches the
+    // reader inside the SPA, so the browser NEVER issued a navigation for the
+    // reader route and the document cache has no copy of it. Saving fetches the
     // document on purpose for exactly this case; a cold offline launch (or a
     // reload on the train) must get it back rather than the offline page.
     await boot();
@@ -243,7 +271,7 @@ describe("reading with no network", () => {
 
     harness.offline = true;
     const outcome = await harness.dispatchFetch({
-      url: `${ORIGIN}/reader/7/50`,
+      url: DOCUMENT_URL,
       mode: "navigate",
     });
     expect(await outcome.response?.text()).toBe("<html>reader</html>");
@@ -262,7 +290,7 @@ describe("reading with no network", () => {
 
     harness.offline = true;
     const outcome = await harness.dispatchFetch({
-      url: `${ORIGIN}/reader/7/50`,
+      url: DOCUMENT_URL,
       mode: "navigate",
       clientId: "client-b",
     });
@@ -276,7 +304,7 @@ describe("reading with no network", () => {
       route(harness, url, { body: `series ${index}` });
       await harness.dispatchFetch({ url, mode: "navigate" });
     }
-    const pages = harness.cacheFor("mm-pages-v1");
+    const pages = harness.cacheFor("mm-pages-v2");
     expect((await (pages as { keys(): Promise<unknown[]> }).keys()).length).toBeLessThanOrEqual(
       60,
     );
@@ -287,11 +315,11 @@ describe("reading with no network", () => {
 
   it("ignores the query string when matching a cached reader document", async () => {
     await boot();
-    await harness.dispatchFetch({ url: `${ORIGIN}/reader/7/50`, mode: "navigate" });
+    await harness.dispatchFetch({ url: DOCUMENT_URL, mode: "navigate" });
 
     harness.offline = true;
     const outcome = await harness.dispatchFetch({
-      url: `${ORIGIN}/reader/7/50?page=12`,
+      url: `${DOCUMENT_URL}?page=12`,
       mode: "navigate",
     });
     expect(await outcome.response?.text()).toBe("<html>reader</html>");
@@ -424,7 +452,7 @@ describe("stale-while-revalidate", () => {
 
     const third = await harness.dispatchFetch({ url: listUrl });
     expect(await third.response?.text()).toBe('["second"]');
-    expect(await harness.cacheNames()).toContain("mm-api-v1-u1p10");
+    expect(await harness.cacheNames()).toContain("mm-api-v2-u1p10");
   });
 
   it("caches nothing per-profile when there is no profile", async () => {
@@ -445,6 +473,21 @@ describe("stale-while-revalidate", () => {
 });
 
 describe("retention and eviction", () => {
+  // A fixed clock: the retention rule is `now - readAt >= retentionMs`, and with
+  // a real wall clock the millisecond between stamping `readAt` and running the
+  // sweep is not guaranteed to have elapsed — which is the timing race that made
+  // this suite flaky. Faking `Date` makes every step's "now" explicit.
+  const START = 1_700_000_000_000;
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(START);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   async function saveAndFinish(): Promise<void> {
     await boot();
     await harness.dispatchMessage({
@@ -454,37 +497,39 @@ describe("retention and eviction", () => {
     await harness.dispatchMessage({
       type: "mm-offline/mark-finished",
       scope: ALICE,
-      key: "chapter:50",
+      key: KEY,
     });
   }
 
   it("stamps a finish time and clears it when the chapter is reopened", async () => {
     await saveAndFinish();
     let index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"].readAt).toBeGreaterThan(0);
+    expect(index?.entries[KEY].readAt).toBe(START);
 
+    vi.setSystemTime(START + 60_000);
     await harness.dispatchMessage({
       type: "mm-offline/mark-opened",
       scope: ALICE,
-      key: "chapter:50",
+      key: KEY,
     });
     index = await readIndex(harness, ALICE_CACHE);
     // Re-reading cancels the deletion instead of it vanishing mid-scroll.
-    expect(index?.entries["chapter:50"].readAt).toBeNull();
+    expect(index?.entries[KEY].readAt).toBeNull();
   });
 
   it("deletes a finished chapter's pages once its retention has passed", async () => {
     await saveAndFinish();
-    // Retention of a single millisecond: already elapsed by the sweep.
+    // Retention of one minute; the sweep runs an hour later, so it is due.
     await harness.dispatchMessage({
       type: "mm-offline/set-retention",
       scope: ALICE,
-      retentionMs: 1,
+      retentionMs: 60_000,
     });
+    vi.setSystemTime(START + 60 * 60_000);
     await harness.dispatchMessage({ type: "mm-offline/sweep", scope: ALICE });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"]).toBeUndefined();
+    expect(index?.entries[KEY]).toBeUndefined();
     const cache = harness.cacheFor(ALICE_CACHE);
     expect(await cache?.match(PAGE_ONE)).toBeUndefined();
   });
@@ -496,23 +541,25 @@ describe("retention and eviction", () => {
     await harness.dispatchMessage({
       type: "mm-offline/mark-opened",
       scope: ALICE,
-      key: "chapter:50",
+      key: KEY,
     });
     await harness.dispatchMessage({
       type: "mm-offline/set-retention",
       scope: ALICE,
-      retentionMs: 1,
+      retentionMs: 60_000,
     });
     // Reaching the last page again while still on it: due, and on screen.
+    vi.setSystemTime(START + 60 * 60_000);
     await harness.dispatchMessage({
       type: "mm-offline/mark-finished",
       scope: ALICE,
-      key: "chapter:50",
+      key: KEY,
     });
+    vi.setSystemTime(START + 120 * 60_000);
     await harness.dispatchMessage({ type: "mm-offline/sweep", scope: ALICE });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"]).toBeDefined();
+    expect(index?.entries[KEY]).toBeDefined();
   });
 
   it("can be turned off entirely", async () => {
@@ -522,23 +569,24 @@ describe("retention and eviction", () => {
       scope: ALICE,
       retentionMs: null,
     });
+    vi.setSystemTime(START + 30 * 24 * 60 * 60_000);
     await harness.dispatchMessage({ type: "mm-offline/sweep", scope: ALICE });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"]).toBeDefined();
+    expect(index?.entries[KEY]).toBeDefined();
   });
 
   it("evicts the oldest finished chapter under pressure", async () => {
     await saveAndFinish();
     await harness.dispatchMessage({
       type: "mm-offline/chapter-closed",
-      key: "chapter:50",
+      key: KEY,
     });
     harness.estimate = { usage: 9_999_000_000, quota: 10_000_000_000 };
     await harness.dispatchMessage({ type: "mm-offline/sweep", scope: ALICE });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"]).toBeUndefined();
+    expect(index?.entries[KEY]).toBeUndefined();
   });
 });
 
@@ -552,7 +600,7 @@ describe("removal", () => {
     await harness.dispatchMessage({
       type: "mm-offline/remove-chapter",
       scope: ALICE,
-      key: "chapter:50",
+      key: KEY,
     });
 
     const cache = harness.cacheFor(ALICE_CACHE);
@@ -560,7 +608,7 @@ describe("removal", () => {
     expect(await cache?.match(PAGE_TWO)).toBeUndefined();
     expect(await cache?.match(PAYLOAD)).toBeUndefined();
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"]).toBeUndefined();
+    expect(index?.entries[KEY]).toBeUndefined();
   });
 
   it("clears one profile's caches without touching another's", async () => {
@@ -575,7 +623,7 @@ describe("removal", () => {
     );
     await harness.dispatchMessage({
       type: "mm-offline/save-chapter",
-      payload: { ...savePayload(BOB), key: "chapter:50" },
+      payload: savePayload(BOB),
     }, "client-b");
 
     await harness.dispatchMessage({ type: "mm-offline/clear-scope", scope: BOB });
@@ -585,22 +633,35 @@ describe("removal", () => {
   });
 });
 
-describe("drift after a rescan", () => {
-  it("flags a saved chapter whose page ids moved", async () => {
+describe("drift after a re-list", () => {
+  it("flags a saved chapter whose page urls moved", async () => {
     await boot();
     await harness.dispatchMessage({
       type: "mm-offline/save-chapter",
       payload: savePayload(ALICE),
     });
 
-    // A rescan reassigns page ids; every saved image is keyed by the old ones.
+    // A re-list reassigns the source's page URLs; every saved image is keyed by
+    // the old ones.
     route(harness, PAYLOAD, {
-      body: JSON.stringify({ id: 50, pages: [{ id: 91 }, { id: 92 }] }),
+      body: JSON.stringify({
+        source_id: SOURCE,
+        series_key: SERIES,
+        chapter_key: CHAPTER,
+        chapter_number: 50,
+        page_count: 2,
+        pages: [
+          { number: 1, url: `${API_BASE}/sources/${SOURCE}/pages/x91/image` },
+          { number: 2, url: `${API_BASE}/sources/${SOURCE}/pages/x92/image` },
+        ],
+        prev: "ch/49",
+        next: "ch/51",
+      }),
     });
     await harness.dispatchFetch({ url: PAYLOAD });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"].stale).toBe(true);
+    expect(index?.entries[KEY].stale).toBe(true);
   });
 
   it("leaves an unchanged chapter alone", async () => {
@@ -612,6 +673,6 @@ describe("drift after a rescan", () => {
     await harness.dispatchFetch({ url: PAYLOAD });
 
     const index = await readIndex(harness, ALICE_CACHE);
-    expect(index?.entries["chapter:50"].stale).toBe(false);
+    expect(index?.entries[KEY].stale).toBe(false);
   });
 });
