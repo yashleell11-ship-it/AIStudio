@@ -165,12 +165,21 @@ PY
 
   Done. All accounts are gone and the bootstrap window is OPEN.
 
-  What to do NOW (the window closes in ~${WINDOW} minutes):
-    1. Preferred — claim the instance from this shell, no public window race:
+  !! CLAIM IT FROM THIS SHELL, NOT THROUGH THE PUBLIC SITE:
          $0 create-owner
-    2. Or register through the app (https://manhwamaniacs.xyz): the FIRST
-       account created becomes admin, no invite code needed — but so would a
-       stranger's, so do it immediately.
+
+  An adversarial audit demonstrated a live race in the public path: the
+  emptiness check and the INSERT are not serialized, so N simultaneous
+  POST /auth/register calls on an empty table ALL pass the check and ALL
+  become admin — bypassing MM_REGISTRATION_ENABLED=false. Six concurrent
+  requests produced five admins on the real app. GET /auth/bootstrap-status
+  is unauthenticated and unthrottled, so it is a free oracle telling an
+  attacker the exact moment this window opens.
+
+  create-owner runs inside the container against the same DB and does not
+  race, because nothing else is registering. Until the backend fix lands
+  (serialize the claim + a single-admin DB constraint), treat public
+  bootstrap registration as unsafe on this host.
   If the window lapses before anyone registers, uninvited signup locks again;
   either run create-owner (always works) or re-run reset-accounts to re-arm.
   Afterwards, let household members in via an invite code:
