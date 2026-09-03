@@ -305,6 +305,7 @@ class _ErroringRepository extends _FakeProfilesRepository {
     required String avatarKey,
     required Mood mood,
     int? sortOrder,
+    bool? matureContentEnabled,
   }) async =>
       const Err(
         ApiError(statusCode: 409, code: 'limit', message: 'Too many profiles'),

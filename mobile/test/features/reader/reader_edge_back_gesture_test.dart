@@ -19,7 +19,6 @@ ReaderChapter _chapter() => ReaderChapter(
       seriesId: '1',
       title: 'Chapter 1',
       pageCount: 3,
-      mode: ReaderMode.local,
       pages: List.generate(
         3,
         (index) => ReaderPage(

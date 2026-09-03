@@ -19,7 +19,6 @@ ReaderChapter _sampleChapter({
     seriesId: '1',
     title: 'Chapter 1',
     pageCount: 2,
-    mode: ReaderMode.local,
     previousChapterId: previousChapterId,
     nextChapterId: nextChapterId,
     pages: const [
@@ -54,7 +53,6 @@ ReaderChapter _tallChapter({String? nextChapterId}) {
     seriesId: '1',
     title: 'Chapter 1',
     pageCount: 6,
-    mode: ReaderMode.local,
     nextChapterId: nextChapterId,
     pages: List.generate(
       6,
@@ -78,7 +76,6 @@ ReaderChapter _dimensionlessChapter({int pageCount = 8}) {
     seriesId: '1',
     title: 'Chapter 1',
     pageCount: pageCount,
-    mode: ReaderMode.local,
     pages: List.generate(
       pageCount,
       (index) => ReaderPage(
@@ -99,7 +96,6 @@ ReaderChapter _scrubChapter({int pageCount = 6}) {
     seriesId: '1',
     title: 'Chapter 1',
     pageCount: pageCount,
-    mode: ReaderMode.local,
     pages: List.generate(
       pageCount,
       (index) => ReaderPage(

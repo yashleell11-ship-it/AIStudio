@@ -23,7 +23,6 @@ ReaderChapter _tallChapter({String? nextChapterId}) {
     seriesId: '1',
     title: 'Chapter 1',
     pageCount: 6,
-    mode: ReaderMode.local,
     nextChapterId: nextChapterId,
     pages: List.generate(
       6,
