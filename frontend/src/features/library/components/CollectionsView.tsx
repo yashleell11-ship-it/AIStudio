@@ -10,11 +10,11 @@ import {
   Search,
   SlidersHorizontal,
   TriangleAlert,
-  WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { Input } from "@/components/ui/input";
 import {
   useCollections,
@@ -239,12 +239,9 @@ export function CollectionsView() {
         {viewState === "loading" ? (
           <CollectionsSkeleton />
         ) : viewState === "offline" ? (
-          <EmptyState
-            tone="offline"
-            icon={WifiOff}
-            title="You're offline"
-            description="Collections need a connection to load. Chapters you've downloaded still open with no connection at all."
-            action={{ label: "Go to Downloads", href: "/downloads" }}
+          <OfflineState
+            reason="Collections need a connection to load."
+            onRetry={() => void collectionsQuery.refetch()}
           />
         ) : viewState === "error" ? (
           <EmptyState

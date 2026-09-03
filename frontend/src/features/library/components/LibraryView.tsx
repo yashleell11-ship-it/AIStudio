@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { TriangleAlert, WifiOff } from "lucide-react";
+import { TriangleAlert } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
 import { BulkActionBar } from "./BulkActionBar";
@@ -194,12 +195,9 @@ export function LibraryView() {
         ) : null}
 
         {viewState === "offline" ? (
-          <EmptyState
-            tone="offline"
-            icon={WifiOff}
-            title="You're offline"
-            description="Your library needs a connection to load. Chapters you've downloaded still open with no connection at all."
-            action={{ label: "Go to Downloads", href: "/downloads" }}
+          <OfflineState
+            reason="Your library needs a connection to load."
+            onRetry={() => void seriesQuery.refetch()}
           />
         ) : viewState === "error" ? (
           <EmptyState

@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useState } from "react";
-import { Bookmark, TriangleAlert, WifiOff } from "lucide-react";
+import { Bookmark, TriangleAlert } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { useBookmarks, useDeleteBookmark } from "@/features/library/hooks";
 import { readerChapterHref } from "@/features/reader/reader-link";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
@@ -50,12 +51,9 @@ export function BookmarksView() {
                 ))}
               </div>
             ) : viewState === "offline" ? (
-              <EmptyState
-                tone="offline"
-                icon={WifiOff}
-                title="You're offline"
-                description="Bookmarks need a connection to load. Chapters you've downloaded still open with no connection at all."
-                action={{ label: "Go to Downloads", href: "/downloads" }}
+              <OfflineState
+                reason="Bookmarks need a connection to load."
+                onRetry={() => void bookmarksQuery.refetch()}
               />
             ) : viewState === "error" ? (
               <EmptyState
