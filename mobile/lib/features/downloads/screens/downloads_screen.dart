@@ -12,6 +12,8 @@ import 'package:manhwamaniacs/features/downloads/providers/downloaded_series_pro
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/downloads_storage_card.dart';
+import 'package:manhwamaniacs/features/ocr/widgets/ocr_chapter_action.dart';
+import 'package:manhwamaniacs/features/ocr/widgets/ocr_run_banner.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -47,6 +49,7 @@ class DownloadsScreen extends ConsumerWidget {
           : Column(
               children: [
                 _QueueStatusBanner(state: queueState),
+                const OcrRunBanner(),
                 Expanded(
                   child: groupsAsync.when(
                     loading: () => const Center(child: CircularProgressIndicator()),
@@ -252,11 +255,20 @@ class _ChapterRow extends ConsumerWidget {
                 RoutePaths.reader(chapter.sourceId, chapter.seriesKey, chapter.chapterKey),
               )
           : null,
-      trailing: IconButton(
-        key: Key('remove-${chapter.sourceId}-${chapter.seriesKey}-${chapter.chapterKey}'),
-        tooltip: 'Remove download',
-        icon: const Icon(Icons.delete_outline, size: 20),
-        onPressed: () => _remove(ref),
+      // `mainAxisSize.min` because a ListTile's trailing slot is unbounded:
+      // the OCR action hides itself on a device without an engine, and the
+      // row must close up rather than leave a gap where it would have been.
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          OcrChapterAction(chapter: chapter),
+          IconButton(
+            key: Key('remove-${chapter.sourceId}-${chapter.seriesKey}-${chapter.chapterKey}'),
+            tooltip: 'Remove download',
+            icon: const Icon(Icons.delete_outline, size: 20),
+            onPressed: () => _remove(ref),
+          ),
+        ],
       ),
     );
   }

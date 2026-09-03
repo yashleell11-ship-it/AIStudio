@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/ocr/models/ocr_coverage.dart';
+import 'package:manhwamaniacs/features/ocr/models/ocr_search_result.dart';
 import 'package:manhwamaniacs/features/ocr/repositories/ocr_repository.dart';
 import 'package:manhwamaniacs/features/ocr/repositories/ocr_repository_impl.dart';
 import 'package:manhwamaniacs/features/ocr/services/ocr_engine.dart';
@@ -44,6 +45,22 @@ final ocrFeatureVisibleProvider = Provider<bool>(
   (ref) => ref.watch(ocrAvailableProvider).valueOrNull ?? false,
   name: 'ocrFeatureVisible',
 );
+
+/// `GET /ocr/search` for one query string. `autoDispose` and keyed on the
+/// query so each settled search is cached for as long as the screen shows it
+/// and dropped the moment it doesn't — the search screen debounces
+/// keystrokes, so the family never accumulates a key per character typed.
+///
+/// An empty/blank query resolves to [OcrSearchPage.empty] without a request:
+/// the backend would answer the same way, and not asking keeps the screen's
+/// resting state free of network traffic.
+final ocrSearchProvider =
+    FutureProvider.autoDispose.family<OcrSearchPage, String>((ref, query) async {
+  if (query.trim().isEmpty) return OcrSearchPage.empty;
+  final result = await ref.watch(ocrRepositoryProvider).search(query.trim());
+  if (result.isErr) throw result.error;
+  return result.value;
+});
 
 /// `GET /ocr/coverage` for one series — drives the "OCR this chapter" vs
 /// "already OCR'd" affordance. Errors surface as [OcrCoverage.empty] rather

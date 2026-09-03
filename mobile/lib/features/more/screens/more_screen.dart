@@ -6,6 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/ocr/providers/ocr_providers.dart';
 import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
 import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
@@ -32,6 +33,12 @@ class MoreScreen extends ConsumerWidget {
     final updatesAsync = ref.watch(updatesProvider);
     final unreadCount =
         updatesAsync.valueOrNull?.unreadCount ?? 0;
+    // Spec §4: no platform OCR engine means no OCR surface at all. Dialogue
+    // search is server-backed and would technically work without one, but a
+    // device that can never contribute a transcript is also a device where
+    // this entry would mostly lead to an empty screen — so it lives or dies
+    // with the rest of the feature.
+    final ocrVisible = ref.watch(ocrFeatureVisibleProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('More')),
@@ -125,6 +132,13 @@ class MoreScreen extends ConsumerWidget {
             label: 'Storage',
             onTap: () => context.push(Routes.storage),
           ),
+          if (ocrVisible)
+            _MoreTile(
+              icon: Icons.text_fields_outlined,
+              selectedIcon: Icons.text_fields,
+              label: 'Dialogue Search',
+              onTap: () => context.push(Routes.ocrSearch),
+            ),
           _MoreTile(
             icon: Icons.backup_outlined,
             selectedIcon: Icons.backup,
