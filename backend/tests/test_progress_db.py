@@ -130,3 +130,32 @@ def test_continue_reading_is_latest_unfinished_per_series(svc):
     keys = [r["series_key"] for r in strip]
     assert "series-b" not in keys  # completed → dropped
     assert keys == ["series-a"]
+
+
+def test_numberless_push_is_persisted_over_a_numbered_row(svc):
+    """End to end through the session: the dropped-save half of the NULL
+    chapter_number bug, where the row simply never moved."""
+    svc.save_one(
+        ProgressInput(
+            source_id="mangadex",
+            series_key="s1",
+            chapter_key="c1",
+            chapter_number=5.0,
+            last_page=3,
+        )
+    )
+    saved = svc.save_one(
+        ProgressInput(
+            source_id="mangadex",
+            series_key="s1",
+            chapter_key="c1",
+            chapter_number=None,
+            last_page=20,
+        )
+    )
+    assert saved["advanced"] is True
+    assert saved["last_page"] == 20
+    assert saved["chapter_number"] == 5.0
+
+    stored = svc.get_series_progress("mangadex", "s1")
+    assert [r["last_page"] for r in stored] == [20]
