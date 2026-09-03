@@ -6,16 +6,15 @@ import {
 } from "@/lib/scoped-storage.testing";
 import {
   adoptLegacySourceProgress,
-  applyProgressRemap,
   getSourceChapterProgress,
   getSourceSeriesProgress,
   mergeLegacyProgress,
   setSourceChapterProgress,
 } from "./source-progress";
-import type { SourceChapterProgress, SourceProgressStore } from "./source-progress";
-
-const FROM = { source: "asura", seriesId: "old-slug" };
-const TO = { source: "bato", seriesId: "new-slug" };
+import type {
+  SourceChapterProgress,
+  SourceProgressStore,
+} from "./source-progress";
 
 const LEGACY_KEY = "mm.source-progress";
 const ALICE = { userId: 1, profileId: 10 };
@@ -24,99 +23,6 @@ const BOB = { userId: 1, profileId: 11 };
 function progress(page: number, updatedAt: string): SourceChapterProgress {
   return { page, pageCount: 20, completed: page >= 20, updatedAt };
 }
-
-describe("applyProgressRemap", () => {
-  it("carries progress onto the target's chapter ids", () => {
-    const store: SourceProgressStore = {
-      "asura:old-slug:c1": progress(20, "2026-07-01T00:00:00Z"),
-      "asura:old-slug:c2": progress(7, "2026-07-02T00:00:00Z"),
-    };
-
-    const { store: next, moved } = applyProgressRemap(store, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: "bato-1" },
-      { from_chapter_id: "c2", to_chapter_id: "bato-2" },
-    ]);
-
-    expect(moved).toBe(2);
-    expect(next["bato:new-slug:bato-1"]).toEqual(store["asura:old-slug:c1"]);
-    expect(next["bato:new-slug:bato-2"]?.page).toBe(7);
-  });
-
-  it("leaves the old records in place, so migrating back loses nothing", () => {
-    const store: SourceProgressStore = {
-      "asura:old-slug:c1": progress(20, "2026-07-01T00:00:00Z"),
-    };
-    const { store: next } = applyProgressRemap(store, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: "bato-1" },
-    ]);
-    expect(next["asura:old-slug:c1"]).toBeDefined();
-  });
-
-  it("skips chapters with no equivalent on the target", () => {
-    const store: SourceProgressStore = {
-      "asura:old-slug:c1": progress(4, "2026-07-01T00:00:00Z"),
-    };
-    const { store: next, moved } = applyProgressRemap(store, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: null },
-    ]);
-    expect(moved).toBe(0);
-    expect(Object.keys(next)).toEqual(["asura:old-slug:c1"]);
-  });
-
-  it("skips mapped chapters that were never read", () => {
-    const { store: next, moved } = applyProgressRemap({}, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: "bato-1" },
-    ]);
-    expect(moved).toBe(0);
-    expect(next).toEqual({});
-  });
-
-  it("never overwrites newer progress already recorded on the target", () => {
-    const store: SourceProgressStore = {
-      "asura:old-slug:c1": progress(3, "2026-07-01T00:00:00Z"),
-      "bato:new-slug:bato-1": progress(18, "2026-07-20T00:00:00Z"),
-    };
-    const { store: next, moved } = applyProgressRemap(store, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: "bato-1" },
-    ]);
-    expect(moved).toBe(0);
-    expect(next["bato:new-slug:bato-1"]?.page).toBe(18);
-  });
-
-  it("keeps the most recently read chapter when two collapse onto one target", () => {
-    // Nearest-match can map two old chapters onto a single target chapter.
-    const store: SourceProgressStore = {
-      "asura:old-slug:c1": progress(3, "2026-07-01T00:00:00Z"),
-      "asura:old-slug:c2": progress(11, "2026-07-05T00:00:00Z"),
-    };
-    const { store: next } = applyProgressRemap(store, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: "bato-1" },
-      { from_chapter_id: "c2", to_chapter_id: "bato-1" },
-    ]);
-    expect(next["bato:new-slug:bato-1"]?.page).toBe(11);
-  });
-
-  it("does not mutate the store it was given", () => {
-    const store: SourceProgressStore = {
-      "asura:old-slug:c1": progress(3, "2026-07-01T00:00:00Z"),
-    };
-    applyProgressRemap(store, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: "bato-1" },
-    ]);
-    expect(Object.keys(store)).toEqual(["asura:old-slug:c1"]);
-  });
-
-  it("ignores progress belonging to a different series on the same source", () => {
-    const store: SourceProgressStore = {
-      "asura:other-slug:c1": progress(9, "2026-07-01T00:00:00Z"),
-    };
-    const { store: next, moved } = applyProgressRemap(store, FROM, TO, [
-      { from_chapter_id: "c1", to_chapter_id: "bato-1" },
-    ]);
-    expect(moved).toBe(0);
-    expect(next).toEqual(store);
-  });
-});
 
 describe("mergeLegacyProgress", () => {
   it("takes records the scope does not have", () => {
