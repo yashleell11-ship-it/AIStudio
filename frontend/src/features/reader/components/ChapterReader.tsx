@@ -31,7 +31,7 @@ import { useReaderSettings } from "../use-reader-settings";
 import { useReaderShortcuts } from "../use-reader-shortcuts";
 import type { ReaderChapterContent, ReadingMode } from "../types";
 import { PagedView } from "./PagedView";
-import { ChapterEdgePrompt, ReaderControls } from "./ReaderControls";
+import { ChapterEdgePrompt, ChapterEndCard, ReaderControls } from "./ReaderControls";
 import { ShortcutsOverlay } from "./ShortcutsOverlay";
 import { VirtualPageList } from "./VirtualPageList";
 
@@ -51,6 +51,14 @@ interface ChapterReaderProps {
    * or a deep link still reaches its chapter list without retracing history.
    */
   seriesHref: string;
+  /** Short label for the next chapter, e.g. "Ch 41". Drives the end-card copy. */
+  nextChapterLabel?: string | null;
+  /**
+   * Swap straight into the next chapter with no route navigation (continuous
+   * mode only, spec §3.3.4). When set, the end of the strip shows a slide-up
+   * end-card; a tap on it or a continued downward scroll calls this.
+   */
+  onSeamlessNext?: () => void;
   onBookmark?: (page: number) => void;
   onPageProgress?: (page: number, pageCount: number) => void;
   /** Resolves the next chapter's payload so the reader can pull it early. */
@@ -80,6 +88,8 @@ export function ChapterReader({
   previousChapterHref,
   nextChapterHref,
   seriesHref,
+  nextChapterLabel,
+  onSeamlessNext,
   onBookmark,
   onPageProgress,
   preloadNextChapter,
@@ -475,6 +485,36 @@ export function ChapterReader({
     return () => scrollElement.removeEventListener("wheel", handleWheel);
   }, [continuous, scrollElement, zoomSteps]);
 
+  // "Continued scroll past the end-card" (spec §3.3.4): once the strip is pinned
+  // at the bottom, another downward wheel gesture drops into the next chapter.
+  const seamlessNextRef = useRef(onSeamlessNext);
+  useEffect(() => {
+    seamlessNextRef.current = onSeamlessNext;
+  }, [onSeamlessNext]);
+  useEffect(() => {
+    if (!scrollElement || !continuous || !atBottom || !onSeamlessNext) return;
+    let overscroll = 0;
+    let resetTimer: number | null = null;
+    const OVERSCROLL_TRIGGER = 140;
+    const handleWheel = (event: WheelEvent) => {
+      if (event.ctrlKey || event.metaKey || event.deltaY <= 0) return;
+      overscroll += event.deltaY;
+      if (resetTimer) window.clearTimeout(resetTimer);
+      resetTimer = window.setTimeout(() => {
+        overscroll = 0;
+      }, 320);
+      if (overscroll >= OVERSCROLL_TRIGGER) {
+        overscroll = 0;
+        seamlessNextRef.current?.();
+      }
+    };
+    scrollElement.addEventListener("wheel", handleWheel, { passive: true });
+    return () => {
+      scrollElement.removeEventListener("wheel", handleWheel);
+      if (resetTimer) window.clearTimeout(resetTimer);
+    };
+  }, [scrollElement, continuous, atBottom, onSeamlessNext]);
+
   const handleEscape = useCallback(() => {
     switch (resolveEscapeTarget({ helpOpen, fullscreen: fullscreen.active })) {
       case "help":
@@ -646,13 +686,21 @@ export function ChapterReader({
               onScrollToPageReady={registerScrollToPage}
             />
           ) : null}
-          {atBottom && nextChapterHref != null && (
-            <ChapterEdgePrompt
-              href={nextChapterHref}
-              direction="next"
-              label="Next chapter"
-            />
-          )}
+          {atBottom && nextChapterHref != null ? (
+            onSeamlessNext ? (
+              <ChapterEndCard
+                href={nextChapterHref}
+                label={nextChapterLabel ?? "Next chapter"}
+                onAdvance={onSeamlessNext}
+              />
+            ) : (
+              <ChapterEdgePrompt
+                href={nextChapterHref}
+                direction="next"
+                label="Next chapter"
+              />
+            )
+          ) : null}
         </div>
       ) : (
         <PagedView
