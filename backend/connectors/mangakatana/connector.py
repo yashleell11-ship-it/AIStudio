@@ -34,6 +34,40 @@ HTML_HEADERS = {
     "Accept": "text/html,application/xhtml+xml",
 }
 
+#: Media types the image proxy will serve as-is. Anything else it clamps to
+#: application/octet-stream, which `nosniff` then makes unrenderable.
+_IMAGE_MEDIA_TYPES = frozenset(
+    {"image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"}
+)
+
+#: (magic prefix, media type). Ordered longest-first where prefixes overlap.
+_IMAGE_MAGIC: tuple[tuple[bytes, str], ...] = (
+    (b"\xff\xd8\xff", "image/jpeg"),
+    (b"\x89PNG\r\n\x1a\n", "image/png"),
+    (b"GIF87a", "image/gif"),
+    (b"GIF89a", "image/gif"),
+)
+
+
+def _sniff_image_media_type(body: bytes, declared: str | None) -> str:
+    """Return a truthful image media type for ``body``.
+
+    A declared type that is already a real image wins — this only fills in for
+    upstreams that mislabel their images (or omit the label entirely).
+    """
+    cleaned = (declared or "").split(";")[0].strip().lower()
+    if cleaned in _IMAGE_MEDIA_TYPES:
+        return cleaned
+    for magic, media_type in _IMAGE_MAGIC:
+        if body.startswith(magic):
+            return media_type
+    # RIFF....WEBP and ....ftypavif carry their tag past a variable prefix
+    if body[:4] == b"RIFF" and body[8:12] == b"WEBP":
+        return "image/webp"
+    if body[4:8] == b"ftyp" and body[8:12] in (b"avif", b"avis"):
+        return "image/avif"
+    return cleaned or "application/octet-stream"
+
 
 class MangaKatanaConnector(SourceConnector):
     """Browse and read manga from MangaKatana (HTML catalog)."""
@@ -79,6 +113,23 @@ class MangaKatanaConnector(SourceConnector):
         # mangakatana.com: cover art on /imgs/cover/...
         # i*.mangakatana.com: chapter page images from the token CDN
         return frozenset({"mangakatana.com"})
+
+    def fetch_proxied_image(self, url: str) -> tuple[str, bytes] | None:
+        """Fetch a page image and label it by its actual bytes.
+
+        The token CDN (``i<N>.mangakatana.com``) serves real JPEGs under
+        ``Content-Type: application/octet-stream``. The image proxy clamps any
+        unrecognised type to ``application/octet-stream`` and responds with
+        ``X-Content-Type-Options: nosniff``, so the browser is told not to
+        second-guess it and refuses to render the image — every page in every
+        chapter came back as bytes the reader could not display.
+
+        Sniffing the magic number restores a truthful ``image/*`` label. The
+        upstream header still wins whenever it is already a real image type,
+        so this only ever corrects a missing label, never overrides a good one.
+        """
+        media_type, body = self._http.get_bytes(url)
+        return _sniff_image_media_type(body, media_type), body
 
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
