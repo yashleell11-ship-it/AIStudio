@@ -7,9 +7,11 @@
 > built and is **no longer a goal**; those documents are archived under
 > [`docs/archive/ai-studio/`](archive/ai-studio/README.md).
 >
-> The authoritative, prioritized engineering plan lives in
-> [`ARCHITECTURE_REVIEW_2026-07-11.md`](ARCHITECTURE_REVIEW_2026-07-11.md) §9.
-> This file is the product-level narrative; that report is the execution list.
+> The engineering execution list that used to live in a dated architecture
+> review has been superseded by the 2026-09-03 pivot below and the specs it
+> points to; see [ARCHITECTURE.md](ARCHITECTURE.md) for the current system map
+> and [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md) §5 for what's left to build. This
+> file remains the product-level narrative.
 
 ---
 
@@ -77,10 +79,12 @@ envelope, CORS.
 ## Phase 2 — Library + Reader ✅ Largely complete
 
 Library scanner + data layer, image serving, the reader (webtoon + paged),
-reading progress + continue-reading, multi-source search + connectors, the
-download engine, OCR dialogue search, and automatic update tracking are all
-built and shipping. Remaining polish is tracked as Medium/Low items in the
-architecture review.
+reading progress + continue-reading, multi-source search + connectors, a
+server-side download engine, OCR dialogue search, and automatic update
+tracking were all built and shipping as of this phase. **The server-side
+download engine and the local library/scanner it fed were later deleted
+outright** in the 2026-09-03 VPS pivot below, not iterated on — see
+[ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -156,5 +160,6 @@ storage, and a possible Postgres migration once the repository seam lands.
    logic in routes).
 4. New endpoints return the standard error envelope.
 5. Design tokens only — no hardcoded colors.
-6. `docs/STRUCTURE.md` updated when the file layout changes.
+6. `docs/ARCHITECTURE.md` updated when the system shape changes (`docs/STRUCTURE.md`,
+   the old per-file layout doc this rule originally named, is retired to `docs/archive/`).
 7. **No internal AI platform.** AI features call external APIs (ratified decision 2).
