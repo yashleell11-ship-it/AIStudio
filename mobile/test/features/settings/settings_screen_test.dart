@@ -1,40 +1,41 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/storage/secure_storage.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
-import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
 import 'package:manhwamaniacs/features/library/models/dashboard_data.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
-import 'package:manhwamaniacs/features/settings/repositories/auto_download_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/repositories/mature_settings_repository.dart';
 import 'package:manhwamaniacs/features/settings/screens/settings_screen.dart';
 import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
+import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/models/update_settings.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -59,17 +60,10 @@ class _FakeSecureStorageService extends SecureStorageService {
 }
 
 const _emptyLibraryStatistics = LibraryStatistics(
-  totalSeries: 0,
-  totalChapters: 0,
-  totalPages: 0,
-  completedSeries: 0,
-  inProgress: 0,
+  followedTotal: 0,
   favorites: 0,
-  completionRatePct: 0,
-  totalReadingTimeEstimateMinutes: 0,
-  pagesReadThisWeek: 0,
-  readingStreakDays: 0,
-  readingVelocityPagesPerHour: 0,
+  byReadingStatus: {},
+  chaptersCompleted: 0,
 );
 
 class _EmptyLibraryListNotifier extends LibraryListNotifier {
@@ -92,7 +86,7 @@ class _EmptyUpdatesNotifier extends UpdatesNotifier {
   Future<UpdatesState> build() async => const UpdatesState(
         notifications: [],
         unreadCount: 0,
-        trackers: [],
+        followed: [],
       );
 }
 
@@ -107,13 +101,8 @@ List<Override> _metadataCacheProviderOverrides() => [
       libraryListProvider.overrideWith(_EmptyLibraryListNotifier.new),
       searchListProvider.overrideWith(_EmptySearchListNotifier.new),
       statisticsProvider.overrideWith((ref) async => _emptyLibraryStatistics),
-      recommendationsProvider.overrideWith((ref) async => []),
-      readingHistoryProvider.overrideWith(
-        (ref) async => const ReadingHistoryData(
-          sessions: [],
-          calendar: [],
-        ),
-      ),
+      recommendationsProvider.overrideWith((ref) async => <RecommendationGenre>[]),
+      readingHistoryProvider.overrideWith((ref) async => <ReadingHistoryItem>[]),
       bookmarksProvider.overrideWith(_EmptyBookmarksNotifier.new),
       updatesProvider.overrideWith(_EmptyUpdatesNotifier.new),
     ];
@@ -122,57 +111,67 @@ class _EmptyLibraryRepository implements LibraryRepository {
   @override
   Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
+  Future<Result<SeriesDetail>> getSeries(int followedId) => throw UnimplementedError();
 
   @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
+  Future<Result<void>> unfollow(int followedId) => throw UnimplementedError();
+
+  @override
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<List<Collection>>> listCollections() => throw UnimplementedError();
@@ -192,6 +191,7 @@ class _EmptyLibraryRepository implements LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   }) =>
       throw UnimplementedError();
 
@@ -199,97 +199,131 @@ class _EmptyLibraryRepository implements LibraryRepository {
   Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
+  Future<Result<List<Tag>>> listTags({String? category}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> toggleFavorite(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
+  Future<Result<void>> deleteTag(int tagId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
       throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+}
+
+class _EmptyReaderRepository implements ReaderRepository {
+  @override
+  Future<Result<List<Bookmark>>> listBookmarks({String? sourceId, String? seriesKey}) async =>
+      const Ok([]);
+
+  @override
+  Future<Result<void>> deleteBookmark(int bookmarkId) => throw UnimplementedError();
 
   @override
   Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
     required int page,
     String? note,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) => throw UnimplementedError();
+  Future<Result<ChapterManifest>> manifest({
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
+  }) =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) => throw UnimplementedError();
+  Future<Result<ReadingProgress>> saveProgress(ProgressPush push) => throw UnimplementedError();
 
   @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<({int saved, int advanced})>> saveProgressBatch(List<ProgressPush> pushes) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingProgress>>> seriesProgress({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 }
 
-class _FakeDownloadsRepository implements DownloadsRepository {
-  _FakeDownloadsRepository(this.settings);
-
-  DownloadSettings settings;
-  DownloadSettings? saved;
+class _EmptyUpdatesRepository implements UpdatesRepository {
+  @override
+  Future<Result<List<UpdateNotification>>> listNotifications({
+    bool unreadOnly = false,
+    int limit = 100,
+  }) async =>
+      const Ok([]);
 
   @override
-  Future<Result<DownloadSettings>> getSettings() async => Ok(settings);
+  Future<Result<int>> getUnreadCount() async => const Ok(0);
 
   @override
-  Future<Result<DownloadSettings>> updateSettings(DownloadSettings newSettings) async {
-    saved = newSettings;
-    settings = newSettings;
-    return Ok(newSettings);
-  }
+  Future<Result<void>> markRead(int notificationId) => throw UnimplementedError();
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
-}
-
-DownloadSettings _sampleDownloadSettings() => const DownloadSettings(
-      concurrentChapters: 2,
-      pageConcurrency: 4,
-      retryCount: 3,
-      // Fractional on purpose: these two are floats server-side.
-      retryDelaySeconds: 0.75,
-      timeoutSeconds: 30.0,
-      activeDownloadCount: 0,
-    );
-
-class _StubAutoDownloadRepo implements AutoDownloadSettingsRepository {
-  /// Starts off, matching a fresh server.
-  bool enabled = false;
-  bool? saved;
+  Future<Result<void>> markAllRead() => throw UnimplementedError();
 
   @override
-  Future<Result<bool>> getAutoDownloadEnabled() async => Ok(enabled);
+  Future<Result<UpdateSettings>> getSettings() => throw UnimplementedError();
 
   @override
-  Future<Result<bool>> setAutoDownloadEnabled(bool value) async {
-    saved = value;
-    enabled = value;
-    return Ok(value);
-  }
+  Future<Result<UpdateSettings>> updateSettings({
+    bool? enabled,
+    int? checkIntervalMinutes,
+    bool? notifyEnabled,
+    bool? checkOnStartup,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<UpdateRun>>> listRuns({int limit = 20}) => throw UnimplementedError();
+
+  @override
+  Future<Result<UpdateCheckOutcome>> triggerCheck({List<int>? followedIds}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<UpdateRun>> checkFollowed(int followedId) => throw UnimplementedError();
 }
 
 final _testPackageInfo = PackageInfo(
@@ -316,13 +350,6 @@ class _ThrowingMatureController extends MatureContentController {
       throw const UnknownError(message: 'boom');
 }
 
-/// Same idea for the Downloads tab's auto-download switch: prove it degrades to
-/// a retry card rather than rendering a switch whose position is a guess.
-class _ThrowingAutoDownloadController extends AutoDownloadNewChaptersController {
-  @override
-  Future<bool> build() async => throw const UnknownError(message: 'boom');
-}
-
 Future<ProviderContainer> _pumpSettings(
   WidgetTester tester, {
   List<Override> extraOverrides = const [],
@@ -339,8 +366,8 @@ Future<ProviderContainer> _pumpSettings(
       apiBaseUrlOverride('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
       libraryRepositoryProvider.overrideWithValue(_EmptyLibraryRepository()),
-      downloadsRepositoryProvider
-          .overrideWithValue(_FakeDownloadsRepository(_sampleDownloadSettings())),
+      readerRepositoryProvider.overrideWithValue(_EmptyReaderRepository()),
+      updatesRepositoryProvider.overrideWithValue(_EmptyUpdatesRepository()),
       // PackageInfo.fromPlatform() hits a real platform channel that isn't
       // mocked in widget tests, so override the provider directly instead
       // of introducing a wrapper interface just for this.
@@ -351,10 +378,6 @@ Future<ProviderContainer> _pumpSettings(
       // The Content section's 18+ toggle builds on the General tab and would
       // otherwise fire a real GET /settings; stub the repo so tests stay offline.
       matureSettingsRepositoryProvider.overrideWithValue(_StubMatureRepo()),
-      // The Downloads tab's auto-download switch reads GET /updates/settings;
-      // stub it so the tab builds offline.
-      autoDownloadSettingsRepositoryProvider
-          .overrideWithValue(_StubAutoDownloadRepo()),
       ..._metadataCacheProviderOverrides(),
       ...extraOverrides,
     ],
@@ -392,13 +415,6 @@ Future<void> _scrollToText(WidgetTester tester, String text) async {
   await tester.pump();
 }
 
-/// Download settings live on their own tab now — reaching them is two steps,
-/// not a long scroll down General.
-Future<void> _openDownloadsTab(WidgetTester tester) async {
-  await tester.tap(find.text('Downloads'));
-  await tester.pumpAndSettle();
-}
-
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -426,51 +442,6 @@ void main() {
 
       await _scrollToText(tester, 'DEFAULT READER PREFERENCES');
       expect(find.text('DEFAULT READER PREFERENCES'), findsOneWidget);
-    });
-
-    testWidgets('download settings have their own tab, not a General footer',
-        (tester) async {
-      await _pumpSettings(tester);
-      await _openDownloadsTab(tester);
-
-      // Section headings are uppercased by _SectionHeading.
-      expect(find.text('AUTOMATIC DOWNLOADS'), findsOneWidget);
-      expect(find.text('NETWORK'), findsOneWidget);
-      expect(find.text('DOWNLOAD SPEED'), findsOneWidget);
-      expect(find.text('Chapters at once'), findsOneWidget);
-    });
-
-    testWidgets('automatic downloads are off unless the server says otherwise',
-        (tester) async {
-      await _pumpSettings(tester);
-      await _openDownloadsTab(tester);
-
-      final toggle = tester.widget<SwitchListTile>(
-        find.ancestor(
-          of: find.text('Download new chapters automatically'),
-          matching: find.byType(SwitchListTile),
-        ),
-      );
-      expect(toggle.value, isFalse);
-    });
-
-    testWidgets('turning automatic downloads on writes it through to the server',
-        (tester) async {
-      final repo = _StubAutoDownloadRepo();
-      final container = await _pumpSettings(
-        tester,
-        extraOverrides: [
-          autoDownloadSettingsRepositoryProvider.overrideWithValue(repo),
-        ],
-      );
-      await _openDownloadsTab(tester);
-
-      await tester.tap(find.text('Download new chapters automatically'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(repo.saved, isTrue);
-      expect(container.read(autoDownloadNewChaptersProvider).valueOrNull, isTrue);
     });
 
     testWidgets('tapping the Server tab shows the server URL field', (tester) async {
@@ -560,41 +531,12 @@ void main() {
       expect(find.text('LANGUAGE'), findsOneWidget);
     });
 
-    testWidgets(
-        'Downloads tab degrades per-section when both network reads fail',
-        (tester) async {
-      await _pumpSettings(
-        tester,
-        extraOverrides: [
-          downloadSettingsProvider
-              .overrideWith((ref) async => throw const UnknownError(message: 'boom')),
-          autoDownloadNewChaptersProvider
-              .overrideWith(_ThrowingAutoDownloadController.new),
-        ],
-      );
-      await _openDownloadsTab(tester);
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Something went wrong — please try again.'), findsNothing);
-
-      // Each network-backed section carries its own retry card…
-      expect(
-        find.text("Couldn't load the automatic download setting."),
-        findsOneWidget,
-      );
-      expect(find.text("Couldn't load download preferences."), findsOneWidget);
-      // …while the purely local Wi-Fi toggle between them still renders.
-      expect(find.text('Wi-Fi only'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'Retry'), findsNWidgets(2));
-    });
-
     testWidgets('every tab opens without throwing during build',
         (tester) async {
       await _pumpSettings(tester);
 
       for (final tab in const [
         'General',
-        'Downloads',
         'Server',
         'About',
         'Debug',
@@ -662,35 +604,6 @@ void main() {
 
       expect(container.read(readerDefaultsProvider).keepScreenAwake, isTrue);
       expect(container.read(preferencesProvider).keepScreenAwake, isTrue);
-    });
-
-    testWidgets('toggling Wi-Fi only persists the preference', (tester) async {
-      final container = await _pumpSettings(tester);
-      await _openDownloadsTab(tester);
-
-      await tester.tap(find.text('Wi-Fi only'));
-      await tester.pump();
-
-      expect(container.read(wifiOnlyDownloadsProvider), isTrue);
-      expect(container.read(preferencesProvider).wifiOnlyDownloads, isTrue);
-    });
-
-    testWidgets('existing download concurrency settings still load and save',
-        (tester) async {
-      await _pumpSettings(tester);
-      await _openDownloadsTab(tester);
-
-      await _scrollToText(tester, 'Chapters at once');
-      expect(find.text('Chapters at once'), findsOneWidget);
-      expect(find.text('Pages at once'), findsOneWidget);
-      expect(find.text('Retry count'), findsOneWidget);
-
-      await _scrollToText(tester, 'Save download settings');
-      await tester.tap(find.text('Save download settings'));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(find.text('Download settings saved.'), findsOneWidget);
     });
   });
 

@@ -5,37 +5,41 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/collections/screens/collection_detail_screen.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import '../../support/test_overrides.dart';
 
-FollowedSeries _series(int id, String title) => FollowedSeries(
-      id: id,
-      libraryId: 1,
+/// A candidate series offered by the "Add Series" picker
+/// (`librarySeriesPickerProvider` -> `listSeries`). Only what the picker UI
+/// reads (title) and what a collection member row identifies by
+/// (sourceId/seriesKey) matter here.
+FollowedSeries _pickerSeriesItem({
+  required String sourceId,
+  required String seriesKey,
+  required String title,
+}) =>
+    FollowedSeries(
+      id: 0,
+      sourceId: sourceId,
+      seriesKey: seriesKey,
       title: title,
-      sortTitle: title.toLowerCase(),
-      contentRating: 'teen',
-      language: 'en',
-      folderPath: '/library/$id',
+      coverUrl: '',
       isFavorite: false,
       readingStatus: 'reading',
+      notify: false,
+      sortOrder: 0,
+      contentRating: 'teen',
+      rating: 'safe',
       chapterCount: 10,
-      readChapters: 1,
-      pageCount: 100,
-      totalChapters: 10,
-      totalPages: 100,
       createdAt: DateTime(2024),
       updatedAt: DateTime(2024, 6),
     );
@@ -46,7 +50,19 @@ class _MutableCollectionsRepository implements LibraryRepository {
     required Map<int, CollectionDetail> details,
     List<FollowedSeries>? pickerSeries,
   })  : _details = details,
-        _pickerSeries = pickerSeries ?? [_series(1, 'Solo Leveling'), _series(2, 'Tower of God')];
+        _pickerSeries = pickerSeries ??
+            [
+              _pickerSeriesItem(
+                sourceId: 'toonkor',
+                seriesKey: 'solo-leveling',
+                title: 'Solo Leveling',
+              ),
+              _pickerSeriesItem(
+                sourceId: 'toonkor',
+                seriesKey: 'tower-of-god',
+                title: 'Tower of God',
+              ),
+            ];
 
   final List<Collection> collections;
   final Map<int, CollectionDetail> _details;
@@ -81,6 +97,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   }) async {
     renameCalls++;
     final detail = _details[collectionId]!;
@@ -88,26 +105,13 @@ class _MutableCollectionsRepository implements LibraryRepository {
       id: detail.id,
       name: name ?? detail.name,
       description: description ?? detail.description,
-      coverPath: detail.coverPath,
-      seriesCount: detail.series.total,
-      sortOrder: detail.sortOrder,
-      createdAt: detail.createdAt,
-      updatedAt: DateTime(2024, 7, 2),
+      coverUrl: detail.coverUrl,
+      seriesCount: detail.seriesCount,
+      sortOrder: sortOrder ?? detail.sortOrder,
       series: detail.series,
     );
     _details[collectionId] = updated;
-    return Ok(
-      Collection(
-        id: updated.id,
-        name: updated.name,
-        description: updated.description,
-        coverPath: updated.coverPath,
-        seriesCount: updated.series.total,
-        sortOrder: updated.sortOrder,
-        createdAt: updated.createdAt,
-        updatedAt: updated.updatedAt,
-      ),
-    );
+    return Ok(updated.toCollection());
   }
 
   @override
@@ -119,158 +123,160 @@ class _MutableCollectionsRepository implements LibraryRepository {
   }
 
   @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) async {
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) async {
     addSeriesCalls++;
     final detail = _details[collectionId]!;
-    final series = _pickerSeries.firstWhere((item) => item.id == seriesId);
-    _details[collectionId] = CollectionDetail(
+    final updatedSeries = [
+      ...detail.series,
+      CollectionSeriesRef(
+        sourceId: sourceId,
+        seriesKey: seriesKey,
+        sortOrder: detail.series.length,
+      ),
+    ];
+    final updated = CollectionDetail(
       id: detail.id,
       name: detail.name,
       description: detail.description,
-      coverPath: detail.coverPath,
-      seriesCount: detail.series.items.length + 1,
+      coverUrl: detail.coverUrl,
+      seriesCount: updatedSeries.length,
       sortOrder: detail.sortOrder,
-      createdAt: detail.createdAt,
-      updatedAt: detail.updatedAt,
-      series: PagedResult(
-        items: [...detail.series.items, series],
-        total: detail.series.items.length + 1,
-        page: 1,
-        perPage: 200,
-        hasNext: false,
-      ),
+      series: updatedSeries,
     );
-    return const Ok(null);
+    _details[collectionId] = updated;
+    return Ok(updated);
   }
 
   @override
   Future<Result<void>> removeSeriesFromCollection(
-    int collectionId,
-    int seriesId,
-  ) async {
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) async {
     removeSeriesCalls++;
     final detail = _details[collectionId]!;
-    final items =
-        detail.series.items.where((item) => item.id != seriesId).toList();
-    _details[collectionId] = CollectionDetail(
+    final updatedSeries = detail.series
+        .where(
+          (member) => member.sourceId != sourceId || member.seriesKey != seriesKey,
+        )
+        .toList();
+    final updated = CollectionDetail(
       id: detail.id,
       name: detail.name,
       description: detail.description,
-      coverPath: detail.coverPath,
-      seriesCount: items.length,
+      coverUrl: detail.coverUrl,
+      seriesCount: updatedSeries.length,
       sortOrder: detail.sortOrder,
-      createdAt: detail.createdAt,
-      updatedAt: detail.updatedAt,
-      series: PagedResult(
-        items: items,
-        total: items.length,
-        page: 1,
-        perPage: 200,
-        hasNext: false,
-      ),
+      series: updatedSeries,
     );
+    _details[collectionId] = updated;
     return const Ok(null);
   }
 
   @override
   Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
   }) async =>
       Ok(
         PagedResult(
           items: _pickerSeries,
           total: _pickerSeries.length,
           page: 1,
-          perPage: 200,
+          perPage: perPage,
           hasNext: false,
         ),
       );
 
   @override
-  Future<Result<void>> toggleFavorite(int seriesId) async => const Ok(null);
+  Future<Result<SeriesDetail>> getSeries(int followedId) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) =>
+  Future<Result<void>> unfollow(int followedId) => throw UnimplementedError();
+
+  @override
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
 
   @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
-    required int page,
-    String? note,
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+  Future<Result<List<Tag>>> listTags({String? category}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  }) =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<void>> deleteTag(int tagId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
   }) =>
       throw UnimplementedError();
 }
@@ -278,7 +284,7 @@ class _MutableCollectionsRepository implements LibraryRepository {
 CollectionDetail _detail({
   required int id,
   required String name,
-  List<FollowedSeries> series = const [],
+  List<CollectionSeriesRef> series = const [],
 }) =>
     CollectionDetail(
       id: id,
@@ -286,15 +292,7 @@ CollectionDetail _detail({
       description: 'Curated picks',
       seriesCount: series.length,
       sortOrder: 0,
-      createdAt: DateTime(2024),
-      updatedAt: DateTime(2024, 6),
-      series: PagedResult(
-        items: series,
-        total: series.length,
-        page: 1,
-        perPage: 200,
-        hasNext: false,
-      ),
+      series: series,
     );
 
 Future<void> _pumpDetail(
@@ -330,8 +328,6 @@ void main() {
             description: 'Curated picks',
             seriesCount: 0,
             sortOrder: 0,
-            createdAt: DateTime(2024),
-            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {1: _detail(id: 1, name: 'Action Picks')},
@@ -352,15 +348,19 @@ void main() {
             description: 'Curated picks',
             seriesCount: 1,
             sortOrder: 0,
-            createdAt: DateTime(2024),
-            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {
           1: _detail(
             id: 1,
             name: 'Action Picks',
-            series: [_series(1, 'Solo Leveling')],
+            series: const [
+              CollectionSeriesRef(
+                sourceId: 'toonkor',
+                seriesKey: 'solo-leveling',
+                sortOrder: 0,
+              ),
+            ],
           ),
         },
       );
@@ -386,8 +386,6 @@ void main() {
             name: 'Action Picks',
             seriesCount: 0,
             sortOrder: 0,
-            createdAt: DateTime(2024),
-            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {1: _detail(id: 1, name: 'Action Picks')},
@@ -400,7 +398,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(repo.addSeriesCalls, 1);
-      expect(find.text('Tower of God'), findsWidgets);
+      // A collection member carries no title of its own — it's rendered by
+      // its opaque (sourceId, seriesKey) identity, not the picker title.
+      expect(find.text('tower-of-god'), findsWidgets);
     });
 
     testWidgets('remove series updates collection', (tester) async {
@@ -411,15 +411,19 @@ void main() {
             name: 'Action Picks',
             seriesCount: 1,
             sortOrder: 0,
-            createdAt: DateTime(2024),
-            updatedAt: DateTime(2024, 6),
           ),
         ],
         details: {
           1: _detail(
             id: 1,
             name: 'Action Picks',
-            series: [_series(1, 'Solo Leveling')],
+            series: const [
+              CollectionSeriesRef(
+                sourceId: 'toonkor',
+                seriesKey: 'solo-leveling',
+                sortOrder: 0,
+              ),
+            ],
           ),
         },
       );
