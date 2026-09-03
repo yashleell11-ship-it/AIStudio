@@ -5,6 +5,7 @@ import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/downloads_storage_card.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
@@ -25,8 +26,6 @@ String formatStorageBytes(int bytes) {
 
 /// The device-storage control center: how much space caches use, and one
 /// place to reclaim it.
-// TODO(1c-M3): add a downloaded-chapters storage card once the on-device
-// store ships (real on-device bytes, not the deleted server download queue).
 class StorageScreen extends ConsumerWidget {
   const StorageScreen({super.key});
 
@@ -45,6 +44,8 @@ class StorageScreen extends ConsumerWidget {
       body: ListView(
         padding: const EdgeInsets.all(AppSpacing.xl2),
         children: const [
+          DownloadsStorageCard(),
+          SizedBox(height: AppSpacing.xl2),
           _ImageCacheCard(),
           SizedBox(height: AppSpacing.xl2),
           _MetadataCacheCard(),
