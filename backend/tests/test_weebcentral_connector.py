@@ -64,6 +64,35 @@ def test_parse_chapters_ascending_and_scoped():
     assert numbers == sorted(numbers)
 
 
+def test_parse_chapters_accepts_site_relative_hrefs():
+    """Regression: the partial switched to site-relative chapter hrefs.
+
+    ``full_chapter_list_relative_href.html`` is a live capture whose rows are
+    ``<a href="/chapters/<ID>">`` rather than the absolute
+    ``https://weebcentral.com/chapters/<ID>`` the parser used to require. The
+    old pattern returned zero chapters for every series here, which browse and
+    detail probes could not see. Asserting a non-empty parse against the real
+    markup is the whole point of this test — it fails on the pre-fix regex.
+    """
+    html_text = _load("full_chapter_list_relative_href.html")
+    assert 'href="https://weebcentral.com/chapters/' not in html_text
+    assert 'href="/chapters/' in html_text
+
+    chapters = parse_chapters(html_text, "01KHXP4J3DYXNMT2DVT9YZ20V7")
+
+    assert len(chapters) >= 5
+    assert all(c.series_id == "01KHXP4J3DYXNMT2DVT9YZ20V7" for c in chapters)
+    assert all(c.id and not c.id.startswith("http") for c in chapters)
+    assert all(c.release_date for c in chapters)
+
+
+def test_parse_chapters_still_accepts_absolute_hrefs():
+    """Both href forms must parse — the site has emitted each of them."""
+    absolute = parse_chapters(_load("full_chapter_list.html"), "S1")
+    relative = parse_chapters(_load("full_chapter_list_relative_href.html"), "S1")
+    assert absolute and relative
+
+
 def test_parse_chapter_pages_real_images_with_dimensions():
     pages = parse_chapter_pages(_load("chapter_images.html"), "01J76XZ666GREP4DQDKEP1YDZG")
     assert len(pages) >= 1

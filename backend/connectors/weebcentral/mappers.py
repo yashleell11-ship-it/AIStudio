@@ -70,12 +70,18 @@ CARD_RE = re.compile(
 # --- Chapter list parsing --------------------------------------------------
 
 # Each row in the full-chapter-list partial:
-#   <a href="https://weebcentral.com/chapters/<ID>" ...>
+#   <a href="/chapters/<ID>" ...>
 #       ... <span class="">Chapter 200</span> ...
 #       <time ... datetime="2024-09-07T17:04:15.717Z">...</time>
 #   </a>
+# The origin is optional: the partial used to emit absolute
+# ``https://weebcentral.com/chapters/<ID>`` hrefs and now emits site-relative
+# ``/chapters/<ID>`` ones. Requiring the origin made every series report zero
+# chapters — the series still browsed and its detail page still loaded, so the
+# source looked healthy while being completely unreadable. Accept both forms
+# rather than swapping one brittle literal for another.
 CHAPTER_RE = re.compile(
-    r'<a href="https://weebcentral\.com/chapters/(' + ID_PATTERN + r')"[^>]*>'
+    r'<a href="(?:https://weebcentral\.com)?/chapters/(' + ID_PATTERN + r')"[^>]*>'
     r'.*?<span class="">\s*([^<]+?)\s*</span>'
     r'.*?datetime="([^"]+)"',
     re.S,
