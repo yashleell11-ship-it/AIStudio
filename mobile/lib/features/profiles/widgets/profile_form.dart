@@ -25,17 +25,23 @@ class ProfileFormScaffold extends StatefulWidget {
     this.initialName = '',
     this.initialAvatarKey = kDefaultAvatarKey,
     this.initialMood = Mood.neutral,
+    this.initialMatureContentEnabled = false,
     this.onDelete,
   });
 
   final String title;
   final String submitLabel;
-  final Future<AppError?> Function(String name, String avatarKey, Mood mood)
-      onSubmit;
+  final Future<AppError?> Function(
+    String name,
+    String avatarKey,
+    Mood mood,
+    bool matureContentEnabled,
+  ) onSubmit;
   final VoidCallback onSuccess;
   final String initialName;
   final String initialAvatarKey;
   final Mood initialMood;
+  final bool initialMatureContentEnabled;
 
   /// When supplied, renders a destructive "Delete profile" action.
   final Future<AppError?> Function()? onDelete;
@@ -48,6 +54,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
   late final TextEditingController _nameController;
   late String _avatarKey;
   late Mood _mood;
+  late bool _matureContentEnabled;
   var _pending = false;
   String? _error;
 
@@ -57,6 +64,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
     _nameController = TextEditingController(text: widget.initialName);
     _avatarKey = widget.initialAvatarKey;
     _mood = widget.initialMood;
+    _matureContentEnabled = widget.initialMatureContentEnabled;
   }
 
   @override
@@ -76,7 +84,12 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
       _pending = true;
       _error = null;
     });
-    final error = await widget.onSubmit(name, _avatarKey, _mood);
+    final error = await widget.onSubmit(
+      name,
+      _avatarKey,
+      _mood,
+      _matureContentEnabled,
+    );
     if (!mounted) return;
     if (error != null) {
       setState(() {
@@ -191,6 +204,23 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
                 selected: _mood,
                 onSelected:
                     _pending ? null : (mood) => setState(() => _mood = mood),
+              ),
+              const SizedBox(height: AppSpacing.xl),
+              Material(
+                type: MaterialType.transparency,
+                child: SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  activeThumbColor: AppColors.primary,
+                  title: const Text('Mature content'),
+                  subtitle: const Text(
+                    'Show 18+ sources and series for this profile.',
+                  ),
+                  value: _matureContentEnabled,
+                  onChanged: _pending
+                      ? null
+                      : (value) =>
+                          setState(() => _matureContentEnabled = value),
+                ),
               ),
               if (error != null) ...[
                 const SizedBox(height: AppSpacing.lg),

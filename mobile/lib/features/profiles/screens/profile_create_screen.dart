@@ -14,11 +14,12 @@ class ProfileCreateScreen extends ConsumerWidget {
     return ProfileFormScaffold(
       title: 'Add profile',
       submitLabel: 'Create profile',
-      onSubmit: (name, avatarKey, mood) =>
+      onSubmit: (name, avatarKey, mood, matureContentEnabled) =>
           ref.read(profilesProvider.notifier).create(
                 name: name,
                 avatarKey: avatarKey,
                 mood: mood,
+                matureContentEnabled: matureContentEnabled,
               ),
       onSuccess: () => _leave(context),
     );

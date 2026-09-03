@@ -57,12 +57,14 @@ class ProfileEditScreen extends ConsumerWidget {
           initialName: profile.name,
           initialAvatarKey: profile.avatarKey ?? kDefaultAvatarKey,
           initialMood: profile.mood,
-          onSubmit: (name, avatarKey, mood) =>
+          initialMatureContentEnabled: profile.matureContentEnabled,
+          onSubmit: (name, avatarKey, mood, matureContentEnabled) =>
               ref.read(profilesProvider.notifier).edit(
                     profile.id,
                     name: name,
                     avatarKey: avatarKey,
                     mood: mood,
+                    matureContentEnabled: matureContentEnabled,
                   ),
           onDelete: () =>
               ref.read(profilesProvider.notifier).delete(profile.id),

@@ -9,6 +9,7 @@ class Profile {
     required this.avatarKey,
     required this.mood,
     required this.sortOrder,
+    required this.matureContentEnabled,
     required this.createdAt,
   });
 
@@ -19,6 +20,9 @@ class Profile {
   final String? avatarKey;
   final Mood mood;
   final int sortOrder;
+
+  /// Per-profile 18+ gate. Settable at create/edit since 1a.
+  final bool matureContentEnabled;
   final DateTime createdAt;
 
   factory Profile.fromJson(Map<String, dynamic> json) => Profile(
@@ -27,6 +31,7 @@ class Profile {
         avatarKey: json['avatar_key'] as String?,
         mood: Mood.fromWire(json['mood'] as String?),
         sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
+        matureContentEnabled: json['mature_content_enabled'] as bool? ?? false,
         createdAt: DateTime.parse(json['created_at'] as String),
       );
 

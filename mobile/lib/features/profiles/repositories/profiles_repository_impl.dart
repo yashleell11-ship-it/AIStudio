@@ -31,6 +31,7 @@ class ProfilesRepositoryImpl implements ProfilesRepository {
     required String avatarKey,
     required Mood mood,
     int? sortOrder,
+    bool? matureContentEnabled,
   }) async {
     try {
       final r = await _dio.post<Map<String, dynamic>>(
@@ -40,6 +41,8 @@ class ProfilesRepositoryImpl implements ProfilesRepository {
           'avatar_key': avatarKey,
           'mood': mood.wire,
           if (sortOrder != null) 'sort_order': sortOrder,
+          if (matureContentEnabled != null)
+            'mature_content_enabled': matureContentEnabled,
         },
       );
       return Ok(Profile.fromJson(r.data!));
@@ -57,6 +60,7 @@ class ProfilesRepositoryImpl implements ProfilesRepository {
     String? avatarKey,
     Mood? mood,
     int? sortOrder,
+    bool? matureContentEnabled,
   }) async {
     try {
       final r = await _dio.patch<Map<String, dynamic>>(
@@ -66,6 +70,8 @@ class ProfilesRepositoryImpl implements ProfilesRepository {
           if (avatarKey != null) 'avatar_key': avatarKey,
           if (mood != null) 'mood': mood.wire,
           if (sortOrder != null) 'sort_order': sortOrder,
+          if (matureContentEnabled != null)
+            'mature_content_enabled': matureContentEnabled,
         },
       );
       return Ok(Profile.fromJson(r.data!));
