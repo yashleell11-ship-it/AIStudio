@@ -1,5 +1,3 @@
-import 'package:manhwamaniacs/core/utils/path_key.dart';
-
 /// Named route constants — single source of truth for all deep links.
 abstract final class Routes {
   // ── Authentication ─────────────────────────────────────────────────────────
@@ -72,12 +70,16 @@ abstract final class RoutePaths {
   static String seriesDetail(int seriesId) => '/library/$seriesId';
 
   /// [seriesKey] and [chapterKey] are opaque connector keys that may contain
-  /// `/`; [encodePathKey] escapes each sub-segment so go_router's single
-  /// `:seriesKey` / `:chapterKey` param still captures the whole key (it
-  /// percent-decodes on the way in, matching the encode here).
+  /// `/` (every madara-family chapter key looks like `series-slug/chapter-n`).
+  /// go_router's `:seriesKey` / `:chapterKey` params each match a SINGLE path
+  /// segment (`[^/]+`), so the whole key must be encoded as one segment —
+  /// `Uri.encodeComponent` turns the `/` into `%2F`, which go_router
+  /// percent-decodes exactly once on the way in. Per-sub-segment encoding
+  /// (the backend `:path`-converter form) keeps raw slashes and makes the
+  /// location grow extra segments, which never matches this route.
   static String reader(String sourceId, String seriesKey, String chapterKey) =>
-      '/library/read/$sourceId/${encodePathKey(seriesKey)}'
-      '/${encodePathKey(chapterKey)}';
+      '/library/read/$sourceId/${Uri.encodeComponent(seriesKey)}'
+      '/${Uri.encodeComponent(chapterKey)}';
 
   static String collectionDetail(int collectionId) => '/collections/$collectionId';
 
