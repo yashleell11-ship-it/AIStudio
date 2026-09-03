@@ -102,6 +102,19 @@ export function moodAccent(mood: Mood, alphaPercent = 60): string {
   return `color-mix(in srgb, ${tint} ${alphaPercent}%, transparent)`;
 }
 
+/**
+ * A *very* subtle wash for the reader's side margins (the gutters beside the
+ * page column) — never behind the page itself, which stays pure obsidian.
+ *
+ * Much lower alpha than {@link moodShellBackground}: the shell tint is ambient
+ * furniture, but in the reader anything with presence competes with the page.
+ * `default` returns `"transparent"` so an untinted profile gets no wash at all.
+ */
+export function moodReaderMargin(mood: Mood): string {
+  if (!isTintedMood(mood)) return "transparent";
+  return `color-mix(in srgb, ${MOOD_TINT[mood]} 7%, transparent)`;
+}
+
 /** Narrow an arbitrary string to a {@link Mood}, defaulting to `"default"`. */
 export function toMood(value: string | null | undefined): Mood {
   return (MOODS as readonly string[]).includes(value ?? "")

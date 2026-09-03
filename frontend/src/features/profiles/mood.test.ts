@@ -7,6 +7,7 @@ import {
   MOOD_TINT,
   isTintedMood,
   moodPickerBackground,
+  moodReaderMargin,
   moodShellBackground,
   toMood,
 } from "./mood";
@@ -58,6 +59,28 @@ describe("moodPickerBackground", () => {
   it("returns the themed surface for default and a gradient for a tinted mood", () => {
     expect(moodPickerBackground("default")).toBe(MOOD_SURFACE);
     expect(moodPickerBackground("horror")).toContain(MOOD_TINT.horror);
+  });
+});
+
+describe("moodReaderMargin", () => {
+  it("is transparent for the default mood (no wash behind the reader gutters)", () => {
+    expect(moodReaderMargin("default")).toBe("transparent");
+  });
+
+  it("returns a low-alpha wash of the mood tint for a tinted mood", () => {
+    const wash = moodReaderMargin("fantasy");
+    expect(wash).toContain(MOOD_TINT.fantasy);
+    expect(wash).toContain("color-mix");
+    // Much fainter than the shell tint (24%+); a single-digit percentage.
+    const percent = Number(/(\d+)%/.exec(wash)?.[1]);
+    expect(percent).toBeGreaterThan(0);
+    expect(percent).toBeLessThan(12);
+  });
+
+  it("never hard-codes the dark base", () => {
+    for (const mood of MOODS) {
+      expect(moodReaderMargin(mood)).not.toContain(MOOD_BASE);
+    }
   });
 });
 
