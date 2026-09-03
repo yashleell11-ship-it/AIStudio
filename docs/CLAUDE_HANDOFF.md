@@ -4,10 +4,12 @@
 **Repo:** this directory (`aistudio` is the codename; the product is ManhwaManiacs)
 **Working branch:** `feat/vps-slim-source-native` — *not* merged to `master` until 1a–1c all land.
 
-> **This file was rewritten 2026-09-03.** Everything before that described a
-> different system: a server-side download engine, an int-keyed disk catalog, a
-> NAS deployment, and "connectors are frozen". All four are gone. If you find a
-> doc that contradicts this one, this one is right — see §6.
+> **This file was rewritten 2026-09-03**, and §5/§6 refreshed 2026-09-04.
+> Everything before 09-03 described a different system: a server-side download
+> engine, an int-keyed disk catalog, a NAS deployment, and "connectors are
+> frozen". All four are gone. If you find a doc that contradicts this one, this
+> one is right — see §6. For a system-level map rather than a handoff narrative,
+> see [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ---
 
@@ -75,19 +77,34 @@ current work is.
 - **1b — web client:** source-native, reader experience pass (cinema mode,
   seamless pages and chapter transitions, continue-hero, ambient mood tint),
   offline renamed to Downloads. Finishing OCR/updates/admin polish + e2e.
-- **1c — mobile:** spec written (`docs/superpowers/specs/2026-09-03-mobile-source-native-design.md`),
-  not started. Blocked on the user for GitHub push auth and repo visibility
-  before the iOS cloud build can run.
+- **1c — mobile:** past "not started" — M1 (source-native API/models), M2
+  (manifest-driven reader + progress outbox), and M3 (the on-device store:
+  `mobile/lib/features/downloads/` — sqflite store, download queue, offline
+  reader path, retention sweep, Downloads screen, Settings storage card) have
+  landed, with an acceptance test covering airplane-mode/cold-start/offline
+  read. Remaining per the spec's slice order
+  (`docs/superpowers/specs/2026-09-03-mobile-source-native-design.md` §5):
+  **M4 OCR** (the `mm/ocr` MethodChannel — Vision on iOS, ML Kit on Android —
+  is not implemented yet; there is no `features/ocr/` in `mobile/lib/`) and
+  **M5 builds**. M5's Android half works locally (`ops/vps/push.sh apk`); the
+  iOS half is still blocked on the user for GitHub push auth and making the
+  mirror repo readable to the VPS's anonymous release-asset fetch — see
+  [VPS_OPERATIONS.md](VPS_OPERATIONS.md) "Manual steps that are not automated".
 
 The specs under `docs/superpowers/specs/` are the authoritative plans. Start
 there, not here.
 
 ## 6. Docs you should distrust
 
-- `ARCHITECTURE_REVIEW_2026-07-11.md` — a good review *of a system that no
-  longer exists*. Historically interesting; architecturally obsolete.
-- `OFFLINE_READING.md` — the transport/store/eviction design is still the
-  reference for the phone, but its NAS-primary framing is superseded.
-- `SOURCE_ROLLOUT_HANDOFF.md`, `CONNECTOR_STATUS.md` — connector-era, unverified
-  against the current tree.
-- `ROADMAP.md` — has a correct 2026-09-03 pivot section on top of older phases.
+`ARCHITECTURE_REVIEW_2026-07-11.md`, `SOURCE_ROLLOUT_HANDOFF.md`, and
+`CONNECTOR_STATUS.md` described a system (NAS deployment, int-keyed catalog,
+Cursor-account handoffs) that no longer exists and have been deleted rather
+than kept as a trap — see git history if you need the archaeology.
+
+Docs still in the tree but worth a skeptical read:
+
+- `ROADMAP.md` — has a correct 2026-09-03 pivot section on top of an older,
+  pre-pivot phase narrative below it.
+- `OFFLINE_READING.md`'s Stages/Spike sections describe the *plan*; §5
+  (M3) of it has since shipped — cross-check against
+  `mobile/lib/features/downloads/` for what actually got built vs. designed.
