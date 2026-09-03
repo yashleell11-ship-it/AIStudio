@@ -101,7 +101,10 @@ export async function request<T>(
   } catch (cause) {
     throw new ApiError(0, {
       code: "network_error",
-      message: "Could not reach the server. Is the backend running?",
+      // Read by every screen in the app (via `ApiError.message`), so this has
+      // to make sense to whoever is holding the phone, not just the person who
+      // runs the server. "Is the backend running?" was written for the latter.
+      message: "Can't reach ManhwaManiacs right now. Check your connection and try again.",
       details: cause,
     });
   }

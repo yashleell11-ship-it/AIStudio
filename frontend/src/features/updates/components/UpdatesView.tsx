@@ -1,12 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, ChevronRight, Search } from "lucide-react";
+import { Bell, BellOff, ChevronRight, Search, TriangleAlert, WifiOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { useFollowedIndex } from "@/features/library/hooks";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { ApiError } from "@/types/api";
 import { notificationReaderHref } from "../notification-link";
 import {
@@ -85,8 +87,15 @@ export function UpdatesView() {
   const { titles } = useFollowedIndex();
 
   const busy = manualCheck.isPending || markRead.isPending || markAllRead.isPending;
-  const error = settings.error ?? notifications.error ?? runs.error;
+  // Notifications gets its own dedicated empty/error/offline treatment below;
+  // keeping it out of this merged banner avoids saying the same failure twice.
+  const error = settings.error ?? runs.error;
   const rows = notifications.data ?? [];
+  const notificationsViewState = resolveViewState({
+    isLoading: notifications.isLoading,
+    error: notifications.error,
+    isEmpty: rows.length === 0,
+  });
 
   return (
     <div className="page-shell">
@@ -165,11 +174,29 @@ export function UpdatesView() {
                   />
                 ))}
               </div>
-            ) : rows.length === 0 ? (
-              <p className="text-sm text-muted">
-                No new chapters yet. Follow series from the Sources browser to
-                track them.
-              </p>
+            ) : notificationsViewState === "offline" ? (
+              <EmptyState
+                tone="offline"
+                icon={WifiOff}
+                title="You're offline"
+                description="Updates need a connection to check. Chapters you've downloaded still open with no connection at all."
+                action={{ label: "Go to Downloads", href: "/downloads" }}
+              />
+            ) : notificationsViewState === "error" ? (
+              <EmptyState
+                tone="error"
+                icon={TriangleAlert}
+                title="Couldn't load notifications"
+                description={apiErrorMessage(notifications.error, "Something went wrong.")}
+                action={{ label: "Try again", onClick: () => void notifications.refetch() }}
+              />
+            ) : notificationsViewState === "empty" ? (
+              <EmptyState
+                icon={BellOff}
+                title="No new chapters yet"
+                description="Follow a series and this fills in the moment a new chapter is found."
+                action={{ label: "Browse Sources", href: "/sources" }}
+              />
             ) : (
               rows.map((item) => (
                 <NotificationRow

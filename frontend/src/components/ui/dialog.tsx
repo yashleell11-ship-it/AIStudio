@@ -79,7 +79,11 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
         aria-modal="true"
         aria-labelledby={titleId}
         className={cn(
-          "glass-panel relative z-10 w-full max-w-lg rounded-2xl border border-border/50 p-6 shadow-glass",
+          // `max-h` + `overflow-y-auto` so a dialog taller than the viewport
+          // (a long form, an on-screen keyboard eating half a short phone
+          // screen) scrolls internally instead of clipping its Close button or
+          // its bottom actions off-screen.
+          "glass-panel relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-y-auto rounded-2xl border border-border/50 p-6 shadow-glass",
           className,
         )}
       >
@@ -87,7 +91,15 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
           <h2 id={titleId} className="text-lg font-semibold text-fg">
             {title}
           </h2>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onClose}
+            aria-label="Close"
+            // 44px tap target — every dialog on the app funnels its close
+            // action through this one button, phone included.
+            className="-mr-2 -mt-2 h-11 w-11 shrink-0"
+          >
             ×
           </Button>
         </div>

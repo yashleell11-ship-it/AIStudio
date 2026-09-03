@@ -14,11 +14,15 @@ import {
   ChevronUp,
   Clock,
   Search,
+  SearchX,
   SlidersHorizontal,
   TrendingUp,
+  TriangleAlert,
+  WifiOff,
 } from "lucide-react";
-import { ApiError } from "@/types/api";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
 import { useFederatedSearch, useRetrySearchSource } from "@/features/sources/hooks";
@@ -129,19 +133,20 @@ export function SearchView() {
     searchRef.current?.focus();
   }, []);
 
-  const errorMessage =
-    searchQuery.error instanceof ApiError
-      ? searchQuery.error.message
-      : searchQuery.error
-        ? "Search failed. Please try again."
-        : null;
-
   const hasQuery = trimmedQuery.length > 0;
   // The flat `items` list is the backend's legacy view; sections are rendered
   // from `groups` so a source that failed or returned nothing says so itself.
   const groups = useMemo(() => searchQuery.data?.groups ?? [], [searchQuery.data]);
   const { visible, quiet } = useMemo(() => splitSearchGroups(groups), [groups]);
   const resultCount = searchResultCount(groups);
+  // Per-source failures already render inline via `GlobalSearchGroupSection`'s
+  // own retry; this only fires when the request as a whole never came back
+  // (most often the backend being unreachable).
+  const viewState = resolveViewState({
+    isLoading: searchQuery.isLoading,
+    error: searchQuery.error,
+    isEmpty: visible.length === 0 && quiet.length === 0,
+  });
   const scopeLabel = searchQuery.data
     ? globalSearchScopeLabel(
         searchQuery.data.sources_queried,
@@ -241,49 +246,58 @@ export function SearchView() {
               </div>
             ) : null}
 
-            <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-10 text-center">
-              <Search className="mx-auto mb-3 size-8 text-muted/40" aria-hidden />
-              <p className="text-lg font-medium text-fg">Start typing to search</p>
-              <p className="mt-2 text-sm text-muted">
-                Search your library and every source connector at once.
-              </p>
-            </div>
-          </div>
-        ) : null}
-
-        {errorMessage ? (
-          <div className="mb-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {errorMessage}
+            <EmptyState
+              icon={Search}
+              title="Start typing to search"
+              description="Search your library and every source connector at once."
+            />
           </div>
         ) : null}
 
         {hasQuery ? (
           <section>
             <SectionLabel icon={BookOpen} label="Results" />
-            <div className="mb-4">
-              <p className="text-sm text-muted">
-                {searchQuery.isLoading
-                  ? "Searching sources…"
-                  : `${resultCount.toLocaleString()} ${resultCount === 1 ? "result" : "results"} found`}
-              </p>
-              {!searchQuery.isLoading && scopeLabel ? (
-                <p className="mt-0.5 text-xs text-muted/70">{scopeLabel}</p>
-              ) : null}
-            </div>
+            {viewState === "content" || viewState === "empty" ? (
+              <div className="mb-4">
+                <p className="text-sm text-muted">
+                  {searchQuery.isLoading
+                    ? "Searching sources…"
+                    : `${resultCount.toLocaleString()} ${resultCount === 1 ? "result" : "results"} found`}
+                </p>
+                {!searchQuery.isLoading && scopeLabel ? (
+                  <p className="mt-0.5 text-xs text-muted/70">{scopeLabel}</p>
+                ) : null}
+              </div>
+            ) : null}
 
-            {searchQuery.isLoading ? (
+            {viewState === "loading" ? (
               <div className="space-y-3">
                 {Array.from({ length: 4 }).map((_, index) => (
                   <SearchResultCardSkeleton key={index} />
                 ))}
               </div>
-            ) : visible.length === 0 && quiet.length === 0 ? (
-              <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-10 text-center">
-                <p className="text-lg font-medium text-fg">No results found</p>
-                <p className="mt-2 text-sm text-muted">
-                  Try a different search term across your library and sources.
-                </p>
-              </div>
+            ) : viewState === "offline" ? (
+              <EmptyState
+                tone="offline"
+                icon={WifiOff}
+                title="You're offline"
+                description="Search needs a connection to reach your library and sources. Chapters you've downloaded still open with no connection at all."
+                action={{ label: "Go to Downloads", href: "/downloads" }}
+              />
+            ) : viewState === "error" ? (
+              <EmptyState
+                tone="error"
+                icon={TriangleAlert}
+                title="Search failed"
+                description={apiErrorMessage(searchQuery.error, "Something went wrong.")}
+                action={{ label: "Try again", onClick: () => void searchQuery.refetch() }}
+              />
+            ) : viewState === "empty" ? (
+              <EmptyState
+                icon={SearchX}
+                title="No results found"
+                description="Try a different search term across your library and sources."
+              />
             ) : (
               <>
                 {visible.map(renderGroup)}

@@ -13,7 +13,7 @@ export function NotificationBell() {
       href="/updates"
       aria-label={`Updates${count > 0 ? `, ${count} unread` : ""}`}
       title="Updates"
-      className="relative inline-flex size-9 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+      className="relative inline-flex size-11 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
     >
       <Bell className="size-5" aria-hidden />
       <span className="sr-only" aria-live="polite" aria-atomic="true">

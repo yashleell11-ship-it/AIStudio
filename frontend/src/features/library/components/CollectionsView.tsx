@@ -9,15 +9,19 @@ import {
   Plus,
   Search,
   SlidersHorizontal,
+  TriangleAlert,
+  WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import {
   useCollections,
   useCreateCollection,
 } from "@/features/library/hooks";
 import type { Collection } from "@/features/library/types";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { ApiError } from "@/types/api";
 import { cn } from "@/lib/cn";
 
@@ -115,12 +119,12 @@ export function CollectionsView() {
   const [sort, setSort] = useState<CollectionSort>("name");
   const [sortOpen, setSortOpen] = useState(false);
 
-  const errorMessage =
-    collectionsQuery.error instanceof ApiError
-      ? collectionsQuery.error.message
-      : collectionsQuery.error
-        ? "Failed to load collections."
-        : null;
+  const collections = collectionsQuery.data ?? [];
+  const viewState = resolveViewState({
+    isLoading: collectionsQuery.isLoading,
+    error: collectionsQuery.error,
+    isEmpty: collections.length === 0,
+  });
 
   const filteredCollections = useMemo(() => {
     const data = collectionsQuery.data ?? [];
@@ -170,12 +174,6 @@ export function CollectionsView() {
             New Collection
           </Button>
         </div>
-
-        {errorMessage && (
-          <div className="mb-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {errorMessage}
-          </div>
-        )}
 
         {collectionsQuery.data && collectionsQuery.data.length > 0 && (
           <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -238,22 +236,35 @@ export function CollectionsView() {
           </div>
         )}
 
-        {collectionsQuery.isLoading ? (
+        {viewState === "loading" ? (
           <CollectionsSkeleton />
-        ) : collectionsQuery.data && collectionsQuery.data.length === 0 ? (
-          <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
-              <FolderOpen className="size-8 text-primary" />
-            </div>
-            <p className="text-lg font-medium text-fg">No collections yet</p>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-              Create collections to group your series by theme, mood, or reading list.
-            </p>
-            <Button onClick={() => setDialogOpen(true)} className="mt-6 gap-2">
-              <Plus className="size-4" aria-hidden />
-              Create your first collection
-            </Button>
-          </div>
+        ) : viewState === "offline" ? (
+          <EmptyState
+            tone="offline"
+            icon={WifiOff}
+            title="You're offline"
+            description="Collections need a connection to load. Chapters you've downloaded still open with no connection at all."
+            action={{ label: "Go to Downloads", href: "/downloads" }}
+          />
+        ) : viewState === "error" ? (
+          <EmptyState
+            tone="error"
+            icon={TriangleAlert}
+            title="Couldn't load collections"
+            description={apiErrorMessage(collectionsQuery.error, "Something went wrong.")}
+            action={{ label: "Try again", onClick: () => void collectionsQuery.refetch() }}
+          />
+        ) : viewState === "empty" ? (
+          <EmptyState
+            icon={FolderOpen}
+            title="No collections yet"
+            description="Create collections to group your series by theme, mood, or reading list."
+            action={{
+              label: "Create your first collection",
+              icon: Plus,
+              onClick: () => setDialogOpen(true),
+            }}
+          />
         ) : filteredCollections.length === 0 ? (
           <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
             <p className="text-lg font-medium text-fg">No collections match your search</p>

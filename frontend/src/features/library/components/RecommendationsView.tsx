@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { Heart, TriangleAlert, WifiOff } from "lucide-react";
 import { useRecommendations } from "@/features/library/hooks";
-import { ApiError } from "@/types/api";
+import { EmptyState } from "@/components/ui/empty-state";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 /**
  * Source-native recommendations (spec §5.2): with no external catalog there is
@@ -12,13 +14,11 @@ import { ApiError } from "@/types/api";
 export function RecommendationsView() {
   const recommendationsQuery = useRecommendations(20);
   const genres = recommendationsQuery.data ?? [];
-
-  const errorMessage =
-    recommendationsQuery.error instanceof ApiError
-      ? recommendationsQuery.error.message
-      : recommendationsQuery.error
-        ? "Failed to load recommendations."
-        : null;
+  const viewState = resolveViewState({
+    isLoading: recommendationsQuery.isLoading,
+    error: recommendationsQuery.error,
+    isEmpty: genres.length === 0,
+  });
 
   return (
     <div className="page-shell">
@@ -30,31 +30,35 @@ export function RecommendationsView() {
           </p>
         </div>
 
-        {errorMessage && (
-          <div className="mb-6 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {errorMessage}
-          </div>
-        )}
-
-        {recommendationsQuery.isLoading ? (
+        {viewState === "loading" ? (
           <div className="flex flex-wrap gap-3">
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className="h-9 w-28 animate-pulse rounded-full bg-surface-2" />
             ))}
           </div>
-        ) : genres.length === 0 ? (
-          <div className="empty-state">
-            <p className="text-lg font-medium text-fg">No recommendations yet</p>
-            <p className="mt-2 text-sm text-muted">
-              Follow a few series and their genres will show up here.
-            </p>
-            <Link
-              href="/sources"
-              className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg hover:bg-primary-hover"
-            >
-              Browse Sources
-            </Link>
-          </div>
+        ) : viewState === "offline" ? (
+          <EmptyState
+            tone="offline"
+            icon={WifiOff}
+            title="You're offline"
+            description="Recommendations need a connection to load. Chapters you've downloaded still open with no connection at all."
+            action={{ label: "Go to Downloads", href: "/downloads" }}
+          />
+        ) : viewState === "error" ? (
+          <EmptyState
+            tone="error"
+            icon={TriangleAlert}
+            title="Couldn't load recommendations"
+            description={apiErrorMessage(recommendationsQuery.error, "Something went wrong.")}
+            action={{ label: "Try again", onClick: () => void recommendationsQuery.refetch() }}
+          />
+        ) : viewState === "empty" ? (
+          <EmptyState
+            icon={Heart}
+            title="No recommendations yet"
+            description="Follow a few series and their genres will show up here."
+            action={{ label: "Browse Sources", href: "/sources" }}
+          />
         ) : (
           <div className="flex flex-wrap gap-3">
             {genres.map((entry) => (

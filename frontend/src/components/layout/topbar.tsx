@@ -40,8 +40,16 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
   return (
     <header
       className={cn(
-        "app-no-drag flex h-14 shrink-0 items-center gap-3 border-b border-border bg-bg-void/80 px-4 backdrop-blur-sm",
-        hideOnReader && "lg:flex max-lg:h-11",
+        // `pt-[env(safe-area-inset-top)]` clears the iOS notch / Dynamic Island
+        // when installed as a standalone PWA (`black-translucent` status bar —
+        // see layout.tsx — draws page content straight under it). `min-h-*`
+        // rather than `h-*` so that padding ADDS space above the usual 56px/44px
+        // bar instead of eating into it and squeezing the toggle/notification/
+        // clock row.
+        "app-no-drag flex shrink-0 items-center gap-3 border-b border-border bg-bg-void/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-sm",
+        hideOnReader
+          ? "min-h-[calc(3.5rem+env(safe-area-inset-top))] max-lg:min-h-[calc(2.75rem+env(safe-area-inset-top))]"
+          : "min-h-[calc(3.5rem+env(safe-area-inset-top))]",
       )}
     >
       <Button

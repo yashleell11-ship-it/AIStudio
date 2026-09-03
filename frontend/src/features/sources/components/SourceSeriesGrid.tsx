@@ -1,5 +1,7 @@
 "use client";
 
+import { SearchX, TriangleAlert } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { SourceSeriesCard } from "./SourceSeriesCard";
 import type { SourceSeriesSummary } from "../types";
 
@@ -9,6 +11,8 @@ interface SourceSeriesGridProps {
   isLoading?: boolean;
   query?: string;
   errorMessage?: string;
+  /** Refetches the browse request. Omitted when there is nothing to retry. */
+  onRetry?: () => void;
 }
 
 export function SourceSeriesGrid({
@@ -17,13 +21,17 @@ export function SourceSeriesGrid({
   isLoading,
   query,
   errorMessage,
+  onRetry,
 }: SourceSeriesGridProps) {
   if (errorMessage) {
     return (
-      <div className="rounded-3xl border border-dashed border-border bg-surface p-12 text-center">
-        <p className="text-lg font-medium text-fg">Could not load source catalog</p>
-        <p className="mt-2 text-sm text-muted">{errorMessage}</p>
-      </div>
+      <EmptyState
+        tone="error"
+        icon={TriangleAlert}
+        title="Could not load source catalog"
+        description={errorMessage}
+        action={onRetry ? { label: "Try again", onClick: onRetry } : undefined}
+      />
     );
   }
 
@@ -42,14 +50,15 @@ export function SourceSeriesGrid({
 
   if (items.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-border bg-surface p-12 text-center">
-        <p className="text-lg font-medium text-fg">No series found</p>
-        <p className="mt-2 text-sm text-muted">
-          {query
+      <EmptyState
+        icon={SearchX}
+        title="No series found"
+        description={
+          query
             ? `No results for "${query}" on this source.`
-            : "This source returned no series."}
-        </p>
-      </div>
+            : "This source returned no series."
+        }
+      />
     );
   }
 

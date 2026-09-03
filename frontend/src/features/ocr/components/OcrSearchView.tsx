@@ -2,21 +2,18 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, Search } from "lucide-react";
+import { Loader2, ScanText, Search, TriangleAlert, WifiOff } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { EmptyState } from "@/components/ui/empty-state";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { useFollowedIndex } from "@/features/library/hooks";
-import { ApiError } from "@/types/api";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useOcrSearch } from "../hooks";
 import { ocrResultHref } from "../result-link";
 import { parseSnippet } from "../snippet";
 import type { OcrSearchResultItem } from "../types";
 
 const SEARCH_DEBOUNCE_MS = 300;
-
-function errorMessage(error: unknown): string {
-  return error instanceof ApiError ? error.message : "Something went wrong.";
-}
 
 export function OcrSearchView() {
   return (
@@ -47,10 +44,19 @@ function DialogueSearch() {
     return () => clearTimeout(timer);
   }, [rawQuery]);
 
-  const { data, isFetching, isError, error } = useOcrSearch(query);
+  const ocrQuery = useOcrSearch(query);
+  const { data, isFetching, error } = ocrQuery;
   const { titles } = useFollowedIndex();
   const trimmed = query.trim();
   const results = data?.items ?? [];
+  const viewState = resolveViewState({
+    // `isLoading` (not `isFetching`) so a debounce-triggered refetch of an
+    // already-answered query keeps showing the previous results instead of
+    // flashing back to the "type to search" state.
+    isLoading: trimmed.length > 0 && ocrQuery.isLoading,
+    error: trimmed.length > 0 ? error : null,
+    isEmpty: results.length === 0,
+  });
 
   return (
     <section className="space-y-4" aria-labelledby="ocr-search-heading">
@@ -79,15 +85,40 @@ function DialogueSearch() {
         ) : null}
       </div>
 
-      {isError ? (
-        <p className="text-sm text-danger">{errorMessage(error)}</p>
-      ) : !trimmed ? (
-        <p className="text-sm text-muted">
-          Type at least one word to search text extracted from chapters you
-          follow.
-        </p>
-      ) : data && results.length === 0 ? (
-        <p className="text-sm text-muted">No dialogue matches “{trimmed}”.</p>
+      {!trimmed ? (
+        <EmptyState
+          icon={ScanText}
+          title="Search the dialogue you remember"
+          description="Type at least one word to search text extracted from chapters you follow, and jump straight to where it appears."
+        />
+      ) : viewState === "loading" ? (
+        <ul className="space-y-2" aria-busy="true">
+          {Array.from({ length: 3 }).map((_, index) => (
+            <li key={index} className="h-20 animate-pulse rounded-xl bg-surface-2" />
+          ))}
+        </ul>
+      ) : viewState === "offline" ? (
+        <EmptyState
+          tone="offline"
+          icon={WifiOff}
+          title="You're offline"
+          description="Dialogue search needs a connection to run. Chapters you've downloaded still open with no connection at all."
+          action={{ label: "Go to Downloads", href: "/downloads" }}
+        />
+      ) : viewState === "error" ? (
+        <EmptyState
+          tone="error"
+          icon={TriangleAlert}
+          title="Search failed"
+          description={apiErrorMessage(error, "Something went wrong.")}
+          action={{ label: "Try again", onClick: () => void ocrQuery.refetch() }}
+        />
+      ) : viewState === "empty" ? (
+        <EmptyState
+          icon={ScanText}
+          title="No dialogue matches"
+          description={`Nothing found for "${trimmed}" in the chapters you follow.`}
+        />
       ) : (
         <ul className="space-y-2">
           {results.map((item) => (

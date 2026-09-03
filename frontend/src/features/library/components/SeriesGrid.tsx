@@ -1,5 +1,7 @@
 "use client";
 
+import { Compass, Library, SearchX, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { EmptyState, type EmptyStateAction } from "@/components/ui/empty-state";
 import {
   DEFAULT_LIBRARY_DENSITY,
   type LibraryDensity,
@@ -26,23 +28,32 @@ interface SeriesGridProps {
   selection?: SeriesGridSelection;
 }
 
-function emptyCopy(state: SeriesGridEmptyState): { title: string; description: string } {
+function emptyCopy(state: SeriesGridEmptyState): {
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  action?: EmptyStateAction;
+} {
   switch (state) {
     case "search":
       return {
+        icon: SearchX,
         title: "No results found",
         description: "Try a different search term or clear filters.",
       };
     case "filter":
       return {
+        icon: SlidersHorizontal,
         title: "No series match these filters",
         description: "Adjust your filters or favorites toggle to see more series.",
       };
     default:
       return {
-        title: "Your library is empty",
+        icon: Library,
+        title: "Nothing followed yet",
         description:
-          "Import a folder containing your manhwa, manga, or manhua collection to get started.",
+          "This account has no series yet. Browse a source and follow one to start your library.",
+        action: { label: "Browse Sources", href: "/sources", icon: Compass },
       };
   }
 }
@@ -89,10 +100,12 @@ export function SeriesGrid({
   if (items.length === 0) {
     const copy = emptyCopy(emptyState);
     return (
-      <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
-        <p className="text-lg font-medium text-fg">{copy.title}</p>
-        <p className="mt-2 text-sm text-muted">{copy.description}</p>
-      </div>
+      <EmptyState
+        icon={copy.icon}
+        title={copy.title}
+        description={copy.description}
+        action={copy.action}
+      />
     );
   }
 

@@ -27,7 +27,14 @@ export function AuthCard({ title, subtitle, children, footer }: AuthCardProps) {
             >
               MM
             </div>
-            <HeroHeading className="text-4xl sm:text-[2.75rem]">{title}</HeroHeading>
+            {/* `w-full min-w-0` is required, not decorative: this heading sits in a
+                `flex items-center` column, and a non-stretched flex item's default
+                `min-width: auto` sizes it to its unbroken content (the single word
+                "ManhwaManiacs") instead of the viewport — silently defeating
+                `break-words` and overflowing a phone screen. */}
+            <HeroHeading className="w-full min-w-0 text-4xl sm:text-[2.75rem]">
+              {title}
+            </HeroHeading>
             {subtitle ? <p className="mt-3 text-sm text-muted">{subtitle}</p> : null}
           </div>
 
