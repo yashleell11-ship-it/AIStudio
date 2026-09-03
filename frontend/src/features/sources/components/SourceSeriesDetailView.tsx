@@ -4,9 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
+import { BookX, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import {
   followKey,
@@ -15,9 +18,11 @@ import {
   useUnfollow,
 } from "@/features/library/hooks";
 import { ApiError } from "@/types/api";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
 import { sourceImageUrl } from "../api";
 import { chapterLabel } from "../chapter-label";
+import { resolveChapterListState } from "../chapter-list-state";
 import {
   prefetchSourceReaderChapter,
   sourceReaderChapterPath,
@@ -25,6 +30,10 @@ import {
   useSourceSeriesDetail,
 } from "../hooks";
 import { useSourceSeriesProgress } from "../source-progress";
+import {
+  ChapterRowsSkeleton,
+  SourceSeriesDetailSkeleton,
+} from "./SourceSeriesDetailSkeleton";
 
 type ChapterSortOrder = "newest" | "oldest";
 
@@ -86,25 +95,49 @@ export function SourceSeriesDetailView({
     }
   }, [chapters, queryClient, seriesId, sourceId]);
 
-  if (seriesQuery.isLoading) {
+  // An empty answer means something different depending on what the series
+  // summary claims the source holds — see `resolveChapterListState`.
+  const chapterListState = resolveChapterListState({
+    isLoading: chaptersQuery.isLoading,
+    error: chaptersQuery.error,
+    chapterCount: chapters.length,
+    reportedChapterCount: series?.chapter_count ?? 0,
+  });
+
+  const seriesViewState = resolveViewState({
+    isLoading: seriesQuery.isLoading,
+    error: seriesQuery.error,
+    // A resolved request with no payload is a failure to load, not an empty
+    // series — every branch below needs `series` to render anything at all.
+    isEmpty: !series,
+  });
+
+  if (seriesViewState === "loading") {
+    return <SourceSeriesDetailSkeleton />;
+  }
+
+  if (seriesViewState === "offline") {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center text-muted">
-        Loading series…
+      <div className="p-6">
+        <OfflineState
+          reason="This series page needs a connection to load."
+          onRetry={() => void seriesQuery.refetch()}
+        />
       </div>
     );
   }
 
-  if (seriesQuery.error || !series) {
-    const message =
-      seriesQuery.error instanceof ApiError
-        ? seriesQuery.error.message
-        : "Failed to load series.";
+  if (seriesViewState !== "content" || !series) {
     return (
-      <div className="flex min-h-[40vh] flex-col items-center justify-center gap-3 p-6 text-center">
-        <p className="text-danger">{message}</p>
-        <Link href={`/sources/${sourceId}`} className="text-sm text-muted hover:text-fg">
-          Back to source
-        </Link>
+      <div className="p-6">
+        <EmptyState
+          tone="error"
+          icon={TriangleAlert}
+          title="Couldn't load this series"
+          description={apiErrorMessage(seriesQuery.error, "The source did not answer.")}
+          action={{ label: "Try again", onClick: () => void seriesQuery.refetch() }}
+          secondaryAction={{ label: "Back to source", href: `/sources/${sourceId}` }}
+        />
       </div>
     );
   }
@@ -245,32 +278,39 @@ export function SourceSeriesDetailView({
           )}
         </CardHeader>
         <CardContent className="divide-y divide-border">
-          {chaptersQuery.isLoading ? (
-            <p className="text-sm text-muted">Loading chapters…</p>
-          ) : chaptersQuery.error ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-danger">
-                {chaptersQuery.error instanceof ApiError
-                  ? chaptersQuery.error.message
-                  : "Failed to load chapters."}
-              </p>
-              <Button variant="secondary" size="sm" onClick={() => chaptersQuery.refetch()}>
-                Try again
-              </Button>
-            </div>
-          ) : chapters.length === 0 ? (
-            <div className="flex flex-col gap-2">
-              <p className="text-sm text-muted">
-                {series.chapter_count > 0
-                  ? "Chapters could not be loaded right now."
-                  : "No chapters available."}
-              </p>
-              {series.chapter_count > 0 && (
-                <Button variant="secondary" size="sm" onClick={() => chaptersQuery.refetch()}>
-                  Retry loading chapters
-                </Button>
+          {chapterListState === "loading" ? (
+            <ChapterRowsSkeleton />
+          ) : chapterListState === "offline" ? (
+            <OfflineState
+              reason="The chapter list needs a connection to load."
+              onRetry={() => void chaptersQuery.refetch()}
+            />
+          ) : chapterListState === "error" ? (
+            <EmptyState
+              tone="error"
+              icon={TriangleAlert}
+              title="Couldn't load the chapter list"
+              description={apiErrorMessage(
+                chaptersQuery.error,
+                "The source did not answer.",
               )}
-            </div>
+              action={{ label: "Try again", onClick: () => void chaptersQuery.refetch() }}
+            />
+          ) : chapterListState === "unavailable" ? (
+            <EmptyState
+              tone="error"
+              icon={TriangleAlert}
+              title="Chapters didn't come through"
+              description={`This source lists ${series.chapter_count.toLocaleString()} chapters for this series but returned none just now — usually the source, not you.`}
+              action={{ label: "Try again", onClick: () => void chaptersQuery.refetch() }}
+            />
+          ) : chapterListState === "empty" ? (
+            <EmptyState
+              icon={BookX}
+              title="No chapters yet"
+              description="This source has not published any chapters for this series."
+              action={{ label: "Back to source", href: `/sources/${sourceId}` }}
+            />
           ) : (
             sortedChapters.map((chapter) => {
               const label = chapterLabel(chapter);
