@@ -321,11 +321,27 @@ def parse_search_listing(document: str) -> list[Series]:
     return items
 
 
+#: The reader still emits ``s<N>.bzcdn.net`` page URLs, but that CDN refuses
+#: TCP connections (``s1``/``s2`` both resolve to 206.168.190.107 and reject
+#: :443; ``s3``/``s5``/apex no longer resolve at all). The operator's other
+#: static host serves the identical paths, so page URLs are rehosted onto it.
+#: Without this every chapter yields page URLs that cannot be fetched.
+DEAD_IMAGE_HOST_RE = re.compile(r"^https://s\d+\.bzcdn\.net/", re.I)
+LIVE_IMAGE_HOST = "https://static-tw.baozimh.com/"
+
+
+def rehost_page_image(url: str) -> str:
+    """Point a page image at the static host that is actually reachable."""
+    return DEAD_IMAGE_HOST_RE.sub(LIVE_IMAGE_HOST, url)
+
+
 def parse_chapter_pages(document: str, *, chapter_id: str) -> list[Page]:
     seen: set[str] = set()
     pages: list[Page] = []
     for raw_url in CHAPTER_IMG_RE.findall(document):
         url = _clean_url(raw_url)
+        if url:
+            url = rehost_page_image(url)
         if not url or url in seen:
             continue
         seen.add(url)
