@@ -5,15 +5,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
-import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/downloads/models/download_item.dart';
-import 'package:manhwamaniacs/features/downloads/models/download_metrics.dart';
-import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
-import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
-import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
-import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
+import 'package:manhwamaniacs/features/library/models/collection.dart';
+import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
+import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
+import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
+import 'package:manhwamaniacs/features/library/models/series_detail.dart';
+import 'package:manhwamaniacs/features/library/models/tag.dart';
+import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
 import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
@@ -21,8 +24,8 @@ import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/repositories/sources_repository.dart';
 import 'package:manhwamaniacs/features/sources/screens/source_series_detail_screen.dart';
-import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/models/update_settings.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -92,85 +95,198 @@ class _FakeSourcesRepository implements SourcesRepository {
       throw UnimplementedError();
 }
 
-/// Fake updates repository for the Follow button. Tracks whether
-/// [followSeries] / [deleteTracker] were called so the test can assert the
-/// correct endpoint is hit for each button state.
-class _FakeUpdatesRepository implements UpdatesRepository {
-  _FakeUpdatesRepository({this.trackers = const []});
+/// Fake library repository for the Follow button. Tracks whether
+/// [follow] / [unfollow] were called so the test can assert the correct
+/// endpoint is hit for each button state. [listSeries] backs
+/// `UpdatesNotifier`'s followed-series cache, which
+/// [SeriesFollowButton] reads via `followedFor` to decide Follow vs Unfollow.
+class _FakeLibraryRepository implements LibraryRepository {
+  _FakeLibraryRepository({List<FollowedSeries> followed = const []})
+      : _followed = followed;
 
-  List<SeriesTracker> trackers;
+  List<FollowedSeries> _followed;
   bool followCalled = false;
-  int? deletedTrackerId;
-  int deleteCallCount = 0;
+  int? unfollowedId;
+  int unfollowCallCount = 0;
 
-  /// When set, [deleteTracker] awaits this before resolving, so tests can
+  /// When set, [unfollow] awaits this before resolving, so tests can
   /// observe the button's busy/disabled state mid-flight and verify a
-  /// second tap while pending does not fire a second delete.
-  Completer<void>? deleteGate;
+  /// second tap while pending does not fire a second unfollow.
+  Completer<void>? unfollowGate;
 
   @override
-  Future<Result<void>> followSeries({
-    required String source,
-    required String seriesId,
-    required String seriesTitle,
+  Future<Result<PagedResult<FollowedSeries>>> listSeries({
+    int page = 1,
+    int perPage = 40,
+    String? sort,
+    String? search,
+    String? readingStatus,
+    bool? isFavorite,
+  }) async =>
+      Ok(
+        PagedResult(
+          items: _followed,
+          total: _followed.length,
+          page: 1,
+          perPage: perPage,
+          hasNext: false,
+        ),
+      );
+
+  @override
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
   }) async {
     followCalled = true;
-    trackers = [
-      ...trackers,
-      SeriesTracker(
-        id: 999,
-        source: source,
-        seriesId: seriesId,
-        seriesTitle: seriesTitle,
-        trackKind: TrackKind.followed,
-        enabled: true,
-        notify: true,
-        autoDownload: false,
-        knownChapterCount: 0,
-      ),
-    ];
+    final series = FollowedSeries(
+      id: 999,
+      sourceId: sourceId,
+      seriesKey: seriesKey,
+      title: 'Solo Leveling',
+      coverUrl: '',
+      isFavorite: false,
+      readingStatus: 'unread',
+      notify: true,
+      sortOrder: 0,
+      contentRating: 'safe',
+      rating: 'safe',
+      chapterCount: 0,
+    );
+    _followed = [..._followed, series];
+    return Ok(series);
+  }
+
+  @override
+  Future<Result<void>> unfollow(int followedId) async {
+    unfollowCallCount++;
+    unfollowedId = followedId;
+    if (unfollowGate != null) await unfollowGate!.future;
+    _followed = _followed.where((f) => f.id != followedId).toList();
     return const Ok(null);
   }
 
   @override
-  Future<Result<void>> deleteTracker(int trackerId) async {
-    deleteCallCount++;
-    deletedTrackerId = trackerId;
-    if (deleteGate != null) await deleteGate!.future;
-    trackers = trackers.where((t) => t.id != trackerId).toList();
-    return const Ok(null);
-  }
+  Future<Result<SeriesDetail>> getSeries(int followedId) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> updateTracker(
-    int trackerId, {
-    bool? autoDownload,
-  }) async {
-    trackers = [
-      for (final tracker in trackers)
-        if (tracker.id == trackerId && autoDownload != null)
-          SeriesTracker(
-            id: tracker.id,
-            source: tracker.source,
-            seriesId: tracker.seriesId,
-            seriesTitle: tracker.seriesTitle,
-            trackKind: tracker.trackKind,
-            enabled: tracker.enabled,
-            notify: tracker.notify,
-            autoDownload: autoDownload,
-            knownChapterCount: tracker.knownChapterCount,
-            lastCheckedAt: tracker.lastCheckedAt,
-            lastError: tracker.lastError,
-          )
-        else
-          tracker,
-    ];
-    return const Ok(null);
-  }
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  }) =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesTracker>>> listTrackers() async => Ok(trackers);
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
+      throw UnimplementedError();
 
+  @override
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<Collection>>> listCollections() => throw UnimplementedError();
+
+  @override
+  Future<Result<CollectionDetail>> getCollection(int collectionId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<Collection>> createCollection({
+    required String name,
+    String? description,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<Collection>> updateCollection(
+    int collectionId, {
+    String? name,
+    String? description,
+    int? sortOrder,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
+
+  @override
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<Tag>>> listTags({String? category}) => throw UnimplementedError();
+
+  @override
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> deleteTag(int tagId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+}
+
+/// Minimal fake — only notifications/unread-count are exercised (the
+/// followed-series refresh loop reads both); follow/unfollow live on
+/// [LibraryRepository] now, see [_FakeLibraryRepository].
+class _FakeUpdatesRepository implements UpdatesRepository {
   @override
   Future<Result<List<UpdateNotification>>> listNotifications({
     bool unreadOnly = false,
@@ -182,192 +298,32 @@ class _FakeUpdatesRepository implements UpdatesRepository {
   Future<Result<int>> getUnreadCount() async => const Ok(0);
 
   @override
-  Future<Result<void>> markRead(int notificationId) async => const Ok(null);
+  Future<Result<UpdateSettings>> getSettings() => throw UnimplementedError();
 
   @override
-  Future<Result<void>> markAllRead() async => const Ok(null);
-
-  @override
-  Future<Result<void>> triggerCheck() async => const Ok(null);
-}
-
-class _FakeDownloadsNotifier extends DownloadsNotifier {
-  _FakeDownloadsNotifier(this.fakeRepo, {this.items = const []});
-
-  final DownloadsRepository fakeRepo;
-  final List<DownloadItem> items;
-
-  @override
-  Future<DownloadsState> build() async {
-    return DownloadsState(
-      items: items,
-      metrics: const DownloadMetrics(
-        total: 0,
-        completed: 0,
-        failed: 0,
-        remaining: 0,
-        active: 0,
-        queued: 0,
-        paused: 0,
-        storageUsedBytes: 0,
-        storageFreeBytes: 0,
-        overallSpeedBps: 0,
-        overallSpeedMbps: 0,
-        workers: DownloadWorkers(configured: 1, active: 0, running: 0),
-      ),
-    );
-  }
-
-  @override
-  Future<Result<QueueDownloadResponse>> queueChapters({
-    required String sourceId,
-    required String seriesId,
-    required List<String> chapterIds,
-    String? seriesTitle,
-    int? priority,
-  }) {
-    return fakeRepo.queueChapters(
-      sourceId: sourceId,
-      seriesId: seriesId,
-      chapterIds: chapterIds,
-      seriesTitle: seriesTitle,
-      priority: priority,
-    );
-  }
-
-  @override
-  Future<Result<QueueDownloadResponse>> queueSeries({
-    required String sourceId,
-    required String seriesId,
-    int? priority,
-  }) {
-    return fakeRepo.queueSeries(
-      sourceId: sourceId,
-      seriesId: seriesId,
-      priority: priority,
-    );
-  }
-}
-
-class _RecordingDownloadsRepository implements DownloadsRepository {
-  _RecordingDownloadsRepository({
-    this.chaptersResponse = const Ok(QueueDownloadResponse(queued: [1], skipped: [])),
-    this.seriesResponse = const Ok(QueueDownloadResponse(queued: [1, 2], skipped: ['ch-old'])),
-    this.delay,
-  });
-
-  Result<QueueDownloadResponse> chaptersResponse;
-  Result<QueueDownloadResponse> seriesResponse;
-  Duration? delay;
-
-  List<String>? lastChapterIds;
-  bool queueSeriesCalled = false;
-  int queueChaptersCallCount = 0;
-  int queueSeriesCallCount = 0;
-
-  @override
-  Future<Result<QueueDownloadResponse>> queueChapters({
-    required String sourceId,
-    required String seriesId,
-    required List<String> chapterIds,
-    String? seriesTitle,
-    int? priority,
-  }) async {
-    queueChaptersCallCount++;
-    lastChapterIds = chapterIds;
-    if (delay != null) {
-      await Future<void>.delayed(delay!);
-    }
-    return chaptersResponse;
-  }
-
-  @override
-  Future<Result<QueueDownloadResponse>> queueSeries({
-    required String sourceId,
-    required String seriesId,
-    int? priority,
-  }) async {
-    queueSeriesCallCount++;
-    queueSeriesCalled = true;
-    if (delay != null) {
-      await Future<void>.delayed(delay!);
-    }
-    return seriesResponse;
-  }
-
-  @override
-  Future<Result<List<DownloadItem>>> listDownloads() async => const Ok([]);
-
-  @override
-  Future<Result<DownloadMetrics>> getMetrics() async => const Ok(
-        DownloadMetrics(
-          total: 0,
-          completed: 0,
-          failed: 0,
-          remaining: 0,
-          active: 0,
-          queued: 0,
-          paused: 0,
-          storageUsedBytes: 0,
-          storageFreeBytes: 0,
-          overallSpeedBps: 0,
-          overallSpeedMbps: 0,
-          workers: DownloadWorkers(configured: 1, active: 0, running: 0),
-        ),
-      );
-
-  @override
-  Future<Result<DownloadSettings>> getSettings() => throw UnimplementedError();
-
-  @override
-  Future<Result<DownloadSettings>> updateSettings(DownloadSettings settings) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> pauseDownload(int downloadId) => throw UnimplementedError();
-
-  @override
-  Future<Result<void>> resumeDownload(int downloadId) => throw UnimplementedError();
-
-  @override
-  Future<Result<void>> cancelDownload(int downloadId) => throw UnimplementedError();
-
-  @override
-  Future<Result<void>> retryDownload(int downloadId) => throw UnimplementedError();
-
-  @override
-  Future<Result<void>> moveDownload(int downloadId, {required String direction}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<int>> pauseAll() => throw UnimplementedError();
-
-  @override
-  Future<Result<int>> resumeAll() => throw UnimplementedError();
-
-  @override
-  Future<Result<int>> cancelAll() => throw UnimplementedError();
-
-  @override
-  Future<Result<int>> pauseSeries({
-    required String sourceId,
-    required String seriesId,
+  Future<Result<UpdateSettings>> updateSettings({
+    bool? enabled,
+    int? checkIntervalMinutes,
+    bool? notifyEnabled,
+    bool? checkOnStartup,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<int>> resumeSeries({
-    required String sourceId,
-    required String seriesId,
-  }) =>
+  Future<Result<void>> markRead(int notificationId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> markAllRead() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<UpdateRun>>> listRuns({int limit = 20}) => throw UnimplementedError();
+
+  @override
+  Future<Result<UpdateCheckOutcome>> triggerCheck({List<int>? followedIds}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<int>> cancelSeries({
-    required String sourceId,
-    required String seriesId,
-  }) =>
-      throw UnimplementedError();
+  Future<Result<UpdateRun>> checkFollowed(int followedId) => throw UnimplementedError();
 }
 
 SourceSeriesSummary _series({String? latestChapter}) => SourceSeriesSummary(
@@ -396,10 +352,9 @@ SourceChapterSummary _chapter({
 
 Future<ProviderContainer> _pumpScreen(
   WidgetTester tester, {
-  required _FakeUpdatesRepository updatesRepo,
-  _RecordingDownloadsRepository? downloadsRepo,
+  _FakeUpdatesRepository? updatesRepo,
+  _FakeLibraryRepository? libraryRepo,
   List<SourceChapterSummary>? chapters,
-  List<DownloadItem> downloadItems = const [],
   SourceSeriesSummary? series,
 }) async {
   SharedPreferences.setMockInitialValues({});
@@ -409,18 +364,14 @@ Future<ProviderContainer> _pumpScreen(
     series ?? _series(),
     chapters ?? [_chapter(id: 'manga-1:1', number: 1)],
   );
-  final fakeDownloadsRepo = downloadsRepo ?? _RecordingDownloadsRepository();
 
   final container = ProviderContainer(
     overrides: [
       sharedPrefsProvider.overrideWithValue(prefs),
       apiBaseUrlOverride('http://example.test'),
       sourcesRepositoryProvider.overrideWithValue(fakeSourcesRepo),
-      updatesRepositoryProvider.overrideWithValue(updatesRepo),
-      downloadsRepositoryProvider.overrideWithValue(fakeDownloadsRepo),
-      downloadsProvider.overrideWith(
-        () => _FakeDownloadsNotifier(fakeDownloadsRepo, items: downloadItems),
-      ),
+      updatesRepositoryProvider.overrideWithValue(updatesRepo ?? _FakeUpdatesRepository()),
+      libraryRepositoryProvider.overrideWithValue(libraryRepo ?? _FakeLibraryRepository()),
     ],
   );
   addTearDown(container.dispose);
@@ -453,7 +404,6 @@ void main() {
       // "Latest: Chapter 118" directly above a newest-first list topped by 120.
       await _pumpScreen(
         tester,
-        updatesRepo: _FakeUpdatesRepository(),
         series: _series(latestChapter: 'Chapter 118'),
         chapters: [
           _chapter(id: 'manga-1:118', number: 118, title: 'Chapter 118'),
@@ -470,7 +420,6 @@ void main() {
         (tester) async {
       await _pumpScreen(
         tester,
-        updatesRepo: _FakeUpdatesRepository(),
         series: _series(latestChapter: 'Chapter 77'),
         chapters: const [],
       );
@@ -483,7 +432,6 @@ void main() {
         (tester) async {
       await _pumpScreen(
         tester,
-        updatesRepo: _FakeUpdatesRepository(),
         series: _series(),
         chapters: const [],
       );
@@ -505,7 +453,6 @@ void main() {
           _chapter(id: 'manga-1:1', number: 1),
         ],
       );
-      final fakeUpdates = _FakeUpdatesRepository();
 
       String? navigatedLocation;
       final router = GoRouter(
@@ -537,9 +484,8 @@ void main() {
             sharedPrefsProvider.overrideWithValue(prefs),
             apiBaseUrlOverride('http://example.test'),
             sourcesRepositoryProvider.overrideWithValue(fakeRepo),
-            updatesRepositoryProvider.overrideWithValue(fakeUpdates),
-            downloadsRepositoryProvider.overrideWithValue(_RecordingDownloadsRepository()),
-            downloadsProvider.overrideWith(() => _FakeDownloadsNotifier(_RecordingDownloadsRepository())),
+            updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+            libraryRepositoryProvider.overrideWithValue(_FakeLibraryRepository()),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),
@@ -568,8 +514,8 @@ void main() {
 
   group('SourceSeriesDetailScreen Follow button', () {
     testWidgets('shows Follow when the series is not followed', (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+      final fakeLibrary = _FakeLibraryRepository();
+      await _pumpScreen(tester, libraryRepo: fakeLibrary);
 
       // Let the providers resolve.
       await tester.pump();
@@ -577,27 +523,30 @@ void main() {
 
       expect(find.text('Follow'), findsOneWidget);
       expect(find.text('Unfollow'), findsNothing);
-      expect(fakeUpdates.followCalled, isFalse);
+      expect(fakeLibrary.followCalled, isFalse);
     });
 
     testWidgets('shows Unfollow when the series is already followed',
         (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository(
-        trackers: [
-          const SeriesTracker(
+      final fakeLibrary = _FakeLibraryRepository(
+        followed: [
+          const FollowedSeries(
             id: 42,
-            source: 'mangadex',
-            seriesId: 'manga-1',
-            seriesTitle: 'Solo Leveling',
-            trackKind: TrackKind.followed,
-            enabled: true,
+            sourceId: 'mangadex',
+            seriesKey: 'manga-1',
+            title: 'Solo Leveling',
+            coverUrl: '',
+            isFavorite: false,
+            readingStatus: 'unread',
             notify: true,
-            autoDownload: false,
-            knownChapterCount: 0,
+            sortOrder: 0,
+            contentRating: 'safe',
+            rating: 'safe',
+            chapterCount: 0,
           ),
         ],
       );
-      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+      await _pumpScreen(tester, libraryRepo: fakeLibrary);
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -606,10 +555,10 @@ void main() {
       expect(find.text('Follow'), findsNothing);
     });
 
-    testWidgets('tapping Follow calls followSeries and flips to Unfollow',
+    testWidgets('tapping Follow calls follow and flips to Unfollow',
         (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+      final fakeLibrary = _FakeLibraryRepository();
+      await _pumpScreen(tester, libraryRepo: fakeLibrary);
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -620,29 +569,32 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(fakeUpdates.followCalled, isTrue);
+      expect(fakeLibrary.followCalled, isTrue);
       // After the optimistic + refresh cycle, the button should reflect the
       // new followed state.
       expect(find.text('Unfollow'), findsOneWidget);
     });
 
-    testWidgets('tapping Unfollow calls deleteTracker', (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository(
-        trackers: [
-          const SeriesTracker(
+    testWidgets('tapping Unfollow calls unfollow', (tester) async {
+      final fakeLibrary = _FakeLibraryRepository(
+        followed: [
+          const FollowedSeries(
             id: 42,
-            source: 'mangadex',
-            seriesId: 'manga-1',
-            seriesTitle: 'Solo Leveling',
-            trackKind: TrackKind.followed,
-            enabled: true,
+            sourceId: 'mangadex',
+            seriesKey: 'manga-1',
+            title: 'Solo Leveling',
+            coverUrl: '',
+            isFavorite: false,
+            readingStatus: 'unread',
             notify: true,
-            autoDownload: false,
-            knownChapterCount: 0,
+            sortOrder: 0,
+            contentRating: 'safe',
+            rating: 'safe',
+            chapterCount: 0,
           ),
         ],
       );
-      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+      await _pumpScreen(tester, libraryRepo: fakeLibrary);
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -653,27 +605,30 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(fakeUpdates.deletedTrackerId, 42);
+      expect(fakeLibrary.unfollowedId, 42);
     });
 
     testWidgets('unfollow disables the button while the delete is pending',
         (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository(
-        trackers: [
-          const SeriesTracker(
+      final fakeLibrary = _FakeLibraryRepository(
+        followed: [
+          const FollowedSeries(
             id: 42,
-            source: 'mangadex',
-            seriesId: 'manga-1',
-            seriesTitle: 'Solo Leveling',
-            trackKind: TrackKind.followed,
-            enabled: true,
+            sourceId: 'mangadex',
+            seriesKey: 'manga-1',
+            title: 'Solo Leveling',
+            coverUrl: '',
+            isFavorite: false,
+            readingStatus: 'unread',
             notify: true,
-            autoDownload: false,
-            knownChapterCount: 0,
+            sortOrder: 0,
+            contentRating: 'safe',
+            rating: 'safe',
+            chapterCount: 0,
           ),
         ],
-      )..deleteGate = Completer<void>();
-      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+      )..unfollowGate = Completer<void>();
+      await _pumpScreen(tester, libraryRepo: fakeLibrary);
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
@@ -682,8 +637,8 @@ void main() {
       await tester.tap(find.text('Unfollow'));
       await tester.pump();
 
-      // Mirrors followSeries: actionPending flips immediately, before the
-      // repo call resolves, so the button shows a busy label and disables.
+      // Mirrors follow: actionPending flips immediately, before the repo
+      // call resolves, so the button shows a busy label and disables.
       expect(find.text('Unfollowing…'), findsOneWidget);
       final button = tester.widget<FilledButton>(
         find.ancestor(
@@ -693,411 +648,53 @@ void main() {
       );
       expect(button.onPressed, isNull);
 
-      fakeUpdates.deleteGate!.complete();
+      fakeLibrary.unfollowGate!.complete();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(find.text('Follow'), findsOneWidget);
     });
 
-    testWidgets('double-tapping Unfollow while pending only calls deleteTracker once',
+    testWidgets('double-tapping Unfollow while pending only calls unfollow once',
         (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository(
-        trackers: [
-          const SeriesTracker(
+      final fakeLibrary = _FakeLibraryRepository(
+        followed: [
+          const FollowedSeries(
             id: 42,
-            source: 'mangadex',
-            seriesId: 'manga-1',
-            seriesTitle: 'Solo Leveling',
-            trackKind: TrackKind.followed,
-            enabled: true,
+            sourceId: 'mangadex',
+            seriesKey: 'manga-1',
+            title: 'Solo Leveling',
+            coverUrl: '',
+            isFavorite: false,
+            readingStatus: 'unread',
             notify: true,
-            autoDownload: false,
-            knownChapterCount: 0,
+            sortOrder: 0,
+            contentRating: 'safe',
+            rating: 'safe',
+            chapterCount: 0,
           ),
         ],
-      )..deleteGate = Completer<void>();
-      await _pumpScreen(tester, updatesRepo: fakeUpdates);
+      )..unfollowGate = Completer<void>();
+      await _pumpScreen(tester, libraryRepo: fakeLibrary);
 
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
       await tester.tap(find.text('Unfollow'));
       await tester.pump();
-      expect(fakeUpdates.deleteCallCount, 1);
+      expect(fakeLibrary.unfollowCallCount, 1);
 
       // The button is disabled while pending, so this second tap must be a
-      // no-op -- it must not fire a second deleteTracker call.
+      // no-op -- it must not fire a second unfollow call.
       await tester.tap(find.text('Unfollowing…'), warnIfMissed: false);
       await tester.pump();
-      expect(fakeUpdates.deleteCallCount, 1);
+      expect(fakeLibrary.unfollowCallCount, 1);
 
-      fakeUpdates.deleteGate!.complete();
+      fakeLibrary.unfollowGate!.complete();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(fakeUpdates.deleteCallCount, 1);
-    });
-  });
-
-    group('SourceSeriesDetailScreen download actions', () {
-    testWidgets('Download Selected stays disabled until a chapter is selected',
-        (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      await _pumpScreen(
-        tester,
-        updatesRepo: fakeUpdates,
-        chapters: [
-          _chapter(id: 'manga-1:1', number: 1),
-          _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
-        ],
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      final downloadSelectedFinder = find.byKey(const Key('download-selected'), skipOffstage: false);
-      await tester.ensureVisible(downloadSelectedFinder);
-      await tester.pumpAndSettle();
-
-      final selectedButton = tester.widget<OutlinedButton>(find.byKey(const Key('download-selected')));
-      expect(selectedButton.onPressed, isNull);
-
-      final checkboxFinder = find.byKey(const Key('select-manga-1:2'), skipOffstage: false);
-      await tester.ensureVisible(checkboxFinder);
-      await tester.pumpAndSettle();
-      await tester.tap(checkboxFinder);
-      await tester.pumpAndSettle();
-
-      final enabledButton = tester.widget<OutlinedButton>(find.byKey(const Key('download-selected')));
-      expect(enabledButton.onPressed, isNotNull);
-    });
-
-    testWidgets('Download Selected queues selected chapters and shows snackbar',
-        (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      final fakeDownloads = _RecordingDownloadsRepository(
-        chaptersResponse: const Ok(QueueDownloadResponse(
-          queued: [1, 2],
-          skipped: ['manga-1:3'],
-        ),),
-      );
-      await _pumpScreen(
-        tester,
-        updatesRepo: fakeUpdates,
-        downloadsRepo: fakeDownloads,
-        chapters: [
-          _chapter(id: 'manga-1:1', number: 1),
-          _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
-        ],
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      final ch1Checkbox = find.byKey(const Key('select-manga-1:1'), skipOffstage: false);
-      await tester.ensureVisible(ch1Checkbox);
-      await tester.pumpAndSettle();
-      await tester.tap(ch1Checkbox);
-
-      final ch2Checkbox = find.byKey(const Key('select-manga-1:2'), skipOffstage: false);
-      await tester.ensureVisible(ch2Checkbox);
-      await tester.pumpAndSettle();
-      await tester.tap(ch2Checkbox);
-      await tester.pumpAndSettle();
-
-      final downloadButton = find.byKey(const Key('download-selected'), skipOffstage: false);
-      await tester.ensureVisible(downloadButton);
-      await tester.pumpAndSettle();
-      await tester.tap(downloadButton);
-      await tester.pumpAndSettle();
-
-      expect(fakeDownloads.lastChapterIds, ['manga-1:1', 'manga-1:2']);
-      expect(find.textContaining('Queued 2 chapters'), findsOneWidget);
-      expect(find.textContaining('Skipped 1 already downloaded'), findsOneWidget);
-    });
-
-    testWidgets('Download Series queues the series and shows snackbar',
-        (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      final fakeDownloads = _RecordingDownloadsRepository(
-        seriesResponse: const Ok(QueueDownloadResponse(
-          queued: [1, 2, 3],
-          skipped: [],
-        ),),
-      );
-      await _pumpScreen(
-        tester,
-        updatesRepo: fakeUpdates,
-        downloadsRepo: fakeDownloads,
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      final button = find.byKey(const Key('download-series'), skipOffstage: false);
-      await tester.ensureVisible(button);
-      await tester.pumpAndSettle();
-      await tester.tap(button);
-      await tester.pumpAndSettle();
-
-      expect(fakeDownloads.queueSeriesCalled, isTrue);
-      expect(find.textContaining('Queued 3 chapters'), findsOneWidget);
-    });
-
-    testWidgets('per-chapter download button queues one chapter silently',
-        (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      final fakeDownloads = _RecordingDownloadsRepository(
-        chaptersResponse: const Ok(QueueDownloadResponse(queued: [9], skipped: [])),
-      );
-      await _pumpScreen(
-        tester,
-        updatesRepo: fakeUpdates,
-        downloadsRepo: fakeDownloads,
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      final btn = find.byKey(const Key('download-manga-1:1'), skipOffstage: false);
-      await tester.ensureVisible(btn);
-      await tester.pumpAndSettle();
-      await tester.tap(btn);
-      await tester.pumpAndSettle();
-
-      expect(fakeDownloads.lastChapterIds, ['manga-1:1']);
-      // A one-chapter queue shows no bar (see shouldShowQueueDownloadFeedback):
-      // the row the user just tapped flips to its queued state, which points at
-      // the thing that changed instead of covering the page with a banner.
-      expect(find.byType(SnackBar), findsNothing);
-    });
-
-    testWidgets('ignores duplicate queue requests while pending', (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      final fakeDownloads = _RecordingDownloadsRepository(
-        // Two chapters, so the queue confirmation is one the user gets to see:
-        // a single-chapter queue is deliberately silent.
-        seriesResponse: const Ok(QueueDownloadResponse(queued: [1, 2], skipped: [])),
-        delay: const Duration(milliseconds: 50),
-      );
-
-      await _pumpScreen(
-        tester,
-        updatesRepo: fakeUpdates,
-        downloadsRepo: fakeDownloads,
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      final button = find.byKey(const Key('download-series'), skipOffstage: false);
-      await tester.ensureVisible(button);
-      await tester.pumpAndSettle();
-
-      // Tap twice quickly
-      await tester.tap(button, warnIfMissed: false);
-      await tester.tap(button, warnIfMissed: false);
-
-      // Wait for the async task to complete
-      await tester.pumpAndSettle();
-
-      expect(fakeDownloads.queueSeriesCallCount, 1);
-      expect(find.textContaining('Queued 2 chapters'), findsOneWidget);
-    });
-
-    testWidgets('clears pending state and preserves selection on failure', (tester) async {
-      final fakeUpdates = _FakeUpdatesRepository();
-      final fakeDownloads = _RecordingDownloadsRepository(
-        chaptersResponse: const Err(ApiError(
-          statusCode: 500,
-          code: 'queue_failed',
-          message: 'Queue failed',
-        ),),
-      );
-
-      await _pumpScreen(
-        tester,
-        updatesRepo: fakeUpdates,
-        downloadsRepo: fakeDownloads,
-        chapters: [
-          _chapter(id: 'manga-1:1', number: 1),
-        ],
-      );
-
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      // Select chapter
-      final checkboxFinder = find.byKey(const Key('select-manga-1:1'), skipOffstage: false);
-      await tester.ensureVisible(checkboxFinder);
-      await tester.pumpAndSettle();
-      await tester.tap(checkboxFinder);
-      await tester.pumpAndSettle();
-
-      // Tap download
-      final downloadButton = find.byKey(const Key('download-selected'), skipOffstage: false);
-      await tester.ensureVisible(downloadButton);
-      await tester.pumpAndSettle();
-      await tester.tap(downloadButton);
-      
-      await tester.pumpAndSettle();
-
-      // Verify error snackbar
-      expect(find.text('Queue failed'), findsOneWidget);
-
-      // Clear snackbars so the next one shows immediately
-      ScaffoldMessenger.of(tester.element(find.byType(SourceSeriesDetailScreen))).clearSnackBars();
-      await tester.pumpAndSettle();
-      
-      // Verify selection is preserved (we can tap download again)
-      expect(fakeDownloads.queueChaptersCallCount, 1);
-      
-      // Try again with success response
-      fakeDownloads.chaptersResponse =
-          const Ok(QueueDownloadResponse(queued: [1, 2], skipped: []));
-      await tester.tap(downloadButton);
-      await tester.pumpAndSettle();
-
-      expect(fakeDownloads.queueChaptersCallCount, 2);
-      expect(find.textContaining('Queued 2 chapters'), findsOneWidget);
-    });
-  });
-
-  group('SourceSeriesDetailScreen download status', () {
-    DownloadItem statusItem({
-      required String chapterId,
-      required String status,
-    }) =>
-        DownloadItem(
-          id: chapterId.hashCode,
-          source: 'mangadex',
-          seriesId: 'manga-1',
-          chapterId: chapterId,
-          seriesTitle: 'Solo Leveling',
-          chapterTitle: 'Chapter',
-          status: status,
-          progress: status == 'completed' ? 1 : 0.5,
-          pagesDone: 5,
-          pagesTotal: 10,
-          bytesDownloaded: 1024,
-          createdAt: DateTime.utc(2024),
-          updatedAt: DateTime.utc(2024, 1, 2),
-          priority: 0,
-          retryCount: 0,
-        );
-
-    Future<void> scrollToChapterWidget(
-      WidgetTester tester,
-      Finder finder,
-    ) async {
-      await tester.scrollUntilVisible(
-        finder,
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.pump();
-    }
-
-    Future<void> pumpWithStatuses(
-      WidgetTester tester,
-      List<DownloadItem> downloadItems,
-    ) async {
-      await _pumpScreen(
-        tester,
-        updatesRepo: _FakeUpdatesRepository(),
-        chapters: [
-          _chapter(id: 'manga-1:1', number: 1),
-          _chapter(id: 'manga-1:2', number: 2, title: 'Chapter 2'),
-          _chapter(id: 'manga-1:3', number: 3, title: 'Chapter 3'),
-          _chapter(id: 'manga-1:4', number: 4, title: 'Chapter 4'),
-          _chapter(id: 'manga-1:5', number: 5, title: 'Chapter 5'),
-        ],
-        downloadItems: downloadItems,
-      );
-      await tester.pumpAndSettle();
-    }
-
-    testWidgets('shows chapter download badges from downloads state', (tester) async {
-      await pumpWithStatuses(tester, [
-        statusItem(chapterId: 'manga-1:1', status: 'queued'),
-        statusItem(chapterId: 'manga-1:2', status: 'downloading'),
-        statusItem(chapterId: 'manga-1:3', status: 'completed'),
-        statusItem(chapterId: 'manga-1:4', status: 'failed'),
-      ]);
-
-      for (final label in ['Queued', 'Downloading', 'Completed', 'Failed']) {
-        await scrollToChapterWidget(tester, find.text(label));
-      }
-
-      expect(find.text('Queued'), findsOneWidget);
-      expect(find.text('Downloading'), findsOneWidget);
-      expect(find.text('Completed'), findsOneWidget);
-      expect(find.text('Failed'), findsOneWidget);
-    });
-
-    testWidgets('disables download for queued, downloading, and completed chapters',
-        (tester) async {
-      await pumpWithStatuses(tester, [
-        statusItem(chapterId: 'manga-1:1', status: 'queued'),
-        statusItem(chapterId: 'manga-1:2', status: 'downloading'),
-        statusItem(chapterId: 'manga-1:3', status: 'completed'),
-        statusItem(chapterId: 'manga-1:4', status: 'failed'),
-        statusItem(chapterId: 'manga-1:5', status: 'cancelled'),
-      ]);
-
-      final disabledChapterIds = ['manga-1:1', 'manga-1:2', 'manga-1:3'];
-      for (final chapterId in disabledChapterIds) {
-        final finder = find.byKey(Key('download-$chapterId'));
-        await scrollToChapterWidget(tester, finder);
-        expect(tester.widget<IconButton>(finder).onPressed, isNull);
-      }
-
-      for (final chapterId in ['manga-1:4', 'manga-1:5']) {
-        final finder = find.byKey(Key('download-$chapterId'));
-        await scrollToChapterWidget(tester, finder);
-        expect(tester.widget<IconButton>(finder).onPressed, isNotNull);
-      }
-    });
-
-    testWidgets('failed chapter download button remains retryable', (tester) async {
-      final fakeDownloads = _RecordingDownloadsRepository();
-      await _pumpScreen(
-        tester,
-        updatesRepo: _FakeUpdatesRepository(),
-        downloadsRepo: fakeDownloads,
-        chapters: [_chapter(id: 'manga-1:4', number: 4, title: 'Chapter 4')],
-        downloadItems: [
-          DownloadItem(
-            id: 44,
-            source: 'mangadex',
-            seriesId: 'manga-1',
-            chapterId: 'manga-1:4',
-            seriesTitle: 'Solo Leveling',
-            chapterTitle: 'Chapter 4',
-            status: 'failed',
-            progress: 0.2,
-            pagesDone: 2,
-            pagesTotal: 10,
-            bytesDownloaded: 512,
-            createdAt: DateTime.utc(2024),
-            updatedAt: DateTime.utc(2024, 1, 2),
-            priority: 0,
-            retryCount: 1,
-          ),
-        ],
-      );
-
-      await tester.pumpAndSettle();
-
-      final buttonFinder = find.byKey(const Key('download-manga-1:4'));
-      await scrollToChapterWidget(tester, buttonFinder);
-      expect(tester.widget<IconButton>(buttonFinder).onPressed, isNotNull);
-
-      await tester.tap(buttonFinder);
-      await tester.pumpAndSettle();
-
-      expect(fakeDownloads.lastChapterIds, ['manga-1:4']);
+      expect(fakeLibrary.unfollowCallCount, 1);
     });
   });
 }

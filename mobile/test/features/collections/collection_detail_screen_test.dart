@@ -322,7 +322,7 @@ void main() {
     testWidgets('shows empty collection state', (tester) async {
       final repo = _MutableCollectionsRepository(
         collections: [
-          Collection(
+          const Collection(
             id: 1,
             name: 'Action Picks',
             description: 'Curated picks',
@@ -342,7 +342,7 @@ void main() {
     testWidgets('rename collection updates detail', (tester) async {
       final repo = _MutableCollectionsRepository(
         collections: [
-          Collection(
+          const Collection(
             id: 1,
             name: 'Action Picks',
             description: 'Curated picks',
@@ -381,7 +381,7 @@ void main() {
     testWidgets('add series from dialog updates collection', (tester) async {
       final repo = _MutableCollectionsRepository(
         collections: [
-          Collection(
+          const Collection(
             id: 1,
             name: 'Action Picks',
             seriesCount: 0,
@@ -406,7 +406,7 @@ void main() {
     testWidgets('remove series updates collection', (tester) async {
       final repo = _MutableCollectionsRepository(
         collections: [
-          Collection(
+          const Collection(
             id: 1,
             name: 'Action Picks',
             seriesCount: 1,
