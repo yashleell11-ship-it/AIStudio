@@ -12,6 +12,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
 )
+from sqlalchemy import event
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 from core.time_utils import utcnow
@@ -541,3 +542,67 @@ class SourceSeriesCache(Base):
     genres: Mapped[str | None] = mapped_column(Text)
     chapters: Mapped[str | None] = mapped_column(Text)
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+# ---------------------------------------------------------------------------
+# chapter_ocr FTS5 (spec §3.12)
+# ---------------------------------------------------------------------------
+#
+# The ``chapter_ocr_fts`` virtual table + its AI/AD/AU sync triggers are not
+# ORM-mapped (SQLAlchemy has no FTS5 construct). Historically they existed only
+# as raw DDL inside the Alembic baseline, so any schema built with
+# ``Base.metadata.create_all()`` — every test DB, and any create_all bootstrap —
+# silently lacked the OCR search index and every ``chapter_ocr_fts MATCH`` query
+# raised "no such table".
+#
+# The ``after_create`` hook below closes that gap: create_all now emits the same
+# DDL Alembic does, so both schema paths produce an identical, working index.
+# ``IF NOT EXISTS`` keeps it a no-op when Alembic (or a re-run) already built it.
+
+CHAPTER_OCR_FTS_DDL: tuple[str, ...] = (
+    """
+    CREATE VIRTUAL TABLE IF NOT EXISTS chapter_ocr_fts USING fts5(
+        full_text,
+        content = 'chapter_ocr',
+        content_rowid = 'id',
+        tokenize = 'unicode61 remove_diacritics 2'
+    )
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS chapter_ocr_fts_ai AFTER INSERT ON chapter_ocr BEGIN
+        INSERT INTO chapter_ocr_fts(rowid, full_text) VALUES (new.id, new.full_text);
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS chapter_ocr_fts_ad AFTER DELETE ON chapter_ocr BEGIN
+        INSERT INTO chapter_ocr_fts(chapter_ocr_fts, rowid, full_text)
+        VALUES ('delete', old.id, old.full_text);
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS chapter_ocr_fts_au AFTER UPDATE ON chapter_ocr BEGIN
+        INSERT INTO chapter_ocr_fts(chapter_ocr_fts, rowid, full_text)
+        VALUES ('delete', old.id, old.full_text);
+        INSERT INTO chapter_ocr_fts(rowid, full_text) VALUES (new.id, new.full_text);
+    END
+    """,
+)
+
+
+@event.listens_for(Base.metadata, "after_create")
+def _create_chapter_ocr_fts(target, connection, **kw) -> None:  # noqa: ARG001
+    """Emit the ``chapter_ocr_fts`` DDL after ``create_all`` builds the tables.
+
+    FTS5 is SQLite-only; on any other dialect this is a no-op. The ``chapter_ocr``
+    table must exist first — it always does here because it is part of the same
+    metadata being created, but guard anyway for a partial ``create_all(tables=…)``.
+    """
+    if connection.dialect.name != "sqlite":
+        return
+    created = {t.name for t in kw.get("tables", target.sorted_tables)}
+    if "chapter_ocr" not in created:
+        return
+    from sqlalchemy import text as _text
+
+    for stmt in CHAPTER_OCR_FTS_DDL:
+        connection.execute(_text(stmt))

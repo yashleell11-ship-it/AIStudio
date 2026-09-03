@@ -4,7 +4,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pytest
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
@@ -39,46 +39,11 @@ def db_engine(tmp_path: Path):
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    # ``create_all`` also emits the ``chapter_ocr_fts`` virtual table + triggers
+    # via the ``after_create`` hook in ``database.models`` (spec §3.12), so the
+    # test schema matches what Alembic builds — no local DDL mirror needed.
     Base.metadata.create_all(bind=engine)
-    _create_chapter_ocr_fts(engine)
     return engine
-
-
-# The chapter_ocr FTS5 virtual table + sync triggers live in the Alembic
-# baseline as raw DDL (not ORM-mapped), so ``create_all`` does not build them.
-# Mirror them here so OCR search works against the test schema.
-_FTS_DDL = (
-    """
-    CREATE VIRTUAL TABLE chapter_ocr_fts USING fts5(
-        full_text, content='chapter_ocr', content_rowid='id',
-        tokenize='unicode61 remove_diacritics 2'
-    )
-    """,
-    """
-    CREATE TRIGGER chapter_ocr_fts_ai AFTER INSERT ON chapter_ocr BEGIN
-        INSERT INTO chapter_ocr_fts(rowid, full_text) VALUES (new.id, new.full_text);
-    END
-    """,
-    """
-    CREATE TRIGGER chapter_ocr_fts_ad AFTER DELETE ON chapter_ocr BEGIN
-        INSERT INTO chapter_ocr_fts(chapter_ocr_fts, rowid, full_text)
-        VALUES ('delete', old.id, old.full_text);
-    END
-    """,
-    """
-    CREATE TRIGGER chapter_ocr_fts_au AFTER UPDATE ON chapter_ocr BEGIN
-        INSERT INTO chapter_ocr_fts(chapter_ocr_fts, rowid, full_text)
-        VALUES ('delete', old.id, old.full_text);
-        INSERT INTO chapter_ocr_fts(rowid, full_text) VALUES (new.id, new.full_text);
-    END
-    """,
-)
-
-
-def _create_chapter_ocr_fts(engine) -> None:
-    with engine.begin() as conn:
-        for stmt in _FTS_DDL:
-            conn.execute(text(stmt))
 
 
 @pytest.fixture
@@ -102,13 +67,13 @@ def db_session(session_factory):
 
 @pytest.fixture(autouse=True)
 def _isolate_process_db(tmp_path_factory, monkeypatch):
-    """Point the process-wide engine at a throwaway database.
+    """Keep the process-wide engine off the developer's real ``manhwamaniacs.db``.
 
-    ``create_app()``'s lifespan calls ``init_db()`` unconditionally, which runs
-    the Alembic baseline against ``settings.db_path``. Left at the default that
-    is the developer's real ``manhwamaniacs.db`` (which may carry a pre-baseline
-    ``alembic_version`` stamp). Every test either overrides ``get_db`` or drives
-    its own engine, so the process engine only needs to exist and be at head.
+    Every test either overrides ``get_db`` or drives its own engine, and
+    ``create_app(run_migrations=False)`` no longer touches the DB in its lifespan
+    (``main.init_db`` is gated on ``run_migrations``). This is just belt-and-braces
+    so a stray ``get_settings()`` / ``get_engine()`` during a test resolves to a
+    throwaway path rather than the real file.
     """
     import database.session as dbs
     from core.config import get_settings
@@ -117,16 +82,6 @@ def _isolate_process_db(tmp_path_factory, monkeypatch):
     monkeypatch.setenv("MM_DB_PATH", str(db_file))
     get_settings.cache_clear()
     dbs.get_engine.cache_clear()
-    monkeypatch.setattr(
-        dbs,
-        "SessionLocal",
-        sessionmaker(
-            bind=dbs.get_engine(),
-            autoflush=False,
-            autocommit=False,
-            expire_on_commit=False,
-        ),
-    )
     yield
     get_settings.cache_clear()
     dbs.get_engine.cache_clear()
