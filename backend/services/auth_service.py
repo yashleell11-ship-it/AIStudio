@@ -186,9 +186,27 @@ class AuthService:
         user = self.db.get(User, session.user_id)
         if user is None or not user.is_active:
             return None
-        session.last_used_at = utcnow()
-        self.db.commit()
+        self._touch(session)
         return user
+
+    # Only bump `last_used_at` once it is this stale. Every authenticated
+    # request passes through here, and each page image is its own request: a
+    # client downloading a 40-page chapter would otherwise open 40 write
+    # transactions, and a 100-chapter series 4,000 — all serialised by SQLite's
+    # single writer and contending with the update scheduler. The column feeds
+    # the "last used" column of the sessions screen and nothing else; expiry is
+    # `expires_at`, which this does not touch. Minute-granularity is plenty.
+    _TOUCH_INTERVAL_SECONDS = 60
+
+    def _touch(self, session: UserSession) -> None:
+        now = utcnow()
+        last = session.last_used_at
+        if last is not None and (now - last).total_seconds() < self._TOUCH_INTERVAL_SECONDS:
+            # Nothing was modified, so there is nothing to commit -- returning
+            # here is what makes a read request read-only.
+            return
+        session.last_used_at = now
+        self.db.commit()
 
     def revoke_token(self, token: str | None) -> bool:
         if not token:
