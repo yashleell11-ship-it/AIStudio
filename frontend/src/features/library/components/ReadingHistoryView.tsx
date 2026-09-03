@@ -1,22 +1,22 @@
 "use client";
 
 import Link from "next/link";
+import { History, TriangleAlert, WifiOff } from "lucide-react";
 import { useReadingHistory } from "@/features/library/hooks";
 import { readerChapterHref, seriesPageHref } from "@/features/reader/reader-link";
-import { ApiError } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 export function ReadingHistoryView() {
   const historyQuery = useReadingHistory(50);
   const history = historyQuery.data ?? [];
-
-  const errorMessage =
-    historyQuery.error instanceof ApiError
-      ? historyQuery.error.message
-      : historyQuery.error
-        ? "Failed to load reading history."
-        : null;
+  const viewState = resolveViewState({
+    isLoading: historyQuery.isLoading,
+    error: historyQuery.error,
+    isEmpty: history.length === 0,
+  });
 
   return (
     <div className="page-shell">
@@ -26,30 +26,40 @@ export function ReadingHistoryView() {
           <p className="page-subtitle">Everything you have read, most recent first.</p>
         </div>
 
-        {errorMessage && (
-          <div className="mb-6 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {errorMessage}
-          </div>
-        )}
-
         <Card>
           <CardHeader>
             <CardTitle>Recent Chapters</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
-            {historyQuery.isLoading ? (
+            {viewState === "loading" ? (
               <div className="space-y-2" aria-busy="true">
                 {Array.from({ length: 5 }).map((_, index) => (
                   <div key={index} className="h-20 animate-pulse rounded-lg bg-surface-2" />
                 ))}
               </div>
-            ) : history.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-border bg-surface p-8 text-center">
-                <p className="font-medium text-fg">Nothing read yet</p>
-                <p className="mt-2 text-sm text-muted">
-                  Open a chapter from your library to start tracking history.
-                </p>
-              </div>
+            ) : viewState === "offline" ? (
+              <EmptyState
+                tone="offline"
+                icon={WifiOff}
+                title="You're offline"
+                description="Reading history needs a connection to load. Chapters you've downloaded still open with no connection at all."
+                action={{ label: "Go to Downloads", href: "/downloads" }}
+              />
+            ) : viewState === "error" ? (
+              <EmptyState
+                tone="error"
+                icon={TriangleAlert}
+                title="Couldn't load reading history"
+                description={apiErrorMessage(historyQuery.error, "Something went wrong.")}
+                action={{ label: "Try again", onClick: () => void historyQuery.refetch() }}
+              />
+            ) : viewState === "empty" ? (
+              <EmptyState
+                icon={History}
+                title="Nothing read yet"
+                description="Open a chapter from your library and it will show up here as you go."
+                action={{ label: "Go to library", href: "/library" }}
+              />
             ) : (
               history.map((entry) => {
                 const ref = {

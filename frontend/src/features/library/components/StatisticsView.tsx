@@ -1,8 +1,10 @@
 "use client";
 
+import { BarChart3, TriangleAlert, WifiOff } from "lucide-react";
 import { useStatistics } from "@/features/library/hooks";
-import { ApiError } from "@/types/api";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/ui/empty-state";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 function StatCard({
   label,
@@ -38,13 +40,14 @@ const STATUS_LABELS: Record<string, string> = {
 export function StatisticsView() {
   const statsQuery = useStatistics();
   const stats = statsQuery.data;
-
-  const errorMessage =
-    statsQuery.error instanceof ApiError
-      ? statsQuery.error.message
-      : statsQuery.error
-        ? "Failed to load statistics."
-        : null;
+  const viewState = resolveViewState({
+    isLoading: statsQuery.isLoading,
+    error: statsQuery.error,
+    // Zero followed series means there is nothing yet for these numbers to
+    // describe — a grid of stat cards reading "0" everywhere is not an
+    // insight, it is a blank page with extra steps.
+    isEmpty: stats != null && stats.followed_total === 0,
+  });
 
   return (
     <div className="page-shell">
@@ -54,18 +57,35 @@ export function StatisticsView() {
           <p className="page-subtitle">Your library and reading activity at a glance.</p>
         </div>
 
-        {errorMessage && (
-          <div className="mb-6 rounded-lg border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {errorMessage}
-          </div>
-        )}
-
-        {statsQuery.isLoading ? (
+        {viewState === "loading" ? (
           <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i} className="h-24 animate-pulse rounded-xl bg-surface-2" />
             ))}
           </div>
+        ) : viewState === "offline" ? (
+          <EmptyState
+            tone="offline"
+            icon={WifiOff}
+            title="You're offline"
+            description="Statistics need a connection to load. Chapters you've downloaded still open with no connection at all."
+            action={{ label: "Go to Downloads", href: "/downloads" }}
+          />
+        ) : viewState === "error" ? (
+          <EmptyState
+            tone="error"
+            icon={TriangleAlert}
+            title="Couldn't load statistics"
+            description={apiErrorMessage(statsQuery.error, "Something went wrong.")}
+            action={{ label: "Try again", onClick: () => void statsQuery.refetch() }}
+          />
+        ) : viewState === "empty" ? (
+          <EmptyState
+            icon={BarChart3}
+            title="Nothing to show yet"
+            description="Follow a few series and start reading — your stats will build up here."
+            action={{ label: "Browse Sources", href: "/sources" }}
+          />
         ) : stats ? (
           <>
             <div className="mb-8 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">

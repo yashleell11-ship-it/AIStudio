@@ -1,5 +1,6 @@
 export { LibraryView } from "./components/LibraryView";
 export { LibraryShelfView } from "./components/LibraryShelfView";
+export { FirstRunHint } from "./components/FirstRunHint";
 export { FollowedSeriesCard } from "./components/FollowedSeriesCard";
 export { SeriesDetailView } from "./components/SeriesDetailView";
 export { CollectionsView } from "./components/CollectionsView";

@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { ApiError } from "@/types/api";
+import { TriangleAlert, WifiOff } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
 import { BulkActionBar } from "./BulkActionBar";
 import { ContinueReading } from "./ContinueReading";
@@ -152,12 +154,11 @@ export function LibraryView() {
   const filtersActive = hasActiveFilters(query);
   const isLanding = !isSearching && !filtersActive;
 
-  const errorMessage =
-    seriesQuery.error instanceof ApiError
-      ? seriesQuery.error.message
-      : seriesQuery.error
-        ? "Failed to load library."
-        : null;
+  const viewState = resolveViewState({
+    isLoading: seriesQuery.isLoading,
+    error: seriesQuery.error,
+    isEmpty: items.length === 0,
+  });
 
   const emptyState = isSearching ? "search" : filtersActive ? "filter" : "library";
 
@@ -185,30 +186,42 @@ export function LibraryView() {
           tags={tagsQuery.data ?? []}
         />
 
-        {errorMessage ? (
-          <div className="mb-6 rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-            {errorMessage}
-          </div>
-        ) : null}
-
-        {isLanding ? (
+        {isLanding && viewState !== "offline" && viewState !== "error" ? (
           <ContinueReading
             items={continueQuery.data ?? []}
             isLoading={continueQuery.isLoading}
           />
         ) : null}
 
-        <SeriesGrid
-          items={items}
-          isLoading={seriesQuery.isLoading}
-          emptyState={emptyState}
-          density={density}
-          selection={{
-            selecting,
-            selectedIds: selection.ids,
-            onSelect: handleSelect,
-          }}
-        />
+        {viewState === "offline" ? (
+          <EmptyState
+            tone="offline"
+            icon={WifiOff}
+            title="You're offline"
+            description="Your library needs a connection to load. Chapters you've downloaded still open with no connection at all."
+            action={{ label: "Go to Downloads", href: "/downloads" }}
+          />
+        ) : viewState === "error" ? (
+          <EmptyState
+            tone="error"
+            icon={TriangleAlert}
+            title="Couldn't load your library"
+            description={apiErrorMessage(seriesQuery.error, "Something went wrong.")}
+            action={{ label: "Try again", onClick: () => void seriesQuery.refetch() }}
+          />
+        ) : (
+          <SeriesGrid
+            items={items}
+            isLoading={seriesQuery.isLoading}
+            emptyState={emptyState}
+            density={density}
+            selection={{
+              selecting,
+              selectedIds: selection.ids,
+              onSelect: handleSelect,
+            }}
+          />
+        )}
 
         {!seriesQuery.isLoading && items.length < seriesCount ? (
           <p className="mt-6 text-center text-sm text-muted">

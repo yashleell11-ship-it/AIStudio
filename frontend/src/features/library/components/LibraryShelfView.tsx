@@ -2,11 +2,12 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { BookOpen, Compass, Telescope } from "lucide-react";
+import { BookOpen, Compass, Telescope, TriangleAlert, WifiOff } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
-import { ApiError } from "@/types/api";
+import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useSeriesList } from "../hooks";
 import { FollowedSeriesCard } from "./FollowedSeriesCard";
 
@@ -29,24 +30,45 @@ export function LibraryShelfView() {
     [seriesQuery.data],
   );
 
-  const error =
-    seriesQuery.error instanceof ApiError ? seriesQuery.error.message : null;
+  const viewState = resolveViewState({
+    isLoading: seriesQuery.isLoading,
+    error: seriesQuery.error,
+    isEmpty: followed.length === 0,
+  });
 
-  if (seriesQuery.isLoading) {
+  if (viewState === "loading") {
     return <ShelfSkeleton />;
   }
 
-  if (error) {
+  if (viewState === "offline") {
     return (
       <div className="px-5 pt-6 md:px-8">
-        <div className="rounded-xl border border-danger/30 bg-danger/10 px-4 py-3 text-sm text-danger">
-          {error}
-        </div>
+        <EmptyState
+          tone="offline"
+          icon={WifiOff}
+          title="You're offline"
+          description="Your library needs a connection to load. Chapters you've downloaded still open with no connection at all."
+          action={{ label: "Go to Downloads", href: "/downloads" }}
+        />
       </div>
     );
   }
 
-  if (followed.length === 0) {
+  if (viewState === "error") {
+    return (
+      <div className="px-5 pt-6 md:px-8">
+        <EmptyState
+          tone="error"
+          icon={TriangleAlert}
+          title="Couldn't load your library"
+          description={apiErrorMessage(seriesQuery.error, "Something went wrong.")}
+          action={{ label: "Try again", onClick: () => void seriesQuery.refetch() }}
+        />
+      </div>
+    );
+  }
+
+  if (viewState === "empty") {
     return <ShelfEmpty />;
   }
 

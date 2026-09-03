@@ -17,6 +17,7 @@ import { isPublicAuthPath } from "@/features/auth/access";
 import { useCurrentUser } from "@/features/auth/hooks";
 import { AuthPending } from "@/features/auth/components/auth-pending";
 import { isSessionUnresolved, resolveSessionGate } from "@/features/offline/session-gate";
+import { FirstRunHint } from "@/features/library";
 import { UpdateBanner } from "@/features/updates";
 import {
   isPickerPath,
@@ -177,6 +178,9 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
         {!isReaderChapter ? (
           <ProfileSwitcherChip className="absolute left-1/2 top-2.5 z-40 hidden -translate-x-1/2 lg:flex" />
         ) : null}
+        {/* Renders nothing once anything is followed, or on a route where it
+            would be redundant (see `shouldShowFirstRunHint`). */}
+        {!isReaderChapter ? <FirstRunHint /> : null}
         <ScrollContainerProvider container={scrollContainer}>
           <main
             id="main-content"

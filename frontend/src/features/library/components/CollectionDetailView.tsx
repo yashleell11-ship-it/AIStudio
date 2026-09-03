@@ -6,6 +6,7 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { libraryCoverUrl } from "@/features/library/api";
 import {
@@ -174,19 +175,16 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
 
       <div className="mx-auto max-w-7xl px-6 py-8 md:px-10">
         {collection.series.length === 0 ? (
-          <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
-            <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
-              <BookOpen className="size-8 text-primary" />
-            </div>
-            <p className="text-lg font-medium text-fg">This collection is empty</p>
-            <p className="mx-auto mt-2 max-w-md text-sm text-muted">
-              Add series from your library to start building this collection.
-            </p>
-            <Button onClick={() => setShowAddDialog(true)} className="mt-6 gap-2">
-              <Plus className="size-4" aria-hidden />
-              Add series
-            </Button>
-          </div>
+          <EmptyState
+            icon={BookOpen}
+            title="This collection is empty"
+            description="Add series from your library to start building this collection."
+            action={{
+              label: "Add series",
+              icon: Plus,
+              onClick: () => setShowAddDialog(true),
+            }}
+          />
         ) : (
           <SeriesGrid items={members} isLoading={allSeriesQuery.isLoading} />
         )}

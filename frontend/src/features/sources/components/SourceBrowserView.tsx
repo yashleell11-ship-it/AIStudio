@@ -220,6 +220,7 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
           errorMessage={
             seriesQuery.error instanceof Error ? seriesQuery.error.message : undefined
           }
+          onRetry={seriesQuery.error ? () => void seriesQuery.refetch() : undefined}
         />
         <SourceBrowseLoading
           active={seriesQuery.isLoading}

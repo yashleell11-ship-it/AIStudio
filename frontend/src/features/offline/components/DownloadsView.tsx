@@ -13,6 +13,7 @@ import {
   WifiOff,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
 import { Progress } from "@/components/ui/progress";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { GlassPanel } from "@/components/premium/GlassPanel";
@@ -130,18 +131,17 @@ export function DownloadsView() {
         </FadeIn>
 
         {state.readiness === "unsupported" ? (
-          <Notice
+          <EmptyState
+            tone="error"
             icon={TriangleAlert}
             title="Downloads are unavailable here"
-            body="This browser has no service worker, or the page is not being served over
-              a secure connection. Both are required to store chapters on the device."
+            description="This browser has no service worker, or the page is not being served over a secure connection. Both are required to store chapters on the device."
           />
         ) : !scope ? (
-          <Notice
+          <EmptyState
             icon={CloudOff}
             title="No profile selected"
-            body="Downloaded chapters belong to a reading profile. Choose one and its
-              downloads appear here."
+            description="Downloaded chapters belong to a reading profile. Choose one and its downloads appear here."
           />
         ) : (
           <>
@@ -237,21 +237,18 @@ export function DownloadsView() {
                 Checking what is stored…
               </div>
             ) : groups.length === 0 ? (
-              <div className="empty-state">
-                <CloudOff className="mx-auto mb-3 size-8 text-muted" aria-hidden />
-                <p className="text-fg">Nothing downloaded yet</p>
-                <p className="mx-auto mt-1 max-w-sm text-sm text-muted">
-                  Open a chapter and press{" "}
-                  <span className="text-primary">Download</span> in the reader.
-                  Its pages are stored here and stay readable with no connection.
-                </p>
-                <Link
-                  href="/library"
-                  className="mt-4 inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
-                >
-                  Go to library
-                </Link>
-              </div>
+              <EmptyState
+                icon={CloudOff}
+                title="Nothing downloaded yet"
+                description={
+                  <>
+                    Open a chapter and press{" "}
+                    <span className="text-primary">Download</span> in the reader.
+                    Its pages are stored here and stay readable with no connection.
+                  </>
+                }
+                action={{ label: "Go to library", href: "/library" }}
+              />
             ) : (
               <FadeIn y={20} delay={0.15} className="space-y-4">
                 {groups.map((group) => (
@@ -382,23 +379,5 @@ function SavedChapterRow({
         )}
       </button>
     </li>
-  );
-}
-
-function Notice({
-  icon: Icon,
-  title,
-  body,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  title: string;
-  body: string;
-}) {
-  return (
-    <div className="empty-state">
-      <Icon className="mx-auto mb-3 size-8 text-muted" aria-hidden />
-      <p className="text-fg">{title}</p>
-      <p className="mx-auto mt-1 max-w-md text-sm text-muted">{body}</p>
-    </div>
   );
 }
