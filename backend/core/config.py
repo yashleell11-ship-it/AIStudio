@@ -54,6 +54,12 @@ class Settings(BaseModel):
     # refetch is forced. Overridable via MM_SOURCE_CACHE_TTL_MINUTES.
     source_cache_ttl_minutes: int = 360
 
+    # Hard ceiling (bytes) for a single proxied image/cover body. A hostile
+    # allowlisted upstream can otherwise stream an unbounded "image" and OOM
+    # the box (each page-image request used to buffer the entire body with no
+    # cap). Overridable via MM_IMAGE_PROXY_MAX_BYTES.
+    image_proxy_max_bytes: int = 25 * 1024 * 1024
+
     # Automatic update system
     update_workers: int = 1
     update_check_interval_minutes: int = 60
@@ -108,6 +114,9 @@ def get_settings() -> Settings:
     cache_ttl_override = os.getenv("MM_SOURCE_CACHE_TTL_MINUTES")
     if cache_ttl_override and cache_ttl_override.strip():
         data["source_cache_ttl_minutes"] = int(cache_ttl_override.strip())
+    image_cap_override = os.getenv("MM_IMAGE_PROXY_MAX_BYTES")
+    if image_cap_override and image_cap_override.strip():
+        data["image_proxy_max_bytes"] = int(image_cap_override.strip())
 
     # Auth deployment overrides.
     reg_override = os.getenv("MM_REGISTRATION_ENABLED")

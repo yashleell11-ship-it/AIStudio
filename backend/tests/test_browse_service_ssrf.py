@@ -53,6 +53,26 @@ def service() -> BrowseService:
     return BrowseService()
 
 
+def _fake_stream(
+    *,
+    is_redirect: bool = False,
+    headers: dict[str, str] | None = None,
+    content: bytes = b"",
+):
+    """A stand-in for ``httpx.stream(...)``: a context manager yielding a
+    response-shaped mock (the proxy streams bodies now, with a byte cap)."""
+    response = MagicMock()
+    response.is_redirect = is_redirect
+    response.headers = headers or {}
+    response.iter_bytes = lambda: iter([content] if content else [])
+    response.raise_for_status = MagicMock()
+    cm = MagicMock()
+    cm.__enter__ = MagicMock(return_value=response)
+    cm.__exit__ = MagicMock(return_value=False)
+    return cm
+
+
+
 def test_rejects_non_https_scheme(service: BrowseService):
     connector = _FakeConnector(frozenset({"example.com"}))
     with pytest.raises(AppError) as exc_info:
@@ -112,44 +132,43 @@ def test_rejects_domain_that_resolves_to_private_address(service: BrowseService)
 
 def test_fetch_url_never_makes_request_when_host_not_allowed(service: BrowseService):
     connector = _FakeConnector(frozenset({"example.com"}))
-    with patch("httpx.get") as mock_get:
+    with patch("httpx.stream") as mock_stream:
         with pytest.raises(AppError) as exc_info:
             service._fetch_url("https://attacker.test/x.jpg", connector)
     assert exc_info.value.code == "ssrf_blocked"
-    mock_get.assert_not_called()
+    mock_stream.assert_not_called()
 
 
 def test_fetch_url_does_not_follow_redirects(service: BrowseService):
     """A redirect target could escape the allowlist; redirects must not be
     followed automatically."""
     connector = _FakeConnector(frozenset({"example.com"}))
-    fake_response = MagicMock()
-    fake_response.is_redirect = True
 
     with patch("services.outbound_security.is_public_address", return_value=True):
-        with patch("httpx.get", return_value=fake_response) as mock_get:
+        with patch(
+            "httpx.stream", return_value=_fake_stream(is_redirect=True)
+        ) as mock_stream:
             with pytest.raises(AppError) as exc_info:
                 service._fetch_url("https://example.com/x.jpg", connector)
 
     assert exc_info.value.code == "ssrf_blocked"
-    assert mock_get.call_args.kwargs["follow_redirects"] is False
+    assert mock_stream.call_args.kwargs["follow_redirects"] is False
 
 
 def test_fetch_url_succeeds_for_approved_host(service: BrowseService):
     connector = _FakeConnector(frozenset({"example.com"}))
-    fake_response = MagicMock()
-    fake_response.is_redirect = False
-    fake_response.headers = {"content-type": "image/png"}
-    fake_response.content = b"fake-bytes"
-    fake_response.raise_for_status = MagicMock()
+    stream = _fake_stream(
+        headers={"content-type": "image/png"}, content=b"fake-bytes"
+    )
 
     with patch("services.outbound_security.is_public_address", return_value=True):
-        with patch("httpx.get", return_value=fake_response) as mock_get:
+        with patch("httpx.stream", return_value=stream) as mock_stream:
             media_type, data = service._fetch_url("https://example.com/x.png", connector)
 
     assert media_type == "image/png"
     assert data == b"fake-bytes"
-    mock_get.assert_called_once_with(
+    mock_stream.assert_called_once_with(
+        "GET",
         "https://example.com/x.png",
         timeout=30.0,
         follow_redirects=False,

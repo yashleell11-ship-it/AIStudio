@@ -31,6 +31,23 @@ class SourcePinsUpdate(BaseModel):
     source_ids: list[str] = Field(default_factory=list)
 
 
+def _image_proxy_headers() -> dict[str, str]:
+    """Response headers for the two byte-proxying routes.
+
+    The service layer already clamps the media type to a bitmap allowlist;
+    these headers stop a browser from second-guessing it (nosniff), neuter any
+    markup that does get through (CSP sandbox: no script, no same-origin
+    access), and keep a top-level navigation from treating the body as a page
+    of ours (Content-Disposition).
+    """
+    return {
+        "Cache-Control": "max-age=86400",
+        "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "sandbox",
+        "Content-Disposition": "inline; filename=image",
+    }
+
+
 @router.get("")
 def list_sources(service: BrowseDep, response: Response) -> list[dict[str, object]]:
     """List installed browsable source connectors."""
@@ -204,7 +221,7 @@ def get_source_series_cover(
     return Response(
         content=data,
         media_type=media_type,
-        headers={"Cache-Control": "max-age=86400"},
+        headers=_image_proxy_headers(),
     )
 
 
@@ -245,5 +262,5 @@ def get_source_page_image(
     return Response(
         content=data,
         media_type=media_type,
-        headers={"Cache-Control": "max-age=86400"},
+        headers=_image_proxy_headers(),
     )
