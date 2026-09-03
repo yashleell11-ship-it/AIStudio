@@ -1,4 +1,5 @@
 import type { UpdateSettings } from "./types";
+import { parseUtcTimestamp } from "@/lib/utc-time";
 
 /**
  * Pure logic behind the update-check schedule strip.
@@ -54,8 +55,12 @@ export function describeCheckSchedule(
     };
   }
 
-  const lastRunMs = Date.parse(lastRunAt);
-  if (Number.isNaN(lastRunMs)) {
+  // Through `parseUtcTimestamp`, not `Date.parse`: `last_run_at` is UTC
+  // serialised from a naive datetime, so a bare parse reads it as local time
+  // and lands 5.5h early in IST — which inflates `lateByMs` and reports a
+  // scheduler that ran on time as overdue.
+  const lastRunMs = parseUtcTimestamp(lastRunAt);
+  if (lastRunMs === null) {
     // An unparseable timestamp is a data problem, not a schedule: report it as
     // "never run" rather than inventing a next-run time from NaN.
     return {
