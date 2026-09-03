@@ -56,7 +56,17 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     ),
     _site("apcomics", "APComics", "apcomics.org", mature=True, use_cf=False),
     _site("cocomic", "CoComic", "cocomic.co", mature=True, use_cf=False),
-    _site("manga18x", "Manga18x", "manga18x.net", mature=True, use_cf=False),
+    # Serves its page images from its manhwaclub.net sibling, so the image
+    # proxy's SSRF allowlist needs that host or every page is rejected before
+    # a request is made (the site browses and paginates fine regardless).
+    _site(
+        "manga18x",
+        "Manga18x",
+        "manga18x.net",
+        mature=True,
+        use_cf=False,
+        extra_image_hosts=frozenset({"manhwaclub.net"}),
+    ),
     _site("cucumbermanga", "CucumberManga", "cucumbermanga.com", mature=True, use_cf=False),
     _site("pawmanga", "PawManga", "pawmanga.com", mature=True, use_cf=False),
     _site("lilymanga", "LilyManga", "lilymanga.net", url_segment="gl", mature=True, use_cf=False),

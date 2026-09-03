@@ -382,6 +382,37 @@ def test_madara_image_proxy_sends_referer():
     headers = connector.image_fetch_headers()
     assert headers.get("Referer") == "https://manhwaclub.net/"
 
+def test_madara_image_headers_include_browser_user_agent():
+    """Regression: several Madara CDNs 403 a request with no browser UA.
+
+    The image proxy forwards only ``image_fetch_headers()`` upstream — it adds
+    no User-Agent of its own — so a headers dict carrying just the Referer
+    reached the CDN as bare python-httpx. manhwatop's c3.manhwatop.com answered
+    that with 403 while the identical request with a desktop UA returned the
+    JPEG, leaving the source browsable but unreadable.
+    """
+    for source_id in ("manhwatop", "manhwaclub", "manga18x"):
+        headers = create_connector(source_id).image_fetch_headers()
+        assert headers.get("Referer")
+        user_agent = headers.get("User-Agent", "")
+        assert user_agent.startswith("Mozilla/5.0"), source_id
+        assert "python-httpx" not in user_agent
+
+
+def test_manga18x_image_allowlist_covers_its_sibling_cdn():
+    """Regression: manga18x serves page images from manhwaclub.net.
+
+    The allowlist is derived from the site host, so every page image was
+    rejected as "not an approved domain" before any request was made.
+    """
+    from services.outbound_security import host_matches_allowlist
+
+    allowed = create_connector("manga18x").allowed_image_hosts
+    assert host_matches_allowlist("manhwaclub.net", allowed)
+    assert host_matches_allowlist("manga18x.net", allowed)
+    assert not host_matches_allowlist("notmanhwaclub.net", allowed)
+
+
 def test_madara_upgrades_http_image_urls_to_https():
     """Madara page/cover URLs that arrive as http:// are upgraded to https://."""
     from connectors.madara.config import MadaraSiteConfig
