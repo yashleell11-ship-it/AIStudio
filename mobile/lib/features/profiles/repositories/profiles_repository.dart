@@ -14,6 +14,7 @@ abstract interface class ProfilesRepository {
     required String avatarKey,
     required Mood mood,
     int? sortOrder,
+    bool? matureContentEnabled,
   });
 
   Future<Result<Profile>> update(
@@ -22,6 +23,7 @@ abstract interface class ProfilesRepository {
     String? avatarKey,
     Mood? mood,
     int? sortOrder,
+    bool? matureContentEnabled,
   });
 
   Future<Result<void>> remove(int id);
