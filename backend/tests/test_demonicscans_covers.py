@@ -138,15 +138,18 @@ def test_resolve_series_cover_fetches_readermc(monkeypatch: pytest.MonkeyPatch) 
     mock_response = MagicMock()
     mock_response.is_redirect = False
     mock_response.headers = {"content-type": "image/webp"}
-    mock_response.content = b"webp-bytes"
+    mock_response.iter_bytes = lambda: iter([b"webp-bytes"])
     mock_response.raise_for_status = MagicMock()
+    stream_cm = MagicMock()
+    stream_cm.__enter__ = MagicMock(return_value=mock_response)
+    stream_cm.__exit__ = MagicMock(return_value=False)
 
-    with patch("httpx.get", return_value=mock_response) as mock_get:
+    with patch("httpx.stream", return_value=stream_cm) as mock_stream:
         media_type, data = service.resolve_series_cover(
             "demonicscans", "Return-of-the-Crazy-Demon"
         )
 
     assert media_type == "image/webp"
     assert data == b"webp-bytes"
-    mock_get.assert_called_once()
-    assert mock_get.call_args.kwargs["headers"]["Referer"] == "https://demonicscans.org/"
+    mock_stream.assert_called_once()
+    assert mock_stream.call_args.kwargs["headers"]["Referer"] == "https://demonicscans.org/"
