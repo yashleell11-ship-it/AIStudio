@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BookX, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ import { useSeriesProgress } from "@/features/reader/hooks";
 import { ApiError } from "@/types/api";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
+import { createHoverIntent } from "@/lib/hover-intent";
 import { sourceImageUrl } from "../api";
 import { chapterLabel } from "../chapter-label";
 import { resolveChapterListState } from "../chapter-list-state";
@@ -109,6 +110,31 @@ export function SourceSeriesDetailView({
       prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapter.id);
     }
   }, [chapters, queryClient, seriesId, sourceId]);
+
+  /**
+   * Hover/focus prefetch, gated on the pointer actually settling. A `mouseenter`
+   * per row meant one chapter fetch per row crossed — sweeping down a long
+   * chapter list fired dozens in a second. See `lib/hover-intent.ts`.
+   */
+  // Through a ref so the intent, created once, always prefetches for the
+  // series currently on screen even if the route swaps props without a remount.
+  const prefetchRef = useRef<(chapterId: string) => void>(() => {});
+  prefetchRef.current = (chapterId: string) => {
+    prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapterId);
+  };
+  const hoverIntent = useRef(
+    createHoverIntent<string>((chapterId) => prefetchRef.current(chapterId)),
+  );
+  useEffect(() => {
+    const intent = hoverIntent.current;
+    return () => intent.dispose();
+  }, []);
+  const prefetchOnIntent = useCallback((chapterId: string) => {
+    hoverIntent.current.enter(chapterId);
+  }, []);
+  const cancelPrefetchIntent = useCallback(() => {
+    hoverIntent.current.leave();
+  }, []);
 
   // An empty answer means something different depending on what the series
   // summary claims the source holds — see `resolveChapterListState`.
@@ -370,8 +396,10 @@ export function SourceSeriesDetailView({
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href={sourceReaderChapterPath(sourceId, seriesId, chapter.id)}
-                      onMouseEnter={() => prefetchChapter(chapter.id)}
-                      onFocus={() => prefetchChapter(chapter.id)}
+                      onMouseEnter={() => prefetchOnIntent(chapter.id)}
+                      onMouseLeave={cancelPrefetchIntent}
+                      onFocus={() => prefetchOnIntent(chapter.id)}
+                      onBlur={cancelPrefetchIntent}
                     >
                       <Button variant="ghost" size="sm">
                         Read
