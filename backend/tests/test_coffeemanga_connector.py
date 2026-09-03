@@ -131,10 +131,17 @@ def test_connector_browse_search_read_flow():
 
 
 def test_registry_lists_coffeemanga():
+    from connectors.excluded import EXCLUDED_CONNECTORS
+
+    names = {d.source_type for d in list_installed_connectors(browsable_only=True)}
+    if "coffeemanga" in EXCLUDED_CONNECTORS:
+        # coffeemanga.ink 404s every path, so the source is deregistered; the
+        # connector code and its fixtures stay for parser coverage.
+        assert "coffeemanga" not in names
+        return
     connector = create_connector("coffeemanga")
     assert isinstance(connector, CoffeeMangaConnector)
     assert connector.is_mature is False
-    names = {d.source_type for d in list_installed_connectors(browsable_only=True)}
     assert "coffeemanga" in names
 
 
