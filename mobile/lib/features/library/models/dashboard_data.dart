@@ -1,6 +1,6 @@
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
-import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
+import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 
 class DashboardData {
   const DashboardData({

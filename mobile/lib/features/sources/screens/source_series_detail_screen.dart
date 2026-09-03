@@ -175,7 +175,6 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
       ),
       // TODO(1c-M3): re-add "Download series" / "Download selected" once the
       // on-device store ships.
-      secondaryActions: const [],
       details: [
         // Status and genres get the same pill treatment the library page gives
         // reading status and tags -- the source page simply had nowhere to put

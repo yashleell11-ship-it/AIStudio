@@ -1,8 +1,8 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
 import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_pins_provider.dart';

@@ -59,10 +59,12 @@ class ReaderRepositoryImpl implements ReaderRepository {
         data: [for (final push in pushes) push.toJson()],
       );
       final data = r.data!;
-      return Ok((
-        saved: data['saved'] as int,
-        advanced: data['advanced'] as int,
-      ));
+      return Ok(
+        (
+          saved: data['saved'] as int,
+          advanced: data['advanced'] as int,
+        ),
+      );
     } on DioException catch (e) {
       return Err(_err(e));
     } catch (e) {
