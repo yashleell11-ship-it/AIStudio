@@ -46,6 +46,8 @@ interface Policy {
   apiPath(url: string, apiBase: string): string | null;
   isAuthUrl(url: string, apiBase: string | null): boolean;
   isSwrAllowedPath(path: string): boolean;
+  isPageImagePath(path: string): boolean;
+  isChapterManifestPath(path: string): boolean;
   classifyRequest(input: Record<string, unknown>): string;
   isCacheableResponse(response: unknown): boolean;
   responseSize(headers: unknown): number;
@@ -220,8 +222,12 @@ describe("what may be cached", () => {
     expect(policy.isSwrAllowedPath("/reader/progress/12")).toBe(false);
   });
 
-  it("never serves a stale chapter payload, whose page ids move on rescan", () => {
-    expect(get(`${API}/reader/chapter/99`)).toBe("network-then-saved");
+  it("never serves a stale chapter manifest, whose page urls move on a re-list", () => {
+    expect(
+      get(`${API}/reader/chapter/manifest?source=asura&series=s%2Fk&chapter=c%2F9`),
+    ).toBe("network-then-saved");
+    expect(policy.isChapterManifestPath("/reader/chapter/manifest")).toBe(true);
+    expect(policy.isSwrAllowedPath("/reader/chapter/manifest")).toBe(false);
   });
 
   it("does not widen an allowlist entry into a sibling path", () => {
@@ -231,10 +237,16 @@ describe("what may be cached", () => {
     expect(policy.isSwrAllowedPath("/library/collections")).toBe(false);
   });
 
-  it("answers a saved page image from the device first", () => {
-    expect(get(`${API}/reader/page/551/image`, { destination: "image" })).toBe(
-      "saved-first",
-    );
+  it("answers a saved page image from the device first, by URL shape or by destination", () => {
+    // The source-proxy page endpoint is recognised on its path alone — it lives
+    // under `/sources/…`, which the SWR allowlist also matches, so this must win.
+    expect(get(`${API}/sources/asura/pages/vol1%2Fp551/image`)).toBe("saved-first");
+    expect(policy.isPageImagePath("/sources/asura/pages/vol1%2Fp551/image")).toBe(true);
+    expect(policy.isPageImagePath("/sources/asura")).toBe(false);
+    // Any other API image (a cover, say) still goes saved-first via destination.
+    expect(
+      get(`${API}/sources/asura/series/s%2Fk/cover`, { destination: "image" }),
+    ).toBe("saved-first");
   });
 
   it("takes build assets cache-first and only when they are ours", () => {
@@ -249,7 +261,7 @@ describe("what may be cached", () => {
   });
 
   it("stays out of the way of range requests and non-http schemes", () => {
-    expect(get(`${API}/reader/page/1/image`, { hasRange: true })).toBe("bypass");
+    expect(get(`${API}/sources/asura/pages/p1/image`, { hasRange: true })).toBe("bypass");
     expect(get("chrome-extension://abcd/inject.js")).toBe("bypass");
   });
 

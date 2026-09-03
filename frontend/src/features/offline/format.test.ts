@@ -16,13 +16,15 @@ const DAY = 24 * HOUR;
 
 function entry(overrides: Partial<SavedChapterEntry> = {}): SavedChapterEntry {
   return {
-    key: "chapter:1",
-    chapterId: "1",
-    seriesId: "7",
+    key: "chapter:asura:series/solo-levelling:ch/1",
+    sourceId: "asura",
+    seriesKey: "series/solo-levelling",
+    chapterKey: "ch/1",
     title: "Chapter 1",
     seriesTitle: "Solo Levelling",
     pageCount: 40,
-    payloadUrl: "https://host/api/reader/chapter/1",
+    payloadUrl:
+      "https://host/api/reader/chapter/manifest?source=asura&series=series%2Fsolo-levelling&chapter=ch%2F1",
     urls: [],
     savedPages: 40,
     bytes: 12 * 1024 * 1024,
@@ -130,11 +132,18 @@ describe("expiry", () => {
 describe("groupBySeries", () => {
   it("gathers a series' chapters and adds up what they cost", () => {
     const groups = groupBySeries([
-      entry({ key: "a", seriesId: "7", bytes: 100, savedAt: 1 }),
-      entry({ key: "b", seriesId: "7", bytes: 50, savedAt: 2 }),
-      entry({ key: "c", seriesId: "9", seriesTitle: "Omniscient", bytes: 10, savedAt: 3 }),
+      entry({ key: "a", seriesKey: "series/7", bytes: 100, savedAt: 1 }),
+      entry({ key: "b", seriesKey: "series/7", bytes: 50, savedAt: 2 }),
+      entry({
+        key: "c",
+        seriesKey: "series/9",
+        seriesTitle: "Omniscient",
+        bytes: 10,
+        savedAt: 3,
+      }),
     ]);
-    expect(groups.map((group) => group.seriesId)).toEqual(["9", "7"]);
+    expect(groups.map((group) => group.seriesKey)).toEqual(["series/9", "series/7"]);
+    expect(groups.map((group) => group.id)).toEqual(["asura:series/9", "asura:series/7"]);
     expect(groups[1].bytes).toBe(150);
     expect(groups[1].entries.map((item) => item.key)).toEqual(["a", "b"]);
   });
