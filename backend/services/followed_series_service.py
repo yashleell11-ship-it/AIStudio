@@ -15,7 +15,7 @@ from typing import Annotated, Any
 from urllib.parse import quote
 
 from fastapi import Depends
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, select
 from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
@@ -92,6 +92,18 @@ class FollowedSeriesService:
             return stmt.where(FollowedSeries.profile_id.is_(None))
         return stmt.where(FollowedSeries.profile_id == self._profile_id)
 
+    def _progress_scope(self, stmt):
+        """``_scope`` for ``chapter_progress``.
+
+        Reading position is per-``(user_id, profile_id)`` exactly like a follow
+        is; a statement that filters only on ``user_id`` merges the account's
+        profiles together and resumes one reader at another's page.
+        """
+        stmt = stmt.where(ChapterProgress.user_id == self._user_id)
+        if self._profile_id is None:
+            return stmt.where(ChapterProgress.profile_id.is_(None))
+        return stmt.where(ChapterProgress.profile_id == self._profile_id)
+
     def _gate_open(self) -> bool:
         return resolve_mature_gate(self._db, self._profile_id, self._user_id)
 
@@ -110,9 +122,19 @@ class FollowedSeriesService:
         return [r for r in rows if self._rating(r) != TRACKER_RATING_MATURE]
 
     def _get_owned(self, followed_id: int) -> FollowedSeries:
+        """Fetch a follow by id, or 404.
+
+        The profile predicate is **unconditional**: ``None`` means the unscoped
+        bucket, exactly as ``_scope`` reads it. Guarding it on
+        ``self._profile_id is not None`` would let a caller that simply omits
+        ``X-Profile-Id`` (which ``resolve_profile_context`` leniently allows)
+        read and mutate any of the account's rows across every profile.
+        """
         row = self._db.get(FollowedSeries, followed_id)
-        if row is None or row.user_id != self._user_id or (
-            self._profile_id is not None and row.profile_id != self._profile_id
+        if (
+            row is None
+            or row.user_id != self._user_id
+            or row.profile_id != self._profile_id
         ):
             raise AppError(
                 "Series not found.", code="series_not_found", status_code=404
@@ -270,12 +292,15 @@ class FollowedSeriesService:
             payload["chapters"] = meta.get("chapters")
         except Exception:  # noqa: BLE001
             payload["chapters"] = _loads(row.known_chapters) or []
-        # progress overlay
+        # Progress overlay — scoped to (user_id, profile_id) like everything
+        # else. Filtering on user_id alone merges two profiles that follow the
+        # same series into one overlay and resumes each at the other's page.
         prog = self._db.execute(
-            select(ChapterProgress).where(
-                ChapterProgress.user_id == self._user_id,
-                ChapterProgress.source_id == row.source_id,
-                ChapterProgress.series_key == row.series_key,
+            self._progress_scope(
+                select(ChapterProgress).where(
+                    ChapterProgress.source_id == row.source_id,
+                    ChapterProgress.series_key == row.series_key,
+                )
             )
         ).scalars().all()
         payload["progress"] = {
@@ -288,22 +313,46 @@ class FollowedSeriesService:
         return payload
 
     def continue_reading(self, limit: int = 10) -> list[dict[str, Any]]:
+        """Most recent unfinished chapter per followed series, for this profile.
+
+        Two things this must not do, both of which it used to:
+
+        * read ``chapter_progress`` filtered on ``user_id`` alone — that shows
+          one profile the account's other profiles' reading positions;
+        * read ``chapter_progress`` *directly* — with no ``followed_series`` row
+          in the statement there is nothing to resolve a rating against, so the
+          18+ gate never ran and a mature series surfaced on a gated profile's
+          home strip. The inner join is therefore load-bearing, not an
+          optimisation: it both restricts the strip to series this profile
+          follows and hands ``_visible`` the row it needs.
+        """
         self._require_owner()
-        rows = self._db.execute(
-            select(ChapterProgress)
-            .where(
-                ChapterProgress.user_id == self._user_id,
-                ChapterProgress.is_completed.is_(False),
+        stmt = self._progress_scope(
+            self._scope(
+                select(ChapterProgress, FollowedSeries).join(
+                    FollowedSeries,
+                    and_(
+                        FollowedSeries.user_id == ChapterProgress.user_id,
+                        FollowedSeries.profile_id == ChapterProgress.profile_id,
+                        FollowedSeries.source_id == ChapterProgress.source_id,
+                        FollowedSeries.series_key == ChapterProgress.series_key,
+                    ),
+                )
             )
-            .order_by(ChapterProgress.last_read_at.desc())
-        ).scalars().all()
+        ).where(ChapterProgress.is_completed.is_(False)).order_by(
+            ChapterProgress.last_read_at.desc()
+        )
+
+        gate_open = self._gate_open()
         seen: set[tuple[str, str]] = set()
         out: list[dict[str, Any]] = []
-        for p in rows:
+        for p, follow in self._db.execute(stmt).all():
             k = (p.source_id, p.series_key)
             if k in seen:
                 continue
             seen.add(k)
+            if not gate_open and self._rating(follow) == TRACKER_RATING_MATURE:
+                continue
             out.append(
                 {
                     "source_id": p.source_id,
@@ -339,12 +388,13 @@ class FollowedSeriesService:
         by_status: dict[str, int] = {}
         for r in rows:
             by_status[r.reading_status] = by_status.get(r.reading_status, 0) + 1
+        # Profile-scoped like every other field in this payload — counting the
+        # whole account here made one profile's number jump when a sibling read.
         completed_chapters = self._db.execute(
-            select(func.count())
-            .select_from(ChapterProgress)
-            .where(
-                ChapterProgress.user_id == self._user_id,
-                ChapterProgress.is_completed.is_(True),
+            self._progress_scope(
+                select(func.count())
+                .select_from(ChapterProgress)
+                .where(ChapterProgress.is_completed.is_(True))
             )
         ).scalar_one()
         return {
