@@ -1,5 +1,3 @@
-import { partitionDownloads, summarizeFailures } from "@/features/downloads/grouping";
-import type { DownloadItem, DownloadMetrics } from "@/features/downloads/types";
 import type { CheckSchedule } from "@/features/updates/notifications";
 import type {
   SeriesTracker,
@@ -321,106 +319,6 @@ export function deriveSourceHealth(
   );
 }
 
-// --- download queue ----------------------------------------------------------
-
-export interface QueueHealth {
-  state: HealthState;
-  active: number;
-  queued: number;
-  paused: number;
-  failed: number;
-  /** Chapters transferring right now, so "active" is a list and not just a number. */
-  activeItems: DownloadItem[];
-  /** Failed chapters, newest first — the actionable part. */
-  failures: DownloadItem[];
-  /** Distinct failure messages with a chapter count each. */
-  reasons: { message: string; count: number }[];
-  message: string;
-}
-
-/**
- * Download queue health from the caller's own queue (`GET /downloads`).
- *
- * Counts come from the list, not from `GET /downloads/metrics`: the metrics
- * endpoint counts Download rows across every account
- * (backend/services/download_manager.py:201-207) while the list is filtered to
- * the caller (download_service.py:68-76). Mixing them would produce a page
- * where the tiles and the rows disagree.
- */
-export function deriveQueueHealth(
-  items: DownloadItem[] | undefined,
-  isLoading: boolean,
-): QueueHealth {
-  if (isLoading || !items) {
-    return {
-      state: "unknown",
-      active: 0,
-      queued: 0,
-      paused: 0,
-      failed: 0,
-      activeItems: [],
-      failures: [],
-      reasons: [],
-      message: "Loading the download queue…",
-    };
-  }
-
-  const partition = partitionDownloads(items);
-  const failures = summarizeFailures(items);
-  const active = partition.downloading.length;
-  const queued = partition.queued.length;
-  const paused = partition.paused.length;
-
-  if (failures.count > 0) {
-    return {
-      state: "warn",
-      active,
-      queued,
-      paused,
-      failed: failures.count,
-      activeItems: partition.downloading,
-      failures: failures.items,
-      reasons: failures.reasons.map((reason) => ({
-        message: reason.message,
-        count: reason.count,
-      })),
-      message: `${failures.count} chapter${failures.count === 1 ? "" : "s"} failed across ${failures.seriesCount} series.`,
-    };
-  }
-
-  return {
-    state: "ok",
-    active,
-    queued,
-    paused,
-    failed: 0,
-    activeItems: partition.downloading,
-    failures: [],
-    reasons: [],
-    message:
-      active + queued > 0
-        ? `${active} downloading, ${queued} waiting.`
-        : "The queue is empty and nothing has failed.",
-  };
-}
-
-/**
- * Whether the metrics payload can be shown alongside the caller's own queue.
- * It is instance-wide, so it is labelled as such instead of being presented as
- * "your downloads" — see the note on deriveQueueHealth.
- */
-export function instanceWideTotals(metrics: DownloadMetrics | undefined) {
-  if (!metrics) return null;
-  return {
-    total: metrics.total,
-    completed: metrics.completed,
-    failed: metrics.failed,
-    storageUsedBytes: metrics.storage_used_bytes,
-    storageFreeBytes: metrics.storage_free_bytes,
-    workers: metrics.workers,
-  };
-}
-
 // --- overall -----------------------------------------------------------------
 
 export interface SystemStatusSummary {
@@ -434,14 +332,12 @@ export function deriveSystemSummary(input: {
   backend: BackendHealth;
   checker: CheckerHealth;
   sources: SourceHealth[];
-  queue: QueueHealth;
 }): SystemStatusSummary {
   const sourceState = worstState(input.sources.map((source) => source.state));
   const state = worstState([
     input.backend.state,
     input.checker.state,
     sourceState,
-    input.queue.state,
   ]);
 
   const problems: string[] = [];
@@ -455,7 +351,6 @@ export function deriveSystemSummary(input: {
       problems.push(`${source.name ?? source.source}: ${source.message}`);
     }
   }
-  push(input.queue);
 
   const headline =
     state === "down"

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
-import { coverUrl } from "@/features/library/api";
+import { seriesCoverUrl } from "@/features/library/api";
 import { useContinueReading } from "@/features/library/hooks";
 import { usePrefersReducedMotion } from "@/features/profiles/use-prefers-reduced-motion";
 import { cn } from "@/lib/cn";
@@ -170,11 +170,11 @@ export function SourceBrowseLoading({
               >
                 {slide.map((item) => (
                   <div
-                    key={item.series_id}
+                    key={`${item.source_id}:${item.series_key}`}
                     className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-surface-2"
                   >
                     <Image
-                      src={coverUrl(item.series_id)}
+                      src={seriesCoverUrl({ sourceId: item.source_id, seriesKey: item.series_key })}
                       alt=""
                       fill
                       className="object-cover"

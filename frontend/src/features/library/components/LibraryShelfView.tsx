@@ -6,45 +6,33 @@ import { BookOpen, Compass, Telescope } from "lucide-react";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
-import { useTrackers, useUpdateNotifications } from "@/features/updates/hooks";
-import type { SeriesTracker } from "@/features/updates/types";
 import { ApiError } from "@/types/api";
-import { followedSeriesMeta } from "../followed-meta";
+import { useSeriesList } from "../hooks";
 import { FollowedSeriesCard } from "./FollowedSeriesCard";
 
 /**
- * The Library tab — the followed series, and nothing else.
+ * The Library tab — the followed series, and nothing else (spec §3.4).
  *
- * Deliberately spare (DESIGN_SYSTEM.md hard constraint: "Library tab (mobile)
- * = followed series only"): one heading, one grid of covers. This is the web
- * mirror of `DashboardScreen` on mobile, and it replaced a cinematic marketing
- * home page that showed a hero, a cover marquee, an "about" pitch and a sticky
- * card stack — none of which is what someone opening their own reader wants to
- * land on.
- *
- * Browse Sources is reachable from exactly one place at a time: the empty state
- * when there is nothing followed yet, otherwise the small header action. Two
- * routes to the same destination on one screen is noise.
+ * Source-native: reads `GET /library/series`, the per-profile `followed_series`
+ * set. One heading, one grid of covers. Browse Sources is the single call to
+ * action, in the empty state or the small header button.
  */
 export function LibraryShelfView() {
-  const trackersQuery = useTrackers();
-  const notificationsQuery = useUpdateNotifications();
+  const seriesQuery = useSeriesList({
+    page: 1,
+    per_page: 200,
+    sort: "recently_updated",
+  });
 
-  // Library = followed only; downloaded-only trackers never appear here.
-  const followed = useMemo<SeriesTracker[]>(
-    () => (trackersQuery.data ?? []).filter((t) => t.track_kind === "followed"),
-    [trackersQuery.data],
-  );
-
-  const notifications = useMemo(
-    () => notificationsQuery.data ?? [],
-    [notificationsQuery.data],
+  const followed = useMemo(
+    () => seriesQuery.data?.items ?? [],
+    [seriesQuery.data],
   );
 
   const error =
-    trackersQuery.error instanceof ApiError ? trackersQuery.error.message : null;
+    seriesQuery.error instanceof ApiError ? seriesQuery.error.message : null;
 
-  if (trackersQuery.isLoading) {
+  if (seriesQuery.isLoading) {
     return <ShelfSkeleton />;
   }
 
@@ -86,22 +74,14 @@ export function LibraryShelfView() {
       </FadeIn>
 
       <div className="mt-6 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-        {followed.map((tracker) => (
-          <FollowedSeriesCard
-            key={tracker.id}
-            tracker={tracker}
-            meta={followedSeriesMeta(tracker, notifications)}
-          />
+        {followed.map((series) => (
+          <FollowedSeriesCard key={series.id} series={series} />
         ))}
       </div>
     </div>
   );
 }
 
-/**
- * Empty shelf — every account on this server starts here, so it has to say what
- * to do and offer the one way to do it.
- */
 function ShelfEmpty() {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center px-8 text-center">

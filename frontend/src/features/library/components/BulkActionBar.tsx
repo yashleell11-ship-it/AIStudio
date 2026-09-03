@@ -1,6 +1,6 @@
 "use client";
 
-import { BookCheck, Loader2, Star, StarOff, Trash2, Undo2, X } from "lucide-react";
+import { BookCheck, Loader2, Star, StarOff, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/cn";
@@ -16,14 +16,11 @@ interface BulkActionBarProps {
   progress: BulkProgress | null;
   /** Result of the last run; keeps the bar up after the selection is cleared. */
   message: string | null;
-  /** A bulk remove is undoable while its ids are still remembered. */
-  undoAvailable: boolean;
   tags: Tag[];
   onRun: (action: BulkAction) => void;
   onSelectAll: () => void;
   onClear: () => void;
   onCancel: () => void;
-  onUndo: () => void;
   onDismissMessage: () => void;
 }
 
@@ -34,13 +31,11 @@ export function BulkActionBar({
   running,
   progress,
   message,
-  undoAvailable,
   tags,
   onRun,
   onSelectAll,
   onClear,
   onCancel,
-  onUndo,
   onDismissMessage,
 }: BulkActionBarProps) {
   if (count === 0 && message === null) {
@@ -78,12 +73,6 @@ export function BulkActionBar({
         ) : count === 0 && message ? (
           <div className="flex items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-sm text-fg">{message}</p>
-            {undoAvailable ? (
-              <Button type="button" variant="secondary" size="sm" onClick={onUndo}>
-                <Undo2 className="size-4" />
-                Undo
-              </Button>
-            ) : null}
             <Button
               type="button"
               variant="ghost"
@@ -176,10 +165,10 @@ export function BulkActionBar({
               type="button"
               variant="danger"
               size="sm"
-              onClick={() => onRun({ kind: "membership", inLibrary: false })}
+              onClick={() => onRun({ kind: "unfollow" })}
             >
               <Trash2 className="size-4" />
-              Remove
+              Unfollow
             </Button>
 
             <Button

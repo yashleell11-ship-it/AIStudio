@@ -16,7 +16,7 @@ import {
 import { Kbd } from "@/components/ui/kbd";
 import { mobileNav, moreNav, primaryNav, secondaryNav } from "@/config/nav";
 import { useLogout } from "@/features/auth/hooks";
-import { coverUrl } from "@/features/library/api";
+import { libraryCoverUrl } from "@/features/library/api";
 import { useSearch } from "@/features/library/hooks";
 // From the modules directly, not the `@/features/preferences` barrel: the
 // palette ships in the app shell, and the barrel also re-exports the settings
@@ -173,12 +173,12 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
     const seriesCommands: Command[] = (search.data?.items ?? []).map((series) => ({
       id: `series:${series.id}`,
       title: series.title,
-      subtitle: series.author ?? `${series.chapter_count} chapters`,
+      subtitle: `${series.chapter_count} chapters`,
       group: "Library",
       kind: "series",
       href: `/library/${series.id}`,
-      keywords: series.author ? [series.author] : undefined,
-      imageUrl: coverUrl(series.id),
+      keywords: [series.source_id],
+      imageUrl: libraryCoverUrl(series.cover_url),
     }));
 
     const sourceCommands: Command[] = (sources.data ?? []).map((source) => ({

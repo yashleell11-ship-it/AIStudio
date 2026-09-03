@@ -3,57 +3,36 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
-import { Check, Star } from "lucide-react";
-import { coverUrl } from "@/features/library/api";
+import { Check } from "lucide-react";
+import { libraryCoverUrl } from "@/features/library/api";
 import {
   DEFAULT_LIBRARY_DENSITY,
   type LibraryDensity,
   densityCoverSizes,
 } from "@/features/library/density";
 import { useToggleFavorite } from "@/features/library/hooks";
-import type { SeriesSummary } from "@/features/library/types";
+import type { FollowedSeries } from "@/features/library/types";
 import { cn } from "@/lib/cn";
-import { LibraryMembershipButton } from "./LibraryMembershipButton";
+import { FollowButton } from "./FollowButton";
 
 /** How a card reports a click on its checkbox (or on itself, in select mode). */
 export type SeriesSelectHandler = (seriesId: number, shiftKey: boolean) => void;
 
 export interface SeriesCardSelection {
-  /**
-   * Select mode: the card no longer navigates, and its checkbox is always
-   * visible. Off, the checkbox only appears on hover and the card still links.
-   */
   selecting: boolean;
   selected: boolean;
   onSelect: SeriesSelectHandler;
 }
 
 interface SeriesCardProps {
-  series: SeriesSummary;
+  series: FollowedSeries;
   density?: LibraryDensity;
   selection?: SeriesCardSelection;
 }
 
-function readerHref(series: SeriesSummary): string | null {
-  if (series.chapter_count === 0) {
-    return null;
-  }
+/** Followed-series detail page, keyed by the follow-row id. */
+function detailHref(series: FollowedSeries): string {
   return `/library/${series.id}`;
-}
-
-function languageLabel(language: string): string {
-  switch (language.toLowerCase()) {
-    case "ko":
-      return "manhwa";
-    case "ja":
-      return "manga";
-    case "zh":
-      return "manhua";
-    case "en":
-      return "webtoon";
-    default:
-      return language.toLowerCase();
-  }
 }
 
 function statusBadgeStyle(status: string): string {
@@ -63,15 +42,11 @@ function statusBadgeStyle(status: string): string {
     case "completed":
       return "bg-success/80 text-white";
     case "on_hold":
-    case "on-hold":
       return "bg-accent/85 text-white";
     case "plan_to_read":
-    case "plan":
       return "bg-white/20 text-white";
-    case "unread":
-      return "bg-white/15 text-white";
     default:
-      return "bg-white/20 text-white";
+      return "bg-white/15 text-white";
   }
 }
 
@@ -88,16 +63,6 @@ function checkboxTone(selected: boolean): string {
     : "border-white/50 bg-black/50 text-transparent";
 }
 
-/**
- * The selection checkbox.
- *
- * Two shapes on purpose. Outside select mode the card is still a link, so this
- * is a real `<button role="checkbox">` that swallows the click which would
- * otherwise navigate and reads `shiftKey` off it to extend a range. Inside
- * select mode the whole card is the checkbox, so this becomes a plain indicator
- * — a button nested inside `role="checkbox"` is both invalid and a second
- * target that does the same thing.
- */
 function SelectCheckbox({
   seriesId,
   title,
@@ -115,10 +80,7 @@ function SelectCheckbox({
 }) {
   if (selecting) {
     return (
-      <span
-        aria-hidden
-        className={cn(CHECKBOX_BASE, checkboxTone(selected), className)}
-      >
+      <span aria-hidden className={cn(CHECKBOX_BASE, checkboxTone(selected), className)}>
         <Check className="size-4" />
       </span>
     );
@@ -138,9 +100,6 @@ function SelectCheckbox({
       className={cn(
         CHECKBOX_BASE,
         checkboxTone(selected),
-        // Same reveal as the other cover controls: always there on touch, on
-        // hover on a pointer device. `focus-visible` so tabbing to it does not
-        // land on something invisible.
         selected
           ? "opacity-100"
           : "opacity-100 hover:border-white sm:opacity-0 sm:focus-visible:opacity-100 sm:group-hover:opacity-100",
@@ -158,17 +117,15 @@ function SeriesCardContent({
   density,
   selection,
 }: {
-  series: SeriesSummary;
+  series: FollowedSeries;
   isHovered: boolean;
   density: LibraryDensity;
   selection?: SeriesCardSelection;
 }) {
-  const progress = series.reading_progress;
   const toggleFavorite = useToggleFavorite();
   const selected = selection?.selected ?? false;
-  // Compact packs covers small enough that three overlaid controls would cover
-  // the artwork, so only the checkbox survives there.
   const showRowActions = density !== "compact";
+  const seriesRef = { sourceId: series.source_id, seriesKey: series.series_key };
 
   return (
     <article
@@ -179,7 +136,7 @@ function SeriesCardContent({
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-white/5 transition-all duration-300 group-hover:ring-primary/30">
         <Image
-          src={coverUrl(series.id)}
+          src={libraryCoverUrl(series.cover_url)}
           alt={series.title}
           fill
           className={cn(
@@ -192,8 +149,6 @@ function SeriesCardContent({
 
         <div className="absolute inset-0 bg-gradient-to-t from-void via-void/20 to-transparent" />
 
-        {/* Left corner stays the status badge's. The checkbox joins the existing
-            control cluster on the right instead of fighting it for this spot. */}
         {series.reading_status && !selection?.selecting ? (
           <span
             className={cn(
@@ -232,17 +187,11 @@ function SeriesCardContent({
                 onSelect={selection.onSelect}
               />
             ) : null}
-            {/* Hidden while selecting: a stray click on "remove from library"
-                mid-selection is the one mistake with no undo on screen. */}
             {showRowActions && !selection?.selecting ? (
               <>
-                {/* Every list that renders a card (library, local search hits,
-                    recommendations, similar) INNER JOINs membership
-                    server-side, so the series on screen is on the shelf by
-                    construction. */}
-                <LibraryMembershipButton
-                  seriesId={series.id}
-                  inLibrary
+                <FollowButton
+                  series={seriesRef}
+                  followedId={series.id}
                   compact
                   className={cn(
                     "transition-opacity",
@@ -256,16 +205,17 @@ function SeriesCardContent({
                   onClick={(event) => {
                     event.preventDefault();
                     event.stopPropagation();
-                    toggleFavorite.mutate(series.id);
+                    toggleFavorite.mutate({
+                      followedId: series.id,
+                      isFavorite: !series.is_favorite,
+                    });
                   }}
                   className={cn(
                     "flex size-8 items-center justify-center rounded-full bg-black/50 backdrop-blur-sm transition-opacity",
                     isHovered || series.is_favorite
                       ? "opacity-100"
                       : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
-                    series.is_favorite
-                      ? "text-amber-400"
-                      : "text-white/70 hover:text-white",
+                    series.is_favorite ? "text-amber-400" : "text-white/70 hover:text-white",
                   )}
                   aria-label={
                     series.is_favorite ? "Remove from favorites" : "Add to favorites"
@@ -281,35 +231,6 @@ function SeriesCardContent({
           </div>
         ) : null}
       </div>
-
-      {density === "compact" ? null : (
-        <div className="mt-2 flex items-center justify-between px-0.5 text-xs">
-          <div className="flex items-center gap-1 text-muted">
-            {progress != null ? (
-              <>
-                <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
-                <span className="tabular-nums text-amber-400">
-                  {Math.round(progress.progress_pct)}%
-                </span>
-              </>
-            ) : series.is_favorite ? (
-              <>
-                <Star className="size-3 fill-amber-400 text-amber-400" aria-hidden />
-                <span className="text-amber-400">Favorite</span>
-              </>
-            ) : series.read_chapters > 0 ? (
-              <span>
-                {series.read_chapters}/{series.chapter_count} read
-              </span>
-            ) : (
-              <span className="text-muted/60">—</span>
-            )}
-          </div>
-          <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-muted">
-            {languageLabel(series.language)}
-          </span>
-        </div>
-      )}
     </article>
   );
 }
@@ -319,7 +240,7 @@ export function SeriesCard({
   density = DEFAULT_LIBRARY_DENSITY,
   selection,
 }: SeriesCardProps) {
-  const href = readerHref(series);
+  const href = detailHref(series);
   const [isHovered, setIsHovered] = useState(false);
   const content = (
     <SeriesCardContent
@@ -335,8 +256,6 @@ export function SeriesCard({
     onMouseLeave: () => setIsHovered(false),
   };
 
-  // In select mode the whole card is the checkbox, so it must not also be a
-  // link: a grid where every click both selects and navigates is unusable.
   if (selection?.selecting) {
     return (
       <div
@@ -359,10 +278,6 @@ export function SeriesCard({
     );
   }
 
-  if (!href) {
-    return <div {...hoverProps}>{content}</div>;
-  }
-
   return (
     <Link href={href} {...hoverProps}>
       {content}
@@ -371,10 +286,10 @@ export function SeriesCard({
 }
 
 export function SeriesListItem({ series, selection }: SeriesCardProps) {
-  const href = readerHref(series);
-  const progress = series.reading_progress;
+  const href = detailHref(series);
   const toggleFavorite = useToggleFavorite();
   const selected = selection?.selected ?? false;
+  const seriesRef = { sourceId: series.source_id, seriesKey: series.series_key };
 
   const row = (
     <div
@@ -395,7 +310,7 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
       ) : null}
       <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-surface-2">
         <Image
-          src={coverUrl(series.id)}
+          src={libraryCoverUrl(series.cover_url)}
           alt={series.title}
           fill
           className="object-cover"
@@ -417,19 +332,13 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
             </span>
           ) : null}
         </div>
-        {series.author ? (
-          <p className="mt-0.5 truncate text-sm text-muted">{series.author}</p>
-        ) : null}
-        <p className="mt-1 text-xs text-muted">
-          {series.chapter_count} chapters · {languageLabel(series.language)}
-          {progress != null ? ` · ${Math.round(progress.progress_pct)}% read` : ""}
-        </p>
+        <p className="mt-1 text-xs text-muted">{series.chapter_count} chapters</p>
       </div>
       {selection?.selecting ? null : (
         <div className="flex shrink-0 items-center gap-1.5">
-          <LibraryMembershipButton
-            seriesId={series.id}
-            inLibrary
+          <FollowButton
+            series={seriesRef}
+            followedId={series.id}
             compact
             className="size-9 bg-white/5 hover:bg-white/10"
           />
@@ -438,7 +347,10 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
             onClick={(event) => {
               event.preventDefault();
               event.stopPropagation();
-              toggleFavorite.mutate(series.id);
+              toggleFavorite.mutate({
+                followedId: series.id,
+                isFavorite: !series.is_favorite,
+              });
             }}
             className={cn(
               "flex size-9 items-center justify-center rounded-full bg-white/5 transition-colors hover:bg-white/10",
@@ -472,10 +384,6 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
         {row}
       </div>
     );
-  }
-
-  if (!href) {
-    return row;
   }
 
   return <Link href={href}>{row}</Link>;

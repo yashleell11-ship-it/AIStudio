@@ -1,7 +1,7 @@
 export { SourceReader } from "./components/SourceReader";
-export { BasicReader } from "./components/BasicReader";
 export { ChapterReader } from "./components/ChapterReader";
-export { readerApi, readerPageImageUrl } from "./api";
+export { readerApi, manifestToChapterContent } from "./api";
+export { readerChapterHref, seriesPageHref } from "./reader-link";
 export * from "./hooks";
 export * from "./types";
 export { useReaderStore } from "./store";

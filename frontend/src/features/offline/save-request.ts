@@ -1,5 +1,6 @@
 import type { StorageScope } from "@/lib/scoped-storage";
 import type { ReaderChapterContent } from "@/features/reader/types";
+import { readerChapterHref } from "@/features/reader/reader-link";
 import type { SaveChapterRequest } from "./protocol";
 
 /**
@@ -7,29 +8,24 @@ import type { SaveChapterRequest } from "./protocol";
  *
  * Pure on purpose: the URLs it produces have to be byte-identical to the ones
  * the app will later ask for, because Cache Storage matches on the exact URL.
- * That makes this the one place where the reader's URL construction is
- * duplicated, and the one place a test can prove the duplication is faithful.
  *
- * The three shapes it must reproduce (all built by `services/http.ts`'s
- * `buildUrl`, which resolves a path against the API base and then appends
- * query parameters):
- *   payload   {apiBase}/reader/chapter/{id}            — features/reader/api.ts
- *   adjacency {apiBase}/reader/chapter/{id}/adjacent?direction=previous|next
- *   page      {apiBase}/reader/page/{pageId}/image     — readerPageImageUrl
+ * Source-native (spec §3.2):
+ *   payload  {apiBase}/reader/chapter/manifest?source=&series=&chapter=
+ *   pages    absolute source-proxy URLs straight from the manifest
+ *
+ * TODO(1b): the service worker URL matcher (`sw.js` / `sw-policy.js`) and the
+ * offline hooks/tests still need repointing to these shapes — that is the
+ * dedicated later slice (spec §3.2, step 5).
  */
 
 /** Unique per chapter. The cache it lives in is already per (user, profile). */
-export function chapterCacheKey(chapterId: string | number): string {
-  return `chapter:${chapterId}`;
+export function chapterCacheKey(
+  ref: { sourceId: string; seriesKey: string; chapterKey: string } | string,
+): string {
+  if (typeof ref === "string") return `chapter:${ref}`;
+  return `chapter:${ref.sourceId}:${ref.seriesKey}:${ref.chapterKey}`;
 }
 
-/**
- * Absolute form of a URL the app will request.
- *
- * `env.apiUrl` is the same-origin path `/api` in production, so page image URLs
- * arrive here relative. Cache Storage keys are always absolute, so a relative
- * key would simply never match the request the reader makes.
- */
 export function absoluteUrl(url: string, origin: string): string {
   try {
     return new URL(url, origin).toString();
@@ -44,20 +40,25 @@ export interface SaveRequestInput {
   /** Absolute API base, e.g. `https://host/api`, without a trailing slash. */
   apiBase: string;
   origin: string;
-  /** The raw `/reader/chapter/{id}` body, when the page already holds it. */
+  /** The raw manifest body, when the page already holds it. */
   payloadJson: string | null;
 }
 
 /**
- * Chapters served by an online source are not savable.
- *
- * Their pages are scraped from the upstream scanlation site: cross-origin, no
- * CORS, so the bytes come back opaque and a stored opaque response is a cached
- * failure that can never be told apart from a success. Saving is therefore
- * offered only for chapters the library actually holds.
+ * A chapter is savable once its page list has resolved. (Every chapter is now a
+ * source chapter; the SW is the only Cache Storage writer.)
  */
 export function isSavableChapter(chapter: ReaderChapterContent): boolean {
-  return chapter.mode === "local" && chapter.pages.length > 0;
+  return chapter.pages.length > 0;
+}
+
+function manifestUrl(base: string, chapter: ReaderChapterContent): string {
+  const params = new URLSearchParams({
+    source: chapter.sourceId,
+    series: chapter.seriesKey,
+    chapter: chapter.chapterKey,
+  });
+  return `${base}/reader/chapter/manifest?${params.toString()}`;
 }
 
 export function buildSaveRequest({
@@ -68,24 +69,28 @@ export function buildSaveRequest({
   payloadJson,
 }: SaveRequestInput): SaveChapterRequest {
   const base = apiBase.replace(/\/+$/, "");
-  const payloadUrl = `${base}/reader/chapter/${chapter.id}`;
+  const payloadUrl = manifestUrl(base, chapter);
 
   return {
-    key: chapterCacheKey(chapter.id),
-    chapterId: chapter.id,
-    seriesId: chapter.seriesId,
+    key: chapterCacheKey(chapter),
+    sourceId: chapter.sourceId,
+    seriesKey: chapter.seriesKey,
+    chapterKey: chapter.chapterKey,
     title: chapter.title,
     seriesTitle: chapter.seriesTitle ?? null,
     scope,
     profileId: scope.profileId,
-    documentUrl: absoluteUrl(`/reader/${chapter.seriesId}/${chapter.id}`, origin),
+    documentUrl: absoluteUrl(
+      readerChapterHref({
+        sourceId: chapter.sourceId,
+        seriesKey: chapter.seriesKey,
+        chapterKey: chapter.chapterKey,
+      }),
+      origin,
+    ),
     payloadUrl,
     payloadJson,
     imageUrls: chapter.pages.map((page) => absoluteUrl(page.imageUrl, origin)),
-    extraUrls: [
-      payloadUrl,
-      `${base}/reader/chapter/${chapter.id}/adjacent?direction=previous`,
-      `${base}/reader/chapter/${chapter.id}/adjacent?direction=next`,
-    ],
+    extraUrls: [payloadUrl],
   };
 }

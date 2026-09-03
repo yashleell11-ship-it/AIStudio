@@ -8,7 +8,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
-import { useQueueChapters, useQueueSeries } from "@/features/downloads/hooks";
 import {
   useFollowedTracker,
   useFollowSeries,
@@ -40,13 +39,10 @@ export function SourceSeriesDetailView({
 }: SourceSeriesDetailViewProps) {
   const seriesQuery = useSourceSeriesDetail(sourceId, seriesId);
   const chaptersQuery = useSourceChapters(sourceId, seriesId);
-  const queueChapters = useQueueChapters();
-  const queueSeries = useQueueSeries();
   const followedTracker = useFollowedTracker(sourceId, seriesId);
   const followMutation = useFollowSeries();
   const unfollowMutation = useUnfollowTracker();
   const queryClient = useQueryClient();
-  const [selectedChapterIds, setSelectedChapterIds] = useState<Set<string>>(new Set());
   const [feedback, setFeedback] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<ChapterSortOrder>("newest");
   const [migrateOpen, setMigrateOpen] = useState(false);
@@ -88,11 +84,6 @@ export function SourceSeriesDetailView({
     }
   }, [chapters, queryClient, seriesId, sourceId]);
 
-  const chapterTitleMap = useMemo(
-    () => Object.fromEntries(chapters.map((chapter) => [chapter.id, chapter.title])),
-    [chapters],
-  );
-
   if (seriesQuery.isLoading) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-muted">
@@ -130,65 +121,6 @@ export function SourceSeriesDetailView({
     prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapterId);
   };
 
-  const toggleChapter = (chapterId: string) => {
-    setSelectedChapterIds((current) => {
-      const next = new Set(current);
-      if (next.has(chapterId)) {
-        next.delete(chapterId);
-      } else {
-        next.add(chapterId);
-      }
-      return next;
-    });
-  };
-
-  const queueDownload = async (chapterIds: string[], label: string) => {
-    if (chapterIds.length === 0) {
-      setFeedback("Select at least one chapter.");
-      return;
-    }
-    setFeedback(null);
-    try {
-      const result = await queueChapters.mutateAsync({
-        source_id: sourceId,
-        series_id: seriesId,
-        chapter_ids: chapterIds,
-        series_title: series.title,
-        chapter_titles: chapterTitleMap,
-      });
-      const queued = result.queued.length;
-      const skipped = result.skipped.length;
-      if (queued === 0 && skipped > 0) {
-        setFeedback(`${label}: all selected chapters are already queued or downloaded.`);
-      } else {
-        setFeedback(
-          `${label}: queued ${queued} chapter${queued === 1 ? "" : "s"}` +
-            (skipped > 0 ? `, skipped ${skipped} duplicate${skipped === 1 ? "" : "s"}` : "") +
-            ".",
-        );
-      }
-    } catch (error) {
-      setFeedback(error instanceof ApiError ? error.message : "Failed to queue download.");
-    }
-  };
-
-  const downloadSeries = async () => {
-    setFeedback(null);
-    try {
-      const result = await queueSeries.mutateAsync({
-        source_id: sourceId,
-        series_id: seriesId,
-      });
-      setFeedback(
-        `Queued ${result.queued.length} chapters` +
-          (result.skipped.length > 0 ? `, skipped ${result.skipped.length} duplicates` : "") +
-          ".",
-      );
-    } catch (error) {
-      setFeedback(error instanceof ApiError ? error.message : "Failed to queue series download.");
-    }
-  };
-
   const toggleFollow = async () => {
     setFeedback(null);
     try {
@@ -208,7 +140,6 @@ export function SourceSeriesDetailView({
     }
   };
 
-  const downloadBusy = queueChapters.isPending || queueSeries.isPending;
   const followBusy = followMutation.isPending || unfollowMutation.isPending;
   const isFollowed = Boolean(followedTracker);
 
@@ -292,21 +223,6 @@ export function SourceSeriesDetailView({
                 Move to another source
               </Button>
             ) : null}
-            <Button variant="secondary" disabled={downloadBusy || chapters.length === 0} onClick={downloadSeries}>
-              Download Entire Series
-            </Button>
-            <Button
-              variant="secondary"
-              disabled={downloadBusy || selectedChapterIds.size === 0}
-              onClick={() =>
-                queueDownload(Array.from(selectedChapterIds), "Download selected")
-              }
-            >
-              Download Selected Chapters
-            </Button>
-            <Link href="/downloads">
-              <Button variant="ghost">View Downloads</Button>
-            </Link>
           </div>
           {feedback && <p className="mt-3 text-sm text-muted">{feedback}</p>}
         </div>
@@ -371,7 +287,6 @@ export function SourceSeriesDetailView({
             </div>
           ) : (
             sortedChapters.map((chapter) => {
-              const selected = selectedChapterIds.has(chapter.id);
               const label = chapterLabel(chapter);
               const progress = progressMap[chapter.id] ?? null;
               const completed = progress?.completed ?? false;
@@ -394,13 +309,7 @@ export function SourceSeriesDetailView({
                     completed && "bg-void/40",
                   )}
                 >
-                  <label className="flex min-w-0 flex-1 cursor-pointer items-center gap-3">
-                    <input
-                      type="checkbox"
-                      checked={selected}
-                      onChange={() => toggleChapter(chapter.id)}
-                      className="h-4 w-4 rounded border-border"
-                    />
+                  <div className="min-w-0 flex-1">
                     <div>
                       <p className={cn("font-medium text-fg", completed && "text-fg/50")}>
                         {label.primary}
@@ -416,16 +325,8 @@ export function SourceSeriesDetailView({
                         </p>
                       )}
                     </div>
-                  </label>
+                  </div>
                   <div className="flex flex-wrap gap-2">
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      disabled={downloadBusy}
-                      onClick={() => queueDownload([chapter.id], "Download chapter")}
-                    >
-                      Download Chapter
-                    </Button>
                     <Link
                       href={sourceReaderChapterPath(sourceId, seriesId, chapter.id)}
                       onMouseEnter={() => prefetchChapter(chapter.id)}

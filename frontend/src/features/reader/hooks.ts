@@ -4,68 +4,53 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import { readerApi, toReaderChapterContent } from "./api";
-import { readerDebug } from "./debug";
+import type { ChapterId } from "@/types/api";
+import { manifestToChapterContent, readerApi, type ProgressPush } from "./api";
 import type { ReaderPage } from "./types";
 
 const READER_KEY = ["reader"] as const;
 const READER_CHAPTER_STALE_MS = 5 * 60_000;
 
-export function readerChapterQueryKey(chapterId: number) {
-  return [...READER_KEY, "chapter", chapterId] as const;
+export function readerManifestQueryKey(ref: ChapterId) {
+  return [
+    ...READER_KEY,
+    "manifest",
+    ref.sourceId,
+    ref.seriesKey,
+    ref.chapterKey,
+  ] as const;
 }
 
-export function prefetchReaderChapter(
-  queryClient: ReturnType<typeof useQueryClient>,
-  chapterId: number,
-) {
-  if (chapterId <= 0) return;
-  readerDebug("api-prefetch-started", { chapterId, scope: "local" });
-  void queryClient
-    .prefetchQuery({
-      queryKey: readerChapterQueryKey(chapterId),
-      queryFn: () => readerApi.getChapter(chapterId),
-      staleTime: READER_CHAPTER_STALE_MS,
-    })
-    .then(() => {
-      readerDebug("api-prefetch-complete", { chapterId, scope: "local" });
-    });
-}
-
-/**
- * Pull a chapter into the cache and hand back its pages.
- *
- * Unlike `prefetchReaderChapter` this resolves the payload, which the reader
- * needs so it can warm the first few images of the chapter it is about to
- * reach. `ensureQueryData` reuses whatever is already cached rather than
- * re-fetching a chapter the user just came from.
- */
-export async function ensureReaderChapterPages(
-  queryClient: QueryClient,
-  chapterId: number,
-): Promise<ReadonlyArray<ReaderPage>> {
-  if (chapterId <= 0) return [];
-  const payload = await queryClient.ensureQueryData({
-    queryKey: readerChapterQueryKey(chapterId),
-    queryFn: () => readerApi.getChapter(chapterId),
-  });
-  return toReaderChapterContent(payload).pages;
-}
-
-export function useReaderChapter(chapterId: number) {
+export function useChapterManifest(ref: ChapterId | null) {
   return useQuery({
-    queryKey: readerChapterQueryKey(chapterId),
-    queryFn: async () => {
-      readerDebug("api-request-started", { chapterId, scope: "local" });
-      const payload = await readerApi.getChapter(chapterId);
-      readerDebug("api-response-received", {
-        chapterId,
-        scope: "local",
-        pageCount: payload.page_count,
-      });
-      return payload;
-    },
-    enabled: chapterId > 0,
+    queryKey: ref
+      ? readerManifestQueryKey(ref)
+      : [...READER_KEY, "manifest", "none"],
+    queryFn: () => readerApi.manifest(ref!),
+    enabled: ref !== null,
+    staleTime: READER_CHAPTER_STALE_MS,
+  });
+}
+
+/** Warm a chapter's manifest into the cache and hand back its pages. */
+export async function ensureChapterPages(
+  queryClient: QueryClient,
+  ref: ChapterId,
+): Promise<ReadonlyArray<ReaderPage>> {
+  const manifest = await queryClient.ensureQueryData({
+    queryKey: readerManifestQueryKey(ref),
+    queryFn: () => readerApi.manifest(ref),
+  });
+  return manifestToChapterContent(manifest).pages;
+}
+
+export function prefetchChapterManifest(
+  queryClient: QueryClient,
+  ref: ChapterId,
+) {
+  void queryClient.prefetchQuery({
+    queryKey: readerManifestQueryKey(ref),
+    queryFn: () => readerApi.manifest(ref),
     staleTime: READER_CHAPTER_STALE_MS,
   });
 }
@@ -73,47 +58,33 @@ export function useReaderChapter(chapterId: number) {
 export function useSaveProgress() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: readerApi.saveProgress,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["library"] });
+    mutationFn: ({
+      ref,
+      body,
+    }: {
+      ref: ChapterId;
+      body: Omit<ProgressPush, "source_id" | "series_key" | "chapter_key">;
+    }) => readerApi.saveProgress(ref, body),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ["library"] });
     },
   });
 }
 
 export function useAddBookmark() {
-  return useMutation({
-    mutationFn: readerApi.addBookmark,
-  });
-}
-
-export function bookmarksQueryKey() {
-  return [...READER_KEY, "bookmarks"] as const;
-}
-
-export function useBookmarks() {
-  return useQuery({
-    queryKey: bookmarksQueryKey(),
-    queryFn: () => readerApi.listBookmarks(),
-  });
-}
-
-export function useDeleteBookmark() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: readerApi.deleteBookmark,
+    mutationFn: ({
+      ref,
+      page,
+      note,
+    }: {
+      ref: ChapterId;
+      page: number;
+      note?: string;
+    }) => readerApi.addBookmark(ref, page, note),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: bookmarksQueryKey() });
+      void queryClient.invalidateQueries({ queryKey: [...READER_KEY, "bookmarks"] });
     },
-  });
-}
-
-export function useAdjacentChapter(
-  chapterId: number,
-  direction: "previous" | "next",
-) {
-  return useQuery({
-    queryKey: [...READER_KEY, "adjacent", chapterId, direction],
-    queryFn: () => readerApi.getAdjacentChapter(chapterId, direction),
-    enabled: chapterId > 0,
   });
 }

@@ -1,226 +1,128 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { toRemoteReaderChapterContent } from "../api";
-import { readerDebug } from "../debug";
-import { readerSeriesKey } from "../preferences";
-import { seriesPageHref } from "../series-link";
-import { ChapterReader } from "./ChapterReader";
-import { useDownloads, useQueueChapters } from "@/features/downloads/hooks";
-import { sourcesApi } from "@/features/sources/api";
-import { setSourceChapterProgress } from "@/features/sources/source-progress";
+import type { ChapterId } from "@/types/api";
+import { manifestToChapterContent } from "../api";
 import {
-  sourceReaderChapterPath,
-  sourceReaderChapterQueryKey,
-  useSourceChapters,
-  useSourceReaderChapter,
-} from "@/features/sources/hooks";
+  ensureChapterPages,
+  useAddBookmark,
+  useChapterManifest,
+  useSaveProgress,
+} from "../hooks";
+import { readerChapterHref, seriesPageHref } from "../reader-link";
+import { readerSeriesKey } from "../preferences";
+import { ChapterReader } from "./ChapterReader";
 
 interface SourceReaderProps {
   sourceId: string;
-  seriesId: string;
-  chapterId: string;
+  seriesKey: string;
+  chapterKey: string;
   initialPage?: number;
 }
 
-interface NetworkInformation {
-  type?: string;
-  saveData?: boolean;
-}
+const PROGRESS_SAVE_MS = 500;
 
-const ACTIVE_DOWNLOAD_STATES = ["queued", "downloading", "completed"];
-const PROGRESS_SAVE_MS = 400;
-
-/** Ascending reading order (lowest chapter number first, unnumbered last). */
-function byReadingOrder<T extends { number: number | null }>(a: T, b: T): number {
-  if (a.number == null && b.number == null) return 0;
-  if (a.number == null) return 1;
-  if (b.number == null) return -1;
-  return a.number - b.number;
-}
-
+/**
+ * The unified source-native reader (spec §3.3). Every chapter streams from the
+ * source page proxy; the service worker transparently answers the same URLs
+ * from Cache Storage when the chapter is downloaded.
+ *
+ * TODO(1b): reader viewing-experience polish (seamless pages, cinema mode,
+ * seamless chapter transitions, mood tint, continue-hero) is the dedicated
+ * later slice — spec §3.3.1–8, step 6.
+ */
 export function SourceReader({
   sourceId,
-  seriesId,
-  chapterId,
+  seriesKey,
+  chapterKey,
   initialPage = 1,
 }: SourceReaderProps) {
   const queryClient = useQueryClient();
-  const chapterQuery = useSourceReaderChapter(sourceId, seriesId, chapterId);
-  const chaptersQuery = useSourceChapters(sourceId, seriesId);
-  const downloadsQuery = useDownloads();
-  const queueChapters = useQueueChapters();
+  const ref: ChapterId = { sourceId, seriesKey, chapterKey };
+  const manifestQuery = useChapterManifest(ref);
+  const saveProgress = useSaveProgress();
+  const addBookmark = useAddBookmark();
 
-  const autoQueuedRef = useRef<string | null>(null);
-  const progressTimerRef = useRef<number | null>(null);
-  const [autoQueueNotice, setAutoQueueNotice] = useState(false);
+  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSavedPage = useRef(0);
 
-  useEffect(() => {
-    readerDebug("route-entered", {
-      scope: "source",
+  const chapter = useMemo(
+    () =>
+      manifestQuery.data ? manifestToChapterContent(manifestQuery.data) : undefined,
+    [manifestQuery.data],
+  );
+
+  const previousChapterHref = chapter?.previousChapterKey
+    ? readerChapterHref({ sourceId, seriesKey, chapterKey: chapter.previousChapterKey })
+    : null;
+  const nextChapterHref = chapter?.nextChapterKey
+    ? readerChapterHref({ sourceId, seriesKey, chapterKey: chapter.nextChapterKey })
+    : null;
+
+  const nextChapterKey = chapter?.nextChapterKey ?? null;
+  const preloadNextChapter = useCallback(async () => {
+    if (!nextChapterKey) return [];
+    return ensureChapterPages(queryClient, {
       sourceId,
-      seriesId,
-      chapterId,
-      initialPage,
+      seriesKey,
+      chapterKey: nextChapterKey,
     });
-  }, [sourceId, seriesId, chapterId, initialPage]);
+  }, [nextChapterKey, queryClient, seriesKey, sourceId]);
 
-  useEffect(() => {
-    if (!chapterQuery.data) return;
-    readerDebug("reader-response", {
-      scope: "source",
-      sourceId,
-      chapterId,
-      pageCount: chapterQuery.data.page_count,
-      pagesLength: chapterQuery.data.pages?.length ?? 0,
-      status: chapterQuery.status,
-      fetchStatus: chapterQuery.fetchStatus,
-    });
-  }, [
-    chapterId,
-    chapterQuery.data,
-    chapterQuery.fetchStatus,
-    chapterQuery.status,
-    sourceId,
-  ]);
-
-  // Download-while-reading: best-effort auto-queue of the next two chapters,
-  // once per chapter mount, skipping any already queued/downloaded.
-  useEffect(() => {
-    const chapters = chaptersQuery.data;
-    if (!chapters || chapters.length === 0) return;
-    if (downloadsQuery.data === undefined) return; // wait so dedup is accurate
-    if (autoQueuedRef.current === chapterId) return;
-
-    const connection = (navigator as Navigator & { connection?: NetworkInformation })
-      .connection;
-    if (connection?.type === "cellular" || connection?.saveData === true) {
-      autoQueuedRef.current = chapterId; // respect data-saver; don't retry
-      return;
-    }
-
-    const ordered = [...chapters].sort(byReadingOrder);
-    const index = ordered.findIndex((chapter) => chapter.id === chapterId);
-    if (index === -1) return; // current chapter not in list yet; retry when it is
-    autoQueuedRef.current = chapterId;
-
-    const nextChapters = ordered.slice(index + 1, index + 3);
-    if (nextChapters.length === 0) return;
-
-    const downloads = downloadsQuery.data;
-    const alreadyQueued = (id: string) =>
-      downloads.some(
-        (item) =>
-          item.source === sourceId &&
-          item.series_id === seriesId &&
-          item.chapter_id === id &&
-          (ACTIVE_DOWNLOAD_STATES.includes(item.status) ||
-            item.local_chapter_id != null),
-      );
-
-    const fresh = nextChapters.filter((chapter) => !alreadyQueued(chapter.id));
-    if (fresh.length === 0) return;
-
-    queueChapters
-      .mutateAsync({
-        source_id: sourceId,
-        series_id: seriesId,
-        chapter_ids: fresh.map((chapter) => chapter.id),
-        chapter_titles: Object.fromEntries(
-          fresh.map((chapter) => [chapter.id, chapter.title]),
-        ),
-      })
-      .then((result) => {
-        if (result.queued.length > 0) {
-          setAutoQueueNotice(true);
-          window.setTimeout(() => setAutoQueueNotice(false), 4000);
-        }
-      })
-      .catch(() => {
-        // Best-effort prefetch; failures are silent.
+  const persistProgress = useCallback(
+    (page: number, pageCount: number) => {
+      if (page <= 0 || page === lastSavedPage.current) return;
+      lastSavedPage.current = page;
+      saveProgress.mutate({
+        ref,
+        body: {
+          chapter_number: chapter?.chapterNumber ?? null,
+          last_page: page,
+          page_count: pageCount,
+          is_completed: pageCount > 0 && page >= pageCount,
+        },
       });
-  }, [
-    chaptersQuery.data,
-    downloadsQuery.data,
-    chapterId,
-    seriesId,
-    sourceId,
-    queueChapters,
-  ]);
-
-  useEffect(
-    () => () => {
-      if (progressTimerRef.current) {
-        clearTimeout(progressTimerRef.current);
-        progressTimerRef.current = null;
-      }
     },
-    [],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [chapter?.chapterNumber, chapterKey, saveProgress, seriesKey, sourceId],
   );
 
   const handlePageProgress = useCallback(
     (page: number, pageCount: number) => {
-      if (progressTimerRef.current) {
-        clearTimeout(progressTimerRef.current);
-      }
-      progressTimerRef.current = window.setTimeout(() => {
-        setSourceChapterProgress(sourceId, seriesId, chapterId, { page, pageCount });
-        progressTimerRef.current = null;
-      }, PROGRESS_SAVE_MS);
+      if (progressTimer.current) clearTimeout(progressTimer.current);
+      progressTimer.current = setTimeout(
+        () => persistProgress(page, pageCount),
+        PROGRESS_SAVE_MS,
+      );
     },
-    [sourceId, seriesId, chapterId],
+    [persistProgress],
   );
 
-  const chapter = useMemo(
-    () =>
-      chapterQuery.data ? toRemoteReaderChapterContent(chapterQuery.data) : undefined,
-    [chapterQuery.data],
+  const handleBookmark = useCallback(
+    (page: number) => {
+      addBookmark.mutate({ ref, page });
+    },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [addBookmark, chapterKey, seriesKey, sourceId],
   );
-
-  const previousChapterHref = chapter?.previousChapterId
-    ? sourceReaderChapterPath(sourceId, seriesId, chapter.previousChapterId)
-    : null;
-  const nextChapterHref = chapter?.nextChapterId
-    ? sourceReaderChapterPath(sourceId, seriesId, chapter.nextChapterId)
-    : null;
-
-  // Reuses the reader chapter's own query entry, so arriving at the next chapter
-  // is a cache read rather than a second scrape of the same page list.
-  const nextChapterId = chapter?.nextChapterId ?? null;
-  const preloadNextChapter = useCallback(async () => {
-    if (!nextChapterId) return [];
-    const payload = await queryClient.ensureQueryData({
-      queryKey: sourceReaderChapterQueryKey(sourceId, seriesId, nextChapterId),
-      queryFn: () => sourcesApi.getReaderChapter(sourceId, seriesId, nextChapterId),
-    });
-    return toRemoteReaderChapterContent(payload).pages;
-  }, [nextChapterId, queryClient, seriesId, sourceId]);
 
   return (
-    <>
-      {autoQueueNotice && (
-        <div
-          className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 rounded-full border border-border/60 bg-surface-2/90 px-4 py-2 text-sm text-fg shadow-lg backdrop-blur"
-          role="status"
-        >
-          Downloading next chapters…
-        </div>
-      )}
-      <ChapterReader
-        chapter={chapter}
-        isLoading={chapterQuery.isPending && chapterQuery.data === undefined}
-        error={chapterQuery.error}
-        scrollKey={`${sourceId}:${seriesId}:${chapterId}`}
-        seriesKey={readerSeriesKey(sourceId, seriesId)}
-        initialPage={initialPage}
-        previousChapterHref={previousChapterHref}
-        nextChapterHref={nextChapterHref}
-        seriesHref={seriesPageHref({ scope: "source", sourceId, seriesId })}
-        showBookmark={false}
-        onPageProgress={handlePageProgress}
-        preloadNextChapter={preloadNextChapter}
-      />
-    </>
+    <ChapterReader
+      chapter={chapter}
+      isLoading={manifestQuery.isPending && manifestQuery.data === undefined}
+      error={manifestQuery.error}
+      scrollKey={`${sourceId}:${seriesKey}:${chapterKey}`}
+      seriesKey={readerSeriesKey(sourceId, seriesKey)}
+      initialPage={initialPage}
+      previousChapterHref={previousChapterHref}
+      nextChapterHref={nextChapterHref}
+      seriesHref={seriesPageHref({ sourceId, seriesKey })}
+      onBookmark={handleBookmark}
+      onPageProgress={handlePageProgress}
+      preloadNextChapter={preloadNextChapter}
+      bookmarkPending={addBookmark.isPending}
+      showBookmark
+    />
   );
 }

@@ -7,7 +7,7 @@ import { isLocalSearchGroup, searchGroupNote } from "@/features/sources/global-s
 import type { GlobalSearchGroup } from "@/features/sources/types";
 import { cn } from "@/lib/cn";
 import { GlobalSearchResultCard } from "./GlobalSearchResultCard";
-import { SearchResultCardSkeleton } from "./SearchResultCard";
+import { SearchResultCardSkeleton } from "./GlobalSearchResultCard";
 
 interface GlobalSearchGroupSectionProps {
   group: GlobalSearchGroup;
