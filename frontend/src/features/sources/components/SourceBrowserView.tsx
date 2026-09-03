@@ -8,10 +8,12 @@ import { useLoadMoreOnScroll } from "@/lib/use-load-more-on-scroll";
 import { useShortcut } from "@/lib/keyboard";
 import {
   useInfiniteSourceSeries,
+  useRefreshSourceBrowse,
   useSourceBrowseModes,
   useSourceGenres,
   useSources,
 } from "../hooks";
+import { BrowseFreshness } from "./BrowseFreshness";
 import { SourceBrowseLoading } from "./SourceBrowseLoading";
 import { SourceLogo } from "./SourceLogo";
 import { SourceSeriesGrid } from "./SourceSeriesGrid";
@@ -83,6 +85,15 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
     [seriesQuery.data?.pages],
   );
   const total = seriesQuery.data?.pages[0]?.total ?? items.length;
+  // Page 1 is the one the server cached; later pages carry their own block but
+  // the listing as a whole is only as fresh as where it started.
+  const browseCache = seriesQuery.data?.pages[0]?.cache;
+
+  const refreshBrowse = useRefreshSourceBrowse(sourceId, {
+    query,
+    sort: activeSort,
+    genre,
+  });
 
   const updateGenre = useCallback(
     (nextGenreId: string) => {
@@ -145,11 +156,18 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
                 {sourceName}
               </h1>
               {!seriesQuery.isLoading && items.length > 0 ? (
-                <p className="mt-0.5 text-xs text-muted">
-                  {items.length}
-                  {total > items.length ? ` of ${total}` : ""} series
-                  {query ? ` · “${query}”` : ""}
-                </p>
+                <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
+                  <span>
+                    {items.length}
+                    {total > items.length ? ` of ${total}` : ""} series
+                    {query ? ` · “${query}”` : ""}
+                  </span>
+                  <BrowseFreshness
+                    cache={browseCache}
+                    onRefresh={() => refreshBrowse.mutate()}
+                    refreshing={refreshBrowse.isPending}
+                  />
+                </div>
               ) : null}
             </div>
           </div>

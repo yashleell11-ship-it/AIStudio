@@ -62,7 +62,14 @@ export const sourcesApi = {
 
   listSeries: (
     sourceId: string,
-    params: { page?: number; query?: string; sort?: string; genre?: string },
+    params: {
+      page?: number;
+      query?: string;
+      sort?: string;
+      genre?: string;
+      /** Bypass the server's browse cache and refetch from the connector. */
+      refresh?: boolean;
+    },
   ) =>
     http.get<PaginatedSourceSeries>(
       `/sources/${encodeURIComponent(sourceId)}/series`,

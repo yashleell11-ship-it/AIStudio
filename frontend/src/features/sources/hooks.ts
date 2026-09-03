@@ -17,6 +17,7 @@ import {
 } from "./global-search";
 import type {
   GlobalSearchResponse,
+  PaginatedSourceSeries,
   SourceChapterSummary,
   SourcePin,
 } from "./types";
@@ -240,35 +241,106 @@ export function useSourceSeries(
   });
 }
 
+export interface SourceBrowseFacets {
+  /** Empty string for a plain browse; anything else is a search. */
+  query: string;
+  sort?: string;
+  genre?: string;
+}
+
+/** The facet values as they reach the API — and as they key the cache. */
+export function normalizeBrowseFacets(facets: SourceBrowseFacets) {
+  return {
+    query: facets.query.trim() || undefined,
+    sort: facets.sort && facets.sort !== "default" ? facets.sort : undefined,
+    genre: facets.genre?.trim() || undefined,
+  };
+}
+
+export function sourceSeriesInfiniteQueryKey(
+  sourceId: string,
+  facets: SourceBrowseFacets,
+) {
+  const normalized = normalizeBrowseFacets(facets);
+  return [
+    ...SOURCES_KEY,
+    sourceId,
+    "series",
+    "infinite",
+    normalized.query ?? "",
+    normalized.sort ?? "",
+    normalized.genre ?? "",
+  ] as const;
+}
+
 export function useInfiniteSourceSeries(
   sourceId: string,
   query: string,
   sort?: string,
   genre?: string,
 ) {
-  const normalizedQuery = query.trim();
-  const normalizedSort = sort && sort !== "default" ? sort : undefined;
-  const normalizedGenre = genre?.trim() || undefined;
+  const normalized = normalizeBrowseFacets({ query, sort, genre });
   return useInfiniteQuery({
-    queryKey: [
-      ...SOURCES_KEY,
-      sourceId,
-      "series",
-      "infinite",
-      normalizedQuery,
-      normalizedSort ?? "",
-      normalizedGenre ?? "",
-    ],
+    queryKey: sourceSeriesInfiniteQueryKey(sourceId, { query, sort, genre }),
     queryFn: ({ pageParam }) =>
       sourcesApi.listSeries(sourceId, {
         page: pageParam,
-        query: normalizedQuery || undefined,
-        sort: normalizedSort,
-        genre: normalizedGenre,
+        query: normalized.query,
+        sort: normalized.sort,
+        genre: normalized.genre,
       }),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => (lastPage.has_more ? lastPage.page + 1 : undefined),
     enabled: Boolean(sourceId),
+  });
+}
+
+/**
+ * Replace a browse listing with a freshly refetched first page.
+ *
+ * Deliberately collapses to ONE page rather than merging: `refresh=true`
+ * bypasses the server's browse cache, so re-running it for every page the
+ * reader had scrolled through would be N live connector requests to answer one
+ * click — and the pages after the first would no longer be guaranteed to line
+ * up with a catalog that has just changed underneath them. Dropping back to
+ * page 1 is both cheaper and the honest answer to "show me what this source has
+ * right now"; `fetchNextPage` re-pages from there as normal.
+ */
+export function applyRefreshedBrowsePage(
+  queryClient: QueryClient,
+  key: readonly unknown[],
+  page: PaginatedSourceSeries,
+): void {
+  queryClient.setQueryData(key, { pages: [page], pageParams: [1] });
+}
+
+/**
+ * Force a source to re-fetch its catalog, bypassing the server's browse cache.
+ *
+ * A plain `refetch()` would replay the cached request and could legitimately
+ * answer from the same cache row the reader is trying to get past, so the
+ * refresh goes through the endpoint's own `refresh` flag. Modelled as a
+ * mutation (like `useRetrySearchSource`) so the button gets `isPending` without
+ * a second piece of state.
+ */
+export function useRefreshSourceBrowse(
+  sourceId: string,
+  facets: SourceBrowseFacets,
+) {
+  const queryClient = useQueryClient();
+  const normalized = normalizeBrowseFacets(facets);
+  const key = sourceSeriesInfiniteQueryKey(sourceId, facets);
+
+  return useMutation({
+    mutationFn: () =>
+      sourcesApi.listSeries(sourceId, {
+        page: 1,
+        query: normalized.query,
+        sort: normalized.sort,
+        genre: normalized.genre,
+        refresh: true,
+      }),
+    onSuccess: (page) => applyRefreshedBrowsePage(queryClient, key, page),
   });
 }
 
