@@ -162,3 +162,64 @@ def test_list_browse_modes(mangakatana_connector: MangaKatanaConnector):
     mode_ids = {mode.id for mode in modes}
     assert "popular" in mode_ids
     assert "latest" in mode_ids
+
+
+# --- Image proxy media type -------------------------------------------------
+
+
+def test_page_images_are_relabelled_from_octet_stream(
+    mangakatana_connector: MangaKatanaConnector,
+):
+    """Regression: the token CDN serves JPEGs as application/octet-stream.
+
+    The image proxy clamps unrecognised types to application/octet-stream and
+    sends X-Content-Type-Options: nosniff, so a mislabelled page reaches the
+    browser as bytes it is explicitly told not to render. Every page of every
+    chapter was affected while browse/detail/chapters/pages all passed.
+    """
+    jpeg = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01" + b"\x00" * 64
+
+    with patch.object(
+        mangakatana_connector._http,
+        "get_bytes",
+        return_value=("application/octet-stream", jpeg),
+    ):
+        media_type, body = mangakatana_connector.fetch_proxied_image(
+            "https://i1.mangakatana.com/token/abc/0.jpg"
+        )
+
+    assert media_type == "image/jpeg"
+    assert body == jpeg
+
+
+def test_declared_image_type_is_not_overridden(
+    mangakatana_connector: MangaKatanaConnector,
+):
+    """A correct upstream label must win over the sniffer."""
+    png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 32
+
+    with patch.object(
+        mangakatana_connector._http, "get_bytes", return_value=("image/png", png)
+    ):
+        media_type, _ = mangakatana_connector.fetch_proxied_image(
+            "https://mangakatana.com/imgs/cover/x.png"
+        )
+
+    assert media_type == "image/png"
+
+
+def test_non_image_bytes_are_not_promoted_to_an_image_type(
+    mangakatana_connector: MangaKatanaConnector,
+):
+    """Sniffing must not launder an error page into an image/* label."""
+    with patch.object(
+        mangakatana_connector._http,
+        "get_bytes",
+        return_value=("application/octet-stream", b"<!DOCTYPE html><html>403"),
+    ):
+        media_type, _ = mangakatana_connector.fetch_proxied_image(
+            "https://i1.mangakatana.com/token/abc/0.jpg"
+        )
+
+    assert media_type == "application/octet-stream"
+    assert not media_type.startswith("image/")
