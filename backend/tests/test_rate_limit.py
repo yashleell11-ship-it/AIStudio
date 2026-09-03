@@ -102,3 +102,118 @@ def test_sources_browse_with_rate_limit_enabled(client):
 
     assert response.status_code == 200
     assert response.json()["total"] == 333
+
+
+# --- the limit key: which header is actually trustworthy -------------------
+
+
+@pytest.mark.rate_limit
+def test_login_flood_is_not_bypassable_by_forging_x_forwarded_for(client):
+    """Caddy and Cloudflare *append* to X-Forwarded-For rather than replacing
+    it, so its first hop is whatever the client sent — keying on it let a
+    brute-forcer mint a fresh bucket per request. CF-Connecting-IP is written by
+    the edge on every request and wins."""
+    codes = [
+        client.post(
+            "/auth/login",
+            json={"username": "ghost", "password": "whatever"},
+            headers={
+                "CF-Connecting-IP": "203.0.113.77",
+                "X-Forwarded-For": f"10.0.0.{n}, 203.0.113.77",  # forged first hop
+            },
+        ).status_code
+        for n in range(5)
+    ]
+    assert codes[:3] == [401, 401, 401]
+    assert 429 in codes[3:]
+
+
+@pytest.mark.rate_limit
+def test_cf_connecting_ip_still_separates_genuinely_different_clients(client):
+    for _ in range(4):
+        client.post(
+            "/auth/login",
+            json={"username": "ghost", "password": "whatever"},
+            headers={"CF-Connecting-IP": "203.0.113.90"},
+        )
+    other = client.post(
+        "/auth/login",
+        json={"username": "ghost", "password": "whatever"},
+        headers={"CF-Connecting-IP": "203.0.113.91"},
+    )
+    assert other.status_code == 401
+
+
+@pytest.mark.rate_limit
+def test_x_forwarded_for_is_the_key_when_no_trusted_header_is_configured(
+    client, monkeypatch
+):
+    """A deployment with no CDN in front sets MM_TRUSTED_CLIENT_IP_HEADER="" and
+    gets the previous behaviour back."""
+    monkeypatch.setenv("MM_TRUSTED_CLIENT_IP_HEADER", "")
+    get_settings.cache_clear()
+    codes = [_login(client, "198.51.100.30").status_code for _ in range(5)]
+    assert codes[:3] == [401, 401, 401]
+    assert 429 in codes[3:]
+    get_settings.cache_clear()
+
+
+# --- the byte-proxying source routes carry a bucket ------------------------
+
+
+class _StubBrowse:
+    """Just enough BrowseService for the rate-limited source routes."""
+
+    def _gate_open(self) -> bool:
+        return False
+
+    async def federated_search(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
+        return {"items": [], "total": 0}
+
+    def resolve_series_cover(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
+        return "image/png", b"cover-bytes"
+
+    def resolve_page_image(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
+        return "image/png", b"page-bytes"
+
+
+class _StubReader:
+    def resolve_source_chapter(self, *a, **kw):  # noqa: ANN002, ANN003, ARG002
+        return {"pages": []}
+
+
+@pytest.fixture
+def sources_client(client, monkeypatch):
+    from services.browse_service import get_browse_service
+    from services.reader_service import get_reader_service
+
+    monkeypatch.setenv("MM_RATE_LIMIT_SOURCES", "2/minute")
+    get_settings.cache_clear()
+    client.app.dependency_overrides[get_browse_service] = _StubBrowse
+    client.app.dependency_overrides[get_reader_service] = _StubReader
+    yield client
+    client.app.dependency_overrides.pop(get_browse_service, None)
+    client.app.dependency_overrides.pop(get_reader_service, None)
+    get_settings.cache_clear()
+
+
+@pytest.mark.rate_limit
+@pytest.mark.parametrize(
+    "path",
+    [
+        "/sources/search?q=solo",  # fans out to every connector at once
+        "/sources/mangadex/series/solo-leveling/cover",  # proxies bytes
+        "/sources/mangadex/pages/p1/image",  # proxies bytes, the hot one
+        "/sources/mangadex/series/solo/chapters/c1/reader",
+    ],
+)
+def test_expensive_source_routes_are_rate_limited(sources_client, path):
+    """Also a smoke test for slowapi's header injection: a limited route that
+    returns a dict rather than a Response needs ``response: Response`` in its
+    signature, or slowapi raises on every request once limits are enabled."""
+    headers = {"CF-Connecting-IP": "203.0.113.200"}
+    first = [sources_client.get(path, headers=headers).status_code for _ in range(2)]
+    assert first == [200, 200], path
+    limited = sources_client.get(path, headers=headers)
+    assert limited.status_code == 429, path
+    assert limited.json()["code"] == "rate_limited"
