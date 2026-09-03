@@ -245,7 +245,6 @@ Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
                 title: 'Solo Leveling',
                 seriesKey: 'solo-leveling',
                 isFavorite: true,
-                readingStatus: 'reading',
                 chapterCount: 179,
                 createdAt: DateTime(2024),
                 updatedAt: DateTime(2024, 6),
@@ -254,7 +253,6 @@ Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
                 id: 2,
                 title: 'Tower of God',
                 seriesKey: 'tower-of-god',
-                isFavorite: false,
                 readingStatus: 'completed',
                 chapterCount: 120,
                 createdAt: DateTime(2024, 2),
@@ -296,15 +294,12 @@ void main() {
           id: 1,
           title: 'Solo Leveling',
           seriesKey: 'solo-leveling',
-          readingStatus: 'reading',
-          chapterCount: 10,
         ),
         _series(
           id: 2,
           title: 'Tower of God',
           seriesKey: 'tower-of-god',
           readingStatus: 'completed',
-          chapterCount: 10,
         ),
       ]);
 
@@ -327,7 +322,6 @@ void main() {
           title: 'Tower of God',
           seriesKey: 'tower-of-god',
           readingStatus: 'completed',
-          chapterCount: 10,
         ),
       ]);
 

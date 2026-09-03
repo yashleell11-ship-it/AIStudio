@@ -34,7 +34,7 @@ void main() {
     test('sorts by name, series count, and custom order', () {
       final items = [
         _collection(id: 1, name: 'Zeta', seriesCount: 2, sortOrder: 2),
-        _collection(id: 2, name: 'Alpha', seriesCount: 5, sortOrder: 0),
+        _collection(id: 2, name: 'Alpha', seriesCount: 5),
         _collection(id: 3, name: 'Beta', seriesCount: 5, sortOrder: 1),
       ];
 
