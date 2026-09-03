@@ -266,3 +266,103 @@ def test_search_mangakatana_series():
     assert response.status_code == 200
     payload = response.json()
     assert any("solo" in item["title"].casefold() for item in payload["items"])
+
+
+# --- opaque keys with slashes reach every route the same way ---------------
+#
+# Connector keys are opaque strings that contain slashes and percent-encoding.
+# The ASGI server percent-decodes before routing, so a ``%2F`` arrives at the
+# router as a real ``/``: a plain segment converter simply 404s. These four
+# routes used to disagree — three segment, one ``:path`` — so the same key
+# worked on the cover and 404'd on the other three.
+
+
+class _SlashKeyBrowse:
+    """Records the key each route handed the service."""
+
+    def __init__(self):
+        self.seen: dict[str, str] = {}
+
+    def _gate_open(self) -> bool:
+        return False
+
+    def get_series(self, source_id, series_id):
+        self.seen["series"] = series_id
+        return {"id": series_id, "title": "T"}
+
+    def get_chapters(self, source_id, series_id):
+        self.seen["chapters"] = series_id
+        return []
+
+    def resolve_series_cover(self, source_id, series_id):
+        self.seen["cover"] = series_id
+        return "image/png", b"x"
+
+    def get_chapter_pages(self, source_id, chapter_id):
+        self.seen["pages"] = chapter_id
+        return []
+
+    def resolve_page_image(self, source_id, page_id):
+        self.seen["image"] = page_id
+        return "image/png", b"x"
+
+
+class _SlashKeyReader:
+    def __init__(self):
+        self.seen: tuple[str, str] | None = None
+
+    def resolve_source_chapter(self, source_id, series_id, chapter_id):
+        self.seen = (series_id, chapter_id)
+        return {"pages": []}
+
+
+def test_slash_bearing_keys_route_consistently():
+    from fastapi.testclient import TestClient
+
+    from main import create_app
+    from services.browse_service import get_browse_service
+    from services.reader_service import get_reader_service
+
+    browse = _SlashKeyBrowse()
+    reader = _SlashKeyReader()
+    slash_app = create_app(run_workers=False)
+    slash_app.dependency_overrides[get_browse_service] = lambda: browse
+    slash_app.dependency_overrides[get_reader_service] = lambda: reader
+    slash_client = TestClient(slash_app)
+
+    key = "group/solo-leveling"
+    enc = "group%2Fsolo-leveling"
+    chapter = "vol/1/ch/2"
+    chapter_enc = "vol%2F1%2Fch%2F2"
+
+    assert slash_client.get(f"/sources/mangadex/series/{enc}").status_code == 200
+    assert browse.seen["series"] == key
+
+    assert (
+        slash_client.get(f"/sources/mangadex/series/{enc}/chapters").status_code == 200
+    )
+    assert browse.seen["chapters"] == key
+
+    assert slash_client.get(f"/sources/mangadex/series/{enc}/cover").status_code == 200
+    assert browse.seen["cover"] == key
+
+    assert (
+        slash_client.get(
+            f"/sources/mangadex/series/{enc}/chapters/{chapter_enc}/reader"
+        ).status_code
+        == 200
+    )
+    assert reader.seen == (key, chapter)
+
+    # The two non-series key routes were already ``:path``; pin them so a future
+    # tidy-up cannot quietly narrow them back.
+    assert (
+        slash_client.get(f"/sources/mangadex/chapters/{chapter_enc}/pages").status_code
+        == 200
+    )
+    assert browse.seen["pages"] == chapter
+    assert (
+        slash_client.get(f"/sources/mangadex/pages/{chapter_enc}/image").status_code
+        == 200
+    )
+    assert browse.seen["image"] == chapter

@@ -79,6 +79,14 @@ class Settings(BaseModel):
     rate_limit_auth: str = "10/minute"
     rate_limit_import: str = "5/minute"
     rate_limit_sources: str = "60/minute"
+    # The request header carrying the real client IP, written by the *outermost*
+    # proxy and therefore not client-controlled. Cloudflare's CF-Connecting-IP
+    # is the default because that is the edge in front of this deployment.
+    # X-Forwarded-For is NOT a safe default: proxies append to it rather than
+    # replacing it, so its first hop is whatever the client sent. Set to an
+    # empty string to fall back to X-Forwarded-For / the socket peer (e.g. a
+    # deployment with no CDN in front). See core.rate_limit.client_ip.
+    trusted_client_ip_header: str = "cf-connecting-ip"
 
 
 @lru_cache
@@ -121,6 +129,11 @@ def get_settings() -> Settings:
         value = os.getenv(env_key)
         if value and value.strip():
             data[field] = value.strip()
+    client_ip_header_override = os.getenv("MM_TRUSTED_CLIENT_IP_HEADER")
+    if client_ip_header_override is not None:
+        # Empty is meaningful here ("no trusted header"), so this one tests for
+        # presence rather than truthiness.
+        data["trusted_client_ip_header"] = client_ip_header_override.strip()
 
     return Settings(**data)
 
