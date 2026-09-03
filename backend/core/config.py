@@ -63,6 +63,16 @@ class Settings(BaseModel):
     # Automatic update system
     update_workers: int = 1
     update_check_interval_minutes: int = 60
+    # Guardrails for the full sweep (audit finding 14): without them a large
+    # (attacker-inflatable) followed set plus a wedged upstream made a single
+    # sweep run for hours of sequential 30s×3-retry fetches. Zero disables a
+    # guard. Overridable via MM_UPDATE_SWEEP_SOURCE_BUDGET_SECONDS /
+    # MM_UPDATE_SWEEP_DEADLINE_MINUTES.
+    update_sweep_source_budget_seconds: int = 120
+    update_sweep_deadline_minutes: int = 45
+    # Per-(user, profile) ceiling on followed series — bounds the sweep's row
+    # count at its source. Overridable via MM_MAX_FOLLOWS_PER_PROFILE.
+    max_follows_per_profile: int = 1000
 
     # Authentication (P1). Runtime-only; overridable via env for deployment.
     # registration_enabled gates self-service signup *after* the bootstrap
@@ -117,6 +127,14 @@ def get_settings() -> Settings:
     image_cap_override = os.getenv("MM_IMAGE_PROXY_MAX_BYTES")
     if image_cap_override and image_cap_override.strip():
         data["image_proxy_max_bytes"] = int(image_cap_override.strip())
+    for env_key, field in (
+        ("MM_UPDATE_SWEEP_SOURCE_BUDGET_SECONDS", "update_sweep_source_budget_seconds"),
+        ("MM_UPDATE_SWEEP_DEADLINE_MINUTES", "update_sweep_deadline_minutes"),
+        ("MM_MAX_FOLLOWS_PER_PROFILE", "max_follows_per_profile"),
+    ):
+        value = os.getenv(env_key)
+        if value and value.strip():
+            data[field] = int(value.strip())
 
     # Auth deployment overrides.
     reg_override = os.getenv("MM_REGISTRATION_ENABLED")
