@@ -163,12 +163,14 @@ class AuthController extends Notifier<AuthState> {
     required bool remember,
     String? email,
     String? displayName,
+    String? inviteCode,
   }) async {
     final result = await ref.read(authRepositoryProvider).register(
           username: username,
           password: password,
           email: email,
           displayName: displayName,
+          inviteCode: inviteCode,
           remember: remember,
         );
     if (result.isErr) return result.error;

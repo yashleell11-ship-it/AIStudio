@@ -4,14 +4,16 @@ import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
+import 'package:manhwamaniacs/features/auth/utils/register_error_message.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_error.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_header.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 
 /// Account creation screen. On a fresh instance (`needs_bootstrap`) the account
-/// created here becomes the administrator; otherwise it is a normal account and
-/// only appears when self-service registration is enabled.
+/// created here becomes the administrator and needs no invite code; otherwise
+/// it is a normal account, only reachable when self-service registration is
+/// enabled, and gated by an invite code when the server asks for one.
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
 
@@ -22,28 +24,46 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
+  final _inviteCodeController = TextEditingController();
   final _displayNameController = TextEditingController();
   final _emailController = TextEditingController();
 
   var _pending = false;
   var _obscurePassword = true;
+  var _obscureConfirmPassword = true;
   String? _errorMessage;
 
   @override
   void dispose() {
     _usernameController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
+    _inviteCodeController.dispose();
     _displayNameController.dispose();
     _emailController.dispose();
     super.dispose();
   }
 
-  String? _validate(String username, String password, String email) {
+  String? _validate(
+    String username,
+    String password,
+    String confirmPassword,
+    String email, {
+    required bool inviteCodeRequired,
+    required String inviteCode,
+  }) {
     if (username.isEmpty || password.isEmpty) {
       return 'Choose a username and password.';
     }
     if (password.length < 8) {
       return 'Password must be at least 8 characters.';
+    }
+    if (password != confirmPassword) {
+      return "Passwords don't match.";
+    }
+    if (inviteCodeRequired && inviteCode.isEmpty) {
+      return 'Enter the invite code for this server.';
     }
     if (email.isNotEmpty && !email.contains('@')) {
       return 'Enter a valid email address, or leave it blank.';
@@ -55,10 +75,26 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (_pending) return;
     final username = _usernameController.text.trim();
     final password = _passwordController.text;
+    final confirmPassword = _confirmPasswordController.text;
+    final inviteCode = _inviteCodeController.text.trim();
     final displayName = _displayNameController.text.trim();
     final email = _emailController.text.trim();
 
-    final validationError = _validate(username, password, email);
+    final status = ref.read(bootstrapStatusProvider).valueOrNull;
+    final needsBootstrap = status?.needsBootstrap ?? false;
+    // The bootstrap account never needs an invite code, regardless of what the
+    // flag says.
+    final inviteCodeRequired =
+        !needsBootstrap && (status?.inviteCodeRequired ?? false);
+
+    final validationError = _validate(
+      username,
+      password,
+      confirmPassword,
+      email,
+      inviteCodeRequired: inviteCodeRequired,
+      inviteCode: inviteCode,
+    );
     if (validationError != null) {
       setState(() => _errorMessage = validationError);
       return;
@@ -74,6 +110,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           password: password,
           email: email.isEmpty ? null : email,
           displayName: displayName.isEmpty ? null : displayName,
+          inviteCode: inviteCode.isEmpty ? null : inviteCode,
           remember: true,
         );
     if (!mounted) return;
@@ -82,7 +119,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     if (error != null) {
       setState(() {
         _pending = false;
-        _errorMessage = error.userMessage;
+        _errorMessage = registerErrorMessage(error);
       });
     }
   }
@@ -93,6 +130,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final needsBootstrap = status?.needsBootstrap ?? false;
     final registrationClosed =
         status != null && !status.needsBootstrap && !status.registrationEnabled;
+    final inviteCodeRequired =
+        !needsBootstrap && (status?.inviteCodeRequired ?? false);
 
     return Scaffold(
       appBar: AppBar(
@@ -108,7 +147,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 padding: const EdgeInsets.all(AppSpacing.xl2),
                 child: registrationClosed
                     ? _buildClosed(context)
-                    : _buildForm(context, needsBootstrap: needsBootstrap),
+                    : _buildForm(
+                        context,
+                        needsBootstrap: needsBootstrap,
+                        inviteCodeRequired: inviteCodeRequired,
+                      ),
               ),
             ),
           ),
@@ -136,17 +179,21 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     );
   }
 
-  Widget _buildForm(BuildContext context, {required bool needsBootstrap}) {
+  Widget _buildForm(
+    BuildContext context, {
+    required bool needsBootstrap,
+    required bool inviteCodeRequired,
+  }) {
     final errorMessage = _errorMessage;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AuthHeader(
-          title: needsBootstrap ? 'Create admin account' : 'Join ManhwaManiacs',
+          title: needsBootstrap ? 'Claim this server' : 'Join ManhwaManiacs',
           subtitle: needsBootstrap
-              ? 'This is the first account on the server, so it will be the '
-                  'administrator.'
+              ? 'This server has no accounts yet. The account you create here '
+                  'becomes the administrator.'
               : 'Create your ManhwaManiacs account to get started.',
         ),
         const SizedBox(height: AppSpacing.xl2),
@@ -180,10 +227,57 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
           obscureText: _obscurePassword,
+          textInputAction: TextInputAction.next,
           autocorrect: false,
           enableSuggestions: false,
           enabled: !_pending,
         ),
+        const SizedBox(height: AppSpacing.lg),
+        TextField(
+          controller: _confirmPasswordController,
+          decoration: InputDecoration(
+            labelText: 'Confirm password',
+            prefixIcon: const Icon(Icons.lock_outline),
+            suffixIcon: IconButton(
+              icon: Icon(
+                _obscureConfirmPassword
+                    ? Icons.visibility_outlined
+                    : Icons.visibility_off_outlined,
+              ),
+              tooltip:
+                  _obscureConfirmPassword ? 'Show password' : 'Hide password',
+              onPressed: () => setState(
+                () => _obscureConfirmPassword = !_obscureConfirmPassword,
+              ),
+            ),
+          ),
+          obscureText: _obscureConfirmPassword,
+          textInputAction: inviteCodeRequired
+              ? TextInputAction.next
+              : TextInputAction.done,
+          autocorrect: false,
+          enableSuggestions: false,
+          enabled: !_pending,
+          onSubmitted: inviteCodeRequired ? null : (_) => _submit(),
+        ),
+        // The invite-code gate. Never shown while bootstrapping — the first
+        // account on a fresh server never needs one — and otherwise only when
+        // the server's bootstrap-status probe says it requires one.
+        if (inviteCodeRequired) ...[
+          const SizedBox(height: AppSpacing.lg),
+          TextField(
+            controller: _inviteCodeController,
+            decoration: const InputDecoration(
+              labelText: 'Invite code',
+              prefixIcon: Icon(Icons.vpn_key_outlined),
+            ),
+            textInputAction: TextInputAction.done,
+            autocorrect: false,
+            enableSuggestions: false,
+            enabled: !_pending,
+            onSubmitted: (_) => _submit(),
+          ),
+        ],
         const SizedBox(height: AppSpacing.lg),
         TextField(
           controller: _displayNameController,
@@ -221,7 +315,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             child: PrimaryPillButton(
               label: _pending
                   ? 'Creating account…'
-                  : (needsBootstrap ? 'Create admin account' : 'Create account'),
+                  : (needsBootstrap
+                      ? 'Create the administrator account'
+                      : 'Create account'),
               expanded: true,
               onPressed: _submit,
             ),
