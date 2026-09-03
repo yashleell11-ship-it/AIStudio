@@ -1,44 +1,9 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
+import type { ChapterId } from "@/types/api";
+import { ApiError } from "@/types/api";
 import { ocrApi } from "./api";
-import type { OcrJobStatus } from "./types";
 
 const OCR_KEY = ["ocr"] as const;
-
-export function useOcrMetrics() {
-  return useQuery({
-    queryKey: [...OCR_KEY, "metrics"],
-    queryFn: () => ocrApi.metrics(),
-    refetchInterval: 5_000,
-  });
-}
-
-export function useOcrJobs(status?: OcrJobStatus) {
-  return useQuery({
-    queryKey: [...OCR_KEY, "jobs", status ?? "all"],
-    queryFn: () => ocrApi.jobs(status ? { status, limit: 100 } : { limit: 100 }),
-    refetchInterval: 5_000,
-  });
-}
-
-export function useRetryOcrJob() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ocrApi.retryJob,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: OCR_KEY });
-    },
-  });
-}
-
-export function useCancelOcrJob() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ocrApi.cancelJob,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: OCR_KEY });
-    },
-  });
-}
 
 /**
  * Dialogue search over extracted OCR text. Disabled (no request) until a
@@ -51,5 +16,32 @@ export function useOcrSearch(query: string) {
     queryKey: [...OCR_KEY, "search", q],
     queryFn: () => ocrApi.search({ q, limit: 20 }),
     enabled: q.length > 0,
+  });
+}
+
+/**
+ * Stored per-page OCR text for one chapter, for the in-reader dialogue reveal.
+ * Read-only: a 404 (no transcript yet) resolves to `null` rather than erroring,
+ * so the feature is simply off for that chapter.
+ */
+export function useOcrChapter(ref: ChapterId | null) {
+  return useQuery({
+    queryKey: [
+      ...OCR_KEY,
+      "chapter",
+      ref?.sourceId ?? "",
+      ref?.seriesKey ?? "",
+      ref?.chapterKey ?? "",
+    ],
+    queryFn: async () => {
+      try {
+        return await ocrApi.chapter(ref!);
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
+      }
+    },
+    enabled: ref !== null,
+    staleTime: 5 * 60_000,
   });
 }
