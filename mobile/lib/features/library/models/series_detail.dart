@@ -39,6 +39,34 @@ class SeriesDetail extends FollowedSeries {
   /// `chapter_key -> progress` overlay for this profile.
   final Map<String, ChapterProgressEntry> progress;
 
+  @override
+  SeriesDetail copyWith({bool? isFavorite, String? readingStatus, bool? notify}) {
+    return SeriesDetail(
+      id: id,
+      sourceId: sourceId,
+      seriesKey: seriesKey,
+      title: title,
+      coverUrl: coverUrl,
+      isFavorite: isFavorite ?? this.isFavorite,
+      readingStatus: readingStatus ?? this.readingStatus,
+      notify: notify ?? this.notify,
+      sortOrder: sortOrder,
+      contentRating: contentRating,
+      rating: rating,
+      matureOverride: matureOverride,
+      knownChapters: knownChapters,
+      chapterCount: chapterCount,
+      lastCheckedAt: lastCheckedAt,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      description: description,
+      author: author,
+      genres: genres,
+      chapters: chapters,
+      progress: progress,
+    );
+  }
+
   factory SeriesDetail.fromJson(Map<String, dynamic> json) {
     final base = FollowedSeries.fromJson(json);
     final progressJson = json['progress'] as Map<String, dynamic>? ?? const {};

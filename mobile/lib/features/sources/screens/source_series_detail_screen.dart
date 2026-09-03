@@ -6,17 +6,11 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/features/downloads/models/queue_download_response.dart';
-import 'package:manhwamaniacs/features/downloads/providers/downloads_provider.dart';
-import 'package:manhwamaniacs/features/downloads/utils/queue_download_feedback.dart';
-import 'package:manhwamaniacs/features/downloads/utils/source_chapter_download_status.dart';
 import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
-import 'package:manhwamaniacs/features/sources/providers/source_series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
-import 'package:manhwamaniacs/features/updates/widgets/migrate_series_button.dart';
 import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
@@ -108,8 +102,6 @@ class _SeriesDetailBody extends ConsumerStatefulWidget {
 }
 
 class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
-  final Set<String> _selectedChapterIds = {};
-  bool _downloadPending = false;
   SeriesChapterSortOrder _sortOrder = SeriesChapterSortOrder.newest;
 
   List<SourceChapterSummary> _sortedChapters(
@@ -141,90 +133,10 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     return null;
   }
 
-  void _toggleChapter(String chapterId) {
-    setState(() {
-      if (_selectedChapterIds.contains(chapterId)) {
-        _selectedChapterIds.remove(chapterId);
-      } else {
-        _selectedChapterIds.add(chapterId);
-      }
-    });
-  }
-
-  void _showQueueFeedback(QueueDownloadResponse response) {
-    if (!mounted) return;
-    showQueueDownloadSnackBar(context, response);
-  }
-
-  Future<void> _queueChapters(List<String> chapterIds) async {
-    if (chapterIds.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Select at least one chapter.')),
-      );
-      return;
-    }
-    if (_downloadPending) return;
-
-    setState(() => _downloadPending = true);
-    try {
-      final result = await ref.read(downloadsProvider.notifier).queueChapters(
-            sourceId: widget.sourceId,
-            seriesId: widget.seriesId,
-            chapterIds: chapterIds,
-            seriesTitle: widget.series.title,
-          );
-      if (!mounted) return;
-      if (result.isErr) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.error.userMessage)),
-        );
-        return;
-      }
-      setState(() {
-        _selectedChapterIds.removeAll(chapterIds);
-      });
-      _showQueueFeedback(result.value);
-    } finally {
-      if (mounted) {
-        setState(() => _downloadPending = false);
-      }
-    }
-  }
-
-  Future<void> _downloadSeries() async {
-    if (_downloadPending || widget.chapters.isEmpty) return;
-
-    setState(() => _downloadPending = true);
-    try {
-      final result = await ref.read(downloadsProvider.notifier).queueSeries(
-            sourceId: widget.sourceId,
-            seriesId: widget.seriesId,
-          );
-      if (!mounted) return;
-      if (result.isErr) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(result.error.userMessage)),
-        );
-        return;
-      }
-      _showQueueFeedback(result.value);
-    } finally {
-      if (mounted) {
-        setState(() => _downloadPending = false);
-      }
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final series = widget.series;
     final chapters = widget.chapters;
-    final downloadBusy = _downloadPending;
-    final downloadLookup = ref.watch(
-      sourceSeriesChapterDownloadLookupProvider(
-        (sourceId: widget.sourceId, seriesId: widget.seriesId),
-      ),
-    );
     final progressMap = ref.watch(sourceProgressProvider);
     final sortedChapters = _sortedChapters(chapters, _sortOrder);
     final latestRead = ref.read(sourceProgressProvider.notifier).latestForSeries(
@@ -259,29 +171,11 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
       followAction: SeriesFollowButton(
         key: const Key('follow-toggle'),
         sourceId: widget.sourceId,
-        seriesId: widget.seriesId,
-        seriesTitle: series.title,
+        seriesKey: widget.seriesId,
       ),
-      secondaryActions: [
-        OutlinedButton.icon(
-          key: const Key('download-series'),
-          onPressed: downloadBusy || chapters.isEmpty ? null : _downloadSeries,
-          icon: const Icon(Icons.download_outlined),
-          label: const Text('Download Series'),
-        ),
-        OutlinedButton.icon(
-          key: const Key('download-selected'),
-          onPressed: downloadBusy || _selectedChapterIds.isEmpty
-              ? null
-              : () => _queueChapters(_selectedChapterIds.toList()),
-          icon: const Icon(Icons.playlist_add_check_outlined),
-          label: const Text('Download Selected'),
-        ),
-        MigrateSeriesButton(
-          sourceId: widget.sourceId,
-          seriesId: widget.seriesId,
-        ),
-      ],
+      // TODO(1c-M3): re-add "Download series" / "Download selected" once the
+      // on-device store ships.
+      secondaryActions: const [],
       details: [
         // Status and genres get the same pill treatment the library page gives
         // reading status and tags -- the source page simply had nowhere to put
@@ -310,8 +204,6 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         for (final chapter in sortedChapters)
           _buildChapterTile(
             chapter: chapter,
-            downloadBusy: downloadBusy,
-            downloadLookup: downloadLookup,
             progressMap: progressMap,
             latestRead: latestRead,
           ),
@@ -321,8 +213,6 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
 
   Widget _buildChapterTile({
     required SourceChapterSummary chapter,
-    required bool downloadBusy,
-    required SourceChapterDownloadLookup downloadLookup,
     required Map<String, SourceChapterProgress> progressMap,
     required LatestSourceRead? latestRead,
   }) {
@@ -336,8 +226,6 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     // reader), falling back to the source-provided count.
     final storedCount = progress?.pageCount ?? 0;
     final effectiveCount = storedCount > 0 ? storedCount : chapter.pageCount;
-    final downloadDisabled =
-        downloadBusy || downloadLookup.isDownloadDisabled(chapter.id);
 
     return SeriesChapterTile(
       key: Key('chapter-${chapter.id}'),
@@ -348,24 +236,12 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         completed: completed,
       ),
       inProgress: progress != null && !completed,
-      downloadStatus: downloadLookup.statusFor(chapter.id),
-      statusBadgeKey: Key('chapter-status-${chapter.id}'),
       isRead: completed,
       // "Reading" marks the chapter Continue would resume -- the last one
       // opened, and only while it is unfinished.
       isCurrent: latestRead?.chapterId == chapter.id && !completed,
       onTap: () => context.go(
         RoutePaths.sourceReader(widget.sourceId, widget.seriesId, chapter.id),
-      ),
-      selection: SeriesChapterSelection(
-        checkboxKey: Key('select-${chapter.id}'),
-        selected: _selectedChapterIds.contains(chapter.id),
-        onChanged: downloadBusy ? null : (_) => _toggleChapter(chapter.id),
-      ),
-      download: SeriesChapterDownloadAction(
-        buttonKey: Key('download-${chapter.id}'),
-        retryable: downloadLookup.isRetryable(chapter.id),
-        onPressed: downloadDisabled ? null : () => _queueChapters([chapter.id]),
       ),
     );
   }
