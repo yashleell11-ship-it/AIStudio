@@ -64,8 +64,34 @@ class MergedProgress:
 
 
 def _position(chapter_number: float | None, last_page: int) -> tuple[float, int]:
-    """The comparable position tuple. NULL chapter_number sorts lowest."""
+    """The comparable position tuple.
+
+    A ``chapter_number`` that is still NULL on *both* sides sorts to a constant,
+    so the comparison falls through to ``last_page``. It is never a "sorts
+    lowest" sentinel — see :func:`_resolve_number`.
+    """
     return (chapter_number if chapter_number is not None else float("-inf"), last_page)
+
+
+def _resolve_number(primary: float | None, fallback: float | None) -> float | None:
+    """``primary``, or ``fallback`` when the client did not send a number.
+
+    A ``chapter_progress`` row is keyed by ``chapter_key``, so its
+    ``chapter_number`` is a constant *within* that row: a NULL means "the client
+    did not send one", never "an earlier chapter". Treating NULL as ``-inf``
+    broke the merge in both directions —
+
+    * stored ``(5.0, page 3)`` + incoming ``(None, page 20)`` read as a move
+      *backwards*, so a legitimate forward push was silently dropped; and
+    * stored ``(None, page 40)`` + incoming ``(12.0, page 1)`` read as a move
+      *forwards*, rewinding the reader to page 1 — the exact failure
+      furthest-wins exists to prevent.
+
+    Coalescing collapses both to "same chapter", which lets ``last_page``
+    decide. It also means a push that supplies a number the stored row lacks
+    upgrades it: strictly more information, and not a rewind.
+    """
+    return primary if primary is not None else fallback
 
 
 def merge_progress(
@@ -99,8 +125,13 @@ def merge_progress(
             advanced=True,
         )
 
-    stored_pos = _position(stored.chapter_number, stored.last_page)
-    incoming_pos = _position(incoming.chapter_number, incoming.last_page)
+    # Coalesce across the pair before comparing: within one chapter_key the
+    # number is a constant, so a NULL on either side must not decide the
+    # ordering. See _resolve_number.
+    incoming_number = _resolve_number(incoming.chapter_number, stored.chapter_number)
+    stored_number = _resolve_number(stored.chapter_number, incoming.chapter_number)
+    stored_pos = _position(stored_number, stored.last_page)
+    incoming_pos = _position(incoming_number, incoming.last_page)
 
     is_completed = stored.is_completed or bool(incoming.is_completed)
     completed_at = stored.completed_at
@@ -113,11 +144,7 @@ def merge_progress(
     if incoming_pos > stored_pos:
         # Genuine forward movement — take the incoming position + its snapshots.
         return MergedProgress(
-            chapter_number=(
-                incoming.chapter_number
-                if incoming.chapter_number is not None
-                else stored.chapter_number
-            ),
+            chapter_number=incoming_number,
             last_page=max(1, incoming.last_page),
             page_count=max(stored.page_count, incoming.page_count),
             scroll_offset_px=max(0, incoming.scroll_offset_px),
@@ -131,7 +158,7 @@ def merge_progress(
     if incoming_pos == stored_pos and incoming_read_at > stored.last_read_at:
         # Tie on position — the more recent push wins scroll offset only.
         return MergedProgress(
-            chapter_number=stored.chapter_number,
+            chapter_number=stored_number,
             last_page=stored.last_page,
             page_count=max(stored.page_count, incoming.page_count),
             scroll_offset_px=max(0, incoming.scroll_offset_px),
@@ -145,7 +172,7 @@ def merge_progress(
     # Incoming is behind (or a stale tie): never rewind. Only sticky flags and
     # bookkeeping fields may change.
     return MergedProgress(
-        chapter_number=stored.chapter_number,
+        chapter_number=stored_number,
         last_page=stored.last_page,
         page_count=max(stored.page_count, incoming.page_count),
         scroll_offset_px=stored.scroll_offset_px,

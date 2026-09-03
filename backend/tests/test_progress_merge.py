@@ -144,3 +144,50 @@ def test_page_count_never_decreases():
         now=T2,
     )
     assert m.page_count == 20
+
+
+# --- a NULL chapter_number is "unknown", not "before everything" ----------
+
+
+def test_null_incoming_number_does_not_block_a_forward_move():
+    """A client that pushes page 20 without a chapter number is 15 pages
+    further on, not behind. Treating NULL as -inf silently dropped the save."""
+    m = merge_progress(
+        _stored(chapter_number=5.0, last_page=3),
+        _push(chapter_number=None, last_page=20, last_read_at=T2),
+        now=T2,
+    )
+    assert m.last_page == 20
+    assert m.advanced is True
+    assert m.chapter_number == 5.0  # the row's number is not lost
+
+
+def test_null_stored_number_is_not_rewound_by_a_numbered_push():
+    """The mirror image: stored (None, page 40) read as -inf, so an incoming
+    (12.0, page 1) counted as forward movement and rewound the reader."""
+    m = merge_progress(
+        _stored(chapter_number=None, last_page=40),
+        _push(chapter_number=12.0, last_page=1, last_read_at=T2),
+        now=T2,
+    )
+    assert m.last_page == 40
+    assert m.advanced is False
+    # The push did supply a number the row lacked — more information, not a
+    # rewind, so it is adopted.
+    assert m.chapter_number == 12.0
+
+
+def test_both_numbers_null_falls_through_to_last_page():
+    forward = merge_progress(
+        _stored(chapter_number=None, last_page=3),
+        _push(chapter_number=None, last_page=9, last_read_at=T2),
+        now=T2,
+    )
+    assert forward.last_page == 9 and forward.advanced is True
+
+    backward = merge_progress(
+        _stored(chapter_number=None, last_page=9),
+        _push(chapter_number=None, last_page=3, last_read_at=T2),
+        now=T2,
+    )
+    assert backward.last_page == 9 and backward.advanced is False
