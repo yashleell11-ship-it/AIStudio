@@ -191,13 +191,20 @@ def get_source_reader_chapter(
 
 
 @router.get("/{source_id}/series/{series_id:path}/chapters")
+@limiter.limit(sources_limit)
 def get_source_chapters(
     source_id: str,
     series_id: str,
     service: BrowseDep,
+    request: Request,
     response: Response,
 ) -> list[dict[str, object]]:
-    """Return chapters for a series from an online source."""
+    """Return chapters for a series from an online source.
+
+    Rate-limited: triggers up to four upstream fetches and runs on the sync
+    threadpool, so with no ceiling a caller looping cache-busted keys against
+    a dead upstream could pin every worker in retry cycles (audit finding 9).
+    """
     items = service.get_chapters(source_id, series_id)
     set_list_total_header(response, len(items))
     return items
@@ -226,12 +233,16 @@ def get_source_series_cover(
 
 
 @router.get("/{source_id}/series/{series_id:path}")
+@limiter.limit(sources_limit)
 def get_source_series(
     source_id: str,
     series_id: str,
     service: BrowseDep,
+    request: Request,
+    response: Response,
 ) -> dict[str, object]:
-    """Return series metadata from an online source.
+    """Return series metadata from an online source. Rate-limited — upstream
+    fetch on the sync threadpool (audit finding 9; see the chapters route).
 
     Declared last of the ``/series/...`` routes — see the CONTRACT note above.
     """
@@ -239,12 +250,16 @@ def get_source_series(
 
 
 @router.get("/{source_id}/chapters/{chapter_id:path}/pages")
+@limiter.limit(sources_limit)
 def get_source_chapter_pages(
     source_id: str,
     chapter_id: str,
     service: BrowseDep,
+    request: Request,
+    response: Response,
 ) -> list[dict[str, object]]:
-    """Return pages for a chapter from an online source."""
+    """Return pages for a chapter from an online source. Rate-limited —
+    upstream fetch on the sync threadpool (audit finding 9)."""
     return service.get_chapter_pages(source_id, chapter_id)
 
 
