@@ -6,13 +6,11 @@ import {
   Activity,
   Bell,
   ChevronRight,
-  Download,
   History,
   Keyboard,
   Palette,
   ShieldAlert,
 } from "lucide-react";
-import { DownloadSettingsPanel } from "@/features/downloads";
 import { NotificationSettingsPanel } from "@/features/updates";
 import { useCurrentUser } from "@/features/auth/hooks";
 import { AppearancePanel, MatureContentPanel } from "@/features/preferences";
@@ -22,12 +20,7 @@ import { GlassPanel } from "@/components/premium/GlassPanel";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
 
-type SettingsTab =
-  | "appearance"
-  | "notifications"
-  | "downloads"
-  | "content"
-  | "shortcuts";
+type SettingsTab = "appearance" | "notifications" | "content" | "shortcuts";
 
 const NAV_ITEMS: {
   id: SettingsTab;
@@ -46,12 +39,6 @@ const NAV_ITEMS: {
     label: "Notifications",
     icon: Bell,
     description: "Update checks and alerts",
-  },
-  {
-    id: "downloads",
-    label: "Downloads",
-    icon: Download,
-    description: "Queue and concurrency",
   },
   {
     id: "content",
@@ -179,7 +166,6 @@ export default function SettingsPage() {
             <div className="space-y-6">
               {activeTab === "appearance" && <AppearancePanel />}
               {activeTab === "notifications" && <NotificationSettingsPanel />}
-              {activeTab === "downloads" && <DownloadSettingsPanel />}
               {activeTab === "content" && <MatureContentPanel />}
               {activeTab === "shortcuts" && <KeyboardShortcutsPanel />}
             </div>

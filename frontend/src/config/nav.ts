@@ -4,7 +4,6 @@ import {
   BookOpen,
   Bookmark,
   CloudOff,
-  Download,
   Globe,
   History,
   Library,
@@ -46,7 +45,6 @@ export const primaryNav: NavItem[] = [
   { href: "/library/browse", label: "Browse all", icon: BookOpen },
   { href: "/sources", label: "Sources", icon: Globe },
   { href: "/updates", label: "Updates", icon: Bell },
-  { href: "/downloads", label: "Downloads", icon: Download },
   { href: "/search", label: "Search", icon: Search },
 ];
 
@@ -90,7 +88,6 @@ export const secondaryNav: NavItem[] = [
 export const mobileNav: NavItem[] = [
   { href: "/library", label: "Library", icon: Library },
   { href: "/sources", label: "Sources", icon: Globe },
-  { href: "/downloads", label: "Downloads", icon: Download },
   { href: "/search", label: "Search", icon: Search },
   { href: "/more", label: "More", icon: Menu },
 ];

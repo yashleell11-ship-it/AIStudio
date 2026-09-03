@@ -27,6 +27,22 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Source-native domain identity (spec §2). A series is `(sourceId, seriesKey)`;
+ * a chapter adds `chapterKey`. Keys are opaque connector strings that routinely
+ * contain `/` — never concatenate them into a path, always pass them as query
+ * params (URL-encoded by `URLSearchParams`) or `encodeURIComponent` each path
+ * segment.
+ */
+export interface SeriesId {
+  sourceId: string;
+  seriesKey: string;
+}
+
+export interface ChapterId extends SeriesId {
+  chapterKey: string;
+}
+
 export type HttpMethod = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export interface RequestOptions {
