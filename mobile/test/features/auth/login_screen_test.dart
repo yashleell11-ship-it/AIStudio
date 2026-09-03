@@ -163,5 +163,35 @@ void main() {
       expect(find.text('CREATE THE FIRST ACCOUNT'), findsOneWidget);
       expect(find.byType(TextField), findsNothing);
     });
+
+    testWidgets('shows "Create an account" when registration is open',
+        (tester) async {
+      final controller = _StubAuthController(null);
+      await tester.pumpWidget(
+        _wrap(status: openStatus, controller: controller),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Create an account'), findsOneWidget);
+    });
+
+    testWidgets('hides "Create an account" when registration is closed',
+        (tester) async {
+      final controller = _StubAuthController(null);
+      await tester.pumpWidget(
+        _wrap(
+          status: const BootstrapStatus(
+            needsBootstrap: false,
+            registrationEnabled: false,
+          ),
+          controller: controller,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Never a dead button — closed registration renders no affordance for
+      // it at all, not a disabled one.
+      expect(find.text('Create an account'), findsNothing);
+    });
   });
 }

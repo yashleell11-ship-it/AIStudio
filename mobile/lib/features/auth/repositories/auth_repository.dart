@@ -19,11 +19,17 @@ abstract interface class AuthRepository {
 
   /// Create an account. The first account created on a fresh instance becomes
   /// the admin / owner.
+  ///
+  /// [inviteCode] is only sent when non-null/non-empty; the bootstrap account
+  /// never needs one. A server that requires one and didn't get it, or got a
+  /// wrong one, resolves to an `ApiError` (403, `invite_code_required` /
+  /// `invite_code_invalid`).
   Future<Result<AuthResponse>> register({
     required String username,
     required String password,
     String? email,
     String? displayName,
+    String? inviteCode,
     bool remember = true,
   });
 

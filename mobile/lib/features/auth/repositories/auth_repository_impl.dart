@@ -39,6 +39,7 @@ class AuthRepositoryImpl implements AuthRepository {
     required String password,
     String? email,
     String? displayName,
+    String? inviteCode,
     bool remember = true,
   }) =>
       _objPost(
@@ -49,6 +50,8 @@ class AuthRepositoryImpl implements AuthRepository {
           if (email != null && email.isNotEmpty) 'email': email,
           if (displayName != null && displayName.isNotEmpty)
             'display_name': displayName,
+          if (inviteCode != null && inviteCode.isNotEmpty)
+            'invite_code': inviteCode,
           'remember': remember,
         },
         AuthResponse.fromJson,

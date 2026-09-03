@@ -41,6 +41,7 @@ class _UnreachableAuthRepository implements AuthRepository {
     required String password,
     String? email,
     String? displayName,
+    String? inviteCode,
     bool remember = true,
   }) async =>
       const Err<AuthResponse>(_unreachable);

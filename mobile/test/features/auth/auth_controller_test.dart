@@ -109,6 +109,7 @@ class _FakeAuthRepository implements AuthRepository {
     required String password,
     String? email,
     String? displayName,
+    String? inviteCode,
     bool remember = true,
   }) async =>
       registerResult ??
