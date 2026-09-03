@@ -30,14 +30,19 @@ UPLOADED_RE = re.compile(
     r'Uploaded:\s*<time[^>]+datetime="([^"]+)"',
     re.I,
 )
+# The media CDN moved from ``s<N>.3hentai.net`` to ``s<N>.3hentai.xyz``.
+# Every media pattern below matches either host: the gallery HTML is still
+# served from 3hentai.net, so only the image URLs changed, and a site that
+# renamed its CDN once may well rename it back or run both.
+MEDIA_HOST_RE = r"s\d+\.3hentai\.(?:net|xyz)"
 GALLERY_THUMB_RE = re.compile(
     r'href="(?:https://3hentai\.net)?/d/(\d+)/(\d+)"[^>]*>.*?'
-    r'data-src="(https://s\d+\.3hentai\.net/d\d+/\d+t\.jpg)"',
+    r'data-src="(https://' + MEDIA_HOST_RE + r'/d\d+/\d+t\.jpg)"',
     re.S | re.I,
 )
-MEDIA_PATH_RE = re.compile(r"(https://s(\d+)\.3hentai\.net/(d\d+)/)", re.I)
+MEDIA_PATH_RE = re.compile(r"(https://s(\d+)\.3hentai\.(?:net|xyz)/(d\d+)/)", re.I)
 PAGE_IMAGE_RE = re.compile(
-    r'https://s\d+\.3hentai\.net/d\d+/\d+\.jpg',
+    r'https://' + MEDIA_HOST_RE + r'/d\d+/\d+\.jpg',
     re.I,
 )
 
@@ -77,7 +82,7 @@ def _page_count(document: str, *, gallery_id: str) -> int:
 def _gallery_media_base(document: str, *, gallery_id: str) -> str | None:
     cover_match = re.search(
         rf'href="(?:https://3hentai\.net)?/d/{re.escape(gallery_id)}/1"[^>]*>.*?'
-        rf'data-src="(https://s\d+\.3hentai\.net/d\d+/)1t\.jpg"',
+        rf'data-src="(https://s\d+\.3hentai\.(?:net|xyz)/d\d+/)1t\.jpg"',
         document,
         re.S | re.I,
     )
