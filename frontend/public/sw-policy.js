@@ -32,14 +32,20 @@
    * of a saved-chapter cache: a bad rule must be fixable without deleting
    * somebody's downloaded reading.
    */
-  var RUNTIME_VERSION = "v1";
+  var RUNTIME_VERSION = "v2";
 
   /**
    * Saved-content generation. Bump ONLY when the on-disk shape of a saved
    * chapter changes in a way the reader cannot read back, because bumping it
    * abandons every chapter the user has saved.
+   *
+   * c1 → c2: the source-native migration (spec §3.2). A c1 chapter was keyed by
+   * integer chapter/page ids and stored under `/reader/chapter/{id}` /
+   * `/reader/page/{id}/image`; those endpoints no longer exist, so a c1 cache is
+   * unreadable and is dropped on activate (spec §6 O-3 — acceptable on a
+   * personal instance).
    */
-  var CONTENT_VERSION = "c1";
+  var CONTENT_VERSION = "c2";
 
   var PREFIX = "mm";
 
@@ -69,15 +75,21 @@
    *   /reader/progress/* — a stale resume point silently rewinds the reader.
    *                        docs/OFFLINE_READING.md picks furthest-wins merging
    *                        precisely to stop that happening.
-   *   /reader/chapter/*  — page ids are reassigned on rescan, so a stale
-   *                        payload points at images that may no longer be that
-   *                        page. Only an explicit "save for offline" caches
-   *                        these, and it re-validates them (see sw.js).
+   *   /reader/chapter/manifest — page urls are reassigned when a source re-lists
+   *                        a chapter, so a stale manifest points at images that
+   *                        may no longer be that page. Only an explicit "save
+   *                        for offline" caches it, and it re-validates on every
+   *                        online fetch (network-then-saved, see sw.js).
    *   /updates*          — the entire value of the updates feed is freshness.
-   *   /downloads*        — queue state; stale shows a finished job as running.
    *   /settings*, /system*, /admin* — instance state; stale health is a lie.
    */
   var SWR_ALLOWLIST = ["/library/series", "/sources"];
+
+  /** The source-proxy page-bytes endpoint: `/sources/{source}/pages/{page:path}/image`. */
+  var PAGE_IMAGE_PATTERN = /^\/sources\/[^/]+\/pages\/.+\/image$/;
+
+  /** The chapter payload endpoint: `/reader/chapter/manifest?source=&series=&chapter=`. */
+  var CHAPTER_MANIFEST_PATH = "/reader/chapter/manifest";
 
   /** Same-origin path prefixes safe to serve cache-first. */
   var IMMUTABLE_PREFIXES = [
@@ -242,6 +254,16 @@
     return false;
   }
 
+  /** A source-proxy page image — the bytes an explicit "save for offline" stores. */
+  function isPageImagePath(path) {
+    return isNonEmptyString(path) && PAGE_IMAGE_PATTERN.test(path);
+  }
+
+  /** The chapter manifest — the JSON a reader renders a chapter from. */
+  function isChapterManifestPath(path) {
+    return path === CHAPTER_MANIFEST_PATH;
+  }
+
   function isImmutableAssetPath(path) {
     if (!isNonEmptyString(path)) return false;
     for (var i = 0; i < IMMUTABLE_PREFIXES.length; i += 1) {
@@ -294,12 +316,21 @@
 
     var path = apiPath(request.url, request.apiBase);
     if (path !== null) {
-      if (isSwrAllowedPath(path)) return "api-swr";
       // A page image is the one thing worth answering from the cache without
-      // asking the network first: it is immutable for the life of the page id,
-      // it is what "saved for offline" bought, and a reader on a train should
-      // not wait for a timeout per page.
-      if (request.destination === "image") return "saved-first";
+      // asking the network first: it is immutable for the life of the source's
+      // page URL, it is what "saved for offline" bought, and a reader on a train
+      // should not wait for a timeout per page. Checked before the allowlist
+      // because page bytes live under `/sources/…`, which the allowlist also
+      // matches — matched there they would land in the API cache, never the
+      // saved-chapter cache, and offline reading would quietly break.
+      if (isPageImagePath(path) || request.destination === "image") {
+        return "saved-first";
+      }
+      // The chapter manifest: the live answer wins whenever there is one (page
+      // urls move on a re-list), and the saved copy is checked for drift as it
+      // passes. Only an explicit save caches it.
+      if (isChapterManifestPath(path)) return "network-then-saved";
+      if (isSwrAllowedPath(path)) return "api-swr";
       return "network-then-saved";
     }
 
@@ -447,6 +478,8 @@
     apiPath: apiPath,
     isAuthUrl: isAuthUrl,
     isSwrAllowedPath: isSwrAllowedPath,
+    isPageImagePath: isPageImagePath,
+    isChapterManifestPath: isChapterManifestPath,
     isImmutableAssetPath: isImmutableAssetPath,
     isInternalKey: isInternalKey,
     classifyRequest: classifyRequest,

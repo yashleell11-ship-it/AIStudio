@@ -36,7 +36,7 @@
  * (so the update cannot be served an old policy from the HTTP cache).
  */
 
-var SW_BUILD = "2026-07-28.2";
+var SW_BUILD = "2026-09-03.1";
 
 importScripts("/sw-policy.js?v=" + SW_BUILD);
 
@@ -57,13 +57,13 @@ var SHELL_ASSETS = [
  * to render even if the user never visited them in this session.
  *
  * `/library` is the manifest's start_url — what an installed icon opens.
- * `/offline` is the only action the offline fallback page offers ("Saved
+ * `/downloads` is the only action the offline fallback page offers ("Saved
  * chapters"), so without it here that link fails to the very page it was
  * clicked from. Both are client-rendered shells that fetch their data over the
  * API, which is what makes them safe to share across profiles: the per-profile
  * content arrives separately, out of a per-profile cache.
  */
-var WARM_DOCUMENTS = ["/library", "/offline"];
+var WARM_DOCUMENTS = ["/library", "/downloads"];
 
 /** Parallel image fetches per save. Enough to saturate a NAS, not to drown it. */
 var SAVE_CONCURRENCY = 4;
@@ -427,9 +427,9 @@ async function handleNetworkThenSaved(event, request, context) {
  * is no scope — never a shared fallback.
  *
  * `ignoreSearch` is opt-in and used only for documents. It must stay off
- * everywhere else: `/reader/chapter/50/adjacent?direction=previous` and
- * `?direction=next` differ only in their query string, so ignoring it would
- * answer "what is the next chapter" with the previous one.
+ * everywhere else: the chapter manifest is keyed by its
+ * `?source=&series=&chapter=` query, so ignoring the query string would answer
+ * one saved chapter's manifest with another's.
  */
 async function matchSaved(request, scope, ignoreSearch) {
   var cacheName = policy.offlineCacheName(scope);
@@ -442,11 +442,11 @@ async function matchSaved(request, scope, ignoreSearch) {
 }
 
 /**
- * Keep a saved chapter's payload in step with the server, and flag it when the
+ * Keep a saved chapter's manifest in step with the source, and flag it when the
  * pages moved underneath it.
  *
- * `page.id` is not stable across a rescan (docs/OFFLINE_READING.md), and every
- * saved image is keyed by page id. If the ids change, the saved images are
+ * A source's page URLs are not stable when it re-lists a chapter, and every
+ * saved image is keyed by its URL. If the URLs change, the saved images are
  * orphans and the chapter would fail to open offline with no explanation, so
  * the entry is marked stale and the UI offers to save it again.
  */
@@ -484,8 +484,11 @@ function pageIdsOf(bodyText) {
   try {
     var payload = JSON.parse(bodyText);
     if (!payload || !Array.isArray(payload.pages)) return null;
-    return payload.pages.map(function id(page) {
-      return String(page && page.id);
+    return payload.pages.map(function signature(page) {
+      // Page identity in a source-native manifest is (number, url): the number
+      // orders the strip, the url is what a saved image is keyed by. Either one
+      // moving orphans the saved bytes.
+      return String(page && page.number) + " " + String(page && page.url);
     });
   } catch {
     return null;
@@ -541,8 +544,9 @@ function mutateIndex(scope, mutator) {
 // --- Saving ----------------------------------------------------------------
 
 /**
- * Fetch and store one chapter: its reader payload, its page images, the
- * document that renders it and its two adjacency lookups.
+ * Fetch and store one chapter: its manifest, its page images and the document
+ * that renders it. Adjacency travels inside the manifest (`prev`/`next`), so
+ * there is nothing extra to fetch for it.
  *
  * Runs in the worker rather than the page so navigating away — or locking the
  * phone — does not abandon a half-saved chapter, and so a resumed save can skip
@@ -582,8 +586,9 @@ async function runSave(payload, cacheName) {
     var existing = draft.entries[payload.key];
     draft.entries[payload.key] = {
       key: payload.key,
-      chapterId: payload.chapterId,
-      seriesId: payload.seriesId,
+      sourceId: payload.sourceId,
+      seriesKey: payload.seriesKey,
+      chapterKey: payload.chapterKey,
       title: payload.title,
       seriesTitle: payload.seriesTitle || null,
       pageCount: payload.imageUrls.length,
