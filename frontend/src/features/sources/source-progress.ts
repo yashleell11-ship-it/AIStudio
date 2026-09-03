@@ -22,9 +22,8 @@ import {
  * `sourceId:seriesId:chapterId`. Mirrors the SSR-safe style of scroll-storage.
  *
  * The object itself is per (user, profile) — reading position is exactly the
- * kind of data profiles isolate server-side, and the source migration replays
- * remote reading positions into it, so a device-global object showed one
- * profile where another had got to.
+ * kind of data profiles isolate server-side, so a device-global object showed
+ * one profile where another had got to.
  */
 
 const STORAGE_BASE = "mm.source-progress";
@@ -82,11 +81,9 @@ function writeStore(store: ProgressStore): void {
 }
 
 /**
- * Fold a pre-scoping store into a scoped one, newer-wins.
- *
- * Same rule as {@link applyProgressRemap}: a record already in the scope was
- * written after the upgrade, so it reflects where the profile actually is and
- * an older legacy record must not walk it back.
+ * Fold a pre-scoping store into a scoped one, newer-wins: a record already in
+ * the scope was written after the upgrade, so it reflects where the profile
+ * actually is and an older legacy record must not walk it back.
  */
 export function mergeLegacyProgress(
   scoped: SourceProgressStore,
@@ -158,76 +155,6 @@ export function setSourceChapterProgress(
     updatedAt: new Date().toISOString(),
   };
   writeStore(store);
-}
-
-/** A `(source, series)` pair, as a source migration names them. */
-export interface SourceSeriesRef {
-  source: string;
-  seriesId: string;
-}
-
-/**
- * Replay a migration's chapter map over a progress store.
- *
- * Online reading progress for a non-downloaded remote series exists ONLY here —
- * the backend has no per-chapter read model for remote sources — so repointing
- * a follow at another source leaves the user's place behind unless the client
- * moves it. The server hands back the number-matched remap for exactly this.
- *
- * Copies rather than moves: the records under the old `(source, series)` are
- * left in place, so migrating back (or reading the old source directly, which
- * still routes) does not lose anything, and re-running the same remap is a
- * no-op. A target that already has *newer* progress is never overwritten —
- * nearest-match can collapse two old chapters onto one target, and the most
- * recently read of them is the one that reflects where the user actually is.
- */
-export function applyProgressRemap(
-  store: SourceProgressStore,
-  from: SourceSeriesRef,
-  to: SourceSeriesRef,
-  chapterMap: ReadonlyArray<{ from_chapter_id: string; to_chapter_id: string | null }>,
-): { store: SourceProgressStore; moved: number } {
-  const next: SourceProgressStore = { ...store };
-  let moved = 0;
-
-  for (const entry of chapterMap) {
-    if (!entry.to_chapter_id) {
-      continue;
-    }
-    const record = store[recordKey(from.source, from.seriesId, entry.from_chapter_id)];
-    if (!record) {
-      continue;
-    }
-    const targetKey = recordKey(to.source, to.seriesId, entry.to_chapter_id);
-    const existing = next[targetKey];
-    if (existing && existing.updatedAt >= record.updatedAt) {
-      continue;
-    }
-    next[targetKey] = record;
-    moved += 1;
-  }
-
-  return { store: next, moved };
-}
-
-/**
- * Persist {@link applyProgressRemap} against the active profile's store — the
- * migration was performed by that profile, and only its positions move.
- * Returns how many chapters carried their progress across.
- */
-export function remapSourceSeriesProgress(
-  from: SourceSeriesRef,
-  to: SourceSeriesRef,
-  chapterMap: ReadonlyArray<{ from_chapter_id: string; to_chapter_id: string | null }>,
-): number {
-  if (typeof window === "undefined") {
-    return 0;
-  }
-  const { store, moved } = applyProgressRemap(readStore(), from, to, chapterMap);
-  if (moved > 0) {
-    writeStore(store);
-  }
-  return moved;
 }
 
 export function getSourceSeriesProgress(
