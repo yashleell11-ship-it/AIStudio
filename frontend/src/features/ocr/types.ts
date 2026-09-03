@@ -1,42 +1,14 @@
-export type OcrJobStatus =
-  | "queued"
-  | "processing"
-  | "completed"
-  | "failed"
-  | "cancelled";
+/**
+ * OCR is search-only on the web client (spec §3.5). The web queries the global
+ * `chapter_ocr` store; it never runs OCR — the mobile client (1c) populates it.
+ * There is no queue, no job list, no metrics.
+ */
 
-export interface OcrMetrics {
-  jobs: { started: number; completed: number; failed: number };
-  pages: { processed: number; skipped: number; retried: number };
-  performance: {
-    avg_page_ms: number;
-    pages_per_sec: number;
-    avg_confidence: number;
-  };
-  retry_rate: number;
-  engine_breakdown: Record<string, number>;
-}
-
-export interface OcrJob {
-  id: number;
-  chapter_id: number;
-  status: OcrJobStatus;
-  engine: string;
-  progress: number;
-  pages_done: number;
-  pages_total: number;
-  retry_count: number;
-  error: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
+/** One dialogue-search hit, source-native (see backend/services/ocr_search.py). */
 export interface OcrSearchResultItem {
-  chapter_id: number;
-  chapter_title: string;
-  chapter_number: number;
-  series_id: number;
-  series_title: string;
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
   word_count: number;
   engine: string;
   /** Server-highlighted excerpt containing literal <mark>…</mark> markers. */
@@ -50,4 +22,26 @@ export interface OcrSearchResponse {
   offset: number;
   limit: number;
   has_more: boolean;
+}
+
+/** One page's extracted text (GET /ocr/chapter). */
+export interface OcrPageText {
+  page: number;
+  text: string;
+  boxes: unknown[] | null;
+}
+
+/**
+ * Stored OCR for a single chapter. `page_texts` is empty when the chapter has
+ * no transcript yet — the in-reader reveal feature is then silently off.
+ */
+export interface OcrChapterResponse {
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  language: string | null;
+  engine: string;
+  word_count: number;
+  updated_at: string | null;
+  page_texts: OcrPageText[];
 }
