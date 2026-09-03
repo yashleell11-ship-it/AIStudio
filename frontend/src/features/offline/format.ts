@@ -86,7 +86,10 @@ export function formatDueIn(dueAt: number, now: number): string {
 }
 
 export interface SeriesGroup {
-  seriesId: string;
+  /** `${sourceId}:${seriesKey}` — stable within a profile's saved set. */
+  id: string;
+  sourceId: string;
+  seriesKey: string;
   seriesTitle: string;
   bytes: number;
   entries: SavedChapterEntry[];
@@ -95,19 +98,22 @@ export interface SeriesGroup {
 /**
  * Saved chapters grouped by series, newest series first, chapters inside a
  * series in the order they were saved. A reader thinks in series, not in
- * chapter ids.
+ * chapter keys.
  */
 export function groupBySeries(entries: SavedChapterEntry[]): SeriesGroup[] {
   const groups = new Map<string, SeriesGroup>();
   for (const entry of entries) {
-    const existing = groups.get(entry.seriesId);
+    const id = `${entry.sourceId}:${entry.seriesKey}`;
+    const existing = groups.get(id);
     if (existing) {
       existing.entries.push(entry);
       existing.bytes += entry.bytes;
       continue;
     }
-    groups.set(entry.seriesId, {
-      seriesId: entry.seriesId,
+    groups.set(id, {
+      id,
+      sourceId: entry.sourceId,
+      seriesKey: entry.seriesKey,
       seriesTitle: entry.seriesTitle ?? "Unknown series",
       bytes: entry.bytes,
       entries: [entry],
