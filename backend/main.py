@@ -50,8 +50,8 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
             logging.getLogger("uvicorn.error").info(
                 "Applied a staged database restore before startup."
             )
-        init_db()
         if run_migrations:
+            init_db()
             prune_expired_sessions()
         update_manager = get_update_manager()
         if run_workers:
