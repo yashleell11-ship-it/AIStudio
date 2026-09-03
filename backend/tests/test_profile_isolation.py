@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import pytest
 
+from core.errors import AppError
 from database.models import Collection, UpdateNotification
 from services.followed_series_service import FollowedSeriesService
 from services.progress_service import ProgressInput, ProgressService
@@ -61,6 +62,31 @@ def test_follows_isolated_across_profiles_and_accounts(db_session, world, seed_f
 # --- progress ------------------------------------------------------------
 
 
+def test_series_detail_is_404_when_the_profile_header_is_omitted(
+    db_session, world, seed_follow
+):
+    """A service built with no profile (``X-Profile-Id`` absent — which
+    ``resolve_profile_context`` leniently allows) must not reach the account's
+    profile-owned rows. ``None`` is the unscoped bucket, not a wildcard."""
+    row = seed_follow(world["u1"], world["a"], series_key="a-series")
+
+    unscoped = _followed(db_session, world["u1"], None)
+    for call in (
+        lambda: unscoped.get_detail(row.id),
+        lambda: unscoped.patch(row.id, notify=False),
+        lambda: unscoped.unfollow(row.id),
+    ):
+        with pytest.raises(AppError) as excinfo:
+            call()
+        assert excinfo.value.status_code == 404
+
+    db_session.refresh(row)
+    assert row.notify  # untouched
+
+
+# --- progress ------------------------------------------------------------
+
+
 def test_progress_isolated_across_profiles(db_session, world):
     _progress(db_session, world["u1"], world["a"]).save_one(
         ProgressInput(
@@ -77,6 +103,115 @@ def test_progress_isolated_across_profiles(db_session, world):
     assert c_hist == []
     a_hist = _progress(db_session, world["u1"], world["a"]).reading_history()
     assert len(a_hist) == 1 and a_hist[0]["last_page"] == 9
+
+
+def test_series_detail_progress_overlay_is_profile_scoped(
+    db_session, world, seed_follow, seed_progress
+):
+    """Two profiles following the same series must not see one merged overlay
+    (which resumes each of them at the other's page)."""
+    a_follow = seed_follow(world["u1"], world["a"], series_key="shared")
+    b_follow = seed_follow(world["u1"], world["b"], series_key="shared")
+    seed_progress(
+        world["u1"], world["a"], series_key="shared", chapter_key="ch-a", last_page=11
+    )
+    seed_progress(
+        world["u1"], world["b"], series_key="shared", chapter_key="ch-b", last_page=44
+    )
+
+    a_overlay = _followed(db_session, world["u1"], world["a"]).get_detail(
+        a_follow.id
+    )["progress"]
+    b_overlay = _followed(db_session, world["u1"], world["b"]).get_detail(
+        b_follow.id
+    )["progress"]
+
+    assert set(a_overlay) == {"ch-a"} and a_overlay["ch-a"]["last_page"] == 11
+    assert set(b_overlay) == {"ch-b"} and b_overlay["ch-b"]["last_page"] == 44
+
+
+def test_continue_reading_strip_is_profile_scoped(
+    db_session, world, seed_follow, seed_progress
+):
+    seed_follow(world["u1"], world["a"], series_key="a-series")
+    seed_follow(world["u1"], world["b"], series_key="b-series")
+    seed_progress(world["u1"], world["a"], series_key="a-series", chapter_key="ca")
+    seed_progress(world["u1"], world["b"], series_key="b-series", chapter_key="cb")
+
+    a_strip = _followed(db_session, world["u1"], world["a"]).continue_reading()
+    b_strip = _followed(db_session, world["u1"], world["b"]).continue_reading()
+    c_strip = _followed(db_session, world["u2"], world["c"]).continue_reading()
+
+    assert [r["series_key"] for r in a_strip] == ["a-series"]
+    assert [r["series_key"] for r in b_strip] == ["b-series"]
+    assert c_strip == []
+
+
+def test_continue_reading_strip_only_shows_series_this_profile_follows(
+    db_session, world, seed_progress
+):
+    """Progress with no follow row for this profile is not a library entry."""
+    seed_progress(world["u1"], world["a"], series_key="drive-by", chapter_key="c1")
+    assert _followed(db_session, world["u1"], world["a"]).continue_reading() == []
+
+
+def test_continue_reading_strip_honours_the_18plus_gate(
+    db_session, make_user, make_profile, seed_follow, seed_progress
+):
+    """Reading ``chapter_progress`` directly bypassed the maturity gate: the
+    strip is joined to ``followed_series`` precisely so the rating resolves."""
+    user = make_user("gated")
+    profile = make_profile(user.id, "Kid", mature_content_enabled=False)
+    seed_follow(
+        user.id, profile.id, series_key="adult-series", mature_override=True
+    )
+    seed_follow(user.id, profile.id, series_key="safe-series", mature_override=False)
+    seed_progress(
+        user.id, profile.id, series_key="adult-series", chapter_key="a1"
+    )
+    seed_progress(user.id, profile.id, series_key="safe-series", chapter_key="s1")
+
+    strip = _followed(db_session, user.id, profile.id).continue_reading()
+    assert [r["series_key"] for r in strip] == ["safe-series"]
+
+    open_profile = make_profile(user.id, "Grown", mature_content_enabled=True)
+    seed_follow(
+        user.id, open_profile.id, series_key="adult-series", mature_override=True
+    )
+    seed_progress(
+        user.id, open_profile.id, series_key="adult-series", chapter_key="a1"
+    )
+    open_strip = _followed(db_session, user.id, open_profile.id).continue_reading()
+    assert [r["series_key"] for r in open_strip] == ["adult-series"]
+
+
+# --- statistics ---------------------------------------------------------
+
+
+def test_statistics_completed_count_is_profile_scoped(
+    db_session, world, seed_follow, seed_progress
+):
+    seed_follow(world["u1"], world["a"], series_key="a-series")
+    seed_progress(
+        world["u1"],
+        world["a"],
+        series_key="a-series",
+        chapter_key="ca",
+        is_completed=True,
+    )
+    for n in range(3):
+        seed_progress(
+            world["u1"],
+            world["b"],
+            series_key="b-series",
+            chapter_key=f"cb{n}",
+            is_completed=True,
+        )
+
+    a_stats = _followed(db_session, world["u1"], world["a"]).statistics()
+    b_stats = _followed(db_session, world["u1"], world["b"]).statistics()
+    assert a_stats["chapters_completed"] == 1
+    assert b_stats["chapters_completed"] == 3
 
 
 # --- notifications -----------------------------------------------------
