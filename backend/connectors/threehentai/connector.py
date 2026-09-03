@@ -78,7 +78,10 @@ class ThreeHentaiConnector(SourceConnector):
 
     @property
     def allowed_image_hosts(self) -> frozenset[str]:
-        return frozenset({"3hentai.net"})
+        # Pages and thumbnails now come from s<N>.3hentai.xyz; the gallery HTML
+        # is still on 3hentai.net. Both are allowlisted so the image proxy does
+        # not reject the CDN the parser actually finds.
+        return frozenset({"3hentai.net", "3hentai.xyz"})
 
     def image_fetch_headers(self) -> dict[str, str]:
         return {"Referer": f"{SITE_BASE}/"}
