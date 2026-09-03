@@ -32,6 +32,20 @@ services:
       # account is created out-of-band (ops/vps/deploy.sh create-owner) so the
       # users table is never empty on a public host.
       - MM_REGISTRATION_ENABLED=false
+      # Self-service signup for household members is an explicit opt-in: flip
+      # MM_REGISTRATION_ENABLED=true above AND set an invite code below (or via
+      # `ops/vps/deploy.sh set-invite-code`, which persists it in
+      # /data/settings.json — note this env line, when set, wins over that).
+      # Tradeoff: enabled + a code = only people you gave the code to can
+      # register; enabled + NO code = anyone on the internet can. Never ship
+      # the second state on this host.
+      # - MM_REGISTRATION_INVITE_CODE=
+      # If the users table is ever empty (fresh disk, reset-accounts), the
+      # first UNINVITED registration is only accepted for this many minutes —
+      # after that the empty table stops being a public admin-takeover window
+      # and normal registration/invite rules apply (create-owner always works).
+      # 0 disables uninvited bootstrap entirely. Default 30.
+      # - MM_BOOTSTRAP_WINDOW_MINUTES=30
       # http.ts sends credentials:include; 1a rejects a wildcard outside debug.
       - CORS_ORIGINS=https://manhwamaniacs.xyz
       # Baked into the SideStore/APK manifest links the phone fetches (1c).

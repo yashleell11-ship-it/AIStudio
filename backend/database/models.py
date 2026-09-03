@@ -101,6 +101,31 @@ class ReadingProfile(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class BootstrapState(Base):
+    """Singleton row (id=1): when the ``users`` table was first observed empty.
+
+    An empty users table on a public host is an admin-takeover window — whoever
+    registers first becomes admin. This timestamp bounds that window (see
+    ``Settings.bootstrap_window_minutes``): uninvited bootstrap registration is
+    only allowed while ``utcnow() - empty_since`` is inside the window.
+
+    It lives in the database — not ``config/settings.json`` — deliberately: the
+    window is a property of *this* database's contents, so the marker must
+    travel with the DB file. A backup restore swaps the DB and the state
+    follows; ``deploy.sh reset-accounts`` deletes the accounts and re-arms the
+    window in the same transaction; and a stale marker can never leak in from a
+    side file that outlived a wiped database. The row is deleted when the first
+    account registers and (re)created the next time the table is observed empty.
+    """
+
+    __tablename__ = "bootstrap_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    empty_since: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, default=utcnow
+    )
+
+
 class SourcePin(Base):
     """A source the user pinned to the top of the Sources screen."""
 

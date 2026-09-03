@@ -16,7 +16,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from core.config import get_settings
 from core.errors import AppError
-from core.rate_limit import auth_limit, limiter
+from core.rate_limit import auth_limit, limiter, register_limit
 from database.models import User
 from services.auth_service import (
     REMEMBER_ME_TTL,
@@ -42,6 +42,10 @@ class RegisterRequest(BaseModel):
     password: str
     email: str | None = Field(default=None, max_length=255)
     display_name: str | None = Field(default=None, max_length=255)
+    # Required (403 invite_code_required) whenever the deployment has an invite
+    # code configured — except for the very first account while the bootstrap
+    # window is open. GET /auth/bootstrap-status says whether to send it.
+    invite_code: str | None = Field(default=None, max_length=255)
     remember: bool = False
 
 
@@ -88,11 +92,25 @@ class SessionOut(BaseModel):
 
 
 class BootstrapStatus(BaseModel):
-    # True while zero accounts exist: the client shows "create the first admin"
-    # instead of a login form. Public — carries no user data.
+    """Public pre-auth probe: everything a client needs to decide which form to
+    render (login / register / claim-this-instance) — and nothing more. The
+    invite code itself is NEVER included here."""
+
+    # True while zero accounts exist. Kept for existing clients; new UI logic
+    # should key the "create the first admin" form on `bootstrap_open`, because
+    # an empty table with an expired window no longer grants uninvited signup.
     needs_bootstrap: bool
-    # Whether self-service registration is open once an admin exists.
+    # True while zero accounts exist AND the bootstrap window is still open:
+    # registering right now needs no invite code and yields the admin account.
+    bootstrap_open: bool
+    # The deployment's self-service registration switch (post-bootstrap).
     registration_enabled: bool
+    # True when a registration attempt right now must carry `invite_code`.
+    # Render the invite-code field iff this is true.
+    invite_code_required: bool
+    # Convenience: can POST /auth/register succeed right now at all (with a
+    # valid invite code where required)? False => hide/disable the signup form.
+    registration_open: bool
 
 
 # --- helpers -----------------------------------------------------------------
@@ -140,33 +158,41 @@ def _client_meta(request: Request) -> tuple[str | None, str | None]:
 
 @router.get("/bootstrap-status", response_model=BootstrapStatus)
 def bootstrap_status(auth: AuthDep) -> BootstrapStatus:
-    """Public: report whether the instance still needs its first (admin) account,
-    so the client can show a bootstrap form instead of a login form."""
+    """Public: report whether the instance still needs its first (admin) account
+    and what a registration attempt would currently require, so the client can
+    render the right form. Never echoes the invite code."""
+    settings = get_settings()
+    needs_bootstrap = auth.user_count() == 0
+    bootstrap_open = needs_bootstrap and auth.bootstrap_window_open()
+    invite_configured = bool(settings.registration_invite_code)
     return BootstrapStatus(
-        needs_bootstrap=auth.user_count() == 0,
-        registration_enabled=get_settings().registration_enabled,
+        needs_bootstrap=needs_bootstrap,
+        bootstrap_open=bootstrap_open,
+        registration_enabled=settings.registration_enabled,
+        invite_code_required=invite_configured and not bootstrap_open,
+        registration_open=bootstrap_open or settings.registration_enabled,
     )
 
 
 @router.post("/register", response_model=AuthResponse, status_code=201)
-@limiter.limit(auth_limit)
+@limiter.limit(register_limit)
 def register(
     body: RegisterRequest,
     request: Request,
     response: Response,
     auth: AuthDep,
 ) -> AuthResponse:
-    """Create an account and start a session. The first account becomes admin.
+    """Create an account and start a session.
 
-    After the bootstrap account exists, self-registration requires
-    ``registration_enabled`` (default on) — otherwise 403.
+    While the users table is empty and the bootstrap window is open, the first
+    registration is allowed uninvited and becomes the admin/owner. Otherwise
+    ``registration_enabled`` must be on (403 ``registration_disabled``) and,
+    when the deployment has an invite code configured, ``invite_code`` must
+    match (403 ``invite_code_required`` / ``invite_code_invalid``). See
+    ``AuthService.ensure_registration_allowed``. Rate-limited on its own
+    tight bucket (``MM_RATE_LIMIT_REGISTER``) against invite brute force.
     """
-    if auth.user_count() > 0 and not get_settings().registration_enabled:
-        raise AppError(
-            "Registration is disabled.",
-            code="registration_disabled",
-            status_code=403,
-        )
+    auth.ensure_registration_allowed(body.invite_code)
     user = auth.register(
         body.username,
         body.password,

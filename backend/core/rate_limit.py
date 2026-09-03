@@ -74,6 +74,14 @@ def auth_limit() -> str:
     return get_settings().rate_limit_auth
 
 
+def register_limit() -> str:
+    """Limit for POST /auth/register — tighter than the general auth bucket
+    because registration is the invite-code brute-force surface (and account
+    creation is rare, so a hard cap costs a real user nothing). The value may
+    combine several limits with ";" (e.g. "5/minute;30/hour")."""
+    return get_settings().rate_limit_register
+
+
 def backup_limit() -> str:
     """Limit for the admin backup restore-upload endpoint. (The old ``import``
     bucket had one other user — folder library import — which is gone; spec
