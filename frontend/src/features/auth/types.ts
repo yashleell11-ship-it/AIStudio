@@ -22,10 +22,36 @@ export interface AuthResponse {
 }
 
 export interface BootstrapStatus {
-  /** True while zero accounts exist — show "create the first admin" instead of login. */
+  /**
+   * True while zero accounts exist. Kept for older callers; screen-mode logic
+   * should key off `bootstrap_open` instead — an empty table whose takeover
+   * window has expired no longer grants uninvited signup (see
+   * `backend/routes/auth.py`).
+   */
   needs_bootstrap: boolean;
-  /** Whether self-service registration is open once an admin exists. */
+  /**
+   * True while zero accounts exist AND the bootstrap takeover window is still
+   * open: registering right now needs no invite code and yields the admin
+   * account. Optional/absent on an older backend — fall back to
+   * `needs_bootstrap`, which is what "bootstrap" meant before this window
+   * existed.
+   */
+  bootstrap_open?: boolean;
+  /** The deployment's self-service registration switch (post-bootstrap). */
   registration_enabled: boolean;
+  /**
+   * Whether `POST /auth/register` requires an `invite_code` right now.
+   * Optional/absent on an older backend — treat a missing value as "not
+   * required" so the client degrades gracefully.
+   */
+  invite_code_required?: boolean;
+  /**
+   * Convenience: can `POST /auth/register` succeed at all right now (with a
+   * valid invite code where required)? False hides/disables the signup
+   * form entirely. Optional/absent on an older backend — fall back to
+   * `registration_enabled`.
+   */
+  registration_open?: boolean;
 }
 
 export interface LoginPayload {
@@ -39,5 +65,7 @@ export interface RegisterPayload {
   password: string;
   email?: string | null;
   display_name?: string | null;
+  /** Required only when `BootstrapStatus.invite_code_required` is true. */
+  invite_code?: string | null;
   remember?: boolean;
 }

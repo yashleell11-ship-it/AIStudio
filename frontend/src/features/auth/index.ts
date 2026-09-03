@@ -5,3 +5,4 @@ export { AuthPending } from "./components/auth-pending";
 export * from "./access";
 export * from "./hooks";
 export * from "./types";
+export * from "./register-payload";
