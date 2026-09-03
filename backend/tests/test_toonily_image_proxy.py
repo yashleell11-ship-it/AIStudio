@@ -60,16 +60,20 @@ def test_toonily_page_proxy_sends_referer_header(
     fake_response = MagicMock()
     fake_response.is_redirect = False
     fake_response.headers = {"content-type": "image/webp"}
-    fake_response.content = MINIMAL_PNG
+    fake_response.iter_bytes = lambda: iter([MINIMAL_PNG])
     fake_response.raise_for_status = MagicMock()
+    stream_cm = MagicMock()
+    stream_cm.__enter__ = MagicMock(return_value=fake_response)
+    stream_cm.__exit__ = MagicMock(return_value=False)
 
     with patch("services.outbound_security.is_public_address", return_value=True):
-        with patch("httpx.get", return_value=fake_response) as mock_get:
+        with patch("httpx.stream", return_value=stream_cm) as mock_stream:
             media_type, data = browse_service._fetch_remote_image(page, toonily_connector)
 
     assert media_type == "image/webp"
     assert data == MINIMAL_PNG
-    mock_get.assert_called_once_with(
+    mock_stream.assert_called_once_with(
+        "GET",
         page.remote_url,
         timeout=30.0,
         follow_redirects=False,

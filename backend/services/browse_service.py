@@ -69,6 +69,24 @@ _WHITESPACE_RE = re.compile(r"\s+")
 _TOKEN_SPLIT_RE = re.compile(r"[^\w]+", re.UNICODE)
 _LOCAL_GROUP_NAME = "My Library"
 
+# The only media types the image proxy will ever declare to a browser. The
+# upstream Content-Type used to be reflected verbatim, so a hostile
+# allowlisted host serving ``text/html`` (or scriptable ``image/svg+xml``)
+# became stored XSS on the app origin. Anything else is served as an opaque
+# download instead.
+_ALLOWED_IMAGE_MEDIA_TYPES = frozenset(
+    {"image/jpeg", "image/png", "image/webp", "image/avif", "image/gif"}
+)
+
+
+def _safe_image_media_type(media_type: str | None) -> str:
+    """Clamp an upstream Content-Type to the bitmap allowlist."""
+    cleaned = (media_type or "").split(";")[0].strip().lower()
+    if cleaned in _ALLOWED_IMAGE_MEDIA_TYPES:
+        return cleaned
+    return "application/octet-stream"
+
+
 _search_executor: ThreadPoolExecutor | None = None
 _search_executor_lock = threading.Lock()
 # Search-scoped connector instances, one per source (see _search_connector).
@@ -1022,10 +1040,20 @@ class BrowseService:
     def _validate_outbound_url(self, url: str, connector: SourceConnector) -> str:
         return validate_outbound_url(url, connector)
 
+    @staticmethod
+    def _too_large(url: str, max_bytes: int) -> AppError:
+        return AppError(
+            "Remote image exceeds the proxy size limit.",
+            code="image_too_large",
+            status_code=502,
+            details={"url": url, "max_bytes": max_bytes},
+        )
+
     def _fetch_url(self, url: str, connector: SourceConnector) -> tuple[str, bytes]:
         import httpx
 
         self._validate_outbound_url(url, connector)
+        max_bytes = get_settings().image_proxy_max_bytes
 
         try:
             proxied = connector.fetch_proxied_image(url)
@@ -1037,27 +1065,42 @@ class BrowseService:
                 details={"url": url, "reason": str(exc)},
             ) from exc
         if proxied is not None:
-            return proxied
+            media_type, data = proxied
+            if len(data) > max_bytes:
+                raise self._too_large(url, max_bytes)
+            return _safe_image_media_type(media_type), data
 
         try:
             # Redirects are not followed automatically: a redirect target
             # could point off the approved allowlist, silently bypassing it.
             # Connector headers (e.g. Referer) are required for CDNs that
             # enforce hotlink protection — bare GETs often return 403.
-            response = httpx.get(
+            # Streamed with a hard byte ceiling: a hostile upstream must not
+            # be able to buffer an unbounded body into this process.
+            with httpx.stream(
+                "GET",
                 url,
                 timeout=30.0,
                 follow_redirects=False,
                 headers=connector.image_fetch_headers(),
-            )
-            if response.is_redirect:
-                raise AppError(
-                    "Remote host returned a redirect, which is not permitted.",
-                    code="ssrf_blocked",
-                    status_code=502,
-                    details={"url": url},
-                )
-            response.raise_for_status()
+            ) as response:
+                if response.is_redirect:
+                    raise AppError(
+                        "Remote host returned a redirect, which is not permitted.",
+                        code="ssrf_blocked",
+                        status_code=502,
+                        details={"url": url},
+                    )
+                response.raise_for_status()
+                declared = response.headers.get("content-length", "")
+                if declared.isdigit() and int(declared) > max_bytes:
+                    raise self._too_large(url, max_bytes)
+                body = bytearray()
+                for chunk in response.iter_bytes():
+                    body.extend(chunk)
+                    if len(body) > max_bytes:
+                        raise self._too_large(url, max_bytes)
+                media_type = response.headers.get("content-type", "image/jpeg")
         except httpx.HTTPError as exc:
             raise AppError(
                 "Failed to fetch remote image.",
@@ -1066,8 +1109,7 @@ class BrowseService:
                 details={"url": url, "reason": str(exc)},
             ) from exc
 
-        media_type = response.headers.get("content-type", "image/jpeg").split(";")[0]
-        return media_type, response.content
+        return _safe_image_media_type(media_type), bytes(body)
 
 
 def get_browse_service(
