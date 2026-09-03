@@ -1,9 +1,11 @@
 import { QueryClient } from "@tanstack/react-query";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { readerManifestQueryKey } from "@/features/reader/hooks";
 import {
   applyReaderPageCountToSourceChapters,
   applyRefreshedBrowsePage,
   normalizeBrowseFacets,
+  prefetchSourceReaderChapter,
   sourceChaptersQueryKey,
   sourceSeriesInfiniteQueryKey,
 } from "./hooks";
@@ -199,5 +201,51 @@ describe("applyRefreshedBrowsePage", () => {
     expect(data?.pageParams).toEqual([1]);
     // A direct write, so no background refetch is queued behind it.
     expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
+  });
+});
+
+
+describe("prefetchSourceReaderChapter", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("fills the cache entry the reader actually reads", async () => {
+    // The regression: the series page warmed `["sources", …, "reader", …]`,
+    // which no component reads — the reader renders from the manifest query.
+    // So every hover and every open-the-page prefetch was a live chapter
+    // scrape that bought nothing, out of the rate-limited `/sources` bucket.
+    const manifest = {
+      source_id: "asura",
+      series_key: "solo-leveling",
+      chapter_key: "chapter/1",
+      chapter_number: 1,
+      page_count: 0,
+      pages: [],
+      prev: null,
+      next: null,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify(manifest), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    const client = new QueryClient();
+    prefetchSourceReaderChapter(client, "asura", "solo-leveling", "chapter/1");
+
+    await vi.waitFor(() =>
+      expect(
+        client.getQueryData(
+          readerManifestQueryKey({
+            sourceId: "asura",
+            seriesKey: "solo-leveling",
+            chapterKey: "chapter/1",
+          }),
+        ),
+      ).toEqual(manifest),
+    );
   });
 });

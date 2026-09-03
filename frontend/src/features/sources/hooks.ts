@@ -6,6 +6,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { readerDebug } from "@/features/reader/debug";
+import { prefetchChapterManifest } from "@/features/reader/hooks";
 import { readerChapterHref } from "@/features/reader/reader-link";
 import { useActiveProfileStore } from "@/features/profiles/store";
 import { ApiError } from "@/types/api";
@@ -41,8 +42,19 @@ export function sourceReaderChapterQueryKey(
   return [...SOURCES_KEY, sourceId, "reader", seriesId, chapterId] as const;
 }
 
+/**
+ * Warm a chapter for the series page's Read links.
+ *
+ * Prefetches the READER's own query — `GET /reader/chapter/manifest`, keyed by
+ * `readerManifestQueryKey` — not `GET /sources/…/reader`. The source-native
+ * rewrite moved the reader onto the manifest; this kept filling
+ * `["sources", …, "reader", …]`, which no component has read since. Every
+ * prefetch was therefore a live chapter scrape that made nothing faster, and it
+ * spent the shared `/sources/*` rate-limit bucket (60/minute) that the series
+ * page's own detail, chapter-list and cover requests come out of.
+ */
 export function prefetchSourceReaderChapter(
-  queryClient: ReturnType<typeof useQueryClient>,
+  queryClient: QueryClient,
   sourceId: string,
   seriesId: string,
   chapterId: string,
@@ -54,20 +66,11 @@ export function prefetchSourceReaderChapter(
     chapterId,
     scope: "source",
   });
-  void queryClient
-    .prefetchQuery({
-      queryKey: sourceReaderChapterQueryKey(sourceId, seriesId, chapterId),
-      queryFn: () => sourcesApi.getReaderChapter(sourceId, seriesId, chapterId),
-      staleTime: SOURCE_READER_STALE_MS,
-    })
-    .then(() => {
-      readerDebug("api-prefetch-complete", {
-        sourceId,
-        seriesId,
-        chapterId,
-        scope: "source",
-      });
-    });
+  prefetchChapterManifest(queryClient, {
+    sourceId,
+    seriesKey: seriesId,
+    chapterKey: chapterId,
+  });
 }
 
 export function sourceReaderChapterPath(
