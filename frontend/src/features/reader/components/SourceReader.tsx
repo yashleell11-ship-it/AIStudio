@@ -80,8 +80,13 @@ export function SourceReader({
     : null;
 
   const nextChapterKey = chapter?.nextChapterKey ?? null;
-  const nextChapterNumber = chapter?.nextChapterKey
-    ? (chapter.chapterNumber != null ? chapter.chapterNumber + 1 : null)
+  // The manifest carries the next chapter's KEY but not its number. Only offer a
+  // "Ch N+1" label when this chapter's number is a whole number — decimal /
+  // split chapters make the guess unreliable, so those just say "Next chapter".
+  const nextChapterLabel = nextChapterKey
+    ? chapter?.chapterNumber != null && Number.isInteger(chapter.chapterNumber)
+      ? `Ch ${chapter.chapterNumber + 1}`
+      : "Next chapter"
     : null;
 
   const preloadNextChapter = useCallback(async () => {
@@ -195,11 +200,7 @@ export function SourceReader({
       initialPage={resumePage}
       previousChapterHref={previousChapterHref}
       nextChapterHref={nextChapterHref}
-      nextChapterLabel={
-        nextChapterKey
-          ? `Ch ${nextChapterNumber ?? ""}`.trim() || "Next chapter"
-          : null
-      }
+      nextChapterLabel={nextChapterLabel}
       onSeamlessNext={nextChapterKey ? advanceToNextChapter : undefined}
       seriesHref={seriesPageHref({ sourceId, seriesKey })}
       onBookmark={handleBookmark}
