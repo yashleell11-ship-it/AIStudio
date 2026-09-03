@@ -105,11 +105,20 @@ def get_run(run_id: int, service: UpdateDep) -> dict[str, object]:
 
 @router.post("/check")
 def manual_check(body: ManualCheckRequest, service: UpdateDep) -> dict[str, object]:
-    """Trigger an update check. Runs on a worker thread when the pool is up."""
+    """Trigger an update check. Runs on a worker thread when the pool is up.
+
+    The worker path hands the ids to ``run_check_in_new_session``, which runs a
+    *system*-scoped service on its own session — so the ownership check has to
+    happen here, before the ids leave the request. Without it any authenticated
+    caller could force a check on another account's followed series.
+    """
     manager = get_update_manager()
+    followed_ids = (
+        service.resolve_followed_ids(body.followed_ids) if body.followed_ids else None
+    )
     if not manager.is_running:
-        return service.run_check(trigger="manual", followed_ids=body.followed_ids)
-    if manager.trigger_check(trigger="manual", tracker_ids=body.followed_ids):
+        return service.run_check(trigger="manual", followed_ids=followed_ids)
+    if manager.trigger_check(trigger="manual", tracker_ids=followed_ids):
         return {"queued": True, "trigger": "manual"}
     raise AppError(
         "An update check is already running.",

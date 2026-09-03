@@ -168,3 +168,106 @@ def test_check_creates_notifications_for_new_chapters(
     one = api.post(f"/updates/followed/{follow.id}/check", json={}, headers=h)
     assert one.status_code == 200, one.text
     assert one.json()["new_chapters_found"] == 1
+
+
+# --- cross-account scoping of a targeted check ----------------------
+
+
+def test_targeted_check_cannot_touch_another_account(
+    api, as_user, acct, make_user, make_profile, db_session, seed_follow,
+    stub_chapters,
+):
+    """``followed_ids`` used to be applied to an otherwise unscoped statement,
+    so any authenticated caller could force a check on somebody else's row —
+    rewriting its snapshot and silently consuming its notification window."""
+    import json
+
+    victim_uid, victim_pid = acct
+    victim = seed_follow(
+        victim_uid, victim_pid, source_id=SRC, series_key=SERIES,
+        known_chapters=json.dumps(
+            [{"key": "c1", "number": 1.0, "title": "One", "published_at": None}]
+        ),
+        notify=True,
+    )
+    attacker = make_user("attacker")
+    attacker_profile = make_profile(attacker.id, "Main")
+    ah = as_user(attacker.id, attacker_profile.id)
+
+    # Upstream has moved on; a successful forced check would diff c2 away.
+    stub_chapters["chapters"] = [
+        {"id": "c1", "number": 1.0, "title": "One"},
+        {"id": "c2", "number": 2.0, "title": "Two"},
+    ]
+
+    forced = api.post(
+        "/updates/check", json={"followed_ids": [victim.id]}, headers=ah
+    )
+    assert forced.status_code == 404
+    assert forced.json()["code"] == "series_not_found"
+
+    single = api.post(f"/updates/followed/{victim.id}/check", json={}, headers=ah)
+    assert single.status_code == 404
+
+    # The victim's row is untouched, so their own check still finds c2 new.
+    db_session.refresh(victim)
+    assert [c["key"] for c in json.loads(victim.known_chapters)] == ["c1"]
+    assert victim.last_checked_at is None
+    assert db_session.query(UpdateNotification).count() == 0
+
+    mine = api.post("/updates/check", json={}, headers=as_user(victim_uid, victim_pid))
+    assert mine.json()["new_chapters_found"] == 1
+
+
+def test_targeted_check_cannot_touch_a_sibling_profile(
+    api, as_user, acct, make_profile, db_session, seed_follow, stub_chapters
+):
+    uid, pid = acct
+    row = seed_follow(uid, pid, source_id=SRC, series_key=SERIES)
+    other = make_profile(uid, "Other")
+    resp = api.post(
+        "/updates/check", json={"followed_ids": [row.id]},
+        headers=as_user(uid, other.id),
+    )
+    assert resp.status_code == 404
+
+
+def test_targeted_check_is_scoped_on_the_worker_path_too(
+    api, as_user, acct, make_user, make_profile, monkeypatch, seed_follow
+):
+    """With the scheduler pool up the route hands the ids straight to the
+    worker, whose service is system-scoped — so the ownership check has to
+    happen in the request, not in run_check."""
+    from routes import updates as updates_routes
+
+    victim_uid, victim_pid = acct
+    victim = seed_follow(victim_uid, victim_pid, source_id=SRC, series_key=SERIES)
+
+    class _RunningManager:
+        is_running = True
+
+        def __init__(self) -> None:
+            self.triggered: list[object] = []
+
+        def trigger_check(self, *, trigger, tracker_ids=None):  # noqa: ARG002
+            self.triggered.append(tracker_ids)
+            return True
+
+    manager = _RunningManager()
+    monkeypatch.setattr(updates_routes, "get_update_manager", lambda: manager)
+
+    attacker = make_user("worker-attacker")
+    attacker_profile = make_profile(attacker.id, "Main")
+    forced = api.post(
+        "/updates/check", json={"followed_ids": [victim.id]},
+        headers=as_user(attacker.id, attacker_profile.id),
+    )
+    assert forced.status_code == 404
+    assert manager.triggered == []  # never reached the worker
+
+    ok = api.post(
+        "/updates/check", json={"followed_ids": [victim.id]},
+        headers=as_user(victim_uid, victim_pid),
+    )
+    assert ok.status_code == 200 and ok.json() == {"queued": True, "trigger": "manual"}
+    assert manager.triggered == [[victim.id]]

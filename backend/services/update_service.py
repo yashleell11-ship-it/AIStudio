@@ -55,10 +55,19 @@ class UpdateService:
         *,
         user_id: int | None = None,
         profile_id: int | None = None,
+        system: bool = False,
     ) -> None:
+        """``system=True`` marks the background worker's service.
+
+        The scheduled sweep runs with no request context and legitimately walks
+        every account's rows. A *request*-built service never may, so the flag
+        is opt-in and off by default: a caller that forgets it gets the scoped,
+        safe behaviour rather than the unrestricted one.
+        """
         self._db = db
         self._user_id = user_id
         self._profile_id = profile_id
+        self._system = system
 
     # --- global settings ------------------------------------------------
 
@@ -212,6 +221,45 @@ class UpdateService:
 
     # --- the check sweep -------------------------------------------
 
+    def _followed_scope(self, stmt):
+        stmt = stmt.where(FollowedSeries.user_id == self._user_id)
+        if self._profile_id is None:
+            return stmt.where(FollowedSeries.profile_id.is_(None))
+        return stmt.where(FollowedSeries.profile_id == self._profile_id)
+
+    def resolve_followed_ids(self, followed_ids: list[int]) -> list[int]:
+        """Validate caller-supplied followed-series ids against this scope.
+
+        Without this, ``followed_ids`` was applied to an otherwise unscoped
+        statement: **any authenticated user could force a check on any other
+        account's row**, rewriting its ``known_chapters`` / ``last_checked_at``
+        / ``last_error`` and silently consuming its notification window (a
+        chapter diffed away by somebody else's forced check never notifies the
+        owner, because the next real run no longer sees it as new).
+
+        Raises 404 rather than filtering silently: an id the caller does not own
+        is indistinguishable, to them, from one that does not exist.
+        """
+        wanted = list(dict.fromkeys(followed_ids))
+        if self._system:
+            return wanted
+        owned = set(
+            self._db.execute(
+                self._followed_scope(
+                    select(FollowedSeries.id).where(FollowedSeries.id.in_(wanted))
+                )
+            ).scalars().all()
+        )
+        missing = [i for i in wanted if i not in owned]
+        if missing:
+            raise AppError(
+                "Followed series not found.",
+                code="series_not_found",
+                status_code=404,
+                details={"followed_ids": missing},
+            )
+        return wanted
+
     def run_check(
         self,
         *,
@@ -220,6 +268,10 @@ class UpdateService:
         tracker_ids: list[int] | None = None,  # legacy alias
     ) -> dict[str, Any]:
         followed_ids = followed_ids or tracker_ids
+        if followed_ids:
+            # Scoped *before* the run row is written, so an out-of-scope id
+            # leaves no trace in the run log either.
+            followed_ids = self.resolve_followed_ids(followed_ids)
         run = UpdateRun(trigger=trigger, status="running")
         self._db.add(run)
         self._db.commit()
@@ -232,6 +284,10 @@ class UpdateService:
             # when the row's ``notify`` flag is off, so flipping it on later does
             # not backfill a notification storm. ``notify`` gates only whether a
             # new chapter produces an ``update_notifications`` row (``_check_one``).
+            #
+            # The id-less full sweep is deliberately unscoped — it is the
+            # scheduler's job to check every account. Targeted ids went through
+            # ``resolve_followed_ids`` above.
             stmt = select(FollowedSeries)
             if followed_ids:
                 stmt = stmt.where(FollowedSeries.id.in_(followed_ids))
@@ -334,10 +390,16 @@ def run_check_in_new_session(
     followed_ids: list[int] | None = None,
     tracker_ids: list[int] | None = None,
 ) -> dict[str, Any]:
-    """Entry point for the background worker — owns its own session."""
+    """Entry point for the background worker — owns its own session.
+
+    ``system=True``: there is no request context here, and the scheduled sweep
+    legitimately walks every account. Ids that arrive on this path have already
+    been ownership-checked by the route that queued them
+    (``UpdateService.resolve_followed_ids``).
+    """
     db = SessionLocal()
     try:
-        return UpdateService(db).run_check(
+        return UpdateService(db, system=True).run_check(
             trigger=trigger, followed_ids=followed_ids or tracker_ids
         )
     finally:
