@@ -130,6 +130,28 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.9.0",
+        build=23,
+        date="September 2026",
+        highlights=[
+            "Downloads live on your phone now. Save a chapter or a whole "
+            "series and it reads with no signal and no server — the thing the "
+            "server-side download queue never actually gave you",
+            "Choose how much space to give it: 2, 5, 10, 20 GB or unlimited, "
+            "with a per-series breakdown and a one-tap Free up space",
+            "Chapters you have finished clear themselves 48 hours later, so "
+            "the shelf does not silently fill up. Pin anything you want kept, "
+            "and re-opening a chapter cancels its expiry",
+            "Downloaded chapters appear in the Files app under On My iPhone -> "
+            "ManhwaManiacs, so you can browse or delete them yourself",
+            "Where you left off now survives reading offline — progress queues "
+            "on the device and lands on the server when you reconnect",
+            "Browsing a source is instant the second time, and still works "
+            "from cache when the source itself is down",
+            "Aurora Scans search and Webtoons Canvas series load again",
+        ],
+    ),
+    ChangelogEntry(
         version="1.8.1",
         build=22,
         date="September 2026",
