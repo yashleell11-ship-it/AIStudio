@@ -40,6 +40,13 @@ const _libSourceId = 'mangadex';
 const _libSeriesKey = 'solo-leveling';
 const _libChapterKey = '1';
 
+/// A madara-shaped chapter key — every toonily/madara chapter id looks like
+/// `series-slug/chapter-n`. The library reader route's `:seriesKey` /
+/// `:chapterKey` params each match ONE path segment, so RoutePaths.reader must
+/// whole-key percent-encode (a raw `/` would grow the location an extra
+/// segment and never match the route).
+const _slashLibChapterKey = 'solo-leveling/chapter-2';
+
 ChapterManifest _libManifest() => const ChapterManifest(
       sourceId: _libSourceId,
       seriesKey: _libSeriesKey,
@@ -131,6 +138,13 @@ Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
       chapterManifestProvider(
         (sourceId: _libSourceId, seriesKey: _libSeriesKey, chapterKey: _libChapterKey),
       ).overrideWith((ref) async => _libManifest()),
+      chapterManifestProvider(
+        (
+          sourceId: _libSourceId,
+          seriesKey: _libSeriesKey,
+          chapterKey: _slashLibChapterKey,
+        ),
+      ).overrideWith((ref) async => _libManifest()),
       sourceReaderChapterProvider(
         (
           sourceId: 'toonily',
@@ -196,6 +210,26 @@ void main() {
       );
       expect(series.sourceId, _libSourceId);
       expect(series.seriesId, _libSeriesKey);
+    });
+
+    testWidgets('the library reader route matches a slash-bearing chapter key '
+        'and hands the decoded key to the screen', (tester) async {
+      final container = await _pumpApp(tester);
+      final router = _router(container);
+
+      router.go(
+        RoutePaths.reader(_libSourceId, _libSeriesKey, _slashLibChapterKey),
+      );
+      await _settleReader(tester);
+
+      // A raw `/` in the location would have failed to match the route at all
+      // (error screen, no ReaderScreen).
+      expect(_fullPath(router), Routes.reader);
+      final reader = tester.widget<ReaderScreen>(find.byType(ReaderScreen));
+      expect(reader.sourceId, _libSourceId);
+      expect(reader.seriesKey, _libSeriesKey);
+      expect(reader.chapterKey, _slashLibChapterKey,
+          reason: 'the opaque key must round-trip through go_router verbatim');
     });
 
     testWidgets('a source chapter lands on the source series route with a '
