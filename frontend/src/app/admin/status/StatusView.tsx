@@ -22,14 +22,12 @@ import { useCurrentUser } from "@/features/auth/hooks";
 import { describeCheckSchedule } from "@/features/updates/notifications";
 import {
   useManualCheck,
-  useTrackers,
   useUpdateRuns,
   useUpdateSettings,
-  useUpdateSources,
 } from "@/features/updates/hooks";
 import { cn } from "@/lib/cn";
 import { ApiError } from "@/types/api";
-import { useBackendHealth } from "./hooks";
+import { useBackendHealth, useSourceHealth } from "./hooks";
 import {
   deriveBackendHealth,
   deriveCheckerHealth,
@@ -196,9 +194,8 @@ export function StatusView() {
   const health = useBackendHealth();
   const settings = useUpdateSettings();
   const runs = useUpdateRuns();
-  const trackers = useTrackers();
   const manualCheck = useManualCheck();
-  const sources = useUpdateSources();
+  const sources = useSourceHealth();
 
   const schedule = useMemo(
     () => describeCheckSchedule(settings.data, nowMs),
@@ -227,8 +224,8 @@ export function StatusView() {
   );
 
   const sourceHealth = useMemo(
-    () => deriveSourceHealth(trackers.data, sources.data),
-    [trackers.data, sources.data],
+    () => deriveSourceHealth(sources.data),
+    [sources.data],
   );
 
   const summary = useMemo(
@@ -246,7 +243,6 @@ export function StatusView() {
     void health.refetch();
     void settings.refetch();
     void runs.refetch();
-    void trackers.refetch();
     void sources.refetch();
   };
 
@@ -289,7 +285,7 @@ export function StatusView() {
     health.isFetching ||
     settings.isFetching ||
     runs.isFetching ||
-    trackers.isFetching;
+    sources.isFetching;
 
   return (
     <div className="page-shell">
@@ -513,17 +509,20 @@ export function StatusView() {
             }
             icon={Activity}
           >
-            {trackers.isLoading || sources.isLoading ? (
+            {sources.isLoading ? (
               <div className="space-y-2" aria-busy="true">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div key={index} className="h-12 animate-pulse rounded bg-surface-2" />
                 ))}
               </div>
+            ) : sources.isError ? (
+              <ServerMessage>
+                {sources.error instanceof ApiError
+                  ? sources.error.message
+                  : "Failed to load source health."}
+              </ServerMessage>
             ) : sourceHealth.length === 0 ? (
-              <EmptyNote>
-                No sources are installed and no series is being tracked, so there is nothing to
-                report.
-              </EmptyNote>
+              <EmptyNote>No sources are installed, so there is nothing to report.</EmptyNote>
             ) : (
               <ul className="space-y-2">
                 {sourceHealth.map((source) => (
@@ -538,9 +537,14 @@ export function StatusView() {
                           {source.name ?? source.source}
                         </span>
                         <span className="font-mono text-xs text-muted">{source.source}</span>
+                        {source.demoted ? (
+                          <Badge className="border-warning/30 bg-warning/15 text-warning">
+                            demoted
+                          </Badge>
+                        ) : null}
                       </div>
                       <span className="text-xs text-muted">
-                        {source.trackedCount} tracked · last check {formatWhen(source.lastCheckedAt)}
+                        last probe {formatWhen(source.lastCheckedAt)}
                       </span>
                     </div>
                     <p className="mt-1 text-xs text-muted">{source.message}</p>
@@ -550,9 +554,9 @@ export function StatusView() {
               </ul>
             )}
             <p className="text-xs leading-relaxed text-muted">
-              Derived from the last check of each followed or downloaded series, which is the
-              only per-connector signal the backend records. A source with nothing tracked has no
-              signal at all, and this list covers the reading profile you are viewing under.
+              Recorded by the federated-search fan-out: every installed source is probed on every
+              search, and a source that stops answering is flagged here (and pushed down search
+              results) rather than failing silently. Timestamps are accurate to within a few hours.
             </p>
           </StatusCard>
         </FadeIn>

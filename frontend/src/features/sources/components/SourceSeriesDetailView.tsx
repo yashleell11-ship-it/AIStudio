@@ -9,11 +9,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import {
-  useFollowedTracker,
-  useFollowSeries,
-  useUnfollowTracker,
-} from "@/features/updates/hooks";
-import { MigrateSeriesDialog } from "@/features/updates/components/MigrateSeriesDialog";
+  followKey,
+  useFollow,
+  useFollowedIndex,
+  useUnfollow,
+} from "@/features/library/hooks";
 import { ApiError } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { sourceImageUrl } from "../api";
@@ -39,13 +39,15 @@ export function SourceSeriesDetailView({
 }: SourceSeriesDetailViewProps) {
   const seriesQuery = useSourceSeriesDetail(sourceId, seriesId);
   const chaptersQuery = useSourceChapters(sourceId, seriesId);
-  const followedTracker = useFollowedTracker(sourceId, seriesId);
-  const followMutation = useFollowSeries();
-  const unfollowMutation = useUnfollowTracker();
+  const followedIndex = useFollowedIndex();
+  const followedId =
+    followedIndex.index.get(followKey({ sourceId, seriesKey: seriesId })) ??
+    null;
+  const followMutation = useFollow();
+  const unfollowMutation = useUnfollow();
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<ChapterSortOrder>("newest");
-  const [migrateOpen, setMigrateOpen] = useState(false);
   const { map: progressMap, latest: latestRead } = useSourceSeriesProgress(
     sourceId,
     seriesId,
@@ -124,15 +126,11 @@ export function SourceSeriesDetailView({
   const toggleFollow = async () => {
     setFeedback(null);
     try {
-      if (followedTracker) {
-        await unfollowMutation.mutateAsync(followedTracker.id);
+      if (followedId !== null) {
+        await unfollowMutation.mutateAsync(followedId);
         setFeedback(`Unfollowed ${series.title}.`);
       } else {
-        await followMutation.mutateAsync({
-          source: sourceId,
-          series_id: seriesId,
-          series_title: series.title,
-        });
+        await followMutation.mutateAsync({ sourceId, seriesKey: seriesId });
         setFeedback(`Following ${series.title}. New chapters will notify you.`);
       }
     } catch (error) {
@@ -141,7 +139,7 @@ export function SourceSeriesDetailView({
   };
 
   const followBusy = followMutation.isPending || unfollowMutation.isPending;
-  const isFollowed = Boolean(followedTracker);
+  const isFollowed = followedId !== null;
 
   return (
     <div className="p-6">
@@ -218,22 +216,10 @@ export function SourceSeriesDetailView({
                   ? "Unfollow"
                   : "Follow"}
             </Button>
-            {followedTracker ? (
-              <Button variant="secondary" onClick={() => setMigrateOpen(true)}>
-                Move to another source
-              </Button>
-            ) : null}
           </div>
           {feedback && <p className="mt-3 text-sm text-muted">{feedback}</p>}
         </div>
       </div>
-
-      {followedTracker && migrateOpen ? (
-        <MigrateSeriesDialog
-          tracker={followedTracker}
-          onClose={() => setMigrateOpen(false)}
-        />
-      ) : null}
 
       <Card className="mt-8">
         <CardHeader className="flex-row items-center justify-between gap-3">

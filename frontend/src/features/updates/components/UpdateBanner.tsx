@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { BookOpenCheck, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/cn";
+import { isImmersiveReaderPath } from "@/lib/reader-route";
 import {
   computeNewChaptersBanner,
   type NewChaptersBannerState,
@@ -55,11 +56,7 @@ function useNewChaptersBanner(): NewChaptersBannerState & { dismiss: () => void 
  * suppressed: the immersive chapter reader, and the Updates page itself.
  */
 function isSuppressedPath(pathname: string): boolean {
-  return (
-    /^\/reader\/\d+\/\d+/.test(pathname) ||
-    /^\/reader\/online\//.test(pathname) ||
-    pathname === "/updates"
-  );
+  return isImmersiveReaderPath(pathname) || pathname === "/updates";
 }
 
 /**
