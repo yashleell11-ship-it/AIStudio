@@ -7,6 +7,8 @@ class BootstrapStatus {
     required this.needsBootstrap,
     required this.registrationEnabled,
     this.inviteCodeRequired = false,
+    this.bootstrapOpen,
+    this.registrationOpen,
   });
 
   /// True while zero accounts exist: the first account created becomes the
@@ -25,8 +27,30 @@ class BootstrapStatus {
   /// it.
   final bool inviteCodeRequired;
 
+  /// Whether an uninvited registration would *still* be accepted as the
+  /// bootstrap admin. An empty users table only stays claimable for
+  /// `MM_BOOTSTRAP_WINDOW_MINUTES`; after that the backend rejects the
+  /// takeover even though `needsBootstrap` is still true. Null on a backend
+  /// that predates the field — such a server never had a window, so
+  /// `needsBootstrap` alone is the honest answer there.
+  final bool? bootstrapOpen;
+
+  /// Whether `POST /auth/register` could succeed at all right now (with a
+  /// valid invite code where one is required). Null on a backend that
+  /// predates the field; falls back to `registrationEnabled`.
+  final bool? registrationOpen;
+
+  /// The claim-this-server flow is only truthful while the window is open —
+  /// offering it after expiry sends the user into a guaranteed rejection.
+  bool get isBootstrapOpen => bootstrapOpen ?? needsBootstrap;
+
+  /// Whether to offer a "create an account" affordance at all.
+  bool get isRegistrationOpen => registrationOpen ?? registrationEnabled;
+
   factory BootstrapStatus.fromJson(Map<String, dynamic> json) {
     final invite = json['invite_code_required'];
+    final bootstrapOpen = json['bootstrap_open'];
+    final registrationOpen = json['registration_open'];
     return BootstrapStatus(
       needsBootstrap: json['needs_bootstrap'] as bool,
       registrationEnabled: json['registration_enabled'] as bool,
@@ -35,6 +59,12 @@ class BootstrapStatus {
       // "not required" instead of throwing a ParseError out of a probe the
       // login screen depends on to render at all.
       inviteCodeRequired: invite is bool ? invite : false,
+      // Same tolerant read as `invite`, but degrading to null rather than
+      // false: null means "server didn't say", which the getters resolve to
+      // the older flags. Coercing a missing key to false would instead claim
+      // the window is shut on every backend that never had one.
+      bootstrapOpen: bootstrapOpen is bool ? bootstrapOpen : null,
+      registrationOpen: registrationOpen is bool ? registrationOpen : null,
     );
   }
 }

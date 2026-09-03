@@ -81,9 +81,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final bootstrap = ref.watch(bootstrapStatusProvider);
-    final needsBootstrap = bootstrap.valueOrNull?.needsBootstrap ?? false;
+    // Both read through the getters, not the raw flags: an empty users table
+    // stops being claimable once the bootstrap window expires, and offering
+    // the claim flow after that point walks the user into a rejection.
+    final needsBootstrap = bootstrap.valueOrNull?.isBootstrapOpen ?? false;
     final registrationEnabled =
-        bootstrap.valueOrNull?.registrationEnabled ?? false;
+        bootstrap.valueOrNull?.isRegistrationOpen ?? false;
 
     return Scaffold(
       body: SafeArea(

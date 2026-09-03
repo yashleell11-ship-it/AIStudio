@@ -81,9 +81,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     final email = _emailController.text.trim();
 
     final status = ref.read(bootstrapStatusProvider).valueOrNull;
-    final needsBootstrap = status?.needsBootstrap ?? false;
+    final needsBootstrap = status?.isBootstrapOpen ?? false;
     // The bootstrap account never needs an invite code, regardless of what the
-    // flag says.
+    // flag says — but only while the window is genuinely open. Once it shuts,
+    // this is an ordinary registration and the code applies again.
     final inviteCodeRequired =
         !needsBootstrap && (status?.inviteCodeRequired ?? false);
 
@@ -127,9 +128,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   Widget build(BuildContext context) {
     final status = ref.watch(bootstrapStatusProvider).valueOrNull;
-    final needsBootstrap = status?.needsBootstrap ?? false;
-    final registrationClosed =
-        status != null && !status.needsBootstrap && !status.registrationEnabled;
+    final needsBootstrap = status?.isBootstrapOpen ?? false;
+    final registrationClosed = status != null &&
+        !status.isBootstrapOpen &&
+        !status.isRegistrationOpen;
     final inviteCodeRequired =
         !needsBootstrap && (status?.inviteCodeRequired ?? false);
 
