@@ -1,30 +1,29 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/downloads/models/download_settings.dart';
-import 'package:manhwamaniacs/features/downloads/repositories/downloads_repository.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/settings/services/image_cache_service.dart';
-import 'package:manhwamaniacs/features/updates/models/series_tracker.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
+import 'package:manhwamaniacs/features/updates/models/update_settings.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/features/updates/repositories/updates_repository.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -35,57 +34,63 @@ import 'package:shared_preferences/shared_preferences.dart';
 /// top-level metadata providers resolve without a network call.
 class _EmptyLibraryRepository implements LibraryRepository {
   var statisticsCallCount = 0;
-  var bookmarksCallCount = 0;
+  var listSeriesCallCount = 0;
 
   @override
   Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
-  }) async =>
-      Ok(PagedResult(items: const [], total: 0, page: 1, perPage: perPage, hasNext: false));
+  }) async {
+    listSeriesCallCount++;
+    return Ok(PagedResult(items: const [], total: 0, page: 1, perPage: perPage, hasNext: false));
+  }
 
   @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
+  Future<Result<SeriesDetail>> getSeries(int followedId) => throw UnimplementedError();
 
   @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) async => const Ok([]);
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) async => const Ok([]);
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) async => const Ok([]);
-
-  @override
-  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) async => const Ok([]);
-
-  @override
-  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) async => const Ok([]);
-
-  @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
+  Future<Result<void>> unfollow(int followedId) => throw UnimplementedError();
+
+  @override
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) async =>
+      const Ok([]);
+
+  @override
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) async => const Ok([]);
+
+  @override
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) async =>
+      const Ok([]);
+
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) async =>
+      Ok(PagedResult(items: const [], total: 0, page: page, perPage: perPage, hasNext: false));
 
   @override
   Future<Result<List<Collection>>> listCollections() async => const Ok([]);
@@ -105,6 +110,7 @@ class _EmptyLibraryRepository implements LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   }) =>
       throw UnimplementedError();
 
@@ -112,56 +118,77 @@ class _EmptyLibraryRepository implements LibraryRepository {
   Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
+  Future<Result<List<Tag>>> listTags({String? category}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> toggleFavorite(int seriesId) => throw UnimplementedError();
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> deleteTag(int tagId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<LibraryStatistics>> statistics() async {
     statisticsCallCount++;
     return const Ok(
       LibraryStatistics(
-        totalSeries: 0,
-        totalChapters: 0,
-        totalPages: 0,
-        completedSeries: 0,
-        inProgress: 0,
+        followedTotal: 0,
         favorites: 0,
-        completionRatePct: 0,
-        totalReadingTimeEstimateMinutes: 0,
-        pagesReadThisWeek: 0,
-        readingStreakDays: 0,
-        readingVelocityPagesPerHour: 0,
+        byReadingStatus: {},
+        chaptersCompleted: 0,
       ),
     );
   }
 
   @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) async => const Ok([]);
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
+  }) async =>
+      const Ok([]);
+}
+
+class _EmptyReaderRepository implements ReaderRepository {
+  var bookmarksCallCount = 0;
 
   @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) async => const Ok([]);
-
-  @override
-  Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
-    required int page,
-    String? note,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async {
+  Future<Result<List<Bookmark>>> listBookmarks({String? sourceId, String? seriesKey}) async {
     bookmarksCallCount++;
     return const Ok([]);
   }
@@ -170,16 +197,39 @@ class _EmptyLibraryRepository implements LibraryRepository {
   Future<Result<void>> deleteBookmark(int bookmarkId) => throw UnimplementedError();
 
   @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<Bookmark>> addBookmark({
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
+    required int page,
+    String? note,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ChapterManifest>> manifest({
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ReadingProgress>> saveProgress(ProgressPush push) => throw UnimplementedError();
+
+  @override
+  Future<Result<({int saved, int advanced})>> saveProgressBatch(List<ProgressPush> pushes) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingProgress>>> seriesProgress({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 }
 
 class _EmptyUpdatesRepository implements UpdatesRepository {
-  var listTrackersCallCount = 0;
-
   @override
   Future<Result<List<UpdateNotification>>> listNotifications({
     bool unreadOnly = false,
@@ -197,43 +247,26 @@ class _EmptyUpdatesRepository implements UpdatesRepository {
   Future<Result<void>> markAllRead() => throw UnimplementedError();
 
   @override
-  Future<Result<List<SeriesTracker>>> listTrackers() async {
-    listTrackersCallCount++;
-    return const Ok([]);
-  }
+  Future<Result<UpdateSettings>> getSettings() => throw UnimplementedError();
 
   @override
-  Future<Result<void>> followSeries({
-    required String source,
-    required String seriesId,
-    required String seriesTitle,
+  Future<Result<UpdateSettings>> updateSettings({
+    bool? enabled,
+    int? checkIntervalMinutes,
+    bool? notifyEnabled,
+    bool? checkOnStartup,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteTracker(int trackerId) => throw UnimplementedError();
+  Future<Result<List<UpdateRun>>> listRuns({int limit = 20}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> updateTracker(
-    int trackerId, {
-    bool? autoDownload,
-  }) =>
+  Future<Result<UpdateCheckOutcome>> triggerCheck({List<int>? followedIds}) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> triggerCheck() => throw UnimplementedError();
-}
-
-class _FakeDownloadsRepository implements DownloadsRepository {
-  @override
-  Future<Result<DownloadSettings>> getSettings() => throw UnimplementedError();
-
-  @override
-  Future<Result<DownloadSettings>> updateSettings(DownloadSettings settings) =>
-      throw UnimplementedError();
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
+  Future<Result<UpdateRun>> checkFollowed(int followedId) => throw UnimplementedError();
 }
 
 class _FakeImageCacheService implements ImageCacheService {
@@ -257,8 +290,8 @@ Future<ProviderContainer> _container() async {
     overrides: [
       sharedPrefsProvider.overrideWithValue(prefs),
       libraryRepositoryProvider.overrideWithValue(_EmptyLibraryRepository()),
+      readerRepositoryProvider.overrideWithValue(_EmptyReaderRepository()),
       updatesRepositoryProvider.overrideWithValue(_EmptyUpdatesRepository()),
-      downloadsRepositoryProvider.overrideWithValue(_FakeDownloadsRepository()),
     ],
   );
 }
@@ -355,8 +388,8 @@ void main() {
         overrides: [
           sharedPrefsProvider.overrideWithValue(container.read(sharedPrefsProvider)),
           libraryRepositoryProvider.overrideWithValue(_EmptyLibraryRepository()),
+          readerRepositoryProvider.overrideWithValue(_EmptyReaderRepository()),
           updatesRepositoryProvider.overrideWithValue(_EmptyUpdatesRepository()),
-          downloadsRepositoryProvider.overrideWithValue(_FakeDownloadsRepository()),
           imageCacheServiceProvider.overrideWithValue(fakeCache),
         ],
       );
@@ -376,13 +409,14 @@ void main() {
       SharedPreferences.setMockInitialValues({});
       final prefs = await SharedPreferences.getInstance();
       final libraryRepo = _EmptyLibraryRepository();
+      final readerRepo = _EmptyReaderRepository();
       final updatesRepo = _EmptyUpdatesRepository();
       final container = ProviderContainer(
         overrides: [
           sharedPrefsProvider.overrideWithValue(prefs),
           libraryRepositoryProvider.overrideWithValue(libraryRepo),
+          readerRepositoryProvider.overrideWithValue(readerRepo),
           updatesRepositoryProvider.overrideWithValue(updatesRepo),
-          downloadsRepositoryProvider.overrideWithValue(_FakeDownloadsRepository()),
         ],
       );
       addTearDown(container.dispose);
@@ -399,8 +433,8 @@ void main() {
       await container.read(bookmarksProvider.future);
       await container.read(updatesProvider.future);
       expect(libraryRepo.statisticsCallCount, 1);
-      expect(libraryRepo.bookmarksCallCount, 1);
-      expect(updatesRepo.listTrackersCallCount, 1);
+      expect(readerRepo.bookmarksCallCount, 1);
+      expect(libraryRepo.listSeriesCallCount, 1);
 
       // Reading again while still listened must hit the cached value, not
       // refetch -- confirms the baseline before we invalidate.
@@ -408,8 +442,8 @@ void main() {
       expect(libraryRepo.statisticsCallCount, 1);
 
       final statisticsCallsBefore = libraryRepo.statisticsCallCount;
-      final bookmarksCallsBefore = libraryRepo.bookmarksCallCount;
-      final trackersCallsBefore = updatesRepo.listTrackersCallCount;
+      final bookmarksCallsBefore = readerRepo.bookmarksCallCount;
+      final followedCallsBefore = libraryRepo.listSeriesCallCount;
 
       container.read(settingsActionsProvider).clearMetadataCache();
 
@@ -423,8 +457,8 @@ void main() {
       // clearMetadataCache() demonstrably forced new server calls instead
       // of silently reusing the stale cached value.
       expect(libraryRepo.statisticsCallCount, greaterThan(statisticsCallsBefore));
-      expect(libraryRepo.bookmarksCallCount, greaterThan(bookmarksCallsBefore));
-      expect(updatesRepo.listTrackersCallCount, greaterThan(trackersCallsBefore));
+      expect(readerRepo.bookmarksCallCount, greaterThan(bookmarksCallsBefore));
+      expect(libraryRepo.listSeriesCallCount, greaterThan(followedCallsBefore));
     });
 
     test('metadataCacheInvalidators covers every intended provider exactly once', () {

@@ -3,19 +3,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/collections/providers/collections_provider.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 class _CollectionsRepo implements LibraryRepository {
@@ -37,8 +34,6 @@ class _CollectionsRepo implements LibraryRepository {
       description: description,
       seriesCount: 0,
       sortOrder: items.length + 1,
-      createdAt: DateTime(2024),
-      updatedAt: DateTime(2024, 6),
     );
     items.add(created);
     return Ok(created);
@@ -53,6 +48,7 @@ class _CollectionsRepo implements LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   }) =>
       throw UnimplementedError();
 
@@ -63,104 +59,113 @@ class _CollectionsRepo implements LibraryRepository {
   }
 
   @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
+  }) =>
       throw UnimplementedError();
 
   @override
   Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<void>> toggleFavorite(int seriesId) => throw UnimplementedError();
+  Future<Result<SeriesDetail>> getSeries(int followedId) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) =>
+  Future<Result<void>> unfollow(int followedId) => throw UnimplementedError();
+
+  @override
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
 
   @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
-    required int page,
-    String? note,
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+  Future<Result<List<Tag>>> listTags({String? category}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  }) =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<void>> deleteTag(int tagId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
   }) =>
       throw UnimplementedError();
 }
@@ -190,14 +195,7 @@ void main() {
 
     test('deleteCollection removes item via repository', () async {
       final repo = _CollectionsRepo([
-        Collection(
-          id: 1,
-          name: 'Action Picks',
-          seriesCount: 0,
-          sortOrder: 1,
-          createdAt: DateTime(2024),
-          updatedAt: DateTime(2024, 6),
-        ),
+        Collection(id: 1, name: 'Action Picks', seriesCount: 0, sortOrder: 1),
       ]);
       final container = ProviderContainer(
         overrides: [libraryRepositoryProvider.overrideWithValue(repo)],

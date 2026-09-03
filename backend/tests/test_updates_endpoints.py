@@ -50,14 +50,18 @@ def stub_chapters(monkeypatch):
 # --- settings --------------------------------------------------------
 
 
-def test_settings_get_and_put(api, h):
+def test_settings_get_and_put(api, h, as_user, make_user):
+    # GET stays visible to any authenticated (non-admin) user...
     got = api.get("/updates/settings", headers=h).json()
     assert set(got) >= {"enabled", "check_interval_minutes", "notify_enabled"}
 
+    # ...but the write is admin-only: the singleton row governs the sweep and
+    # notification creation for every account (audit findings 1/5/7).
+    admin_h = as_user(make_user("upd-admin", is_admin=True).id)
     put = api.put(
         "/updates/settings",
         json={"enabled": False, "check_interval_minutes": 30, "notify_enabled": False},
-        headers=h,
+        headers=admin_h,
     )
     assert put.status_code == 200, put.text
     assert put.json()["enabled"] is False
@@ -65,7 +69,7 @@ def test_settings_get_and_put(api, h):
 
     # interval floor is enforced by the pydantic model (ge=5)
     assert api.put(
-        "/updates/settings", json={"check_interval_minutes": 1}, headers=h
+        "/updates/settings", json={"check_interval_minutes": 1}, headers=admin_h
     ).status_code == 422
 
 

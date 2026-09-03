@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
 from database.session import get_db
+from services.auth_service import require_admin_user
 from services.update_scheduler import get_update_manager
 from services.update_service import UpdateService, get_update_service
 from utils.api_pagination import set_list_total_header
@@ -48,8 +49,13 @@ def get_settings(service: UpdateDep) -> dict[str, object]:
     return service.serialize_settings(service.get_global_settings())
 
 
-@router.put("/settings")
+@router.put("/settings", dependencies=[Depends(require_admin_user)])
 def put_settings(body: GlobalSettingsUpdate, service: UpdateDep) -> dict[str, object]:
+    """Rewrite the instance-global update scheduler settings. **Admin only**:
+    this is the singleton row that governs the sweep, its interval, and
+    notification creation for *every* account — an ungated write let any
+    authenticated user silently disable everyone's notifications (audit
+    findings 1/5/7). ``GET /updates/settings`` stays user-visible."""
     return service.update_global_settings(body.model_dump(exclude_none=True))
 
 

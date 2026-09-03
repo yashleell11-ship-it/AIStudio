@@ -3,30 +3,20 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
-import 'package:manhwamaniacs/features/library/models/collection.dart';
-import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
-import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
-import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
-import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
-import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
-import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
-import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 /// Fake whose [deleteBookmark] can be held pending via a [Completer], so
 /// tests can observe the notifier's `actionPending` state mid-flight --
 /// mirroring the pattern in updates_provider_test.dart for
-/// UpdatesNotifier.deleteTracker.
-class _FakeLibraryRepository implements LibraryRepository {
-  _FakeLibraryRepository({this.bookmarks = const []});
+/// UpdatesNotifier.unfollow.
+class _FakeReaderRepository implements ReaderRepository {
+  _FakeReaderRepository({this.bookmarks = const []});
 
   List<Bookmark> bookmarks;
   Completer<void>? deleteGate;
@@ -34,8 +24,11 @@ class _FakeLibraryRepository implements LibraryRepository {
   bool failDelete = false;
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async =>
-      Ok(bookmarks.take(limit).toList());
+  Future<Result<List<Bookmark>>> listBookmarks({
+    String? sourceId,
+    String? seriesKey,
+  }) async =>
+      Ok(bookmarks);
 
   @override
   Future<Result<void>> deleteBookmark(int bookmarkId) async {
@@ -50,132 +43,45 @@ class _FakeLibraryRepository implements LibraryRepository {
 
   @override
   Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
     required int page,
     String? note,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<PagedResult<FollowedSeries>>> listSeries({
-    int page = 1,
-    int perPage = 20,
-    String? sort,
-    String? search,
-    String? status,
-    String? readingStatus,
-    int? collectionId,
-    int? tagId,
-    bool? isFavorite,
-    bool? hasChapters,
+  Future<Result<ChapterManifest>> manifest({
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
+  Future<Result<ReadingProgress>> saveProgress(ProgressPush push) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
+  Future<Result<({int saved, int advanced})>> saveProgressBatch(
+    List<ProgressPush> pushes,
+  ) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<List<Collection>>> listCollections() => throw UnimplementedError();
-
-  @override
-  Future<Result<CollectionDetail>> getCollection(int collectionId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Collection>> createCollection({
-    required String name,
-    String? description,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Collection>> updateCollection(
-    int collectionId, {
-    String? name,
-    String? description,
-  }) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
-
-  @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
-
-  @override
-  Future<Result<void>> toggleFavorite(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<List<ReadingProgress>>> seriesProgress({
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 }
 
 Bookmark _bookmark({int id = 1}) => Bookmark(
       id: id,
-      seriesId: 10,
-      seriesTitle: 'Solo Leveling',
-      chapterId: 20,
-      chapterTitle: 'Chapter 1',
+      sourceId: 'asurascans',
+      seriesKey: 'solo-leveling',
+      chapterKey: '1',
       page: 3,
       createdAt: DateTime(2026),
     );
@@ -183,9 +89,9 @@ Bookmark _bookmark({int id = 1}) => Bookmark(
 void main() {
   group('BookmarksNotifier', () {
     test('lists bookmarks from the repository', () async {
-      final repo = _FakeLibraryRepository(bookmarks: [_bookmark(), _bookmark(id: 2)]);
+      final repo = _FakeReaderRepository(bookmarks: [_bookmark(), _bookmark(id: 2)]);
       final container = ProviderContainer(
-        overrides: [libraryRepositoryProvider.overrideWithValue(repo)],
+        overrides: [readerRepositoryProvider.overrideWithValue(repo)],
       );
       addTearDown(container.dispose);
 
@@ -198,10 +104,10 @@ void main() {
     test(
         'deleteBookmark sets actionPending immediately, then clears it and '
         'refreshes the list once the delete resolves', () async {
-      final repo = _FakeLibraryRepository(bookmarks: [_bookmark()])
+      final repo = _FakeReaderRepository(bookmarks: [_bookmark()])
         ..deleteGate = Completer<void>();
       final container = ProviderContainer(
-        overrides: [libraryRepositoryProvider.overrideWithValue(repo)],
+        overrides: [readerRepositoryProvider.overrideWithValue(repo)],
       );
       addTearDown(container.dispose);
 
@@ -223,9 +129,9 @@ void main() {
     });
 
     test('clears actionPending on failure without leaving the button stuck busy', () async {
-      final repo = _FakeLibraryRepository(bookmarks: [_bookmark()])..failDelete = true;
+      final repo = _FakeReaderRepository(bookmarks: [_bookmark()])..failDelete = true;
       final container = ProviderContainer(
-        overrides: [libraryRepositoryProvider.overrideWithValue(repo)],
+        overrides: [readerRepositoryProvider.overrideWithValue(repo)],
       );
       addTearDown(container.dispose);
 

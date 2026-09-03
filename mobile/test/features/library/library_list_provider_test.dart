@@ -3,23 +3,20 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
+import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/library/models/recommendation.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
-import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
-import 'package:manhwamaniacs/features/reader/models/adjacent_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
 import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
@@ -30,49 +27,93 @@ import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+/// `LibraryRepository` double. Only [listSeries] and [patchSeries] are wired
+/// (what `LibraryListNotifier` actually calls); everything else throws so an
+/// unexpected call fails loudly instead of silently returning empty data.
 class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository(this.pages);
 
   final Map<int, PagedResult<FollowedSeries>> pages;
   int listCalls = 0;
-  int searchCalls = 0;
   String? lastReadingStatus;
   String? lastSort;
   String? lastSearch;
-  bool? lastHasChapters;
+  bool? lastIsFavorite;
 
   @override
   Future<Result<PagedResult<FollowedSeries>>> listSeries({
     int page = 1,
-    int perPage = 20,
+    int perPage = 40,
     String? sort,
     String? search,
-    String? status,
     String? readingStatus,
-    int? collectionId,
-    int? tagId,
     bool? isFavorite,
-    bool? hasChapters,
   }) async {
     listCalls++;
     lastReadingStatus = readingStatus;
     lastSort = sort;
     lastSearch = search;
-    lastHasChapters = hasChapters;
+    lastIsFavorite = isFavorite;
     return Ok(pages[page] ?? pages[1]!);
   }
 
   @override
-  Future<Result<void>> toggleFavorite(int seriesId) async => const Ok(null);
+  Future<Result<FollowedSeries>> patchSeries(
+    int followedId, {
+    bool? isFavorite,
+    String? readingStatus,
+    bool? notify,
+    bool? matureOverride,
+    int? sortOrder,
+  }) async {
+    final current = pages.values
+        .expand((page) => page.items)
+        .firstWhere((series) => series.id == followedId);
+    return Ok(current.copyWith(isFavorite: isFavorite, readingStatus: readingStatus));
+  }
 
   @override
-  Future<Result<void>> deleteProgress(int seriesId) => throw UnimplementedError();
+  Future<Result<SeriesDetail>> getSeries(int followedId) => throw UnimplementedError();
 
   @override
-  Future<Result<ChapterDetail>> getChapter(int chapterId) => throw UnimplementedError();
+  Future<Result<FollowedSeries>> follow({
+    required String sourceId,
+    required String seriesKey,
+  }) =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<ReadingProgress?>> getProgress(int seriesId) => throw UnimplementedError();
+  Future<Result<void>> unfollow(int followedId) => throw UnimplementedError();
+
+  @override
+  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<List<RecommendationGenre>>> recommendations({int limit = 10}) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<PagedResult<FollowedSeries>>> search(
+    String query, {
+    int page = 1,
+    int perPage = 20,
+  }) =>
+      throw UnimplementedError('search should not be called');
+
+  @override
+  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
+
+  @override
+  Future<Result<List<ReadingHistoryItem>>> readingHistory({
+    int limit = 50,
+    int offset = 0,
+  }) =>
+      throw UnimplementedError();
 
   @override
   Future<Result<List<Collection>>> listCollections() => throw UnimplementedError();
@@ -93,6 +134,7 @@ class _FakeLibraryRepository implements LibraryRepository {
     int collectionId, {
     String? name,
     String? description,
+    int? sortOrder,
   }) =>
       throw UnimplementedError();
 
@@ -100,79 +142,48 @@ class _FakeLibraryRepository implements LibraryRepository {
   Future<Result<void>> deleteCollection(int collectionId) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> addSeriesToCollection(int collectionId, int seriesId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<void>> removeSeriesFromCollection(int collectionId, int seriesId) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<Tag>>> listTags() => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyAdded({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recentlyUpdated({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<FollowedSeries>>> recommendations({int limit = 20}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<ReadingProgress>> saveProgress({
-    required int seriesId,
-    required int chapterId,
-    required int lastPage,
+  Future<Result<CollectionDetail>> addSeriesToCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<FollowedSeries>>> search(String query, {int page = 1}) async {
-    searchCalls++;
-    throw UnimplementedError('search should not be called');
-  }
-
-  @override
-  Future<Result<SeriesDetail>> getSeries(int seriesId) => throw UnimplementedError();
-
-  @override
-  Future<Result<LibraryStatistics>> statistics() => throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingHistoryItem>>> readingHistory({int limit = 50}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<List<ReadingCalendarDay>>> readingCalendar({int days = 30}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<Result<Bookmark>> addBookmark({
-    required int seriesId,
-    required int chapterId,
-    required int page,
-    String? note,
+  Future<Result<void>> removeSeriesFromCollection(
+    int collectionId, {
+    required String sourceId,
+    required String seriesKey,
   }) =>
       throw UnimplementedError();
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({int limit = 200}) async => const Ok([]);
+  Future<Result<List<Tag>>> listTags({String? category}) => throw UnimplementedError();
 
   @override
-  Future<Result<void>> deleteBookmark(int bookmarkId) async => const Ok(null);
+  Future<Result<Tag>> createTag({
+    required String name,
+    String category = 'custom',
+    String? color,
+  }) =>
+      throw UnimplementedError();
 
   @override
-  Future<Result<AdjacentChapter?>> getAdjacentChapter(
-    int chapterId, {
-    required String direction,
+  Future<Result<void>> deleteTag(int tagId) => throw UnimplementedError();
+
+  @override
+  Future<Result<void>> addTagToSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<void>> removeTagFromSeries({
+    required String sourceId,
+    required String seriesKey,
+    required int tagId,
   }) =>
       throw UnimplementedError();
 }
@@ -180,19 +191,17 @@ class _FakeLibraryRepository implements LibraryRepository {
 FollowedSeries _series(int id) {
   return FollowedSeries(
     id: id,
-    libraryId: 1,
+    sourceId: 'asurascans',
+    seriesKey: 'series-$id',
     title: 'Series $id',
-    sortTitle: 'series $id',
-    contentRating: 'teen',
-    language: 'en',
-    folderPath: '/library/$id',
+    coverUrl: '',
     isFavorite: false,
     readingStatus: 'unread',
+    notify: false,
+    sortOrder: 0,
+    contentRating: 'safe',
+    rating: 'safe',
     chapterCount: 10,
-    readChapters: 0,
-    pageCount: 100,
-    totalChapters: 10,
-    totalPages: 100,
     createdAt: DateTime(2024),
     updatedAt: DateTime(2024, 6),
   );
@@ -244,7 +253,7 @@ void main() {
       expect(fakeRepo.listCalls, 2);
     });
 
-    test('passes reading status filter to repository', () async {
+    test('passes reading status filter and default sort to repository', () async {
       final fakeRepo = _FakeLibraryRepository({
         1: PagedResult(
           items: [_series(1)],
@@ -265,23 +274,16 @@ void main() {
       await container.read(libraryListProvider.future);
 
       expect(fakeRepo.lastReadingStatus, 'completed');
-      expect(fakeRepo.lastSort, 'recent');
+      expect(fakeRepo.lastSort, 'recently_updated');
     });
 
-    test('downloaded filter passes has_chapters and preserves pagination', () async {
+    test('favoritesOnly passes is_favorite to the repository', () async {
       final fakeRepo = _FakeLibraryRepository({
         1: PagedResult(
-          items: [_series(1), _series(2)],
-          total: 3,
+          items: [_series(1)],
+          total: 1,
           page: 1,
-          perPage: 2,
-          hasNext: true,
-        ),
-        2: PagedResult(
-          items: [_series(3)],
-          total: 3,
-          page: 2,
-          perPage: 2,
+          perPage: 20,
           hasNext: false,
         ),
       });
@@ -289,22 +291,31 @@ void main() {
       final container = await container0(fakeRepo);
 
       container.read(libraryQueryProvider.notifier).updateQuery(
-            const LibraryQuery(filter: LibraryFilter.downloaded),
+            const LibraryQuery(favoritesOnly: true),
           );
-      final state = await container.read(libraryListProvider.future);
+      await container.read(libraryListProvider.future);
 
-      expect(fakeRepo.lastHasChapters, isTrue);
-      expect(state.total, 3);
-      expect(state.items, hasLength(2));
-      expect(state.hasNext, isTrue);
+      expect(fakeRepo.lastIsFavorite, isTrue);
+    });
 
-      await container.read(libraryListProvider.notifier).loadMore();
-      final loaded = container.read(libraryListProvider).value!;
+    test('toggleFavorite patches the series via the repository', () async {
+      final fakeRepo = _FakeLibraryRepository({
+        1: PagedResult(
+          items: [_series(1)],
+          total: 1,
+          page: 1,
+          perPage: 20,
+          hasNext: false,
+        ),
+      });
 
-      expect(loaded.items, hasLength(3));
-      expect(loaded.total, 3);
-      expect(loaded.hasNext, isFalse);
-      expect(fakeRepo.listCalls, 2);
+      final container = await container0(fakeRepo);
+      await container.read(libraryListProvider.future);
+
+      await container.read(libraryListProvider.notifier).toggleFavorite(1);
+      final state = container.read(libraryListProvider).value!;
+
+      expect(state.items.single.isFavorite, isTrue);
     });
 
     test('search-only query update does not write preferences', () async {
@@ -359,74 +370,10 @@ void main() {
       addTearDown(container.dispose);
 
       container.read(libraryQueryProvider.notifier).patchQuery(
-            (query) => query.copyWith(sort: LibrarySort.dateAdded),
+            (query) => query.copyWith(sort: LibrarySort.recentlyAdded),
           );
 
-      expect(readLibraryQuery(prefs).sort, LibrarySort.dateAdded);
-    });
-
-    test('applyLibraryClientFilters skips downloaded filter for browse', () {
-      final items = [
-        _series(1),
-        FollowedSeries(
-          id: 2,
-          libraryId: 1,
-          title: 'Empty',
-          sortTitle: 'empty',
-          contentRating: 'teen',
-          language: 'en',
-          folderPath: '/library/2',
-          isFavorite: false,
-          readingStatus: 'unread',
-          chapterCount: 0,
-          readChapters: 0,
-          pageCount: 0,
-          totalChapters: 0,
-          totalPages: 0,
-          createdAt: DateTime(2024),
-          updatedAt: DateTime(2024, 6),
-        ),
-      ];
-
-      final filtered = applyLibraryClientFilters(
-        items,
-        const LibraryQuery(filter: LibraryFilter.downloaded),
-        sortResults: false,
-      );
-
-      expect(filtered, hasLength(2));
-    });
-
-    test('applyLibraryClientFilters skips downloaded filter for search', () {
-      final items = [
-        _series(1),
-        FollowedSeries(
-          id: 2,
-          libraryId: 1,
-          title: 'Empty',
-          sortTitle: 'empty',
-          contentRating: 'teen',
-          language: 'en',
-          folderPath: '/library/2',
-          isFavorite: false,
-          readingStatus: 'unread',
-          chapterCount: 0,
-          readChapters: 0,
-          pageCount: 0,
-          totalChapters: 0,
-          totalPages: 0,
-          createdAt: DateTime(2024),
-          updatedAt: DateTime(2024, 6),
-        ),
-      ];
-
-      final filtered = applyLibraryClientFilters(
-        items,
-        const LibraryQuery(filter: LibraryFilter.downloaded, search: 'solo'),
-        sortResults: false,
-      );
-
-      expect(filtered, hasLength(2));
+      expect(readLibraryQuery(prefs).sort, LibrarySort.recentlyAdded);
     });
   });
 
