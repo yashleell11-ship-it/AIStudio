@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   connectionAllowsPreload,
   MAX_PRELOAD_CHAPTERS_AHEAD,
+  pagesAheadToWarm,
+  PRELOAD_AHEAD_CONTINUOUS,
+  PRELOAD_AHEAD_PAGED,
   shouldPreloadNextChapter,
   warmupImageUrls,
 } from "./preload";
@@ -55,6 +58,15 @@ describe("warmupImageUrls", () => {
 
   it("stays one chapter ahead", () => {
     expect(MAX_PRELOAD_CHAPTERS_AHEAD).toBeLessThanOrEqual(2);
+  });
+});
+
+describe("pagesAheadToWarm", () => {
+  it("looks further ahead in the continuous strip than in the paged modes", () => {
+    expect(pagesAheadToWarm("continuous")).toBe(PRELOAD_AHEAD_CONTINUOUS);
+    expect(pagesAheadToWarm("single")).toBe(PRELOAD_AHEAD_PAGED);
+    expect(pagesAheadToWarm("double")).toBe(PRELOAD_AHEAD_PAGED);
+    expect(pagesAheadToWarm("continuous")).toBeGreaterThan(pagesAheadToWarm("single"));
   });
 });
 
