@@ -20,7 +20,7 @@ from database.models import Base
 from database.session import run_alembic_migrations
 
 _BASELINE = "0001_source_native"
-_HEAD = "0003_bootstrap_state"
+_HEAD = "0004_source_browse_cache"
 
 # Every revision, oldest first. A new migration is added here deliberately —
 # the point of the guard is that revisions arrive on purpose, not that there is
@@ -29,6 +29,7 @@ _REVISIONS = [
     "0001_source_native.py",
     "0002_tags_per_profile.py",
     "0003_bootstrap_state.py",
+    "0004_source_browse_cache.py",
 ]
 
 # Every ORM-mapped table the baseline must create (spec §3).
@@ -52,6 +53,7 @@ _EXPECTED_TABLES = {
     "update_notifications",
     "chapter_ocr",
     "source_series_cache",
+    "source_browse_cache",
 }
 
 # Tables that must be gone (spec §3.11).

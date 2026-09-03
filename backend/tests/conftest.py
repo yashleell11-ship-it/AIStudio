@@ -94,6 +94,11 @@ def _isolate_process_db(tmp_path_factory, monkeypatch):
 
     db_file = tmp_path_factory.mktemp("procdb") / "process.db"
     monkeypatch.setenv("MM_DB_PATH", str(db_file))
+    # Background browse prefetch stays off suite-wide: a warm thread outliving
+    # its test would race the next test's patches (and try to hit the network
+    # through the real registry). The warm tests re-enable it explicitly and
+    # run the warm inline.
+    monkeypatch.setenv("MM_BROWSE_PREFETCH_ENABLED", "false")
     get_settings.cache_clear()
     dbs.get_engine.cache_clear()
     yield
