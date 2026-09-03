@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
 from connectors.registry import list_installed_connectors
+from core.config import get_settings
 from core.content_rating import (
     TRACKER_RATING_MATURE,
     rating_from_genres,
@@ -173,6 +174,26 @@ class FollowedSeriesService:
         ).scalar_one_or_none()
         if existing is not None:
             return self.serialize(existing)
+
+        # Follows are the row count the scheduled sweep walks (a live upstream
+        # fetch per row, every interval), so they are capped per profile —
+        # uncapped follows let one profile turn the sweep into an hours-long
+        # network job for the whole instance (audit finding 14).
+        max_follows = get_settings().max_follows_per_profile
+        if max_follows > 0:
+            count = int(
+                self._db.execute(
+                    self._scope(select(func.count()).select_from(FollowedSeries))
+                ).scalar_one()
+                or 0
+            )
+            if count >= max_follows:
+                raise AppError(
+                    "Follow limit reached for this profile.",
+                    code="follow_limit_reached",
+                    status_code=400,
+                    details={"max_follows": max_follows},
+                )
 
         meta: dict[str, Any] = {}
         chapters: list[dict[str, Any]] = []

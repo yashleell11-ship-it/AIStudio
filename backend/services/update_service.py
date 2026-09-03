@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from typing import Annotated, Any
 
 from fastapi import Depends
@@ -21,6 +22,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from connectors.registry import list_installed_connectors
+from core.config import get_settings
 from core.errors import AppError
 from core.time_utils import utcnow
 from database.models import (
@@ -32,6 +34,9 @@ from database.models import (
 from database.session import SessionLocal, get_db
 
 logger = logging.getLogger(__name__)
+
+# Indirection so tests can drive the sweep's clock deterministically.
+_monotonic = time.monotonic
 
 
 def _bool(value: Any) -> bool:
@@ -302,7 +307,43 @@ class UpdateService:
             if followed_ids:
                 stmt = stmt.where(FollowedSeries.id.in_(followed_ids))
             rows = self._db.execute(stmt).scalars().all()
+
+            # Guardrails (audit finding 14): the sweep is a sequential,
+            # network-bound walk with a 30s×3-retry budget per fetch, so a
+            # large followed set plus a wedged upstream used to make a single
+            # run outlast its check interval by hours. Two ceilings, both
+            # env-tunable and disabled at 0:
+            #   * per-source HTTP budget — once a source has burned its
+            #     seconds this pass, its remaining rows are skipped (their
+            #     snapshots are untouched; the next run retries them);
+            #   * whole-run deadline — the pass stops checking and reports
+            #     how much it left on the table.
+            cfg = get_settings()
+            source_budget = max(0, cfg.update_sweep_source_budget_seconds)
+            deadline = max(0, cfg.update_sweep_deadline_minutes) * 60
+            sweep_started = _monotonic()
+            source_spent: dict[str, float] = {}
+
             for row in rows:
+                if deadline and _monotonic() - sweep_started >= deadline:
+                    remaining = len(rows) - checked
+                    run.error = (
+                        f"Sweep deadline reached; {remaining} of {len(rows)} "
+                        "series not checked this pass."
+                    )
+                    logger.warning("update sweep hit its deadline: %s", run.error)
+                    break
+                if (
+                    source_budget
+                    and source_spent.get(row.source_id, 0.0) >= source_budget
+                ):
+                    logger.debug(
+                        "update sweep skipping %s/%s: source budget spent",
+                        row.source_id,
+                        row.series_key,
+                    )
+                    continue
+                row_started = _monotonic()
                 try:
                     new_found += self._check_one(row)
                     checked += 1
@@ -314,6 +355,10 @@ class UpdateService:
                         row.series_key,
                         exc,
                     )
+                finally:
+                    source_spent[row.source_id] = source_spent.get(
+                        row.source_id, 0.0
+                    ) + (_monotonic() - row_started)
                 self._db.commit()
             run.status = "completed"
         except Exception as exc:  # noqa: BLE001
