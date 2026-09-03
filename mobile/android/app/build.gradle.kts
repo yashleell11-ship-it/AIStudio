@@ -34,6 +34,26 @@ android {
     }
 }
 
+dependencies {
+    // 1c-M4's `mm/ocr` channel (`OcrChannel.kt`). A plain Gradle dependency,
+    // not a Flutter plugin package: the iOS half of the same channel must add
+    // no CocoaPod at all (the sideload pipeline's Podfile.lock is generated in
+    // CI and is not worth risking), and a plugin package would have forced
+    // one on both platforms.
+    //
+    // The Play-Services-hosted model, deliberately not the bundled one
+    // (`com.google.mlkit:text-recognition`). The bundled artifact ships an
+    // ~11 MB native OCR pipeline per ABI, and this project's release APK
+    // carries three (arm64-v8a, armeabi-v7a, x86_64) with native libs stored
+    // uncompressed — about +31 MB on a 61 MB APK, half again its size, for a
+    // feature whose primary platform is iOS (spec O-2). This variant is
+    // ~1 MB and fetches its model through Play Services; `OcrChannel`'s
+    // `isAvailable` probes for real so the feature stays hidden until the
+    // model has actually landed, rather than offering a button that finds
+    // nothing.
+    implementation("com.google.android.gms:play-services-mlkit-text-recognition:19.0.1")
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17

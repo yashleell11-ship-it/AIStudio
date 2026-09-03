@@ -20,10 +20,16 @@ import io.flutter.plugin.common.MethodChannel
  *    ~1.5 GB free-space floor. `dart:io` has no cross-platform "bytes free"
  *    API and this project adds no new plugins for it — `StatFs` is a
  *    framework class, zero new Gradle dependencies.
+ *
+ * 1c-M4's OCR lives on its own channel in [OcrChannel] rather than here: it
+ * is the one piece with a real dependency behind it (ML Kit), and keeping it
+ * separate means this class stays the "framework classes only" bridge it has
+ * always been.
  */
 class MainActivity : FlutterActivity() {
     private val channelName = "com.manhwamaniacs.reader/native"
     private var methodChannel: MethodChannel? = null
+    private var ocrChannel: OcrChannel? = null
 
     // Only intercept volume keys while the reader is open and the user has
     // the setting enabled -- toggled from Dart via setVolumeKeyNavEnabled.
@@ -50,11 +56,14 @@ class MainActivity : FlutterActivity() {
             }
         }
         methodChannel = channel
+        ocrChannel = OcrChannel(flutterEngine.dartExecutor.binaryMessenger)
     }
 
     override fun onDestroy() {
         methodChannel?.setMethodCallHandler(null)
         methodChannel = null
+        ocrChannel?.dispose()
+        ocrChannel = null
         super.onDestroy()
     }
 

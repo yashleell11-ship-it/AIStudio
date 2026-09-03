@@ -2,7 +2,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useActiveProfileStore } from "@/features/profiles/store";
 import { ApiError } from "@/types/api";
 import { preferencesApi } from "./api";
-import { matureToggleBlockReason } from "./mature-gate";
+import {
+  invalidateMatureGatedQueries,
+  matureToggleBlockReason,
+} from "./mature-gate";
 
 const PREFERENCES_KEY = ["preferences"] as const;
 
@@ -32,10 +35,10 @@ export function useMatureToggleBlockReason(): string | null {
  * existing recovery — drop the stale selection, send the user to the picker —
  * applies here exactly as it does to a write the server rejects.
  *
- * Because the backend filters *which* sources, search results, and
- * recommendations it returns based on this flag, a successful flip must
- * invalidate every cache that could now reveal (or need to hide) adult content:
- * the installed-sources list and the discovery/recommendation strips.
+ * Because the backend filters *which* sources, search results, library rows,
+ * continue-reading entries and recommendations it returns based on this flag, a
+ * successful flip must invalidate every cache that could now reveal (or need to
+ * hide) adult content — see `MATURE_GATED_QUERY_ROOTS`.
  */
 export function useSetMatureContent() {
   const queryClient = useQueryClient();
@@ -49,10 +52,6 @@ export function useSetMatureContent() {
       }
       return preferencesApi.setMatureContent(enabled);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...PREFERENCES_KEY, "content"] });
-      void queryClient.invalidateQueries({ queryKey: ["sources"] });
-      void queryClient.invalidateQueries({ queryKey: ["intelligence"] });
-    },
+    onSuccess: () => invalidateMatureGatedQueries(queryClient),
   });
 }

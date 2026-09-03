@@ -22,7 +22,14 @@ import type {
   SourcePin,
 } from "./types";
 
-const SOURCES_KEY = ["sources"] as const;
+/**
+ * Cache root for everything served out of `/sources`. Exported because the
+ * backend filters the installed-source list and federated search by the
+ * profile's 18+ gate — see `preferences/mature-gate.ts`.
+ */
+export const SOURCES_QUERY_ROOT = "sources" as const;
+
+const SOURCES_KEY = [SOURCES_QUERY_ROOT] as const;
 const SOURCE_READER_STALE_MS = 5 * 60_000;
 const SEARCH_STALE_MS = 30_000;
 
