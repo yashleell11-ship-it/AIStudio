@@ -6,6 +6,11 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
+import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
+import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/chapter_download_action.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/download_series_button.dart';
 import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
@@ -173,8 +178,23 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         sourceId: widget.sourceId,
         seriesKey: widget.seriesId,
       ),
-      // TODO(1c-M3): re-add "Download series" / "Download selected" once the
-      // on-device store ships.
+      secondaryActions: [
+        DownloadSeriesButton(
+          chapters: [
+            for (final chapter in chapters)
+              (
+                id: (
+                  sourceId: widget.sourceId,
+                  seriesKey: widget.seriesId,
+                  chapterKey: chapter.id,
+                ),
+                chapterNumber: chapter.number,
+                title: chapter.title,
+                seriesTitle: series.title,
+              ),
+          ],
+        ),
+      ],
       details: [
         // Status and genres get the same pill treatment the library page gives
         // reading status and tags -- the source page simply had nowhere to put
@@ -226,6 +246,14 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     final storedCount = progress?.pageCount ?? 0;
     final effectiveCount = storedCount > 0 ? storedCount : chapter.pageCount;
 
+    final downloadStatuses = ref
+        .watch(
+          seriesChapterDownloadStatusProvider(
+            (sourceId: widget.sourceId, seriesKey: widget.seriesId),
+          ),
+        )
+        .valueOrNull;
+
     return SeriesChapterTile(
       key: Key('chapter-${chapter.id}'),
       label: chapterLabel(number: chapter.number, title: chapter.title),
@@ -241,6 +269,21 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
       isCurrent: latestRead?.chapterId == chapter.id && !completed,
       onTap: () => context.go(
         RoutePaths.sourceReader(widget.sourceId, widget.seriesId, chapter.id),
+      ),
+      download: chapterDownloadAction(
+        hasScope: ref.watch(activeDownloadsScopeIdProvider) != null,
+        status: downloadStatuses?[chapter.id],
+        buttonKey: Key('download-${chapter.id}'),
+        onDownload: () => ref.read(downloadQueueControllerProvider.notifier).enqueueChapter(
+              id: (
+                sourceId: widget.sourceId,
+                seriesKey: widget.seriesId,
+                chapterKey: chapter.id,
+              ),
+              chapterNumber: chapter.number,
+              title: chapter.title,
+              seriesTitle: widget.series.title,
+            ),
       ),
     );
   }
