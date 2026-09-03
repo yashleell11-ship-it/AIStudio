@@ -1,20 +1,25 @@
-> **SUPERSEDED (2026-09-03) by
-> [`superpowers/specs/2026-09-03-backend-source-native-design.md`](superpowers/specs/2026-09-03-backend-source-native-design.md).**
-> The NAS-primary / phone-mirror model described below — where a "download" fills
-> the NAS and the phone mirrors from it — is replaced by **phone-only client
-> downloads**: there is no server-side library or `/downloads` volume, and clients
-> pull chapter bytes directly through the source image proxy. This file is kept
-> because its transport batching, local-store isolation, progress furthest-wins
-> merge, and eviction / read-then-expire design are still referenced by the new
-> spec and the web/mobile client sub-projects (1b / 1c).
+> **Written against the old NAS-primary model, largely built since as phone-only
+> (2026-09 pivot).** The original framing below — "download" fills the *NAS* and
+> the phone mirrors from it — is gone: there is no server-side library or
+> `/downloads` volume any more (see
+> [`superpowers/specs/2026-09-03-backend-source-native-design.md`](superpowers/specs/2026-09-03-backend-source-native-design.md)).
+> Clients pull chapter bytes straight through the source image proxy and this
+> file's local-store/eviction/read-then-expire design is what actually got
+> built at `mobile/lib/features/downloads/` (mobile spec:
+> [`superpowers/specs/2026-09-03-mobile-source-native-design.md`](superpowers/specs/2026-09-03-mobile-source-native-design.md)
+> §3). The **Transport** section below describes a bulk CBZ-archive design that
+> was *not* what shipped — see the note there. Everything else on this page —
+> the store layout, isolation, progress merge, and eviction rules — is still
+> the reference for how the phone store works, now built rather than planned.
 
 # Offline reading — design
 
 True on-device offline reading: chapters stored on the **phone**, readable with no server and no
-internet. Today "download" means the *NAS* fetches a chapter and the phone streams every page from
-it, so a downloaded chapter is unreadable the moment the server is unreachable.
+internet.
 
-Status: **designed, not built.** Nothing here ships until the whole feature is complete.
+Status: **built.** The store, download queue, offline reader path, and
+read-then-expire sweep described below shipped as mobile milestone M3 (see
+`mobile/lib/features/downloads/`); OCR (§4 of the mobile spec) has not.
 
 ---
 
@@ -22,7 +27,7 @@ Status: **designed, not built.** Nothing here ships until the whole feature is c
 
 | Question | Decision |
 |---|---|
-| One tap or two? | **One.** The existing Download button fills the NAS *and* the phone. No second action. |
+| One tap or two? | **One.** Tapping Download fills the **phone**. (Originally specified as "fills the NAS *and* the phone" — the NAS side no longer exists; there is nothing left to fill but the phone.) |
 | Storage cap | **No limit** by default. The ~1.5 GB free-space floor is non-negotiable regardless. |
 | When full | **Auto-evict** the oldest already-read chapters. Pinned series are never evicted. |
 | After reading | **Auto-delete the phone copy 2 days after a chapter is finished.** See below. |
@@ -50,10 +55,10 @@ Precise semantics, because each of these is a way to get it wrong:
   48 hours. Otherwise a re-read would delete itself mid-scroll.
 - **Never delete the chapter currently open**, even if its timer has expired.
 - **Pinned series are exempt**, same as pressure eviction.
-- **Only device bytes are deleted.** The NAS copy is untouched, so a re-read re-downloads rather
-  than re-scrapes.
-- **Progress and read state survive.** Deleting the blobs must not delete the `chapters` row's
-  history or the `progress_outbox` entry — the chapter goes back to "on server, not on phone", not
+- **Only device bytes are deleted.** There is no server copy to be untouched any more — a re-read
+  re-fetches through the source proxy rather than re-scraping a NAS.
+- **Progress and read state survive.** Deleting the blobs must not delete the on-device chapter
+  row's history or the `progress_outbox` entry — the chapter goes back to "known, not on phone", not
   to "never read". Getting this wrong would silently rewind the user's position.
 - **Blobs are refcounted.** With cross-profile dedupe, a shared blob is only unlinked when the last
   referencing profile expires it.
@@ -64,33 +69,27 @@ Precise semantics, because each of these is a way to get it wrong:
 
 ## Architecture
 
-### 1. Transport — one request per chapter, not forty
+### 1. Transport — as built (not the bulk-archive design originally proposed)
 
-Every page fetch traverses the global auth gate, and `AuthService.resolve_session` ends by stamping
-`last_used_at` and calling `db.commit()`. A 40-page chapter is therefore **40 SQLite write
-transactions**, serialised by SQLite's single-writer rule and competing with the download workers. A
-100-chapter series is 4,000. Bulk transfer is a correctness concern, not an optimisation.
+> The original version of this section proposed a bulk `ZIP_STORED` CBZ archive
+> endpoint, on the theory that per-page requests would drown SQLite in write
+> transactions on a NAS. That endpoint was never built. What shipped instead
+> is simpler, because it targets a stateless connector proxy rather than a
+> local disk scan: one manifest call, then plain per-page HTTP fetches.
 
-Two new endpoints on `routes/reader.py`:
+`GET /reader/chapter/manifest?source=&series=&chapter=` (`routes/reader.py`)
+is the download plan: the ordered page list plus prev/next chapter keys —
+`ReaderService.manifest()`. It carries no bytes and no local ids, only the
+opaque `(source_id, series_key, chapter_key)` triple and each page's proxy
+URL.
 
-- `GET /reader/chapter/{id}/manifest` — the download plan: page count, `content_hash`, adjacency,
-  and per-page `{number, filename, media_type, size, sha256}`.
-- `GET /reader/chapter/{id}/archive` — an **uncompressed (`ZIP_STORED`) CBZ**, built once to a
-  cached file and served with `FileResponse`.
-
-The per-page hashes cost nothing: the download pipeline already writes them to
-`.manhwamaniacs-download.json` (`ChapterManifest`, `services/download_support.py`).
-
-`ZIP_STORED` because page bytes are already JPEG/PNG/WebP so DEFLATE burns NAS CPU for nothing;
-because the codebase already treats CBZ as a first-class container so the output is re-importable;
-and because stored members sit at known offsets, giving the phone a zip-decoder-free fallback.
-
-A **cached file** rather than a stream because Starlette's `FileResponse` implements
-Range/206/`If-Range`/416/ETag and `StreamingResponse` gives none of it.
-
-Three things must never enter the manifest: `page.id` (destroyed and reassigned on rescan — key on
-`(chapter_id, page_number)`), `file_path` (absolute container paths), and `remote_url` (the upstream
-scanlation URL).
+The queue then fetches every page individually through the existing
+`GET /sources/{source}/pages/{page:path}/image` proxy — `ChapterPageFetcher`
+in `mobile/lib/features/downloads/services/chapter_page_fetcher.dart`, one
+`Dio` GET per page, same bearer token and `X-Profile-Id` header as every other
+call. There is no server-side archive step and no per-page content hash from
+the server; the on-device blob store content-addresses what it downloads
+itself (see §2).
 
 ### 2. Local store — sqflite, one DB plus a content-addressed blob tree
 
@@ -128,35 +127,25 @@ No background isolate: the iPhone build is sideloaded and has no dependable back
 
 ## Stages
 
-Each is independently reviewable. Riskiest unknowns first.
-
-1. **Prove the two irreversible bets** (~1 week). Does Range/resume survive Caddy *and* the
-   Cloudflare tunnel, and is the CI-generated `Podfile.lock` byte-identical after adding sqflite?
-   Nothing is readable yet — this stage buys certainty.
-2. **Read from the phone with no server** (~1 week). Airplane mode, cold start, read a chapter end
-   to end. The payoff lands in week two, not week five.
-3. **One tap, two destinations** (~1–1.5 weeks). A queue engine: two sequential legs, resume,
-   bounded retry, disk floor, ghost-row recovery after a kill.
-4. **Offline progress that never rewinds you** (~4–5 days).
-5. **Storage: budget, eviction, honest numbers** (~1 week). Includes the read-then-expire sweep and
-   its Settings control. The Storage screen currently conflates NAS bytes with phone bytes.
-6. **Platform hardening and the CBZ-backed library** (~4–5 days).
-
-Realistically **5–6 weeks**.
+This section originally staged the work as a 6-step, 5–6 week plan built around
+the two-destination NAS+phone model and a CBZ-backed library. That plan was
+superseded by the source-native pivot; the actual build order is the mobile
+spec's slice list —
+[`superpowers/specs/2026-09-03-mobile-source-native-design.md`](superpowers/specs/2026-09-03-mobile-source-native-design.md)
+§5 (M1–M5). See [CLAUDE_HANDOFF.md](CLAUDE_HANDOFF.md) §5 for which of those
+have actually landed.
 
 ---
 
-## Spike before committing
+## Spikes from the original design (resolved or moot)
 
-- **The Caddy `zip` snippet** is defined in `/srv/caddy/conf.d`, outside this repo. If it compresses
-  without a content-type matcher it can strip `Content-Length`/`Accept-Ranges` and defeat resume.
-  Curl a `Range` request through the real hostname before promising resume.
-- **Podfile.lock byte-identity** after adding sqflite — inference until a CI run proves it.
-- **ZIP extraction cost on-device** for a 20 MB CBZ. Fallback: members are `ZIP_STORED`, so the
-  manifest can carry byte offsets and the phone can slice with `RandomAccessFile`, no decoder.
-- **Does app-storage data survive a SideStore re-sign?** Currently believed from `IOS_SIDELOAD.md`,
-  not from an experiment. Test with a throwaway file across one 7-day cycle before trusting a
-  multi-GB shelf to it.
+The Caddy-zip-snippet and CBZ-extraction-cost spikes below applied only to the
+bulk-archive transport that was never built (see §1's note) and are moot.
+`sqflite`'s `Podfile.lock` byte-identity resolved itself: M3 shipped with
+`sqflite` as a direct dependency and the iOS build still works. Whether
+app-storage data survives a SideStore re-sign is still believed rather than
+proven by a dedicated experiment — see [ARCHITECTURE.md](ARCHITECTURE.md)'s
+"iOS distribution" section for the current claim and reasoning.
 
 ## Known limitation
 
@@ -166,28 +155,23 @@ avoids. Pulling a large series means keeping the app open.
 
 ## Landmines
 
-- **Never encrypt the store with a `flutter_secure_storage` key.** `auth_controller.dart` already
-  guards keychain writes because a re-signed sideloaded build can lose them. If the key became
-  unreadable, every downloaded chapter would be permanently unreadable — the exact failure offline
-  reading exists to prevent.
-- **`page.id` is not stable** across rescans; SQLite reuses freed rowids. Key on
-  `(chapter_id, page_number)`.
-- **Two endpoints already serve page bytes and two return chapter structure** (`/reader/*` and
-  `/library/*`, same service methods). A response-shape change must land on both or they drift.
-- **Do not attach a `BackgroundTask` cleanup to the archive.** Starlette runs background tasks after
-  *every* response including each 206, so a per-request rebuild changes the mtime, changes the
-  mtime-derived ETag, fails `If-Range`, and forces a restart from byte zero.
+- **Never encrypt the store with a `flutter_secure_storage` key.** A re-signed sideloaded iOS build
+  can lose the keychain. If the key became unreadable, every downloaded chapter would be
+  permanently unreadable — the exact failure offline reading exists to prevent. `downloads_store.dart`
+  and `blob_store.dart` do not use it; keep it that way.
 
-## Pre-existing bugs found during this design
+The other landmines originally listed here (`page.id` rowid instability, a
+shared-response-shape drift between `/reader/*` and `/library/*`, a
+`BackgroundTask`-on-the-archive ETag bug) were all specific to the deleted
+int-keyed catalog and the CBZ archive endpoint that was never built. They no
+longer apply to the source-native code.
 
-Independent of offline reading, worth fixing regardless:
+## Pre-existing bugs (from the original NAS-era design — now moot)
 
-- `get_chapter` emits absolute container filesystem paths to the client, contradicting the
-  deliberate path-hiding in `image_service.py`.
-- Archive-backed (CBZ) chapters resolve page→member by lexicographic sort, which disagrees with the
-  sort the scanner used, so **page N can already serve the wrong image** for imported CBZs.
-- Reader scroll positions are keyed `manhwamaniacs-reader-scroll:<chapterId>` with no user or
-  profile — cross-profile leakage on a shared device.
-- The reader endpoints are **not ownership-scoped**: `get_chapter` filters on chapter id alone with
-  no membership check, so any authenticated household member can fetch any chapter. Today's library
-  isolation work did not cover this path.
+This design also originally listed three "pre-existing bugs" found in the
+NAS-era local-catalog code (a CBZ page-ordering mismatch, a cross-profile
+scroll-position leak, and unscoped reader endpoints). All three are moot: the
+CBZ import path and the numeric-chapter-id reader endpoints they applied to no
+longer exist, and the scroll-position leak was independently fixed — see
+`frontend/src/features/reader/scroll-storage.ts`, which is now
+per-(user, profile) scoped.
