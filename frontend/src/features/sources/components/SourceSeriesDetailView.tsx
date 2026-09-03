@@ -17,6 +17,7 @@ import {
   useFollowedIndex,
   useUnfollow,
 } from "@/features/library/hooks";
+import { useSeriesProgress } from "@/features/reader/hooks";
 import { ApiError } from "@/types/api";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
@@ -29,6 +30,7 @@ import {
   useSourceChapters,
   useSourceSeriesDetail,
 } from "../hooks";
+import { resolveSeriesProgress } from "../series-progress";
 import { useSourceSeriesProgress } from "../source-progress";
 import {
   ChapterRowsSkeleton,
@@ -57,9 +59,22 @@ export function SourceSeriesDetailView({
   const queryClient = useQueryClient();
   const [feedback, setFeedback] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState<ChapterSortOrder>("newest");
-  const { map: progressMap, latest: latestRead } = useSourceSeriesProgress(
+  // Reading position is server-owned (`POST /reader/progress`); the local store
+  // only still carries positions adopted from a pre-scoping device. Reading the
+  // local store alone is what left every chapter looking unread — see
+  // `series-progress.ts`.
+  const localProgress = useSourceSeriesProgress(sourceId, seriesId);
+  const seriesProgressQuery = useSeriesProgress({
     sourceId,
-    seriesId,
+    seriesKey: seriesId,
+  });
+  const { map: progressMap, latest: latestRead } = useMemo(
+    () =>
+      resolveSeriesProgress({
+        serverRows: seriesProgressQuery.data ?? [],
+        localMap: localProgress.map,
+      }),
+    [seriesProgressQuery.data, localProgress.map],
   );
 
   const series = seriesQuery.data;

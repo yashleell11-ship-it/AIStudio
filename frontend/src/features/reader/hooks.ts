@@ -4,7 +4,7 @@ import {
   useQueryClient,
   type QueryClient,
 } from "@tanstack/react-query";
-import type { ChapterId } from "@/types/api";
+import type { ChapterId, SeriesId } from "@/types/api";
 import { manifestToChapterContent, readerApi, type ProgressPush } from "./api";
 import type { ReaderPage } from "./types";
 
@@ -55,6 +55,29 @@ export function prefetchChapterManifest(
   });
 }
 
+export function seriesProgressQueryKey(ref: SeriesId) {
+  return [...READER_KEY, "progress", "series", ref.sourceId, ref.seriesKey] as const;
+}
+
+/**
+ * Every stored position for one series (`GET /reader/progress/series`).
+ *
+ * This is what the series page renders its read/unread marks and its Continue
+ * button from. `staleTime: 0` because the reader writes straight into it: a
+ * cached answer from before the chapter that was just read would put the
+ * Continue button back where the reader started.
+ */
+export function useSeriesProgress(ref: SeriesId | null) {
+  return useQuery({
+    queryKey: ref
+      ? seriesProgressQueryKey(ref)
+      : [...READER_KEY, "progress", "series", "none"],
+    queryFn: () => readerApi.seriesProgress(ref!),
+    enabled: ref !== null,
+    staleTime: 0,
+  });
+}
+
 export function useSaveProgress() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -67,6 +90,11 @@ export function useSaveProgress() {
     }) => readerApi.saveProgress(ref, body),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ["library"] });
+      // The series page reads positions back from `useSeriesProgress`; without
+      // this it would answer from a cache written before this very chapter.
+      void queryClient.invalidateQueries({
+        queryKey: [...READER_KEY, "progress"],
+      });
     },
   });
 }
