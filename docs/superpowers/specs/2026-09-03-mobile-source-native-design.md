@@ -5,6 +5,15 @@
 **Sub-project:** 3 of 3. Depends on 1a (backend, done + deployed) and mirrors 1b (web, ~done).
 **Branch:** `feat/vps-slim-source-native`.
 
+> **As-built (2026-09-04):** per §5's slice order, M1 (API/model migration),
+> M2 (manifest-driven reader), and M3 (the on-device store — sqflite,
+> download queue, offline reader path, retention sweep, Downloads UI) have
+> landed in `mobile/lib/features/downloads/`, with acceptance-test coverage
+> for airplane-mode/cold-start/offline reading. M4 (OCR, §4 below) has not
+> been started — there is no `features/ocr/` under `mobile/lib/` yet. M5
+> (builds) is partly done: the Android APK path works locally, the iOS cloud
+> build is still blocked on the user per §6. See `CLAUDE_HANDOFF.md` §5.
+
 ---
 
 ## 1. Why
