@@ -23,6 +23,7 @@ from sqlalchemy.orm import Session
 
 from connectors.registry import list_installed_connectors
 from core.config import get_settings
+from core.content_rating import resolve_mature_gate
 from core.errors import AppError
 from core.time_utils import utcnow
 from database.models import (
@@ -229,9 +230,25 @@ class UpdateService:
         }
 
     def list_sources(self) -> list[dict[str, str]]:
+        """Browsable sources, filtered through the caller's 18+ gate.
+
+        ``include_mature`` defaults to True in the registry, so omitting it
+        here disclosed every installed adult connector's id and name to
+        mature-gated profiles — the exact disclosure ``GET /sources`` /
+        ``/sources/health`` / ``/system/source-health`` were built to prevent
+        (audit finding 3). The system-scoped service (background sweep) keeps
+        the full view; it serves no client.
+        """
+        include_mature = (
+            True
+            if self._system
+            else resolve_mature_gate(self._db, self._profile_id, self._user_id)
+        )
         return [
             {"id": d.source_type, "name": d.name}
-            for d in list_installed_connectors(browsable_only=True)
+            for d in list_installed_connectors(
+                browsable_only=True, include_mature=include_mature
+            )
         ]
 
     # --- the check sweep -------------------------------------------

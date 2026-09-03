@@ -275,3 +275,40 @@ def test_targeted_check_is_scoped_on_the_worker_path_too(
     )
     assert ok.status_code == 200 and ok.json() == {"queued": True, "trigger": "manual"}
     assert manager.triggered == [[victim.id]]
+
+
+# --- the 18+ gate on the source list (audit finding 3) ----------------
+
+
+def test_updates_sources_respects_the_mature_gate(
+    api, as_user, make_user, make_profile
+):
+    """GET /updates/sources used to omit include_mature (default True),
+    listing every installed adult connector to mature-gated profiles."""
+    from connectors.registry import list_installed_connectors
+
+    user = make_user("gated")
+    sfw = make_profile(user.id, "Kid", mature_content_enabled=False)
+    nsfw = make_profile(user.id, "Adult", mature_content_enabled=True, sort_order=1)
+
+    gated_ids = {
+        d.source_type
+        for d in list_installed_connectors(browsable_only=True, include_mature=False)
+    }
+    full_ids = {
+        d.source_type
+        for d in list_installed_connectors(browsable_only=True, include_mature=True)
+    }
+    assert gated_ids < full_ids  # the registry does ship mature sources
+
+    got_gated = {
+        s["id"]
+        for s in api.get("/updates/sources", headers=as_user(user.id, sfw.id)).json()
+    }
+    assert got_gated == gated_ids
+
+    got_open = {
+        s["id"]
+        for s in api.get("/updates/sources", headers=as_user(user.id, nsfw.id)).json()
+    }
+    assert got_open == full_ids
