@@ -21,8 +21,10 @@ export type SavedChapterStatus =
 export interface SavedChapterEntry {
   /** Unique within a profile's cache; see `chapterCacheKey`. */
   key: string;
-  chapterId: string;
-  seriesId: string;
+  /** Source-native identity `(sourceId, seriesKey, chapterKey)` — spec §3.2. */
+  sourceId: string;
+  seriesKey: string;
+  chapterKey: string;
   title: string;
   seriesTitle: string | null;
   pageCount: number;
