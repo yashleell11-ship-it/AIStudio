@@ -2,20 +2,12 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 
-/// Opens the library series page for the chapter currently being read.
-///
-/// The reader route already carries the series id, so this never needs a
-/// lookup — see [ReaderScreen].
-void openLibrarySeriesFromReader(BuildContext context, int seriesId) {
-  _openSeriesFromReader(
-    context,
-    routePattern: Routes.seriesDetail,
-    pathParameters: {'seriesId': seriesId.toString()},
-    location: RoutePaths.seriesDetail(seriesId),
-  );
-}
-
 /// Opens the source series page for the chapter currently being read.
+///
+/// Every reader — the manifest-driven library reader and the source-browsing
+/// reader alike — opens a `(sourceId, seriesKey)` chapter, so both funnel
+/// "open series" through the one source series page rather than maintaining a
+/// second series screen keyed by a follow row this call site may not have.
 ///
 /// [seriesId] is the raw connector id; [RoutePaths.sourceSeriesDetail] does the
 /// percent-encoding, so ids containing `/` survive the trip.

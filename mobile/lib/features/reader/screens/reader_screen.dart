@@ -3,11 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
-import 'package:manhwamaniacs/features/library/models/chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
-import 'package:manhwamaniacs/features/reader/utils/page_image_url.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
@@ -15,23 +13,32 @@ import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
+/// The manifest-driven reader for a followed series' chapter — the one
+/// reader every non-source-browsing entry point (series detail, continue
+/// reading, bookmarks, history) links to. Identity is the opaque
+/// `(sourceId, seriesKey, chapterKey)` triple; see [Routes.reader].
 class ReaderScreen extends ConsumerWidget {
   const ReaderScreen({
     super.key,
-    required this.seriesId,
-    required this.chapterId,
+    required this.sourceId,
+    required this.seriesKey,
+    required this.chapterKey,
     this.initialPage = 1,
   });
 
-  final int seriesId;
-  final int chapterId;
+  final String sourceId;
+  final String seriesKey;
+  final String chapterKey;
   final int initialPage;
+
+  ChapterManifestKey get _key =>
+      (sourceId: sourceId, seriesKey: seriesKey, chapterKey: chapterKey);
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final chapterAsync = ref.watch(readerChapterProvider(chapterId));
+    final manifestAsync = ref.watch(chapterManifestProvider(_key));
 
-    return chapterAsync.when(
+    return manifestAsync.when(
       loading: () => const ReaderSkeleton(),
       error: (error, _) {
         final appError = error is AppError
@@ -39,23 +46,23 @@ class ReaderScreen extends ConsumerWidget {
             : UnknownError(message: error.toString(), cause: error);
         return ReaderErrorState(
           error: appError,
-          onRetry: () => ref.invalidate(readerChapterProvider(chapterId)),
+          onRetry: () => ref.invalidate(chapterManifestProvider(_key)),
           onBack: () => context.pop(),
         );
       },
-      data: (chapter) {
-        if (chapter.pages.isEmpty) {
+      data: (manifest) {
+        if (manifest.pages.isEmpty) {
           return ReaderErrorState(
             error: const UnknownError(message: 'This chapter has no pages.'),
-            onRetry: () => ref.invalidate(readerChapterProvider(chapterId)),
+            onRetry: () => ref.invalidate(chapterManifestProvider(_key)),
             onBack: () => context.pop(),
           );
         }
 
-        return _LocalReaderBody(
-          seriesId: seriesId,
-          chapterId: chapterId,
-          chapter: chapter,
+        return _ManifestReaderBody(
+          sourceId: sourceId,
+          seriesKey: seriesKey,
+          manifest: manifest,
           initialPage: initialPage,
         );
       },
@@ -63,75 +70,65 @@ class ReaderScreen extends ConsumerWidget {
   }
 }
 
-class _LocalReaderBody extends ConsumerWidget {
-  const _LocalReaderBody({
-    required this.seriesId,
-    required this.chapterId,
-    required this.chapter,
+class _ManifestReaderBody extends ConsumerWidget {
+  const _ManifestReaderBody({
+    required this.sourceId,
+    required this.seriesKey,
+    required this.manifest,
     required this.initialPage,
   });
 
-  final int seriesId;
-  final int chapterId;
-  final ChapterDetail chapter;
+  final String sourceId;
+  final String seriesKey;
+  final ChapterManifest manifest;
   final int initialPage;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final previousAsync = ref.watch(
-      adjacentChapterProvider((chapterId: chapterId, direction: 'previous')),
-    );
-    final nextAsync = ref.watch(
-      adjacentChapterProvider((chapterId: chapterId, direction: 'next')),
-    );
-    final previousChapter = previousAsync.valueOrNull;
-    final nextChapter = nextAsync.valueOrNull;
-    final repo = ref.read(libraryRepositoryProvider);
+    final repo = ref.read(readerRepositoryProvider);
     final apiBaseUrl = ref.read(apiBaseUrlProvider);
-
-    final readerChapter = ReaderChapter(
-      id: chapter.id.toString(),
-      seriesId: chapter.seriesId.toString(),
-      title: chapter.title,
-      pageCount: chapter.pageCount,
-      mode: ReaderMode.local,
-      pages: chapter.pages
-          .map(
-            (page) => ReaderPage(
-              id: page.id.toString(),
-              number: page.number,
-              imageUrl: readerPageImageUrl(apiBaseUrl, page.id),
-              width: page.width,
-              height: page.height,
-            ),
-          )
-          .toList(),
-    );
+    final chapterKey = manifest.chapterKey;
+    final readerChapter = manifest.toReaderChapter(apiBaseUrl);
 
     return ReaderContent(
-      key: ValueKey(chapterId.toString()),
+      key: ValueKey('$sourceId:$seriesKey:$chapterKey'),
       chapter: readerChapter,
-      scrollStorageKey: chapterId.toString(),
+      scrollStorageKey: '$sourceId:$seriesKey:$chapterKey',
       initialPage: initialPage,
       onBack: () => context.pop(),
-      // The reader route carries the series id, so the series page is reachable
-      // without a lookup no matter how this chapter was opened.
-      onOpenSeries: () => openLibrarySeriesFromReader(context, seriesId),
-      onPreviousChapter: previousChapter != null
-          ? () => context.go(RoutePaths.reader(seriesId, previousChapter.id))
+      onOpenSeries: () => openSourceSeriesFromReader(
+        context,
+        sourceId: sourceId,
+        seriesId: seriesKey,
+      ),
+      onPreviousChapter: manifest.prev != null
+          ? () => context.go(
+                RoutePaths.reader(sourceId, seriesKey, manifest.prev!),
+              )
           : null,
-      onNextChapter: nextChapter != null
-          ? () => context.go(RoutePaths.reader(seriesId, nextChapter.id))
+      onNextChapter: manifest.next != null
+          ? () => context.go(
+                RoutePaths.reader(sourceId, seriesKey, manifest.next!),
+              )
           : null,
-      onSaveProgress: (page) => repo.saveProgress(
-        seriesId: seriesId,
-        chapterId: chapterId,
-        lastPage: page,
-      ).then((_) {}),
+      onSaveProgress: (page) => repo
+          .saveProgress(
+            ProgressPush(
+              sourceId: sourceId,
+              seriesKey: seriesKey,
+              chapterKey: chapterKey,
+              chapterNumber: manifest.chapterNumber,
+              lastPage: page,
+              pageCount: manifest.pageCount,
+              isCompleted: page >= manifest.pageCount,
+            ),
+          )
+          .then((_) {}),
       onAddBookmark: (page) => repo
           .addBookmark(
-            seriesId: seriesId,
-            chapterId: chapterId,
+            sourceId: sourceId,
+            seriesKey: seriesKey,
+            chapterKey: chapterKey,
             page: page,
           )
           .then((result) => result.isOk),

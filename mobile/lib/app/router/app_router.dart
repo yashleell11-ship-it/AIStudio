@@ -13,7 +13,6 @@ import 'package:manhwamaniacs/features/auth/screens/register_screen.dart';
 import 'package:manhwamaniacs/features/auth/screens/splash_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collection_detail_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collections_screen.dart';
-import 'package:manhwamaniacs/features/downloads/screens/downloads_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/bookmarks_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/dashboard_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/library_screen.dart';
@@ -145,27 +144,28 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => SeriesDetailScreen(
                       seriesId: int.parse(state.pathParameters['seriesId']!),
                     ),
-                    routes: [
-                      GoRoute(
-                        path: 'chapters/:chapterId/read',
-                        parentNavigatorKey: _rootNavigatorKey,
-                        pageBuilder: (context, state) {
-                          final pageParam = state.uri.queryParameters['page'];
-                          final initialPage = pageParam != null
-                              ? int.tryParse(pageParam) ?? 1
-                              : 1;
-                          return _immersiveReaderPage(
-                            ReaderScreen(
-                              seriesId:
-                                  int.parse(state.pathParameters['seriesId']!),
-                              chapterId:
-                                  int.parse(state.pathParameters['chapterId']!),
-                              initialPage: initialPage,
-                            ),
-                          );
-                        },
-                      ),
-                    ],
+                  ),
+                  // The manifest-driven reader — keyed by the opaque
+                  // (sourceId, seriesKey, chapterKey) triple, not the follow
+                  // row id, so it is reachable from continue-reading,
+                  // bookmarks and history without a lookup (see Routes.reader).
+                  GoRoute(
+                    path: 'read/:sourceId/:seriesKey/:chapterKey',
+                    parentNavigatorKey: _rootNavigatorKey,
+                    pageBuilder: (context, state) {
+                      final pageParam = state.uri.queryParameters['page'];
+                      final initialPage = pageParam != null
+                          ? int.tryParse(pageParam) ?? 1
+                          : 1;
+                      return _immersiveReaderPage(
+                        ReaderScreen(
+                          sourceId: state.pathParameters['sourceId']!,
+                          seriesKey: state.pathParameters['seriesKey']!,
+                          chapterKey: state.pathParameters['chapterKey']!,
+                          initialPage: initialPage,
+                        ),
+                      );
+                    },
                   ),
                 ],
               ),
@@ -221,17 +221,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // 2 — Downloads
-          StatefulShellBranch(
-            routes: [
-              GoRoute(
-                path: Routes.downloads,
-                builder: (context, state) => const DownloadsScreen(),
-              ),
-            ],
-          ),
-
-          // 3 — Search
+          // 2 — Search
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -241,7 +231,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // 4 — More
+          // 3 — More
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -446,11 +436,6 @@ class _AppShell extends ConsumerWidget {
                       icon: Icon(Icons.public_outlined),
                       selectedIcon: Icon(Icons.public),
                       label: 'Sources',
-                    ),
-                    NavigationDestination(
-                      icon: Icon(Icons.download_outlined),
-                      selectedIcon: Icon(Icons.download),
-                      label: 'Downloads',
                     ),
                     NavigationDestination(
                       icon: Icon(Icons.search_outlined),
