@@ -1,14 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/network/network_connectivity.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
+import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/open_chapter_scope.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_reader_provider.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 
 /// Online source chapter reader.
 ///
@@ -17,9 +25,10 @@ import 'package:manhwamaniacs/features/sources/providers/source_reader_provider.
 /// series, so progress is persisted client-side via [sourceProgressProvider]
 /// (the shared cross-platform contract) rather than the library progress API.
 ///
-// TODO(1c-M3): re-add eager next-chapter download queuing (was gated on
-// Wi-Fi and the now-deleted server download queue) once the on-device store
-// ships.
+/// Eagerly queues the next chapter for download the moment this one loads —
+/// gated on the "Wi-Fi only downloads" setting so idly reading never burns
+/// mobile data the user didn't ask to spend — via the same on-device queue
+/// a manual "Download" tap uses (spec §3).
 class SourceReaderScreen extends ConsumerStatefulWidget {
   const SourceReaderScreen({
     super.key,
@@ -39,6 +48,10 @@ class SourceReaderScreen extends ConsumerStatefulWidget {
 }
 
 class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
+  /// Guards the eager next-chapter queue so it fires once per chapter shown,
+  /// not on every unrelated rebuild of this widget.
+  String? _prefetchedFor;
+
   Future<void> _saveProgress(int page, int pageCount) async {
     // ReaderContent flushes progress from its dispose(), by which point this
     // state (and its ref/context) may already be deactivated — swallow that
@@ -51,9 +64,39 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
             page: page,
             pageCount: pageCount,
           );
+      if (pageCount > 0 && page >= pageCount) {
+        // Read-then-expire (spec §3/§3b): starts the 48h phone-copy timer.
+        // A no-op if this chapter was never downloaded.
+        await ref.read(downloadsStoreProvider)?.markRead(
+              (
+                sourceId: widget.sourceId,
+                seriesKey: widget.seriesId,
+                chapterKey: widget.chapterId,
+              ),
+            );
+      }
     } catch (_) {
       // ignore: best-effort client-side progress persistence
     }
+  }
+
+  Future<void> _maybeQueueNextChapter(ReaderChapter chapter) async {
+    final nextId = chapter.nextChapterId;
+    if (nextId == null) return;
+    if (ref.read(activeDownloadsScopeIdProvider) == null) return;
+
+    if (ref.read(preferencesProvider).wifiOnlyDownloads) {
+      final onWifi = await ref.read(networkConnectivityProvider).isOnWifi();
+      if (!onWifi) return;
+    }
+
+    await ref.read(downloadQueueControllerProvider.notifier).enqueueChapter(
+          id: (
+            sourceId: widget.sourceId,
+            seriesKey: widget.seriesId,
+            chapterKey: nextId,
+          ),
+        );
   }
 
   @override
@@ -109,44 +152,62 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
           );
         }
 
-        return ReaderContent(
-          key: ValueKey(
-            '${widget.sourceId}:${widget.seriesId}:${widget.chapterId}',
-          ),
-          chapter: chapter,
-          scrollStorageKey:
-              '${widget.sourceId}:${widget.seriesId}:${widget.chapterId}',
-          initialPage: widget.initialPage,
-          showBookmark: false,
-          onSaveProgress: (page) => _saveProgress(page, chapter.pageCount),
-          onBack: () => context.go(
-            RoutePaths.sourceSeriesDetail(widget.sourceId, widget.seriesId),
-          ),
-          // Straight to this source's series page — the connector series id can
-          // contain `/`, so the encoding in RoutePaths is what keeps it intact.
-          onOpenSeries: () => openSeriesFromReader(
-            context,
+        if (_prefetchedFor != widget.chapterId) {
+          _prefetchedFor = widget.chapterId;
+          // Deferred past this build, like every other one-shot side effect
+          // triggered from a build method in this codebase (see
+          // OpenChapterScope._claim) — reading providers is safe mid-build,
+          // but a network/DB-touching side effect belongs after it.
+          WidgetsBinding.instance.addPostFrameCallback(
+            (_) => unawaited(_maybeQueueNextChapter(chapter)),
+          );
+        }
+
+        return OpenChapterScope(
+          chapterId: (
             sourceId: widget.sourceId,
             seriesKey: widget.seriesId,
+            chapterKey: widget.chapterId,
           ),
-          onPreviousChapter: chapter.previousChapterId != null
-              ? () => context.go(
-                    RoutePaths.sourceReader(
-                      widget.sourceId,
-                      widget.seriesId,
-                      chapter.previousChapterId!,
-                    ),
-                  )
-              : null,
-          onNextChapter: chapter.nextChapterId != null
-              ? () => context.go(
-                    RoutePaths.sourceReader(
-                      widget.sourceId,
-                      widget.seriesId,
-                      chapter.nextChapterId!,
-                    ),
-                  )
-              : null,
+          child: ReaderContent(
+            key: ValueKey(
+              '${widget.sourceId}:${widget.seriesId}:${widget.chapterId}',
+            ),
+            chapter: chapter,
+            scrollStorageKey:
+                '${widget.sourceId}:${widget.seriesId}:${widget.chapterId}',
+            initialPage: widget.initialPage,
+            showBookmark: false,
+            onSaveProgress: (page) => _saveProgress(page, chapter.pageCount),
+            onBack: () => context.go(
+              RoutePaths.sourceSeriesDetail(widget.sourceId, widget.seriesId),
+            ),
+            // Straight to this source's series page — the connector series id can
+            // contain `/`, so the encoding in RoutePaths is what keeps it intact.
+            onOpenSeries: () => openSeriesFromReader(
+              context,
+              sourceId: widget.sourceId,
+              seriesKey: widget.seriesId,
+            ),
+            onPreviousChapter: chapter.previousChapterId != null
+                ? () => context.go(
+                      RoutePaths.sourceReader(
+                        widget.sourceId,
+                        widget.seriesId,
+                        chapter.previousChapterId!,
+                      ),
+                    )
+                : null,
+            onNextChapter: chapter.nextChapterId != null
+                ? () => context.go(
+                      RoutePaths.sourceReader(
+                        widget.sourceId,
+                        widget.seriesId,
+                        chapter.nextChapterId!,
+                      ),
+                    )
+                : null,
+          ),
         );
       },
     );

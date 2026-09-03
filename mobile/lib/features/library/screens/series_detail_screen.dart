@@ -6,6 +6,11 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
+import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
+import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/chapter_download_action.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/download_series_button.dart';
 import 'package:manhwamaniacs/features/library/models/known_chapter.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
@@ -220,9 +225,22 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
         initialIsFollowed: true,
         initialFollowedId: _series.id,
       ),
-      // TODO(1c-M3): re-add "Download series" / "Download selected" once the
-      // on-device store ships.
       secondaryActions: [
+        DownloadSeriesButton(
+          chapters: [
+            for (final chapter in _series.chapters)
+              (
+                id: (
+                  sourceId: _series.sourceId,
+                  seriesKey: _series.seriesKey,
+                  chapterKey: chapter.key,
+                ),
+                chapterNumber: chapter.number,
+                title: chapter.title,
+                seriesTitle: _series.title,
+              ),
+          ],
+        ),
         OutlinedButton.icon(
           key: const Key('favorite-toggle'),
           onPressed: _toggleFavorite,
@@ -266,6 +284,14 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
     final isRead = entry?.isCompleted ?? false;
     final isCurrent = entry != null && !isRead;
 
+    final downloadStatuses = ref
+        .watch(
+          seriesChapterDownloadStatusProvider(
+            (sourceId: _series.sourceId, seriesKey: _series.seriesKey),
+          ),
+        )
+        .valueOrNull;
+
     return SeriesChapterTile(
       key: Key('chapter-${chapter.key}'),
       label: chapterLabel(number: chapter.number, title: chapter.title),
@@ -280,6 +306,21 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       // opened, and only while it is unfinished.
       isCurrent: isCurrent,
       onTap: () => _openChapter(chapter),
+      download: chapterDownloadAction(
+        hasScope: ref.watch(activeDownloadsScopeIdProvider) != null,
+        status: downloadStatuses?[chapter.key],
+        buttonKey: Key('download-${chapter.key}'),
+        onDownload: () => ref.read(downloadQueueControllerProvider.notifier).enqueueChapter(
+              id: (
+                sourceId: _series.sourceId,
+                seriesKey: _series.seriesKey,
+                chapterKey: chapter.key,
+              ),
+              chapterNumber: chapter.number,
+              title: chapter.title,
+              seriesTitle: _series.title,
+            ),
+      ),
     );
   }
 }
