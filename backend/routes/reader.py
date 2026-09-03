@@ -7,6 +7,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Response
 from pydantic import BaseModel, Field
 
+from core.errors import AppError
 from core.profile_context import require_profile_context
 from services.progress_service import (
     ProgressInput,
@@ -72,11 +73,28 @@ def save_progress(body: ProgressRequest, service: ProgressDep) -> dict[str, obje
     return service.save_one(body.to_input())
 
 
+# Offline-sync batches are bounded: an unbounded array was parsed fully into
+# memory and then hammered the single-writer SQLite (audit finding 12). A
+# client with more than this simply sends several batches.
+PROGRESS_BATCH_MAX_ITEMS = 200
+
+
 @router.post("/progress/batch", dependencies=[Depends(require_profile_context)])
 def save_progress_batch(
     body: list[ProgressRequest], service: ProgressDep
 ) -> dict[str, object]:
-    """Offline-sync catch-up: an array of progress pushes, each merged."""
+    """Offline-sync catch-up: an array of progress pushes, merged in one
+    transaction. Capped at ``PROGRESS_BATCH_MAX_ITEMS`` items."""
+    if len(body) > PROGRESS_BATCH_MAX_ITEMS:
+        raise AppError(
+            "Too many progress items in one batch.",
+            code="batch_too_large",
+            status_code=413,
+            details={
+                "max_items": PROGRESS_BATCH_MAX_ITEMS,
+                "received": len(body),
+            },
+        )
     return service.save_batch([item.to_input() for item in body])
 
 

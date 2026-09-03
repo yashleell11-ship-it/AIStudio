@@ -252,7 +252,15 @@ class ProgressService:
             stmt = stmt.where(ChapterProgress.profile_id == self._profile_id)
         return stmt
 
-    def save_one(self, payload: ProgressInput) -> dict[str, Any]:
+    def _apply_one(
+        self, payload: ProgressInput
+    ) -> tuple[ChapterProgress, MergedProgress]:
+        """Merge one push into the session WITHOUT committing.
+
+        Ends with a ``flush`` so a later payload in the same batch that targets
+        the same chapter sees the pending row (the per-item-commit behaviour it
+        replaces provided that visibility implicitly).
+        """
         user_id, profile_id = self._require_profile()
         source_id = payload.source_id
         series_key = fully_unquote(payload.series_key)
@@ -292,12 +300,29 @@ class ProgressService:
         row.completed_at = merged.completed_at
         row.time_spent_seconds = merged.time_spent_seconds
 
+        self._db.flush()
+        return row, merged
+
+    def save_one(self, payload: ProgressInput) -> dict[str, Any]:
+        row, merged = self._apply_one(payload)
         self._db.commit()
         self._db.refresh(row)
         return {**self._serialize(row), "advanced": merged.advanced}
 
     def save_batch(self, payloads: list[ProgressInput]) -> dict[str, Any]:
-        results = [self.save_one(p) for p in payloads]
+        """Offline-sync catch-up, applied in ONE transaction.
+
+        This used to be ``[save_one(p) for p in payloads]`` — N separate
+        write-lock acquire/commit(fsync) cycles against the single-writer
+        SQLite for a single request, which let one large batch monopolise the
+        writer (audit finding 12; the route also caps the batch length).
+        """
+        applied = [self._apply_one(p) for p in payloads]
+        self._db.commit()
+        results = []
+        for row, merged in applied:
+            self._db.refresh(row)
+            results.append({**self._serialize(row), "advanced": merged.advanced})
         return {
             "saved": len(results),
             "advanced": sum(1 for r in results if r.get("advanced")),
