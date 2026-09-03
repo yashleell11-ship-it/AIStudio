@@ -87,4 +87,38 @@ describe("describeCheckSchedule", () => {
     expect(schedule?.neverRun).toBe(true);
     expect(schedule?.estimatedNextRunAt).toBeNull();
   });
+
+  it("reads a naive last_run_at as UTC, exactly like an explicit Z", () => {
+    // The backend serialises `last_run_at` from a naive datetime, so the real
+    // payload carries no designator — every existing case here spells it with
+    // a `Z`, which is why this bug survived. Parsed as local time the instant
+    // lands hours off (5.5h early in IST), inflating `lateByMs` and reporting
+    // an on-time scheduler as overdue.
+    //
+    // Asserted by comparing the two spellings rather than against a fixed
+    // instant: that stays honest on a UTC CI box, where a local parse would
+    // otherwise look perfectly correct.
+    const naive = describeCheckSchedule(
+      settings({ last_run_at: "2026-07-28T11:30:00", check_interval_minutes: 60 }),
+      NOON,
+    );
+    const explicit = describeCheckSchedule(
+      settings({ last_run_at: "2026-07-28T11:30:00Z", check_interval_minutes: 60 }),
+      NOON,
+    );
+
+    expect(naive?.estimatedNextRunAt).toBe("2026-07-28T12:30:00.000Z");
+    expect(naive?.overdue).toBe(false);
+    expect(naive).toEqual({ ...explicit, lastRunAt: "2026-07-28T11:30:00" });
+  });
+
+  it("accepts the SQLite space-separated spelling", () => {
+    const schedule = describeCheckSchedule(
+      settings({ last_run_at: "2026-07-28 11:30:00", check_interval_minutes: 60 }),
+      NOON,
+    );
+
+    expect(schedule?.neverRun).toBe(false);
+    expect(schedule?.estimatedNextRunAt).toBe("2026-07-28T12:30:00.000Z");
+  });
 });
