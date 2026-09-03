@@ -73,6 +73,24 @@ export interface SourceChapterSummary {
   release_date: string | null;
 }
 
+/**
+ * Where a browse page came from, as reported by `GET /sources/{id}/series`.
+ *
+ * `fresh` — served from the browse cache inside its TTL. `live` — fetched from
+ * the connector just now (always the case for a search, which bypasses the
+ * cache). `stale` — the connector could not be reached, so the last saved page
+ * was served instead of a 502. `fetched_at` is UTC and, like every backend
+ * timestamp, carries no offset — parse it with `parseUtcTimestamp`.
+ *
+ * Optional on the type because a search response and any older backend may not
+ * carry it; the UI treats its absence as "nothing to say".
+ */
+export interface SourceBrowseCache {
+  status: "fresh" | "live" | "stale";
+  stale: boolean;
+  fetched_at: string;
+}
+
 export interface PaginatedSourceSeries {
   items: SourceSeriesSummary[];
   page: number;
@@ -80,6 +98,7 @@ export interface PaginatedSourceSeries {
   total: number;
   total_pages: number;
   has_more: boolean;
+  cache?: SourceBrowseCache | null;
 }
 
 export interface SourceBrowseMode {

@@ -2,9 +2,12 @@ import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import {
   applyReaderPageCountToSourceChapters,
+  applyRefreshedBrowsePage,
+  normalizeBrowseFacets,
   sourceChaptersQueryKey,
+  sourceSeriesInfiniteQueryKey,
 } from "./hooks";
-import type { SourceChapterSummary } from "./types";
+import type { PaginatedSourceSeries, SourceChapterSummary } from "./types";
 
 function chapter(overrides: Partial<SourceChapterSummary> = {}): SourceChapterSummary {
   return {
@@ -125,5 +128,76 @@ describe("applyReaderPageCountToSourceChapters", () => {
     );
 
     expect(queryClient.getQueryState(chaptersKey)?.isInvalidated).toBe(true);
+  });
+});
+
+function browsePage(overrides: Partial<PaginatedSourceSeries> = {}): PaginatedSourceSeries {
+  return {
+    items: [],
+    page: 1,
+    page_size: 20,
+    total: 40,
+    total_pages: 2,
+    has_more: true,
+    ...overrides,
+  };
+}
+
+describe("normalizeBrowseFacets", () => {
+  it("drops the sentinel sort and blank facets so they never key the cache", () => {
+    expect(normalizeBrowseFacets({ query: "  ", sort: "default", genre: " " })).toEqual({
+      query: undefined,
+      sort: undefined,
+      genre: undefined,
+    });
+  });
+
+  it("trims what it keeps", () => {
+    expect(normalizeBrowseFacets({ query: " solo ", sort: "latest", genre: " Action " })).toEqual({
+      query: "solo",
+      sort: "latest",
+      genre: "Action",
+    });
+  });
+});
+
+describe("sourceSeriesInfiniteQueryKey", () => {
+  it("gives the browse listing and its refresh the SAME key", () => {
+    // The browse hook passes the sort already reduced to undefined; the refresh
+    // button passes the raw active sort. Both must land on one cache entry, or
+    // a refresh writes a listing nobody is reading.
+    expect(sourceSeriesInfiniteQueryKey("mangadex", { query: "", sort: undefined })).toEqual(
+      sourceSeriesInfiniteQueryKey("mangadex", { query: "", sort: "default" }),
+    );
+  });
+
+  it("separates facets that ask the source different questions", () => {
+    const base = sourceSeriesInfiniteQueryKey("mangadex", { query: "" });
+    expect(sourceSeriesInfiniteQueryKey("mangadex", { query: "solo" })).not.toEqual(base);
+    expect(sourceSeriesInfiniteQueryKey("mangadex", { query: "", genre: "Action" })).not.toEqual(base);
+    expect(sourceSeriesInfiniteQueryKey("webtoons", { query: "" })).not.toEqual(base);
+  });
+});
+
+describe("applyRefreshedBrowsePage", () => {
+  it("collapses a paged-through listing back to the one refetched page", () => {
+    const queryClient = new QueryClient();
+    const key = sourceSeriesInfiniteQueryKey("mangadex", { query: "" });
+    queryClient.setQueryData(key, {
+      pages: [browsePage({ page: 1 }), browsePage({ page: 2, has_more: false })],
+      pageParams: [1, 2],
+    });
+
+    const refreshed = browsePage({ page: 1, total: 41 });
+    applyRefreshedBrowsePage(queryClient, key, refreshed);
+
+    const data = queryClient.getQueryData<{
+      pages: PaginatedSourceSeries[];
+      pageParams: number[];
+    }>(key);
+    expect(data?.pages).toEqual([refreshed]);
+    expect(data?.pageParams).toEqual([1]);
+    // A direct write, so no background refetch is queued behind it.
+    expect(queryClient.getQueryState(key)?.isInvalidated).toBe(false);
   });
 });
