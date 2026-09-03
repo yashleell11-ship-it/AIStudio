@@ -13,6 +13,8 @@ export interface Profile {
   avatar_key: string | null;
   mood: Mood;
   sort_order: number;
+  /** Per-profile 18+ gate. Settable at create/edit since 1a. */
+  mature_content_enabled: boolean;
   created_at: string;
 }
 
@@ -22,6 +24,7 @@ export interface CreateProfilePayload {
   mood: Mood;
   /** Optional; the backend assigns an order when omitted. */
   sort_order?: number;
+  mature_content_enabled?: boolean;
 }
 
 export type UpdateProfilePayload = Partial<{
@@ -29,6 +32,7 @@ export type UpdateProfilePayload = Partial<{
   avatar_key: string;
   mood: Mood;
   sort_order: number;
+  mature_content_enabled: boolean;
 }>;
 
 /**

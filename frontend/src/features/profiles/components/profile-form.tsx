@@ -4,11 +4,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/cn";
 import { ApiError } from "@/types/api";
 import { AVATAR_PRESETS, resolveAvatar } from "../avatars";
 import { useCreateProfile, useUpdateProfile } from "../hooks";
 import { MOODS, MOOD_LABELS, MOOD_TINT, isTintedMood, type Mood } from "../mood";
+import { toCreateProfilePayload, toUpdateProfilePayload } from "../save-payload";
 import type { Profile } from "../types";
 import { ProfileAvatar } from "./profile-avatar";
 
@@ -40,6 +42,9 @@ export function ProfileForm({ onClose, profile, onSaved }: ProfileFormProps) {
     () => resolveAvatar(profile?.avatar_key).key,
   );
   const [mood, setMood] = useState<Mood>(() => profile?.mood ?? "default");
+  const [matureEnabled, setMatureEnabled] = useState(
+    () => profile?.mature_content_enabled ?? false,
+  );
   const [error, setError] = useState<string | null>(null);
 
   const saving = create.isPending || update.isPending;
@@ -50,12 +55,18 @@ export function ProfileForm({ onClose, profile, onSaved }: ProfileFormProps) {
     if (!trimmed || saving) return;
     setError(null);
     try {
+      const values = {
+        name: trimmed,
+        avatarKey,
+        mood,
+        matureEnabled,
+      };
       const saved = profile
         ? await update.mutateAsync({
             id: profile.id,
-            changes: { name: trimmed, avatar_key: avatarKey, mood },
+            changes: toUpdateProfilePayload(values),
           })
-        : await create.mutateAsync({ name: trimmed, avatar_key: avatarKey, mood });
+        : await create.mutateAsync(toCreateProfilePayload(values));
       onSaved?.(saved);
       onClose();
     } catch (err) {
@@ -145,6 +156,28 @@ export function ProfileForm({ onClose, profile, onSaved }: ProfileFormProps) {
                 </button>
               );
             })}
+          </div>
+        </fieldset>
+
+        <fieldset>
+          <legend className="mb-2 text-sm font-medium text-fg">
+            Mature content
+          </legend>
+          <div className="flex items-start justify-between gap-4 rounded-xl border border-border/50 px-3 py-2.5">
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-fg">
+                Show mature (18+) content
+              </p>
+              <p className="mt-0.5 text-xs text-muted">
+                Lets this profile see 18+ sources and series. Confirm you are of
+                legal age where you live.
+              </p>
+            </div>
+            <Switch
+              checked={matureEnabled}
+              onCheckedChange={setMatureEnabled}
+              aria-label="Show mature (18+) content for this profile"
+            />
           </div>
         </fieldset>
 
