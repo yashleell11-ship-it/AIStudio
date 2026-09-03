@@ -2,8 +2,9 @@
 
 import { useMemo } from "react";
 import Link from "next/link";
-import { BookOpen, Compass, Telescope, TriangleAlert, WifiOff } from "lucide-react";
+import { BookOpen, Compass, Telescope, TriangleAlert } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
@@ -43,12 +44,9 @@ export function LibraryShelfView() {
   if (viewState === "offline") {
     return (
       <div className="px-5 pt-6 md:px-8">
-        <EmptyState
-          tone="offline"
-          icon={WifiOff}
-          title="You're offline"
-          description="Your library needs a connection to load. Chapters you've downloaded still open with no connection at all."
-          action={{ label: "Go to Downloads", href: "/downloads" }}
+        <OfflineState
+          reason="Your library needs a connection to load."
+          onRetry={() => void seriesQuery.refetch()}
         />
       </div>
     );

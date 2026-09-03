@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { Bell, BellOff, ChevronRight, Search, TriangleAlert, WifiOff } from "lucide-react";
+import { Bell, BellOff, ChevronRight, Search, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { useFollowedIndex } from "@/features/library/hooks";
@@ -175,12 +176,9 @@ export function UpdatesView() {
                 ))}
               </div>
             ) : notificationsViewState === "offline" ? (
-              <EmptyState
-                tone="offline"
-                icon={WifiOff}
-                title="You're offline"
-                description="Updates need a connection to check. Chapters you've downloaded still open with no connection at all."
-                action={{ label: "Go to Downloads", href: "/downloads" }}
+              <OfflineState
+                reason="Updates need a connection to check."
+                onRetry={() => void notifications.refetch()}
               />
             ) : notificationsViewState === "error" ? (
               <EmptyState

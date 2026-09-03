@@ -1,9 +1,10 @@
 "use client";
 
-import { BarChart3, TriangleAlert, WifiOff } from "lucide-react";
+import { BarChart3, TriangleAlert } from "lucide-react";
 import { useStatistics } from "@/features/library/hooks";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 function StatCard({
@@ -64,12 +65,9 @@ export function StatisticsView() {
             ))}
           </div>
         ) : viewState === "offline" ? (
-          <EmptyState
-            tone="offline"
-            icon={WifiOff}
-            title="You're offline"
-            description="Statistics need a connection to load. Chapters you've downloaded still open with no connection at all."
-            action={{ label: "Go to Downloads", href: "/downloads" }}
+          <OfflineState
+            reason="Statistics need a connection to load."
+            onRetry={() => void statsQuery.refetch()}
           />
         ) : viewState === "error" ? (
           <EmptyState

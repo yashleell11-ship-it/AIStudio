@@ -18,9 +18,9 @@ import {
   SlidersHorizontal,
   TrendingUp,
   TriangleAlert,
-  WifiOff,
 } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useShortcut } from "@/lib/keyboard";
@@ -277,12 +277,9 @@ export function SearchView() {
                 ))}
               </div>
             ) : viewState === "offline" ? (
-              <EmptyState
-                tone="offline"
-                icon={WifiOff}
-                title="You're offline"
-                description="Search needs a connection to reach your library and sources. Chapters you've downloaded still open with no connection at all."
-                action={{ label: "Go to Downloads", href: "/downloads" }}
+              <OfflineState
+                reason="Search needs a connection to reach your library and sources."
+                onRetry={() => void searchQuery.refetch()}
               />
             ) : viewState === "error" ? (
               <EmptyState

@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, ScanText, Search, TriangleAlert, WifiOff } from "lucide-react";
+import { Loader2, ScanText, Search, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { useFollowedIndex } from "@/features/library/hooks";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
@@ -98,12 +99,9 @@ function DialogueSearch() {
           ))}
         </ul>
       ) : viewState === "offline" ? (
-        <EmptyState
-          tone="offline"
-          icon={WifiOff}
-          title="You're offline"
-          description="Dialogue search needs a connection to run. Chapters you've downloaded still open with no connection at all."
-          action={{ label: "Go to Downloads", href: "/downloads" }}
+        <OfflineState
+          reason="Dialogue search needs a connection to run."
+          onRetry={() => void ocrQuery.refetch()}
         />
       ) : viewState === "error" ? (
         <EmptyState

@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { Heart, TriangleAlert, WifiOff } from "lucide-react";
+import { Heart, TriangleAlert } from "lucide-react";
 import { useRecommendations } from "@/features/library/hooks";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 /**
@@ -37,12 +38,9 @@ export function RecommendationsView() {
             ))}
           </div>
         ) : viewState === "offline" ? (
-          <EmptyState
-            tone="offline"
-            icon={WifiOff}
-            title="You're offline"
-            description="Recommendations need a connection to load. Chapters you've downloaded still open with no connection at all."
-            action={{ label: "Go to Downloads", href: "/downloads" }}
+          <OfflineState
+            reason="Recommendations need a connection to load."
+            onRetry={() => void recommendationsQuery.refetch()}
           />
         ) : viewState === "error" ? (
           <EmptyState

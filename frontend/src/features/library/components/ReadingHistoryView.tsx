@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { History, TriangleAlert, WifiOff } from "lucide-react";
+import { History, TriangleAlert } from "lucide-react";
 import { useReadingHistory } from "@/features/library/hooks";
 import { readerChapterHref, seriesPageHref } from "@/features/reader/reader-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
+import { OfflineState } from "@/components/ui/offline-state";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 export function ReadingHistoryView() {
@@ -38,12 +39,9 @@ export function ReadingHistoryView() {
                 ))}
               </div>
             ) : viewState === "offline" ? (
-              <EmptyState
-                tone="offline"
-                icon={WifiOff}
-                title="You're offline"
-                description="Reading history needs a connection to load. Chapters you've downloaded still open with no connection at all."
-                action={{ label: "Go to Downloads", href: "/downloads" }}
+              <OfflineState
+                reason="Reading history needs a connection to load."
+                onRetry={() => void historyQuery.refetch()}
               />
             ) : viewState === "error" ? (
               <EmptyState
