@@ -1,0 +1,96 @@
+# ManhwaManiacs — OVH VPS (Vint Hill) deployment.
+#
+# Co-tenant on the box that runs the Minecraft bots. Reuses their edge:
+# Caddy + cloudflared already run in the `mcbots` compose project on the
+# `mcbots_bots` network (see /opt/mcbots/docker-compose.yml). This stack
+# joins that network so Caddy can reverse-proxy to it and the tunnel can
+# reach it — nothing is published to a host port.
+#
+# Deploy:  ops/vps/deploy.sh         (run on the VPS, from the repo checkout)
+#
+# State: only the metadata SQLite DB + settings.json, on the dedicated 50 GB
+# disk mounted at /srv/manhwamaniacs. Chapter images are never stored
+# server-side (clients download them through the source image proxy).
+
+name: manhwamaniacs
+
+services:
+  backend:
+    build:
+      context: ../../backend
+    image: local/manhwamaniacs-backend:latest
+    container_name: manhwamaniacs-backend
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    environment:
+      - APP_ENV=production
+      - MM_DB_PATH=/data/manhwamaniacs.db
+      - MM_SETTINGS_PATH=/data/settings.json
+      - MM_COOKIE_SECURE=true
+      # Closed: the instance is internet-facing via Cloudflare. The owner
+      # account is created out-of-band (ops/vps/deploy.sh create-owner) so the
+      # users table is never empty on a public host.
+      - MM_REGISTRATION_ENABLED=false
+      # http.ts sends credentials:include; 1a rejects a wildcard outside debug.
+      - CORS_ORIGINS=https://manhwamaniacs.xyz
+      # Baked into the SideStore/APK manifest links the phone fetches (1c).
+      - MM_PUBLIC_BASE_URL=https://app.manhwamaniacs.xyz
+      - MM_APK_PATH=/app/apk/app-release.apk
+      - MM_IPA_PATH=/app/ipa/ManhwaManiacs.ipa
+      - MM_PUBSPEC_PATH=/app/mobile/pubspec.yaml
+    volumes:
+      - /srv/manhwamaniacs/data:/data
+      # APK / IPA drop-in (populated by the mobile build pipeline — 1c). Dirs
+      # are created empty by deploy.sh so a missing artifact reads as
+      # "not built yet" rather than a broken mount.
+      - /srv/manhwamaniacs/apk:/app/apk:ro
+      - /srv/manhwamaniacs/ipa:/app/ipa:ro
+      - ../../mobile/pubspec.yaml:/app/mobile/pubspec.yaml:ro
+    networks: [edge]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=4).status==200 else 1)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+  frontend:
+    build:
+      context: ../../frontend
+      args:
+        NEXT_PUBLIC_API_URL: /api
+        BACKEND_INTERNAL_URL: http://manhwamaniacs-backend:8000
+        APP_ENV: production
+        GIT_COMMIT: ${GIT_COMMIT:-dev}
+        GIT_BRANCH: ${GIT_BRANCH:-feat/vps-slim-source-native}
+    image: local/manhwamaniacs-frontend:latest
+    container_name: manhwamaniacs-frontend
+    restart: unless-stopped
+    security_opt: ["no-new-privileges:true"]
+    cap_drop: ["ALL"]
+    environment:
+      - NODE_ENV=production
+      - BACKEND_INTERNAL_URL=http://manhwamaniacs-backend:8000
+    networks: [edge]
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 25s
+    logging:
+      driver: json-file
+      options: { max-size: "10m", max-file: "5" }
+
+networks:
+  # The Minecraft stack's network — Caddy + cloudflared already live here.
+  edge:
+    external: true
+    name: mcbots_bots
