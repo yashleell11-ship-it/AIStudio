@@ -35,10 +35,11 @@ On the VPS itself:
 
 ```bash
 cd /srv/manhwamaniacs/app
-bash ops/vps/deploy.sh deploy         # build + up + health gate
+bash ops/vps/deploy.sh deploy            # build + up + health gate
 bash ops/vps/deploy.sh logs
-bash ops/vps/deploy.sh edge           # re-apply the Caddy vhosts + tunnel ingress (idempotent)
-bash ops/vps/deploy.sh create-owner   # needs a TTY: ssh -t
+bash ops/vps/deploy.sh edge              # re-apply the Caddy vhosts + tunnel ingress (idempotent)
+bash ops/vps/deploy.sh create-owner      # needs a TTY: ssh -t
+bash ops/vps/deploy.sh install-timers    # one-off: install + enable the iOS-build-fetch systemd timer
 ```
 
 ## How traffic reaches it
@@ -77,9 +78,11 @@ after any edge change.
 3. **Repo visibility.** The IPA sync downloads *release assets anonymously*,
    which needs a public repo. The repo currently reads Private — either make it
    public or put a token with `Actions:read` at `/root/.gh_token` on the VPS.
-4. **The iOS sync timer** is not installed yet (there is nothing to sync until
-   1 and 2 are done):
-   `sudo install -m 644 /srv/manhwamaniacs/app/ops/vps/manhwamaniacs-ios-sync.cron /etc/cron.d/manhwamaniacs-ios-sync`
+4. **The iOS sync timer.** `ops/vps/deploy.sh install-timers` installs a
+   15-minute systemd timer that runs `ops/fetch-ios-build.sh` (idempotent, run
+   it again after any deploy). There is still nothing for it to fetch until 2
+   and 3 above are resolved — a missing release just means each run exits 2
+   ("nothing new to publish").
 
 ## Accounts
 
