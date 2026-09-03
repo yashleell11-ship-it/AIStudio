@@ -26,6 +26,63 @@ from services.auth_service import AuthService
 from services.update_scheduler import get_update_manager
 
 
+def log_registration_posture() -> None:
+    """Make the admin-takeover surface observable in the startup log: is the
+    bootstrap window open (empty users table => first registration becomes
+    admin), when does it close, and what does a registration attempt require
+    right now?"""
+    log = logging.getLogger("uvicorn.error")
+    settings = get_settings()
+    db = SessionLocal()
+    try:
+        auth = AuthService(db)
+        count = auth.user_count()
+        invite = "set" if settings.registration_invite_code else "NOT set"
+        if count == 0:
+            deadline = auth.bootstrap_window_deadline()
+            if auth.bootstrap_window_open():
+                log.warning(
+                    "BOOTSTRAP OPEN: users table is empty — the first account "
+                    "to register becomes admin, no invite code needed. Window "
+                    "closes at %s (MM_BOOTSTRAP_WINDOW_MINUTES=%d).",
+                    deadline.isoformat() if deadline else "?",
+                    settings.bootstrap_window_minutes,
+                )
+            else:
+                log.warning(
+                    "Bootstrap window EXPIRED (closed at %s): users table is "
+                    "empty but uninvited registration is refused. Claim the "
+                    "instance with ops/vps/deploy.sh create-owner, or re-arm "
+                    "the window with reset-accounts.",
+                    deadline.isoformat() if deadline else "?",
+                )
+        else:
+            log.info(
+                "Auth posture: %d account(s); registration_enabled=%s; "
+                "invite code %s.",
+                count,
+                settings.registration_enabled,
+                invite,
+            )
+        if settings.registration_enabled and not settings.registration_invite_code:
+            log.warning(
+                "registration_enabled=true with NO invite code: registration "
+                "is OPEN to anyone who can reach this host. Set "
+                "MM_REGISTRATION_INVITE_CODE (ops/vps/deploy.sh "
+                "set-invite-code) if this deployment is public."
+            )
+        code = settings.registration_invite_code
+        if code and len(code) < 8:
+            log.warning(
+                "The configured invite code is only %d characters — short "
+                "codes are brute-forceable even behind the register rate "
+                "limit. Use at least 8.",
+                len(code),
+            )
+    finally:
+        db.close()
+
+
 def prune_expired_sessions() -> None:
     """Opportunistically delete expired auth sessions at startup. Individual
     tokens are also pruned lazily when resolved, but this clears in one pass any
@@ -53,6 +110,7 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
         if run_migrations:
             init_db()
             prune_expired_sessions()
+            log_registration_posture()
         update_manager = get_update_manager()
         if run_workers:
             update_manager.start()

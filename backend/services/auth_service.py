@@ -7,8 +7,10 @@ the token as an httpOnly cookie, mobile as a bearer token — both resolve here.
 
 from __future__ import annotations
 
+import logging
 import re
-from datetime import timedelta
+from datetime import datetime, timedelta
+from hmac import compare_digest
 from typing import Annotated
 
 from fastapi import Cookie, Depends, Header, Request
@@ -23,10 +25,13 @@ from core.auth import (
     validate_password_strength,
     verify_password,
 )
+from core.config import get_settings
 from core.errors import AppError
 from core.time_utils import utcnow
-from database.models import User, UserSession
+from database.models import BootstrapState, User, UserSession
 from database.session import get_db
+
+logger = logging.getLogger("manhwamaniacs.auth")
 
 SESSION_TTL = timedelta(days=7)
 REMEMBER_ME_TTL = timedelta(days=90)
@@ -47,6 +52,96 @@ class AuthService:
 
     def user_count(self) -> int:
         return self.db.query(User).count()
+
+    # --- bootstrap window ----------------------------------------------------
+    #
+    # An empty users table on a public host is an admin-takeover window: the
+    # first registration becomes admin, with no invite code. These methods
+    # bound that window to Settings.bootstrap_window_minutes from the moment
+    # the empty table is first observed (recorded in the bootstrap_state
+    # singleton row — in the DB, so the marker travels with the data it
+    # describes: restores, wipes, and reset-accounts all stay consistent).
+
+    def bootstrap_window_deadline(self) -> datetime | None:
+        """The instant uninvited bootstrap registration stops being allowed,
+        or None when it does not apply (users already exist).
+
+        Lazily stamps ``bootstrap_state.empty_since`` the first time an empty
+        users table is observed.
+        """
+        if self.user_count() > 0:
+            return None
+        state = self.db.get(BootstrapState, 1)
+        if state is None:
+            state = BootstrapState(id=1, empty_since=utcnow())
+            self.db.add(state)
+            self.db.commit()
+            logger.warning(
+                "users table is empty: bootstrap registration is OPEN — the "
+                "first account to register becomes admin (window closes at %s, "
+                "MM_BOOTSTRAP_WINDOW_MINUTES=%d).",
+                (state.empty_since
+                 + timedelta(minutes=get_settings().bootstrap_window_minutes)
+                 ).isoformat(),
+                get_settings().bootstrap_window_minutes,
+            )
+        return state.empty_since + timedelta(
+            minutes=max(get_settings().bootstrap_window_minutes, 0)
+        )
+
+    def bootstrap_window_open(self) -> bool:
+        """True while the users table is empty AND inside the bootstrap window,
+        i.e. an uninvited registration right now would be allowed (and become
+        admin). With ``bootstrap_window_minutes=0`` this is never True."""
+        deadline = self.bootstrap_window_deadline()
+        return deadline is not None and utcnow() < deadline
+
+    def ensure_registration_allowed(self, invite_code: str | None) -> None:
+        """Gate a registration attempt; raise AppError (403) if it may not
+        proceed.
+
+        Order of evaluation:
+          1. Empty users table with the bootstrap window still open — allowed
+             uninvited (the account will be the admin/owner). This is the only
+             path that bypasses ``registration_enabled``.
+          2. Otherwise ``registration_enabled`` must be on
+             (403 ``registration_disabled``).
+          3. If an invite code is configured, the supplied one must match —
+             compared in constant time (403 ``invite_code_required`` /
+             ``invite_code_invalid``).
+        """
+        settings = get_settings()
+        if self.user_count() == 0:
+            if self.bootstrap_window_open():
+                return
+            logger.warning(
+                "users table is empty but the bootstrap window has EXPIRED: "
+                "refusing uninvited registration (re-arm with "
+                "ops/vps/deploy.sh reset-accounts, or claim the instance with "
+                "create-owner)."
+            )
+        if not settings.registration_enabled:
+            raise AppError(
+                "Registration is disabled.",
+                code="registration_disabled",
+                status_code=403,
+            )
+        configured = settings.registration_invite_code
+        if configured:
+            if not invite_code:
+                raise AppError(
+                    "An invite code is required to register.",
+                    code="invite_code_required",
+                    status_code=403,
+                )
+            if not compare_digest(
+                invite_code.encode("utf-8"), configured.encode("utf-8")
+            ):
+                raise AppError(
+                    "Invalid invite code.",
+                    code="invite_code_invalid",
+                    status_code=403,
+                )
 
     def get_user(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
@@ -99,6 +194,18 @@ class AuthService:
             is_active=True,
         )
         self.db.add(user)
+        if is_admin:
+            # Bootstrap complete: retire the empty-table marker in the same
+            # commit, so a later wipe starts a *fresh* window instead of
+            # inheriting this (now stale) timestamp.
+            state = self.db.get(BootstrapState, 1)
+            if state is not None:
+                self.db.delete(state)
+            logger.info(
+                "Bootstrap complete: first account %r registered and is the "
+                "admin/owner.",
+                normalized,
+            )
         self.db.commit()
         self.db.refresh(user)
         # No "claim NULL-owned rows" step: the DB is a fresh source-native
@@ -318,9 +425,10 @@ def require_admin_user(
 #   GET  /            landing page (HTML) / JSON status probe — no library data
 #   GET  /health      deploy + Caddy health probe
 #   GET  /auth/bootstrap-status  whether the first admin still needs creating
-#   POST /auth/login  + /auth/register  entry points (register self-gates:
-#                     always allowed while zero users exist; then honours
-#                     registration_enabled)
+#   POST /auth/login  + /auth/register  entry points (register self-gates via
+#                     AuthService.ensure_registration_allowed: uninvited only
+#                     while zero users exist AND the bootstrap window is open;
+#                     then honours registration_enabled + the invite code)
 # The /app/* distribution surface (APK download, version, changelog, landing
 # assets) is public by design so new users can install the app before they have
 # an account; it exposes no library or user data. Decision recorded in docs/AUTH.md.

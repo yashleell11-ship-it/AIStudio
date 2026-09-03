@@ -80,6 +80,29 @@ class Settings(BaseModel):
     # can be claimed). Cookie flags default to secure/lax for production behind
     # HTTPS; local http dev sets MM_COOKIE_SECURE=false so the cookie is sent.
     registration_enabled: bool = True
+    # Invite code gating self-service registration (MM_REGISTRATION_INVITE_CODE).
+    # Semantics when a registration attempt arrives:
+    #   * registration_enabled=false           -> refused entirely (403), except
+    #     the bootstrap window below.
+    #   * registration_enabled=true + code set -> POST /auth/register must carry
+    #     a matching `invite_code` (compared in constant time); wrong/missing is
+    #     a 403 with code `invite_code_invalid` / `invite_code_required`.
+    #   * registration_enabled=true + no code  -> **OPEN registration. Anyone on
+    #     the internet who can reach the host can create an account. Never run
+    #     a public deployment in this state — set an invite code (see
+    #     ops/vps/deploy.sh set-invite-code) or keep registration disabled.**
+    # None/empty means "no code configured".
+    registration_invite_code: str | None = None
+    # Bootstrap window (MM_BOOTSTRAP_WINDOW_MINUTES): while the users table is
+    # EMPTY, the first registration is allowed with no invite code (so the
+    # instance can be claimed and that account becomes admin) — but only for
+    # this many minutes after the empty table is first observed (recorded in
+    # the `bootstrap_state` DB row). After that, an empty table no longer grants
+    # uninvited registration: the normal registration_enabled + invite-code
+    # rules apply, so a wiped database on a public host is not an indefinite
+    # admin-takeover window. Set to 0 to disable uninvited bootstrap entirely
+    # (claim the instance via `ops/vps/deploy.sh create-owner` instead).
+    bootstrap_window_minutes: int = 30
     session_cookie_secure: bool = True
     session_cookie_samesite: str = "lax"
 
@@ -93,6 +116,12 @@ class Settings(BaseModel):
     # keyed by client IP (X-Forwarded-For aware, since we run behind Caddy).
     rate_limit_enabled: bool = True
     rate_limit_auth: str = "10/minute"
+    # /auth/register gets its own, tighter bucket (MM_RATE_LIMIT_REGISTER):
+    # it is the invite-code brute-force surface, and account creation is rare
+    # enough that a hard limit costs legitimate users nothing. Multiple limits
+    # are combined with ";" (slowapi/limits parse_many), so a burst cap and an
+    # hourly cap both apply.
+    rate_limit_register: str = "5/minute;30/hour"
     rate_limit_import: str = "5/minute"
     rate_limit_sources: str = "60/minute"
     # The request header carrying the real client IP, written by the *outermost*
@@ -131,6 +160,7 @@ def get_settings() -> Settings:
         ("MM_UPDATE_SWEEP_SOURCE_BUDGET_SECONDS", "update_sweep_source_budget_seconds"),
         ("MM_UPDATE_SWEEP_DEADLINE_MINUTES", "update_sweep_deadline_minutes"),
         ("MM_MAX_FOLLOWS_PER_PROFILE", "max_follows_per_profile"),
+        ("MM_BOOTSTRAP_WINDOW_MINUTES", "bootstrap_window_minutes"),
     ):
         value = os.getenv(env_key)
         if value and value.strip():
@@ -140,6 +170,11 @@ def get_settings() -> Settings:
     reg_override = os.getenv("MM_REGISTRATION_ENABLED")
     if reg_override is not None:
         data["registration_enabled"] = reg_override.strip().lower() in {"1", "true", "yes", "on"}
+    invite_override = os.getenv("MM_REGISTRATION_INVITE_CODE")
+    if invite_override is not None:
+        # Presence-based: an empty value explicitly clears any persisted code
+        # (i.e. "no code configured"), it does not mean "the code is ''".
+        data["registration_invite_code"] = invite_override.strip() or None
     cookie_secure_override = os.getenv("MM_COOKIE_SECURE")
     if cookie_secure_override is not None:
         data["session_cookie_secure"] = cookie_secure_override.strip().lower() in {"1", "true", "yes", "on"}
@@ -150,6 +185,7 @@ def get_settings() -> Settings:
         data["rate_limit_enabled"] = rate_limit_enabled_override.strip().lower() in {"1", "true", "yes", "on"}
     for env_key, field in (
         ("MM_RATE_LIMIT_AUTH", "rate_limit_auth"),
+        ("MM_RATE_LIMIT_REGISTER", "rate_limit_register"),
         ("MM_RATE_LIMIT_IMPORT", "rate_limit_import"),
         ("MM_RATE_LIMIT_SOURCES", "rate_limit_sources"),
     ):

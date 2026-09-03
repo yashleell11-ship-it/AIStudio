@@ -2,10 +2,18 @@
 # ManhwaManiacs — OVH VPS deploy. Run on the VPS from the repo checkout
 # (default /srv/manhwamaniacs/app). Idempotent.
 #
-#   ops/vps/deploy.sh                 build + (re)start the stack, run migrations
-#   ops/vps/deploy.sh create-owner   one-off: create the admin/owner account
-#   ops/vps/deploy.sh logs            tail both containers
-#   ops/vps/deploy.sh edge            (re)install the Caddy + cloudflared routing
+#   ops/vps/deploy.sh                  build + (re)start the stack, run migrations
+#   ops/vps/deploy.sh create-owner     one-off: create the admin/owner account
+#                                      (non-TTY: set MM_OWNER_USER/MM_OWNER_PASS,
+#                                      or use `ssh -t`)
+#   ops/vps/deploy.sh reset-accounts   DESTRUCTIVE: delete every account + its
+#                                      data, re-arm the bootstrap window
+#                                      (confirm by typing RESET, or MM_CONFIRM=RESET)
+#   ops/vps/deploy.sh set-invite-code [CODE|clear]
+#                                      set/rotate (or clear) the registration
+#                                      invite code; generates one if omitted
+#   ops/vps/deploy.sh logs             tail both containers
+#   ops/vps/deploy.sh edge             (re)install the Caddy + cloudflared routing
 #
 # Prereqs (one-time, done by `edge` + the OVH panel):
 #   - /srv/manhwamaniacs on the 50 GB disk, owned by uid 1000
@@ -49,8 +57,25 @@ cmd_deploy() {
 
 cmd_create_owner() {
   # Runs inside the backend container so it uses the same DB + code.
-  read -rp "Owner username [yeahiamyash]: " U; U="${U:-yeahiamyash}"
-  read -rsp "Owner password: " P; echo
+  #
+  # Credentials come from MM_OWNER_USER / MM_OWNER_PASS when set; otherwise we
+  # prompt — but ONLY on a real terminal. Under `ssh host 'deploy.sh
+  # create-owner'` there is no TTY, `read -rp` prints nothing and blocks
+  # forever waiting on a closed stdin (the owner hit exactly this hang), so a
+  # non-TTY run without env vars is refused with instructions instead.
+  local U="${MM_OWNER_USER:-}" P="${MM_OWNER_PASS:-}"
+  if [ -z "$U" ] || [ -z "$P" ]; then
+    if [ -t 0 ]; then
+      read -rp "Owner username [yeahiamyash]: " U; U="${U:-yeahiamyash}"
+      read -rsp "Owner password: " P; echo
+    else
+      echo "!! create-owner needs a terminal to prompt, and stdin is not a TTY." >&2
+      echo "   Either allocate one:   ssh -t <host> '$0 create-owner'" >&2
+      echo "   or pass credentials:   MM_OWNER_USER=... MM_OWNER_PASS=... $0 create-owner" >&2
+      exit 2
+    fi
+  fi
+  if [ -z "$P" ]; then echo "!! empty password refused" >&2; exit 2; fi
   docker exec -e MM_OWNER_USER="$U" -e MM_OWNER_PASS="$P" -i manhwamaniacs-backend python - <<'PY'
 import os
 from database.session import SessionLocal, init_db
@@ -61,10 +86,150 @@ try:
     svc = AuthService(db)
     user = svc.register(username=os.environ["MM_OWNER_USER"], password=os.environ["MM_OWNER_PASS"])
     db.commit()
-    print(f"created user id={user.id} is_admin={user.is_admin}")
+    print(f"created user id={user.id} is_admin={bool(user.is_admin)}")
 finally:
     db.close()
 PY
+}
+
+# Tables deleted by reset-accounts, children first so the raw DELETEs never
+# trip a foreign key regardless of each FK's ON DELETE clause. Everything here
+# is account-owned; global state (source cache, OCR text, update settings/runs)
+# is deliberately NOT touched.
+RESET_TABLES="update_notifications profile_series_tags tags collection_series collections reading_sessions bookmarks chapter_progress followed_series source_pins reading_profiles sessions users"
+
+cmd_reset_accounts() {
+  echo ">> counting what a reset would destroy..."
+  docker exec -e RESET_TABLES="$RESET_TABLES" -i manhwamaniacs-backend python - <<'PY'
+import os
+from sqlalchemy import text
+from database.session import get_engine
+with get_engine().connect() as conn:
+    total = 0
+    for t in os.environ["RESET_TABLES"].split():
+        n = conn.execute(text(f"SELECT COUNT(*) FROM {t}")).scalar_one()
+        total += n
+        print(f"   {t:24s} {n:8d} row(s)")
+    print(f"   {'TOTAL':24s} {total:8d} row(s)")
+PY
+
+  cat <<'WARN'
+
+  ############################################################################
+  ##  DESTRUCTIVE: this permanently deletes EVERY account and everything    ##
+  ##  owned by them — users, sessions, reading profiles, follows, reading   ##
+  ##  progress, reading history, bookmarks, collections, and tags — the     ##
+  ##  row counts above are the real blast radius. There is no undo.         ##
+  ##                                                                        ##
+  ##  It then re-arms the bootstrap window: for the next                    ##
+  ##  MM_BOOTSTRAP_WINDOW_MINUTES (default 30) the FIRST account to         ##
+  ##  register on the PUBLIC site becomes admin. Plan to claim it           ##
+  ##  immediately (or use create-owner, which needs no window).             ##
+  ############################################################################
+
+WARN
+
+  if [ "${MM_CONFIRM:-}" = "RESET" ]; then
+    echo ">> confirmed via MM_CONFIRM=RESET"
+  elif [ -t 0 ]; then
+    read -rp "Type RESET (all caps) to proceed, anything else aborts: " CONFIRM
+    if [ "$CONFIRM" != "RESET" ]; then echo ">> aborted, nothing deleted"; exit 1; fi
+  else
+    echo "!! refusing: no TTY to confirm on. Re-run with MM_CONFIRM=RESET $0 reset-accounts" >&2
+    echo "   (or over ssh -t for an interactive prompt)" >&2
+    exit 2
+  fi
+
+  docker exec -e RESET_TABLES="$RESET_TABLES" -i manhwamaniacs-backend python - <<'PY'
+import os
+from sqlalchemy import text
+from core.time_utils import utcnow
+from database.session import get_engine
+with get_engine().begin() as conn:
+    for t in os.environ["RESET_TABLES"].split():
+        n = conn.execute(text(f"DELETE FROM {t}")).rowcount
+        print(f"   deleted {n:8d} row(s) from {t}")
+    # Re-arm the bootstrap window explicitly (fresh timestamp, same
+    # transaction as the wipe): the next MM_BOOTSTRAP_WINDOW_MINUTES admit one
+    # uninvited registration that becomes admin.
+    conn.execute(text("DELETE FROM bootstrap_state"))
+    conn.execute(
+        text("INSERT INTO bootstrap_state (id, empty_since) VALUES (1, :now)"),
+        {"now": utcnow()},
+    )
+    print("   bootstrap window re-armed (empty_since = now)")
+PY
+
+  local WINDOW="${MM_BOOTSTRAP_WINDOW_MINUTES:-30}"
+  cat <<EOF
+
+  Done. All accounts are gone and the bootstrap window is OPEN.
+
+  What to do NOW (the window closes in ~${WINDOW} minutes):
+    1. Preferred — claim the instance from this shell, no public window race:
+         $0 create-owner
+    2. Or register through the app (https://manhwamaniacs.xyz): the FIRST
+       account created becomes admin, no invite code needed — but so would a
+       stranger's, so do it immediately.
+  If the window lapses before anyone registers, uninvited signup locks again;
+  either run create-owner (always works) or re-run reset-accounts to re-arm.
+  Afterwards, let household members in via an invite code:
+         $0 set-invite-code            # then flip MM_REGISTRATION_ENABLED=true
+EOF
+}
+
+cmd_set_invite_code() {
+  local CODE="${1:-${MM_INVITE_CODE:-}}"
+  if [ "$CODE" = "clear" ]; then
+    echo ">> clearing the invite code (registration falls back to MM_REGISTRATION_ENABLED alone)"
+    CODE=""
+  elif [ -z "$CODE" ]; then
+    CODE="$(head -c 32 /dev/urandom | base64 | tr -dc 'a-zA-Z0-9' | head -c 16)"
+    echo ">> no code given — generated one"
+  elif [ "${#CODE}" -lt 8 ]; then
+    echo "!! refusing an invite code shorter than 8 characters — short codes are" >&2
+    echo "   brute-forceable even behind the register rate limit. Omit the" >&2
+    echo "   argument to have a strong one generated." >&2
+    exit 2
+  fi
+
+  # Persist into /data/settings.json (survives restarts; the /data volume is
+  # the DB's home). The running server caches Settings for the process
+  # lifetime, so restart the container to pick it up.
+  docker exec -e NEW_CODE="$CODE" -i manhwamaniacs-backend python - <<'PY'
+import os
+from core.config import update_persisted_settings
+code = os.environ.get("NEW_CODE") or None
+update_persisted_settings(registration_invite_code=code)
+print(f"   persisted registration_invite_code ({'set, %d chars' % len(code) if code else 'cleared'}) in settings.json")
+PY
+  echo ">> restarting backend so the running process re-reads settings"
+  docker restart manhwamaniacs-backend >/dev/null
+  echo ">> backend restarted"
+
+  if docker exec manhwamaniacs-backend printenv MM_REGISTRATION_INVITE_CODE >/dev/null 2>&1; then
+    echo "!! WARNING: the container has MM_REGISTRATION_INVITE_CODE set in its"
+    echo "   environment (ops/vps/docker-compose.yml). Env OVERRIDES the value"
+    echo "   just persisted — update/remove that compose line and 'docker"
+    echo "   compose up -d backend' or this change has no effect."
+  fi
+
+  cat <<EOF
+
+  Invite code: ${CODE:-<cleared>}
+
+  Notes:
+    - The code only matters while registration is enabled. The committed
+      compose default is MM_REGISTRATION_ENABLED=false (fully closed). To let
+      household members sign up, set MM_REGISTRATION_ENABLED=true in
+      ops/vps/docker-compose.yml AND keep an invite code set — enabling
+      registration with no code is OPEN registration on a public host.
+    - settings.json (on the /data volume) now carries the code across
+      restarts. To manage it via compose instead, set
+      MM_REGISTRATION_INVITE_CODE=<code> in ops/vps/docker-compose.yml
+      (env wins over settings.json).
+    - Share the code out-of-band; the API never echoes it.
+EOF
 }
 
 cmd_logs() { "${COMPOSE[@]}" logs -f --tail 100; }
@@ -147,9 +312,11 @@ EOF
 }
 
 case "${1:-deploy}" in
-  deploy)        cmd_deploy ;;
-  create-owner)  cmd_create_owner ;;
-  logs)          cmd_logs ;;
-  edge)          cmd_edge ;;
-  *) echo "usage: $0 {deploy|create-owner|logs|edge}"; exit 2 ;;
+  deploy)          cmd_deploy ;;
+  create-owner)    cmd_create_owner ;;
+  reset-accounts)  cmd_reset_accounts ;;
+  set-invite-code) cmd_set_invite_code "${2:-}" ;;
+  logs)            cmd_logs ;;
+  edge)            cmd_edge ;;
+  *) echo "usage: $0 {deploy|create-owner|reset-accounts|set-invite-code [CODE|clear]|logs|edge}"; exit 2 ;;
 esac
