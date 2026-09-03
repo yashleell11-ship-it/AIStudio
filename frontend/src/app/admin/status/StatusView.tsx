@@ -26,6 +26,7 @@ import {
   useUpdateSettings,
 } from "@/features/updates/hooks";
 import { cn } from "@/lib/cn";
+import { formatUtcDateTime, utcMinutesFromNow } from "@/lib/utc-time";
 import { ApiError } from "@/types/api";
 import { useBackendHealth, useSourceHealth } from "./hooks";
 import {
@@ -38,17 +39,16 @@ import {
 } from "./status";
 
 function formatWhen(value: string | null | undefined): string {
-  if (!value) return "Never";
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return "Unknown";
-  return new Date(parsed).toLocaleString();
+  return formatUtcDateTime(value);
 }
 
 function formatRelative(value: string | null | undefined, nowMs: number): string | null {
-  if (!value) return null;
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return null;
-  const deltaMinutes = Math.round((nowMs - parsed) / 60_000);
+  // Through `utcMinutesFromNow`: `last_run_at`, a run's `started_at` and a
+  // source's `last_checked_at` are all UTC serialised from a NAIVE datetime, so
+  // a bare `Date.parse` reads them as local time and reports a checker that
+  // just ran as "5 h ago" next to a next-run estimate of "in 55 min".
+  const deltaMinutes = utcMinutesFromNow(value, nowMs);
+  if (deltaMinutes === null) return null;
   const magnitude = Math.abs(deltaMinutes);
   const unit =
     magnitude < 60

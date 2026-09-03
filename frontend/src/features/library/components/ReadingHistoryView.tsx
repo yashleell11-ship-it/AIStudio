@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
+import { formatUtcDate } from "@/lib/utc-time";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 export function ReadingHistoryView() {
@@ -93,7 +94,7 @@ export function ReadingHistoryView() {
                     <div className="shrink-0 sm:text-right">
                       {entry.last_read_at && (
                         <p className="text-xs text-muted">
-                          {new Date(entry.last_read_at).toLocaleDateString()}
+                          {formatUtcDate(entry.last_read_at)}
                         </p>
                       )}
                       {entry.is_completed ? (

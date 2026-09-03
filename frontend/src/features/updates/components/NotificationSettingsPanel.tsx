@@ -6,17 +6,16 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/cn";
+import { formatUtcDateTime } from "@/lib/utc-time";
 import { ApiError } from "@/types/api";
 import { useUpdateSettings, useUpdateSettingsMutation } from "../hooks";
 import { describeCheckSchedule } from "../notifications";
 import { toSettingsUpdatePayload } from "../notification-link";
 import type { UpdateSettings } from "../types";
 
+/** `last_run_at` is UTC from a naive datetime — see `formatUtcDateTime`. */
 function formatWhen(value: string | null | undefined): string {
-  if (!value) return "Never";
-  const parsed = Date.parse(value);
-  if (Number.isNaN(parsed)) return "Unknown";
-  return new Date(parsed).toLocaleString();
+  return formatUtcDateTime(value);
 }
 
 function ToggleRow({
