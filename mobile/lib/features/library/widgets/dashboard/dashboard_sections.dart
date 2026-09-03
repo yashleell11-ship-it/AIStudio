@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
+import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/section_header.dart';
@@ -311,7 +312,7 @@ class RecentlyUpdatedCarousel extends ConsumerWidget {
               final item = series[index];
               return _TrendingCoverCard(
                 title: item.title,
-                coverUrl: seriesCoverUrl(baseUrl, item.id),
+                coverUrl: followedSeriesCoverUrl(baseUrl, item) ?? '',
                 onTap: () => context.push(RoutePaths.seriesDetail(item.id)),
               );
             },
@@ -423,9 +424,9 @@ class ContinueReadingSection extends ConsumerWidget {
               final item = items[index];
               return _ContinueReadingCard(
                 item: item,
-                coverUrl: seriesCoverUrl(baseUrl, item.seriesId),
+                coverUrl: sourceSeriesCoverUrl(baseUrl, item.sourceId, item.seriesKey),
                 onTap: () => context.push(
-                  '${RoutePaths.seriesDetail(item.seriesId)}/chapters/${item.chapterId}/read',
+                  RoutePaths.reader(item.sourceId, item.seriesKey, item.chapterKey),
                 ),
               );
             },
@@ -449,6 +450,7 @@ class _ContinueReadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final label = chapterLabel(number: item.chapterNumber, title: null);
     return SizedBox(
       width: 300,
       child: GlassCard(
@@ -472,14 +474,14 @@ class _ContinueReadingCard extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(
-                    item.seriesTitle,
+                    label.primary,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.labelLg.copyWith(fontWeight: FontWeight.w600),
                   ),
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
-                    item.chapterTitle,
+                    item.sourceId,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.caption,
@@ -488,7 +490,7 @@ class _ContinueReadingCard extends StatelessWidget {
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.full),
                     child: LinearProgressIndicator(
-                      value: item.progressPct / 100,
+                      value: item.progressPct,
                       minHeight: 3,
                       backgroundColor: AppColors.fg.withAlpha(20),
                       color: AppColors.primary,
@@ -503,7 +505,7 @@ class _ContinueReadingCard extends StatelessWidget {
                         style: AppTypography.caption.copyWith(fontSize: 10),
                       ),
                       Text(
-                        '${item.progressPct.round()}%',
+                        '${(item.progressPct * 100).round()}%',
                         style: AppTypography.caption.copyWith(
                           fontSize: 10,
                           color: AppColors.primary,
@@ -541,27 +543,27 @@ class StatsGrid extends StatelessWidget {
       children: [
         StatCard(
           icon: Icons.menu_book_outlined,
-          value: numberFormat.format(stats.totalSeries),
-          label: 'Total Comics',
+          value: numberFormat.format(stats.followedTotal),
+          label: 'Followed Series',
           accent: StatAccent.violet,
         ),
         StatCard(
-          icon: Icons.format_list_numbered,
-          value: numberFormat.format(stats.totalChapters),
-          label: 'Chapters',
-          accent: StatAccent.cyan,
+          icon: Icons.star_outline,
+          value: numberFormat.format(stats.favorites),
+          label: 'Favorites',
+          accent: StatAccent.amber,
         ),
         StatCard(
           icon: Icons.check_circle_outline,
-          value: numberFormat.format(stats.completedSeries),
+          value: numberFormat.format(stats.byReadingStatus['completed'] ?? 0),
           label: 'Completed',
           accent: StatAccent.emerald,
         ),
         StatCard(
           icon: Icons.auto_stories_outlined,
-          value: numberFormat.format(stats.totalPages),
-          label: 'Total Pages',
-          accent: StatAccent.amber,
+          value: numberFormat.format(stats.chaptersCompleted),
+          label: 'Chapters Read',
+          accent: StatAccent.cyan,
         ),
       ],
     );

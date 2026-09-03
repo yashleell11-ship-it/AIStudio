@@ -5,7 +5,6 @@ import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
-import 'package:manhwamaniacs/features/library/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/series_display.dart';
@@ -30,7 +29,6 @@ class SearchResultCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final progress = series.readingProgress;
     final tappable = series.chapterCount > 0;
 
     return GlassCard(
@@ -40,7 +38,7 @@ class SearchResultCard extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SeriesCoverImage(
-            url: seriesCoverUrl(baseUrl, series.id),
+            url: followedSeriesCoverUrl(baseUrl, series) ?? '',
             width: 80,
             height: 120,
           ),
@@ -63,10 +61,7 @@ class SearchResultCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: AppSpacing.sm),
-                    _Badge(
-                      progress: progress,
-                      isFavorite: series.isFavorite,
-                    ),
+                    _Badge(isFavorite: series.isFavorite),
                     IconButton(
                       onPressed: onToggleFavorite,
                       icon: Icon(
@@ -84,20 +79,9 @@ class SearchResultCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                if (series.author != null) ...[
-                  const SizedBox(height: 2),
-                  Text(
-                    series.author!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(color: AppColors.muted),
-                  ),
-                ],
                 const SizedBox(height: AppSpacing.sm),
                 Text(
-                  series.description?.trim().isNotEmpty ?? false
-                      ? series.description!.trim()
-                      : '${series.chapterCount} chapters · ${series.pageCount} pages',
+                  '${series.chapterCount} chapters',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.bodySm.copyWith(
@@ -106,38 +90,25 @@ class SearchResultCard extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: AppSpacing.md),
-                Row(
-                  children: [
-                    if (series.readingStatus.isNotEmpty)
-                      Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: 2,
-                        ),
-                        decoration: BoxDecoration(
-                          color: AppColors.fg.withAlpha(13),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
-                        child: Text(
-                          readingStatusLabel(series.readingStatus).toUpperCase(),
-                          style: AppTypography.caption.copyWith(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: 0.5,
-                          ),
-                        ),
-                      ),
-                    const Spacer(),
-                    Text(
-                      languageLabel(series.language).toUpperCase(),
+                if (series.readingStatus.isNotEmpty)
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacing.sm,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: AppColors.fg.withAlpha(13),
+                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                    ),
+                    child: Text(
+                      readingStatusLabel(series.readingStatus).toUpperCase(),
                       style: AppTypography.caption.copyWith(
-                        color: AppColors.violet400.withAlpha(179),
+                        fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
                       ),
                     ),
-                  ],
-                ),
+                  ),
               ],
             ),
           ),
@@ -148,30 +119,12 @@ class SearchResultCard extends ConsumerWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({
-    required this.progress,
-    required this.isFavorite,
-  });
+  const _Badge({required this.isFavorite});
 
-  final ReadingProgress? progress;
   final bool isFavorite;
 
   @override
   Widget build(BuildContext context) {
-    if (progress != null) {
-      return Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Icon(Icons.star, size: 14, color: AppColors.warning),
-          const SizedBox(width: 4),
-          Text(
-            '${progress!.progressPct.round()}%',
-            style: AppTypography.caption.copyWith(color: AppColors.warning),
-          ),
-        ],
-      );
-    }
-
     if (isFavorite) {
       return Row(
         mainAxisSize: MainAxisSize.min,

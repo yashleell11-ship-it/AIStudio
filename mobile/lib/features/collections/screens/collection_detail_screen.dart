@@ -11,12 +11,10 @@ import 'package:manhwamaniacs/features/collections/widgets/add_series_dialog.dar
 import 'package:manhwamaniacs/features/collections/widgets/collection_widgets.dart';
 import 'package:manhwamaniacs/features/collections/widgets/collections_skeleton.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
-import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
-import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
-import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
+import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 
 class CollectionDetailScreen extends ConsumerWidget {
   const CollectionDetailScreen({super.key, required this.collectionId});
@@ -48,8 +46,9 @@ class CollectionDetailScreen extends ConsumerWidget {
           onRetry: () => ref.read(collectionDetailProvider(collectionId).notifier).refresh(),
         ),
         data: (collection) {
-          final coverSeriesId =
-              collection.series.items.isNotEmpty ? collection.series.items.first.id : null;
+          final coverSeriesRef = collection.series.isNotEmpty
+              ? (collection.series.first.sourceId, collection.series.first.seriesKey)
+              : null;
 
           return RefreshIndicator(
             color: AppColors.primary,
@@ -65,9 +64,9 @@ class CollectionDetailScreen extends ConsumerWidget {
                       CollectionHeroBanner(
                         name: collection.name,
                         description: collection.description,
-                        seriesCount: collection.series.total,
-                        coverUrl: collectionCoverUrl(collection.coverPath),
-                        coverSeriesId: coverSeriesId,
+                        seriesCount: collection.seriesCount,
+                        coverUrl: collectionCoverUrl(collection.coverUrl),
+                        coverSeriesRef: coverSeriesRef,
                         apiBaseUrl: apiBaseUrl,
                       ),
                       Padding(
@@ -98,7 +97,7 @@ class CollectionDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                if (collection.series.items.isEmpty)
+                if (collection.series.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: EmptyState(
@@ -120,44 +119,48 @@ class CollectionDetailScreen extends ConsumerWidget {
                       AppSpacing.xl2,
                       AppSpacing.xl4,
                     ),
-                    sliver: SliverToBoxAdapter(
-                      child: SeriesGrid(
-                        items: collection.series.items,
-                        viewMode: LibraryViewMode.grid,
-                        onSeriesTap: (series) => context.push(RoutePaths.seriesDetail(series.id)),
-                        onToggleFavorite: (seriesId) async {
-                          final repo = ref.read(libraryRepositoryProvider);
-                          await repo.toggleFavorite(seriesId);
-                          await ref
-                              .read(collectionDetailProvider(collectionId).notifier)
-                              .refresh();
-                        },
-                        onRemoveSeries: (seriesId) async {
-                          final confirmed = await showDialog<bool>(
-                            context: context,
-                            builder: (context) => AlertDialog(
-                              title: const Text('Remove series?'),
-                              content: const Text(
-                                'This series will be removed from the collection but stay in your library.',
+                    sliver: SliverList.separated(
+                      itemCount: collection.series.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                      itemBuilder: (context, index) {
+                        final member = collection.series[index];
+                        return _CollectionSeriesTile(
+                          sourceId: member.sourceId,
+                          seriesKey: member.seriesKey,
+                          apiBaseUrl: apiBaseUrl,
+                          onTap: () => context.push(
+                            RoutePaths.sourceSeriesDetail(member.sourceId, member.seriesKey),
+                          ),
+                          onRemove: () async {
+                            final confirmed = await showDialog<bool>(
+                              context: context,
+                              builder: (context) => AlertDialog(
+                                title: const Text('Remove series?'),
+                                content: const Text(
+                                  'This series will be removed from the collection but stay in your library.',
+                                ),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.of(context).pop(false),
+                                    child: const Text('Cancel'),
+                                  ),
+                                  FilledButton(
+                                    onPressed: () => Navigator.of(context).pop(true),
+                                    child: const Text('Remove'),
+                                  ),
+                                ],
                               ),
-                              actions: [
-                                TextButton(
-                                  onPressed: () => Navigator.of(context).pop(false),
-                                  child: const Text('Cancel'),
-                                ),
-                                FilledButton(
-                                  onPressed: () => Navigator.of(context).pop(true),
-                                  child: const Text('Remove'),
-                                ),
-                              ],
-                            ),
-                          );
-                          if (confirmed != true || !context.mounted) return;
-                          await ref
-                              .read(collectionDetailProvider(collectionId).notifier)
-                              .removeSeries(seriesId);
-                        },
-                      ),
+                            );
+                            if (confirmed != true || !context.mounted) return;
+                            await ref
+                                .read(collectionDetailProvider(collectionId).notifier)
+                                .removeSeries(
+                                  sourceId: member.sourceId,
+                                  seriesKey: member.seriesKey,
+                                );
+                          },
+                        );
+                      },
                     ),
                   ),
               ],
@@ -176,10 +179,12 @@ class CollectionDetailScreen extends ConsumerWidget {
     await showDialog<void>(
       context: context,
       builder: (context) => AddSeriesDialog(
-        existingSeriesIds: collection.series.items.map((item) => item.id).toSet(),
-        onAdd: (seriesId) => ref
+        existingSeriesKeys: collection.series
+            .map((member) => seriesCompositeKey(member.sourceId, member.seriesKey))
+            .toSet(),
+        onAdd: (series) => ref
             .read(collectionDetailProvider(collectionId).notifier)
-            .addSeries(seriesId),
+            .addSeries(sourceId: series.sourceId, seriesKey: series.seriesKey),
       ),
     );
   }
@@ -234,6 +239,78 @@ class CollectionDetailScreen extends ConsumerWidget {
         SnackBar(content: Text(error.userMessage)),
       );
     }
+  }
+}
+
+/// One collection member row. Collection membership carries no title/cover of
+/// its own — only the opaque `(sourceId, seriesKey)` pointer — so the cover is
+/// resolved through the source proxy and the identity itself stands in for a
+/// title until the row is opened on the source series page.
+class _CollectionSeriesTile extends StatelessWidget {
+  const _CollectionSeriesTile({
+    required this.sourceId,
+    required this.seriesKey,
+    required this.apiBaseUrl,
+    required this.onTap,
+    required this.onRemove,
+  });
+
+  final String sourceId;
+  final String seriesKey;
+  final String apiBaseUrl;
+  final VoidCallback onTap;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: AppColors.panel,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.all(AppSpacing.md),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 44,
+                height: 66,
+                child: SeriesCoverImage(
+                  url: sourceSeriesCoverUrl(apiBaseUrl, sourceId, seriesKey),
+                  borderRadius: 8,
+                ),
+              ),
+              const SizedBox(width: AppSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      seriesKey,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.labelLg,
+                    ),
+                    Text(
+                      sourceId,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppTypography.caption.copyWith(color: AppColors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onRemove,
+                icon: const Icon(Icons.remove_circle_outline, color: AppColors.danger),
+                tooltip: 'Remove from collection',
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 

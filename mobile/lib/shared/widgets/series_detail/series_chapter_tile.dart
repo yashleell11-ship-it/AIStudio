@@ -2,9 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
-import 'package:manhwamaniacs/features/downloads/utils/source_chapter_download_status.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
-import 'package:manhwamaniacs/features/sources/widgets/source_chapter_download_status_badge.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 
 /// Multi-select state for one chapter row. Null on a list that cannot be
@@ -57,8 +55,6 @@ class SeriesChapterTile extends StatelessWidget {
     required this.label,
     this.progressText,
     this.inProgress = false,
-    this.downloadStatus = SourceChapterDownloadUiStatus.none,
-    this.statusBadgeKey,
     this.isRead = false,
     this.isCurrent = false,
     this.onTap,
@@ -74,9 +70,6 @@ class SeriesChapterTile extends StatelessWidget {
   /// Whether [progressText] describes a part-read chapter, which glows warm
   /// rather than staying muted like an untouched or finished one.
   final bool inProgress;
-
-  final SourceChapterDownloadUiStatus downloadStatus;
-  final Key? statusBadgeKey;
 
   /// Finished. Recedes the whole row so unread chapters stand out.
   final bool isRead;
@@ -144,10 +137,6 @@ class SeriesChapterTile extends StatelessWidget {
                                 inProgress ? AppColors.primary : AppColors.muted,
                           ),
                         ),
-                      SourceChapterDownloadStatusBadge(
-                        key: statusBadgeKey,
-                        status: downloadStatus,
-                      ),
                     ],
                   ),
                 ),
