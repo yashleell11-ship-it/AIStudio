@@ -13,6 +13,7 @@ import 'package:manhwamaniacs/features/auth/screens/register_screen.dart';
 import 'package:manhwamaniacs/features/auth/screens/splash_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collection_detail_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collections_screen.dart';
+import 'package:manhwamaniacs/features/downloads/screens/downloads_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/bookmarks_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/dashboard_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/library_screen.dart';
@@ -283,6 +284,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.storage,
         builder: (context, state) => const StorageScreen(),
+      ),
+      GoRoute(
+        path: Routes.downloads,
+        builder: (context, state) => const DownloadsScreen(),
       ),
       GoRoute(
         path: Routes.setup,

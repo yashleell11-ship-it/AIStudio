@@ -114,6 +114,12 @@ class MoreScreen extends ConsumerWidget {
             onTap: () => context.push(Routes.settings),
           ),
           _MoreTile(
+            icon: Icons.download_outlined,
+            selectedIcon: Icons.download,
+            label: 'Downloads',
+            onTap: () => context.push(Routes.downloads),
+          ),
+          _MoreTile(
             icon: Icons.storage_outlined,
             selectedIcon: Icons.storage,
             label: 'Storage',

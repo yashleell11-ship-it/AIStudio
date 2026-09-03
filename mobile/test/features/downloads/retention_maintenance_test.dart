@@ -151,6 +151,15 @@ void main() {
       await storeA.markRead(idA);
       await storeB.markRead(idB);
 
+      // Back-date both stamps explicitly rather than relying on
+      // `interval: Duration.zero` comparing against two independent
+      // `DateTime.now()` calls a moment apart — under a loaded full-suite
+      // run (many sqflite FFI tests running concurrently) that comparison
+      // is close enough to the wall clock's resolution to flake.
+      final db = await harness.openDatabase();
+      final past = DateTime.now().toUtc().subtract(const Duration(seconds: 1)).toIso8601String();
+      await db.rawUpdate("UPDATE saved_chapters SET read_at = ? WHERE chapter_key IN ('a', 'b')", [past]);
+
       final deleted = await maintenance.sweepExpired(interval: Duration.zero);
       expect(deleted, 2);
       expect(await storeA.getChapter(idA), isNull);
