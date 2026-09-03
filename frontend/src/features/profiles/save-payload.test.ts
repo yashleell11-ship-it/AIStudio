@@ -23,9 +23,9 @@ describe("toCreateProfilePayload", () => {
   });
 
   it("leaves sort_order to the backend", () => {
-    expect(
-      "sort_order" in (toCreateProfilePayload(values) as Record<string, unknown>),
-    ).toBe(false);
+    expect(Object.keys(toCreateProfilePayload(values))).not.toContain(
+      "sort_order",
+    );
   });
 });
 
@@ -40,8 +40,8 @@ describe("toUpdateProfilePayload", () => {
   });
 
   it("never touches sort_order (reordering is not the dialog's job)", () => {
-    expect(
-      "sort_order" in (toUpdateProfilePayload(values) as Record<string, unknown>),
-    ).toBe(false);
+    expect(Object.keys(toUpdateProfilePayload(values))).not.toContain(
+      "sort_order",
+    );
   });
 });
