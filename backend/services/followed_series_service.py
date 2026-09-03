@@ -341,7 +341,7 @@ class FollowedSeriesService:
           18+ gate never ran and a mature series surfaced on a gated profile's
           home strip. The inner join is therefore load-bearing, not an
           optimisation: it both restricts the strip to series this profile
-          follows and hands ``_visible`` the row it needs.
+          follows and supplies the row ``_rating`` resolves the gate from.
         """
         self._require_owner()
         stmt = self._progress_scope(
