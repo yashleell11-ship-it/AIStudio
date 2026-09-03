@@ -11,11 +11,23 @@ import {
   estimatePageHeight,
   resolveContainerWidth,
 } from "../page-layout";
+import {
+  EMPTY_HEIGHT_SAMPLES,
+  estimateFromSamples,
+  recordHeight,
+  type HeightSamples,
+} from "../page-metrics";
 import { restoreChapterScroll } from "../scroll-preparation";
 import { PageImage } from "./PageImage";
 
 /** Number of upcoming pages to warm into the browser cache ahead of the reader. */
 const PREFETCH_AHEAD = 2;
+
+/** The thin separator height (`pb-2` = 0.5rem) when the page-gap setting is on. */
+const PAGE_GAP_PX = 8;
+
+/** Re-measure the virtualizer when the running average shifts more than this. */
+const ESTIMATE_DRIFT_RATIO = 0.12;
 
 interface VirtualPageRowProps {
   page: ReaderPage;
@@ -91,6 +103,11 @@ export function VirtualPageList({
   const readyNotifiedRef = useRef(false);
   const initialRestorePendingRef = useRef(initialScrollTop > 0);
   const prefetchedRef = useRef<Set<string>>(new Set());
+  // Measured page heights fed back into `estimateSize` so the strip's total
+  // height stops lurching as unmeasured (dimensionless webtoon) pages scroll in.
+  const heightSamplesRef = useRef<HeightSamples>(EMPTY_HEIGHT_SAMPLES);
+  const measuredByKeyRef = useRef<Map<string | number, number>>(new Map());
+  const lastAvgEstimateRef = useRef(0);
 
   useLayoutEffect(() => {
     const measure = () => {
@@ -107,6 +124,9 @@ export function VirtualPageList({
     readyNotifiedRef.current = false;
     initialRestorePendingRef.current = initialScrollTop > 0;
     prefetchedRef.current = new Set();
+    heightSamplesRef.current = EMPTY_HEIGHT_SAMPLES;
+    measuredByKeyRef.current = new Map();
+    lastAvgEstimateRef.current = 0;
   }, [initialScrollTop, pages]);
 
   const prefetchAhead = useCallback(
@@ -139,8 +159,15 @@ export function VirtualPageList({
   const virtualizer = useVirtualizer({
     count: pages.length,
     getScrollElement: () => scrollElement,
-    estimateSize: (index) =>
-      estimatePageHeight(pages[index], containerWidth, zoom),
+    estimateSize: (index) => {
+      const key = pages[index]?.id ?? index;
+      const measured = measuredByKeyRef.current.get(key);
+      if (measured != null) return measured;
+      const fallback =
+        estimatePageHeight(pages[index], containerWidth, zoom) +
+        (pageGap ? PAGE_GAP_PX : 0);
+      return estimateFromSamples(heightSamplesRef.current, fallback);
+    },
     overscan: 4,
     getItemKey: (index) => pages[index]?.id ?? index,
   });
@@ -191,6 +218,33 @@ export function VirtualPageList({
     readyNotifiedRef.current = true;
     onImagesReady?.();
   }, [onImagesReady]);
+
+  /**
+   * Fold a page's real rendered height into the running average that backs
+   * `estimateSize`. When the average has moved far enough that off-screen
+   * estimates are now visibly wrong, ask the virtualizer to recompute — this
+   * converges after the first handful of pages and then goes quiet.
+   */
+  const recordMeasuredHeight = useCallback(
+    (key: string, height: number) => {
+      if (!(height > 0)) return;
+      const previous = measuredByKeyRef.current.get(key);
+      if (previous != null && Math.abs(previous - height) < 1) return;
+      measuredByKeyRef.current.set(key, height);
+      heightSamplesRef.current = recordHeight(
+        heightSamplesRef.current,
+        previous,
+        height,
+      );
+      const avg = estimateFromSamples(heightSamplesRef.current, height);
+      const last = lastAvgEstimateRef.current;
+      if (last === 0 || Math.abs(avg - last) / last > ESTIMATE_DRIFT_RATIO) {
+        lastAvgEstimateRef.current = avg;
+        virtualizer.measure();
+      }
+    },
+    [virtualizer],
+  );
 
   const reportVisiblePage = useCallback(() => {
     if (pages.length === 0) return;
@@ -258,6 +312,7 @@ export function VirtualPageList({
                 );
                 if (element instanceof HTMLElement) {
                   virtualizer.measureElement(element);
+                  recordMeasuredHeight(page.id, element.offsetHeight);
                 }
                 if (virtualItem.index === 0) {
                   notifyReady();
