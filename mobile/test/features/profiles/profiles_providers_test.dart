@@ -23,6 +23,7 @@ Profile _profile({
       avatarKey: avatarKey,
       mood: mood,
       sortOrder: sortOrder,
+      matureContentEnabled: false,
       createdAt: DateTime.utc(2024),
     );
 
@@ -46,6 +47,7 @@ class _FakeProfilesRepository implements ProfilesRepository {
     required String avatarKey,
     required Mood mood,
     int? sortOrder,
+    bool? matureContentEnabled,
   }) async {
     calls.add('create');
     final created = _profile(
@@ -66,6 +68,7 @@ class _FakeProfilesRepository implements ProfilesRepository {
     String? avatarKey,
     Mood? mood,
     int? sortOrder,
+    bool? matureContentEnabled,
   }) async {
     calls.add('update');
     final updated = _profile(

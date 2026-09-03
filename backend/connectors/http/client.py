@@ -9,6 +9,11 @@ from typing import Any
 
 import httpx
 
+from connectors.http.redirect_policy import (
+    allowed_redirect_hosts,
+    redirect_rejection_reason,
+)
+
 DEFAULT_USER_AGENT = "ManhwaManiacs/0.1 (local manga reader; +https://github.com/manhwamaniacs)"
 RETRYABLE_STATUS = {408, 429, 500, 502, 503, 504}
 
@@ -59,12 +64,28 @@ class SyncConnectorHttpClient:
         }
         if headers:
             request_headers.update(headers)
+        self._redirect_hosts = allowed_redirect_hosts(self._base_url)
+        # follow_redirects stays on, but every hop is validated by the
+        # response event hook below BEFORE httpx issues the follow-up request
+        # (httpx runs response hooks inside its redirect loop) — an upstream
+        # 302 must never point this backend at an off-domain or internal
+        # target (SSRF; see connectors/http/redirect_policy.py).
         self._client = httpx.Client(
             base_url=self._base_url,
             timeout=self._timeout,
             headers=request_headers,
             follow_redirects=True,
+            event_hooks={"response": [self._guard_redirect]},
         )
+
+    def _guard_redirect(self, response: httpx.Response) -> None:
+        """Abort before httpx follows a redirect off this source's domain."""
+        if not response.has_redirect_location:
+            return
+        target = str(response.url.join(response.headers["location"]))
+        reason = redirect_rejection_reason(target, self._redirect_hosts)
+        if reason:
+            raise ConnectorHttpError(f"Redirect blocked ({reason}).")
 
     def _rate_limit(self) -> None:
         with self._rate_lock:

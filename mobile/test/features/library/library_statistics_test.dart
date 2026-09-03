@@ -3,25 +3,27 @@ import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 
 void main() {
   group('LibraryStatistics.fromJson', () {
-    test('parses dashboard stat fields from API response', () {
+    test('parses followed-series stat fields from API response', () {
       final stats = LibraryStatistics.fromJson({
-        'total_series': 42,
-        'total_chapters': 1240,
-        'total_pages': 18500,
-        'completed_series': 10,
-        'in_progress': 8,
+        'followed_total': 42,
         'favorites': 5,
-        'completion_rate_pct': 23.8,
-        'total_reading_time_estimate_minutes': 3600,
-        'pages_read_this_week': 120,
-        'reading_streak_days': 3,
-        'reading_velocity_pages_per_hour': 45.5,
+        'by_reading_status': {'reading': 8, 'completed': 10, 'unread': 24},
+        'chapters_completed': 1240,
       });
 
-      expect(stats.totalSeries, 42);
-      expect(stats.totalChapters, 1240);
-      expect(stats.totalPages, 18500);
-      expect(stats.readingStreakDays, 3);
+      expect(stats.followedTotal, 42);
+      expect(stats.favorites, 5);
+      expect(stats.byReadingStatus['completed'], 10);
+      expect(stats.chaptersCompleted, 1240);
+    });
+
+    test('defaults missing fields to empty/zero', () {
+      final stats = LibraryStatistics.fromJson(const {});
+
+      expect(stats.followedTotal, 0);
+      expect(stats.favorites, 0);
+      expect(stats.byReadingStatus, isEmpty);
+      expect(stats.chaptersCompleted, 0);
     });
   });
 }

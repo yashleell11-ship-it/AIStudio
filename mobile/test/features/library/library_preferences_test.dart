@@ -12,7 +12,7 @@ void main() {
       final prefs = await SharedPreferences.getInstance();
 
       const query = LibraryQuery(
-        sort: LibrarySort.dateAdded,
+        sort: LibrarySort.recentlyAdded,
         filter: LibraryFilter.completed,
         viewMode: LibraryViewMode.list,
       );
@@ -20,7 +20,7 @@ void main() {
       await writeLibraryQuery(prefs, query);
       final restored = readLibraryQuery(prefs);
 
-      expect(restored.sort, LibrarySort.dateAdded);
+      expect(restored.sort, LibrarySort.recentlyAdded);
       expect(restored.filter, LibraryFilter.completed);
       expect(restored.viewMode, LibraryViewMode.list);
     });
@@ -43,7 +43,7 @@ void main() {
       expect(
         libraryQueryPersistedFieldsChanged(
           base,
-          const LibraryQuery(sort: LibrarySort.dateAdded),
+          const LibraryQuery(sort: LibrarySort.recentlyAdded),
         ),
         isTrue,
       );
