@@ -35,7 +35,7 @@ import {
   writeRecentSearch,
 } from "@/features/library/recent-searches";
 import { GlobalSearchGroupSection } from "./GlobalSearchGroupSection";
-import { SearchResultCardSkeleton } from "./SearchResultCard";
+import { SearchResultCardSkeleton } from "./GlobalSearchResultCard";
 
 const TRENDING_SUGGESTIONS = [
   "fantasy",

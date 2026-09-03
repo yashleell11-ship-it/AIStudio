@@ -1,5 +1,4 @@
 import { describe, expect, it } from "vitest";
-import type { DownloadItem } from "@/features/downloads/types";
 import { describeCheckSchedule } from "@/features/updates/notifications";
 import type {
   SeriesTracker,
@@ -11,7 +10,6 @@ import { ApiError } from "@/types/api";
 import {
   deriveBackendHealth,
   deriveCheckerHealth,
-  deriveQueueHealth,
   deriveSourceHealth,
   deriveSystemSummary,
   worstState,
@@ -66,32 +64,6 @@ function tracker(overrides: Partial<SeriesTracker> = {}): SeriesTracker {
   };
 }
 
-function download(overrides: Partial<DownloadItem> = {}): DownloadItem {
-  return {
-    id: 1,
-    source: "mangadex",
-    series_id: "series-1",
-    chapter_id: "c1",
-    series_title: "Solo Leveling",
-    chapter_title: "Chapter 1",
-    status: "queued",
-    progress: 0,
-    pages_done: 0,
-    pages_total: 0,
-    bytes_downloaded: 0,
-    speed_bps: null,
-    speed_mbps: null,
-    eta_seconds: null,
-    local_chapter_id: null,
-    created_at: "2026-07-28T10:00:00Z",
-    updated_at: "2026-07-28T10:00:00Z",
-    error: null,
-    priority: 0,
-    queue_state: "pending",
-    retry_count: 0,
-    ...overrides,
-  };
-}
 
 const source = (source_type: string, name: string): UpdateSource => ({ source_type, name });
 
@@ -364,67 +336,6 @@ describe("deriveSourceHealth", () => {
   });
 });
 
-describe("deriveQueueHealth", () => {
-  it("is unknown while the queue is loading", () => {
-    expect(deriveQueueHealth(undefined, true).state).toBe("unknown");
-  });
-
-  it("is ok and says so when nothing is queued or failing", () => {
-    const health = deriveQueueHealth([], false);
-
-    expect(health.state).toBe("ok");
-    expect(health.message).toContain("empty");
-  });
-
-  it("counts each queue state separately and lists what is transferring", () => {
-    const health = deriveQueueHealth(
-      [
-        download({ id: 1, status: "downloading" }),
-        download({ id: 2, status: "queued" }),
-        download({ id: 3, status: "queued" }),
-        download({ id: 4, status: "paused" }),
-        download({ id: 5, status: "completed" }),
-      ],
-      false,
-    );
-
-    expect(health).toMatchObject({ state: "ok", active: 1, queued: 2, paused: 1, failed: 0 });
-    expect(health.activeItems.map((item) => item.id)).toEqual([1]);
-  });
-
-  it("warns with collapsed reasons when chapters have failed", () => {
-    const health = deriveQueueHealth(
-      [
-        download({ id: 1, status: "failed", error: "HTTP 522", series_id: "a" }),
-        download({ id: 2, status: "failed", error: "HTTP 522", series_id: "a" }),
-        download({ id: 3, status: "failed", error: "disk full", series_id: "b" }),
-      ],
-      false,
-    );
-
-    expect(health.state).toBe("warn");
-    expect(health.failed).toBe(3);
-    expect(health.failures).toHaveLength(3);
-    expect(health.reasons).toEqual([
-      { message: "HTTP 522", count: 2 },
-      { message: "disk full", count: 1 },
-    ]);
-    expect(health.message).toBe("3 chapters failed across 2 series.");
-  });
-
-  it("keeps listing what is transferring even while other chapters failed", () => {
-    const health = deriveQueueHealth(
-      [
-        download({ id: 1, status: "downloading" }),
-        download({ id: 2, status: "failed", error: "HTTP 522" }),
-      ],
-      false,
-    );
-
-    expect(health.state).toBe("warn");
-    expect(health.activeItems.map((item) => item.id)).toEqual([1]);
-  });
-});
 
 describe("deriveSystemSummary", () => {
   const healthy = (state: HealthState = "ok") => ({
@@ -443,7 +354,6 @@ describe("deriveSystemSummary", () => {
       state === "ok" ? [tracker()] : [tracker({ last_error: "boom" })],
       [],
     ),
-    queue: deriveQueueHealth([], false),
   });
 
   it("is healthy with no problems when every part is ok", () => {
@@ -455,15 +365,11 @@ describe("deriveSystemSummary", () => {
   });
 
   it("escalates to the worst part and lists every problem", () => {
-    const summary = deriveSystemSummary({
-      ...healthy("down"),
-      queue: deriveQueueHealth([download({ status: "failed", error: "HTTP 522" })], false),
-    });
+    const summary = deriveSystemSummary(healthy("down"));
 
     expect(summary.state).toBe("down");
-    expect(summary.problems).toHaveLength(2);
+    expect(summary.problems).toHaveLength(1);
     expect(summary.problems.some((problem) => problem.includes("mangadex"))).toBe(true);
-    expect(summary.problems.some((problem) => problem.includes("failed across"))).toBe(true);
   });
 
   it("reports unknown, not healthy, while data is still arriving", () => {
@@ -476,7 +382,6 @@ describe("deriveSystemSummary", () => {
         isLoading: true,
       }),
       sources: [],
-      queue: deriveQueueHealth(undefined, true),
     });
 
     expect(summary.state).toBe("unknown");

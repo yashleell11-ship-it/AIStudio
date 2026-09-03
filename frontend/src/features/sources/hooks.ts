@@ -6,6 +6,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { readerDebug } from "@/features/reader/debug";
+import { readerChapterHref } from "@/features/reader/reader-link";
 import { useActiveProfileStore } from "@/features/profiles/store";
 import { ApiError } from "@/types/api";
 import { sourceImageUrl, sourcesApi } from "./api";
@@ -66,7 +67,11 @@ export function sourceReaderChapterPath(
   seriesId: string,
   chapterId: string,
 ): string {
-  return `/reader/online/${encodeURIComponent(sourceId)}/${encodeURIComponent(seriesId)}/${encodeURIComponent(chapterId)}`;
+  return readerChapterHref({
+    sourceId,
+    seriesKey: seriesId,
+    chapterKey: chapterId,
+  });
 }
 
 export function useSources() {

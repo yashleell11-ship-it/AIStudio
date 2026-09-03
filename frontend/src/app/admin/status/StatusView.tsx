@@ -9,8 +9,6 @@ import {
   ChevronRight,
   CircleHelp,
   Clock,
-  Download,
-  HardDrive,
   RefreshCw,
   Server,
   ShieldAlert,
@@ -22,7 +20,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { useCurrentUser } from "@/features/auth/hooks";
-import { useDownloadMetrics, useDownloads } from "@/features/downloads/hooks";
 import { describeCheckSchedule } from "@/features/updates/notifications";
 import {
   useManualCheck,
@@ -37,10 +34,8 @@ import { useBackendHealth } from "./hooks";
 import {
   deriveBackendHealth,
   deriveCheckerHealth,
-  deriveQueueHealth,
   deriveSourceHealth,
   deriveSystemSummary,
-  instanceWideTotals,
   worstState,
   type HealthState,
 } from "./status";
@@ -65,18 +60,6 @@ function formatRelative(value: string | null | undefined, nowMs: number): string
         ? `${Math.round(magnitude / 60)} h`
         : `${Math.round(magnitude / (60 * 24))} d`;
   return deltaMinutes >= 0 ? `${unit} ago` : `in ${unit}`;
-}
-
-function formatBytes(value: number | null | undefined): string {
-  if (value == null) return "—";
-  const units = ["B", "KB", "MB", "GB", "TB"];
-  let size = value;
-  let unit = 0;
-  while (size >= 1024 && unit < units.length - 1) {
-    size /= 1024;
-    unit += 1;
-  }
-  return `${size.toFixed(unit === 0 ? 0 : 1)} ${units[unit]}`;
 }
 
 const STATE_STYLES: Record<
@@ -215,8 +198,6 @@ export function StatusView() {
   const settings = useUpdateSettings();
   const runs = useUpdateRuns();
   const trackers = useTrackers();
-  const downloads = useDownloads();
-  const metrics = useDownloadMetrics();
   const manualCheck = useManualCheck();
   const sources = useUpdateSources();
 
@@ -251,22 +232,14 @@ export function StatusView() {
     [trackers.data, sources.data],
   );
 
-  const queueHealth = useMemo(
-    () => deriveQueueHealth(downloads.data, downloads.isLoading),
-    [downloads.data, downloads.isLoading],
-  );
-
-  const totals = instanceWideTotals(metrics.data);
-
   const summary = useMemo(
     () =>
       deriveSystemSummary({
         backend: backendHealth,
         checker: checkerHealth,
         sources: sourceHealth,
-        queue: queueHealth,
       }),
-    [backendHealth, checkerHealth, sourceHealth, queueHealth],
+    [backendHealth, checkerHealth, sourceHealth],
   );
 
   const refreshAll = () => {
@@ -275,8 +248,6 @@ export function StatusView() {
     void settings.refetch();
     void runs.refetch();
     void trackers.refetch();
-    void downloads.refetch();
-    void metrics.refetch();
     void sources.refetch();
   };
 
@@ -319,8 +290,7 @@ export function StatusView() {
     health.isFetching ||
     settings.isFetching ||
     runs.isFetching ||
-    trackers.isFetching ||
-    downloads.isFetching;
+    trackers.isFetching;
 
   return (
     <div className="page-shell">
@@ -335,8 +305,8 @@ export function StatusView() {
                 System Status
               </HeroHeading>
               <p className="mt-3 max-w-xl text-sm text-muted">
-                Backend health, the update checker, per-source failures, and the download
-                queue — everything that can break quietly.
+                Backend health, the update checker, per-source failures, and update runs
+                — everything that can break quietly.
               </p>
             </div>
             <Button
@@ -584,137 +554,6 @@ export function StatusView() {
               Derived from the last check of each followed or downloaded series, which is the
               only per-connector signal the backend records. A source with nothing tracked has no
               signal at all, and this list covers the reading profile you are viewing under.
-            </p>
-          </StatusCard>
-        </FadeIn>
-
-        <FadeIn y={20} delay={0.25}>
-          <StatusCard
-            title="Download queue"
-            state={queueHealth.state}
-            icon={Download}
-            action={
-              <Link
-                href="/downloads"
-                className="inline-flex items-center gap-1 text-sm text-primary hover:underline"
-              >
-                Open queue
-                <ChevronRight className="size-3.5" aria-hidden />
-              </Link>
-            }
-          >
-            <p className="text-muted">{queueHealth.message}</p>
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-              {[
-                { label: "Downloading", value: queueHealth.active },
-                { label: "Queued", value: queueHealth.queued },
-                { label: "Paused", value: queueHealth.paused },
-                { label: "Failed", value: queueHealth.failed },
-              ].map((tile) => (
-                <div
-                  key={tile.label}
-                  className="rounded-lg border border-border/30 bg-white/[0.02] px-3 py-2"
-                >
-                  <p className="text-xs text-muted">{tile.label}</p>
-                  <p
-                    className={cn(
-                      "mt-0.5 text-lg font-semibold tabular-nums text-fg",
-                      tile.label === "Failed" && tile.value > 0 && "text-danger",
-                    )}
-                  >
-                    {tile.value}
-                  </p>
-                </div>
-              ))}
-            </div>
-
-            {queueHealth.activeItems.length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Transferring now
-                </p>
-                {queueHealth.activeItems.slice(0, 5).map((item) => (
-                  <p key={item.id} className="truncate text-sm text-fg">
-                    <span className="text-muted">{item.source} ·</span> {item.series_title} —{" "}
-                    {item.chapter_title}{" "}
-                    <span className="tabular-nums text-muted">
-                      ({item.progress.toFixed(0)}%)
-                    </span>
-                  </p>
-                ))}
-                {queueHealth.activeItems.length > 5 ? (
-                  <p className="text-xs text-muted">
-                    …and {queueHealth.activeItems.length - 5} more.
-                  </p>
-                ) : null}
-              </div>
-            ) : null}
-
-            {queueHealth.reasons.length > 0 ? (
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Why chapters failed
-                </p>
-                {queueHealth.reasons.map((reason) => (
-                  <div key={reason.message} className="flex items-start gap-2">
-                    <Badge className="shrink-0 border-danger/30 bg-danger/15 text-danger">
-                      {reason.count}×
-                    </Badge>
-                    <span className="min-w-0 break-words text-sm text-fg">{reason.message}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-
-            {queueHealth.failures.length > 0 ? (
-              <div className="space-y-1.5">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted">
-                  Most recent failures
-                </p>
-                {queueHealth.failures.slice(0, 5).map((item) => (
-                  <p key={item.id} className="truncate text-sm text-fg">
-                    <span className="text-muted">{item.source} ·</span> {item.series_title} —{" "}
-                    {item.chapter_title}
-                  </p>
-                ))}
-                <p className="text-xs text-muted">
-                  Retry or cancel them on the{" "}
-                  <Link href="/downloads" className="text-primary hover:underline">
-                    downloads page
-                  </Link>
-                  .
-                </p>
-              </div>
-            ) : null}
-
-            {totals ? (
-              <div>
-                <Fact
-                  label="Storage used"
-                  value={
-                    <span className="inline-flex items-center gap-1.5">
-                      <HardDrive className="size-3.5 text-muted" aria-hidden />
-                      {formatBytes(totals.storageUsedBytes)} used ·{" "}
-                      {formatBytes(totals.storageFreeBytes)} free
-                    </span>
-                  }
-                />
-                <Fact
-                  label="Workers"
-                  value={`${totals.workers.running} running / ${totals.workers.active} active / ${totals.workers.configured} configured`}
-                />
-                <Fact
-                  label="All accounts"
-                  value={`${totals.total} downloads · ${totals.completed} completed · ${totals.failed} failed`}
-                />
-              </div>
-            ) : (
-              <EmptyNote>Queue metrics are still loading.</EmptyNote>
-            )}
-            <p className="text-xs leading-relaxed text-muted">
-              The four tiles count your own queue. The “all accounts” row comes from
-              <span className="font-mono"> /downloads/metrics</span>, which counts every
-              account&apos;s downloads — the two are not expected to match on a shared instance.
             </p>
           </StatusCard>
         </FadeIn>

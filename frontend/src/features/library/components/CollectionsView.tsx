@@ -21,7 +21,7 @@ import type { Collection } from "@/features/library/types";
 import { ApiError } from "@/types/api";
 import { cn } from "@/lib/cn";
 
-type CollectionSort = "name" | "series" | "updated";
+type CollectionSort = "name" | "series" | "recent";
 
 function collectionInitials(name: string): string {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -39,10 +39,8 @@ function sortCollections(items: Collection[], sort: CollectionSort): Collection[
   switch (sort) {
     case "series":
       return next.sort((a, b) => b.series_count - a.series_count || a.name.localeCompare(b.name));
-    case "updated":
-      return next.sort(
-        (a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
-      );
+    case "recent":
+      return next.sort((a, b) => b.id - a.id);
     default:
       return next.sort((a, b) => a.name.localeCompare(b.name));
   }
@@ -56,9 +54,9 @@ function CollectionBannerCard({ collection }: { collection: Collection }) {
     >
       <article className="relative overflow-hidden rounded-2xl transition-all duration-300 hover:scale-[1.01] hover:shadow-glow">
         <div className="relative aspect-[21/9] min-h-[140px] w-full bg-surface-2 sm:aspect-[24/9]">
-          {collection.cover_path ? (
+          {collection.cover_url ? (
             <Image
-              src={collection.cover_path}
+              src={collection.cover_url}
               alt=""
               fill
               className="object-cover transition-transform duration-500 group-hover:scale-105"
@@ -71,7 +69,7 @@ function CollectionBannerCard({ collection }: { collection: Collection }) {
           <div className="absolute inset-0 bg-gradient-to-r from-void/95 via-void/70 to-void/30" />
           <div className="absolute inset-0 bg-gradient-to-t from-void/80 via-transparent to-transparent" />
 
-          {!collection.cover_path && (
+          {!collection.cover_url && (
             <div className="absolute right-6 top-1/2 hidden -translate-y-1/2 font-display text-6xl tracking-widest text-white/10 sm:block">
               {collectionInitials(collection.name)}
             </div>
@@ -153,7 +151,7 @@ export function CollectionsView() {
   };
 
   const sortLabel =
-    sort === "series" ? "Most series" : sort === "updated" ? "Recently updated" : "Name A–Z";
+    sort === "series" ? "Most series" : sort === "recent" ? "Recently created" : "Name A–Z";
 
   return (
     <div className="min-h-full bg-bg px-6 py-6 md:px-10">
@@ -215,7 +213,7 @@ export function CollectionsView() {
                       [
                         ["name", "Name A–Z"],
                         ["series", "Most series"],
-                        ["updated", "Recently updated"],
+                        ["recent", "Recently created"],
                       ] as const
                     ).map(([value, label]) => (
                       <button

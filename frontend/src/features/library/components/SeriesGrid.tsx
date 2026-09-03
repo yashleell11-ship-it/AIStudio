@@ -7,7 +7,7 @@ import {
 } from "@/features/library/density";
 import { cn } from "@/lib/cn";
 import { SeriesCard, SeriesListItem, type SeriesSelectHandler } from "./SeriesCard";
-import type { SeriesSummary } from "../types";
+import type { FollowedSeries } from "../types";
 
 export type SeriesGridEmptyState = "library" | "search" | "filter";
 
@@ -18,7 +18,7 @@ export interface SeriesGridSelection {
 }
 
 interface SeriesGridProps {
-  items: SeriesSummary[];
+  items: FollowedSeries[];
   isLoading?: boolean;
   emptyState?: SeriesGridEmptyState;
   density?: LibraryDensity;
@@ -96,7 +96,7 @@ export function SeriesGrid({
     );
   }
 
-  const cardSelection = (series: SeriesSummary) =>
+  const cardSelection = (series: FollowedSeries) =>
     selection
       ? {
           selecting: selection.selecting,

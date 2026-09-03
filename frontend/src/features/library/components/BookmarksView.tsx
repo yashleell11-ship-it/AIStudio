@@ -4,7 +4,8 @@ import Link from "next/link";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useBookmarks, useDeleteBookmark } from "@/features/reader/hooks";
+import { useBookmarks, useDeleteBookmark } from "@/features/library/hooks";
+import { readerChapterHref } from "@/features/reader/reader-link";
 import { ApiError } from "@/types/api";
 
 export function BookmarksView() {
@@ -68,21 +69,30 @@ export function BookmarksView() {
                   className="flex flex-col gap-3 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <Link
-                    href={`/reader/${bookmark.series_id}/${bookmark.chapter_id}?page=${bookmark.page}`}
+                    href={readerChapterHref(
+                      {
+                        sourceId: bookmark.source_id,
+                        seriesKey: bookmark.series_key,
+                        chapterKey: bookmark.chapter_key,
+                      },
+                      bookmark.page,
+                    )}
                     className="min-w-0"
                   >
                     <p className="font-medium text-fg hover:text-primary">
-                      {bookmark.series_title ?? "Unknown Series"}
+                      {bookmark.series_key}
                     </p>
                     <p className="text-sm text-muted">
-                      {bookmark.chapter_title ?? "Unknown Chapter"} · Page {bookmark.page}
+                      {bookmark.chapter_key} · Page {bookmark.page}
                     </p>
                     {bookmark.note && (
                       <p className="mt-1 text-sm text-fg/80">{bookmark.note}</p>
                     )}
-                    <p className="text-xs text-muted">
-                      {new Date(bookmark.created_at).toLocaleDateString()}
-                    </p>
+                    {bookmark.created_at && (
+                      <p className="text-xs text-muted">
+                        {new Date(bookmark.created_at).toLocaleDateString()}
+                      </p>
+                    )}
                   </Link>
                   <Button
                     variant="ghost"

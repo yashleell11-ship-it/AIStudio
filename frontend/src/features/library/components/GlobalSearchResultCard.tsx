@@ -34,6 +34,20 @@ function SourceBadge({ item }: { item: GlobalSearchItem }) {
   );
 }
 
+/** Loading placeholder matching one federated-search result row. */
+export function SearchResultCardSkeleton() {
+  return (
+    <div className="glass-card flex gap-4 rounded-2xl p-3">
+      <div className="h-[120px] w-[80px] shrink-0 animate-pulse rounded-lg bg-surface-2" />
+      <div className="flex min-w-0 flex-1 flex-col gap-2 py-1">
+        <div className="h-4 w-3/4 animate-pulse rounded bg-surface-2" />
+        <div className="h-3 w-1/2 animate-pulse rounded bg-surface-2" />
+        <div className="mt-auto h-3 w-1/3 animate-pulse rounded bg-surface-2" />
+      </div>
+    </div>
+  );
+}
+
 export function GlobalSearchResultCard({
   item,
   showSourceBadge = true,

@@ -32,8 +32,9 @@ export const OFFLINE_STATE_EVENT = "mm-offline/state";
 /** One chapter's download plan, resolved to absolute URLs by the page. */
 export interface SaveChapterRequest {
   key: string;
-  chapterId: string;
-  seriesId: string;
+  sourceId: string;
+  seriesKey: string;
+  chapterKey: string;
   title: string;
   seriesTitle: string | null;
   scope: StorageScope;

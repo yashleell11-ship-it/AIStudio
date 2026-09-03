@@ -8,18 +8,13 @@ import {
   LayoutList,
   Search,
   SlidersHorizontal,
-  Upload,
-  X,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { useShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
-import {
-  DENSITY_LABELS,
-  type LibraryDensity,
-} from "@/features/library/density";
+import { DENSITY_LABELS, type LibraryDensity } from "@/features/library/density";
 import {
   DEFAULT_LIBRARY_QUERY,
   type LibraryQuery,
@@ -31,7 +26,6 @@ import type { SeriesFilter, SeriesSort, Tag } from "../types";
 
 interface LibraryToolbarProps {
   query: LibraryQuery;
-  /** Discrete controls push history; only the search box replaces it. */
   onQueryChange: (next: LibraryQuery) => void;
   searchInput: string;
   onSearchInputChange: (value: string) => void;
@@ -39,7 +33,6 @@ interface LibraryToolbarProps {
   onDensityChange: (density: LibraryDensity) => void;
   selecting: boolean;
   onSelectingChange: (selecting: boolean) => void;
-  onImportClick: () => void;
   seriesCount: number;
   tags: Tag[];
 }
@@ -48,16 +41,14 @@ const FILTER_CHIPS: { value: SeriesFilter; label: string }[] = [
   { value: "all", label: "All" },
   { value: "reading", label: "Reading" },
   { value: "unread", label: "Not Started" },
+  { value: "completed", label: "Completed" },
 ];
 
 const SORT_OPTIONS: { value: SeriesSort; label: string }[] = [
-  { value: "updated", label: "Recently Updated" },
-  { value: "date_added", label: "Recently Added" },
-  { value: "sort_title", label: "Title" },
-  { value: "recent", label: "Recently Read" },
-  { value: "author", label: "Author" },
-  { value: "year", label: "Year" },
-  { value: "total_chapters", label: "Total Chapters" },
+  { value: "recently_updated", label: "Recently Updated" },
+  { value: "recently_added", label: "Recently Added" },
+  { value: "title", label: "Title" },
+  { value: "sort_order", label: "Manual Order" },
 ];
 
 const DENSITY_OPTIONS: {
@@ -73,35 +64,10 @@ const READING_STATUS_LABELS: Record<ReadingStatus, string> = {
   unread: "Unread",
   reading: "Reading",
   completed: "Completed",
+  on_hold: "On hold",
+  plan_to_read: "Plan to read",
+  dropped: "Dropped",
 };
-
-/**
- * A filter that has no control of its own but is set in the URL — a deep link
- * from a collection, a language, "only series with chapters". Rendered as a
- * removable chip so it is visible and reversible instead of silently narrowing
- * the grid.
- */
-function ActiveParamChip({
-  label,
-  onClear,
-}: {
-  label: string;
-  onClear: () => void;
-}) {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-3 py-1 text-xs text-primary">
-      {label}
-      <button
-        type="button"
-        onClick={onClear}
-        aria-label={`Clear ${label} filter`}
-        className="rounded-full p-0.5 transition-colors hover:bg-primary/20"
-      >
-        <X className="size-3" aria-hidden />
-      </button>
-    </span>
-  );
-}
 
 export function LibraryToolbar({
   query,
@@ -112,9 +78,7 @@ export function LibraryToolbar({
   onDensityChange,
   selecting,
   onSelectingChange,
-  onImportClick,
   seriesCount,
-  tags,
 }: LibraryToolbarProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -129,31 +93,18 @@ export function LibraryToolbar({
     }, []),
   });
 
-  useShortcut({
-    id: "library.import",
-    keys: "i",
-    description: "Import library folder",
-    group: "Library",
-    handler: useCallback(() => {
-      onImportClick();
-    }, [onImportClick]),
-  });
-
   const patch = useCallback(
     (changes: Partial<LibraryQuery>) => onQueryChange({ ...query, ...changes }),
     [onQueryChange, query],
   );
 
-  const selectedTag = tags.find((tag) => tag.id === query.tag_id) ?? null;
   const filtersActive = hasActiveFilters(query);
 
   return (
     <div className="mb-6 space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <HeroHeading className="leading-none md:text-6xl">
-            Library
-          </HeroHeading>
+          <HeroHeading className="leading-none md:text-6xl">Library</HeroHeading>
           <p className="mt-2 text-sm text-muted">
             {seriesCount.toLocaleString()} series
           </p>
@@ -240,7 +191,7 @@ export function LibraryToolbar({
           ref={searchRef}
           value={searchInput}
           onChange={(event) => onSearchInputChange(event.target.value)}
-          placeholder="Search by title, author, or tag..."
+          placeholder="Search by title..."
           className="h-11 border-border/50 bg-white/[0.03] pl-11 focus-visible:ring-primary/40"
           aria-label="Search library"
         />
@@ -279,37 +230,6 @@ export function LibraryToolbar({
         >
           ★ Favorites
         </button>
-
-        {query.language ? (
-          <ActiveParamChip
-            label={`Language: ${query.language}`}
-            onClear={() => patch({ language: null })}
-          />
-        ) : null}
-        {query.has_chapters !== null ? (
-          <ActiveParamChip
-            label={query.has_chapters ? "Has chapters" : "No chapters"}
-            onClear={() => patch({ has_chapters: null })}
-          />
-        ) : null}
-        {query.collection_id !== null ? (
-          <ActiveParamChip
-            label={`Collection #${query.collection_id}`}
-            onClear={() => patch({ collection_id: null })}
-          />
-        ) : null}
-        {query.library_id !== null ? (
-          <ActiveParamChip
-            label={`Library #${query.library_id}`}
-            onClear={() => patch({ library_id: null })}
-          />
-        ) : null}
-        {selectedTag ? (
-          <ActiveParamChip
-            label={`Tag: ${selectedTag.name}`}
-            onClear={() => patch({ tag_id: null })}
-          />
-        ) : null}
       </div>
 
       {filtersOpen ? (
@@ -336,24 +256,6 @@ export function LibraryToolbar({
             </select>
           </label>
 
-          <label className="flex flex-col gap-1 text-xs text-muted">
-            Tag
-            <select
-              value={query.tag_id ?? ""}
-              onChange={(event) =>
-                patch({ tag_id: event.target.value ? Number(event.target.value) : null })
-              }
-              className="h-9 rounded-lg border border-border/50 bg-white/5 px-3 text-sm text-fg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
-            >
-              <option value="">Any</option>
-              {tags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
           {filtersActive ? (
             <Button
               type="button"
@@ -361,8 +263,6 @@ export function LibraryToolbar({
               onClick={() =>
                 onQueryChange({
                   ...DEFAULT_LIBRARY_QUERY,
-                  // The search box is not a filter chip; clearing filters must
-                  // not also throw away what the user typed.
                   search: query.search,
                   sort: query.sort,
                 })
@@ -372,15 +272,9 @@ export function LibraryToolbar({
             </Button>
           ) : null}
 
-          <Button type="button" onClick={onImportClick}>
-            <Upload className="size-4" />
-            Import Library
-          </Button>
-
           <p className="w-full text-xs text-muted">
             Press <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-mono">/</kbd> to
-            focus search · <kbd className="rounded bg-white/10 px-1.5 py-0.5 font-mono">i</kbd> to
-            import · shift-click a cover to select a range
+            focus search · shift-click a cover to select a range
           </p>
         </div>
       ) : null}

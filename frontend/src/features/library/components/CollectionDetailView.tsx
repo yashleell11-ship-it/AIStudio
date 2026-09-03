@@ -2,18 +2,12 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { useState } from "react";
-import {
-  ArrowLeft,
-  BookOpen,
-  Plus,
-  Search,
-  Trash2,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, BookOpen, Plus, Search, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { coverUrl } from "@/features/library/api";
+import { libraryCoverUrl } from "@/features/library/api";
 import {
   useAddSeriesToCollection,
   useCollection,
@@ -23,6 +17,7 @@ import {
 import { ApiError } from "@/types/api";
 import { cn } from "@/lib/cn";
 import { SeriesGrid } from "./SeriesGrid";
+import type { FollowedSeries } from "../types";
 
 interface CollectionDetailViewProps {
   collectionId: number;
@@ -30,7 +25,11 @@ interface CollectionDetailViewProps {
 
 function DetailSkeleton() {
   return (
-    <div className="min-h-full bg-bg px-6 py-6 md:px-10" aria-busy="true" aria-label="Loading collection">
+    <div
+      className="min-h-full bg-bg px-6 py-6 md:px-10"
+      aria-busy="true"
+      aria-label="Loading collection"
+    >
       <div className="mx-auto max-w-7xl">
         <div className="mb-6 h-4 w-40 animate-pulse rounded bg-surface-2" />
         <div className="mb-8 h-48 animate-pulse rounded-2xl bg-surface-2" />
@@ -46,13 +45,32 @@ function DetailSkeleton() {
 
 export function CollectionDetailView({ collectionId }: CollectionDetailViewProps) {
   const collectionQuery = useCollection(collectionId);
-  const allSeriesQuery = useSeriesList({ page: 1, per_page: 200 });
+  const allSeriesQuery = useSeriesList({ page: 1, per_page: 200, sort: "title" });
   const addSeries = useAddSeriesToCollection();
   const deleteCollection = useDeleteCollection();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addSearch, setAddSearch] = useState("");
 
   const collection = collectionQuery.data;
+  const allSeries = useMemo(
+    () => allSeriesQuery.data?.items ?? [],
+    [allSeriesQuery.data],
+  );
+
+  // Collection membership is `(source_id, series_key)` refs; resolve them
+  // against the followed set for cover + title.
+  const memberKeys = useMemo(() => {
+    const set = new Set<string>();
+    for (const ref of collection?.series ?? []) {
+      set.add(`${ref.source_id}:${ref.series_key}`);
+    }
+    return set;
+  }, [collection]);
+
+  const members = useMemo<FollowedSeries[]>(
+    () => allSeries.filter((s) => memberKeys.has(`${s.source_id}:${s.series_key}`)),
+    [allSeries, memberKeys],
+  );
 
   if (collectionQuery.isLoading) {
     return <DetailSkeleton />;
@@ -76,16 +94,12 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     );
   }
 
-  const availableSeries =
-    allSeriesQuery.data?.items.filter(
-      (series) => !collection.series.items.some((item) => item.id === series.id),
-    ) ?? [];
-
+  const availableSeries = allSeries.filter(
+    (series) => !memberKeys.has(`${series.source_id}:${series.series_key}`),
+  );
   const filteredAvailable = addSearch.trim()
-    ? availableSeries.filter(
-        (series) =>
-          series.title.toLowerCase().includes(addSearch.toLowerCase()) ||
-          (series.author?.toLowerCase().includes(addSearch.toLowerCase()) ?? false),
+    ? availableSeries.filter((series) =>
+        series.title.toLowerCase().includes(addSearch.toLowerCase()),
       )
     : availableSeries;
 
@@ -93,9 +107,9 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     <div className="min-h-full bg-bg">
       <div className="relative overflow-hidden border-b border-border/50">
         <div className="absolute inset-0">
-          {collection.cover_path ? (
+          {collection.cover_url ? (
             <Image
-              src={collection.cover_path}
+              src={collection.cover_url}
               alt=""
               fill
               className="object-cover opacity-40 blur-2xl"
@@ -119,13 +133,17 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
 
           <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
             <div className="min-w-0">
-              <h1 className="font-display text-4xl tracking-wide text-fg">{collection.name}</h1>
+              <h1 className="font-display text-4xl tracking-wide text-fg">
+                {collection.name}
+              </h1>
               {collection.description && (
-                <p className="mt-2 max-w-2xl text-sm text-muted">{collection.description}</p>
+                <p className="mt-2 max-w-2xl text-sm text-muted">
+                  {collection.description}
+                </p>
               )}
               <p className="mt-3 inline-flex items-center gap-1.5 text-sm text-muted">
                 <BookOpen className="size-4 text-primary" aria-hidden />
-                {collection.series.total} series
+                {collection.series.length} series
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
@@ -155,7 +173,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
       </div>
 
       <div className="mx-auto max-w-7xl px-6 py-8 md:px-10">
-        {collection.series.items.length === 0 ? (
+        {collection.series.length === 0 ? (
           <div className="glass-panel rounded-3xl border border-dashed border-border/50 p-12 text-center">
             <div className="mx-auto mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
               <BookOpen className="size-8 text-primary" />
@@ -170,10 +188,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
             </Button>
           </div>
         ) : (
-          <SeriesGrid
-            items={collection.series.items}
-            isLoading={collectionQuery.isLoading}
-          />
+          <SeriesGrid items={members} isLoading={allSeriesQuery.isLoading} />
         )}
       </div>
 
@@ -215,7 +230,13 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                   type="button"
                   onClick={() => {
                     addSeries.mutate(
-                      { collectionId, seriesId: series.id },
+                      {
+                        collectionId,
+                        ref: {
+                          sourceId: series.source_id,
+                          seriesKey: series.series_key,
+                        },
+                      },
                       {
                         onSuccess: () => {
                           setShowAddDialog(false);
@@ -233,7 +254,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                 >
                   <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2 ring-1 ring-white/10">
                     <Image
-                      src={coverUrl(series.id)}
+                      src={libraryCoverUrl(series.cover_url)}
                       alt={series.title}
                       fill
                       className="object-cover"
@@ -243,9 +264,6 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                   </div>
                   <div className="min-w-0">
                     <p className="truncate text-sm font-medium text-fg">{series.title}</p>
-                    {series.author && (
-                      <p className="truncate text-xs text-muted">{series.author}</p>
-                    )}
                   </div>
                 </button>
               ))

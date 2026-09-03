@@ -2,61 +2,33 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
-import {
-  ArrowLeft,
-  BookOpen,
-  Check,
-  ChevronRight,
-  Cloud,
-  Download,
-  DownloadCloud,
-  Play,
-  Sparkles,
-  Star,
-} from "lucide-react";
+import { useMemo, useState } from "react";
+import { ArrowLeft, BookOpen, Check, ChevronRight, Play, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Progress } from "@/components/ui/progress";
-import { coverUrl } from "@/features/library/api";
+import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
+import { libraryCoverUrl } from "@/features/library/api";
 import {
   useAddTagToSeries,
-  useMetadataQuality,
+  usePatchSeries,
   useRemoveTagFromSeries,
   useSeries,
-  useSimilarSeries,
   useTags,
   useToggleFavorite,
 } from "@/features/library/hooks";
-import { prefetchReaderChapter } from "@/features/reader/hooks";
-import { useQueueChapters } from "@/features/downloads/hooks";
-import { sourceReaderChapterPath } from "@/features/sources/hooks";
+import { readerChapterHref } from "@/features/reader/reader-link";
 import { ApiError } from "@/types/api";
-import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
+import type { SeriesId } from "@/types/api";
+import {
+  readScopedString,
+  writeScopedString,
+} from "@/lib/scoped-storage";
 import { cn } from "@/lib/cn";
-import { resolveSeriesFollowLink } from "../follow-link";
-import { LibraryMembershipButton } from "./LibraryMembershipButton";
-import { SeriesCard } from "./SeriesCard";
-import { SeriesFollowButton } from "./SeriesFollowButton";
+import { READING_STATUSES } from "../url-state";
+import type { KnownChapter, SeriesDetail } from "../types";
 
 interface SeriesDetailViewProps {
   seriesId: number;
-}
-
-function languageLabel(language: string): string {
-  switch (language.toLowerCase()) {
-    case "ko":
-      return "Manhwa";
-    case "ja":
-      return "Manga";
-    case "zh":
-      return "Manhua";
-    case "en":
-      return "Webtoon";
-    default:
-      return language.toUpperCase();
-  }
 }
 
 function statusBadgeStyle(status: string): string {
@@ -66,41 +38,62 @@ function statusBadgeStyle(status: string): string {
     case "completed":
       return "bg-success/15 text-success border-success/30";
     case "on_hold":
-    case "on-hold":
       return "bg-accent/15 text-accent border-accent/30";
     default:
       return "bg-white/5 text-muted border-border/50";
   }
 }
 
+type ChapterSort = "newest" | "oldest";
+
+function chapterOrder(a: KnownChapter, b: KnownChapter): number {
+  const an = a.number ?? Number.NEGATIVE_INFINITY;
+  const bn = b.number ?? Number.NEGATIVE_INFINITY;
+  return an - bn;
+}
+
 export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const seriesQuery = useSeries(seriesId);
-  const queryClient = useQueryClient();
   const series = seriesQuery.data;
 
-  const similarQuery = useSimilarSeries(seriesId, 8);
-  const metadataQuery = useMetadataQuality(seriesId);
   const tagsQuery = useTags();
   const toggleFavorite = useToggleFavorite();
+  const patchSeries = usePatchSeries();
   const addTag = useAddTagToSeries();
   const removeTag = useRemoveTagFromSeries();
-  const queueChapters = useQueueChapters();
   const [showTagPicker, setShowTagPicker] = useState(false);
 
-  useEffect(() => {
-    if (!series) return;
-    const progress = series.reading_progress;
-    if (progress?.chapter_id) {
-      prefetchReaderChapter(queryClient, progress.chapter_id);
-    } else if (series.first_chapter_id != null) {
-      prefetchReaderChapter(queryClient, series.first_chapter_id);
-    }
-    for (const chapter of series.chapters.slice(0, 5)) {
-      if (chapter.id != null) {
-        prefetchReaderChapter(queryClient, chapter.id);
+  const sortKey = series ? `mm.chapter-sort:${series.source_id}:${series.series_key}` : null;
+  const [sort, setSort] = useState<ChapterSort>(() => {
+    if (!sortKey) return "newest";
+    return readScopedString(sortKey) === "oldest" ? "oldest" : "newest";
+  });
+  const setSortPersisted = (next: ChapterSort) => {
+    setSort(next);
+    if (sortKey) writeScopedString(sortKey, next);
+  };
+
+  const orderedChapters = useMemo(() => {
+    if (!series) return [];
+    const asc = [...series.chapters].sort(chapterOrder);
+    return sort === "newest" ? asc.reverse() : asc;
+  }, [series, sort]);
+
+  const resumeTarget = useMemo(() => {
+    if (!series) return null;
+    const asc = [...series.chapters].sort(chapterOrder);
+    // First chapter with progress that is not completed, else the first unread.
+    for (const chapter of asc) {
+      const p = series.progress[chapter.key];
+      if (p && !p.is_completed) {
+        return { chapter, page: p.last_page };
       }
     }
-  }, [queryClient, series]);
+    for (const chapter of asc) {
+      if (!series.progress[chapter.key]) return { chapter, page: 1 };
+    }
+    return asc.length > 0 ? { chapter: asc[0], page: 1 } : null;
+  }, [series]);
 
   if (seriesQuery.isLoading) {
     return (
@@ -138,43 +131,19 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
     );
   }
 
-  const progress = series.reading_progress;
-  const continueHref =
-    progress != null
-      ? `/reader/${series.id}/${progress.chapter_id}?page=${progress.last_page}`
-      : series.first_chapter_id != null
-        ? `/reader/${series.id}/${series.first_chapter_id}`
-        : null;
-
-  const prefetchChapter = (chapterId: number) => {
-    prefetchReaderChapter(queryClient, chapterId);
+  const detail: SeriesDetail = series;
+  const seriesRef: SeriesId = {
+    sourceId: detail.source_id,
+    seriesKey: detail.series_key,
   };
-
-  const sourceId = series.source_id ?? null;
-  const sourceSeriesId = series.source_series_id ?? null;
-  // Null for a hand-imported folder, which has no origin to follow — the
-  // control is then omitted outright rather than shown disabled.
-  const followLink = resolveSeriesFollowLink(series);
-
-  const downloadChapter = (sourceChapterId: string) => {
-    if (!sourceId || !sourceSeriesId) return;
-    queueChapters.mutate({
-      source_id: sourceId,
-      series_id: sourceSeriesId,
-      chapter_ids: [sourceChapterId],
-      series_title: series.title,
-    });
-  };
-
-  const metadata = metadataQuery.data;
-  const similar = similarQuery.data ?? [];
+  const cover = libraryCoverUrl(detail.cover_url);
+  const hasProgress = Object.keys(detail.progress).length > 0;
 
   return (
     <div className="min-h-full bg-bg">
-      {/* Hero banner */}
       <section className="relative h-[280px] overflow-hidden md:h-[320px]">
         <Image
-          src={coverUrl(series.id)}
+          src={cover}
           alt=""
           fill
           className="object-cover brightness-[0.35] blur-sm"
@@ -196,12 +165,11 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
 
       <div className="relative mx-auto max-w-6xl px-6 pb-10 md:px-10">
         <div className="-mt-36 grid gap-8 lg:grid-cols-[220px_1fr] lg:gap-10">
-          {/* Cover */}
           <div className="mx-auto w-full max-w-[220px] lg:mx-0 lg:sticky lg:top-24 lg:self-start">
             <div className="relative aspect-[2/3] overflow-hidden rounded-3xl shadow-glow ring-1 ring-white/10">
               <Image
-                src={coverUrl(series.id)}
-                alt={series.title}
+                src={cover}
+                alt={detail.title}
                 fill
                 className="object-cover"
                 sizes="220px"
@@ -211,116 +179,113 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
             </div>
           </div>
 
-          {/* Info */}
           <div className="pt-2 lg:pt-16">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 flex-1">
                 <h1 className="text-3xl font-bold tracking-tight text-fg md:text-4xl">
-                  {series.title}
+                  {detail.title}
                 </h1>
-                {series.original_title ? (
-                  <p className="mt-1 text-sm italic text-muted">{series.original_title}</p>
-                ) : null}
               </div>
               <div className="flex shrink-0 flex-wrap items-start gap-2">
-                {/* This route is NOT membership-gated — `GET /library/series/{id}`
-                    answers for any catalog series — so the shelf state comes from
-                    the payload's own `in_library` rather than being assumed. */}
-                <LibraryMembershipButton
-                  seriesId={series.id}
-                  inLibrary={series.in_library}
-                />
-                {/* Follow lives here, not only on the source page: this is the
-                    page a downloaded chapter's back button lands on, so this is
-                    where the owner of a downloaded series can ask to be told
-                    about new chapters. */}
-                {followLink ? (
-                  <SeriesFollowButton
-                    seriesId={series.id}
-                    seriesTitle={series.title}
-                    link={followLink}
-                  />
-                ) : null}
                 <Button
-                  variant={series.is_favorite ? "primary" : "secondary"}
-                  onClick={() => toggleFavorite.mutate(series.id)}
-                  aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
+                  variant={detail.is_favorite ? "primary" : "secondary"}
+                  onClick={() =>
+                    toggleFavorite.mutate({
+                      followedId: detail.id,
+                      isFavorite: !detail.is_favorite,
+                    })
+                  }
+                  aria-label={
+                    detail.is_favorite ? "Remove from favorites" : "Add to favorites"
+                  }
                   className={cn(
                     "rounded-full",
-                    series.is_favorite
+                    detail.is_favorite
                       ? "bg-primary/20 text-primary hover:bg-primary/30"
                       : "border border-border/50 bg-white/5 hover:bg-white/10",
                   )}
                 >
-                  <Star
-                    className={cn("size-4", series.is_favorite && "fill-primary")}
-                  />
-                  {series.is_favorite ? "Favorited" : "Add Favorite"}
+                  <Star className={cn("size-4", detail.is_favorite && "fill-primary")} />
+                  {detail.is_favorite ? "Favorited" : "Add Favorite"}
                 </Button>
               </div>
             </div>
 
-            {series.author ? (
-              <p className="mt-3 text-base text-muted">by {series.author}</p>
-            ) : null}
-            {series.artist ? (
-              <p className="text-sm text-muted/80">Art by {series.artist}</p>
+            {detail.author ? (
+              <p className="mt-3 text-base text-muted">by {detail.author}</p>
             ) : null}
 
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {series.reading_status ? (
-                <span
-                  className={cn(
-                    "rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-wide",
-                    statusBadgeStyle(series.reading_status),
-                  )}
-                >
-                  {series.reading_status.replace(/_/g, " ")}
-                </span>
-              ) : null}
-              <span className="rounded-full border border-border/50 bg-white/5 px-3 py-1 text-xs text-muted">
-                {languageLabel(series.language)}
-              </span>
-              {series.year ? (
-                <span className="rounded-full border border-border/50 bg-white/5 px-3 py-1 text-xs text-muted">
-                  {series.year}
-                </span>
-              ) : null}
+              <label className="sr-only" htmlFor="reading-status">
+                Reading status
+              </label>
+              <select
+                id="reading-status"
+                value={detail.reading_status}
+                onChange={(event) =>
+                  patchSeries.mutate({
+                    followedId: detail.id,
+                    body: { reading_status: event.target.value },
+                  })
+                }
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium uppercase tracking-wide",
+                  statusBadgeStyle(detail.reading_status),
+                )}
+              >
+                {READING_STATUSES.map((status) => (
+                  <option key={status} value={status}>
+                    {status.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                onClick={() =>
+                  patchSeries.mutate({
+                    followedId: detail.id,
+                    body: { notify: !detail.notify },
+                  })
+                }
+                className={cn(
+                  "rounded-full border px-3 py-1 text-xs font-medium",
+                  detail.notify
+                    ? "border-primary/30 bg-primary/10 text-primary"
+                    : "border-border/50 bg-white/5 text-muted",
+                )}
+              >
+                {detail.notify ? "Notifications on" : "Notifications off"}
+              </button>
             </div>
 
             <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted">
-              <span>{series.chapter_count} chapters</span>
-              <span>{series.page_count.toLocaleString()} pages</span>
-              {progress != null ? (
-                <span className="font-medium text-primary">
-                  {Math.round(progress.progress_pct)}% read
-                </span>
+              <span>{detail.chapters.length} chapters</span>
+              {detail.genres && detail.genres.length > 0 ? (
+                <span>{detail.genres.slice(0, 4).join(", ")}</span>
               ) : null}
             </div>
 
-            {continueHref ? (
+            {resumeTarget ? (
               <PrimaryPillButton
-                href={continueHref}
+                href={readerChapterHref(
+                  { ...seriesRef, chapterKey: resumeTarget.chapter.key },
+                  resumeTarget.page,
+                )}
                 className="mt-6 shadow-glow"
                 icon={<Play className="size-4 fill-current" />}
               >
-                {progress ? "Continue Reading" : "Start Reading"}
+                {hasProgress ? "Continue" : "Read"}
               </PrimaryPillButton>
             ) : null}
 
-            {/* Tags */}
             <div className="mt-6 flex flex-wrap items-center gap-2">
-              {series.tags.map((tag) => (
-                <Badge
-                  key={tag.id}
-                  variant="default"
-                  className="cursor-pointer border-border/50 bg-white/5 hover:bg-red-500/10"
-                  onClick={() => removeTag.mutate({ seriesId: series.id, tagId: tag.id })}
-                  title="Click to remove"
-                >
-                  {tag.name} ×
-                </Badge>
-              ))}
+              {tagsQuery.data
+                ?.filter((tag) => showTagPicker || false)
+                .map((tag) => (
+                  <Badge key={tag.id} variant="default">
+                    {tag.name}
+                  </Badge>
+                ))}
               <Button
                 variant="ghost"
                 size="sm"
@@ -332,235 +297,123 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
             </div>
             {showTagPicker && tagsQuery.data ? (
               <div className="mt-2 flex flex-wrap gap-2">
-                {tagsQuery.data
-                  .filter((t) => !series.tags.some((st) => st.id === t.id))
-                  .map((tag) => (
-                    <Badge
-                      key={tag.id}
-                      variant="default"
-                      className="cursor-pointer border-border/50 bg-white/5 hover:bg-primary/15"
-                      onClick={() => {
-                        addTag.mutate({ seriesId: series.id, tagId: tag.id });
-                        setShowTagPicker(false);
-                      }}
-                    >
-                      + {tag.name}
-                    </Badge>
-                  ))}
-              </div>
-            ) : null}
-
-            {series.collections.length > 0 ? (
-              <div className="mt-3 text-sm text-muted">
-                In collections:{" "}
-                {series.collections.map((c, i) => (
-                  <span key={c.id}>
-                    <Link
-                      href={`/library/collections/${c.id}`}
-                      className="text-primary hover:underline"
-                    >
-                      {c.name}
-                    </Link>
-                    {i < series.collections.length - 1 && ", "}
-                  </span>
+                {tagsQuery.data.map((tag) => (
+                  <Badge
+                    key={tag.id}
+                    variant="default"
+                    className="cursor-pointer border-border/50 bg-white/5 hover:bg-primary/15"
+                    onClick={() => {
+                      addTag.mutate({ ref: seriesRef, tagId: tag.id });
+                      setShowTagPicker(false);
+                    }}
+                  >
+                    + {tag.name}
+                  </Badge>
                 ))}
               </div>
             ) : null}
 
-            {series.description ? (
+            {detail.description ? (
               <p className="mt-6 max-w-3xl text-sm leading-relaxed text-fg/80">
-                {series.description}
+                {detail.description}
               </p>
             ) : null}
           </div>
         </div>
 
-        {/* Metadata Quality */}
-        {metadata ? (
-          <section className="glass-panel mt-10 rounded-3xl border border-border p-6">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <Sparkles className="size-4 text-primary" aria-hidden />
-                <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
-                  Metadata Quality
-                </h2>
-              </div>
-              <span className="font-mono text-sm tabular-nums text-muted">
-                {metadata.score}/100
-              </span>
-            </div>
-            <Progress
-              value={metadata.score}
-              className="mb-4 h-2 bg-white/10 [&>div]:bg-gradient-to-r [&>div]:from-accent [&>div]:to-primary"
-            />
-            {metadata.suggestions.length > 0 ? (
-              <div className="space-y-1.5">
-                {metadata.suggestions.map((s) => (
-                  <p key={s} className="text-sm text-muted">
-                    • {s}
-                  </p>
-                ))}
-              </div>
-            ) : (
-              <p className="text-sm text-success">All metadata fields complete!</p>
-            )}
-          </section>
-        ) : null}
-
-        {/* Chapters */}
         <section className="mt-10">
           <div className="mb-4 flex items-center gap-2">
             <BookOpen className="size-4 text-primary" aria-hidden />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
               Chapters
             </h2>
-            <span className="text-xs text-muted">({series.chapters.length})</span>
+            <span className="text-xs text-muted">({detail.chapters.length})</span>
+            <div className="ml-auto flex gap-1 text-xs">
+              {(["newest", "oldest"] as const).map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => setSortPersisted(option)}
+                  className={cn(
+                    "rounded-full px-3 py-1 capitalize transition-colors",
+                    sort === option
+                      ? "bg-primary/15 text-primary"
+                      : "text-muted hover:text-fg",
+                  )}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="glass-panel divide-y divide-border/60 overflow-hidden rounded-3xl border border-border">
-            {series.chapters.length === 0 ? (
+            {orderedChapters.length === 0 ? (
               <p className="p-6 text-sm text-muted">No chapters found for this series.</p>
             ) : (
-              series.chapters.map((chapter, index) => {
-                const isDownloaded = chapter.is_downloaded ?? chapter.id != null;
-                const isCurrent =
-                  chapter.id != null && progress?.chapter_id === chapter.id;
-                const rowKey =
-                  chapter.id != null
-                    ? `local-${chapter.id}`
-                    : `remote-${chapter.source_chapter_id ?? index}`;
-
-                const numberBadge = (
-                  <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/5 font-mono text-xs tabular-nums text-muted transition-colors group-hover:bg-primary/20 group-hover:text-primary">
-                    {chapter.number ?? index + 1}
-                  </span>
-                );
-
-                const chapterBody = (
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className={cn(
-                        "truncate font-medium transition-colors group-hover:text-primary",
-                        chapter.is_read ? "text-muted" : "text-fg",
-                      )}
-                    >
-                      {chapter.title}
-                    </p>
-                    <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
-                      {chapter.page_count > 0 ? (
-                        <span>{chapter.page_count} pages</span>
-                      ) : null}
-                      {isDownloaded ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-success/30 bg-success/10 px-1.5 py-0.5 text-success">
-                          <DownloadCloud className="size-3" aria-hidden />
-                          Downloaded
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-0.5 text-primary">
-                          <Cloud className="size-3" aria-hidden />
-                          Online
-                        </span>
-                      )}
-                      {chapter.is_read ? (
-                        <span className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-white/5 px-1.5 py-0.5">
-                          <Check className="size-3" aria-hidden />
-                          Read
-                        </span>
-                      ) : null}
-                    </div>
-                  </div>
-                );
-
-                if (isDownloaded && chapter.id != null) {
-                  const localId = chapter.id;
-                  return (
-                    <Link
-                      key={rowKey}
-                      href={`/reader/${series.id}/${localId}`}
-                      onMouseEnter={() => prefetchChapter(localId)}
-                      onFocus={() => prefetchChapter(localId)}
-                      className={cn(
-                        "group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-primary/[0.06]",
-                        chapter.is_read && "bg-black/25",
-                      )}
-                    >
-                      {numberBadge}
-                      {chapterBody}
-                      {isCurrent ? (
-                        <Badge variant="primary" className="shrink-0 bg-primary/20 text-primary">
-                          In progress
-                        </Badge>
-                      ) : (
-                        <ChevronRight className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
-                      )}
-                    </Link>
-                  );
-                }
-
-                // Remote-only chapter: offer Read Online + Download.
-                const canReadOnline =
-                  sourceId != null &&
-                  sourceSeriesId != null &&
-                  chapter.source_chapter_id != null;
+              orderedChapters.map((chapter, index) => {
+                const progress = detail.progress[chapter.key];
+                const isCompleted = progress?.is_completed ?? false;
+                const inProgress = progress != null && !isCompleted;
                 return (
-                  <div
-                    key={rowKey}
+                  <Link
+                    key={chapter.key}
+                    href={readerChapterHref(
+                      { ...seriesRef, chapterKey: chapter.key },
+                      progress?.last_page,
+                    )}
                     className={cn(
                       "group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-primary/[0.06]",
-                      chapter.is_read && "bg-black/25",
+                      isCompleted && "bg-black/25",
                     )}
                   >
-                    {numberBadge}
-                    {chapterBody}
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      {canReadOnline ? (
-                        <Link
-                          href={sourceReaderChapterPath(
-                            sourceId!,
-                            sourceSeriesId!,
-                            chapter.source_chapter_id!,
-                          )}
-                        >
-                          <Button variant="ghost" size="sm">
-                            Read Online
-                          </Button>
-                        </Link>
-                      ) : null}
-                      {canReadOnline ? (
-                        <Button
-                          variant="secondary"
-                          size="sm"
-                          disabled={queueChapters.isPending}
-                          onClick={() => downloadChapter(chapter.source_chapter_id!)}
-                        >
-                          <Download className="size-3.5" aria-hidden />
-                          Download
-                        </Button>
-                      ) : null}
+                    <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/5 font-mono text-xs tabular-nums text-muted transition-colors group-hover:bg-primary/20 group-hover:text-primary">
+                      {chapter.number ?? index + 1}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p
+                        className={cn(
+                          "truncate font-medium transition-colors group-hover:text-primary",
+                          isCompleted ? "text-muted" : "text-fg",
+                        )}
+                      >
+                        {chapter.title ??
+                          (chapter.number != null
+                            ? `Chapter ${chapter.number}`
+                            : chapter.key)}
+                      </p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
+                        {inProgress && chapter.page_count ? (
+                          <span>
+                            {progress!.last_page}/{chapter.page_count} pages
+                          </span>
+                        ) : chapter.page_count ? (
+                          <span>{chapter.page_count} pages</span>
+                        ) : null}
+                        {isCompleted ? (
+                          <span className="inline-flex items-center gap-1 rounded-full border border-border/50 bg-white/5 px-1.5 py-0.5">
+                            <Check className="size-3" aria-hidden />
+                            Read
+                          </span>
+                        ) : null}
+                      </div>
                     </div>
-                  </div>
+                    {inProgress ? (
+                      <Badge
+                        variant="primary"
+                        className="shrink-0 bg-primary/20 text-primary"
+                      >
+                        In progress
+                      </Badge>
+                    ) : (
+                      <ChevronRight className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
+                    )}
+                  </Link>
                 );
               })
             )}
           </div>
         </section>
-
-        {/* Similar Series */}
-        {similar.length > 0 ? (
-          <section className="mt-10">
-            <div className="mb-4 flex items-center gap-2">
-              <Sparkles className="size-4 text-primary" aria-hidden />
-              <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
-                Similar Series
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-              {similar.map((s) => (
-                <SeriesCard key={s.id} series={s} />
-              ))}
-            </div>
-          </section>
-        ) : null}
       </div>
     </div>
   );

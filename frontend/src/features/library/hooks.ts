@@ -1,68 +1,55 @@
-// `useBulkSeriesAction` below holds React state (`useState`/`useRef`), so this
-// module can only ever run on the client. It is re-exported by the
-// `@/features/library` barrel, which Server Components import — without this
-// directive Turbopack refuses the whole graph ("You're importing a module that
-// depends on `useRef` into a React Server Component module") and every route
-// that reaches the barrel, including `/`, returns 500.
+// Holds React state (`useState`/`useRef`) via `useBulkSeriesAction`, so the
+// whole module is client-only. The `@/features/library` barrel re-exports it
+// into Server Components, which Turbopack refuses without this directive.
 "use client";
 
-import { skipToken, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { useCallback, useRef, useState } from "react";
+import type { SeriesId } from "@/types/api";
 import { libraryApi } from "./api";
-import { type BulkOutcome, type BulkProgress, runBulk, summarizeBulkOutcome } from "./bulk";
-import type { ReadingStatus } from "./url-state";
-import type { SeriesFilter, SeriesSort } from "./types";
+import {
+  type BulkOutcome,
+  type BulkProgress,
+  runBulk,
+  summarizeBulkOutcome,
+} from "./bulk";
+import type { SeriesListParams } from "./url-state";
+import type { FollowedSeries } from "./types";
 
 const LIBRARY_KEY = ["library"] as const;
-const INTELLIGENCE_KEY = ["intelligence"] as const;
-/**
- * Membership sits under its own root rather than inside `LIBRARY_KEY` so the
- * broad `invalidateQueries({ queryKey: LIBRARY_KEY })` used by other mutations
- * cannot wipe the optimistic state of every visible toggle. Being a root key
- * also means the `ProfileCacheBoundary` drops it on a profile switch, which is
- * required: the bit is per (user, profile).
- */
-const MEMBERSHIP_KEY = ["library-membership"] as const;
+const DISCOVERY_KEY = ["library-discovery"] as const;
 
-// --- Series ---
+// --- Followed series ---
 
-export function useSeriesList(params: {
-  page?: number;
-  per_page?: number;
-  sort?: SeriesSort;
-  search?: string;
-  status?: SeriesFilter;
-  reading_status?: string;
-  collection_id?: number;
-  tag_id?: number;
-  library_id?: number;
-  is_favorite?: boolean;
-  language?: string;
-  has_chapters?: boolean;
-}) {
+export function useSeriesList(params: SeriesListParams) {
   return useQuery({
     queryKey: [...LIBRARY_KEY, "series", params],
     queryFn: () => libraryApi.listSeries(params),
   });
 }
 
-/**
- * Key of one series' detail payload (`GET /library/series/{id}`).
- *
- * Exported because the payload now carries state a *write* elsewhere changes —
- * `is_followed`/`follow_tracker_id` move when the Follow control fires — and
- * that invalidation has to name the same key `useSeries` reads, not a
- * hand-copied lookalike that silently stops matching.
- */
-export function seriesQueryKey(seriesId: number | null) {
-  return [...LIBRARY_KEY, "series", seriesId] as const;
+export function seriesQueryKey(followedId: number | null) {
+  return [...LIBRARY_KEY, "series-detail", followedId] as const;
 }
 
-export function useSeries(seriesId: number | null) {
+export function useSeries(followedId: number | null) {
   return useQuery({
-    queryKey: seriesQueryKey(seriesId),
-    queryFn: () => libraryApi.getSeries(seriesId!),
-    enabled: seriesId !== null,
+    queryKey: seriesQueryKey(followedId),
+    queryFn: () => libraryApi.getSeries(followedId!),
+    enabled: followedId !== null,
+  });
+}
+
+/** Detail for a `(source, series_key)` that may not be followed yet. */
+export function useSeriesByKey(ref: SeriesId | null) {
+  return useQuery({
+    queryKey: [...LIBRARY_KEY, "series-by-key", ref?.sourceId, ref?.seriesKey],
+    queryFn: () => libraryApi.getSeriesByKey(ref!),
+    enabled: ref !== null,
   });
 }
 
@@ -73,315 +60,131 @@ export function useContinueReading(limit = 10) {
   });
 }
 
-// --- Search ---
+// --- Search over the followed set ---
 
-/**
- * Relevance-ranked search over the shelf (`GET /library/search`): also matches
- * descriptions and boosts what is being read.
- *
- * NOT what the library grid's search box uses. That box sits inside a filter and
- * sort toolbar whose state is bookmarkable, and this endpoint takes no filters,
- * no sort and no page size beyond `q` — a URL claiming "favourites, by year"
- * while the results ignored both would be a lie. The grid searches through
- * `list_series(search=…)` instead, which composes. This stays as the binding for
- * ranked search, which the mobile client uses.
- */
 export function useSearch(params: { q: string; page?: number; per_page?: number }) {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "search", params],
+    queryKey: [...DISCOVERY_KEY, "search", params],
     queryFn: () => libraryApi.search(params),
     enabled: params.q.length > 0,
   });
 }
 
-// --- Favorites ---
+// --- Follow / unfollow ---
 
-export function useToggleFavorite() {
+/**
+ * Map of `"sourceId:seriesKey" -> followed_id` over the whole followed set, so
+ * a `FollowButton` anywhere can tell whether its series is followed and get the
+ * id it needs to unfollow. One request, shared cache.
+ */
+export function useFollowedIndex() {
+  const query = useQuery({
+    queryKey: [...LIBRARY_KEY, "followed-index"],
+    queryFn: () => libraryApi.listSeries({ per_page: 200, sort: "title" }),
+  });
+  const index = new Map<string, number>();
+  for (const row of query.data?.items ?? []) {
+    index.set(`${row.source_id}:${row.series_key}`, row.id);
+  }
+  return { ...query, index };
+}
+
+export function followKey(ref: SeriesId): string {
+  return `${ref.sourceId}:${ref.seriesKey}`;
+}
+
+export function useFollow() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (seriesId: number) => libraryApi.toggleFavorite(seriesId),
-    onSuccess: (data) => {
-      // Invalidate all series queries that could be affected
-      queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
-      // Also invalidate the specific series
-      queryClient.invalidateQueries({
-        queryKey: [...LIBRARY_KEY, "series", data.series_id],
-      });
+    mutationFn: (ref: SeriesId) => libraryApi.follow(ref),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
     },
   });
 }
 
-// --- Library membership ---
-
-export function libraryMembershipQueryKey(seriesId: number) {
-  return [...MEMBERSHIP_KEY, seriesId] as const;
-}
-
-/**
- * Whether `seriesId` is on the active profile's shelf, as displayed.
- *
- * There is nothing to fetch: `in_library` rides on the series payload
- * (`_series_summary`, backend/services/library_intelligence_service.py:1570),
- * and callers reached through a membership-gated read (the library grid, local
- * search hits, recommendations, similar) know it is `true` by construction.
- * `seed` is that answer.
- *
- * The query entry is kept because the add/remove mutation writes into it —
- * optimistically on click, then the server's own answer — so every control for
- * the same series flips together and the state survives the refetch the write
- * triggers.
- */
-export function useLibraryMembership(seriesId: number, seed: boolean) {
-  return useQuery({
-    queryKey: libraryMembershipQueryKey(seriesId),
-    // No fetcher: the payload already carried the answer, so a refetch could
-    // only invent one. `skipToken` disables the query outright.
-    queryFn: skipToken,
-    initialData: seed,
+export function useUnfollow() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (followedId: number) => libraryApi.unfollow(followedId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
+    },
   });
 }
 
-/**
- * Add or remove a series for the active profile, optimistically.
- *
- * The membership bit decides what every gated read returns, so a successful
- * write invalidates the library and discovery caches: a removed series has to
- * disappear from the grid, an added one has to appear in it.
- */
-export function useSetLibraryMembership() {
+// --- Follow-row patches ---
+
+export interface SeriesPatch {
+  is_favorite?: boolean;
+  reading_status?: string;
+  notify?: boolean;
+  mature_override?: boolean;
+  sort_order?: number;
+}
+
+export function usePatchSeries() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ seriesId, inLibrary }: { seriesId: number; inLibrary: boolean }) =>
-      inLibrary ? libraryApi.addToLibrary(seriesId) : libraryApi.removeFromLibrary(seriesId),
-    onMutate: async ({ seriesId, inLibrary }) => {
-      const key = libraryMembershipQueryKey(seriesId);
-      await queryClient.cancelQueries({ queryKey: key });
-      const previous = queryClient.getQueryData<boolean | null>(key);
-      queryClient.setQueryData(key, inLibrary);
-      return { previous };
-    },
-    onError: (_error, { seriesId }, context) => {
-      const key = libraryMembershipQueryKey(seriesId);
-      if (context?.previous === undefined) {
-        // Nothing was known before the optimistic write; dropping the entry
-        // restores "unknown" (setQueryData ignores an undefined value).
-        queryClient.removeQueries({ queryKey: key, exact: true });
-        return;
-      }
-      queryClient.setQueryData(key, context.previous);
-    },
-    onSuccess: (membership) => {
-      queryClient.setQueryData(
-        libraryMembershipQueryKey(membership.series_id),
-        membership.in_library,
+    mutationFn: ({ followedId, body }: { followedId: number; body: SeriesPatch }) =>
+      libraryApi.patchSeries(followedId, body),
+    onSuccess: (data: FollowedSeries) => {
+      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
+      queryClient.setQueryData(seriesQueryKey(data.id), (prev: unknown) =>
+        prev && typeof prev === "object" ? { ...prev, ...data } : prev,
       );
     },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
-      void queryClient.invalidateQueries({ queryKey: INTELLIGENCE_KEY });
-    },
   });
 }
 
-// --- Bulk actions ---
-
-/**
- * What a bulk action does to one series.
- *
- * `favorite` and `reading_status` go through `PATCH /library/series/{id}` rather
- * than the `/favorite` toggle: a toggle applied to a mixed selection would
- * *invert* each series and leave the shelf more mixed than it started, whereas
- * the PATCH sets an absolute value. Both fields land on the caller's own
- * `user_series_state` row (backend/services/library_intelligence_service.py:472-490).
- */
-export type BulkAction =
-  | { kind: "favorite"; value: boolean }
-  | { kind: "reading_status"; value: ReadingStatus }
-  | { kind: "tag"; tagId: number }
-  | { kind: "membership"; inLibrary: boolean };
-
-/** Past participle for the completion message: "12 series removed." */
-function bulkActionVerb(action: BulkAction): string {
-  switch (action.kind) {
-    case "favorite":
-      return action.value ? "favourited" : "unfavourited";
-    case "reading_status":
-      return action.value === "completed" ? "marked read" : `marked ${action.value}`;
-    case "tag":
-      return "tagged";
-    case "membership":
-      return action.inLibrary ? "added back" : "removed";
-  }
+export function useToggleFavorite() {
+  const patch = usePatchSeries();
+  return {
+    ...patch,
+    mutate: ({ followedId, isFavorite }: { followedId: number; isFavorite: boolean }) =>
+      patch.mutate({ followedId, body: { is_favorite: isFavorite } }),
+  };
 }
 
-function bulkActionRequest(action: BulkAction, seriesId: number): Promise<unknown> {
-  switch (action.kind) {
-    case "favorite":
-      return libraryApi.updateMetadata(seriesId, { is_favorite: action.value });
-    case "reading_status":
-      return libraryApi.updateMetadata(seriesId, { reading_status: action.value });
-    case "tag":
-      return libraryApi.addTagToSeries(seriesId, action.tagId);
-    case "membership":
-      return action.inLibrary
-        ? libraryApi.addToLibrary(seriesId)
-        : libraryApi.removeFromLibrary(seriesId);
-  }
-}
-
-export interface BulkActionState {
-  run: (action: BulkAction, seriesIds: readonly number[]) => Promise<BulkOutcome<number>>;
-  cancel: () => void;
-  progress: BulkProgress | null;
-  isRunning: boolean;
-  /** One-line result of the last run, until dismissed. */
-  message: string | null;
-  dismissMessage: () => void;
-}
-
-/**
- * Apply one action to many series.
- *
- * The library API has no bulk endpoint for any of these, so every action is N
- * requests; `runBulk` bounds how many are in flight and reports progress, and
- * the caller can stop a long run part-way. Caches are invalidated once at the
- * end rather than per request — invalidating 200 times would refetch the whole
- * grid 200 times while the run is still going.
- */
-export function useBulkSeriesAction(): BulkActionState {
-  const queryClient = useQueryClient();
-  const [progress, setProgress] = useState<BulkProgress | null>(null);
-  const [isRunning, setIsRunning] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
-  const abortRef = useRef<AbortController | null>(null);
-
-  const cancel = useCallback(() => {
-    abortRef.current?.abort();
-  }, []);
-
-  const dismissMessage = useCallback(() => setMessage(null), []);
-
-  const run = useCallback(
-    async (action: BulkAction, seriesIds: readonly number[]) => {
-      const controller = new AbortController();
-      abortRef.current = controller;
-      setIsRunning(true);
-      setMessage(null);
-      setProgress({ completed: 0, failed: 0, total: seriesIds.length });
-
-      try {
-        const outcome = await runBulk(
-          seriesIds,
-          (seriesId) => bulkActionRequest(action, seriesId),
-          { onProgress: setProgress, signal: controller.signal },
-        );
-
-        // Membership decides what every gated read returns, so the per-series
-        // toggles have to be told the new answer directly — they read from a
-        // fetcher-less query that an invalidation alone cannot refresh.
-        if (action.kind === "membership") {
-          for (const seriesId of outcome.succeeded) {
-            queryClient.setQueryData(
-              libraryMembershipQueryKey(seriesId),
-              action.inLibrary,
-            );
-          }
-        }
-        await queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
-        await queryClient.invalidateQueries({ queryKey: INTELLIGENCE_KEY });
-
-        setMessage(summarizeBulkOutcome(outcome, bulkActionVerb(action)));
-        return outcome;
-      } finally {
-        abortRef.current = null;
-        setIsRunning(false);
-        setProgress(null);
-      }
-    },
-    [queryClient],
-  );
-
-  return { run, cancel, progress, isRunning, message, dismissMessage };
-}
-
-// --- Recommendations ---
+// --- Discovery ---
 
 export function useRecommendations(limit = 10) {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "recommendations", limit],
+    queryKey: [...DISCOVERY_KEY, "recommendations", limit],
     queryFn: () => libraryApi.recommendations(limit),
   });
 }
 
-// --- Similar ---
-
-export function useSimilarSeries(seriesId: number | null, limit = 10) {
-  return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "similar", seriesId, limit],
-    queryFn: () => libraryApi.similarSeries(seriesId!, limit),
-    enabled: seriesId !== null,
-  });
-}
-
-// --- Reading history ---
-
 export function useReadingHistory(limit = 50) {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "reading-history", limit],
+    queryKey: [...DISCOVERY_KEY, "reading-history", limit],
     queryFn: () => libraryApi.readingHistory(limit),
   });
 }
 
-export function useReadingCalendar(days = 30) {
-  return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "reading-calendar", days],
-    queryFn: () => libraryApi.readingCalendar(days),
-  });
-}
-
-export function useSeriesReadingHistory(seriesId: number | null, limit = 50) {
-  return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "series-reading-history", seriesId, limit],
-    queryFn: () => libraryApi.seriesReadingHistory(seriesId!, limit),
-    enabled: seriesId !== null,
-  });
-}
-
-// --- Statistics ---
-
 export function useStatistics() {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "statistics"],
+    queryKey: [...DISCOVERY_KEY, "statistics"],
     queryFn: () => libraryApi.statistics(),
   });
 }
 
-// --- Metadata ---
+// --- Bookmarks ---
 
-export function useMetadataQuality(seriesId: number | null) {
+export function useBookmarks(ref?: Partial<SeriesId>) {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "metadata-quality", seriesId],
-    queryFn: () => libraryApi.metadataQuality(seriesId!),
-    enabled: seriesId !== null,
+    queryKey: [...DISCOVERY_KEY, "bookmarks", ref?.sourceId, ref?.seriesKey],
+    queryFn: () => libraryApi.listBookmarks(ref),
   });
 }
 
-export function useUpdateMetadata() {
+export function useDeleteBookmark() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      seriesId,
-      body,
-    }: {
-      seriesId: number;
-      body: Record<string, unknown>;
-    }) => libraryApi.updateMetadata(seriesId, body),
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: [...LIBRARY_KEY, "series", data.id],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "metadata-quality", data.id],
+    mutationFn: (bookmarkId: number) => libraryApi.deleteBookmark(bookmarkId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "bookmarks"],
       });
     },
   });
@@ -391,14 +194,14 @@ export function useUpdateMetadata() {
 
 export function useCollections() {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "collections"],
+    queryKey: [...DISCOVERY_KEY, "collections"],
     queryFn: () => libraryApi.listCollections(),
   });
 }
 
 export function useCollection(collectionId: number | null) {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "collections", collectionId],
+    queryKey: [...DISCOVERY_KEY, "collections", collectionId],
     queryFn: () => libraryApi.getCollection(collectionId!),
     enabled: collectionId !== null,
   });
@@ -410,8 +213,8 @@ export function useCreateCollection() {
     mutationFn: (body: { name: string; description?: string }) =>
       libraryApi.createCollection(body),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "collections"],
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "collections"],
       });
     },
   });
@@ -428,8 +231,8 @@ export function useUpdateCollection() {
       body: { name?: string; description?: string; sort_order?: number };
     }) => libraryApi.updateCollection(collectionId, body),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "collections"],
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "collections"],
       });
     },
   });
@@ -438,11 +241,10 @@ export function useUpdateCollection() {
 export function useDeleteCollection() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (collectionId: number) =>
-      libraryApi.deleteCollection(collectionId),
+    mutationFn: (collectionId: number) => libraryApi.deleteCollection(collectionId),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "collections"],
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "collections"],
       });
     },
   });
@@ -451,22 +253,14 @@ export function useDeleteCollection() {
 export function useAddSeriesToCollection() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      collectionId,
-      seriesId,
-    }: {
-      collectionId: number;
-      seriesId: number;
-    }) => libraryApi.addSeriesToCollection(collectionId, seriesId),
+    mutationFn: ({ collectionId, ref }: { collectionId: number; ref: SeriesId }) =>
+      libraryApi.addSeriesToCollection(collectionId, ref),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "collections", variables.collectionId],
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "collections", variables.collectionId],
       });
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "collections"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [...LIBRARY_KEY, "series"],
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "collections"],
       });
     },
   });
@@ -475,22 +269,14 @@ export function useAddSeriesToCollection() {
 export function useRemoveSeriesFromCollection() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      collectionId,
-      seriesId,
-    }: {
-      collectionId: number;
-      seriesId: number;
-    }) => libraryApi.removeSeriesFromCollection(collectionId, seriesId),
+    mutationFn: ({ collectionId, ref }: { collectionId: number; ref: SeriesId }) =>
+      libraryApi.removeSeriesFromCollection(collectionId, ref),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "collections", variables.collectionId],
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "collections", variables.collectionId],
       });
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "collections"],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [...LIBRARY_KEY, "series"],
+      void queryClient.invalidateQueries({
+        queryKey: [...DISCOVERY_KEY, "collections"],
       });
     },
   });
@@ -500,7 +286,7 @@ export function useRemoveSeriesFromCollection() {
 
 export function useTags(category?: string) {
   return useQuery({
-    queryKey: [...INTELLIGENCE_KEY, "tags", category],
+    queryKey: [...DISCOVERY_KEY, "tags", category],
     queryFn: () => libraryApi.listTags(category),
   });
 }
@@ -511,9 +297,7 @@ export function useCreateTag() {
     mutationFn: (body: { name: string; category?: string; color?: string }) =>
       libraryApi.createTag(body),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "tags"],
-      });
+      void queryClient.invalidateQueries({ queryKey: [...DISCOVERY_KEY, "tags"] });
     },
   });
 }
@@ -523,10 +307,7 @@ export function useDeleteTag() {
   return useMutation({
     mutationFn: (tagId: number) => libraryApi.deleteTag(tagId),
     onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "tags"],
-      });
-      queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
+      void queryClient.invalidateQueries({ queryKey: [...DISCOVERY_KEY, "tags"] });
     },
   });
 }
@@ -534,20 +315,10 @@ export function useDeleteTag() {
 export function useAddTagToSeries() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      seriesId,
-      tagId,
-    }: {
-      seriesId: number;
-      tagId: number;
-    }) => libraryApi.addTagToSeries(seriesId, tagId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: [...LIBRARY_KEY, "series", variables.seriesId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "tags"],
-      });
+    mutationFn: ({ ref, tagId }: { ref: SeriesId; tagId: number }) =>
+      libraryApi.addTagToSeries(ref, tagId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
     },
   });
 }
@@ -555,41 +326,107 @@ export function useAddTagToSeries() {
 export function useRemoveTagFromSeries() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({
-      seriesId,
-      tagId,
-    }: {
-      seriesId: number;
-      tagId: number;
-    }) => libraryApi.removeTagFromSeries(seriesId, tagId),
-    onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({
-        queryKey: [...LIBRARY_KEY, "series", variables.seriesId],
-      });
-      queryClient.invalidateQueries({
-        queryKey: [...INTELLIGENCE_KEY, "tags"],
-      });
+    mutationFn: ({ ref, tagId }: { ref: SeriesId; tagId: number }) =>
+      libraryApi.removeTagFromSeries(ref, tagId),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
     },
   });
 }
 
-// --- Import ---
+// --- Bulk actions over the followed grid ---
 
-export function useScanStatus(enabled: boolean) {
-  return useQuery({
-    queryKey: [...LIBRARY_KEY, "scan-status"],
-    queryFn: () => libraryApi.scanStatus(),
-    enabled,
-    refetchInterval: enabled ? 1000 : false,
-  });
+/**
+ * What a bulk action does to one followed series. Membership means unfollow —
+ * bulk re-follow is not offered (it needs the `(source, series_key)` pair per
+ * row, which the grid has, but the undo path is a later slice).
+ */
+export type BulkAction =
+  | { kind: "favorite"; value: boolean }
+  | { kind: "reading_status"; value: string }
+  | { kind: "tag"; tagId: number }
+  | { kind: "unfollow" };
+
+function bulkActionVerb(action: BulkAction): string {
+  switch (action.kind) {
+    case "favorite":
+      return action.value ? "favourited" : "unfavourited";
+    case "reading_status":
+      return action.value === "completed" ? "marked read" : `marked ${action.value}`;
+    case "tag":
+      return "tagged";
+    case "unfollow":
+      return "unfollowed";
+  }
 }
 
-export function useImportLibrary() {
+function bulkActionRequest(
+  action: BulkAction,
+  series: FollowedSeries,
+): Promise<unknown> {
+  const ref: SeriesId = {
+    sourceId: series.source_id,
+    seriesKey: series.series_key,
+  };
+  switch (action.kind) {
+    case "favorite":
+      return libraryApi.patchSeries(series.id, { is_favorite: action.value });
+    case "reading_status":
+      return libraryApi.patchSeries(series.id, { reading_status: action.value });
+    case "tag":
+      return libraryApi.addTagToSeries(ref, action.tagId);
+    case "unfollow":
+      return libraryApi.unfollow(series.id);
+  }
+}
+
+export interface BulkActionState {
+  run: (
+    action: BulkAction,
+    series: readonly FollowedSeries[],
+  ) => Promise<BulkOutcome<FollowedSeries>>;
+  cancel: () => void;
+  progress: BulkProgress | null;
+  isRunning: boolean;
+  message: string | null;
+  dismissMessage: () => void;
+}
+
+export function useBulkSeriesAction(): BulkActionState {
   const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (folderPath: string) => libraryApi.importLibrary(folderPath),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
+  const [progress, setProgress] = useState<BulkProgress | null>(null);
+  const [isRunning, setIsRunning] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
+  const abortRef = useRef<AbortController | null>(null);
+
+  const cancel = useCallback(() => abortRef.current?.abort(), []);
+  const dismissMessage = useCallback(() => setMessage(null), []);
+
+  const run = useCallback(
+    async (action: BulkAction, series: readonly FollowedSeries[]) => {
+      const controller = new AbortController();
+      abortRef.current = controller;
+      setIsRunning(true);
+      setMessage(null);
+      setProgress({ completed: 0, failed: 0, total: series.length });
+
+      try {
+        const outcome = await runBulk(
+          series,
+          (row) => bulkActionRequest(action, row),
+          { onProgress: setProgress, signal: controller.signal },
+        );
+        await queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
+        setMessage(summarizeBulkOutcome(outcome, bulkActionVerb(action)));
+        return outcome;
+      } finally {
+        abortRef.current = null;
+        setIsRunning(false);
+        setProgress(null);
+      }
     },
-  });
+    [queryClient],
+  );
+
+  return { run, cancel, progress, isRunning, message, dismissMessage };
 }

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Check, CloudDownload, Loader2, TriangleAlert, X } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { readerChapterQueryKey } from "@/features/reader/hooks";
+import { readerManifestQueryKey } from "@/features/reader/hooks";
 import type { ReaderChapterContent } from "@/features/reader/types";
 import {
   cancelChapterSave,
@@ -54,7 +54,7 @@ export function OfflineChapterControl({
   const scope = useStorageScope();
   const state = useOfflineState();
   const queryClient = useQueryClient();
-  const key = chapterCacheKey(chapter.id);
+  const key = chapterCacheKey(chapter);
   const entry = useSavedChapter(key);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -96,7 +96,13 @@ export function OfflineChapterControl({
       // the saved images are guaranteed to describe the same pages. When it is
       // not in the cache the worker fetches it itself — `payloadUrl` is in the
       // download plan either way.
-      const cached = queryClient.getQueryData(readerChapterQueryKey(Number(chapter.id)));
+      const cached = queryClient.getQueryData(
+        readerManifestQueryKey({
+          sourceId: chapter.sourceId,
+          seriesKey: chapter.seriesKey,
+          chapterKey: chapter.chapterKey,
+        }),
+      );
       await saveChapterOffline(
         buildSaveRequest({
           chapter,
