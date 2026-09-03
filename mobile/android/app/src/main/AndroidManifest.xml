@@ -37,6 +37,17 @@
             android:name="flutterEmbedding"
             android:value="2" />
 
+        <!-- Asks Play Services to fetch ML Kit's Latin OCR model when the app
+             is installed rather than on the first OCR run (1c-M4). The
+             dependency in app/build.gradle.kts is the hosted variant, not the
+             bundled one — see the comment there for why — so without this the
+             very first "OCR this chapter" would race a model download.
+             OcrChannel.isAvailable still probes for real, so a device where
+             this never completed hides the feature instead of failing at it. -->
+        <meta-data
+            android:name="com.google.mlkit.vision.DEPENDENCIES"
+            android:value="ocr" />
+
     </application>
 
     <queries>

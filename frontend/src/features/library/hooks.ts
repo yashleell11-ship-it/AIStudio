@@ -20,8 +20,16 @@ import {
 import type { SeriesListParams } from "./url-state";
 import type { FollowedSeries } from "./types";
 
-const LIBRARY_KEY = ["library"] as const;
-const DISCOVERY_KEY = ["library-discovery"] as const;
+/**
+ * Cache roots for the two library namespaces. Exported because the backend
+ * filters everything under both by the profile's 18+ gate, so flipping that
+ * gate has to invalidate them — see `preferences/mature-gate.ts`.
+ */
+export const LIBRARY_QUERY_ROOT = "library" as const;
+export const LIBRARY_DISCOVERY_QUERY_ROOT = "library-discovery" as const;
+
+const LIBRARY_KEY = [LIBRARY_QUERY_ROOT] as const;
+const DISCOVERY_KEY = [LIBRARY_DISCOVERY_QUERY_ROOT] as const;
 
 // --- Followed series ---
 
