@@ -48,7 +48,21 @@ def db_engine(tmp_path: Path):
 
 @pytest.fixture
 def session_factory(db_engine):
-    return sessionmaker(bind=db_engine, autoflush=False, autocommit=False)
+    """A sessionmaker configured **exactly** like production ``SessionLocal``.
+
+    ``expire_on_commit=False`` matters: with the SQLAlchemy default, every
+    instance is expired at commit and silently reloaded on next access, so a
+    relationship read before a write is refreshed for free and stale-read bugs
+    never reproduce here. Production does not do that. Keep these flags in
+    sync with ``database.session.SessionLocal`` or the suite stops testing the
+    server that actually ships.
+    """
+    return sessionmaker(
+        bind=db_engine,
+        autoflush=False,
+        autocommit=False,
+        expire_on_commit=False,
+    )
 
 
 @pytest.fixture
