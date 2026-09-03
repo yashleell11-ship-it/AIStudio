@@ -82,6 +82,15 @@ def register_limit() -> str:
     return get_settings().rate_limit_register
 
 
+def bootstrap_status_limit() -> str:
+    """Limit for GET /auth/bootstrap-status. Public and cheap, but it announces
+    when the bootstrap window is open — the polling oracle an attacker watches
+    to time a registration burst at a freshly wiped instance. One call per app
+    launch is normal use; see Settings.rate_limit_bootstrap_status for the
+    sizing rationale."""
+    return get_settings().rate_limit_bootstrap_status
+
+
 def backup_limit() -> str:
     """Limit for the admin backup restore-upload endpoint. (The old ``import``
     bucket had one other user — folder library import — which is gone; spec

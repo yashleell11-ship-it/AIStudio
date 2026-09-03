@@ -27,6 +27,14 @@ def get_engine() -> Engine:
         cursor = dbapi_connection.cursor()
         cursor.execute("PRAGMA journal_mode=WAL")
         cursor.execute("PRAGMA foreign_keys=ON")
+        # Writer-vs-writer wait budget, made explicit. pysqlite's default
+        # connect timeout already implies ~5s, but the bootstrap-claim
+        # transaction (AuthService.register: BEGIN IMMEDIATE) and the update
+        # sweep both take SQLite's single write lock, so pin the wait here
+        # where the other pragmas live rather than relying on a driver
+        # default. WAL keeps readers unaffected; contending writers queue for
+        # up to this long instead of failing instantly with SQLITE_BUSY.
+        cursor.execute("PRAGMA busy_timeout=5000")
         cursor.close()
 
     return engine
