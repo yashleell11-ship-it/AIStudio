@@ -6,6 +6,12 @@
 **Supersedes for the download path:** `docs/OFFLINE_READING.md` (which assumed
 NAS-primary + phone-mirror; this flips to phone-only).
 
+> **As-built (2026-09-04):** shipped and deployed. 600 backend tests green;
+> the endpoint/schema shapes below match `backend/routes/*.py` and
+> `backend/database/models.py` as verified while updating `docs/`. See
+> [`../../ARCHITECTURE.md`](../../ARCHITECTURE.md) and
+> [`../../CLAUDE_HANDOFF.md`](../../CLAUDE_HANDOFF.md) §5 for current status.
+
 ---
 
 ## 1. Why

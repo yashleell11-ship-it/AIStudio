@@ -5,6 +5,11 @@
 **Sub-project:** 1b of 3. Depends on 1a (backend source-native rebuild, landed on `feat/vps-slim-source-native`). Sibling: 1c (mobile + deploy).
 **Branch:** same `feat/vps-slim-source-native` — not merged to `main` until 1a+1b+1c all land.
 
+> **As-built (2026-09-04):** well underway per `CLAUDE_HANDOFF.md` §5 — source-native
+> migration and the reader experience pass (cinema mode, seamless pages/chapter
+> transitions, continue-hero, ambient mood tint) have landed; OCR/updates/admin
+> polish and e2e coverage were still being finished as of this note.
+
 ---
 
 ## 1. Why
