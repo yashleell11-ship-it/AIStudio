@@ -900,6 +900,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
     final pageImage = ReaderPageImage(
       imageUrl: page.imageUrl,
+      localFile: page.localFile,
       alt: '${widget.chapter.title} page $pageNumber',
       aspectRatio: metrics.ratioAt(index),
       fitMode: fitMode,

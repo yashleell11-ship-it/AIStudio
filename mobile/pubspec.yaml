@@ -33,6 +33,17 @@ dependencies:
   package_info_plus: ^8.0.0
   path_provider: ^2.1.3
 
+  # On-device chapter store (1c-M3) — sqflite is already a resolved transitive
+  # pod (pulled in by flutter_cache_manager), so promoting it to a direct
+  # dependency changes zero native build inputs; see docs/OFFLINE_READING.md
+  # and superpowers/specs/2026-09-03-mobile-source-native-design.md §3.
+  # `path` and `crypto` are likewise already-resolved transitive packages
+  # (path_provider / sqflite depend on them) promoted for the same reason —
+  # content-addressed blob paths and their sha256 hashes.
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  crypto: ^3.0.3
+
   # Logging
   logger: ^2.3.0
 
@@ -58,6 +69,11 @@ dev_dependencies:
 
   # Testing
   mocktail: ^1.0.4
+
+  # sqflite on the desktop `flutter test` host has no platform channel, so the
+  # on-device store's tests run it against real SQLite via FFI instead — dev
+  # only, never ships in the app (no native/pod impact).
+  sqflite_common_ffi: ^2.3.3
 
   # Linting
   flutter_lints: ^4.0.0

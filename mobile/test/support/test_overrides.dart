@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
@@ -59,6 +60,17 @@ class _ReadyProfileSessionNotifier extends ProfileSessionReadyNotifier {
 /// app skip the once-per-session profile picker and land on the app shell.
 Override profileSessionReadyOverride() =>
     profileSessionReadyProvider.overrideWith(_ReadyProfileSessionNotifier.new);
+
+/// Forces [downloadsStoreProvider] to `null` regardless of the auth/profile
+/// overrides above — otherwise a full-app widget test with
+/// [authenticatedAuthOverride] + [activeProfileOverride] resolves a *real*
+/// [DownloadsStore], and any screen it mounts that touches the on-device
+/// store (the reader, series detail, Settings → Storage, …) reaches real
+/// `sqflite`/`path_provider` platform channels with no native handler
+/// registered in a widget test. Use this in every full-app test unless it is
+/// specifically exercising downloads — those use the FFI-backed harness in
+/// `test/support/downloads_test_support.dart` instead.
+Override noDownloadsStoreOverride() => downloadsStoreProvider.overrideWithValue(null);
 
 const setupCompletedPrefKey = 'settings_setup_completed';
 

@@ -3,6 +3,7 @@ package com.manhwamaniacs.reader
 import android.app.ActivityManager
 import android.content.Context
 import android.os.Bundle
+import android.os.StatFs
 import android.view.KeyEvent
 import androidx.core.view.WindowCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -10,11 +11,15 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /**
- * Native bridge for two things the Flutter side can't do on its own:
+ * Native bridge for things the Flutter side can't do on its own:
  *  - Volume-key page turning in the reader (hardware key events must be
  *    intercepted here, before the OS shows its volume UI).
  *  - Real device memory stats, to size the reader's image cache relative to
  *    the device instead of a single fixed budget for every phone.
+ *  - Free disk space, so the on-device chapter store (1c-M3) can enforce its
+ *    ~1.5 GB free-space floor. `dart:io` has no cross-platform "bytes free"
+ *    API and this project adds no new plugins for it — `StatFs` is a
+ *    framework class, zero new Gradle dependencies.
  */
 class MainActivity : FlutterActivity() {
     private val channelName = "com.manhwamaniacs.reader/native"
@@ -40,6 +45,7 @@ class MainActivity : FlutterActivity() {
                     result.success(null)
                 }
                 "getDeviceMemoryInfo" -> result.success(readDeviceMemoryInfo())
+                "getFreeDiskSpace" -> result.success(readFreeDiskSpaceBytes())
                 else -> result.notImplemented()
             }
         }
@@ -61,6 +67,15 @@ class MainActivity : FlutterActivity() {
             "availMem" to info.availMem,
             "lowMemory" to info.lowMemory,
         )
+    }
+
+    // Bytes free on the same volume the blob store writes to
+    // (`getApplicationDocumentsDirectory()` resolves to `filesDir` here) —
+    // matching the partition the free-space floor actually protects, not
+    // necessarily the whole disk on a device with multiple volumes.
+    private fun readFreeDiskSpaceBytes(): Long {
+        val stat = StatFs(filesDir.path)
+        return stat.availableBytes
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

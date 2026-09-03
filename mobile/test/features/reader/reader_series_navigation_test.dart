@@ -134,6 +134,7 @@ Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
       readerRepositoryProvider.overrideWithValue(_ProgressOnlyReaderRepository()),
       authenticatedAuthOverride(),
       activeProfileOverride(),
+      noDownloadsStoreOverride(),
       profileSessionReadyOverride(),
       chapterManifestProvider(
         (sourceId: _libSourceId, seriesKey: _libSeriesKey, chapterKey: _libChapterKey),

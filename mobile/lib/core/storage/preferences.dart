@@ -23,6 +23,12 @@ abstract final class _Keys {
   static const String lastSeenChangelogBuild = 'settings_last_seen_changelog_build';
   static const String volumeKeyNavigation = 'settings_volume_key_navigation';
   static const String cachedAuthUser = 'auth_cached_user';
+
+  // On-device chapter store (1c-M3) — device properties, deliberately not
+  // namespaced per profile: two profiles on one phone share one disk.
+  static const String downloadStorageCap = 'settings_download_storage_cap';
+  static const String downloadRetentionInterval =
+      'settings_download_retention_interval';
 }
 
 /// Light preferences that do not need encryption.
@@ -145,6 +151,20 @@ class PreferencesService {
   Future<void> setCachedAuthUser(String json) =>
       _prefs.setString(_Keys.cachedAuthUser, json);
   Future<void> clearCachedAuthUser() => _prefs.remove(_Keys.cachedAuthUser);
+
+  /// The on-device downloads cap, as a [StorageCap] wire name (e.g. `'gb10'`)
+  /// — raw string here so `core/` stays independent of `features/downloads`;
+  /// `features/downloads` owns the enum and its default.
+  String? get downloadStorageCap =>
+      _prefs.getString(_Keys.downloadStorageCap);
+  Future<void> setDownloadStorageCap(String value) =>
+      _prefs.setString(_Keys.downloadStorageCap, value);
+
+  /// The read-then-expire sweep interval, as a [RetentionInterval] wire name.
+  String? get downloadRetentionInterval =>
+      _prefs.getString(_Keys.downloadRetentionInterval);
+  Future<void> setDownloadRetentionInterval(String value) =>
+      _prefs.setString(_Keys.downloadRetentionInterval, value);
 
   List<String> get pinnedSources =>
       _prefs.getStringList(_Keys.pinnedSources) ?? [];

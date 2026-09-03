@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -96,10 +98,18 @@ class ReaderPageImage extends ConsumerStatefulWidget {
     this.onLoad,
     this.onIntrinsicSize,
     this.httpHeaders,
+    this.localFile,
   });
 
   final String imageUrl;
   final String alt;
+
+  /// On-device chapter store resolution (1c-M3): when non-null, this page
+  /// renders from disk and [imageUrl] is never fetched at all — no network,
+  /// no cache manager, works with the server unreachable. The caller (the
+  /// reader screens, not this widget) decides which it got; this widget just
+  /// prefers whichever it was handed.
+  final File? localFile;
 
   /// Placeholder ratio used only while the page is loading or failed;
   /// the loaded image always lays out at its intrinsic size.
@@ -158,10 +168,14 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
   /// Deliberately the same [ResizeImage] key the rendered page and the
   /// prefetcher use, so this is a cache hit and never a second decode. The
   /// downsampled bitmap keeps the source's aspect ratio, which is all the
-  /// caller wants.
+  /// caller wants. Prefers the on-device file over the network for exactly
+  /// the same reason the rendered page does — an offline chapter must never
+  /// need a network round trip just to learn a page's aspect ratio.
   void _listenForIntrinsicSize() {
     if (widget.onIntrinsicSize == null || _sizeReported) return;
-    if (_sizeStream != null || widget.imageUrl.isEmpty) return;
+    if (_sizeStream != null) return;
+    final localFile = widget.localFile;
+    if (localFile == null && widget.imageUrl.isEmpty) return;
 
     final headers = widget.httpHeaders ??
         apiImageHttpHeaders(
@@ -174,7 +188,9 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
         MediaQuery.devicePixelRatioOf(context),
       ),
       null,
-      CachedNetworkImageProvider(widget.imageUrl, headers: headers),
+      localFile != null
+          ? FileImage(localFile) as ImageProvider
+          : CachedNetworkImageProvider(widget.imageUrl, headers: headers),
     );
 
     final stream = provider.resolve(createLocalImageConfiguration(context));
@@ -215,7 +231,107 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
     );
   }
 
+  Widget _loadingBox() => _placeholderBox(
+        child: ColoredBox(
+          color: widget.backgroundColor,
+          child: const Center(
+            child: SizedBox(
+              width: 24,
+              height: 24,
+              child: CircularProgressIndicator(strokeWidth: 2),
+            ),
+          ),
+        ),
+      );
+
+  /// Shared by both the network and on-device sources — the reader must not
+  /// look different depending on which one served a page, only whether it
+  /// loaded.
+  Widget _brokenPageBox() => _placeholderBox(
+        child: ColoredBox(
+          color: widget.backgroundColor,
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(AppSpacing.lg),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.broken_image_outlined, color: AppColors.muted),
+                  const SizedBox(height: AppSpacing.sm),
+                  Text(
+                    'Failed to load page',
+                    style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: AppSpacing.md),
+                  OutlinedButton(onPressed: _retry, child: const Text('Retry')),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
   BoxFit get _boxFit => readerFitModeToBoxFit(widget.fitMode);
+
+  Widget _loadedImage(int? decodeWidth, ImageProvider provider) {
+    // Wrap with the same ResizeImage the widget's memCacheWidth uses so this
+    // render reuses the already-decoded, downsampled bitmap instead of
+    // decoding the page a second time at full resolution.
+    return ReaderLoadedPageImage(
+      image: ResizeImage.resizeIfNeeded(decodeWidth, null, provider),
+      fitMode: widget.fitMode,
+      layoutAxis: widget.layoutAxis,
+      viewportWidth: widget.viewportWidth,
+      viewportHeight: widget.viewportHeight,
+      semanticLabel: widget.alt,
+    );
+  }
+
+  /// On-device store resolution — no network, no cache manager, works with
+  /// the server unreachable. [File.existsSync] is checked up front: a blob a
+  /// user deleted by hand through the Files app (spec §3b) shows the same
+  /// broken-page/retry state a network failure would, rather than a raw
+  /// filesystem exception.
+  Widget _buildLocalImage(int? decodeWidth, File file) {
+    if (!file.existsSync()) return _brokenPageBox();
+    return Image(
+      key: ValueKey('local:${file.path}:$_retryToken'),
+      image: FileImage(file),
+      fit: _boxFit,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
+        if (frame == null) return _loadingBox();
+        WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
+        return _loadedImage(decodeWidth, FileImage(file));
+      },
+      errorBuilder: (context, error, stackTrace) => _brokenPageBox(),
+    );
+  }
+
+  Widget _buildNetworkImage(int? decodeWidth, Map<String, String>? headers) {
+    return CachedNetworkImage(
+      key: ValueKey('${widget.imageUrl}:$_retryToken'),
+      imageUrl: widget.imageUrl,
+      httpHeaders: headers,
+      fit: _boxFit,
+      memCacheWidth: decodeWidth,
+      width: widget.layoutAxis == Axis.vertical &&
+              widget.fitMode == ReaderFitMode.width
+          ? double.infinity
+          : null,
+      height: widget.layoutAxis == Axis.horizontal &&
+              widget.fitMode == ReaderFitMode.height
+          ? double.infinity
+          : null,
+      fadeInDuration: const Duration(milliseconds: 150),
+      placeholder: (_, __) => _loadingBox(),
+      errorWidget: (_, __, ___) => _brokenPageBox(),
+      imageBuilder: (context, imageProvider) {
+        WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
+        return _loadedImage(decodeWidth, imageProvider);
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -240,72 +356,12 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
     final borderRadius =
         seamless ? BorderRadius.zero : BorderRadius.circular(AppRadius.sm);
 
-    final image = CachedNetworkImage(
-      key: ValueKey('${widget.imageUrl}:$_retryToken'),
-      imageUrl: widget.imageUrl,
-      httpHeaders: headers,
-      fit: _boxFit,
-      memCacheWidth: decodeWidth,
-      width: widget.layoutAxis == Axis.vertical &&
-              widget.fitMode == ReaderFitMode.width
-          ? double.infinity
-          : null,
-      height: widget.layoutAxis == Axis.horizontal &&
-              widget.fitMode == ReaderFitMode.height
-          ? double.infinity
-          : null,
-      fadeInDuration: const Duration(milliseconds: 150),
-      placeholder: (_, __) => _placeholderBox(
-        child: ColoredBox(
-          color: widget.backgroundColor,
-          child: const Center(
-            child: SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        ),
-      ),
-      errorWidget: (_, __, ___) => _placeholderBox(
-        child: ColoredBox(
-          color: widget.backgroundColor,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.broken_image_outlined, color: AppColors.muted),
-                  const SizedBox(height: AppSpacing.sm),
-                  Text(
-                    'Failed to load page',
-                    style: AppTypography.bodySm.copyWith(color: AppColors.muted),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: AppSpacing.md),
-                  OutlinedButton(onPressed: _retry, child: const Text('Retry')),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-      imageBuilder: (context, imageProvider) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
-        // Wrap with the same ResizeImage the widget's memCacheWidth uses so
-        // this render reuses the already-decoded, downsampled bitmap
-        // instead of decoding the page a second time at full resolution.
-        return ReaderLoadedPageImage(
-          image: ResizeImage.resizeIfNeeded(decodeWidth, null, imageProvider),
-          fitMode: widget.fitMode,
-          layoutAxis: widget.layoutAxis,
-          viewportWidth: widget.viewportWidth,
-          viewportHeight: widget.viewportHeight,
-          semanticLabel: widget.alt,
-        );
-      },
-    );
+    // On-device store first, network second (spec §3) — and the reader does
+    // not know or care which it got beyond this one branch.
+    final localFile = widget.localFile;
+    final image = localFile != null
+        ? _buildLocalImage(decodeWidth, localFile)
+        : _buildNetworkImage(decodeWidth, headers);
 
     // Seamless (vertical) pages need no clip or shadow — the backdrop-coloured
     // box behind the image absorbs any letterbox bars so joins stay invisible.

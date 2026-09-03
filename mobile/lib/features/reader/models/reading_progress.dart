@@ -96,4 +96,19 @@ class ProgressPush {
         'is_completed': isCompleted,
         'time_spent_seconds': timeSpentSeconds,
       };
+
+  /// Round-trips [toJson] — the on-device progress outbox (1c-M3) persists
+  /// pushes as this exact JSON shape between the save and the next
+  /// successful `POST /reader/progress/batch` flush.
+  factory ProgressPush.fromJson(Map<String, dynamic> json) => ProgressPush(
+        sourceId: json['source_id'] as String,
+        seriesKey: json['series_key'] as String,
+        chapterKey: json['chapter_key'] as String,
+        chapterNumber: (json['chapter_number'] as num?)?.toDouble(),
+        lastPage: json['last_page'] as int,
+        pageCount: json['page_count'] as int? ?? 0,
+        scrollOffsetPx: json['scroll_offset_px'] as int? ?? 0,
+        isCompleted: json['is_completed'] as bool? ?? false,
+        timeSpentSeconds: json['time_spent_seconds'] as int? ?? 0,
+      );
 }
