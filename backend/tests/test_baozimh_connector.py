@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from unittest.mock import patch
 
@@ -111,6 +112,50 @@ def test_chapter_pages(baozimh_connector: BaoZiMHConnector):
     assert pages[0].number == 1
     assert pages[0].remote_url.endswith("/1.jpg")
     assert baozimh_connector.find_page(pages[0].id) == pages[0]
+
+
+def test_chapter_pages_rehosted_off_dead_bzcdn(baozimh_connector: BaoZiMHConnector):
+    """Regression: s<N>.bzcdn.net refuses connections; rehost onto static-tw.
+
+    The reader markup still emits bzcdn.net page URLs (the fixture is real
+    markup and proves it), but that CDN rejects TCP on :443, so every page
+    parsed straight out of the HTML was unfetchable. Pages must come back
+    pointing at the operator's static host, with the path untouched.
+    """
+    html = _load_html("chapter_pages.html")
+    assert "https://s1.bzcdn.net/" in html  # upstream really still serves this
+
+    with patch.object(baozimh_connector._http, "get_text", return_value=html):
+        pages = baozimh_connector.get_chapter_pages("yaoshenji-taxuedongman/0_0")
+
+    assert pages
+    assert all(
+        (p.remote_url or "").startswith("https://static-tw.baozimh.com/") for p in pages
+    )
+    assert not any("bzcdn.net" in (p.remote_url or "") for p in pages)
+    # the path after the host must survive the rewrite verbatim
+    assert pages[0].remote_url.endswith("/1.jpg")
+    original_path = re.search(r"https://s1\.bzcdn\.net(/\S+?/1\.jpg)", html).group(1)
+    assert pages[0].remote_url == f"https://static-tw.baozimh.com{original_path}"
+
+
+def test_reader_redirect_to_twmanga_is_permitted(baozimh_connector: BaoZiMHConnector):
+    """Regression: chapter URLs 302 to the twmanga.com reader.
+
+    The SSRF redirect guard allows only the source's own domain by default,
+    which aborted every chapter fetch ("Redirect blocked") and left the source
+    listing thousands of chapters it could not open. twmanga.com is declared
+    explicitly; anything else must still be refused.
+    """
+    from connectors.http.redirect_policy import redirect_rejection_reason
+
+    allowed = baozimh_connector._http._redirect_hosts
+
+    assert redirect_rejection_reason("https://www.twmanga.com/comic/chapter/x", allowed) is None
+    assert redirect_rejection_reason("https://baozimh.com/comic/x", allowed) is None
+    assert redirect_rejection_reason("https://evil.example.com/x", allowed) is not None
+    # a lookalike must not slip through on a suffix match
+    assert redirect_rejection_reason("https://nottwmanga.com/x", allowed) is not None
 
 
 def test_allowed_image_hosts(baozimh_connector: BaoZiMHConnector):

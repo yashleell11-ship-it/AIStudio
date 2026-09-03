@@ -56,6 +56,13 @@ class BaoZiMHConnector(SourceConnector):
             headers=REQUEST_HEADERS,
             user_agent=BROWSER_USER_AGENT,
             min_interval=0.35,
+            # BaoZiMH browses on baozimh.com but serves every chapter from its
+            # twmanga.com reader, which it reaches by 302. Without this the
+            # redirect guard aborts the hop and no chapter yields any pages —
+            # the source lists 3800+ chapters and can open none of them.
+            # twmanga.com is already trusted for this source's image bytes
+            # (see allowed_image_hosts / image_fetch_headers below).
+            extra_redirect_hosts=frozenset({"twmanga.com"}),
         )
         self._series_cache: TTLCache[Series] = TTLCache(ttl_seconds=300.0)
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)

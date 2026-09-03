@@ -51,6 +51,7 @@ class SyncConnectorHttpClient:
         min_interval: float = 0.21,
         user_agent: str = DEFAULT_USER_AGENT,
         headers: dict[str, str] | None = None,
+        extra_redirect_hosts: frozenset[str] | set[str] | None = None,
     ) -> None:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
@@ -64,7 +65,9 @@ class SyncConnectorHttpClient:
         }
         if headers:
             request_headers.update(headers)
-        self._redirect_hosts = allowed_redirect_hosts(self._base_url)
+        self._redirect_hosts = allowed_redirect_hosts(
+            self._base_url, extra_redirect_hosts
+        )
         # follow_redirects stays on, but every hop is validated by the
         # response event hook below BEFORE httpx issues the follow-up request
         # (httpx runs response hooks inside its redirect loop) — an upstream

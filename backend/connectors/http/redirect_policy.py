@@ -70,18 +70,35 @@ def is_public_address(hostname: str) -> bool:
     return True
 
 
-def allowed_redirect_hosts(base_url: str) -> frozenset[str]:
+def allowed_redirect_hosts(
+    base_url: str, extra_hosts: frozenset[str] | set[str] | None = None
+) -> frozenset[str]:
     """The redirect allowlist a scrape client derives from its own base URL.
 
     The site's host with any leading ``www.`` stripped, so a redirect between
     ``www.example.com``, ``example.com`` and ``cdn.example.com`` (all routine
     for these sites) stays followable via the subdomain match, while anything
     off-domain is not.
+
+    ``extra_hosts`` declares additional domains a *specific* source legitimately
+    spans, for the case where one operator splits a source across two names —
+    BaoZiMH browses on baozimh.com but every chapter 302s to its twmanga.com
+    reader, so a base-host-only allowlist makes the source unreadable. Keep
+    these explicit and per-connector: the default stays fail-closed, and a
+    parked or hijacked domain still cannot redirect the backend anywhere new.
     """
     host = (urlparse(base_url).hostname or "").strip().lower()
+    hosts = {host} if host else set()
+    for extra in extra_hosts or ():
+        extra = extra.strip().lower()
+        if extra.startswith("www."):
+            extra = extra[4:]
+        if extra:
+            hosts.add(extra)
     if host.startswith("www."):
-        host = host[4:]
-    return frozenset({host}) if host else frozenset()
+        hosts.discard(host)
+        hosts.add(host[4:])
+    return frozenset(hosts)
 
 
 def redirect_rejection_reason(
