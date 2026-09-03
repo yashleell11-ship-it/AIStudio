@@ -17,6 +17,14 @@ from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Se
 
 logger = logging.getLogger(__name__)
 
+#: Sent with page/cover image GETs. The image proxy passes only
+#: ``image_fetch_headers()`` upstream, so without this these CDNs see the bare
+#: httpx default and several of them 403 it.
+IMAGE_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+)
+
 HTML_HEADERS = {"Accept": "text/html,application/xhtml+xml"}
 BROWSER_IMPERSONATE = "chrome131"
 
@@ -78,7 +86,16 @@ class MadaraConnector(SourceConnector):
         return self.CONFIG.image_hosts
 
     def image_fetch_headers(self) -> dict[str, str]:
-        return {"Referer": f"{self.CONFIG.base_url.rstrip('/')}/"}
+        # A browser User-Agent is as load-bearing as the Referer here. The
+        # image proxy sends only these headers (no default UA), and several of
+        # these CDNs answer a bare python-httpx request with 403 while the
+        # same request with a desktop UA returns the image — manhwatop's
+        # c3.manhwatop.com did exactly that, making the source browsable but
+        # completely unreadable.
+        return {
+            "Referer": f"{self.CONFIG.base_url.rstrip('/')}/",
+            "User-Agent": IMAGE_USER_AGENT,
+        }
 
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
