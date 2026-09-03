@@ -195,7 +195,7 @@ void main() {
 
     test('deleteCollection removes item via repository', () async {
       final repo = _CollectionsRepo([
-        Collection(id: 1, name: 'Action Picks', seriesCount: 0, sortOrder: 1),
+        const Collection(id: 1, name: 'Action Picks', seriesCount: 0, sortOrder: 1),
       ]);
       final container = ProviderContainer(
         overrides: [libraryRepositoryProvider.overrideWithValue(repo)],
