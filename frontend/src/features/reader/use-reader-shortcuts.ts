@@ -4,7 +4,6 @@ import { useShortcut } from "@/lib/keyboard";
 import {
   AUTO_SCROLL_SHORTCUT_KEYS,
   CINEMA_SHORTCUT_KEYS,
-  HELP_SHORTCUT_KEYS,
   SERIES_SHORTCUT_KEYS,
   horizontalTurn,
   horizontalTurnDescription,
@@ -25,7 +24,6 @@ export interface ReaderShortcutHandlers {
   /** Play/pause auto-scroll. A no-op outside continuous mode. */
   onToggleAutoScroll: () => void;
   onEscape: () => void;
-  onToggleHelp: () => void;
   onPreviousChapter: () => void;
   onNextChapter: () => void;
   onOpenSeries: () => void;
@@ -40,8 +38,12 @@ export interface ReaderShortcutHandlers {
  * registry already owns the single keydown listener and refuses to fire while
  * focus is in an input, textarea, select or contenteditable.
  *
- * The horizontal keys carry a direction-derived label so the shortcuts overlay
+ * The horizontal keys carry a direction-derived label so the shortcuts sheet
  * tells the truth in a right-to-left chapter, where left is forward.
+ *
+ * `?` is deliberately NOT here: the sheet is app-wide and the shell owns that
+ * binding (`components/keyboard/ShortcutsDialog`). Registering it twice would
+ * put two identical rows in the sheet, and only the first would ever fire.
  */
 export function useReaderShortcuts(handlers: ReaderShortcutHandlers): void {
   const { direction } = handlers;
@@ -140,14 +142,6 @@ export function useReaderShortcuts(handlers: ReaderShortcutHandlers): void {
     description: "Close overlay, leave fullscreen, or exit the reader",
     group: GROUP,
     handler: () => handlers.onEscape(),
-  });
-
-  useShortcut({
-    id: "reader.help",
-    keys: HELP_SHORTCUT_KEYS,
-    description: "Show keyboard shortcuts",
-    group: GROUP,
-    handler: () => handlers.onToggleHelp(),
   });
 
   useShortcut({

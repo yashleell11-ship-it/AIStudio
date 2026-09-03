@@ -4,8 +4,9 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { CommandPalette } from "@/components/command-palette";
+import { ShortcutsDialog } from "@/components/keyboard";
 import { mobileNav } from "@/config/nav";
-import { useShortcut } from "@/lib/keyboard";
+import { HELP_SHORTCUT_KEYS, useShortcut } from "@/lib/keyboard";
 import { ScrollContainerProvider } from "@/lib/scroll-container";
 import { isImmersiveReaderPath } from "@/lib/reader-route";
 import { cn } from "@/lib/cn";
@@ -66,6 +67,9 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const closeMobileSidebar = useUiStore((s) => s.closeMobileSidebar);
   const setSidebarCollapsed = useUiStore((s) => s.setSidebarCollapsed);
+  const shortcutsOpen = useUiStore((s) => s.shortcutsOpen);
+  const toggleShortcuts = useUiStore((s) => s.toggleShortcuts);
+  const closeShortcuts = useUiStore((s) => s.closeShortcuts);
   const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
 
   const isReaderChapter = isImmersiveReaderPath(pathname);
@@ -96,6 +100,17 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
     description: "Toggle the sidebar",
     group: "General",
     handler: useCallback(() => toggleSidebar(), [toggleSidebar]),
+  });
+
+  // App-wide, so "what can I press here?" has the same answer on every screen.
+  // The reader used to own this binding and list only its own group; the sheet
+  // now reads the whole live registry (see `ShortcutsDialog`).
+  useShortcut({
+    id: "shell.shortcuts",
+    keys: HELP_SHORTCUT_KEYS,
+    description: "Show keyboard shortcuts",
+    group: "General",
+    handler: useCallback(() => toggleShortcuts(), [toggleShortcuts]),
   });
 
   // Route guard: once the /auth/me probe settles, send unauthenticated visitors
@@ -210,6 +225,10 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
           opened. Inside the authenticated shell because half of what it offers
           (the library, the installed sources, sign out) needs a session. */}
       <CommandPalette />
+
+      {/* Mounted at the shell root so it paints above page chrome — including
+          the reader's fixed controls — on every route. */}
+      <ShortcutsDialog open={shortcutsOpen} onClose={closeShortcuts} />
     </div>
   );
 }
