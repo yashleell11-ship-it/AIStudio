@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { PanelLeft, Wifi } from "lucide-react";
+import { Keyboard, PanelLeft, Wifi } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { NotificationBell } from "@/features/updates";
 import { UserMenu } from "@/features/auth/components/user-menu";
@@ -31,6 +31,7 @@ function getClockServerSnapshot() {
 
 export function Topbar({ hideOnReader = false }: TopbarProps) {
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
+  const toggleShortcuts = useUiStore((s) => s.toggleShortcuts);
   const time = useSyncExternalStore(
     subscribeToClock,
     getClockSnapshot,
@@ -69,6 +70,19 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
       </div>
 
       <div className="flex flex-1 items-center justify-end gap-3">
+        {/* The only advertisement the keyboard layer gets. Pointer-sized
+            screens only: on a touch device the sheet lists keys nobody has. */}
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleShortcuts}
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+          className="hidden text-muted hover:text-primary lg:inline-flex"
+        >
+          <Keyboard className="size-5" />
+        </Button>
+
         <NotificationBell />
         <div className="hidden items-center gap-2 text-xs text-muted sm:flex">
           <Wifi className="size-3.5" aria-hidden />

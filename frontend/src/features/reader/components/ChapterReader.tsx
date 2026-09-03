@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useScrollContainer } from "@/lib/scroll-container";
+import { useUiStore } from "@/stores/ui-store";
 import { cn } from "@/lib/cn";
 import { moodReaderMargin, useActiveProfileStore } from "@/features/profiles";
 import { DownloadChapterControl } from "@/features/offline";
@@ -41,7 +42,6 @@ import { useReaderShortcuts } from "../use-reader-shortcuts";
 import type { ReaderChapterContent, ReadingMode } from "../types";
 import { PagedView } from "./PagedView";
 import { ChapterEdgePrompt, ChapterEndCard, ReaderControls } from "./ReaderControls";
-import { ShortcutsOverlay } from "./ShortcutsOverlay";
 import { VirtualPageList } from "./VirtualPageList";
 
 interface ChapterReaderProps {
@@ -144,7 +144,11 @@ export function ChapterReader({
   const [visiblePage, setVisiblePage] = useState(Math.max(1, initialPage));
   const [atTop, setAtTop] = useState(false);
   const [atBottom, setAtBottom] = useState(false);
-  const [helpOpen, setHelpOpen] = useState(false);
+  // The shortcuts sheet is app-wide (shell-owned) — the reader only needs to
+  // know whether it is up, so Escape closes it before leaving the chapter.
+  const helpOpen = useUiStore((state) => state.shortcutsOpen);
+  const closeShortcuts = useUiStore((state) => state.closeShortcuts);
+  const toggleShortcuts = useUiStore((state) => state.toggleShortcuts);
 
   const pages = useMemo(() => chapter?.pages ?? [], [chapter]);
   const chapterTitle = chapter?.title ?? "Chapter";
@@ -566,7 +570,7 @@ export function ChapterReader({
   const handleEscape = useCallback(() => {
     switch (resolveEscapeTarget({ helpOpen, fullscreen: fullscreen.active })) {
       case "help":
-        setHelpOpen(false);
+        closeShortcuts();
         return;
       case "fullscreen":
         fullscreen.exit();
@@ -580,7 +584,15 @@ export function ChapterReader({
         }
         router.push(seriesHref);
     }
-  }, [cinemaCtl.enabled, fullscreen, helpOpen, router, seriesHref, toggleCinema]);
+  }, [
+    cinemaCtl.enabled,
+    closeShortcuts,
+    fullscreen,
+    helpOpen,
+    router,
+    seriesHref,
+    toggleCinema,
+  ]);
 
   /**
    * Leave the chapter for its series page.
@@ -607,7 +619,6 @@ export function ChapterReader({
       if (continuous) autoScroll.toggle();
     },
     onEscape: handleEscape,
-    onToggleHelp: () => setHelpOpen((open) => !open),
     onPreviousChapter: goPreviousChapter,
     onNextChapter: goNextChapter,
     onOpenSeries: openSeries,
@@ -815,7 +826,7 @@ export function ChapterReader({
           fullscreen={fullscreen.active}
           fullscreenSupported={fullscreen.supported}
           onToggleFullscreen={fullscreen.toggle}
-          onShowShortcuts={() => setHelpOpen(true)}
+          onShowShortcuts={toggleShortcuts}
           pageGap={pageGap}
           onTogglePageGap={continuous ? togglePageGap : undefined}
           cinema={cinemaCtl.enabled}
@@ -843,7 +854,6 @@ export function ChapterReader({
           showBookmark={showBookmark}
           visible={chromeVisible}
         />
-        <ShortcutsOverlay open={helpOpen} onClose={() => setHelpOpen(false)} />
       </div>
     </div>
   );

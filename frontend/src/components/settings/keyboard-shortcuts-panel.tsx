@@ -2,45 +2,21 @@
 
 import { Keyboard } from "lucide-react";
 import { KbdCombo } from "@/components/ui/kbd";
-import { formatKeyCombo } from "@/lib/keyboard/format";
-import { useRegisteredShortcuts } from "@/lib/keyboard";
-import type { Shortcut } from "@/lib/keyboard/types";
+import {
+  formatKeyCombo,
+  groupShortcuts,
+  shortcutCombos,
+  useRegisteredShortcuts,
+} from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
 
-const GROUP_ORDER = ["General", "Library", "Search", "Sources", "Reader"] as const;
-
-function groupShortcuts(shortcuts: Shortcut[]): Map<string, Shortcut[]> {
-  const groups = new Map<string, Shortcut[]>();
-  for (const shortcut of shortcuts) {
-    const group = shortcut.group ?? "General";
-    const existing = groups.get(group) ?? [];
-    existing.push(shortcut);
-    groups.set(group, existing);
-  }
-  for (const [, items] of groups) {
-    items.sort((a, b) => a.description.localeCompare(b.description));
-  }
-  return groups;
-}
-
-function orderedGroups(groups: Map<string, Shortcut[]>): [string, Shortcut[]][] {
-  const ordered: [string, Shortcut[]][] = [];
-  for (const name of GROUP_ORDER) {
-    const items = groups.get(name);
-    if (items?.length) {
-      ordered.push([name, items]);
-      groups.delete(name);
-    }
-  }
-  for (const [name, items] of groups) {
-    ordered.push([name, items]);
-  }
-  return ordered;
-}
-
+/**
+ * Grouping/ordering lives in `lib/keyboard/groups` and is shared with the `?`
+ * cheat-sheet, so the two listings can never disagree about what goes where.
+ */
 export function KeyboardShortcutsPanel() {
   const shortcuts = useRegisteredShortcuts();
-  const groups = orderedGroups(groupShortcuts(shortcuts));
+  const groups = groupShortcuts(shortcuts);
 
   return (
     <section className="glass-card rounded-2xl p-5 md:p-6">
@@ -61,32 +37,29 @@ export function KeyboardShortcutsPanel() {
         <p className="text-sm text-muted">No shortcuts registered yet.</p>
       ) : (
         <div className="space-y-6">
-          {groups.map(([group, items]) => (
-            <div key={group}>
+          {groups.map((group) => (
+            <div key={group.name}>
               <h3 className="mb-3 text-[11px] font-semibold uppercase tracking-widest text-muted">
-                {group}
+                {group.name}
               </h3>
               <ul className="divide-y divide-border rounded-xl border border-border bg-surface-2/40">
-                {items.map((shortcut) => {
-                  const combos = Array.isArray(shortcut.keys) ? shortcut.keys : [shortcut.keys];
-                  return (
-                    <li
-                      key={shortcut.id}
-                      className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2/40"
-                    >
-                      <span className="text-sm text-fg">{shortcut.description}</span>
-                      <div className="flex flex-wrap items-center gap-2">
-                        {combos.map((combo, index) => (
-                          <KbdCombo
-                            key={`${shortcut.id}-${index}`}
-                            tokens={formatKeyCombo(combo)}
-                            className={cn(index > 0 && "opacity-80")}
-                          />
-                        ))}
-                      </div>
-                    </li>
-                  );
-                })}
+                {group.shortcuts.map((shortcut) => (
+                  <li
+                    key={shortcut.id}
+                    className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2/40"
+                  >
+                    <span className="text-sm text-fg">{shortcut.description}</span>
+                    <div className="flex flex-wrap items-center gap-2">
+                      {shortcutCombos(shortcut).map((combo, index) => (
+                        <KbdCombo
+                          key={`${shortcut.id}-${index}`}
+                          tokens={formatKeyCombo(combo)}
+                          className={cn(index > 0 && "opacity-80")}
+                        />
+                      ))}
+                    </div>
+                  </li>
+                ))}
               </ul>
             </div>
           ))}

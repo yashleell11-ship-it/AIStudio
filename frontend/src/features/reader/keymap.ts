@@ -1,15 +1,6 @@
 import type { ReadingDirection } from "./types";
 
 /**
- * Combos that open the shortcuts overlay.
- *
- * "?" arrives as a shifted keypress on most layouts, and the matcher compares
- * the shift flag, so an unmodified "?" binding alone would never fire. The bare
- * form is kept for layouts where "?" is unshifted.
- */
-export const HELP_SHORTCUT_KEYS = ["shift+?", "?"];
-
-/**
  * Combo that leaves the chapter for its own series page.
  *
  * "S" for series, unmodified like every other reader binding, and free of the

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { matchesCombo } from "@/lib/keyboard/match";
 import {
   AUTO_SCROLL_SHORTCUT_KEYS,
-  HELP_SHORTCUT_KEYS,
   SERIES_SHORTCUT_KEYS,
   TOGGLE_ONLY_TAP_ZONES,
   defaultTapZoneConfig,
@@ -29,11 +28,6 @@ function keyEvent(
 }
 
 describe("reader key bindings", () => {
-  it("opens the overlay on a shifted question mark", () => {
-    const event = keyEvent("?", { shiftKey: true });
-    expect(HELP_SHORTCUT_KEYS.some((combo) => matchesCombo(event, combo))).toBe(true);
-  });
-
   it("keeps Space and Shift+Space distinct so the first match is the right one", () => {
     expect(matchesCombo(keyEvent(" "), "space")).toBe(true);
     expect(matchesCombo(keyEvent(" ", { shiftKey: true }), "space")).toBe(false);

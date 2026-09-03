@@ -1,0 +1,1 @@
+export { ShortcutsDialog } from "./ShortcutsDialog";
