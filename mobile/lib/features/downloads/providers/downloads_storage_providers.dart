@@ -1,0 +1,67 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/downloads/models/series_storage_usage.dart';
+import 'package:manhwamaniacs/features/downloads/providers/currently_open_chapter_provider.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
+import 'package:manhwamaniacs/features/downloads/providers/retention_maintenance_provider.dart';
+import 'package:manhwamaniacs/features/downloads/providers/storage_settings_provider.dart';
+import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
+
+/// Real, dedup-aware on-device bytes — what the cap in Settings → Storage is
+/// enforced against. Device-wide (every profile), not just the active one —
+/// see [RetentionMaintenance]'s doc comment. Re-fetches whenever the
+/// download queue's state changes (a chapter starting/finishing/failing) so
+/// the Storage screen never shows a stale total.
+final totalDeviceDownloadBytesProvider = FutureProvider.autoDispose<int>((ref) {
+  ref.watch(downloadQueueControllerProvider);
+  return ref.watch(retentionMaintenanceProvider).totalDeviceBytes();
+});
+
+/// Per-series on-device footprint for the active scope, largest first —
+/// the Storage screen's breakdown. Empty with no active scope.
+final seriesStorageBreakdownProvider =
+    FutureProvider.autoDispose<List<SeriesStorageUsage>>((ref) async {
+  final store = ref.watch(downloadsStoreProvider);
+  ref.watch(downloadQueueControllerProvider);
+  if (store == null) return const [];
+  return store.seriesBreakdown();
+});
+
+class DownloadsStorageActions {
+  DownloadsStorageActions(this.ref);
+
+  final Ref ref;
+
+  /// The Storage screen's "Free up space": runs the read-then-expire sweep
+  /// immediately (rather than waiting for the next launch/resume), then — if
+  /// a cap is configured — evicts oldest-read-first until back under it.
+  /// Pinned series and unread chapters are never touched by either step; the
+  /// chapter currently open in a reader never is either. Returns how many
+  /// chapters were removed, for the confirmation snackbar.
+  Future<int> freeUpSpace() async {
+    final maintenance = ref.read(retentionMaintenanceProvider);
+    final openChapter = ref.read(currentlyOpenChapterProvider);
+    final interval = ref.read(retentionIntervalProvider).duration;
+
+    var removed = await maintenance.sweepExpired(
+      interval: interval,
+      excludeOpen: openChapter,
+    );
+
+    final cap = ref.read(storageCapProvider).bytes;
+    if (cap != null) {
+      removed += await maintenance.evictOldestReadFirst(
+        targetBytes: cap,
+        excludeOpen: openChapter,
+      );
+    }
+
+    ref.invalidate(totalDeviceDownloadBytesProvider);
+    ref.invalidate(seriesStorageBreakdownProvider);
+    return removed;
+  }
+}
+
+final downloadsStorageActionsProvider = Provider<DownloadsStorageActions>(
+  DownloadsStorageActions.new,
+  name: 'downloadsStorageActions',
+);

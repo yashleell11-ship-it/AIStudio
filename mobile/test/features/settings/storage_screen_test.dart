@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/settings/screens/storage_screen.dart';
 import 'package:manhwamaniacs/features/settings/services/image_cache_service.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _FakeImageCacheService implements ImageCacheService {
   var clearCallCount = 0;
@@ -23,8 +25,16 @@ Future<ProviderContainer> _pumpStorage(
   WidgetTester tester, {
   ImageCacheService? imageCache,
 }) async {
+  // DownloadsStorageCard (spec §3b) checks for an active (user, profile)
+  // scope before rendering anything — that check reads activeProfileProvider,
+  // which reads sharedPrefsProvider even just to conclude "no profile
+  // selected", so every StorageScreen test needs this set up now, not just
+  // ones that care about downloads.
+  SharedPreferences.setMockInitialValues({});
+  final prefs = await SharedPreferences.getInstance();
   final container = ProviderContainer(
     overrides: [
+      sharedPrefsProvider.overrideWithValue(prefs),
       if (imageCache != null)
         imageCacheServiceProvider.overrideWithValue(imageCache),
     ],
