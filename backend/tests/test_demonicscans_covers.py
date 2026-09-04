@@ -144,7 +144,7 @@ def test_resolve_series_cover_fetches_readermc(monkeypatch: pytest.MonkeyPatch) 
     stream_cm.__enter__ = MagicMock(return_value=mock_response)
     stream_cm.__exit__ = MagicMock(return_value=False)
 
-    with patch("httpx.stream", return_value=stream_cm) as mock_stream:
+    with patch("services.browse_service._image_stream", return_value=stream_cm) as mock_stream:
         media_type, data = service.resolve_series_cover(
             "demonicscans", "Return-of-the-Crazy-Demon"
         )

@@ -59,7 +59,7 @@ def _fake_stream(
     headers: dict[str, str] | None = None,
     content: bytes = b"",
 ):
-    """A stand-in for ``httpx.stream(...)``: a context manager yielding a
+    """A stand-in for ``_image_stream(...)``: a context manager yielding a
     response-shaped mock (the proxy streams bodies now, with a byte cap)."""
     response = MagicMock()
     response.is_redirect = is_redirect
@@ -132,7 +132,7 @@ def test_rejects_domain_that_resolves_to_private_address(service: BrowseService)
 
 def test_fetch_url_never_makes_request_when_host_not_allowed(service: BrowseService):
     connector = _FakeConnector(frozenset({"example.com"}))
-    with patch("httpx.stream") as mock_stream:
+    with patch("services.browse_service._image_stream") as mock_stream:
         with pytest.raises(AppError) as exc_info:
             service._fetch_url("https://attacker.test/x.jpg", connector)
     assert exc_info.value.code == "ssrf_blocked"
@@ -146,7 +146,8 @@ def test_fetch_url_does_not_follow_redirects(service: BrowseService):
 
     with patch("services.outbound_security.is_public_address", return_value=True):
         with patch(
-            "httpx.stream", return_value=_fake_stream(is_redirect=True)
+            "services.browse_service._image_stream",
+            return_value=_fake_stream(is_redirect=True),
         ) as mock_stream:
             with pytest.raises(AppError) as exc_info:
                 service._fetch_url("https://example.com/x.jpg", connector)
@@ -162,7 +163,7 @@ def test_fetch_url_succeeds_for_approved_host(service: BrowseService):
     )
 
     with patch("services.outbound_security.is_public_address", return_value=True):
-        with patch("httpx.stream", return_value=stream) as mock_stream:
+        with patch("services.browse_service._image_stream", return_value=stream) as mock_stream:
             media_type, data = service._fetch_url("https://example.com/x.png", connector)
 
     assert media_type == "image/png"

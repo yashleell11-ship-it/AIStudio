@@ -35,7 +35,7 @@ def connector() -> _FakeConnector:
 
 def _fetch(service, connector, **stream_kwargs):
     with patch("services.outbound_security.is_public_address", return_value=True):
-        with patch("httpx.stream", return_value=_fake_stream(**stream_kwargs)):
+        with patch("services.browse_service._image_stream", return_value=_fake_stream(**stream_kwargs)):
             return service._fetch_url("https://example.com/x", connector)
 
 
