@@ -67,7 +67,7 @@ def test_toonily_page_proxy_sends_referer_header(
     stream_cm.__exit__ = MagicMock(return_value=False)
 
     with patch("services.outbound_security.is_public_address", return_value=True):
-        with patch("httpx.stream", return_value=stream_cm) as mock_stream:
+        with patch("services.browse_service._image_stream", return_value=stream_cm) as mock_stream:
             media_type, data = browse_service._fetch_remote_image(page, toonily_connector)
 
     assert media_type == "image/webp"

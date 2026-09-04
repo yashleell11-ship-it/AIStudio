@@ -8,7 +8,7 @@ import re
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from itertools import zip_longest
-from typing import Annotated
+from typing import Annotated, Any
 from urllib.parse import quote
 
 from fastapi import Depends
@@ -39,6 +39,59 @@ from services.source_health import (
 )
 
 logger = logging.getLogger(__name__)
+
+# --- image proxy transport -------------------------------------------------
+# Every page image used to go out through the module-level ``httpx.stream()``,
+# which builds and throws away a whole httpx.Client per call -- a fresh DNS
+# lookup, TCP connect and TLS handshake for each of the 20-200 images in a
+# chapter. Measured from the VPS with scripts/bench_image_proxy.py, 6 images:
+#
+#     mangadex    2.60s -> 0.09s   (28.9x)
+#     flamescans  3.50s -> 0.53s   (6.6x)
+#     ehentai     1.20s -> 0.67s   (1.8x)
+#
+# One pooled, keep-alive client makes the second image onward reuse the
+# connection the first one opened. Bounded so a long reading session cannot
+# accumulate sockets across dozens of CDNs.
+_IMAGE_POOL_MAX_CONNECTIONS = 64
+_IMAGE_POOL_MAX_KEEPALIVE = 32
+_IMAGE_POOL_KEEPALIVE_EXPIRY_SECONDS = 60.0
+
+_image_http_client: Any = None
+_image_client_lock = threading.Lock()
+
+
+def _image_client() -> Any:
+    """Return the process-wide pooled client used for image/cover GETs."""
+    global _image_http_client
+    import httpx
+
+    client = _image_http_client
+    if client is not None and not client.is_closed:
+        return client
+    with _image_client_lock:
+        if _image_http_client is None or _image_http_client.is_closed:
+            _image_http_client = httpx.Client(
+                follow_redirects=False,
+                timeout=30.0,
+                limits=httpx.Limits(
+                    max_connections=_IMAGE_POOL_MAX_CONNECTIONS,
+                    max_keepalive_connections=_IMAGE_POOL_MAX_KEEPALIVE,
+                    keepalive_expiry=_IMAGE_POOL_KEEPALIVE_EXPIRY_SECONDS,
+                ),
+            )
+        return _image_http_client
+
+
+def _image_stream(method: str, url: str, **kwargs: Any):
+    """Seam for the outbound image request.
+
+    Signature-compatible with ``httpx.stream`` on purpose: it is the single
+    point every proxied image byte passes through, which is what the SSRF and
+    redirect tests assert against.
+    """
+    return _image_client().stream(method, url, **kwargs)
+
 
 # Federated search fan-out tuning. The fan-out is I/O bound across dozens of
 # unrelated sites, so it gets a dedicated pool instead of the shared default
@@ -1095,7 +1148,7 @@ class BrowseService:
             # enforce hotlink protection — bare GETs often return 403.
             # Streamed with a hard byte ceiling: a hostile upstream must not
             # be able to buffer an unbounded body into this process.
-            with httpx.stream(
+            with _image_stream(
                 "GET",
                 url,
                 timeout=30.0,
