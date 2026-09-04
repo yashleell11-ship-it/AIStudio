@@ -7,11 +7,11 @@ from unittest.mock import patch
 import pytest
 
 from connectors.models import Chapter, Series
-from connectors.toonily.connector import ToonilyConnector
+from connectors.comicsvalley.connector import ComicsValleyConnector
 from services.browse_service import BrowseService
 
 
-PULL_SERIES_ID = "pull-yourself-together-team-leader-04cfa291"
+SERIES_ID = "some-series-04cfa291"
 
 
 @pytest.fixture
@@ -22,15 +22,15 @@ def service() -> BrowseService:
 def test_get_chapters_retries_after_empty_list_when_series_reports_count(
     service: BrowseService,
 ):
-    connector = ToonilyConnector()
+    connector = ComicsValleyConnector()
     series = Series(
-        id=PULL_SERIES_ID,
-        title="Pull Yourself Together, Team Leader",
+        id=SERIES_ID,
+        title="Some Series",
         chapter_count=17,
     )
     chapter = Chapter(
-        id=f"{PULL_SERIES_ID}/chapter-1",
-        series_id=PULL_SERIES_ID,
+        id=f"{SERIES_ID}/chapter-1",
+        series_id=SERIES_ID,
         title="Chapter 1",
         number=1.0,
         page_count=0,
@@ -49,7 +49,7 @@ def test_get_chapters_retries_after_empty_list_when_series_reports_count(
             with patch("services.browse_service.create_connector", return_value=connector):
                 with patch.object(connector, "get_series", return_value=series):
                     with patch.object(connector, "get_chapters", side_effect=fake_get_chapters):
-                        items = service.get_chapters("toonily", PULL_SERIES_ID)
+                        items = service.get_chapters("comicsvalley", SERIES_ID)
     finally:
         connector._http.close()
 

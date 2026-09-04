@@ -45,10 +45,10 @@ from tests.test_sources_search import (
     _series,
 )
 
-# Real registry entries, as in test_mature_gate_per_profile: toonily is flagged
+# Real registry entries, as in test_mature_gate_per_profile: nhentai is flagged
 # MATURE, mangadex is not. The gate has to hold against the connectors actually
 # installed, and nothing below touches the network.
-MATURE_SOURCE = "toonily"
+MATURE_SOURCE = "nhentai"
 SAFE_SOURCE = "mangadex"
 
 

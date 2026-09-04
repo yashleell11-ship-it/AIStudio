@@ -117,39 +117,6 @@ def _mock_mangakatana(connector: SourceConnector):
 
 
 @contextmanager
-def _mock_toonily(connector: SourceConnector):
-    fixtures = ROOT / "toonily"
-
-    browse_latest = (fixtures / "browse_latest.html").read_text(encoding="utf-8")
-    browse_popular = (fixtures / "browse_popular.html").read_text(encoding="utf-8")
-    browse_page2 = (fixtures / "browse_page2.html").read_text(encoding="utf-8")
-    search = (fixtures / "search_solo.html").read_text(encoding="utf-8")
-    series_detail = (fixtures / "series_detail.html").read_text(encoding="utf-8")
-    chapter_reader = (fixtures / "chapter_reader.html").read_text(encoding="utf-8")
-
-    series_id = "the-beginning-after-the-end-7b1d8c89"
-    chapter_id = f"{series_id}/chapter-240"
-
-    def fake_get_text(path: str, *, params=None):
-        if path.endswith("/page/2/"):
-            return browse_page2
-        if path == "/":
-            return search
-        if path.startswith("/webtoons/"):
-            if params and params.get("m_orderby") == "views":
-                return browse_popular
-            return browse_latest
-        if path == f"/serie/{series_id}/":
-            return series_detail
-        if path == f"/serie/{chapter_id}/":
-            return chapter_reader
-        return browse_latest
-
-    with patch.object(connector._http, "get_text", side_effect=fake_get_text):
-        yield
-
-
-@contextmanager
 def _mock_demonicscans(connector: SourceConnector):
     fixtures = ROOT / "demonicscans"
 
@@ -263,40 +230,6 @@ CASES: list[ConnectorContractCase] = [
         expected_page2_first_id="kakegurui.1388",
         expected_search_ids=("solo-leveling.21708",),
         mock=_mock_mangakatana,
-    ),
-    ConnectorContractCase(
-        source_type="toonily",
-        fixtures_dir=ROOT / "toonily",
-        search_query="solo",
-        series_id="the-beginning-after-the-end-7b1d8c89",
-        reader_chapter_id="the-beginning-after-the-end-7b1d8c89/chapter-240",
-        expected_title_substring="Beginning After the End",
-        expected_image_host_substring="tnlycdn.com",
-        expected_latest_first_id="the-beginning-after-the-end-7b1d8c89",
-        expected_popular_first_id="omniscient-reader-kk11",
-        expected_page2_first_id="solo-leveling-ab12cd34",
-        expected_search_ids=("solo-leveling-ab12cd34",),
-        decimal_chapter_ids=(
-            "the-beginning-after-the-end-7b1d8c89/chapter-175-8",
-        ),
-        ordering_probe_ids=(
-            "the-beginning-after-the-end-7b1d8c89/chapter-175-8",
-            "the-beginning-after-the-end-7b1d8c89/chapter-175-8_1",
-            "the-beginning-after-the-end-7b1d8c89/chapter-175-8_2",
-            "the-beginning-after-the-end-7b1d8c89/chapter-175-8_11",
-            "the-beginning-after-the-end-7b1d8c89/chapter-175-9",
-        ),
-        adjacent_pairs=(
-            (
-                "the-beginning-after-the-end-7b1d8c89/chapter-175-8",
-                "the-beginning-after-the-end-7b1d8c89/chapter-175-8_1",
-            ),
-            (
-                "the-beginning-after-the-end-7b1d8c89/chapter-175-8_1",
-                "the-beginning-after-the-end-7b1d8c89/chapter-175-8_2",
-            ),
-        ),
-        mock=_mock_toonily,
     ),
     ConnectorContractCase(
         source_type="demonicscans",

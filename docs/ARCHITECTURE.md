@@ -103,7 +103,7 @@ Connectors under `backend/connectors/` scrape upstream manga/manhwa sites —
 dozens of them, mostly generated from a shared "Madara" WordPress-theme
 factory config (`connectors/catalog.py`) plus a handful of hand-written
 connectors for sites that need bespoke logic (MangaDex's official API,
-Toonily's Cloudflare handling, etc.). The rest of the app depends only on the
+ComicsValley's Cloudflare handling, etc.). The rest of the app depends only on the
 normalized `connectors/models.py` shapes, never on a specific site. There is
 no server-side "local library" import path any more — everything a user reads
 comes from a live connector.

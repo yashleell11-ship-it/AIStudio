@@ -11,9 +11,6 @@
 # frontend/src/config, mobile/lib/core/config).
 /config/
 
-# Connector probe scratch output
-backend/scripts/toonily_probe_out/
-
 # --- Build & runtime artifacts (platform) ---
 __pycache__/
 *.py[cod]

@@ -12,7 +12,7 @@ SITES_PY = REPO / "backend" / "connectors" / "madara" / "sites.py"
 RESULTS = REPO / "docs" / "connector_probe_results.json"
 HANDCRAFTED = frozenset(
     {
-        "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga",
+        "mangadex", "asurascans", "mangakatana", "demonicscans", "coffeemanga",
         "nhentai", "18porncomic", "3hentai", "8muses", "akuma", "1stkissmanga",
     }
 )

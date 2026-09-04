@@ -12,7 +12,7 @@ through raw — never parsed.
 ## Architecture
 
 ```
-connectors/          ~50 connector packages (mangadex, asurascans, toonily, a
+connectors/          ~50 connector packages (mangadex, asurascans, akuma, a
                       Madara-site factory config, ...) + registry.py, base.py
 services/             browse_service, reader_service, source_cache_service,
                       source_pin_service
@@ -47,7 +47,7 @@ allowlist the image proxy enforces — see `BrowseService._fetch_url`).
 ## Installed connectors
 
 `backend/connectors/registry.py` currently registers on the order of 50
-connectors — most hand-written (MangaDex against its official API, Toonily
+connectors — most hand-written (MangaDex against its official API, ComicsValley
 behind Cloudflare via `curl_cffi`, and similar), plus a larger set generated
 from a shared "Madara" WordPress-theme factory config
 (`connectors/catalog.py` + `connectors/madara/factory.py`) for sites that all

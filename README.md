@@ -18,7 +18,7 @@ system on one page, with links out to the deeper docs.
 
 ```
 backend/    FastAPI + SQLAlchemy API ("manhwamaniacs-backend")
-            connectors/{mangadex,toonily,...} routes/ services/ core/ database/
+            connectors/{mangadex,asurascans,...} routes/ services/ core/ database/
 frontend/   Next.js 16 / React 19 web app        (npm run dev|build|start)
 mobile/     Flutter app (Android + sideloaded iOS)   (pubspec.yaml)
 docs/       project documentation — see docs/ARCHITECTURE.md first
