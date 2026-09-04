@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/reader/theme/reader_colors.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 class ReaderSkeleton extends StatelessWidget {
@@ -11,7 +11,7 @@ class ReaderSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ColoredBox(
-      color: AppColors.bg,
+      color: ReaderColors.bg,
       child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -33,7 +33,7 @@ class ReaderSkeleton extends StatelessWidget {
               const SizedBox(height: AppSpacing.xl2),
               Text(
                 'Loading chapter…',
-                style: AppTypography.body.copyWith(color: AppColors.muted),
+                style: AppTypography.body.copyWith(color: ReaderColors.muted),
               ),
             ],
           ),

@@ -39,14 +39,14 @@ class SeriesDetailChipRow extends StatelessWidget {
               vertical: AppSpacing.xs,
             ),
             decoration: BoxDecoration(
-              color: (chip.color ?? AppColors.fg).withAlpha(13),
+              color: (chip.color ?? context.colors.fg).withAlpha(13),
               borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(color: AppColors.border.withAlpha(128)),
+              border: Border.all(color: context.colors.border.withAlpha(128)),
             ),
             child: Text(
               chip.label,
               style: AppTypography.caption.copyWith(
-                color: chip.color ?? AppColors.muted,
+                color: chip.color ?? context.colors.muted,
                 fontWeight: FontWeight.w500,
               ),
             ),

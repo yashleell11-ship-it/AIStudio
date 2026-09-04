@@ -27,6 +27,9 @@ class SourcePinButton extends ConsumerWidget {
 
   Future<void> _toggle(BuildContext context, WidgetRef ref) async {
     final messenger = ScaffoldMessenger.of(context);
+    // Captured before the await: the palette must not be read from a
+    // BuildContext across an async gap.
+    final dangerColor = context.colors.danger;
     final wasPinned = ref.read(pinnedSourceIdsProvider).contains(sourceId);
     try {
       await ref.read(sourcePinsProvider.notifier).toggle(
@@ -47,7 +50,7 @@ class SourcePinButton extends ConsumerWidget {
       messenger.showSnackBar(
         SnackBar(
           content: Text(error.userMessage),
-          backgroundColor: AppColors.danger,
+          backgroundColor: dangerColor,
         ),
       );
     }
@@ -68,7 +71,7 @@ class SourcePinButton extends ConsumerWidget {
       icon: Icon(
         isPinned ? Icons.push_pin : Icons.push_pin_outlined,
         size: iconSize,
-        color: isPinned ? AppColors.primary : AppColors.muted,
+        color: isPinned ? context.colors.primary : context.colors.muted,
       ),
     );
   }

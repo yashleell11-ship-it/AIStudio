@@ -51,7 +51,7 @@ class _GlassSurface extends StatelessWidget {
           ),
           // Warm amber halo — the Eclipse Warm accent.
           BoxShadow(
-            color: AppColors.primary.withAlpha(20),
+            color: context.colors.primary.withAlpha(20),
             blurRadius: 24,
             spreadRadius: -6,
           ),
@@ -63,9 +63,9 @@ class _GlassSurface extends StatelessWidget {
           filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: AppColors.surface.withAlpha(184),
+              color: context.colors.surface.withAlpha(184),
               borderRadius: br,
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: Padding(
               padding: padding ?? const EdgeInsets.all(AppSpacing.xs),
@@ -160,7 +160,7 @@ class ReaderTopBar extends StatelessWidget {
                   onPressed: onBack,
                   icon: const Icon(Icons.arrow_back_ios_new_rounded, size: 20),
                   tooltip: 'Back',
-                  color: AppColors.fg,
+                  color: context.colors.fg,
                 ),
                 Expanded(
                   // The title carries the jump rather than a fourth icon: it is
@@ -197,10 +197,10 @@ class ReaderTopBar extends StatelessWidget {
                                 ),
                               ),
                               const SizedBox(width: AppSpacing.xs),
-                              const Icon(
+                              Icon(
                                 Icons.chevron_right_rounded,
                                 size: 18,
-                                color: AppColors.muted,
+                                color: context.colors.muted,
                               ),
                             ],
                           ),
@@ -214,14 +214,14 @@ class ReaderTopBar extends StatelessWidget {
                     onPressed: onBookmark,
                     icon: const Icon(Icons.bookmark_add_outlined, size: 20),
                     tooltip: 'Bookmark',
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     visualDensity: VisualDensity.compact,
                   ),
                 IconButton(
                   onPressed: onSettings,
                   icon: const Icon(Icons.tune_rounded, size: 20),
                   tooltip: 'Reader settings',
-                  color: AppColors.primary,
+                  color: context.colors.primary,
                   visualDensity: VisualDensity.compact,
                 ),
               ],
@@ -311,8 +311,8 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
                   onPressed: widget.hasPrevious ? widget.onPreviousChapter : null,
                   icon: const Icon(Icons.skip_previous_rounded),
                   tooltip: 'Previous chapter',
-                  color: AppColors.primary,
-                  disabledColor: AppColors.muted.withAlpha(70),
+                  color: context.colors.primary,
+                  disabledColor: context.colors.muted.withAlpha(70),
                 ),
                 Expanded(
                   child: Column(
@@ -322,7 +322,7 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
                         'Page ${readerScrubValue(page, pageCount).round()}'
                         ' / $pageCount',
                         style: AppTypography.labelSm.copyWith(
-                          color: AppColors.muted,
+                          color: context.colors.muted,
                         ),
                       ),
                       // A real Slider rather than a hand-rolled drag on a
@@ -332,9 +332,9 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
                       SliderTheme(
                         data: SliderTheme.of(context).copyWith(
                           trackHeight: 3,
-                          activeTrackColor: AppColors.primary,
-                          inactiveTrackColor: AppColors.fg.withAlpha(26),
-                          thumbColor: AppColors.primary,
+                          activeTrackColor: context.colors.primary,
+                          inactiveTrackColor: context.colors.fg.withAlpha(26),
+                          thumbColor: context.colors.primary,
                           // No tick marks: one per page turns the rail into a
                           // dotted line on a long chapter.
                           activeTickMarkColor: Colors.transparent,
@@ -375,8 +375,8 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
                   onPressed: widget.hasNext ? widget.onNextChapter : null,
                   icon: const Icon(Icons.skip_next_rounded),
                   tooltip: 'Next chapter',
-                  color: AppColors.primary,
-                  disabledColor: AppColors.muted.withAlpha(70),
+                  color: context.colors.primary,
+                  disabledColor: context.colors.muted.withAlpha(70),
                 ),
                 if (widget.onSettings != null)
                   IconButton(
@@ -385,7 +385,7 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
                     // Distinct from the top bar's canonical 'Reader settings'
                     // gear so the single settings finder stays unambiguous.
                     tooltip: 'More options',
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     visualDensity: VisualDensity.compact,
                   ),
               ],
@@ -429,13 +429,13 @@ class ChapterEdgePrompt extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (direction == EdgeDirection.previous) ...[
-                const Icon(Icons.chevron_left, color: AppColors.primary, size: 18),
+                Icon(Icons.chevron_left, color: context.colors.primary, size: 18),
                 const SizedBox(width: AppSpacing.sm),
               ],
               Text(label, style: AppTypography.labelLg),
               if (direction == EdgeDirection.next) ...[
                 const SizedBox(width: AppSpacing.sm),
-                const Icon(Icons.chevron_right, color: AppColors.primary, size: 18),
+                Icon(Icons.chevron_right, color: context.colors.primary, size: 18),
               ],
             ],
           ),
@@ -599,7 +599,7 @@ class ReaderMoreSheet extends ConsumerWidget {
             Text('Brightness', style: AppTypography.labelLg),
             Row(
               children: [
-                const Icon(Icons.brightness_low, size: 18, color: AppColors.muted),
+                Icon(Icons.brightness_low, size: 18, color: context.colors.muted),
                 Expanded(
                   child: Slider(
                     value: filter.brightness,
@@ -607,20 +607,20 @@ class ReaderMoreSheet extends ConsumerWidget {
                     onChanged: filterCtrl.setBrightness,
                   ),
                 ),
-                const Icon(Icons.brightness_high, size: 18, color: AppColors.muted),
+                Icon(Icons.brightness_high, size: 18, color: context.colors.muted),
               ],
             ),
             Text('Warmth', style: AppTypography.labelLg),
             Row(
               children: [
-                const Icon(Icons.nightlight_round, size: 16, color: AppColors.muted),
+                Icon(Icons.nightlight_round, size: 16, color: context.colors.muted),
                 Expanded(
                   child: Slider(
                     value: filter.warmth,
                     onChanged: filterCtrl.setWarmth,
                   ),
                 ),
-                const Icon(Icons.wb_sunny_outlined, size: 16, color: AppColors.muted),
+                Icon(Icons.wb_sunny_outlined, size: 16, color: context.colors.muted),
               ],
             ),
             const SizedBox(height: AppSpacing.xs),
@@ -679,7 +679,7 @@ class ReaderMoreSheet extends ConsumerWidget {
             const SizedBox(height: AppSpacing.sm),
             Row(
               children: [
-                const Icon(Icons.play_circle_outline, size: 18, color: AppColors.muted),
+                Icon(Icons.play_circle_outline, size: 18, color: context.colors.muted),
                 const SizedBox(width: AppSpacing.sm),
                 Text('Auto-scroll', style: AppTypography.labelLg),
                 const Spacer(),
@@ -696,7 +696,7 @@ class ReaderMoreSheet extends ConsumerWidget {
                 children: [
                   Text(
                     'Speed: ${_autoScrollLabel(ui.autoScrollSpeed)}',
-                    style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                    style: AppTypography.bodySm.copyWith(color: context.colors.muted),
                   ),
                   Expanded(
                     child: Slider(
@@ -761,9 +761,9 @@ class _SheetNavButton extends StatelessWidget {
     return OutlinedButton(
       onPressed: enabled ? onTap : null,
       style: OutlinedButton.styleFrom(
-        foregroundColor: enabled ? AppColors.fg : AppColors.muted.withAlpha(77),
+        foregroundColor: enabled ? context.colors.fg : context.colors.muted.withAlpha(77),
         side: BorderSide(
-          color: enabled ? AppColors.border : AppColors.border.withAlpha(77),
+          color: enabled ? context.colors.border : context.colors.border.withAlpha(77),
         ),
       ),
       child: child,

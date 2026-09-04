@@ -185,7 +185,7 @@ class SeriesChapterTile extends StatelessWidget {
                             child: Text(
                               label.primary,
                               style: AppTypography.labelLg.copyWith(
-                                color: isRead ? AppColors.muted : null,
+                                color: isRead ? context.colors.muted : null,
                               ),
                             ),
                           ),
@@ -202,7 +202,7 @@ class SeriesChapterTile extends StatelessWidget {
                           progressText!,
                           style: AppTypography.caption.copyWith(
                             color:
-                                inProgress ? AppColors.primary : AppColors.muted,
+                                inProgress ? context.colors.primary : context.colors.muted,
                           ),
                         ),
                       if (download != null) _DownloadStatusLine(download: download),
@@ -237,12 +237,12 @@ class _DownloadStatusLine extends StatelessWidget {
     if (text == null) return const SizedBox.shrink();
 
     final color = switch (download.phase) {
-      SeriesChapterDownloadPhase.failed => AppColors.danger,
-      SeriesChapterDownloadPhase.downloaded => AppColors.success,
-      SeriesChapterDownloadPhase.downloading => AppColors.primary,
+      SeriesChapterDownloadPhase.failed => context.colors.danger,
+      SeriesChapterDownloadPhase.downloaded => context.colors.success,
+      SeriesChapterDownloadPhase.downloading => context.colors.primary,
       SeriesChapterDownloadPhase.queued ||
       SeriesChapterDownloadPhase.notDownloaded =>
-        AppColors.muted,
+        context.colors.muted,
     };
 
     return Column(
@@ -257,8 +257,8 @@ class _DownloadStatusLine extends StatelessWidget {
               key: const Key('chapter-download-bar'),
               value: download.progressValue,
               minHeight: 3,
-              backgroundColor: AppColors.fg.withAlpha(20),
-              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+              backgroundColor: context.colors.fg.withAlpha(20),
+              valueColor: AlwaysStoppedAnimation(context.colors.primary),
             ),
           ),
         ],
@@ -288,12 +288,12 @@ class _DownloadControl extends StatelessWidget {
           key: download.buttonKey,
           tooltip: download.tooltip,
           onPressed: download.onPressed,
-          icon: const Icon(Icons.refresh, color: AppColors.danger),
+          icon: Icon(Icons.refresh, color: context.colors.danger),
         ),
       SeriesChapterDownloadPhase.queued => _DownloadBadge(
           badgeKey: download.buttonKey,
           tooltip: download.tooltip,
-          child: const Icon(Icons.schedule, color: AppColors.muted, size: 20),
+          child: Icon(Icons.schedule, color: context.colors.muted, size: 20),
         ),
       SeriesChapterDownloadPhase.downloading => _DownloadBadge(
           badgeKey: download.buttonKey,
@@ -304,8 +304,8 @@ class _DownloadControl extends StatelessWidget {
             child: CircularProgressIndicator(
               value: download.progressValue,
               strokeWidth: 2,
-              backgroundColor: AppColors.fg.withAlpha(20),
-              valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+              backgroundColor: context.colors.fg.withAlpha(20),
+              valueColor: AlwaysStoppedAnimation(context.colors.primary),
             ),
           ),
         ),
@@ -315,7 +315,7 @@ class _DownloadControl extends StatelessWidget {
       SeriesChapterDownloadPhase.downloaded => _DownloadBadge(
           badgeKey: download.buttonKey,
           tooltip: download.tooltip,
-          child: const Icon(Icons.offline_pin, color: AppColors.success, size: 22),
+          child: Icon(Icons.offline_pin, color: context.colors.success, size: 22),
         ),
     };
   }
@@ -358,14 +358,14 @@ class _ReadingPill extends StatelessWidget {
         vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(40),
+        color: context.colors.primary.withAlpha(40),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: AppColors.primary.withAlpha(80)),
+        border: Border.all(color: context.colors.primary.withAlpha(80)),
       ),
       child: Text(
         'Reading',
         style: AppTypography.caption.copyWith(
-          color: AppColors.primary,
+          color: context.colors.primary,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,
         ),

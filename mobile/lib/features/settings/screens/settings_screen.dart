@@ -156,7 +156,7 @@ class _SectionHeading extends StatelessWidget {
             width: 3,
             height: 15,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: context.colors.primary,
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
           ),
@@ -167,7 +167,7 @@ class _SectionHeading extends StatelessWidget {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: 2,
-              color: AppColors.fg,
+              color: context.colors.fg,
             ),
           ),
         ],
@@ -194,11 +194,11 @@ class _AccountSection extends ConsumerWidget {
           Row(
             children: [
               CircleAvatar(
-                backgroundColor: AppColors.primary,
+                backgroundColor: context.colors.primary,
                 child: Text(
                   initial,
                   style: AppTypography.labelLg
-                      .copyWith(color: AppColors.primaryFg),
+                      .copyWith(color: context.colors.primaryFg),
                 ),
               ),
               const SizedBox(width: AppSpacing.md),
@@ -210,7 +210,7 @@ class _AccountSection extends ConsumerWidget {
                     Text(
                       '@${user.username}',
                       style: AppTypography.bodySm
-                          .copyWith(color: AppColors.muted),
+                          .copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
@@ -261,17 +261,17 @@ class _HistorySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       onTap: () => context.push(Routes.readingHistory),
-      glowColor: AppColors.primary,
+      glowColor: context.colors.primary,
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(AppSpacing.sm),
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(30),
+              color: context.colors.primary.withAlpha(30),
               borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: AppColors.primary.withAlpha(64)),
+              border: Border.all(color: context.colors.primary.withAlpha(64)),
             ),
-            child: const Icon(Icons.history_rounded, color: AppColors.primary),
+            child: Icon(Icons.history_rounded, color: context.colors.primary),
           ),
           const SizedBox(width: AppSpacing.md),
           Expanded(
@@ -282,12 +282,12 @@ class _HistorySection extends StatelessWidget {
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   'See what you read last',
-                  style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                  style: AppTypography.bodySm.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
           ),
-          const Icon(Icons.chevron_right, color: AppColors.primary),
+          Icon(Icons.chevron_right, color: context.colors.primary),
         ],
       ),
     );
@@ -305,13 +305,13 @@ class _AdminBadge extends StatelessWidget {
         vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primary.withAlpha(36),
+        color: context.colors.primary.withAlpha(36),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: AppColors.primary.withAlpha(90)),
+        border: Border.all(color: context.colors.primary.withAlpha(90)),
       ),
       child: Text(
         'Admin',
-        style: AppTypography.labelSm.copyWith(color: AppColors.primary),
+        style: AppTypography.labelSm.copyWith(color: context.colors.primary),
       ),
     );
   }
@@ -516,16 +516,16 @@ class _SectionErrorCard extends StatelessWidget {
     return GlassCard(
       child: Row(
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
-            color: AppColors.muted,
+            color: context.colors.muted,
             size: 18,
           ),
           const SizedBox(width: AppSpacing.sm),
           Expanded(
             child: Text(
               "Couldn't load $label.",
-              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+              style: AppTypography.bodySm.copyWith(color: context.colors.muted),
             ),
           ),
           const SizedBox(width: AppSpacing.sm),
@@ -589,7 +589,7 @@ class _ReaderDefaultsSection extends ConsumerWidget {
               padding: const EdgeInsets.only(bottom: AppSpacing.sm),
               child: Text(
                 'Auto uses the highest rate your screen supports.',
-                style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                style: AppTypography.bodySm.copyWith(color: context.colors.muted),
               ),
             ),
             Wrap(
@@ -674,7 +674,7 @@ class _ServerSettingsPanel extends ConsumerWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               'Configure the ManhwaManiacs backend URL for this device.',
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
             ),
             const SizedBox(height: AppSpacing.xl2),
             TextField(
@@ -747,7 +747,7 @@ class _AboutPanel extends ConsumerWidget {
           loading: () => const SkeletonBox(width: double.infinity, height: 100),
           error: (_, __) => Text(
             'Unable to read app info',
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
           data: (info) => GlassCard(
             child: Column(
@@ -757,7 +757,7 @@ class _AboutPanel extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'Local-first manga & manhwa reader',
-                  style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                  style: AppTypography.bodySm.copyWith(color: context.colors.muted),
                 ),
                 const SizedBox(height: AppSpacing.lg),
                 _InfoRow(label: 'Version', value: info.version),
@@ -807,15 +807,15 @@ class _ApkUpdateCard extends ConsumerWidget {
       error: (_, __) => GlassCard(
         child: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.cloud_off_outlined,
-              color: AppColors.muted,
+              color: context.colors.muted,
               size: 18,
             ),
             const SizedBox(width: AppSpacing.sm),
             Text(
               'Could not check for updates',
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
             ),
           ],
         ),
@@ -825,16 +825,16 @@ class _ApkUpdateCard extends ConsumerWidget {
           return GlassCard(
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.cloud_off_outlined,
-                  color: AppColors.muted,
+                  color: context.colors.muted,
                   size: 18,
                 ),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   'Server unreachable',
                   style:
-                      AppTypography.body.copyWith(color: AppColors.muted),
+                      AppTypography.body.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -844,9 +844,9 @@ class _ApkUpdateCard extends ConsumerWidget {
           return GlassCard(
             child: Row(
               children: [
-                const Icon(
+                Icon(
                   Icons.check_circle_outline,
-                  color: AppColors.success,
+                  color: context.colors.success,
                   size: 18,
                 ),
                 const SizedBox(width: AppSpacing.sm),
@@ -864,16 +864,16 @@ class _ApkUpdateCard extends ConsumerWidget {
             children: [
               Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.system_update_outlined,
-                    color: AppColors.primary,
+                    color: context.colors.primary,
                     size: 18,
                   ),
                   const SizedBox(width: AppSpacing.sm),
                   Text(
                     'Update available',
                     style: AppTypography.labelLg.copyWith(
-                      color: AppColors.primary,
+                      color: context.colors.primary,
                     ),
                   ),
                 ],
@@ -882,7 +882,7 @@ class _ApkUpdateCard extends ConsumerWidget {
               Text(
                 'v${info.localVersion} → v${info.remoteVersion}',
                 style:
-                    AppTypography.bodySm.copyWith(color: AppColors.muted),
+                    AppTypography.bodySm.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.md),
               OutlinedButton.icon(
@@ -936,16 +936,16 @@ class _SideStoreUpdateCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.install_mobile_outlined,
-                color: AppColors.primary,
+                color: context.colors.primary,
                 size: 18,
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 'Managed by SideStore',
                 style: AppTypography.labelLg.copyWith(
-                  color: AppColors.primary,
+                  color: context.colors.primary,
                 ),
               ),
             ],
@@ -954,12 +954,12 @@ class _SideStoreUpdateCard extends ConsumerWidget {
           Text(
             'This build is sideloaded. SideStore watches the source below and '
             'offers new builds itself — there is nothing to download here.',
-            style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+            style: AppTypography.bodySm.copyWith(color: context.colors.muted),
           ),
           const SizedBox(height: AppSpacing.md),
           SelectableText(
             sourceUrl,
-            style: AppTypography.bodySm.copyWith(color: AppColors.fg),
+            style: AppTypography.bodySm.copyWith(color: context.colors.fg),
           ),
           const SizedBox(height: AppSpacing.sm),
           OutlinedButton.icon(
@@ -978,7 +978,7 @@ class _SideStoreUpdateCard extends ConsumerWidget {
             'A free Apple ID signature lasts 7 days. If the app stops '
             'launching, open SideStore and refresh it — re-signing with the '
             'same Apple ID keeps you signed in here.',
-            style: AppTypography.caption.copyWith(color: AppColors.muted),
+            style: AppTypography.caption.copyWith(color: context.colors.muted),
           ),
         ],
       ),
@@ -998,7 +998,7 @@ class _InfoRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTypography.body.copyWith(color: AppColors.muted)),
+        Text(label, style: AppTypography.body.copyWith(color: context.colors.muted)),
         const SizedBox(width: AppSpacing.md),
         Flexible(
           child: Text(
@@ -1028,7 +1028,7 @@ class _DebugPanel extends ConsumerWidget {
           onTap: () => context.push(Routes.diagnostics),
           child: Row(
             children: [
-              const Icon(Icons.speed_rounded, color: AppColors.primary),
+              Icon(Icons.speed_rounded, color: context.colors.primary),
               const SizedBox(width: AppSpacing.md),
               Expanded(
                 child: Column(
@@ -1044,12 +1044,12 @@ class _DebugPanel extends ConsumerWidget {
                           ? 'Refresh rate, FPS, frame timing, device info, cache'
                           : 'FPS, frame timing, device info, cache',
                       style: AppTypography.bodySm
-                          .copyWith(color: AppColors.muted),
+                          .copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
+              Icon(Icons.chevron_right, color: context.colors.muted, size: 18),
             ],
           ),
         ),
@@ -1068,7 +1068,7 @@ class _DebugPanel extends ConsumerWidget {
               Text(
                 'Resets direction, fit, brightness, warmth, background, color '
                 'mode and refresh rate. Server URL and library are untouched.',
-                style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                style: AppTypography.bodySm.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.md),
               OutlinedButton.icon(

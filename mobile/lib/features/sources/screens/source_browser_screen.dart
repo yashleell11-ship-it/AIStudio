@@ -110,7 +110,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
             Expanded(
               child: Text(
                 sourceName,
-                style: AppTypography.h4.copyWith(color: AppColors.primary),
+                style: AppTypography.h4.copyWith(color: context.colors.primary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -131,7 +131,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search series…',
-                hintStyle: AppTypography.body.copyWith(color: AppColors.muted),
+                hintStyle: AppTypography.body.copyWith(color: context.colors.muted),
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: query.search.isNotEmpty
                     ? IconButton(
@@ -236,7 +236,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
 
                       return RefreshIndicator(
                         key: const ValueKey('source-browse-data'),
-                        color: AppColors.primary,
+                        color: context.colors.primary,
                         onRefresh: () => ref
                             .read(sourceBrowseProvider(widget.sourceId).notifier)
                             .refresh(),
@@ -254,7 +254,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                             sliver: SliverToBoxAdapter(
                               child: Text(
                                 '${state.total} series',
-                                style: AppTypography.caption,
+                                style: AppTypography.caption.copyWith(color: context.colors.muted),
                               ),
                             ),
                           ),
@@ -342,7 +342,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
             error is AppError
                 ? error.userMessage
                 : 'Failed to load source series.',
-            style: AppTypography.body.copyWith(color: AppColors.danger),
+            style: AppTypography.body.copyWith(color: context.colors.danger),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: AppSpacing.lg),
@@ -377,18 +377,18 @@ class _NavPill extends StatelessWidget {
     final content = Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 18, color: AppColors.primaryFg),
+        Icon(icon, size: 18, color: context.colors.primaryFg),
         const SizedBox(width: AppSpacing.xs),
         Text(
           label,
-          style: AppTypography.labelLg.copyWith(color: AppColors.primaryFg),
+          style: AppTypography.labelLg.copyWith(color: context.colors.primaryFg),
         ),
       ],
     );
 
     if (outlined) {
       return Material(
-        color: AppColors.panel.withAlpha(230),
+        color: context.colors.panel.withAlpha(230),
         borderRadius: BorderRadius.circular(AppRadius.full),
         child: InkWell(
           onTap: onTap,
@@ -400,7 +400,7 @@ class _NavPill extends StatelessWidget {
             ),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(AppRadius.full),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: content,
           ),
@@ -461,12 +461,12 @@ class _SourceOpeningState extends StatelessWidget {
               style: AppTypography.h4,
             ),
             const SizedBox(height: AppSpacing.xl),
-            const SizedBox(
+            SizedBox(
               width: 28,
               height: 28,
               child: CircularProgressIndicator(
                 strokeWidth: 2.5,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
               ),
             ),
           ],
@@ -492,9 +492,9 @@ class _DenseSeriesCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -517,7 +517,7 @@ class _DenseSeriesCard extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.fg,
+                      color: context.colors.fg,
                       fontSize: 10,
                       height: 1.2,
                     ),

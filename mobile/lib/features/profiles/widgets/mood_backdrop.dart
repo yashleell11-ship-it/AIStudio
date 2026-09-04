@@ -12,7 +12,7 @@ enum MoodBackdropVariant {
 }
 
 /// Paints a muted, top-anchored radial glow of a profile [mood] over
-/// [ProfileMoodColors.base] and cross-fades whenever the mood changes.
+/// [context.colors.bg] and cross-fades whenever the mood changes.
 ///
 /// This is the SINGLE place the mood tint is composited — the reader is never
 /// wrapped in it. The tint animates via an [AnimatedContainer]; the animation
@@ -56,18 +56,18 @@ class MoodBackdrop extends StatelessWidget {
   Widget build(BuildContext context) {
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     final glow = mood.isTinted
-        ? Color.lerp(ProfileMoodColors.base, mood.tint, _tintRatio)!
-        : ProfileMoodColors.base;
+        ? Color.lerp(context.colors.bg, mood.tint, _tintRatio)!
+        : context.colors.bg;
 
     return AnimatedContainer(
       duration: reduceMotion ? Duration.zero : _crossFade,
       curve: Curves.easeOut,
       decoration: BoxDecoration(
-        color: ProfileMoodColors.base,
+        color: context.colors.bg,
         gradient: RadialGradient(
           center: _center,
           radius: _radius,
-          colors: [glow, ProfileMoodColors.base],
+          colors: [glow, context.colors.bg],
           stops: [0.0, _fade],
         ),
       ),

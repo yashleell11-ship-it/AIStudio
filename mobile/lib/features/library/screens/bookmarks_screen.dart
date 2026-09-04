@@ -45,7 +45,7 @@ class BookmarksScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load bookmarks.',
-                style: AppTypography.body.copyWith(color: AppColors.danger),
+                style: AppTypography.body.copyWith(color: context.colors.danger),
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
@@ -56,7 +56,7 @@ class BookmarksScreen extends ConsumerWidget {
           ),
         ),
         data: (data) => RefreshIndicator(
-          color: AppColors.primary,
+          color: context.colors.primary,
           onRefresh: () async => ref.read(bookmarksProvider.notifier).refresh(),
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -65,7 +65,7 @@ class BookmarksScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Jump back into a saved page or remove ones you no longer need.',
-                style: AppTypography.body.copyWith(color: AppColors.muted),
+                style: AppTypography.body.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.xl2),
               if (data.bookmarks.isEmpty)
@@ -121,17 +121,17 @@ class _BookmarkCard extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   bookmark.sourceId,
-                  style: AppTypography.body.copyWith(color: AppColors.muted),
+                  style: AppTypography.body.copyWith(color: context.colors.muted),
                 ),
                 const SizedBox(height: AppSpacing.xs),
-                Text('Page ${bookmark.page}', style: AppTypography.caption),
+                Text('Page ${bookmark.page}', style: AppTypography.caption.copyWith(color: context.colors.muted)),
                 if (bookmark.note != null && bookmark.note!.isNotEmpty) ...[
                   const SizedBox(height: AppSpacing.xs),
                   Text(bookmark.note!, style: AppTypography.body),
                 ],
                 if (created != null) ...[
                   const SizedBox(height: AppSpacing.xs),
-                  Text(created, style: AppTypography.caption.copyWith(color: AppColors.muted)),
+                  Text(created, style: AppTypography.caption.copyWith(color: context.colors.muted)),
                 ],
               ],
             ),

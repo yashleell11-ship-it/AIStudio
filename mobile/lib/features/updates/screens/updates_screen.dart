@@ -38,9 +38,9 @@ class UpdatesScreen extends ConsumerWidget {
     final notifier = ref.read(updatesProvider.notifier);
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.colors.bg,
       appBar: AppBar(
-        backgroundColor: AppColors.bg,
+        backgroundColor: context.colors.bg,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           tooltip: 'Back',
@@ -51,7 +51,7 @@ class UpdatesScreen extends ConsumerWidget {
         actions: [
           IconButton(
             tooltip: 'Check now',
-            color: AppColors.primary,
+            color: context.colors.primary,
             onPressed: () => _run(context, notifier.triggerCheck()),
             icon: const Icon(Icons.refresh),
           ),
@@ -66,7 +66,7 @@ class UpdatesScreen extends ConsumerWidget {
           onRetry: notifier.refresh,
         ),
         data: (state) => RefreshIndicator(
-          color: AppColors.primary,
+          color: context.colors.primary,
           onRefresh: notifier.refresh,
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -79,7 +79,7 @@ class UpdatesScreen extends ConsumerWidget {
                     const SizedBox(height: AppSpacing.xs),
                     Text(
                       '${state.unreadCount} unread · ${state.followed.length} followed series',
-                      style: AppTypography.body.copyWith(color: AppColors.muted),
+                      style: AppTypography.body.copyWith(color: context.colors.muted),
                     ),
                     const SizedBox(height: AppSpacing.xl2),
                     Wrap(
@@ -170,7 +170,7 @@ class _SectionHeader extends StatelessWidget {
           width: 3,
           height: 18,
           decoration: BoxDecoration(
-            color: AppColors.primary,
+            color: context.colors.primary,
             borderRadius: BorderRadius.circular(AppRadius.full),
           ),
         ),
@@ -215,11 +215,11 @@ class _NotificationCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             notification.sourceId,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
           if (date != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(date, style: AppTypography.caption),
+            Text(date, style: AppTypography.caption.copyWith(color: context.colors.muted)),
           ],
           if (onMarkRead != null) ...[
             const SizedBox(height: AppSpacing.md),
@@ -227,7 +227,7 @@ class _NotificationCard extends StatelessWidget {
               alignment: Alignment.centerRight,
               child: TextButton(
                 onPressed: onMarkRead,
-                style: TextButton.styleFrom(foregroundColor: AppColors.primary),
+                style: TextButton.styleFrom(foregroundColor: context.colors.primary),
                 child: const Text('Mark read'),
               ),
             ),
@@ -246,14 +246,14 @@ class _NewBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: AppColors.primary.withValues(alpha: 0.20),
+        color: context.colors.primary.withValues(alpha: 0.20),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: AppColors.primary.withValues(alpha: 0.45)),
+        border: Border.all(color: context.colors.primary.withValues(alpha: 0.45)),
       ),
       child: Text(
         'NEW',
         style: AppTypography.caption.copyWith(
-          color: AppColors.primary,
+          color: context.colors.primary,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.6,
         ),
@@ -295,14 +295,14 @@ class _FollowedSeriesCard extends StatelessWidget {
             series.chapterCount > 0
                 ? '${series.chapterCount} chapters'
                 : 'Not checked yet',
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
               TextButton(
                 onPressed: actionPending ? null : onRemove,
-                style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                style: TextButton.styleFrom(foregroundColor: context.colors.danger),
                 child: const Text('Unfollow'),
               ),
             ],
@@ -323,13 +323,13 @@ class _KindBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: AppColors.fg.withValues(alpha: 0.06),
+        color: context.colors.fg.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Text(
         label,
-        style: AppTypography.caption.copyWith(color: AppColors.muted),
+        style: AppTypography.caption.copyWith(color: context.colors.muted),
       ),
     );
   }
@@ -367,11 +367,11 @@ class _UpdatesError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+            Icon(Icons.error_outline, color: context.colors.danger, size: 48),
             const SizedBox(height: AppSpacing.lg),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl2),

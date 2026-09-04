@@ -36,12 +36,12 @@ class GlassCard extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: [
-            AppColors.surface2.withAlpha(180),
-            AppColors.panel,
+            context.colors.surface2.withAlpha(180),
+            context.colors.panel,
           ],
           stops: const [0.0, 1.0],
         ),
-        border: Border.all(color: AppColors.glassEdge),
+        border: Border.all(color: context.colors.glassEdge),
         boxShadow: glowColor != null
             ? [
                 BoxShadow(
@@ -63,8 +63,8 @@ class GlassCard extends StatelessWidget {
           : InkWell(
               onTap: onTap,
               borderRadius: br,
-              splashColor: AppColors.fg.withAlpha(10),
-              highlightColor: AppColors.fg.withAlpha(6),
+              splashColor: context.colors.fg.withAlpha(10),
+              highlightColor: context.colors.fg.withAlpha(6),
               child: card,
             ),
     );

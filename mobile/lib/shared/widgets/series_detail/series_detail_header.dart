@@ -50,7 +50,7 @@ class SeriesDetailHeader extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           child: AspectRatio(
             aspectRatio: 2 / 3,
-            child: cover ?? const ColoredBox(color: AppColors.panel),
+            child: cover ?? ColoredBox(color: context.colors.panel),
           ),
         ),
         const SizedBox(height: AppSpacing.xl2),
@@ -60,7 +60,7 @@ class SeriesDetailHeader extends StatelessWidget {
           Text(
             originalTitle!,
             style: AppTypography.body.copyWith(
-              color: AppColors.muted,
+              color: context.colors.muted,
               fontStyle: FontStyle.italic,
             ),
           ),
@@ -69,18 +69,18 @@ class SeriesDetailHeader extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             author!,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
         ],
         if (artist != null && artist!.trim().isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xxs),
-          Text('Art by ${artist!}', style: AppTypography.caption),
+          Text('Art by ${artist!}', style: AppTypography.caption.copyWith(color: context.colors.muted)),
         ],
         if (metaLine != null && metaLine!.isNotEmpty) ...[
           const SizedBox(height: AppSpacing.xs),
           Text(
             metaLine!,
-            style: AppTypography.label.copyWith(color: AppColors.primary),
+            style: AppTypography.label.copyWith(color: context.colors.primary),
           ),
         ],
         if (trimmedDescription != null && trimmedDescription.isNotEmpty) ...[

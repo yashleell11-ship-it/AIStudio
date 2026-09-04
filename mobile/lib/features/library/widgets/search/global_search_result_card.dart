@@ -54,7 +54,7 @@ class GlobalSearchResultCard extends StatelessWidget {
                     item.author!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(color: AppColors.muted),
+                    style: AppTypography.body.copyWith(color: context.colors.muted),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
@@ -94,9 +94,9 @@ class GlobalSearchResultGridCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            color: AppColors.surface,
+            color: context.colors.surface,
             borderRadius: BorderRadius.circular(AppRadius.md),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -127,7 +127,7 @@ class GlobalSearchResultGridCard extends StatelessWidget {
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: AppTypography.caption.copyWith(
-                      color: AppColors.fg,
+                      color: context.colors.fg,
                       fontSize: 10,
                       height: 1.2,
                     ),
@@ -156,7 +156,7 @@ class SourceBadge extends StatelessWidget {
     final label = isLocal
         ? 'Library'
         : prettifySourceId(item.source ?? 'source');
-    final color = isLocal ? AppColors.cyan400 : AppColors.violet400;
+    final color = isLocal ? context.colors.cyan400 : context.colors.violet400;
 
     return Container(
       padding: EdgeInsets.symmetric(
@@ -165,7 +165,7 @@ class SourceBadge extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: compact
-            ? AppColors.bg.withAlpha(204)
+            ? context.colors.bg.withAlpha(204)
             : color.withAlpha(28),
         borderRadius: BorderRadius.circular(AppRadius.sm),
         border: Border.all(color: color.withAlpha(compact ? 120 : 77)),

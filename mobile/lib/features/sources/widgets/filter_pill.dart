@@ -29,10 +29,10 @@ class FilterPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final foreground = selected ? AppColors.primaryFg : AppColors.muted;
+    final foreground = selected ? context.colors.primaryFg : context.colors.muted;
 
     return Material(
-      color: selected ? AppColors.primary : AppColors.fg.withAlpha(13),
+      color: selected ? context.colors.primary : context.colors.fg.withAlpha(13),
       borderRadius: BorderRadius.circular(AppRadius.full),
       child: InkWell(
         onTap: onTap,
@@ -45,7 +45,7 @@ class FilterPill extends StatelessWidget {
             border: Border.all(
               color: selected
                   ? Colors.transparent
-                  : AppColors.border.withAlpha(128),
+                  : context.colors.border.withAlpha(128),
             ),
           ),
           alignment: Alignment.center,

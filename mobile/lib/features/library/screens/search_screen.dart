@@ -143,7 +143,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     });
 
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.colors.bg,
       body: listAsync.when(
         skipLoadingOnReload: true,
         loading: () => _SearchScrollView(
@@ -285,12 +285,12 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             children: [
               if (state?.isLoadingMore ?? false) ...[
                 const SizedBox(height: AppSpacing.xl2),
-                const Center(
+                Center(
                   child: Padding(
-                    padding: EdgeInsets.all(AppSpacing.lg),
+                    padding: const EdgeInsets.all(AppSpacing.lg),
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
-                      color: AppColors.primary,
+                      color: context.colors.primary,
                     ),
                   ),
                 ),
@@ -364,21 +364,21 @@ class _SearchHeader extends StatelessWidget {
           onChanged: onSearchChanged,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search, color: AppColors.muted),
+            prefixIcon: Icon(Icons.search, color: context.colors.muted),
             hintText: 'Search manga, manhwa, webtoons…',
             filled: true,
-            fillColor: AppColors.fg.withAlpha(8),
+            fillColor: context.colors.fg.withAlpha(8),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
+              borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
+              borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              borderSide: BorderSide(color: AppColors.primary.withAlpha(77)),
+              borderSide: BorderSide(color: context.colors.primary.withAlpha(77)),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.xl2,
@@ -506,20 +506,20 @@ class _SourceSection extends StatelessWidget {
         children: [
           _SourceSectionHeader(group: group),
           const SizedBox(height: AppSpacing.md),
-          _body(),
+          _body(context),
         ],
       ),
     );
   }
 
-  Widget _body() {
+  Widget _body(BuildContext context) {
     if (isRetrying) return const _ShelfSkeleton();
 
     if (group.hasError) {
       return _SourceSectionNote(
         icon: Icons.cloud_off,
         message: group.error ?? 'This source did not answer.',
-        tone: AppColors.danger,
+        tone: context.colors.danger,
         onRetry: onRetry,
       );
     }
@@ -531,7 +531,7 @@ class _SourceSection extends StatelessWidget {
         // with results it judged irrelevant — worth saying, because "nothing
         // matched" and "this source returned noise" are different problems.
         message: group.error ?? 'No matches',
-        tone: AppColors.muted,
+        tone: context.colors.muted,
       );
     }
 
@@ -576,14 +576,14 @@ class _SourceSectionHeader extends StatelessWidget {
             width: _logoSize,
             height: _logoSize,
             decoration: BoxDecoration(
-              color: AppColors.primary.withAlpha(28),
+              color: context.colors.primary.withAlpha(28),
               borderRadius: BorderRadius.circular(AppRadius.md),
-              border: Border.all(color: AppColors.primary.withAlpha(90)),
+              border: Border.all(color: context.colors.primary.withAlpha(90)),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.bookmark_outline,
               size: 16,
-              color: AppColors.primary,
+              color: context.colors.primary,
             ),
           )
         else
@@ -601,7 +601,7 @@ class _SourceSectionHeader extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: AppTypography.labelLg.copyWith(
               fontWeight: FontWeight.w600,
-              color: AppColors.fg,
+              color: context.colors.fg,
             ),
           ),
         ),
@@ -627,14 +627,14 @@ class _CountBadge extends StatelessWidget {
         vertical: 1,
       ),
       decoration: BoxDecoration(
-        color: AppColors.fg.withAlpha(13),
+        color: context.colors.fg.withAlpha(13),
         borderRadius: BorderRadius.circular(AppRadius.full),
-        border: Border.all(color: AppColors.border.withAlpha(128)),
+        border: Border.all(color: context.colors.border.withAlpha(128)),
       ),
       child: Text(
         '$count',
         style: AppTypography.caption.copyWith(
-          color: AppColors.muted,
+          color: context.colors.muted,
           fontWeight: FontWeight.w600,
         ),
       ),
@@ -675,7 +675,7 @@ class _SourceSectionNote extends StatelessWidget {
           TextButton(
             onPressed: onRetry,
             style: TextButton.styleFrom(
-              foregroundColor: AppColors.primary,
+              foregroundColor: context.colors.primary,
               minimumSize: const Size(64, 36),
               padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
             ),
@@ -704,19 +704,19 @@ class _NoteCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.xl2),
       decoration: BoxDecoration(
-        color: AppColors.panel,
+        color: context.colors.panel,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         children: [
-          Icon(icon, size: 28, color: AppColors.muted.withAlpha(140)),
+          Icon(icon, size: 28, color: context.colors.muted.withAlpha(140)),
           const SizedBox(height: AppSpacing.md),
           Text(title, style: AppTypography.h4, textAlign: TextAlign.center),
           const SizedBox(height: AppSpacing.sm),
           Text(
             message,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
             textAlign: TextAlign.center,
           ),
         ],
@@ -789,7 +789,7 @@ class _StatusLine extends StatelessWidget {
     if (isLoading || state == null) {
       return Text(
         'Searching sources…',
-        style: AppTypography.body.copyWith(color: AppColors.muted),
+        style: AppTypography.body.copyWith(color: context.colors.muted),
       );
     }
 
@@ -808,14 +808,14 @@ class _StatusLine extends StatelessWidget {
       children: [
         Text(
           buffer.toString(),
-          style: AppTypography.body.copyWith(color: AppColors.muted),
+          style: AppTypography.body.copyWith(color: context.colors.muted),
         ),
         if (failed > 0) ...[
           const SizedBox(height: 2),
           Text(
             'Some sources unavailable',
             style: AppTypography.caption.copyWith(
-              color: AppColors.warning.withAlpha(204),
+              color: context.colors.warning.withAlpha(204),
             ),
           ),
         ],
@@ -839,7 +839,7 @@ class _SearchScrollView extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: AppColors.primary,
+      color: context.colors.primary,
       child: CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -863,7 +863,7 @@ class _SearchError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+            Icon(Icons.error_outline, color: context.colors.danger, size: 48),
             const SizedBox(height: AppSpacing.lg),
             Text(
               'Search failed',
@@ -873,7 +873,7 @@ class _SearchError extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl2),

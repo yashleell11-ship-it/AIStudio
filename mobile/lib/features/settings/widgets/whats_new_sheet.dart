@@ -14,7 +14,7 @@ Future<void> showWhatsNewSheet(BuildContext context) {
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    backgroundColor: AppColors.surface,
+    backgroundColor: context.colors.surface,
     constraints: const BoxConstraints(maxWidth: 640),
     builder: (_) => const WhatsNewSheet(),
   );
@@ -51,7 +51,7 @@ class WhatsNewSheet extends ConsumerWidget {
                   const SizedBox(height: AppSpacing.xxs),
                   Text(
                     'Recent improvements to ManhwaManiacs',
-                    style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                    style: AppTypography.bodySm.copyWith(color: context.colors.muted),
                   ),
                 ],
               ),
@@ -125,9 +125,9 @@ class _ReleaseCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.panel,
+        color: context.colors.panel,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -140,15 +140,15 @@ class _ReleaseCard extends StatelessWidget {
                   vertical: AppSpacing.xxs,
                 ),
                 decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [AppColors.accentAmber, AppColors.accentRose],
+                  gradient: LinearGradient(
+                    colors: [context.colors.accentAmber, context.colors.accentRose],
                   ),
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
                 child: Text(
                   'v${release.version}',
                   style: AppTypography.labelSm.copyWith(
-                    color: AppColors.primaryFg,
+                    color: context.colors.primaryFg,
                   ),
                 ),
               ),
@@ -160,14 +160,14 @@ class _ReleaseCard extends StatelessWidget {
                     vertical: AppSpacing.xxs,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.accent.withAlpha(30),
+                    color: context.colors.accent.withAlpha(30),
                     borderRadius: BorderRadius.circular(AppRadius.full),
-                    border: Border.all(color: AppColors.accent.withAlpha(90)),
+                    border: Border.all(color: context.colors.accent.withAlpha(90)),
                   ),
                   child: Text(
                     'Latest',
                     style: AppTypography.labelSm.copyWith(
-                      color: AppColors.accentAmber,
+                      color: context.colors.accentAmber,
                     ),
                   ),
                 ),
@@ -179,7 +179,7 @@ class _ReleaseCard extends StatelessWidget {
                     meta,
                     textAlign: TextAlign.right,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption,
+                    style: AppTypography.caption.copyWith(color: context.colors.muted),
                   ),
                 ),
             ],
@@ -196,9 +196,9 @@ class _ReleaseCard extends StatelessWidget {
                       margin: const EdgeInsets.only(top: 7),
                       width: 6,
                       height: 6,
-                      decoration: const BoxDecoration(
+                      decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [AppColors.primary, AppColors.accent],
+                          colors: [context.colors.primary, context.colors.accent],
                         ),
                         shape: BoxShape.circle,
                       ),
@@ -208,7 +208,7 @@ class _ReleaseCard extends StatelessWidget {
                       child: Text(
                         note,
                         style: AppTypography.body.copyWith(
-                          color: AppColors.fg.withAlpha(220),
+                          color: context.colors.fg.withAlpha(220),
                         ),
                       ),
                     ),

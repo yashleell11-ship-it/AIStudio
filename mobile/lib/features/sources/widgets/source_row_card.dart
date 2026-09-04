@@ -43,9 +43,9 @@ class SourceRowCard extends StatelessWidget {
       onTap: unavailable ? null : onTap,
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppColors.surface,
+          color: context.colors.surface,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: AppColors.border),
+          border: Border.all(color: context.colors.border),
         ),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -82,8 +82,8 @@ class SourceRowCard extends StatelessWidget {
                             style: AppTypography.bodyLg.copyWith(
                               fontWeight: FontWeight.w600,
                               color: unavailable
-                                  ? AppColors.muted
-                                  : AppColors.fg,
+                                  ? context.colors.muted
+                                  : context.colors.fg,
                             ),
                           ),
                         ),
@@ -100,7 +100,7 @@ class SourceRowCard extends StatelessWidget {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: AppTypography.bodySm.copyWith(
-                          color: AppColors.muted,
+                          color: context.colors.muted,
                         ),
                       ),
                     ],
@@ -130,14 +130,14 @@ class _MatureBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 1),
       decoration: BoxDecoration(
-        color: AppColors.danger.withAlpha(28),
+        color: context.colors.danger.withAlpha(28),
         borderRadius: BorderRadius.circular(AppRadius.sm),
-        border: Border.all(color: AppColors.danger.withAlpha(90)),
+        border: Border.all(color: context.colors.danger.withAlpha(90)),
       ),
       child: Text(
         '18+',
         style: AppTypography.labelSm.copyWith(
-          color: AppColors.danger,
+          color: context.colors.danger,
           fontWeight: FontWeight.w700,
         ),
       ),
@@ -153,9 +153,9 @@ class SourceRowSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.surface,
+        color: context.colors.surface,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: const Padding(
         padding: EdgeInsets.symmetric(

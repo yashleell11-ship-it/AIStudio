@@ -32,7 +32,7 @@ class CollectionBannerCard extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(color: AppColors.border.withAlpha(80)),
+            border: Border.all(color: context.colors.border.withAlpha(80)),
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(AppRadius.xl),
@@ -53,9 +53,9 @@ class CollectionBannerCard extends StatelessWidget {
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
                         colors: [
-                          AppColors.bg.withAlpha(242),
-                          AppColors.bg.withAlpha(179),
-                          AppColors.bg.withAlpha(77),
+                          context.colors.bg.withAlpha(242),
+                          context.colors.bg.withAlpha(179),
+                          context.colors.bg.withAlpha(77),
                         ],
                       ),
                     ),
@@ -66,7 +66,7 @@ class CollectionBannerCard extends StatelessWidget {
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
                         colors: [
-                          AppColors.bg.withAlpha(204),
+                          context.colors.bg.withAlpha(204),
                           Colors.transparent,
                         ],
                       ),
@@ -142,9 +142,9 @@ class _GradientFallback extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                AppColors.primary.withAlpha(0x66),
-                AppColors.panel,
-                AppColors.accent.withAlpha(0x33),
+                context.colors.primary.withAlpha(0x66),
+                context.colors.panel,
+                context.colors.accent.withAlpha(0x33),
               ],
             ),
           ),
@@ -213,9 +213,9 @@ class CollectionHeroBanner extends ConsumerWidget {
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
                 colors: [
-                  AppColors.bg.withAlpha(102),
-                  AppColors.bg.withAlpha(204),
-                  AppColors.bg,
+                  context.colors.bg.withAlpha(102),
+                  context.colors.bg.withAlpha(204),
+                  context.colors.bg,
                 ],
               ),
             ),
@@ -243,17 +243,17 @@ class CollectionHeroBanner extends ConsumerWidget {
                     description!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(color: AppColors.muted),
+                    style: AppTypography.body.copyWith(color: context.colors.muted),
                   ),
                 ],
                 const SizedBox(height: AppSpacing.md),
                 Row(
                   children: [
-                    const Icon(Icons.menu_book_outlined, size: 16, color: AppColors.accent),
+                    Icon(Icons.menu_book_outlined, size: 16, color: context.colors.accent),
                     const SizedBox(width: AppSpacing.xs),
                     Text(
                       '$seriesCount series',
-                      style: AppTypography.body.copyWith(color: AppColors.muted),
+                      style: AppTypography.body.copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
@@ -277,9 +277,9 @@ class _HeroGradient extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.primary.withAlpha(0x4D),
-            AppColors.bg,
-            AppColors.accent.withAlpha(0x33),
+            context.colors.primary.withAlpha(0x4D),
+            context.colors.bg,
+            context.colors.accent.withAlpha(0x33),
           ],
         ),
       ),
@@ -414,7 +414,7 @@ class _CollectionFormDialogState extends State<CollectionFormDialog> {
               const SizedBox(height: AppSpacing.md),
               Text(
                 _errorMessage!,
-                style: AppTypography.caption.copyWith(color: AppColors.danger),
+                style: AppTypography.caption.copyWith(color: context.colors.danger),
               ),
             ],
           ],

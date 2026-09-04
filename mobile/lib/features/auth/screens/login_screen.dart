@@ -153,14 +153,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Text(
                     'Server: $serverHost',
                     style:
-                        AppTypography.caption.copyWith(color: AppColors.muted),
+                        AppTypography.caption.copyWith(color: context.colors.muted),
                   ),
                 ),
                 const SizedBox(width: AppSpacing.xs),
-                const Icon(
+                Icon(
                   Icons.copy_outlined,
                   size: 14,
-                  color: AppColors.muted,
+                  color: context.colors.muted,
                 ),
               ],
             ),

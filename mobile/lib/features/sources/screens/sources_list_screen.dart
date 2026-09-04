@@ -66,7 +66,7 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
       body: SafeArea(
         bottom: false,
         child: RefreshIndicator(
-          color: AppColors.primary,
+          color: context.colors.primary,
           onRefresh: _refresh,
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
@@ -320,7 +320,7 @@ class _SourcesFilterBar extends SliverPersistentHeaderDelegate {
   Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
     return Container(
       height: _extent,
-      color: AppColors.bg,
+      color: context.colors.bg,
       padding: const EdgeInsets.fromLTRB(
         AppSpacing.lg,
         _topPad,
@@ -339,14 +339,14 @@ class _SourcesFilterBar extends SliverPersistentHeaderDelegate {
               style: AppTypography.body,
               decoration: InputDecoration(
                 isDense: true,
-                prefixIcon: const Icon(Icons.search, color: AppColors.muted),
+                prefixIcon: Icon(Icons.search, color: context.colors.muted),
                 prefixIconConstraints:
                     const BoxConstraints(minWidth: 44, minHeight: 44),
                 suffixIcon: query.isEmpty
                     ? null
                     : IconButton(
                         icon: const Icon(Icons.close, size: 18),
-                        color: AppColors.muted,
+                        color: context.colors.muted,
                         onPressed: () {
                           controller.clear();
                           onQueryChanged('');
@@ -354,18 +354,18 @@ class _SourcesFilterBar extends SliverPersistentHeaderDelegate {
                       ),
                 hintText: 'Filter sources…',
                 filled: true,
-                fillColor: AppColors.fg.withAlpha(8),
+                fillColor: context.colors.fg.withAlpha(8),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.xl),
-                  borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
+                  borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.xl),
-                  borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
+                  borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(AppRadius.xl),
-                  borderSide: BorderSide(color: AppColors.primary.withAlpha(77)),
+                  borderSide: BorderSide(color: context.colors.primary.withAlpha(77)),
                 ),
                 contentPadding: const EdgeInsets.symmetric(
                   horizontal: AppSpacing.md,
@@ -471,7 +471,7 @@ class _SourcesErrorSliver extends StatelessWidget {
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: AppTypography.body.copyWith(color: AppColors.danger),
+                style: AppTypography.body.copyWith(color: context.colors.danger),
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),

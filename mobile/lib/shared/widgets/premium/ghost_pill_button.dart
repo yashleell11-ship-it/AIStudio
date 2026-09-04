@@ -32,13 +32,13 @@ class GhostPillButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (icon != null) ...[
-          Icon(icon, size: 18, color: AppColors.fg),
+          Icon(icon, size: 18, color: context.colors.fg),
           const SizedBox(width: AppSpacing.sm),
         ],
         Text(
           label.toUpperCase(),
           style: AppTypography.labelLg.copyWith(
-            color: AppColors.fg,
+            color: context.colors.fg,
             fontWeight: FontWeight.w500,
             letterSpacing: 1.2,
           ),
@@ -51,12 +51,12 @@ class GhostPillButton extends StatelessWidget {
       child: InkWell(
         onTap: onPressed,
         borderRadius: radius,
-        splashColor: AppColors.fg.withValues(alpha: 0.10),
-        highlightColor: AppColors.fg.withValues(alpha: 0.06),
+        splashColor: context.colors.fg.withValues(alpha: 0.10),
+        highlightColor: context.colors.fg.withValues(alpha: 0.06),
         child: Container(
           decoration: BoxDecoration(
             borderRadius: radius,
-            border: Border.all(color: AppColors.fg, width: 2),
+            border: Border.all(color: context.colors.fg, width: 2),
           ),
           padding: const EdgeInsets.symmetric(
             horizontal: AppSpacing.xl2,

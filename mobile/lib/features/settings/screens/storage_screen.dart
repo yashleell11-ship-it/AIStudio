@@ -69,7 +69,7 @@ class _ImageCacheCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.image_outlined, color: AppColors.primary, size: 20),
+              Icon(Icons.image_outlined, color: context.colors.primary, size: 20),
               const SizedBox(width: AppSpacing.sm),
               Text('Image cache', style: AppTypography.h4),
             ],
@@ -78,14 +78,14 @@ class _ImageCacheCard extends ConsumerWidget {
           Text(
             'Thumbnails and pages cached for smooth scrolling. Safe to clear '
             'any time — it rebuilds automatically as you browse.',
-            style: AppTypography.bodySm.copyWith(color: AppColors.muted, height: 1.5),
+            style: AppTypography.bodySm.copyWith(color: context.colors.muted, height: 1.5),
           ),
           const SizedBox(height: AppSpacing.md),
           usageAsync.when(
             loading: () => const SkeletonBox(width: 100, height: 20),
             error: (_, __) => Text(
               'Unable to read cache size',
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
             ),
             data: (bytes) => Text(
               formatStorageBytes(bytes),
@@ -122,7 +122,7 @@ class _MetadataCacheCard extends ConsumerWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.refresh_outlined, color: AppColors.accent, size: 20),
+              Icon(Icons.refresh_outlined, color: context.colors.accent, size: 20),
               const SizedBox(width: AppSpacing.sm),
               Text('Metadata cache', style: AppTypography.h4),
             ],
@@ -131,7 +131,7 @@ class _MetadataCacheCard extends ConsumerWidget {
           Text(
             'Library, search and reading-progress data held in memory. '
             'Clearing it forces a fresh fetch from your server on next use.',
-            style: AppTypography.bodySm.copyWith(color: AppColors.muted, height: 1.5),
+            style: AppTypography.bodySm.copyWith(color: context.colors.muted, height: 1.5),
           ),
           const SizedBox(height: AppSpacing.lg),
           OutlinedButton(

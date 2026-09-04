@@ -123,7 +123,7 @@ class FollowedSeriesCard extends ConsumerWidget {
                 fit: StackFit.expand,
                 children: [
                   if (coverUrl == null)
-                    const ColoredBox(color: AppColors.surface2)
+                    ColoredBox(color: context.colors.surface2)
                   else
                     SeriesCoverImage(url: coverUrl, borderRadius: AppRadius.xl),
                   if (meta.unreadCount > 0)
@@ -142,7 +142,7 @@ class FollowedSeriesCard extends ConsumerWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: AppTypography.label.copyWith(
-              color: AppColors.fg,
+              color: context.colors.fg,
               height: 1.25,
               fontWeight: FontWeight.w600,
             ),
@@ -153,7 +153,7 @@ class FollowedSeriesCard extends ConsumerWidget {
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(color: AppColors.muted),
+              style: AppTypography.caption.copyWith(color: context.colors.muted),
             ),
           ],
         ],
@@ -176,13 +176,13 @@ class _NewBadge extends StatelessWidget {
         vertical: AppSpacing.xxs,
       ),
       decoration: BoxDecoration(
-        color: AppColors.primary,
+        color: context.colors.primary,
         borderRadius: BorderRadius.circular(AppRadius.pill),
       ),
       child: Text(
         '$count NEW',
         style: AppTypography.caption.copyWith(
-          color: AppColors.primaryFg,
+          color: context.colors.primaryFg,
           fontSize: 10,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.6,

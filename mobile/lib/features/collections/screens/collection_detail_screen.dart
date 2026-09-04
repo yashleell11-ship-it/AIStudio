@@ -51,7 +51,7 @@ class CollectionDetailScreen extends ConsumerWidget {
               : null;
 
           return RefreshIndicator(
-            color: AppColors.primary,
+            color: context.colors.primary,
             onRefresh: () =>
                 ref.read(collectionDetailProvider(collectionId).notifier).refresh(),
             child: CustomScrollView(
@@ -89,7 +89,7 @@ class CollectionDetailScreen extends ConsumerWidget {
                               onPressed: () => _confirmDelete(context, ref),
                               icon: const Icon(Icons.delete_outline, size: 16),
                               label: const Text('Delete'),
-                              style: TextButton.styleFrom(foregroundColor: AppColors.danger),
+                              style: TextButton.styleFrom(foregroundColor: context.colors.danger),
                             ),
                           ],
                         ),
@@ -217,7 +217,7 @@ class CollectionDetailScreen extends ConsumerWidget {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style: FilledButton.styleFrom(backgroundColor: context.colors.danger),
             child: const Text('Delete'),
           ),
         ],
@@ -264,7 +264,7 @@ class _CollectionSeriesTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.panel,
+      color: context.colors.panel,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,
@@ -296,14 +296,14 @@ class _CollectionSeriesTile extends StatelessWidget {
                       sourceId,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(color: AppColors.muted),
+                      style: AppTypography.caption.copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
               ),
               IconButton(
                 onPressed: onRemove,
-                icon: const Icon(Icons.remove_circle_outline, color: AppColors.danger),
+                icon: Icon(Icons.remove_circle_outline, color: context.colors.danger),
                 tooltip: 'Remove from collection',
               ),
             ],
@@ -333,7 +333,7 @@ class _CollectionDetailError extends StatelessWidget {
           children: [
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: AppColors.danger),
+              style: AppTypography.body.copyWith(color: context.colors.danger),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),

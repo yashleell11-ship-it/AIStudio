@@ -98,7 +98,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             ListTile(
               leading: Icon(
                 series.isFavorite ? Icons.star : Icons.star_border,
-                color: series.isFavorite ? AppColors.warning : null,
+                color: series.isFavorite ? context.colors.warning : null,
               ),
               title: Text(
                 series.isFavorite ? 'Remove from favorites' : 'Add to favorites',
@@ -271,7 +271,7 @@ class _SelectionActionBar extends StatelessWidget {
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: onFavorite,
-                icon: const Icon(Icons.star, size: 18, color: AppColors.warning),
+                icon: Icon(Icons.star, size: 18, color: context.colors.warning),
                 label: Text('Favorite ($count)'),
               ),
             ),
@@ -402,7 +402,7 @@ class _LibraryScrollView extends StatelessWidget {
   Widget build(BuildContext context) {
     return RefreshIndicator(
       onRefresh: onRefresh,
-      color: AppColors.primary,
+      color: context.colors.primary,
       child: CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
@@ -425,13 +425,13 @@ class _InlineError extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.lg),
       decoration: BoxDecoration(
-        color: AppColors.danger.withAlpha(26),
+        color: context.colors.danger.withAlpha(26),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.danger.withAlpha(77)),
+        border: Border.all(color: context.colors.danger.withAlpha(77)),
       ),
       child: Text(
         message,
-        style: AppTypography.body.copyWith(color: AppColors.danger),
+        style: AppTypography.body.copyWith(color: context.colors.danger),
       ),
     );
   }
@@ -454,7 +454,7 @@ class _LibraryError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+            Icon(Icons.error_outline, color: context.colors.danger, size: 48),
             const SizedBox(height: AppSpacing.lg),
             Text(
               'Could not load library',
@@ -464,7 +464,7 @@ class _LibraryError extends StatelessWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl2),

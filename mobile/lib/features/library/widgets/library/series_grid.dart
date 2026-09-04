@@ -64,8 +64,8 @@ class SeriesCard extends ConsumerWidget {
                   if (selected)
                     DecoratedBox(
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withAlpha(60),
-                        border: Border.all(color: AppColors.primary, width: 3),
+                        color: context.colors.primary.withAlpha(60),
+                        border: Border.all(color: context.colors.primary, width: 3),
                         borderRadius: BorderRadius.circular(AppRadius.xl),
                       ),
                     ),
@@ -82,7 +82,7 @@ class SeriesCard extends ConsumerWidget {
                           end: Alignment.bottomCenter,
                           colors: [
                             Colors.transparent,
-                            AppColors.bg.withAlpha(240),
+                            context.colors.bg.withAlpha(240),
                           ],
                         ),
                       ),
@@ -98,7 +98,7 @@ class SeriesCard extends ConsumerWidget {
                           vertical: AppSpacing.xxs,
                         ),
                         decoration: BoxDecoration(
-                          color: readingStatusColor(series.readingStatus)
+                          color: readingStatusColor(context, series.readingStatus)
                               .withAlpha(220),
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
@@ -236,7 +236,7 @@ class SeriesListTile extends ConsumerWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: readingStatusColor(series.readingStatus)
+                          color: readingStatusColor(context, series.readingStatus)
                               .withAlpha(204),
                           borderRadius: BorderRadius.circular(AppRadius.sm),
                         ),
@@ -254,7 +254,7 @@ class SeriesListTile extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${series.chapterCount} chapters',
-                  style: AppTypography.caption,
+                  style: AppTypography.caption.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -293,7 +293,7 @@ class _FavoriteButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.bg.withAlpha(128),
+      color: context.colors.bg.withAlpha(128),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onPressed,
@@ -304,7 +304,7 @@ class _FavoriteButton extends StatelessWidget {
           child: Icon(
             isFavorite ? Icons.star : Icons.star_border,
             size: compact ? 20 : 18,
-            color: isFavorite ? AppColors.warning : AppColors.fg.withAlpha(179),
+            color: isFavorite ? context.colors.warning : context.colors.fg.withAlpha(179),
           ),
         ),
       ),
@@ -327,9 +327,9 @@ class _SelectionCheckbox extends StatelessWidget {
       height: 26,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: selected ? AppColors.primary : AppColors.bg.withAlpha(150),
+        color: selected ? context.colors.primary : context.colors.bg.withAlpha(150),
         border: Border.all(
-          color: selected ? AppColors.primary : AppColors.fg.withAlpha(150),
+          color: selected ? context.colors.primary : context.colors.fg.withAlpha(150),
           width: 1.5,
         ),
       ),
@@ -348,17 +348,17 @@ class _RemoveButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.bg.withAlpha(179),
+      color: context.colors.bg.withAlpha(179),
       shape: const CircleBorder(),
       child: InkWell(
         onTap: onPressed,
         customBorder: const CircleBorder(),
-        child: const Padding(
-          padding: EdgeInsets.all(6),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
           child: Icon(
             Icons.remove_circle_outline,
             size: 18,
-            color: AppColors.danger,
+            color: context.colors.danger,
           ),
         ),
       ),
@@ -376,11 +376,11 @@ class _ProgressLabel extends StatelessWidget {
     if (series.isFavorite) {
       return Row(
         children: [
-          const Icon(Icons.star, size: 12, color: AppColors.warning),
+          Icon(Icons.star, size: 12, color: context.colors.warning),
           const SizedBox(width: 4),
           Text(
             'Favorite',
-            style: AppTypography.caption.copyWith(color: AppColors.warning),
+            style: AppTypography.caption.copyWith(color: context.colors.warning),
           ),
         ],
       );
@@ -388,7 +388,7 @@ class _ProgressLabel extends StatelessWidget {
 
     return Text(
       readingStatusLabel(series.readingStatus),
-      style: AppTypography.caption.copyWith(color: AppColors.muted),
+      style: AppTypography.caption.copyWith(color: context.colors.muted),
     );
   }
 }

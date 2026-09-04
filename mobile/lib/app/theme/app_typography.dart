@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_colors.dart';
 
 /// Type scale for the ManhwaManiacs "Eclipse Warm" theme.
 ///
@@ -19,6 +18,12 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 /// Style NAMES and metrics (size / weight / height / spacing) are unchanged
 /// from the previous scale so no screen breaks. Uppercase/tracking is applied
 /// at call sites.
+///
+/// Styles carry NO colour: the palette's foreground is applied at the
+/// [TextTheme] level (`AppTheme.fromPalette` → `textTheme.apply`) and flows
+/// to every `Text` through `DefaultTextStyle`, so text follows a theme
+/// switch. Call sites that want muted/accent text say so explicitly with
+/// `.copyWith(color: context.colors.…)`.
 abstract final class AppTypography {
   static const String fontFamilyDisplay = 'Syne';
   static const String fontFamilyBody = 'DMSans';
@@ -43,7 +48,7 @@ abstract final class AppTypography {
         fontVariations: _wght(fontWeight),
         height: height ?? 1.5,
         letterSpacing: letterSpacing,
-        color: color ?? AppColors.fg,
+        color: color,
       );
 
   /// Syne — used for display styles and h1 (large, characterful headings).
@@ -62,7 +67,7 @@ abstract final class AppTypography {
         fontVariations: _wght(fontWeight),
         height: height ?? 1.5,
         letterSpacing: letterSpacing,
-        color: color ?? AppColors.fg,
+        color: color,
       );
 
   // ── Display (Syne, large headings) ─────────────────────────────────────────
@@ -144,7 +149,6 @@ abstract final class AppTypography {
   static final TextStyle caption = _dm(
     fontSize: 11,
     fontWeight: FontWeight.w400,
-    color: AppColors.muted,
   );
 
   // ── Monospace ─────────────────────────────────────────────────────────────
@@ -154,7 +158,6 @@ abstract final class AppTypography {
     fontSize: 13,
     fontWeight: FontWeight.w400,
     height: 1.5,
-    color: AppColors.fg,
   );
 
   // ── TextTheme for MaterialApp ──────────────────────────────────────────────

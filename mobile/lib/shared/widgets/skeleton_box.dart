@@ -65,10 +65,10 @@ class _ShimmerFillState extends State<ShimmerFill>
           return DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                colors: const [
-                  AppColors.surface2,
-                  AppColors.glassEdge,
-                  AppColors.surface2,
+                colors: [
+                  context.colors.surface2,
+                  context.colors.glassEdge,
+                  context.colors.surface2,
                 ],
                 stops: const [0.35, 0.5, 0.65],
                 transform: _ShimmerSlide(_controller.value),

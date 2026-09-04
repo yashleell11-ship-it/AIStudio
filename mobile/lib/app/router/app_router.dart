@@ -392,7 +392,7 @@ class _AppShell extends ConsumerWidget {
                 offset: const Offset(0, 6),
               ),
               BoxShadow(
-                color: AppColors.primary.withAlpha(24),
+                color: context.colors.primary.withAlpha(24),
                 blurRadius: 24,
                 offset: const Offset(0, 4),
               ),
@@ -407,9 +407,9 @@ class _AppShell extends ConsumerWidget {
                   // Eclipse Warm frosted glass: near-black surface at ~0.85
                   // alpha over the mood backdrop, with the subtle warm-neutral
                   // border edge.
-                  color: AppColors.surface.withAlpha(217),
+                  color: context.colors.surface.withAlpha(217),
                   borderRadius: BorderRadius.circular(AppRadius.xl),
-                  border: Border.all(color: AppColors.border),
+                  border: Border.all(color: context.colors.border),
                 ),
                 child: NavigationBarTheme(
                   // Active = amber (primary); inactive = muted. Icon colour on a
@@ -418,8 +418,8 @@ class _AppShell extends ConsumerWidget {
                     iconTheme: WidgetStateProperty.resolveWith(
                       (states) => IconThemeData(
                         color: states.contains(WidgetState.selected)
-                            ? AppColors.primary
-                            : AppColors.muted,
+                            ? context.colors.primary
+                            : context.colors.muted,
                       ),
                     ),
                     labelTextStyle: WidgetStateProperty.resolveWith(
@@ -432,8 +432,8 @@ class _AppShell extends ConsumerWidget {
                             states.contains(WidgetState.selected);
                         return base.copyWith(
                           color: selected
-                              ? AppColors.primary
-                              : AppColors.muted,
+                              ? context.colors.primary
+                              : context.colors.muted,
                           fontWeight:
                               selected ? FontWeight.w600 : FontWeight.w500,
                         );
@@ -447,7 +447,7 @@ class _AppShell extends ConsumerWidget {
                     surfaceTintColor: Colors.transparent,
                     shadowColor: Colors.transparent,
                     // Warm amber wash behind the active destination.
-                    indicatorColor: AppColors.primary.withAlpha(30),
+                    indicatorColor: context.colors.primary.withAlpha(30),
                     labelBehavior:
                         NavigationDestinationLabelBehavior.onlyShowSelected,
                     destinations: [
@@ -511,8 +511,8 @@ class _DownloadsTabIcon extends StatelessWidget {
     return Badge.count(
       count: count,
       isLabelVisible: count > 0,
-      backgroundColor: AppColors.primary,
-      textColor: AppColors.primaryFg,
+      backgroundColor: context.colors.primary,
+      textColor: context.colors.primaryFg,
       child: Icon(icon),
     );
   }

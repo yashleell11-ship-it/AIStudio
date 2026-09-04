@@ -15,7 +15,7 @@ class SplashScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppColors.bg,
+      backgroundColor: context.colors.bg,
       body: Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -24,15 +24,15 @@ class SplashScreen extends StatelessWidget {
               width: 72,
               height: 72,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [AppColors.primary, AppColors.accent],
+                  colors: [context.colors.primary, context.colors.accent],
                 ),
                 borderRadius: BorderRadius.circular(AppRadius.xl),
                 boxShadow: [
                   BoxShadow(
-                    color: AppColors.primary.withValues(alpha: 0.3),
+                    color: context.colors.primary.withValues(alpha: 0.3),
                     blurRadius: 32,
                     spreadRadius: -4,
                   ),
@@ -49,17 +49,17 @@ class SplashScreen extends StatelessWidget {
             Text(
               'ManhwaManiacs',
               style: AppTypography.labelLg.copyWith(
-                color: AppColors.muted,
+                color: context.colors.muted,
                 letterSpacing: 2,
               ),
             ),
             const SizedBox(height: AppSpacing.xl2),
-            const SizedBox(
+            SizedBox(
               width: 22,
               height: 22,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+                valueColor: AlwaysStoppedAnimation<Color>(context.colors.primary),
               ),
             ),
           ],

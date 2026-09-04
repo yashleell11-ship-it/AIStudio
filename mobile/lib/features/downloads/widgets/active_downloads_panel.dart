@@ -61,7 +61,7 @@ class ActiveDownloadsPanel extends ConsumerWidget {
 
     return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      glowColor: queue.isBlocked ? AppColors.warning : AppColors.primary,
+      glowColor: queue.isBlocked ? context.colors.warning : context.colors.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -89,7 +89,7 @@ class ActiveDownloadsPanel extends ConsumerWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             kForegroundOnlyDownloadsNote,
-            style: AppTypography.caption.copyWith(color: AppColors.muted),
+            style: AppTypography.caption.copyWith(color: context.colors.muted),
           ),
         ],
       ),
@@ -113,7 +113,7 @@ class _HeaderRow extends ConsumerWidget {
       children: [
         Icon(
           paused ? Icons.pause_circle_outline : Icons.downloading_outlined,
-          color: paused ? AppColors.warning : AppColors.primary,
+          color: paused ? context.colors.warning : context.colors.primary,
           size: 20,
         ),
         const SizedBox(width: AppSpacing.sm),
@@ -133,7 +133,7 @@ class _HeaderRow extends ConsumerWidget {
             tooltip: userPaused ? 'Resume downloads' : 'Pause downloads',
             icon: Icon(
               userPaused ? Icons.play_arrow : Icons.pause,
-              color: AppColors.fg,
+              color: context.colors.fg,
               size: 20,
             ),
             onPressed: () {
@@ -150,7 +150,7 @@ class _HeaderRow extends ConsumerWidget {
           IconButton(
             key: const Key('queue-cancel-all'),
             tooltip: 'Cancel all downloads',
-            icon: const Icon(Icons.clear_all, color: AppColors.muted, size: 20),
+            icon: Icon(Icons.clear_all, color: context.colors.muted, size: 20),
             onPressed: () => _confirmCancelAll(context, ref),
           ),
       ],
@@ -161,12 +161,12 @@ class _HeaderRow extends ConsumerWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: context.colors.surfaceElevated,
         title: Text('Cancel all downloads?', style: AppTypography.h4),
         content: Text(
           'Everything still queued, downloading or failed is dropped. '
           'Chapters already finished stay on your phone.',
-          style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
         ),
         actions: [
           TextButton(
@@ -177,7 +177,7 @@ class _HeaderRow extends ConsumerWidget {
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
               'Cancel all',
-              style: AppTypography.label.copyWith(color: AppColors.danger),
+              style: AppTypography.label.copyWith(color: context.colors.danger),
             ),
           ),
         ],
@@ -220,7 +220,7 @@ class _CurrentChapterProgress extends ConsumerWidget {
           total > 0
               ? '${label.primary} · page ${queue.pagesDone} of $total'
               : '${label.primary} · reading chapter details…',
-          style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
         ),
         const SizedBox(height: AppSpacing.sm),
         ClipRRect(
@@ -229,8 +229,8 @@ class _CurrentChapterProgress extends ConsumerWidget {
             key: const Key('current-chapter-progress'),
             value: value,
             minHeight: 6,
-            backgroundColor: AppColors.fg.withAlpha(20),
-            valueColor: const AlwaysStoppedAnimation(AppColors.primary),
+            backgroundColor: context.colors.fg.withAlpha(20),
+            valueColor: AlwaysStoppedAnimation(context.colors.primary),
           ),
         ),
         const SizedBox(height: AppSpacing.xs),
@@ -263,7 +263,7 @@ class _SeriesProgressLine extends ConsumerWidget {
         .length;
     return Text(
       '$done of ${group.chapters.length} chapters saved in this series',
-      style: AppTypography.caption.copyWith(color: AppColors.muted),
+      style: AppTypography.caption.copyWith(color: context.colors.muted),
     );
   }
 }
@@ -289,7 +289,7 @@ class _PauseReasonNotice extends ConsumerWidget {
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(Icons.info_outline, color: AppColors.warning, size: 16),
+            Icon(Icons.info_outline, color: context.colors.warning, size: 16),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
@@ -348,7 +348,7 @@ class _QueueSummaryRow extends StatelessWidget {
           child: Text(
             parts.join(' · '),
             style: AppTypography.bodySm.copyWith(
-              color: failedCount > 0 ? AppColors.danger : AppColors.muted,
+              color: failedCount > 0 ? context.colors.danger : context.colors.muted,
             ),
           ),
         ),
@@ -385,7 +385,7 @@ class QueuedChapterRow extends ConsumerWidget {
       leading: Icon(
         failed ? Icons.error_outline : Icons.schedule,
         size: 18,
-        color: failed ? AppColors.danger : AppColors.muted,
+        color: failed ? context.colors.danger : context.colors.muted,
       ),
       title: Text(
         '$seriesName · ${label.primary}',
@@ -403,7 +403,7 @@ class QueuedChapterRow extends ConsumerWidget {
             'Waiting in the queue',
         },
         style: AppTypography.caption.copyWith(
-          color: failed ? AppColors.danger : AppColors.muted,
+          color: failed ? context.colors.danger : context.colors.muted,
         ),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,

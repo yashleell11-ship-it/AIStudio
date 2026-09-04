@@ -77,15 +77,15 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       width: 56,
                       height: 56,
                       decoration: BoxDecoration(
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [AppColors.primary, AppColors.accent],
+                          colors: [context.colors.primary, context.colors.accent],
                         ),
                         borderRadius: BorderRadius.circular(AppRadius.lg),
                         boxShadow: [
                           BoxShadow(
-                            color: AppColors.primary.withValues(alpha: 0.28),
+                            color: context.colors.primary.withValues(alpha: 0.28),
                             blurRadius: 24,
                             spreadRadius: -4,
                           ),
@@ -105,7 +105,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       'Connect to your ManhwaManiacs backend to browse, '
                       'download, and read.',
                       style:
-                          AppTypography.body.copyWith(color: AppColors.muted),
+                          AppTypography.body.copyWith(color: context.colors.muted),
                     ),
                     const SizedBox(height: AppSpacing.xl2),
                     TextField(

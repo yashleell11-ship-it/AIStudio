@@ -112,7 +112,7 @@ class _SectionHeading extends StatelessWidget {
             width: 3,
             height: 15,
             decoration: BoxDecoration(
-              color: AppColors.primary,
+              color: context.colors.primary,
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
           ),
@@ -123,7 +123,7 @@ class _SectionHeading extends StatelessWidget {
               fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: 2,
-              color: AppColors.fg,
+              color: context.colors.fg,
             ),
           ),
         ],
@@ -160,10 +160,10 @@ class _PerformanceCard extends StatelessWidget {
           );
         }
         final jankColor = s.jankPercent < 5
-            ? AppColors.success
+            ? context.colors.success
             : s.jankPercent < 15
-                ? AppColors.warning
-                : AppColors.danger;
+                ? context.colors.warning
+                : context.colors.danger;
         return GlassCard(
           child: Column(
             children: [
@@ -173,7 +173,7 @@ class _PerformanceCard extends StatelessWidget {
                     child: _Metric(
                       label: 'FPS',
                       value: s.fps.toStringAsFixed(0),
-                      accent: AppColors.primary,
+                      accent: context.colors.primary,
                     ),
                   ),
                   Expanded(
@@ -187,7 +187,7 @@ class _PerformanceCard extends StatelessWidget {
                     child: _Metric(
                       label: 'Worst',
                       value: '${s.worstFrameMs.toStringAsFixed(1)}ms',
-                      accent: AppColors.accent,
+                      accent: context.colors.accent,
                     ),
                   ),
                 ],
@@ -227,10 +227,10 @@ class _DisplayCard extends StatelessWidget {
     }
     final i = info;
     if (i == null || !i.supported) {
-      return const GlassCard(
+      return GlassCard(
         child: Text(
           'Switchable display modes are only available on Android devices.',
-          style: TextStyle(color: AppColors.muted),
+          style: TextStyle(color: context.colors.muted),
         ),
       );
     }
@@ -366,7 +366,7 @@ class _Metric extends StatelessWidget {
         Text(
           label.toUpperCase(),
           style: AppTypography.labelSm.copyWith(
-            color: AppColors.muted,
+            color: context.colors.muted,
             letterSpacing: 1,
           ),
         ),
@@ -391,7 +391,7 @@ class _InfoRow extends StatelessWidget {
         children: [
           Text(
             label,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
           const SizedBox(width: AppSpacing.md),
           Flexible(

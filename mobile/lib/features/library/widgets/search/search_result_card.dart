@@ -67,8 +67,8 @@ class SearchResultCard extends ConsumerWidget {
                       icon: Icon(
                         series.isFavorite ? Icons.star : Icons.star_border,
                         color: series.isFavorite
-                            ? AppColors.warning
-                            : AppColors.muted,
+                            ? context.colors.warning
+                            : context.colors.muted,
                       ),
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
@@ -85,7 +85,7 @@ class SearchResultCard extends ConsumerWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: AppTypography.bodySm.copyWith(
-                    color: AppColors.muted.withAlpha(204),
+                    color: context.colors.muted.withAlpha(204),
                     height: 1.5,
                   ),
                 ),
@@ -97,12 +97,13 @@ class SearchResultCard extends ConsumerWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.fg.withAlpha(13),
+                      color: context.colors.fg.withAlpha(13),
                       borderRadius: BorderRadius.circular(AppRadius.sm),
                     ),
                     child: Text(
                       readingStatusLabel(series.readingStatus).toUpperCase(),
                       style: AppTypography.caption.copyWith(
+                        color: context.colors.muted,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
                         letterSpacing: 0.5,
@@ -129,11 +130,11 @@ class _Badge extends StatelessWidget {
       return Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.star, size: 14, color: AppColors.warning),
+          Icon(Icons.star, size: 14, color: context.colors.warning),
           const SizedBox(width: 4),
           Text(
             'Fav',
-            style: AppTypography.caption.copyWith(color: AppColors.warning),
+            style: AppTypography.caption.copyWith(color: context.colors.warning),
           ),
         ],
       );

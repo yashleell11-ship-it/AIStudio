@@ -68,7 +68,7 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load series.',
-                style: AppTypography.body.copyWith(color: AppColors.danger),
+                style: AppTypography.body.copyWith(color: context.colors.danger),
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
@@ -226,7 +226,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
               if (series.status != null && series.status!.isNotEmpty)
                 SeriesDetailChip(
                   label: series.status!.toUpperCase(),
-                  color: AppColors.primary,
+                  color: context.colors.primary,
                 ),
               for (final genre in series.genres) SeriesDetailChip(label: genre),
             ],

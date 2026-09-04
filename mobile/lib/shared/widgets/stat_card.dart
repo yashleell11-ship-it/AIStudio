@@ -23,10 +23,10 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (accentColor, glowColor) = switch (accent) {
-      StatAccent.violet => (AppColors.violet400, AppColors.primary),
-      StatAccent.cyan   => (AppColors.cyan400,   AppColors.accent),
-      StatAccent.emerald => (AppColors.emerald400, AppColors.success),
-      StatAccent.amber  => (AppColors.amber400,  AppColors.warning),
+      StatAccent.violet => (context.colors.violet400, context.colors.primary),
+      StatAccent.cyan   => (context.colors.cyan400,   context.colors.accent),
+      StatAccent.emerald => (context.colors.emerald400, context.colors.success),
+      StatAccent.amber  => (context.colors.amber400,  context.colors.warning),
     };
 
     return GlassCard(
@@ -72,13 +72,14 @@ class StatCard extends StatelessWidget {
             value,
             style: AppTypography.h1.copyWith(
               fontFeatures: const [FontFeature.tabularFigures()],
-              color: AppColors.fg,
+              color: context.colors.fg,
             ),
           ),
           const SizedBox(height: AppSpacing.xxs),
           Text(
             label,
             style: AppTypography.caption.copyWith(
+              color: context.colors.muted,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.4,
             ),

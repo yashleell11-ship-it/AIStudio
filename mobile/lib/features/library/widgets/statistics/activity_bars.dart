@@ -52,6 +52,9 @@ class ActivityBars extends StatelessWidget {
             values: values,
             maxValue: maxValue,
             selectedIndex: selectedIndex,
+            // Painters have no BuildContext, so the palette is captured here —
+            // this build depends on Theme, so a switch repaints the chart.
+            palette: context.colors,
           ),
         );
         if (onSelect == null || values.isEmpty) return painter;
@@ -82,11 +85,13 @@ class _ActivityBarsPainter extends CustomPainter {
     required this.values,
     required this.maxValue,
     required this.selectedIndex,
+    required this.palette,
   });
 
   final List<int> values;
   final int maxValue;
   final int? selectedIndex;
+  final AppPalette palette;
 
   /// Height of a zero bucket's tick — enough to read as a mark on the axis,
   /// small enough that it can never be mistaken for a day with reading in it.
@@ -110,16 +115,16 @@ class _ActivityBarsPainter extends CustomPainter {
     // brighter at its tip than a short bar is at its own — the gradient reads
     // as depth in the chart instead of as a per-bar decoration.
     final barPaint = Paint()
-      ..shader = const LinearGradient(
+      ..shader = LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
-        colors: [AppColors.amber400, AppColors.accent],
+        colors: [palette.amber400, palette.accent],
       ).createShader(Rect.fromLTWH(0, 0, size.width, size.height));
-    final emptyPaint = Paint()..color = AppColors.fg.withAlpha(28);
-    final selectedPaint = Paint()..color = AppColors.fg;
+    final emptyPaint = Paint()..color = palette.fg.withAlpha(28);
+    final selectedPaint = Paint()..color = palette.fg;
 
     final baselinePaint = Paint()
-      ..color = AppColors.border
+      ..color = palette.border
       ..strokeWidth = 1;
     canvas.drawLine(
       Offset(0, baselineY - 0.5),
@@ -152,6 +157,7 @@ class _ActivityBarsPainter extends CustomPainter {
   bool shouldRepaint(_ActivityBarsPainter old) =>
       old.selectedIndex != selectedIndex ||
       old.maxValue != maxValue ||
+      old.palette != palette ||
       !_sameValues(old.values, values);
 
   static bool _sameValues(List<int> a, List<int> b) {
