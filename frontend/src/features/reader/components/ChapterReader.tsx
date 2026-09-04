@@ -475,10 +475,21 @@ export function ChapterReader({
     };
   }, [scrollElement, updateScrollState]);
 
+  /**
+   * The strip's opening position, applied once.
+   *
+   * Only while the entry chapter is still the strip's FIRST chapter: a saved
+   * offset is relative to its own chapter's start, which is zero exactly until
+   * something is prepended above it. After that this number means a different
+   * place, and re-applying it (a zoom change recomputes it) would throw the
+   * reader somewhere they never were.
+   */
+  const stripAnchored = chapters[0]?.chapterKey === entryChapterKey;
   useLayoutEffect(() => {
     if (isLoading || error || !chapter || entryPages.length === 0 || !scrollElement) {
       return;
     }
+    if (!stripAnchored) return;
     syncChapterScroll(stripScrollKey, scrollElement, initialScrollTop);
   }, [
     chapter,
@@ -487,6 +498,7 @@ export function ChapterReader({
     initialScrollTop,
     isLoading,
     scrollElement,
+    stripAnchored,
     stripScrollKey,
   ]);
 

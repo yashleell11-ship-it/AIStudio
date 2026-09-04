@@ -24,6 +24,7 @@ import {
   chapterIndexOf,
   chapterLastRow,
   findStripRow,
+  freezeChapterHeight,
   releasedChapterKeys,
   stripPositionAt,
   type StripChapter,
@@ -479,21 +480,18 @@ export function ContinuousStrip({
       if (!next.has(chapter.chapterKey) || releasedHeightsRef.current.has(chapter.chapterKey)) {
         continue;
       }
-      let total = 0;
-      chapter.pages.forEach((page, index) => {
-        const key = `${chapter.chapterKey}:${index + 1}`;
-        const known = measuredByKeyRef.current.get(key);
-        const height =
-          known ??
+      const { total, frozen } = freezeChapterHeight(
+        chapter,
+        measuredByKeyRef.current,
+        (page) =>
           estimateFromSamples(
             heightSamplesRef.current,
             estimatePageHeight(page, containerWidth, zoom) + (pageGap ? PAGE_GAP_PX : 0),
-          );
-        // Freeze it: the same number has to come back on expansion, and the
-        // running average it would otherwise be re-derived from keeps moving.
-        if (known == null) measuredByKeyRef.current.set(key, height);
-        total += height;
-      });
+          ),
+      );
+      for (const [key, height] of frozen) {
+        measuredByKeyRef.current.set(key, height);
+      }
       releasedHeightsRef.current.set(chapter.chapterKey, total);
     }
 
