@@ -130,6 +130,33 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.0.0",
+        build=29,
+        date="September 2026",
+        highlights=[
+            "Novels. The app reads books now, not just manhwa — six sources, a "
+            "reader built for prose with indented paragraphs and a proper "
+            "chapter opener, twelve page palettes from Paper to true black, "
+            "and a whole book downloadable for offline reading",
+            "Manga and novels stay apart. A switch at the top of the menu puts "
+            "the app in one mode or the other, and every screen follows it",
+            "Themes: fifteen on the phone, all contrast-checked, each profile "
+            "remembering its own",
+            "Design presets, separate from colour: Signature, Matte, Compact, "
+            "Editorial and Cinema change spacing, surfaces, type and how much "
+            "chrome the reader shows. They combine with any theme",
+            "A downloaded chapter opens from the phone instead of waiting on "
+            "the network, even when you have signal",
+            "Download ten chapters at once, or a whole novel, with range "
+            "shortcuts instead of tapping every row",
+            "Chapters flow into each other — the end of one and the start of "
+            "the next are a place in the same scroll, not a page change",
+            "Read all: a whole series as one continuous scroll",
+            "Statistics built from what you actually read — streaks, daily "
+            "activity, time spent, and which sources you read most",
+        ],
+    ),
+    ChangelogEntry(
         version="1.14.0",
         build=28,
         date="September 2026",
