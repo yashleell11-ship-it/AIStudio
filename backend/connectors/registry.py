@@ -37,6 +37,7 @@ from connectors.madara.factory import madara_connector_classes
 from connectors.madara.sites import MADARA_SITES
 from connectors.mangabuddy.connector import MangaBuddyConnector
 from connectors.mangadex.connector import MangaDexConnector
+from connectors.mangapill.connector import MangaPillConnector
 from connectors.archiveorg.connector import ArchiveOrgConnector
 from connectors.freewebnovel.connector import FreeWebNovelConnector
 from connectors.novelarchive.connector import NovelArchiveConnector
@@ -70,6 +71,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     MangaDexConnector.SOURCE_TYPE,
     MangaKatanaConnector.SOURCE_TYPE,
     MangaBuddyConnector.SOURCE_TYPE,
+    MangaPillConnector.SOURCE_TYPE,
     DemonicScansConnector.SOURCE_TYPE,
     DoujinsConnector.SOURCE_TYPE,
     ToonilyConnector.SOURCE_TYPE,
@@ -186,6 +188,7 @@ def _register_builtin_connectors() -> None:
         (MangaDexConnector.SOURCE_TYPE, MangaDexConnector),
         (MangaKatanaConnector.SOURCE_TYPE, MangaKatanaConnector),
         (MangaBuddyConnector.SOURCE_TYPE, MangaBuddyConnector),
+        (MangaPillConnector.SOURCE_TYPE, MangaPillConnector),
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
         (NHentaiConnector.SOURCE_TYPE, NHentaiConnector),
