@@ -53,6 +53,13 @@ cmd_deploy() {
   "${COMPOSE[@]}" ps
   echo ">> in-container health:"
   docker exec manhwamaniacs-backend python -c "import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=4).read().decode())" || true
+
+  # cmd_install_timers documents itself as idempotent and safe to re-run after
+  # every deploy, but nothing ever called it — so the iOS pull loop was closed
+  # only by someone remembering an undocumented subcommand, which is exactly how
+  # two green builds once sat unpublished. A subshell contains its `exit 1`, and
+  # a failure here must not fail an otherwise healthy deploy.
+  ( cmd_install_timers ) || echo ">> WARNING: could not install the iOS fetch timer"
 }
 
 cmd_create_owner() {

@@ -35,6 +35,18 @@ say(){ echo "${c_grn}==>${c_rst} $*"; }
 warn(){ echo "${c_ylw}!! $*${c_rst}"; }
 err(){ echo "${c_red}!! $*${c_rst}" >&2; }
 
+# Serialise publish runs. A 10-minute cron and a 15-minute systemd timer have
+# both been installed against this directory at once, and they align every half
+# hour. The publish itself is atomic — same-filesystem temp plus `mv -f` — so a
+# phone never sees a half-written IPA. What overlapping runs actually cost is a
+# duplicate 10 MB download and a read-then-write race on .published-run, spent
+# against an anonymous GitHub API budget of 60 requests an hour.
+exec 9>"${TMPDIR:-/tmp}/mm-fetch-ios.lock"
+if ! flock -n 9; then
+  say "another publish run holds the lock — nothing to do"
+  exit 2
+fi
+
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
 
