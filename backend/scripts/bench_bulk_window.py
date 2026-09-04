@@ -86,9 +86,50 @@ def run(args: argparse.Namespace) -> int:
     keys = payload["chapter_keys"][: args.count]
     _, reader, novels = _services(args.db)
 
+    if args.warm:
+        # The steady state, and the one worth measuring separately: the reader
+        # just looked at the series page, so source_series_cache already holds
+        # the chapter list and NO mode pays the series fetch. What is left is
+        # only the genuinely per-chapter work.
+        SourceCacheService(
+            _session(args.db), BrowseService(mature_enabled=True)
+        ).get_chapter_list(args.source, series_key)
+
     per_item: list[dict[str, object]] = []
     started = time.perf_counter()
-    if args.mode == "single":
+    if args.mode == "parallel-single":
+        # What a client that PIPELINES the existing single endpoint costs the
+        # server: N concurrent requests, each with its own session and its own
+        # service instances, exactly as FastAPI would build them. The point of
+        # measuring it is that each one resolves the chapter list for itself.
+        from concurrent.futures import ThreadPoolExecutor
+
+        def one(index_key: tuple[int, str]) -> dict[str, object]:
+            index, key = index_key
+            # A warm run shares one cache file, because in production the
+            # concurrent requests share one database; a cold run gives each its
+            # own, because that is what "ten readers' first open, nothing
+            # cached" actually costs.
+            own_db = args.db if args.warm else f"{args.db}.{index}"
+            _, own_reader, own_novels = _services(own_db)
+            item_started = time.perf_counter()
+            status = "ok"
+            try:
+                if args.kind == "manga":
+                    own_reader.manifest(args.source, series_key, key)
+                else:
+                    own_novels.get_chapter(args.source, series_key, key)
+            except Exception as exc:  # noqa: BLE001 - a failure is a data point
+                status = f"{type(exc).__name__}: {exc}"[:120]
+            return {
+                "chapter_key": key,
+                "status": status,
+                "ms": round((time.perf_counter() - item_started) * 1000, 1),
+            }
+
+        with ThreadPoolExecutor(max_workers=len(keys)) as pool:
+            per_item = list(pool.map(one, list(enumerate(keys))))
+    elif args.mode == "single":
         for key in keys:
             item_started = time.perf_counter()
             status = "ok"
@@ -149,6 +190,11 @@ def main() -> int:
         p.add_argument("--source", required=True)
         p.add_argument("--count", type=int, default=10)
         p.add_argument("--db", default="/tmp/bench-bulk.db")
+        p.add_argument(
+            "--warm",
+            action="store_true",
+            help="pre-resolve the chapter list into the cache before timing",
+        )
 
     d = sub.add_parser("discover")
     common(d)
@@ -157,7 +203,9 @@ def main() -> int:
 
     r = sub.add_parser("run")
     common(r)
-    r.add_argument("--mode", choices=("single", "bulk"), required=True)
+    r.add_argument(
+        "--mode", choices=("single", "parallel-single", "bulk"), required=True
+    )
     r.add_argument("--keys-file", required=True)
     r.set_defaults(func=run)
 
