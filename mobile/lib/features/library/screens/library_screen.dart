@@ -17,6 +17,7 @@ import 'package:manhwamaniacs/features/library/providers/library_selection_provi
 import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/library_toolbar.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
+import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 
@@ -108,11 +109,80 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ref.read(libraryListProvider.notifier).toggleFavorite(series.id);
               },
             ),
+            const Divider(height: 1),
+            // Last, and behind a divider: the sheet opens under the thumb that
+            // long-pressed the card, and the destructive row is the one that
+            // must not sit where a stray second tap lands.
+            ListTile(
+              leading: Icon(
+                Icons.remove_circle_outline,
+                color: context.colors.danger,
+              ),
+              title: Text(
+                'Remove from library',
+                style: TextStyle(color: context.colors.danger),
+              ),
+              subtitle: const Text('Your reading progress is kept'),
+              onTap: () {
+                Navigator.pop(sheetCtx);
+                _removeFromLibrary(series);
+              },
+            ),
             SizedBox(height: context.space.sm),
           ],
         ),
       ),
     );
+  }
+
+  /// Unfollows [series] straight from the grid.
+  ///
+  /// No confirmation step: the row that goes is the follow, and reading
+  /// progress is keyed by source + series and survives it, so the whole cost
+  /// of a mis-tap is one re-follow. A dialog would put back the taps this
+  /// menu exists to remove; an Undo in the snackbar buys the same safety
+  /// without charging for it every time the removal was intended.
+  Future<void> _removeFromLibrary(FollowedSeries series) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final outcome =
+        await ref.read(libraryListProvider.notifier).removeSeries(series.id);
+    if (!mounted) return;
+
+    final error = outcome.error;
+    if (error != null) {
+      // The card is already back in the grid; say why it never left.
+      if (recoverFromProfileScopeError(ref, error)) return;
+      messenger.showSnackBar(SnackBar(content: Text(error.userMessage)));
+      return;
+    }
+
+    final removed = outcome.removed;
+    if (removed == null) return;
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Removed \u201c${removed.title}\u201d from your library',
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+          ),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () => _restoreToLibrary(removed, outcome.index),
+          ),
+        ),
+      );
+  }
+
+  Future<void> _restoreToLibrary(FollowedSeries series, int index) async {
+    final messenger = ScaffoldMessenger.of(context);
+    final error = await ref
+        .read(libraryListProvider.notifier)
+        .restoreSeries(series, index: index);
+    if (!mounted || error == null) return;
+    if (recoverFromProfileScopeError(ref, error)) return;
+    messenger.showSnackBar(SnackBar(content: Text(error.userMessage)));
   }
 
   Future<void> _confirmBatchFavorite(Set<int> ids, {required bool favorite}) async {
