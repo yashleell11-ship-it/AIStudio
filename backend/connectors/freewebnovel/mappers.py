@@ -76,14 +76,12 @@ _AUTHOR_RE = re.compile(r'href="/author/[^"]*"[^>]*title="([^"]*)"')
 _AUTHOR_TEXT_RE = re.compile(r'href="/author/[^"]*"[^>]*>([^<]+)<')
 _STATUS_RE = re.compile(r'title="(?:Latest Release|Completed) Novels?">([^<]+)<')
 _DESC_INNER_RE = re.compile(r'<div class="inner">(.*?)</div>', re.DOTALL)
-_IDDATA_RE = re.compile(r'id="idData">(.*?)</ul>', re.DOTALL)
 _CHAPTER_LINK_RE = re.compile(
     r'href="/novel/[^"/]+/(chapter-[\d.]+)"\s+title="([^"]*)"'
 )
 _CHAPTER_NUM_RE = re.compile(r"chapter-([\d.]+)$")
 _SPAN_CHAPTER_RE = re.compile(r'<span class="chapter">([^<]+)</span>')
 _ARTICLE_OPEN = r'<div[^>]*id="article"[^>]*>'
-_TITLE_IN_TEXT_RE = re.compile(r"^chapter\s+[\d.]+\s*[:.\-]?\s*", re.IGNORECASE)
 
 
 def normalize_series_key(value: str) -> str:
