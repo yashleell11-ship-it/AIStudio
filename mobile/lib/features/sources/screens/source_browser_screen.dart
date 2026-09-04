@@ -7,6 +7,9 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/novels/widgets/novel_shelf.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
@@ -78,6 +81,11 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
         .valueOrNull
         ?.firstWhereOrNull((s) => s.id == widget.sourceId);
     final sourceName = source?.name ?? prettifySourceId(widget.sourceId);
+    // A property of the SOURCE, not of the reader's current mode: browsing a
+    // novel archive reached from anywhere must render a shelf.
+    final isNovelSource =
+        ref.watch(contentModeScopeProvider).modeOf(widget.sourceId) ==
+            ContentMode.novel;
 
     // Subtle confirmation the moment the catalog resolves (success or error),
     // honouring the user's interaction-feedback preference via hapticsProvider.
@@ -253,12 +261,43 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                             ),
                             sliver: SliverToBoxAdapter(
                               child: Text(
-                                '${state.total} series',
+                                isNovelSource
+                                    ? '${state.total} '
+                                        '${state.total == 1 ? 'book' : 'books'}'
+                                    : '${state.total} series',
                                 style: AppTypography.caption.copyWith(color: context.colors.muted),
                               ),
                             ),
                           ),
-                          // Dense 3-column grid
+                          // A shelf of rows for prose, a poster grid for
+                          // pages. Novel covers are usually an aggregator's
+                          // generated placeholder, so three columns of them
+                          // would be three columns of interchangeable
+                          // rectangles — see [NovelShelf].
+                          if (isNovelSource)
+                            NovelShelf(
+                              itemCount: state.items.length,
+                              bookAt: (index) {
+                                final series = state.items[index];
+                                return ShelfBook(
+                                  title: series.title,
+                                  author: series.author,
+                                  description: series.description,
+                                  chapterCount: series.chapterCount,
+                                  status: series.status,
+                                  coverUrl: series.coverUrl.isEmpty
+                                      ? null
+                                      : series.coverUrl,
+                                  onTap: () => context.go(
+                                    RoutePaths.sourceSeriesDetail(
+                                      widget.sourceId,
+                                      series.id,
+                                    ),
+                                  ),
+                                );
+                              },
+                            )
+                          else
                           SliverPadding(
                             padding: const EdgeInsets.symmetric(
                               horizontal: AppSpacing.sm,

@@ -7,6 +7,9 @@ import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_switch.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
 import 'package:manhwamaniacs/features/sources/models/source_pin.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_pins_provider.dart';
@@ -58,6 +61,7 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
   @override
   Widget build(BuildContext context) {
     final sourcesAsync = ref.watch(sourcesListProvider);
+    final scope = ref.watch(contentModeScopeProvider);
     final query = ref.watch(sourcesFilterQueryProvider).trim().toLowerCase();
     final filter = ref.watch(sourcesFilterProvider);
     final pins = ref.watch(sourcePinsProvider).valueOrNull?.pins ?? const [];
@@ -81,6 +85,18 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
                 sliver: SliverToBoxAdapter(
                   child: HeroHeading(text: 'Sources', fontSize: 40),
                 ),
+              ),
+              // Above the filter bar, below the heading — the phone's answer
+              // to the web's sidebar switch. Renders nothing when the novels
+              // gate is shut.
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  AppSpacing.lg,
+                  0,
+                  AppSpacing.lg,
+                  AppSpacing.md,
+                ),
+                sliver: SliverToBoxAdapter(child: ContentModeSwitch()),
               ),
               SliverPersistentHeader(
                 pinned: true,
@@ -106,10 +122,18 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
                   ),
                 ],
                 data: (sources) => _sectionSlivers(
-                  sources: sources,
+                  // The mode decides what this list is a list OF. In manga
+                  // mode with novels off this is the identical array — the
+                  // filter is a pass-through, not a rewrite.
+                  sources: filterSourcesByContentMode(
+                    sources,
+                    scope.mode,
+                    novelsEnabled: scope.novelsEnabled,
+                  ),
                   pins: pins,
                   query: query,
                   filter: filter,
+                  mode: scope.mode,
                 ),
               ),
               SliverToBoxAdapter(
@@ -129,14 +153,17 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
     required List<SourcePin> pins,
     required String query,
     required SourcesFilter filter,
+    required ContentMode mode,
   }) {
     if (sources.isEmpty) {
-      return const [
+      return [
         SliverFillRemaining(
           hasScrollBody: false,
           child: EmptyState(
             icon: Icons.public_off,
-            message: 'No sources installed',
+            message: mode == ContentMode.novel
+                ? 'No novel sources installed'
+                : 'No sources installed',
           ),
         ),
       ];
@@ -148,11 +175,16 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
     // Pinned rows follow the server's pin order. A pin whose connector no
     // longer resolves is rendered from the pin's own metadata so it can still
     // be cleared, rather than disappearing from the ordering.
+    // `byId` is already scoped to the active mode, so a pin for the other
+    // mode's connector resolves to nothing here. Rendering it from the pin's
+    // own metadata (the unavailable-placeholder path, for a connector that no
+    // longer exists) would put a manga site at the top of the Novels list, so
+    // in Novels mode an unresolvable pin is simply not this list's row.
     final pinned = <({SourceSummary source, bool unavailable})>[
       for (final pin in pins)
         if (byId[pin.sourceId] case final source?)
           (source: source, unavailable: false)
-        else
+        else if (mode == ContentMode.manga)
           (source: _placeholderSource(pin), unavailable: true),
     ].where((row) => _matches(row.source, query, filter)).toList();
 
