@@ -59,26 +59,28 @@ class _FakeReaderRepository implements ReaderRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<Bookmark>> addBookmark({
-    required String sourceId,
-    required String seriesKey,
-    required String chapterKey,
-    required int page,
-    String? note,
-  }) async =>
+  Future<Result<BookmarkSyncResult>> syncBookmarks(List<BookmarkOp> ops) async =>
       Ok(
-        Bookmark(
-          id: 1,
-          sourceId: sourceId,
-          seriesKey: seriesKey,
-          chapterKey: chapterKey,
-          page: page,
-          createdAt: DateTime.utc(2024),
+        BookmarkSyncResult(
+          received: ops.length,
+          created: ops.length,
+          updated: 0,
+          tombstoned: 0,
+          rejected: 0,
+          serverIds: {
+            for (final op in ops) op.bookmark.clientId: 1,
+          },
         ),
       );
 
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({String? sourceId, String? seriesKey}) async =>
+  Future<Result<List<Bookmark>>> listBookmarks({
+    String? sourceId,
+    String? seriesKey,
+    DateTime? since,
+    bool includeDeleted = false,
+    int? limit,
+  }) async =>
       const Ok([]);
 
   @override

@@ -12,12 +12,14 @@ import 'package:manhwamaniacs/core/platform/native_bridge.dart';
 import 'package:manhwamaniacs/core/platform/system_ui.dart';
 import 'package:manhwamaniacs/core/utils/haptics.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_extents.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_anchor.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_display_mode.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_scroll_controller.dart';
@@ -86,6 +88,7 @@ class ReaderContent extends ConsumerStatefulWidget {
     required this.onBack,
     required this.onOpenSeries,
     this.initialPage = 1,
+    this.initialAnchor,
     this.showBookmark = true,
     this.onSaveProgress,
     this.onAddBookmark,
@@ -106,6 +109,17 @@ class ReaderContent extends ConsumerStatefulWidget {
   /// per-chapter and already saved.
   final String scrollStorageKey;
   final int initialPage;
+
+  /// Open at an EXACT position rather than at the top of [initialPage] — what
+  /// tapping a bookmark hands over.
+  ///
+  /// Its page is chapter-local, like [initialPage], and the two agree by
+  /// construction (the router derives one from the other). When it is set it
+  /// also **beats the persisted scroll position**: a reader who deliberately
+  /// tapped "62% of chapter 14" is asking to go there, and resuming them
+  /// wherever they last stopped instead would silently ignore the tap.
+  final ReaderAnchor? initialAnchor;
+
   final bool showBookmark;
   final VoidCallback onBack;
 
@@ -122,9 +136,14 @@ class ReaderContent extends ConsumerStatefulWidget {
   /// page number is chapter-local, never an index into the feed.
   final Future<void> Function(ReaderChapter chapter, int page)? onSaveProgress;
 
-  /// Create a bookmark at the visible page of the chapter it belongs to. Only
-  /// the local library reader. Return ``true`` when it was saved.
-  final Future<bool> Function(ReaderChapter chapter, int page)? onAddBookmark;
+  /// Create a bookmark at the EXACT visible position of the chapter it
+  /// belongs to. Only the local library reader. Return ``true`` when saved.
+  ///
+  /// The anchor's page is chapter-local (a continuous feed spans several
+  /// chapters, and "page 3" means nothing without saying page 3 of what) and
+  /// its fraction is of that page's own height.
+  final Future<bool> Function(ReaderChapter chapter, ReaderAnchor anchor)?
+      onAddBookmark;
 
   /// Navigate to the previous/next chapter as a fresh route. ``null`` disables
   /// that direction. In a continuous feed these are the edge prompts for a
@@ -215,6 +234,11 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   double? _pendingRestoreOffset;
   double _lastRestoreMaxExtent = -1;
   var _restoreFrames = 0;
+
+  /// The "this chapter changed" notice is shown at most once per reader
+  /// session — a restore that homes in over several frames must not stack a
+  /// SnackBar per frame.
+  var _staleAnchorReported = false;
   var _autoNextTriggered = false;
   var _wakelockEnabled = false;
   var _lockInitialized = false;
@@ -556,14 +580,29 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
           page: widget.initialPage,
         ) ??
         0;
-    final initialOffset = resolveInitialScrollTop(
-      // Stored relative to the anchor chapter; the feed is that one chapter
-      // at open time, so this is the identity in the ordinary case.
-      savedScroll: savedScroll == null ? null : savedScroll + _anchorOrigin - readerListLeadingPadding,
-      initialPage: widget.initialPage.clamp(1, feed.length),
-      pageCount: feed.length,
-      estimatedOffsetToPage: _metrics.offsetToPage(targetFlat + 1),
-    );
+    final anchor = widget.initialAnchor;
+    final initialOffset = anchor != null
+        // An explicit anchor is a deliberate request for one position, so it
+        // wins over the persisted scroll. `flatIndexOf` has already clamped
+        // the page into the pages that still exist — landing on the nearest
+        // valid one and saying so (see [_maybeReportStaleAnchor]) rather than
+        // failing or dumping the reader at the top.
+        ? offsetForAnchor(
+            _metrics,
+            (page: targetFlat + 1, fraction: anchor.fraction),
+          )
+        : resolveInitialScrollTop(
+            // Stored relative to the anchor chapter; the feed is that one
+            // chapter at open time, so this is the identity in the ordinary
+            // case.
+            savedScroll: savedScroll == null
+                ? null
+                : savedScroll + _anchorOrigin - readerListLeadingPadding,
+            initialPage: widget.initialPage.clamp(1, feed.length),
+            pageCount: feed.length,
+            estimatedOffsetToPage: _metrics.offsetToPage(targetFlat + 1),
+          );
+    _maybeReportStaleAnchor();
 
     if (initialOffset <= 0) {
       _initialScrollApplied = true;
@@ -578,6 +617,35 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _lastRestoreMaxExtent = -1;
     _restoreFrames = 0;
     _attemptRestoreJump();
+  }
+
+  /// Say — once, quietly — that the bookmark's page no longer exists and the
+  /// reader has been put on the nearest one that does.
+  ///
+  /// A SnackBar and not an error: the chapter opened, the reader is reading,
+  /// and the only thing worth telling them is why this is not quite the page
+  /// they saved. Silence would be worse — a bookmark that lands somewhere
+  /// else with no explanation reads as the app losing their place.
+  void _maybeReportStaleAnchor() {
+    final anchor = widget.initialAnchor;
+    if (anchor == null || _staleAnchorReported) return;
+    final feed = widget.feed;
+    if (feed.isEmpty) return;
+    final chapter = feed.chapters[feed.chapterIndexAt(0)];
+    if (!anchorPageIsMissing(anchor.page, chapter.pages.length)) return;
+    _staleAnchorReported = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'This chapter changed — opened at page ${chapter.pages.length} '
+            'instead of ${anchor.page}.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
   }
 
   /// Give up on a restore that is still homing in.
@@ -1096,20 +1164,45 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
   // ── Bookmark ──────────────────────────────────────────────────────────────
 
+  /// Bookmark the exact spot on screen, in ONE action.
+  ///
+  /// Nothing is asked for: the page, the offset within it and the chapter's
+  /// page count are all things the reader already knows, and a dialog would
+  /// only be a chance to get them wrong. The note is the optional part and is
+  /// added afterwards, from the Bookmarks screen.
   Future<void> _handleBookmark() async {
     final addBookmark = widget.onAddBookmark;
     if (addBookmark == null || _bookmarkPending || widget.feed.isEmpty) return;
     setState(() => _bookmarkPending = true);
     try {
-      final position = _positionNotifier.value;
+      final flat = anchorAtOffset(
+        _metrics,
+        _scrollController.hasClients ? _scrollController.offset : 0.0,
+      );
+      // The anchor is resolved from the geometry, not read off
+      // [_positionNotifier]: the notifier is updated on a scroll callback and
+      // can be a frame behind a fling that is still settling, and a bookmark
+      // one page away from where the reader is looking is the whole failure
+      // this feature exists to avoid.
+      final position = _positionAt(flat.page - 1);
       final chapter = widget.feed.chapters[position.chapterIndex];
+      final anchor = (page: position.page, fraction: flat.fraction);
       await _persistProgress(chapter, position.page);
-      final success = await addBookmark(chapter, position.page);
+      final success = await addBookmark(chapter, anchor);
       if (!mounted || !success || !context.mounted) return;
       _haptics.light();
+      final percent = bookmarkPositionPercent(
+        anchor.page,
+        anchor.fraction,
+        chapter.pages.length,
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Bookmarked page ${position.page}'),
+          content: Text(
+            percent == null
+                ? 'Bookmarked page ${anchor.page}'
+                : 'Bookmarked page ${anchor.page} — $percent% of the chapter',
+          ),
           behavior: SnackBarBehavior.floating,
         ),
       );

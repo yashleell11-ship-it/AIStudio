@@ -156,16 +156,25 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     path: 'read/:sourceId/:seriesKey/:chapterKey',
                     parentNavigatorKey: _rootNavigatorKey,
                     pageBuilder: (context, state) {
-                      final pageParam = state.uri.queryParameters['page'];
+                      final query = state.uri.queryParameters;
+                      final pageParam = query['page'];
                       final initialPage = pageParam != null
                           ? int.tryParse(pageParam) ?? 1
                           : 1;
+                      // `at=` turns "open at page N" into "open exactly where
+                      // the bookmark was" — the fraction down page N. Absent
+                      // on every other link, which is what keeps continue-
+                      // reading and history behaving as they always did.
+                      final fraction = readerAnchorFraction(query);
                       return _immersiveReaderPage(
                         ReaderScreen(
                           sourceId: state.pathParameters['sourceId']!,
                           seriesKey: state.pathParameters['seriesKey']!,
                           chapterKey: state.pathParameters['chapterKey']!,
                           initialPage: initialPage,
+                          initialAnchor: fraction == null
+                              ? null
+                              : (page: initialPage, fraction: fraction),
                           // "Read all" (spec R2) — the whole series as one
                           // continuous scroll. A flag on the same route
                           // rather than a route of its own: it is the same
@@ -323,15 +332,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // `?page=` carries the progress BUCKET, the same parameter and the
           // same 1-based meaning the manga reader gives a page number — so a
           // "Continue" link needs no novel-specific branch to build.
-          final pageParam = state.uri.queryParameters['page'];
+          final query = state.uri.queryParameters;
+          final pageParam = query['page'];
           final initialBucket =
               pageParam != null ? int.tryParse(pageParam) ?? 1 : 1;
+          // A bookmark links by PARAGRAPH, not by bucket — the two are
+          // different scales (100 buckets over any number of paragraphs), and
+          // feeding one in as the other lands the reader in the wrong place
+          // with total confidence. Hence its own parameter.
+          final paragraph = readerAnchorParagraph(query);
           return _immersiveReaderPage(
             NovelReaderScreen(
               sourceId: state.pathParameters['sourceId']!,
               seriesKey: state.pathParameters['seriesKey']!,
               chapterKey: state.pathParameters['chapterKey']!,
               initialBucket: initialBucket,
+              initialParagraph: paragraph,
+              initialFraction: readerAnchorFraction(query),
             ),
           );
         },

@@ -351,7 +351,9 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(find.text('Bookmarked page 1'), findsOneWidget);
+      // The confirmation now names the exact position, so match the stable
+      // half of it: the percentage depends on the sample chapter's geometry.
+      expect(find.textContaining('Bookmarked page 1'), findsOneWidget);
     });
 
     testWidgets('hides bookmark snackbar when callback returns false',

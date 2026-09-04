@@ -150,6 +150,50 @@ abstract final class RoutePaths {
   static String readAll(String sourceId, String seriesKey, String chapterKey) =>
       '${reader(sourceId, seriesKey, chapterKey)}?$readAllQueryParam=1';
 
+  /// The query parameters that open a reader at an EXACT position — what a
+  /// bookmark tap builds.
+  ///
+  /// Two names and not one, because the unit differs by medium and silently
+  /// reusing `page` for both is a real bug waiting to happen: the novel
+  /// reader's `page` is a progress BUCKET (1–100, see
+  /// `features/novels/utils/novel_progress.dart`), while a novel bookmark's
+  /// index is a PARAGRAPH — feeding paragraph 340 in as a bucket would land
+  /// the reader at the end of the chapter, confidently.
+  ///
+  /// [anchorQueryParam] is the fraction *within* that unit, 0.0–1.0. A
+  /// fraction rather than pixels so the same link opens the same place on a
+  /// phone, a tablet and the web.
+  static const String anchorQueryParam = 'at';
+  static const String paragraphQueryParam = 'para';
+
+  /// The manga reader at page [page], [fraction] of the way down it.
+  static String readerAt(
+    String sourceId,
+    String seriesKey,
+    String chapterKey, {
+    required int page,
+    required double fraction,
+  }) =>
+      '${reader(sourceId, seriesKey, chapterKey)}'
+      '?page=$page&$anchorQueryParam=${_fraction(fraction)}';
+
+  /// The novel reader at paragraph [paragraph] (1-based), [fraction] of the
+  /// way through it.
+  static String novelReaderAt(
+    String sourceId,
+    String seriesKey,
+    String chapterKey, {
+    required int paragraph,
+    required double fraction,
+  }) =>
+      '${novelReader(sourceId, seriesKey, chapterKey)}'
+      '?$paragraphQueryParam=$paragraph&$anchorQueryParam=${_fraction(fraction)}';
+
+  /// Four decimals: the same precision the server rounds `position_fraction`
+  /// to, and far finer than a pixel on any page anyone reads.
+  static String _fraction(double value) =>
+      value.clamp(0.0, 1.0).toStringAsFixed(4);
+
   static String sourceReadAll(
     String sourceId,
     String seriesId,
@@ -161,6 +205,27 @@ abstract final class RoutePaths {
 /// Whether a reader route's query asks for Read-all. Tolerant of the shapes a
 /// hand-typed or round-tripped link takes (`all=1`, `all=true`, bare `all`) —
 /// the flag is a request, not a protocol.
+/// The `at=` fraction on a reader link, or null when there is none.
+///
+/// Null and not 0.0 for an absent or unparseable value: "no anchor" and "the
+/// very top of the unit" are different requests, and only the first may fall
+/// back to the persisted scroll position.
+double? readerAnchorFraction(Map<String, String> queryParameters) {
+  final raw = queryParameters[RoutePaths.anchorQueryParam];
+  if (raw == null || raw.isEmpty) return null;
+  final value = double.tryParse(raw);
+  if (value == null || value.isNaN) return null;
+  return value.clamp(0.0, 1.0);
+}
+
+/// The 1-based `para=` index on a novel reader link, or null.
+int? readerAnchorParagraph(Map<String, String> queryParameters) {
+  final raw = queryParameters[RoutePaths.paragraphQueryParam];
+  if (raw == null || raw.isEmpty) return null;
+  final value = int.tryParse(raw);
+  return value == null || value < 1 ? null : value;
+}
+
 bool isReadAllRequest(Map<String, String> queryParameters) {
   if (!queryParameters.containsKey(RoutePaths.readAllQueryParam)) return false;
   final value = queryParameters[RoutePaths.readAllQueryParam]?.toLowerCase();

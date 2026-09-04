@@ -3,19 +3,21 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/providers/bookmark_outbox_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/progress_outbox_provider.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/open_chapter_scope.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/series_reading_order_provider.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_anchor.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_feed_controller.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
-import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
 /// The manifest-driven reader for a followed series' chapter — the one
 /// reader every non-source-browsing entry point (series detail, continue
@@ -32,6 +34,7 @@ class ReaderScreen extends ConsumerWidget {
     required this.seriesKey,
     required this.chapterKey,
     this.initialPage = 1,
+    this.initialAnchor,
     this.readAll = false,
   });
 
@@ -39,6 +42,12 @@ class ReaderScreen extends ConsumerWidget {
   final String seriesKey;
   final String chapterKey;
   final int initialPage;
+
+  /// The exact position to open at, when the reader was entered from a
+  /// bookmark. [initialPage] alone would land at the top of the page, which
+  /// on a webtoon strip can be thousands of pixels from where the reader
+  /// actually was — the whole point of the anchor.
+  final ReaderAnchor? initialAnchor;
 
   /// Read the whole series as one continuous scroll (spec R2), rather than
   /// this chapter and whatever it happens to continue into.
@@ -110,6 +119,7 @@ class ReaderScreen extends ConsumerWidget {
             resolved: resolved,
             neighbours: neighbours,
             initialPage: initialPage,
+            initialAnchor: initialAnchor,
             readAllOrder: readAllOrder,
           ),
         );
@@ -126,6 +136,7 @@ class _ManifestReaderBody extends ConsumerStatefulWidget {
     required this.resolved,
     required this.neighbours,
     required this.initialPage,
+    this.initialAnchor,
     this.readAllOrder,
   });
 
@@ -139,6 +150,7 @@ class _ManifestReaderBody extends ConsumerStatefulWidget {
   /// online got them in the same payload.
   final ChapterNeighbours? neighbours;
   final int initialPage;
+  final ReaderAnchor? initialAnchor;
 
   /// Every chapter of the series in reading order — Read-all (spec R2). With
   /// it the feed knows where it is going without a round trip per boundary;
@@ -260,7 +272,6 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
 
   @override
   Widget build(BuildContext context) {
-    final repo = ref.read(readerRepositoryProvider);
     // Resolved once here rather than via `ref.read(...)` inside the
     // callbacks below: `ReaderContent.dispose()` flushes a pending progress
     // save, and by then this widget's own element may already be
@@ -268,6 +279,7 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
     // ("Looking up a deactivated widget's ancestor is unsafe"). Plain
     // objects captured here stay safe to call from anywhere.
     final progressOutbox = ref.read(progressOutboxControllerProvider);
+    final bookmarkOutbox = ref.read(bookmarkOutboxControllerProvider);
     final downloadsStore = ref.read(downloadsStoreProvider);
     final sourceId = widget.sourceId;
     final seriesKey = widget.seriesKey;
@@ -277,6 +289,7 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
       feed: _controller.feed,
       scrollStorageKey: '$sourceId:$seriesKey:${widget.chapterKey}',
       initialPage: widget.initialPage,
+      initialAnchor: widget.initialAnchor,
       onBack: () => context.pop(),
       onOpenSeries: () => openSeriesFromReader(
         context,
@@ -326,14 +339,28 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
           );
         }
       },
-      onAddBookmark: (chapter, page) => repo
-          .addBookmark(
-            sourceId: sourceId,
-            seriesKey: seriesKey,
-            chapterKey: chapter.id,
-            page: page,
+      // Local-first, exactly like progress: the row lands on the phone and
+      // the push is best-effort, so bookmarking with no signal is an ordinary
+      // success rather than a silent loss. `true` means "stored", not "sent".
+      onAddBookmark: (chapter, anchor) => bookmarkOutbox
+          .create(
+            id: (
+              sourceId: sourceId,
+              seriesKey: seriesKey,
+              chapterKey: chapter.id,
+            ),
+            media: BookmarkMedia.manga,
+            anchorIndex: anchor.page,
+            anchorFraction: anchor.fraction,
+            // The pages actually in the feed, not the manifest's reported
+            // count: the anchor was measured against what is on screen, and a
+            // total that disagreed with it would put "page 9 of 8" on the
+            // Bookmarks screen.
+            anchorTotal: chapter.pages.length,
+            chapterNumber: _chapterNumberOf(chapter),
+            seriesTitle: chapter.seriesTitle,
           )
-          .then((result) => result.isOk),
+          .then((bookmark) => bookmark != null),
     );
   }
 }
