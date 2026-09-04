@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { ACTIVE_PROFILE_STORAGE_KEY } from "@/features/profiles/storage-key";
 import { scopedStorageKey } from "@/lib/scoped-storage";
-import { THEME_BOOT_SOURCE } from "./theme-boot-source";
+import { APPEARANCE_BOOT_SOURCE } from "./appearance-boot-source";
+import { DESIGN_PRESET_STORAGE_BASE } from "./presets";
 import { READING_THEME_STORAGE_BASE } from "./theme";
 
 /**
@@ -11,17 +12,28 @@ import { READING_THEME_STORAGE_BASE } from "./theme";
  * thing that gets shrugged off as "the browser being slow". So it is executed
  * here for real, against a fake `localStorage` and `document`, exactly as the
  * browser would run it.
+ *
+ * It carries two channels — the palette on `data-theme` and the design preset
+ * on `data-preset` — over one scan of localStorage, so every case below asserts
+ * on both: they share the profile lookup, the suffix match and the single
+ * `try`, and a regression in any of those would take out both halves of the
+ * appearance at once.
  */
 
 interface Store {
   [key: string]: string;
 }
 
-/** Run the script over a snapshot of localStorage; returns the attribute set. */
-function boot(
+interface Applied {
+  theme: string | null;
+  preset: string | null;
+}
+
+/** Run the script over a snapshot of localStorage; returns what it stamped. */
+function bootBoth(
   store: Store,
   options: { throwOnRead?: boolean; pathname?: string } = {},
-): string | null {
+): Applied {
   const keys = Object.keys(store);
   const localStorage = {
     get length() {
@@ -33,11 +45,12 @@ function boot(
       return Object.prototype.hasOwnProperty.call(store, key) ? store[key] : null;
     },
   };
-  let applied: string | null = null;
+  const applied: Applied = { theme: null, preset: null };
   const document = {
     documentElement: {
       setAttribute: (name: string, value: string) => {
-        if (name === "data-theme") applied = value;
+        if (name === "data-theme") applied.theme = value;
+        if (name === "data-preset") applied.preset = value;
       },
     },
   };
@@ -47,10 +60,26 @@ function boot(
     "localStorage",
     "document",
     "location",
-    THEME_BOOT_SOURCE,
+    APPEARANCE_BOOT_SOURCE,
   ) as (ls: unknown, doc: unknown, loc: unknown) => void;
   run(localStorage, document, { pathname: options.pathname ?? "/library" });
   return applied;
+}
+
+/** The palette the script applied, or `null`. */
+function boot(
+  store: Store,
+  options: { throwOnRead?: boolean; pathname?: string } = {},
+): string | null {
+  return bootBoth(store, options).theme;
+}
+
+/** The design preset the script applied, or `null`. */
+function bootPreset(
+  store: Store,
+  options: { throwOnRead?: boolean; pathname?: string } = {},
+): string | null {
+  return bootBoth(store, options).preset;
 }
 
 /** localStorage as it looks for a signed-in viewer on profile `profileId`. */
@@ -70,7 +99,10 @@ function storeFor(
 const themeKey = (userId: number, profileId: number) =>
   scopedStorageKey(READING_THEME_STORAGE_BASE, { userId, profileId }) as string;
 
-describe("theme boot script", () => {
+const presetKey = (userId: number, profileId: number) =>
+  scopedStorageKey(DESIGN_PRESET_STORAGE_BASE, { userId, profileId }) as string;
+
+describe("appearance boot script — palette", () => {
   it("applies the active profile's stored palette", () => {
     expect(boot(storeFor(7, { [themeKey(1, 7)]: "gruvbox-dark-hard" }))).toBe(
       "gruvbox-dark-hard",
@@ -140,5 +172,88 @@ describe("theme boot script", () => {
     // Locked-down browsers throw on access rather than returning null. A
     // palette is never worth a blank page.
     expect(() => boot(storeFor(1, { [themeKey(1, 1)]: "nord" }), { throwOnRead: true })).not.toThrow();
+  });
+});
+
+describe("appearance boot script — design preset", () => {
+  it("applies the active profile's stored preset", () => {
+    expect(bootPreset(storeFor(7, { [presetKey(1, 7)]: "editorial" }))).toBe(
+      "editorial",
+    );
+  });
+
+  it("finds the key without knowing the user id", () => {
+    expect(bootPreset(storeFor(3, { [presetKey(4321, 3)]: "cinema" }))).toBe("cinema");
+  });
+
+  it("does not read another profile's choice", () => {
+    const store = storeFor(2, {
+      [presetKey(1, 1)]: "compact",
+      [presetKey(1, 9)]: "flat",
+    });
+    expect(bootPreset(store)).toBeNull();
+  });
+
+  it("is not fooled by a profile id that is a suffix of another", () => {
+    expect(bootPreset(storeFor(1, { [presetKey(1, 21)]: "cinema" }))).toBeNull();
+  });
+
+  it("ignores a stored value that is not a shipped preset", () => {
+    // "eclipse" is the name the design brief used for the default preset and
+    // is now a THEME id — precisely the value a hand-edited store might hold.
+    expect(bootPreset(storeFor(5, { [presetKey(1, 5)]: "eclipse" }))).toBeNull();
+    expect(bootPreset(storeFor(5, { [presetKey(1, 5)]: "" }))).toBeNull();
+  });
+
+  it("tolerates whitespace, as the parser does", () => {
+    expect(bootPreset(storeFor(5, { [presetKey(1, 5)]: " compact\n" }))).toBe("compact");
+  });
+
+  it("leaves the attribute alone when no profile is selected", () => {
+    // With no attribute the bare `:root` shape defaults apply, which ARE
+    // Signature — so there is nothing to correct later.
+    expect(bootPreset({})).toBeNull();
+  });
+
+  it("declines on the auth screens, which belong to nobody yet", () => {
+    const store = storeFor(4, { [presetKey(1, 4)]: "cinema" });
+    expect(bootPreset(store, { pathname: "/login" })).toBeNull();
+    expect(bootPreset(store, { pathname: "/register" })).toBeNull();
+    expect(bootPreset(store, { pathname: "/profiles" })).toBe("cinema");
+  });
+});
+
+describe("appearance boot script — both channels at once", () => {
+  it("applies a palette and a preset from one scan", () => {
+    // The real cold-load case: a profile that has chosen both. Neither may
+    // shadow the other, and both have to land before the first paint.
+    const store = storeFor(6, {
+      [themeKey(2, 6)]: "nord",
+      [presetKey(2, 6)]: "editorial",
+    });
+    expect(bootBoth(store)).toEqual({ theme: "nord", preset: "editorial" });
+  });
+
+  it("applies whichever half the profile has chosen", () => {
+    // Every existing profile is in this state the first time it loads after
+    // presets ship: a stored theme and no stored preset.
+    expect(bootBoth(storeFor(6, { [themeKey(2, 6)]: "nord" }))).toEqual({
+      theme: "nord",
+      preset: null,
+    });
+    expect(bootBoth(storeFor(6, { [presetKey(2, 6)]: "flat" }))).toEqual({
+      theme: null,
+      preset: "flat",
+    });
+  });
+
+  it("does not let one profile's preset ride in on another's palette", () => {
+    // The channels share a scan but not a match: each one re-checks the
+    // profile suffix against its own base.
+    const store = storeFor(6, {
+      [themeKey(2, 6)]: "nord",
+      [presetKey(2, 4)]: "cinema",
+    });
+    expect(bootBoth(store)).toEqual({ theme: "nord", preset: null });
   });
 });

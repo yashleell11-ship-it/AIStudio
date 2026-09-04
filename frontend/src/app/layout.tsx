@@ -5,7 +5,7 @@ import { ServiceWorkerBoundary } from "@/features/offline";
 // Direct, not via the `@/features/preferences` barrel: that barrel also exports
 // the settings panels, and the root layout has no business pulling every client
 // component in the feature into its module graph to emit one <script>.
-import { ThemeBootScript } from "@/features/preferences/theme-boot";
+import { AppearanceBootScript } from "@/features/preferences/appearance-boot";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -68,12 +68,13 @@ export default function RootLayout({
       <head>
         {/*
           First thing in the document, before any stylesheet has painted: reads
-          the active profile's stored palette and stamps `data-theme` on <html>.
-          Without it every cold load flashes Eclipse near-black before the
-          chosen theme lands — invisible on the dark palettes, a full white-to-
-          black blink on the paper ones. See `theme-boot-source.ts`.
+          the active profile's stored palette and design preset and stamps
+          `data-theme` and `data-preset` on <html>. Without it every cold load
+          flashes Eclipse near-black before the chosen theme lands — invisible
+          on the dark palettes, a full white-to-black blink on the paper ones —
+          and reflows once the preset resolves. See `appearance-boot-source.ts`.
         */}
-        <ThemeBootScript />
+        <AppearanceBootScript />
       </head>
       <body>
         <Providers>
