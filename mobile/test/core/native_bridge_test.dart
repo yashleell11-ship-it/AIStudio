@@ -19,6 +19,11 @@ void main() {
       await bridge.setVolumeKeyNavEnabled(false);
     });
 
+    test('setHighRefreshRateEnabled never throws', () async {
+      await bridge.setHighRefreshRateEnabled(true);
+      await bridge.setHighRefreshRateEnabled(false);
+    });
+
     test('volumeKeyEvents never emits', () async {
       final events = <VolumeKeyDirection>[];
       final sub = bridge.volumeKeyEvents.listen(events.add);

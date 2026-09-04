@@ -13,6 +13,7 @@ abstract final class _Keys {
   static const String autoNextChapter = 'settings_auto_next_chapter';
   static const String lockReaderControls = 'settings_lock_reader_controls';
   static const String readerRefreshRate = 'settings_reader_refresh_rate';
+  static const String highRefreshRate = 'settings_high_refresh_rate';
   static const String readerWarmth = 'settings_reader_warmth';
   static const String readerBackground = 'settings_reader_background';
   static const String readerColorMode = 'settings_reader_color_mode';
@@ -104,6 +105,17 @@ class PreferencesService {
   String? get readerRefreshRate => _prefs.getString(_Keys.readerRefreshRate);
   Future<void> setReaderRefreshRate(String value) =>
       _prefs.setString(_Keys.readerRefreshRate, value);
+
+  /// Run the whole app at the panel's fastest refresh rate (Android only).
+  ///
+  /// Defaults to **on**: every 90/120/144 Hz phone starts an app at 60 Hz
+  /// unless it asks for more, and this app's core interaction is a continuous
+  /// vertical scroll. Distinct from [readerRefreshRate], which is a per-chapter
+  /// override — this one is app-wide and outlives the reader, so
+  /// [resetReaderPreferences] deliberately leaves it alone.
+  bool get highRefreshRate => _prefs.getBool(_Keys.highRefreshRate) ?? true;
+  Future<void> setHighRefreshRate(bool value) =>
+      _prefs.setBool(_Keys.highRefreshRate, value);
 
   double get readerWarmth => _prefs.getDouble(_Keys.readerWarmth) ?? 0.0;
   Future<void> setReaderWarmth(double value) =>

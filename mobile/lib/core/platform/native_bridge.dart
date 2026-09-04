@@ -23,8 +23,9 @@ class DeviceMemoryInfo {
 
 /// Bridges the small bits of native functionality Flutter can't reach on its
 /// own: intercepting hardware volume keys (must happen in the native
-/// Activity, before the OS shows its volume UI) and real device memory
-/// stats (to size the reader's image cache relative to the device).
+/// Activity, before the OS shows its volume UI), real device memory stats (to
+/// size the reader's image cache relative to the device), and the window's
+/// preferred display mode (the Activity owns that attribute).
 ///
 /// Every platform other than Android — and the test host — is a silent
 /// no-op, matching [ReaderDisplayMode]/[ReaderWakelock]: injected via
@@ -42,6 +43,16 @@ abstract class NativeBridge {
   /// Real device memory stats, or `null` wherever unsupported or on any
   /// platform-channel failure — callers must have a sane fallback.
   Future<DeviceMemoryInfo?> getDeviceMemoryInfo();
+
+  /// Hold the window at the panel's fastest display mode, or hand the choice
+  /// back to the system.
+  ///
+  /// `false` actively clears the window's mode preference rather than merely
+  /// stopping future requests: a preference once written stays written for the
+  /// life of the window, so not asking again would leave the panel pinned at
+  /// whatever was asked for last. Driven by `highRefreshRateSyncProvider`,
+  /// which is the app's single owner of this attribute.
+  Future<void> setHighRefreshRateEnabled(bool enabled);
 }
 
 class PlatformNativeBridge implements NativeBridge {
@@ -77,6 +88,17 @@ class PlatformNativeBridge implements NativeBridge {
     } catch (_) {
       // No native listener (unsupported OS version/build) — volume keys
       // just behave normally, which is a safe degrade.
+    }
+  }
+
+  @override
+  Future<void> setHighRefreshRateEnabled(bool enabled) async {
+    if (!_supported) return;
+    try {
+      await _channel.invokeMethod<void>('setHighRefreshRateEnabled', enabled);
+    } catch (_) {
+      // An older build of the Activity without this method — the app keeps
+      // whatever mode the system gives it, which is a safe degrade.
     }
   }
 

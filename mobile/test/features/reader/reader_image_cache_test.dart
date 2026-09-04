@@ -15,6 +15,9 @@ class _FakeNativeBridge implements NativeBridge {
   Future<void> setVolumeKeyNavEnabled(bool enabled) async {}
 
   @override
+  Future<void> setHighRefreshRateEnabled(bool enabled) async {}
+
+  @override
   Stream<VolumeKeyDirection> get volumeKeyEvents => const Stream.empty();
 }
 

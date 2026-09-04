@@ -121,6 +121,25 @@ void main() {
       expect(apiUrl, saved);
       expect(storage.storedUrl, saved);
     });
+
+    test('uses a savedUrl the caller already has in flight', () async {
+      SharedPreferences.setMockInitialValues({'settings_setup_completed': true});
+      final prefs = await SharedPreferences.getInstance();
+      const inFlight = 'http://192.168.0.50:8000';
+      final storage = _FakeSecureStorageService(storedUrl: 'http://10.0.0.1:8000');
+
+      final apiUrl = await applyStartupConfig(
+        storage: storage,
+        preferences: PreferencesService(prefs),
+        hasBakedProductionUrl: false,
+        savedUrl: Future<String?>.value(inFlight),
+      );
+
+      expect(apiUrl, inFlight);
+      // The point of the parameter: `main` starts the Keystore read alongside
+      // the SharedPreferences load, so this must not read it a second time.
+      expect(storage.getApiUrlCalls, 0);
+    });
   });
 }
 
@@ -128,9 +147,13 @@ class _FakeSecureStorageService extends SecureStorageService {
   _FakeSecureStorageService({this.storedUrl});
 
   String? storedUrl;
+  int getApiUrlCalls = 0;
 
   @override
-  Future<String?> getApiUrl() async => storedUrl;
+  Future<String?> getApiUrl() async {
+    getApiUrlCalls++;
+    return storedUrl;
+  }
 
   @override
   Future<void> setApiUrl(String url) async {

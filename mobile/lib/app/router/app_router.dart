@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -65,7 +66,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: _rootNavigatorKey,
     initialLocation: Routes.home,
-    debugLogDiagnostics: true,
+    // go_router 14's `log()` is a plain runtime flag check with no kDebugMode
+    // guard, and one of its call sites builds a full dump of the ~35 registered
+    // routes as its *argument* — evaluated before the flag is ever read. A
+    // release build has no use for either.
+    debugLogDiagnostics: kDebugMode,
     redirect: (context, state) {
       final path = state.uri.path;
 

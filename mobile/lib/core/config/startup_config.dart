@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:manhwamaniacs/core/config/env.dart';
 import 'package:manhwamaniacs/core/network/base_url.dart';
 import 'package:manhwamaniacs/core/storage/preferences.dart';
@@ -49,22 +51,35 @@ StartupConfig resolveStartupConfig({
 
 /// Reads secure storage + prefs, applies [resolveStartupConfig], persists
 /// migrations, and returns the API base URL for [ProviderScope].
+///
+/// [savedUrl] lets the caller start the secure-storage read *before* calling
+/// this — on Android that read is EncryptedSharedPreferences over the
+/// Keystore, routinely 50-300 ms on a cold start and the slowest single thing
+/// between `main()` and the first frame. `main` kicks it off alongside the
+/// SharedPreferences load and hands the in-flight future in; omit it and this
+/// reads storage itself, which is what the tests do.
 Future<String> applyStartupConfig({
   required SecureStorageService storage,
   required PreferencesService preferences,
   bool? hasBakedProductionUrl,
   String defaultApiUrl = Env.defaultApiUrl,
+  Future<String?>? savedUrl,
 }) async {
-  final savedUrl = await storage.getApiUrl();
+  final resolvedSavedUrl = await (savedUrl ?? storage.getApiUrl());
   final config = resolveStartupConfig(
-    savedUrl: savedUrl,
+    savedUrl: resolvedSavedUrl,
     setupCompleted: preferences.setupCompleted,
     hasBakedProductionUrl: hasBakedProductionUrl ?? Env.hasBakedProductionUrl,
     defaultApiUrl: defaultApiUrl,
   );
 
   if (config.persistApiUrl != null) {
-    await storage.setApiUrl(config.persistApiUrl!);
+    // Deliberately not awaited. This is a one-off migration on a first launch
+    // of a baked-production build, nothing on the startup path reads the value
+    // back (the resolved URL is passed to ProviderScope directly), and the
+    // write is a Keystore round trip. It is idempotent, so a process killed
+    // before it lands simply runs it again next launch.
+    unawaited(storage.setApiUrl(config.persistApiUrl!));
   }
   if (config.markSetupCompleted) {
     await preferences.setSetupCompleted(true);

@@ -13,18 +13,28 @@ import 'package:shared_preferences/shared_preferences.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Three independent round trips, started together rather than chained.
+  // None of them needs another's result, and all of them run before a single
+  // frame can be scheduled — so serialising them was pure cold-start latency.
+  // The secure-storage read is the expensive one: on Android that is
+  // EncryptedSharedPreferences over the Keystore.
+  //
   // Android: edge-to-edge with auto-hiding nav buttons (swipe up to reveal).
   // iOS: plain edge-to-edge — see `restingSystemUiMode` for why the immersive
   // modes are Android-only there.
-  await applyRestingSystemUiMode();
-
+  final systemUi = applyRestingSystemUiMode();
+  final prefsLoad = SharedPreferences.getInstance();
   final storage = SecureStorageService();
-  final prefs = await SharedPreferences.getInstance();
+  final savedApiUrl = storage.getApiUrl();
+
+  final prefs = await prefsLoad;
   final preferences = PreferencesService(prefs);
   final apiUrl = await applyStartupConfig(
     storage: storage,
     preferences: preferences,
+    savedUrl: savedApiUrl,
   );
+  await systemUi;
   appLogger.i('API base URL: $apiUrl  flavor: ${Env.flavor}');
 
   runApp(
