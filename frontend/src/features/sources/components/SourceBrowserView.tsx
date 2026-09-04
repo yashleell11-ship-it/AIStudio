@@ -4,6 +4,10 @@ import { useCallback, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+// Imported directly rather than through the `@/features/novels` barrel, which
+// also pulls in the novel reader.
+import { useIsNovelSource } from "@/features/novels/hooks";
+import { NovelShelf } from "@/features/novels/components/NovelShelf";
 import { useLoadMoreOnScroll } from "@/lib/use-load-more-on-scroll";
 import { useShortcut } from "@/lib/keyboard";
 import {
@@ -13,6 +17,7 @@ import {
   useSourceGenres,
   useSources,
 } from "../hooks";
+import { sourceImageUrl } from "../api";
 import { BrowseFreshness } from "./BrowseFreshness";
 import { SourceBrowseLoading } from "./SourceBrowseLoading";
 import { SourceLogo } from "./SourceLogo";
@@ -26,6 +31,9 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const sourcesQuery = useSources();
+  // `undefined` while the listing loads; the shelf/grid choice waits for it
+  // rather than rendering a poster grid of novels for a frame.
+  const isNovel = useIsNovelSource(sourceId);
   const browseModesQuery = useSourceBrowseModes(sourceId);
   const genresQuery = useSourceGenres(sourceId);
   const sourceName =
@@ -159,7 +167,8 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
                 <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted">
                   <span>
                     {items.length}
-                    {total > items.length ? ` of ${total}` : ""} series
+                    {total > items.length ? ` of ${total}` : ""}{" "}
+                    {isNovel ? "books" : "series"}
                     {query ? ` · “${query}”` : ""}
                   </span>
                   <BrowseFreshness
@@ -230,16 +239,46 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
       ) : null}
 
       <div className="relative">
-        <SourceSeriesGrid
-          sourceId={sourceId}
-          items={items}
-          isLoading={seriesQuery.isLoading}
-          query={query}
-          errorMessage={
-            seriesQuery.error instanceof Error ? seriesQuery.error.message : undefined
-          }
-          onRetry={seriesQuery.error ? () => void seriesQuery.refetch() : undefined}
-        />
+        {/* A novel source is a shelf, not a wall of posters: prose catalogues
+            have weak cover art and the metadata is what a reader picks by. */}
+        {isNovel ? (
+          <NovelShelf
+            books={items.map((series) => ({
+              key: series.id,
+              href: `/sources/${encodeURIComponent(sourceId)}/series/${encodeURIComponent(series.id)}`,
+              title: series.title,
+              author: series.author,
+              description: series.description,
+              chapterCount: series.chapter_count,
+              status: series.status,
+              genres: series.genres,
+              coverUrl: sourceImageUrl(series.cover_url),
+              note: null,
+            }))}
+            isLoading={seriesQuery.isLoading}
+            emptyTitle="No books found"
+            emptyDescription={
+              query
+                ? `No results for “${query}” on this source.`
+                : "This source returned no books."
+            }
+            errorMessage={
+              seriesQuery.error instanceof Error ? seriesQuery.error.message : undefined
+            }
+            onRetry={seriesQuery.error ? () => void seriesQuery.refetch() : undefined}
+          />
+        ) : (
+          <SourceSeriesGrid
+            sourceId={sourceId}
+            items={items}
+            isLoading={seriesQuery.isLoading}
+            query={query}
+            errorMessage={
+              seriesQuery.error instanceof Error ? seriesQuery.error.message : undefined
+            }
+            onRetry={seriesQuery.error ? () => void seriesQuery.refetch() : undefined}
+          />
+        )}
         <SourceBrowseLoading
           active={seriesQuery.isLoading}
           sourceId={sourceId}

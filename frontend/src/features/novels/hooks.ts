@@ -127,6 +127,8 @@ export function useCachedNovelWordCounts(
     }
     return counts;
     // `revision` is the subscription's signal that the cache changed; the
-    // cache itself is not reactive, so it has to be in the dependency list.
+    // cache itself is not reactive, so it has to be in the dependency list —
+    // which is exactly the "unnecessary dependency" the rule cannot see.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [queryClient, sourceId, seriesKey, revision]);
 }
