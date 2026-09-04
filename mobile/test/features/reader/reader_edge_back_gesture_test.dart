@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_edge_back_gesture.dart';
@@ -60,7 +61,7 @@ Future<Widget> _reader({
     child: MaterialApp(
       theme: ThemeData(platform: platform),
       home: ReaderContent(
-        chapter: _chapter(),
+        feed: ReaderFeed.single(_chapter()),
         scrollStorageKey: '1',
         onBack: () {},
         onOpenSeries: () {},

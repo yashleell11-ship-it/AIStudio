@@ -13,6 +13,7 @@ import 'package:manhwamaniacs/core/platform/system_ui.dart';
 import 'package:manhwamaniacs/core/utils/haptics.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_extents.dart';
@@ -22,6 +23,7 @@ import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_scroll_controller.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
 import 'package:manhwamaniacs/features/reader/utils/scroll_storage.dart';
+import 'package:manhwamaniacs/features/reader/widgets/chapter_seam.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_controls.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_edge_back_gesture.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_page_image.dart';
@@ -65,14 +67,21 @@ double autoScrollFrameDelta(double speedPxPerSecond, double dtSeconds) {
 /// source reader.
 ///
 /// It owns no data fetching and no persistence — callers pass the resolved
-/// [ReaderChapter] plus optional callbacks for progress/bookmark saves and
+/// [ReaderFeed] plus optional callbacks for progress/bookmark saves and
 /// chapter navigation. Every reader behaviour (fullscreen, scroll restore,
 /// zoom, virtualized page list, cached images, edge prompts, auto-next) lives
 /// here exactly once so the two entry points cannot drift.
+///
+/// It renders a FEED, not a chapter (spec R1). A feed of one is the ordinary
+/// read and behaves exactly as it always did; a feed of several is one
+/// continuous scroll across a chapter boundary, with the seam marked and
+/// never blocking. Growing the feed is the caller's job — this widget only
+/// says *when* ([onReachedFeedEnd] / [onReachedFeedStart]) — because only the
+/// caller knows how to fetch a chapter and which one comes next.
 class ReaderContent extends ConsumerStatefulWidget {
   const ReaderContent({
     super.key,
-    required this.chapter,
+    required this.feed,
     required this.scrollStorageKey,
     required this.onBack,
     required this.onOpenSeries,
@@ -82,13 +91,19 @@ class ReaderContent extends ConsumerStatefulWidget {
     this.onAddBookmark,
     this.onPreviousChapter,
     this.onNextChapter,
+    this.onReachedFeedEnd,
+    this.onReachedFeedStart,
     this.pageExtents,
   });
 
-  final ReaderChapter chapter;
+  /// The chapters being read, as one page list. [ReaderFeed.single] is the
+  /// ordinary case.
+  final ReaderFeed feed;
 
-  /// Opaque key used to persist/restore per-chapter scroll position.
-  /// Local reader passes the chapter id; source reader passes a composite.
+  /// Opaque key used to persist/restore scroll position for the chapter this
+  /// reader was OPENED at — the feed's anchor. Positions inside chapters the
+  /// feed later grew into are carried by reading progress instead, which is
+  /// per-chapter and already saved.
   final String scrollStorageKey;
   final int initialPage;
   final bool showBookmark;
@@ -101,17 +116,31 @@ class ReaderContent extends ConsumerStatefulWidget {
   final VoidCallback onOpenSeries;
 
   /// Persist reading progress. Only the local library reader supplies this.
-  final Future<void> Function(int page)? onSaveProgress;
+  ///
+  /// Takes the chapter as well as the page because a continuous feed spans
+  /// several: reading into chapter 12 has to record chapter 12, page N — the
+  /// page number is chapter-local, never an index into the feed.
+  final Future<void> Function(ReaderChapter chapter, int page)? onSaveProgress;
 
-  /// Create a bookmark at the visible page. Only the local library reader.
-  /// Return ``true`` when the bookmark was saved successfully.
-  final Future<bool> Function(int page)? onAddBookmark;
+  /// Create a bookmark at the visible page of the chapter it belongs to. Only
+  /// the local library reader. Return ``true`` when it was saved.
+  final Future<bool> Function(ReaderChapter chapter, int page)? onAddBookmark;
 
-  /// Navigate to the previous/next chapter. ``null`` disables that direction.
+  /// Navigate to the previous/next chapter as a fresh route. ``null`` disables
+  /// that direction. In a continuous feed these are the edge prompts for a
+  /// boundary the feed could not absorb (nothing beyond it, or the fetch
+  /// failed) — crossing a loaded boundary never navigates.
   final VoidCallback? onPreviousChapter;
   final VoidCallback? onNextChapter;
 
-  /// Page geometry for this chapter. The reader owns one per session when this
+  /// Called as the reader comes within [kSeamPrefetchPages] of either end of
+  /// the feed, so the caller can fetch the adjacent chapter and hand back a
+  /// longer feed **before** the seam is reached. Null in single-chapter mode,
+  /// which is what keeps that mode exactly as it was.
+  final Future<void> Function()? onReachedFeedEnd;
+  final Future<void> Function()? onReachedFeedStart;
+
+  /// Page geometry for this feed. The reader owns one per session when this
   /// is omitted; supplying it lets a test resolve a page's real size without a
   /// decoding image, which is otherwise unreachable from outside.
   final ReaderPageExtents? pageExtents;
@@ -138,7 +167,15 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   Timer? _hideControlsTimer;
 
   // Scroll-driven state — ValueNotifiers avoid any rebuild on scroll
-  final _visiblePageNotifier = ValueNotifier<int>(1);
+  final _positionNotifier = ValueNotifier<ReaderFeedPosition>(
+    (
+      flatIndex: 0,
+      chapterIndex: 0,
+      page: 1,
+      pageCount: 1,
+      chapterTitle: '',
+    ),
+  );
   final _atStartNotifier = ValueNotifier<bool>(false);
   final _atEndNotifier = ValueNotifier<bool>(false);
 
@@ -149,9 +186,25 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   bool _autoScrollActive = false;
   Duration? _lastAutoScrollFrame;
 
-  var _lastSavedPage = 0;
-  var _pendingPage = 0;
+  /// The last progress actually handed to [ReaderContent.onSaveProgress], and
+  /// the one waiting on the debounce — both carry the chapter, because in a
+  /// feed "page 3" means nothing without saying page 3 of what.
+  (String chapterId, int page)? _lastSaved;
+  (ReaderChapter chapter, int page)? _pending;
   var _initialScrollApplied = false;
+
+  /// The chapter this reader was opened at. Scroll offsets are persisted
+  /// relative to it and only while it is the one on screen; everything else
+  /// resumes through per-chapter reading progress.
+  late final String _anchorChapterId = widget.feed.chapters.isEmpty
+      ? ''
+      : widget.feed.chapters.first.id;
+
+  /// One adjacent-chapter request in flight per direction. A failed request
+  /// simply lets the next scroll event try again, which cannot spin: every
+  /// attempt is a network round trip.
+  var _loadingNext = false;
+  var _loadingPrevious = false;
 
   // Deferred scroll-restore state. On a long webtoon the ListView.builder has
   // only laid out the viewport + cache extent on the first frame, so the true
@@ -191,10 +244,15 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   @override
   void initState() {
     super.initState();
-    _visiblePageNotifier.value =
-        widget.initialPage.clamp(1, widget.chapter.pages.length);
+    _positionNotifier.value = _positionAt(
+      widget.feed.flatIndexOf(
+            chapterId: _anchorChapterId,
+            page: widget.initialPage,
+          ) ??
+          0,
+    );
     _ownsPageExtents = widget.pageExtents == null;
-    _pageExtents = widget.pageExtents ?? ReaderPageExtents(widget.chapter.pages);
+    _pageExtents = widget.pageExtents ?? ReaderPageExtents(widget.feed.pages);
     _pageExtents.addListener(_handleExtentSubmission);
     _scrollController = ReaderScrollController()..addListener(_handleScroll);
     unawaited(tuneReaderImageCache(ref.read(nativeBridgeProvider)));
@@ -224,6 +282,96 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   }
 
   @override
+  void didUpdateWidget(covariant ReaderContent oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.feed, widget.feed)) {
+      _reconcileFeed(oldWidget.feed, widget.feed);
+    }
+  }
+
+  /// Fold a grown or trimmed feed into the geometry **without moving what the
+  /// reader is looking at**.
+  ///
+  /// Appending is free: every existing index keeps its meaning and the pages
+  /// simply continue past the old end. Prepending and releasing are not —
+  /// they shift every index, and with it every pixel above the viewport, so
+  /// the scroll offset has to move by exactly the extent that appeared or
+  /// disappeared above. That correction is the whole reason [ReaderFeed] is
+  /// immutable: the difference between the two feeds is recoverable.
+  ///
+  /// Anything that is not one of those four shapes rebuilds the extents, which
+  /// costs a re-measure but cannot be wrong.
+  void _reconcileFeed(ReaderFeed before, ReaderFeed after) {
+    _cachedMetrics = null;
+    final oldIds = [for (final chapter in before.chapters) chapter.id];
+    final newIds = [for (final chapter in after.chapters) chapter.id];
+    bool sameIds(List<String> a, List<String> b) =>
+        a.length == b.length &&
+        List.generate(a.length, (i) => a[i] == b[i]).every((match) => match);
+
+    // Appended — the forward seam. Nothing above the viewport changed.
+    if (newIds.length > oldIds.length &&
+        sameIds(newIds.sublist(0, oldIds.length), oldIds)) {
+      _pageExtents.appendPages(after.pages.sublist(before.length));
+      return;
+    }
+
+    // Prepended — the backward seam. Everything moved down by the extent of
+    // the new pages plus the seam divider now sitting above the old first one.
+    if (newIds.length > oldIds.length &&
+        sameIds(newIds.sublist(newIds.length - oldIds.length), oldIds)) {
+      final added = after.length - before.length;
+      _abandonPendingRestore();
+      _pageExtents.prependPages(after.pages.sublist(0, added));
+      _prefetchedThrough += added;
+      final metrics = _cachedMetrics = _buildMetrics();
+      _scrollController.applyExtentCorrection(
+        metrics.offsetToPage(added + 1) +
+            metrics.leadingInsetAt(added) -
+            readerListLeadingPadding,
+      );
+      return;
+    }
+
+    // Released from the front — Read-all letting go of what is far behind.
+    if (newIds.length < oldIds.length &&
+        sameIds(oldIds.sublist(oldIds.length - newIds.length), newIds)) {
+      final removed = before.length - after.length;
+      final old = _cachedMetrics;
+      final delta = old == null
+          ? 0.0
+          : old.offsetToPage(removed + 1) +
+              old.leadingInsetAt(removed) -
+              readerListLeadingPadding;
+      _abandonPendingRestore();
+      _pageExtents.removeLeadingPages(removed);
+      _prefetchedThrough = (_prefetchedThrough - removed).clamp(0, after.length);
+      _cachedMetrics = _buildMetrics();
+      _scrollController.applyExtentCorrection(-delta);
+      return;
+    }
+
+    // Released from the end. Below the viewport by definition, so nothing to
+    // correct — only the prefetch high-water mark to pull back.
+    if (newIds.length < oldIds.length &&
+        sameIds(oldIds.sublist(0, newIds.length), newIds)) {
+      _pageExtents.removeTrailingPages(before.length - after.length);
+      _prefetchedThrough = _prefetchedThrough.clamp(0, after.length);
+      return;
+    }
+
+    // Not a shape this widget produces — a caller replaced the feed wholesale.
+    // Start the geometry over rather than guessing what moved.
+    if (_ownsPageExtents) {
+      _abandonPendingRestore();
+      _pageExtents
+        ..removeTrailingPages(before.length)
+        ..appendPages(after.pages);
+      _prefetchedThrough = 0;
+    }
+  }
+
+  @override
   void dispose() {
     _stopAutoScroll();
     _flushProgress();
@@ -236,17 +384,21 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     unawaited(_displayMode?.reset());
     unawaited(_syncVolumeKeyNav(false));
     unawaited(_volumeKeySubscription?.cancel());
-    if (_scrollController.hasClients && _prefs != null) {
+    if (_scrollController.hasClients &&
+        _prefs != null &&
+        _positionNotifier.value.chapterIndex == _anchorIndex) {
+      final relative =
+          _scrollController.offset - _anchorOrigin + readerListLeadingPadding;
       writeReaderScrollPositionByKey(
         _prefs!,
         _scrollKey,
-        _scrollController.offset,
+        relative < 0 ? 0 : relative,
       );
     }
     _scrollController.dispose();
     _pageExtents.removeListener(_handleExtentSubmission);
     if (_ownsPageExtents) _pageExtents.dispose();
-    _visiblePageNotifier.dispose();
+    _positionNotifier.dispose();
     _atStartNotifier.dispose();
     _atEndNotifier.dispose();
     // Restore what the app launched with rather than hardcoding edgeToEdge:
@@ -265,6 +417,58 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// profile id keeps each persona's position private.
   String get _scrollKey =>
       '${ref.read(activeProfileProvider)?.id ?? 'none'}:${widget.scrollStorageKey}';
+
+  /// Where the anchor chapter sits in the feed, or -1 once a Read-all window
+  /// has released it.
+  int get _anchorIndex => widget.feed.indexOfChapter(_anchorChapterId);
+
+  /// Scroll offset of the anchor chapter's first page. Offsets are persisted
+  /// relative to this, so a chapter prepended above it — which shifts every
+  /// absolute offset in the feed — does not silently invalidate a saved
+  /// position.
+  double get _anchorOrigin {
+    final index = _anchorIndex;
+    if (index <= 0) return readerListLeadingPadding;
+    return _metrics.offsetToPage(widget.feed.startOfChapter(index) + 1);
+  }
+
+  /// The feed position for a flat page index — the one place the reader's
+  /// coordinate (an index into the whole feed) is turned into the reader's
+  /// meaning (a chapter and a page in it).
+  ReaderFeedPosition _positionAt(int flatIndex) {
+    final feed = widget.feed;
+    if (feed.isEmpty) {
+      return (
+        flatIndex: 0,
+        chapterIndex: 0,
+        page: 1,
+        pageCount: 1,
+        chapterTitle: '',
+      );
+    }
+    final index = flatIndex.clamp(0, feed.length - 1);
+    final chapter = feed.chapterAt(index);
+    return (
+      flatIndex: index,
+      chapterIndex: feed.chapterIndexAt(index),
+      page: feed.pageWithinChapterAt(index),
+      pageCount: chapter.pages.length,
+      chapterTitle: chapter.title,
+    );
+  }
+
+  /// Extra space reserved above the first page of every chapter after the
+  /// first — the seam divider, as geometry rather than as a widget the list
+  /// happens to contain. Empty for a single-chapter feed, which is what keeps
+  /// that case pixel-identical to before.
+  Map<int, double> get _seamInsets {
+    final feed = widget.feed;
+    if (feed.isSingleChapter) return const {};
+    return {
+      for (var c = 1; c < feed.chapters.length; c++)
+        feed.startOfChapter(c): kChapterSeamExtent,
+    };
+  }
 
   ReaderDefaults get _defaults => ref.read(readerDefaultsProvider);
 
@@ -337,6 +541,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       viewportWidth: _containerWidth ?? MediaQuery.sizeOf(context).width,
       viewportHeight: _containerHeight ?? MediaQuery.sizeOf(context).height,
       zoom: ref.read(readerUiProvider).zoomLevel,
+      leadingInsets: _seamInsets,
     );
   }
 
@@ -345,12 +550,19 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
     final prefs = _resolvedPrefs();
     final savedScroll = readReaderScrollPositionByKey(prefs, _scrollKey);
-    final targetPage = widget.initialPage.clamp(1, widget.chapter.pages.length);
+    final feed = widget.feed;
+    final targetFlat = feed.flatIndexOf(
+          chapterId: _anchorChapterId,
+          page: widget.initialPage,
+        ) ??
+        0;
     final initialOffset = resolveInitialScrollTop(
-      savedScroll: savedScroll,
-      initialPage: targetPage,
-      pageCount: widget.chapter.pages.length,
-      estimatedOffsetToPage: _metrics.offsetToPage(targetPage),
+      // Stored relative to the anchor chapter; the feed is that one chapter
+      // at open time, so this is the identity in the ordinary case.
+      savedScroll: savedScroll == null ? null : savedScroll + _anchorOrigin - readerListLeadingPadding,
+      initialPage: widget.initialPage.clamp(1, feed.length),
+      pageCount: feed.length,
+      estimatedOffsetToPage: _metrics.offsetToPage(targetFlat + 1),
     );
 
     if (initialOffset <= 0) {
@@ -504,19 +716,47 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
     // Derived from the same extents the list is laid out with, so the counter,
     // the scrubber and the pages can never drift apart.
-    final page = _metrics.pageAtOffset(scrollOffset);
+    final flatPage = _metrics.pageAtOffset(scrollOffset);
+    final feedPosition = _positionAt(flatPage - 1);
 
     // Update ValueNotifiers — no setState, no rebuild
-    _visiblePageNotifier.value = page;
+    _positionNotifier.value = feedPosition;
 
     // Push edge-state via ValueNotifier — zero setState, zero page-list rebuild
     if (_atStartNotifier.value != atStart) _atStartNotifier.value = atStart;
     if (_atEndNotifier.value != atEnd) _atEndNotifier.value = atEnd;
 
-    _scheduleProgressSave(page);
-    _scheduleScrollSave(scrollOffset);
+    _scheduleProgressSave(feedPosition);
+    _scheduleScrollSave(scrollOffset, feedPosition);
     _maybeAutoNextChapter(atEnd);
-    _prefetchUpcoming(page);
+    _maybeExtendFeed(feedPosition);
+    _prefetchUpcoming(flatPage);
+  }
+
+  /// Ask for the adjacent chapter while there is still reading left between
+  /// here and the seam (spec R1: "prefetched before the seam is reached so it
+  /// never stalls").
+  ///
+  /// Both directions, because a boundary you can only cross one way is a trap:
+  /// scrolling back up into the chapter just finished has to work as well as
+  /// scrolling down out of it.
+  void _maybeExtendFeed(ReaderFeedPosition position) {
+    final feed = widget.feed;
+    final onEnd = widget.onReachedFeedEnd;
+    if (onEnd != null &&
+        !_loadingNext &&
+        feed.length - position.flatIndex <= kSeamPrefetchPages) {
+      _loadingNext = true;
+      unawaited(onEnd().whenComplete(() => _loadingNext = false));
+    }
+
+    final onStart = widget.onReachedFeedStart;
+    if (onStart != null &&
+        !_loadingPrevious &&
+        position.flatIndex <= kSeamPrefetchPages) {
+      _loadingPrevious = true;
+      unawaited(onStart().whenComplete(() => _loadingPrevious = false));
+    }
   }
 
   /// Warm the next few pages' decoded bitmaps ahead of the visible page so fast
@@ -525,7 +765,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// into view. Monotonic — never re-warms pages already requested.
   void _prefetchUpcoming(int visiblePage) {
     if (!mounted) return;
-    final pages = widget.chapter.pages;
+    final pages = widget.feed.pages;
     final target = (visiblePage + readerPrefetchAhead).clamp(0, pages.length);
     if (target <= _prefetchedThrough) return;
 
@@ -552,12 +792,18 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     _prefetchedThrough = target;
   }
 
-  void _scheduleScrollSave(double scrollTop) {
+  void _scheduleScrollSave(double scrollTop, ReaderFeedPosition position) {
     // While a deferred restore is still homing in on the saved offset, the
     // controller sits at a clamped-short interim position. Persisting it would
     // overwrite the very offset we are trying to restore, so hold off until the
     // restore has landed.
     if (_pendingRestoreOffset != null) return;
+    // The saved offset belongs to the chapter this reader was opened at. Once
+    // the reader has scrolled on into a later chapter, that chapter's own
+    // reading progress is the resume point and an offset measured across a
+    // seam would mean nothing on a feed rebuilt from one chapter.
+    if (position.chapterIndex != _anchorIndex) return;
+    final relative = scrollTop - _anchorOrigin + readerListLeadingPadding;
     _scrollSaveTimer?.cancel();
     _scrollSaveTimer = Timer(const Duration(milliseconds: _scrollSaveMs), () {
       final prefs = _prefs;
@@ -565,38 +811,56 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       writeReaderScrollPositionByKey(
         prefs,
         _scrollKey,
-        scrollTop,
+        relative < 0 ? 0 : relative,
       );
     });
   }
 
-  void _scheduleProgressSave(int page) {
-    if (widget.onSaveProgress == null) return;
-    _pendingPage = page;
+  void _scheduleProgressSave(ReaderFeedPosition position) {
+    if (widget.onSaveProgress == null || widget.feed.isEmpty) return;
+    final chapter = widget.feed.chapters[position.chapterIndex];
+    _pending = (chapter, position.page);
     _progressSaveTimer?.cancel();
     _progressSaveTimer =
         Timer(const Duration(milliseconds: _progressSaveMs), () {
-      _persistProgress(page);
+      _persistProgress(chapter, position.page);
     });
   }
 
   void _flushProgress() {
     if (widget.onSaveProgress == null) return;
     _progressSaveTimer?.cancel();
-    if (_pendingPage > 0 && _pendingPage != _lastSavedPage) {
-      _persistProgress(_pendingPage);
-    }
+    final pending = _pending;
+    if (pending == null) return;
+    if (_lastSaved == (pending.$1.id, pending.$2)) return;
+    _persistProgress(pending.$1, pending.$2);
   }
 
-  Future<void> _persistProgress(int page) async {
+  /// Saves [page] against [chapter], not against the feed.
+  ///
+  /// The de-duplication key is the pair: reading forwards out of chapter 5
+  /// page 20 into chapter 6 page 1 must save both, and a page-number-only
+  /// guard would have swallowed the second time the reader crossed a seam
+  /// onto a page number it had already been on.
+  Future<void> _persistProgress(ReaderChapter chapter, int page) async {
     final save = widget.onSaveProgress;
     if (save == null) return;
-    if (page <= 0 || page == _lastSavedPage) return;
-    _lastSavedPage = page;
-    await save(page);
+    if (page <= 0 || _lastSaved == (chapter.id, page)) return;
+    _lastSaved = (chapter.id, page);
+    await save(chapter, page);
   }
 
   void _maybeAutoNextChapter(bool atEnd) {
+    // In a continuous feed the seam IS the mechanism: reaching the end of a
+    // chapter scrolls into the next one, and navigating on top of that would
+    // be the transition the feed exists to remove. Reaching the end of the
+    // FEED with nothing left to load leaves the edge prompt, which is the
+    // honest affordance for a boundary that could not be absorbed.
+    if (widget.onReachedFeedEnd != null) {
+      _autoNextTimer?.cancel();
+      _autoNextTimer = null;
+      return;
+    }
     if (!_defaults.autoNextChapter ||
         !atEnd ||
         widget.onNextChapter == null ||
@@ -782,7 +1046,15 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     // page they just asked for.
     _abandonPendingRestore();
     final position = _scrollController.position;
-    final target = _metrics.offsetToPage(page);
+    // The scrub rail spans the chapter on screen, not the whole feed — so the
+    // page it hands over is chapter-local and has to be placed back into feed
+    // coordinates before the geometry can resolve it.
+    final flat = widget.feed.startOfChapter(
+          _positionNotifier.value.chapterIndex,
+        ) +
+        page -
+        1;
+    final target = _metrics.offsetToPage(flat + 1);
     _scrollController.jumpTo(target.clamp(0.0, position.maxScrollExtent));
     // Scrubbing is deliberate interaction with the controls, so keep them up
     // instead of letting the auto-hide close the bar mid-drag.
@@ -826,16 +1098,18 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
   Future<void> _handleBookmark() async {
     final addBookmark = widget.onAddBookmark;
-    if (addBookmark == null || _bookmarkPending) return;
+    if (addBookmark == null || _bookmarkPending || widget.feed.isEmpty) return;
     setState(() => _bookmarkPending = true);
     try {
-      await _persistProgress(_visiblePageNotifier.value);
-      final success = await addBookmark(_visiblePageNotifier.value);
+      final position = _positionNotifier.value;
+      final chapter = widget.feed.chapters[position.chapterIndex];
+      await _persistProgress(chapter, position.page);
+      final success = await addBookmark(chapter, position.page);
       if (!mounted || !success || !context.mounted) return;
       _haptics.light();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text('Bookmarked page ${_visiblePageNotifier.value}'),
+          content: Text('Bookmarked page ${position.page}'),
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -893,8 +1167,11 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     required double viewportHeight,
     required Color backgroundColor,
   }) {
-    final page = widget.chapter.pages[index];
-    final pageNumber = index + 1;
+    final feed = widget.feed;
+    final page = feed.pages[index];
+    final chapter = feed.chapterAt(index);
+    final pageNumber = feed.pageWithinChapterAt(index);
+    final seamExtent = metrics.leadingInsetAt(index);
     final direction = defaults.direction;
     final fitMode = defaults.fitMode;
     final contentWidthFactor = zoom == 1 ? 1.0 : zoom;
@@ -903,7 +1180,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     final pageImage = ReaderPageImage(
       imageUrl: page.imageUrl,
       localFile: page.localFile,
-      alt: '${widget.chapter.title} page $pageNumber',
+      alt: '${chapter.title} page $pageNumber',
       aspectRatio: metrics.ratioAt(index),
       fitMode: fitMode,
       backgroundColor: backgroundColor,
@@ -926,16 +1203,32 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     // clip only ever matters in the single frame between a page decoding at a
     // size nobody predicted and that size being folded into the layout.
     if (direction.isHorizontal) {
+      final pageSlot = SizedBox(
+        height: viewportHeight,
+        width: metrics.extentAt(index) - readerPagedGap - seamExtent,
+        child: pageImage,
+      );
       return RepaintBoundary(
         child: ClipRect(
           child: Padding(
             padding: const EdgeInsets.only(right: readerPagedGap),
             child: Align(
-              child: SizedBox(
-                height: viewportHeight,
-                width: metrics.extentAt(index) - readerPagedGap,
-                child: pageImage,
-              ),
+              child: seamExtent <= 0
+                  ? pageSlot
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        SizedBox(
+                          width: seamExtent,
+                          height: viewportHeight,
+                          child: ChapterSeam(
+                            title: chapter.title,
+                            axis: Axis.horizontal,
+                          ),
+                        ),
+                        pageSlot,
+                      ],
+                    ),
             ),
           ),
         ),
@@ -947,19 +1240,36 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     // pages; letterboxing now uses the backdrop colour inside the page itself.
     // Top-aligned, so a page that turns out taller than reserved grows
     // downward instead of creeping out of both ends of its slot.
+    final pageSlot = Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: FractionallySizedBox(
+          alignment: Alignment.topCenter,
+          widthFactor: contentWidthFactor,
+          child: pageImage,
+        ),
+      ),
+    );
+
     return RepaintBoundary(
       child: ClipRect(
-        child: Align(
-          alignment: Alignment.topCenter,
-          child: ConstrainedBox(
-            constraints: BoxConstraints(maxWidth: maxWidth),
-            child: FractionallySizedBox(
-              alignment: Alignment.topCenter,
-              widthFactor: contentWidthFactor,
-              child: pageImage,
-            ),
-          ),
-        ),
+        // The seam rides on the page it precedes rather than being a list item
+        // of its own: the geometry already reserved exactly [seamExtent] above
+        // this page (see ReaderPageMetrics.leadingInsets), so nothing about the
+        // offsets, the counter or the scrub rail has to know a divider exists.
+        child: seamExtent <= 0
+            ? pageSlot
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  SizedBox(
+                    height: seamExtent,
+                    child: ChapterSeam(title: chapter.title),
+                  ),
+                  pageSlot,
+                ],
+              ),
       ),
     );
   }
@@ -1055,8 +1365,9 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       viewportWidth: mediaSize.width,
       viewportHeight: mediaSize.height,
       zoom: zoomLevel,
+      leadingInsets: _seamInsets,
     );
-    final pageCount = widget.chapter.pages.length;
+    final pageCount = widget.feed.length;
 
     // Page list — wrapped in RepaintBoundary so overlay repaints (controls,
     // indicators) never propagate into the image tiles. Optionally wrapped in
@@ -1154,13 +1465,12 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
                 // Controls, edge-prompts, and page indicator live in their own
                 // ConsumerWidget so toggling visibility never rebuilds the list.
                 _ReaderControlsLayer(
-                  chapter: widget.chapter,
                   direction: direction,
                   hasPrevious: hasPrevious,
                   hasNext: hasNext,
                   atStartNotifier: _atStartNotifier,
                   atEndNotifier: _atEndNotifier,
-                  visiblePageNotifier: _visiblePageNotifier,
+                  positionNotifier: _positionNotifier,
                   onBack: widget.onBack,
                   onOpenSeries: widget.onOpenSeries,
                   onMoreOptions: _showMoreOptions,
@@ -1216,13 +1526,12 @@ class _ReaderPageDelegate extends SliverChildBuilderDelegate {
 
 class _ReaderControlsLayer extends ConsumerWidget {
   const _ReaderControlsLayer({
-    required this.chapter,
     required this.direction,
     required this.hasPrevious,
     required this.hasNext,
     required this.atStartNotifier,
     required this.atEndNotifier,
-    required this.visiblePageNotifier,
+    required this.positionNotifier,
     required this.onBack,
     required this.onOpenSeries,
     required this.onMoreOptions,
@@ -1233,13 +1542,16 @@ class _ReaderControlsLayer extends ConsumerWidget {
     this.onNextChapter,
   });
 
-  final ReaderChapter chapter;
   final ReadingDirection direction;
   final bool hasPrevious;
   final bool hasNext;
   final ValueNotifier<bool> atStartNotifier;
   final ValueNotifier<bool> atEndNotifier;
-  final ValueNotifier<int> visiblePageNotifier;
+  /// Which chapter is on screen and where in it — everything the bars say.
+  /// A feed-wide page number would be meaningless ("page 4 of 812") and a
+  /// scrub rail spanning three hundred chapters would be unusable, so the
+  /// chrome is always about the chapter under the reading line.
+  final ValueNotifier<ReaderFeedPosition> positionNotifier;
   final VoidCallback onBack;
   final VoidCallback onOpenSeries;
   final VoidCallback onMoreOptions;
@@ -1252,7 +1564,6 @@ class _ReaderControlsLayer extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final ui = ref.watch(readerUiProvider);
-    final pageCount = chapter.pages.length;
 
     return Stack(
       children: [
@@ -1306,13 +1617,18 @@ class _ReaderControlsLayer extends ConsumerWidget {
           alignment: Alignment.topCenter,
           child: GestureDetector(
             onTap: () {},
-            child: ReaderTopBar(
-              chapterTitle: chapter.title,
-              visible: ui.controlsVisible,
-              onBack: onBack,
-              onOpenSeries: onOpenSeries,
-              onSettings: onMoreOptions,
-              onBookmark: showBookmark ? onBookmark : null,
+            child: ValueListenableBuilder<ReaderFeedPosition>(
+              valueListenable: positionNotifier,
+              builder: (_, position, __) => ReaderTopBar(
+                // Names the chapter being READ, which in a continuous feed is
+                // not always the one the reader opened.
+                chapterTitle: position.chapterTitle,
+                visible: ui.controlsVisible,
+                onBack: onBack,
+                onOpenSeries: onOpenSeries,
+                onSettings: onMoreOptions,
+                onBookmark: showBookmark ? onBookmark : null,
+              ),
             ),
           ),
         ),
@@ -1321,11 +1637,11 @@ class _ReaderControlsLayer extends ConsumerWidget {
           alignment: Alignment.bottomCenter,
           child: GestureDetector(
             onTap: () {},
-            child: ValueListenableBuilder<int>(
-              valueListenable: visiblePageNotifier,
-              builder: (_, page, __) => ReaderBottomBar(
-                visiblePage: page,
-                pageCount: pageCount,
+            child: ValueListenableBuilder<ReaderFeedPosition>(
+              valueListenable: positionNotifier,
+              builder: (_, position, __) => ReaderBottomBar(
+                visiblePage: position.page,
+                pageCount: position.pageCount,
                 direction: direction,
                 visible: ui.controlsVisible,
                 hasPrevious: hasPrevious,

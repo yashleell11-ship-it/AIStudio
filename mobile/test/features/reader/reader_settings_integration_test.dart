@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
@@ -86,7 +87,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(),
+            feed: ReaderFeed.single(_tallChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -113,7 +114,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(),
+            feed: ReaderFeed.single(_tallChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -140,7 +141,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(),
+            feed: ReaderFeed.single(_tallChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -167,7 +168,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(),
+            feed: ReaderFeed.single(_tallChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -195,7 +196,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(),
+            feed: ReaderFeed.single(_tallChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -221,7 +222,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(),
+            feed: ReaderFeed.single(_tallChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -248,7 +249,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(),
+            feed: ReaderFeed.single(_tallChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -278,7 +279,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(nextChapterId: '2'),
+            feed: ReaderFeed.single(_tallChapter(nextChapterId: '2')),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -311,7 +312,7 @@ void main() {
         _wrap(
           prefs,
           ReaderContent(
-            chapter: _tallChapter(nextChapterId: '2'),
+            feed: ReaderFeed.single(_tallChapter(nextChapterId: '2')),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -367,7 +368,7 @@ void main() {
               container = ProviderScope.containerOf(context);
               return MaterialApp(
                 home: ReaderContent(
-                  chapter: _tallChapter(),
+                  feed: ReaderFeed.single(_tallChapter()),
                   scrollStorageKey: '1',
                   onBack: () {},
                   onOpenSeries: () {},

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_extents.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
@@ -167,7 +168,7 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -192,9 +193,9 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: '1',
-            onAddBookmark: (_) async => true,
+            onAddBookmark: (_, __) async => true,
             onBack: () {},
             onOpenSeries: () {},
           ),
@@ -218,7 +219,7 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: 'src:1:1',
             showBookmark: false,
             onBack: () {},
@@ -244,7 +245,7 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -283,7 +284,7 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -307,7 +308,7 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: '1',
             onBack: () => backCalls++,
             onOpenSeries: () {},
@@ -333,9 +334,9 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: '1',
-            onAddBookmark: (_) async => true,
+            onAddBookmark: (_, __) async => true,
             onBack: () {},
             onOpenSeries: () {},
           ),
@@ -363,9 +364,9 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(),
+            feed: ReaderFeed.single(_sampleChapter()),
             scrollStorageKey: '1',
-            onAddBookmark: (_) async => false,
+            onAddBookmark: (_, __) async => false,
             onBack: () {},
             onOpenSeries: () {},
           ),
@@ -394,9 +395,9 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: _sampleChapter(),
+              feed: ReaderFeed.single(_sampleChapter()),
               scrollStorageKey: '1',
-              onAddBookmark: (_) async => throw Exception('bookmark failed'),
+              onAddBookmark: (_, __) async => throw Exception('bookmark failed'),
               onBack: () {},
               onOpenSeries: () {},
             ),
@@ -433,7 +434,7 @@ void main() {
         _wrapWithPrefs(
           prefs,
           ReaderContent(
-            chapter: _sampleChapter(nextChapterId: '2'),
+            feed: ReaderFeed.single(_sampleChapter(nextChapterId: '2')),
             scrollStorageKey: '1',
             onBack: () {},
             onOpenSeries: () {},
@@ -478,7 +479,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: _tallChapter(nextChapterId: '2'),
+              feed: ReaderFeed.single(_tallChapter(nextChapterId: '2')),
               scrollStorageKey: '1',
               onBack: () {},
               onOpenSeries: () {},
@@ -535,7 +536,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: _tallChapter(nextChapterId: '2'),
+              feed: ReaderFeed.single(_tallChapter(nextChapterId: '2')),
               scrollStorageKey: '1',
               onBack: () {},
               onOpenSeries: () {},
@@ -579,7 +580,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: _tallChapter(nextChapterId: '2'),
+              feed: ReaderFeed.single(_tallChapter(nextChapterId: '2')),
               scrollStorageKey: '1',
               onBack: () {},
               onOpenSeries: () {},
@@ -629,7 +630,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: chapter,
+              feed: ReaderFeed.single(chapter),
               scrollStorageKey: '1',
               pageExtents: extents,
               onBack: () {},
@@ -683,7 +684,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: chapter,
+              feed: ReaderFeed.single(chapter),
               scrollStorageKey: '1',
               pageExtents: extents,
               onBack: () {},
@@ -726,7 +727,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: chapter,
+              feed: ReaderFeed.single(chapter),
               scrollStorageKey: '1',
               pageExtents: extents,
               onBack: () {},
@@ -769,7 +770,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: _sampleChapter(),
+              feed: ReaderFeed.single(_sampleChapter()),
               scrollStorageKey: '1',
               onBack: () {},
               onOpenSeries: () {},
@@ -805,7 +806,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: chapter,
+              feed: ReaderFeed.single(chapter),
               scrollStorageKey: '1',
               pageExtents: extents,
               onBack: () {},
@@ -849,7 +850,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: chapter,
+              feed: ReaderFeed.single(chapter),
               scrollStorageKey: '1',
               pageExtents: extents,
               onBack: () {},
@@ -886,7 +887,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: _scrubChapter(),
+              feed: ReaderFeed.single(_scrubChapter()),
               scrollStorageKey: '1',
               onBack: () {},
               onOpenSeries: () {},
@@ -929,7 +930,7 @@ void main() {
           _wrapWithPrefs(
             prefs,
             ReaderContent(
-              chapter: _tallChapter(nextChapterId: '2'),
+              feed: ReaderFeed.single(_tallChapter(nextChapterId: '2')),
               scrollStorageKey: '1',
               onBack: () {},
               onOpenSeries: () {},
