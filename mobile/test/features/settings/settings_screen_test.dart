@@ -252,20 +252,20 @@ class _EmptyLibraryRepository implements LibraryRepository {
 
 class _EmptyReaderRepository implements ReaderRepository {
   @override
-  Future<Result<List<Bookmark>>> listBookmarks({String? sourceId, String? seriesKey}) async =>
+  Future<Result<List<Bookmark>>> listBookmarks({
+    String? sourceId,
+    String? seriesKey,
+    DateTime? since,
+    bool includeDeleted = false,
+    int? limit,
+  }) async =>
       const Ok([]);
 
   @override
   Future<Result<void>> deleteBookmark(int bookmarkId) => throw UnimplementedError();
 
   @override
-  Future<Result<Bookmark>> addBookmark({
-    required String sourceId,
-    required String seriesKey,
-    required String chapterKey,
-    required int page,
-    String? note,
-  }) =>
+  Future<Result<BookmarkSyncResult>> syncBookmarks(List<BookmarkOp> ops) =>
       throw UnimplementedError();
 
   @override

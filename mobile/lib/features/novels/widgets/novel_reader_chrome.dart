@@ -26,6 +26,7 @@ class NovelReaderChrome extends StatelessWidget {
     required this.onPrevious,
     required this.onNext,
     required this.onType,
+    this.onBookmark,
   });
 
   final bool visible;
@@ -41,6 +42,14 @@ class NovelReaderChrome extends StatelessWidget {
   final VoidCallback? onPrevious;
   final VoidCallback? onNext;
   final VoidCallback onType;
+
+  /// Save the exact spot being read, in one tap. Null while a save is already
+  /// in flight, which is what disables the button rather than a separate flag.
+  ///
+  /// It sits in the top bar beside "Text and page" rather than in the footer
+  /// with prev/next: those two are navigation, this is an action on the
+  /// chapter — the same division the manga reader's chrome already makes.
+  final VoidCallback? onBookmark;
 
   @override
   Widget build(BuildContext context) {
@@ -84,6 +93,12 @@ class NovelReaderChrome extends StatelessWidget {
                         color: surface.muted,
                       ),
                     ),
+                  IconButton(
+                    onPressed: onBookmark,
+                    icon: const Icon(Icons.bookmark_add_outlined),
+                    color: onBookmark == null ? surface.rule : surface.ink,
+                    tooltip: 'Bookmark this spot',
+                  ),
                   IconButton(
                     onPressed: onType,
                     icon: const Icon(Icons.text_fields_rounded),

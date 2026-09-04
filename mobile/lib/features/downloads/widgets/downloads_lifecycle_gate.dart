@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/downloads/providers/bookmark_outbox_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/currently_open_chapter_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/progress_outbox_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/retention_maintenance_provider.dart';
@@ -25,6 +26,12 @@ import 'package:manhwamaniacs/features/ocr/controllers/ocr_run_controller.dart';
 /// - **Progress outbox flush** on launch, resume, and connectivity regained
 ///   — a save made offline reaches the server the moment any of those give
 ///   it a chance, without the reader itself ever blocking on it.
+/// - **Bookmark outbox flush** on the same three triggers, and a full
+///   bookmark *sync* (push then pull) on launch and resume. The pull is not
+///   done on every connectivity blip: a flush is free when there is nothing
+///   queued, where a listing is a round trip every time WiFi flickers — and
+///   news of a bookmark deleted on another device is worth having by the next
+///   time the app is opened, not within seconds.
 ///
 /// Mounted once at the app root (`app.dart`), the same place
 /// `WhatsNewAutoShow` hooks the identical `WidgetsBindingObserver` pattern.
@@ -76,6 +83,7 @@ class _DownloadsLifecycleGateState extends ConsumerState<DownloadsLifecycleGate>
     _sweep();
     ref.read(downloadQueueControllerProvider.notifier).resumePendingOnLaunch();
     _flushOutbox();
+    unawaited(ref.read(bookmarkOutboxControllerProvider).sync());
   }
 
   Future<void> _sweep() async {
@@ -93,6 +101,7 @@ class _DownloadsLifecycleGateState extends ConsumerState<DownloadsLifecycleGate>
 
   void _flushOutbox() {
     unawaited(ref.read(progressOutboxControllerProvider).flush());
+    unawaited(ref.read(bookmarkOutboxControllerProvider).flush());
   }
 
   @override

@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/platform/system_ui.dart';
+import 'package:manhwamaniacs/features/downloads/providers/bookmark_outbox_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/progress_outbox_provider.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/open_chapter_scope.dart';
@@ -17,9 +18,11 @@ import 'package:manhwamaniacs/features/novels/providers/novel_chapter_provider.d
 import 'package:manhwamaniacs/features/novels/providers/novel_preferences_provider.dart';
 import 'package:manhwamaniacs/features/novels/utils/novel_book.dart';
 import 'package:manhwamaniacs/features/novels/utils/novel_progress.dart';
+import 'package:manhwamaniacs/features/novels/utils/novel_snippet.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_chapter_view.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_reader_chrome.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_type_panel.dart';
+import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
@@ -61,12 +64,25 @@ class NovelReaderScreen extends ConsumerWidget {
     required this.seriesKey,
     required this.chapterKey,
     this.initialBucket = 1,
+    this.initialParagraph,
+    this.initialFraction,
   });
 
   final String sourceId;
   final String seriesKey;
   final String chapterKey;
   final int initialBucket;
+
+  /// The exact paragraph (1-based) to open on — what tapping a bookmark
+  /// hands over, and what [initialBucket] deliberately is not. A bucket is at
+  /// worst ~1% of the chapter; a bookmark is a line.
+  ///
+  /// When set it wins over [initialBucket]: the reader asked for one place.
+  final int? initialParagraph;
+
+  /// How far into [initialParagraph], 0.0–1.0. A long paragraph on a phone is
+  /// several screens, so its top is not the same place as its middle.
+  final double? initialFraction;
 
   NovelChapterKey get _key =>
       (sourceId: sourceId, seriesKey: seriesKey, chapterKey: chapterKey);
@@ -117,6 +133,8 @@ class NovelReaderScreen extends ConsumerWidget {
             chapter: chapter,
             neighbours: neighbours,
             initialBucket: initialBucket,
+            initialParagraph: initialParagraph,
+            initialFraction: initialFraction,
           ),
         );
       },
@@ -130,6 +148,8 @@ class _NovelReaderBody extends ConsumerStatefulWidget {
     required this.chapter,
     required this.neighbours,
     required this.initialBucket,
+    this.initialParagraph,
+    this.initialFraction,
   });
 
   final NovelChapter chapter;
@@ -140,6 +160,8 @@ class _NovelReaderBody extends ConsumerStatefulWidget {
   /// would jump.
   final NovelChapterNeighbours? neighbours;
   final int initialBucket;
+  final int? initialParagraph;
+  final double? initialFraction;
 
   @override
   ConsumerState<_NovelReaderBody> createState() => _NovelReaderBodyState();
@@ -174,6 +196,22 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
   int? _pendingRestoreParagraph;
   int _restoreFrames = 0;
   double _lastRestoreMaxExtent = -1;
+
+  /// How far into [_pendingRestoreParagraph] the restore is aiming, and
+  /// whether it is aiming at the reading line rather than the top of the
+  /// viewport.
+  ///
+  /// Both are only ever non-default on the bookmark path. Resuming by bucket
+  /// keeps landing the paragraph's top at the top of the screen exactly as it
+  /// always has — a bucket is a coarse "about here", and dropping the reader
+  /// a quarter of a screen lower would be pretending to a precision it does
+  /// not have.
+  double _restoreFraction = 0;
+  bool _restoreToReadingLine = false;
+
+  /// A save is in flight; the chrome's bookmark button is disabled meanwhile
+  /// so a double tap cannot make two bookmarks of one spot.
+  bool _bookmarkPending = false;
 
   @override
   void initState() {
@@ -221,6 +259,27 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
   /// reader backwards while they are trying to read.
   void _beginRestore() {
     final paragraphs = widget.chapter.paragraphs.length;
+    final requested = widget.initialParagraph;
+    if (requested != null && paragraphs > 0) {
+      // A bookmark: land on the paragraph, at the point within it, at the
+      // reading line the position was measured against.
+      //
+      // The clamp is the honest degradation the design asks for — a chapter
+      // an aggregator has since re-split may hold fewer paragraphs than it
+      // did, and the nearest surviving one (with a quiet word about it) beats
+      // both failing to open and silently starting from the top.
+      final target = (requested - 1).clamp(0, paragraphs - 1);
+      _restoreFraction = widget.initialFraction ?? 0;
+      _restoreToReadingLine = true;
+      _pendingRestoreParagraph = target;
+      _bucket = bucketForParagraph(target, paragraphs);
+      _furthestSent = _bucket;
+      _restoreFrames = 0;
+      _lastRestoreMaxExtent = -1;
+      if (requested > paragraphs) _reportStaleAnchor(requested, paragraphs);
+      _attemptRestore();
+      return;
+    }
     final target = paragraphForBucket(widget.initialBucket, paragraphs);
     if (target <= 0) {
       _bucket = bucketForParagraph(0, paragraphs);
@@ -248,8 +307,15 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
     final position = _scrollController.position;
     final box = _boxFor(target);
     if (box != null) {
-      // The target has been laid out: land on it exactly.
-      final delta = box.localToGlobal(Offset.zero).dy - _viewportTop();
+      // The target has been laid out: land on it exactly. The point aimed at
+      // and the reference it is aimed at are BOTH the ones the capture used
+      // (see [_anchorAtReadingLine]), which is what makes bookmarking a spot
+      // and returning to it a round trip rather than an approximation.
+      final anchorPoint = box.localToGlobal(Offset.zero).dy +
+          _restoreFraction * box.size.height;
+      final reference =
+          _restoreToReadingLine ? _readingLine() : _viewportTop();
+      final delta = anchorPoint - reference;
       _scrollController.jumpTo(
         (position.pixels + delta).clamp(0.0, position.maxScrollExtent),
       );
@@ -287,6 +353,114 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
     return box.localToGlobal(Offset.zero).dy;
   }
 
+  /// The line a reader is actually reading on — a quarter of the way down,
+  /// not the top edge, where the paragraph is half clipped.
+  double _readingLine() =>
+      _viewportTop() + MediaQuery.sizeOf(context).height * _readingLineFraction;
+
+  /// Tell the reader, once and quietly, that the paragraph the bookmark named
+  /// no longer exists and they have been put on the last one that does.
+  ///
+  /// Never a failure: the chapter opened and is readable. What would be wrong
+  /// is landing somewhere else in silence, which reads as the app having lost
+  /// their place.
+  void _reportStaleAnchor(int requested, int available) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'This chapter changed — opened at paragraph $available '
+            'instead of $requested.',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    });
+  }
+
+  /// The exact reading position: which paragraph is under the reading line,
+  /// and how far into it that line falls.
+  ///
+  /// Only the paragraphs the list has actually built have offsets to measure
+  /// — the handful on screen — which is exactly the set the reading line can
+  /// be in. `null` when nothing is laid out yet.
+  ///
+  /// The fraction is of the paragraph's own height and is not pixels: the
+  /// same paragraph is three lines on a tablet and nine on a phone, so a
+  /// pixel offset would name a different sentence on each.
+  ({int index, double fraction})? _anchorAtReadingLine() {
+    if (!mounted || !_scrollController.hasClients) return null;
+    final readingLine = _readingLine();
+    final attached = <int>[];
+    final offsets = <double>[];
+    for (var i = 0; i < _paragraphKeys.length; i++) {
+      final box = _boxFor(i);
+      if (box == null) continue;
+      attached.add(i);
+      offsets.add(box.localToGlobal(Offset.zero).dy);
+    }
+    if (attached.isEmpty) return null;
+    final pick = activeParagraphIndex(offsets, readingLine);
+    final index = attached[pick];
+    final height = _boxFor(index)?.size.height ?? 0;
+    final fraction = height <= 0
+        ? 0.0
+        : ((readingLine - offsets[pick]) / height).clamp(0.0, 1.0);
+    return (index: index, fraction: fraction);
+  }
+
+  // ── Bookmark ─────────────────────────────────────────────────────────────
+
+  /// Save the exact spot being read, in ONE action.
+  ///
+  /// Nothing is asked for — the paragraph, the point within it and the
+  /// chapter's paragraph count are all things this screen already knows. The
+  /// snippet is cut here, at capture time, and stored with the row: it is
+  /// what makes a prose bookmark recognisable, and deriving it later would
+  /// need the chapter's text, which is exactly what a phone with no signal
+  /// does not have.
+  Future<void> _handleBookmark() async {
+    if (_bookmarkPending) return;
+    final anchor = _anchorAtReadingLine();
+    if (anchor == null) return;
+    setState(() => _bookmarkPending = true);
+    try {
+      final chapter = widget.chapter;
+      final total = chapter.paragraphs.length;
+      final index = anchor.index + 1;
+      final (snippet, _) =
+          novelSnippetAt(chapter.paragraphs, index, anchor.fraction);
+      final saved = await ref.read(bookmarkOutboxControllerProvider).create(
+            id: (
+              sourceId: chapter.sourceId,
+              seriesKey: chapter.seriesKey,
+              chapterKey: chapter.chapterKey,
+            ),
+            media: BookmarkMedia.novel,
+            anchorIndex: index,
+            anchorFraction: anchor.fraction,
+            anchorTotal: total,
+            chapterNumber: chapter.chapterNumber,
+            snippet: snippet,
+          );
+      if (!mounted || saved == null || !context.mounted) return;
+      final percent = bookmarkPositionPercent(index, anchor.fraction, total);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            percent == null
+                ? 'Bookmark saved'
+                : 'Bookmarked at $percent% of this chapter',
+          ),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _bookmarkPending = false);
+    }
+  }
+
   // ── Progress ─────────────────────────────────────────────────────────────
 
   void _onScroll() {
@@ -309,23 +483,11 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
   /// here and [activeParagraphIndex] (a pure function, tested without a widget
   /// tree) picks from it.
   void _recordPosition() {
-    if (!mounted || !_scrollController.hasClients) return;
+    final anchor = _anchorAtReadingLine();
+    if (anchor == null) return;
 
-    final readingLine = _viewportTop() +
-        MediaQuery.sizeOf(context).height * _readingLineFraction;
-    final attached = <int>[];
-    final offsets = <double>[];
-    for (var i = 0; i < _paragraphKeys.length; i++) {
-      final box = _boxFor(i);
-      if (box == null) continue;
-      attached.add(i);
-      offsets.add(box.localToGlobal(Offset.zero).dy);
-    }
-    if (attached.isEmpty) return;
-
-    final paragraph = attached[activeParagraphIndex(offsets, readingLine)];
     final position = progressForParagraph(
-      paragraph,
+      anchor.index,
       widget.chapter.paragraphs.length,
     );
     if (position.bucket != _bucket) {
@@ -513,6 +675,7 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
                 ? null
                 : () => _openChapter(_previousKey!),
             onNext: _nextKey == null ? null : () => _openChapter(_nextKey!),
+            onBookmark: _bookmarkPending ? null : _handleBookmark,
             onType: () => NovelTypePanel.show(
               context,
               seriesPrefsKey: prefsKey,

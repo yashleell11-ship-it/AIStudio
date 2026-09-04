@@ -62,19 +62,16 @@ class _ScriptedReaderRepository implements ReaderRepository {
       throw UnimplementedError();
 
   @override
-  Future<Result<Bookmark>> addBookmark({
-    required String sourceId,
-    required String seriesKey,
-    required String chapterKey,
-    required int page,
-    String? note,
-  }) =>
+  Future<Result<BookmarkSyncResult>> syncBookmarks(List<BookmarkOp> ops) =>
       throw UnimplementedError();
 
   @override
   Future<Result<List<Bookmark>>> listBookmarks({
     String? sourceId,
     String? seriesKey,
+    DateTime? since,
+    bool includeDeleted = false,
+    int? limit,
   }) =>
       throw UnimplementedError();
 
