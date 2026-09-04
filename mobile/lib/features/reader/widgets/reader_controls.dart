@@ -9,6 +9,7 @@ import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_scrub.dart';
+import 'package:manhwamaniacs/features/reader/widgets/immersive_safe_area.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -142,7 +143,7 @@ class ReaderTopBar extends StatelessWidget {
     return _AnimatedBar(
       visible: visible,
       slideFrom: const Offset(0, -1),
-      child: SafeArea(
+      child: ImmersiveSafeArea(
         bottom: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
@@ -290,7 +291,7 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
     return _AnimatedBar(
       visible: widget.visible,
       slideFrom: const Offset(0, 1),
-      child: SafeArea(
+      child: ImmersiveSafeArea(
         top: false,
         child: Padding(
           padding: const EdgeInsets.fromLTRB(
