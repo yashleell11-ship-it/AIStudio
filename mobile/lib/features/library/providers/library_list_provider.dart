@@ -1,8 +1,10 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
+import 'package:manhwamaniacs/features/library/utils/followed_series_cache.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
 import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_pins_provider.dart';
@@ -124,6 +126,7 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
 
     final nextPage = current.page + 1;
     final result = await _fetchPage(query, nextPage);
+    await _cachePage(query, result.items, isFirstPage: false);
 
     state = AsyncData(
       current.copyWith(
@@ -192,13 +195,84 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
     state = AsyncData(current.copyWith(items: updatedItems, clearError: true));
   }
 
+  /// The library grid, server first and last-synced-shelf second.
+  ///
+  /// A failed fetch used to be the end of the story, which made the library
+  /// tab a dead end with the server unreachable — and with it every
+  /// downloaded chapter, since the series page (and the reader behind it) is
+  /// only reachable through this grid.
   Future<LibraryListState> _fetchFirstPage(LibraryQuery query) async {
-    final page = await _fetchPage(query, 1);
-    return LibraryListState(
-      items: page.items,
-      total: page.total,
-      hasNext: page.hasNext,
-    );
+    try {
+      final page = await _fetchPage(query, 1);
+      await _cachePage(query, page.items, isFirstPage: true);
+      return LibraryListState(
+        items: page.items,
+        total: page.total,
+        hasNext: page.hasNext,
+      );
+    } catch (_) {
+      final cached = _offlineLibrary(query);
+      if (cached.isEmpty) rethrow;
+      return LibraryListState(
+        items: cached,
+        total: cached.length,
+        isOffline: true,
+      );
+    }
+  }
+
+  /// The offline library key for the active `(user, profile)`, or `null`
+  /// outside a session — in which case there is nothing to cache and nothing
+  /// cached to read, matching the on-device store's own "no scope, no data".
+  String? get _cacheKey {
+    final scopeId = ref.read(activeDownloadsScopeIdProvider);
+    return scopeId == null ? null : followedSeriesCacheKeyFor(scopeId);
+  }
+
+  /// An unfiltered first page *is* the library, so it replaces the cache.
+  /// Anything narrower (a search, a filter chip, a later page) can only be a
+  /// subset, so it merges instead — never letting "Favorites only" shrink
+  /// the shelf an offline launch will be shown.
+  Future<void> _cachePage(
+    LibraryQuery query,
+    List<FollowedSeries> items, {
+    required bool isFirstPage,
+  }) async {
+    final key = _cacheKey;
+    if (key == null) return;
+    final prefs = ref.read(sharedPrefsProvider);
+    final authoritative = isFirstPage &&
+        !query.isSearching &&
+        !query.favoritesOnly &&
+        query.filter == LibraryFilter.all;
+
+    if (authoritative) {
+      await writeCachedFollowedSeries(prefs, key, items);
+      return;
+    }
+    final merged = {
+      for (final series in readCachedFollowedSeries(prefs, key)) series.id: series,
+      for (final series in items) series.id: series,
+    };
+    await writeCachedFollowedSeries(prefs, key, merged.values.toList());
+  }
+
+  /// The cached shelf, narrowed by the parts of [query] that can be honoured
+  /// without a server. Sort order is left as cached: re-deriving "recently
+  /// updated" offline would order the grid by data the cache does not have.
+  List<FollowedSeries> _offlineLibrary(LibraryQuery query) {
+    final key = _cacheKey;
+    if (key == null) return const [];
+    final search = query.search.trim().toLowerCase();
+    final status = query.readingStatusParam;
+
+    return [
+      for (final series in readCachedFollowedSeries(ref.read(sharedPrefsProvider), key))
+        if ((search.isEmpty || series.title.toLowerCase().contains(search)) &&
+            (!query.favoritesOnly || series.isFavorite) &&
+            (status == null || series.readingStatus == status))
+          series,
+    ];
   }
 
   Future<({List<FollowedSeries> items, int total, bool hasNext})> _fetchPage(

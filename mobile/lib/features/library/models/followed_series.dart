@@ -100,6 +100,32 @@ class FollowedSeries {
             ? DateTime.tryParse(json['updated_at'] as String)
             : null,
       );
+
+  /// Round-trips through [FollowedSeries.fromJson]. Written to the offline
+  /// library cache (`utils/followed_series_cache.dart`) on every successful
+  /// list fetch, so a launch with the server unreachable still knows which
+  /// series this profile follows — and, crucially, which `(sourceId,
+  /// seriesKey)` each [id] stands for, the one mapping the on-device chapter
+  /// store cannot supply on its own.
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'source_id': sourceId,
+        'series_key': seriesKey,
+        'title': title,
+        'cover_url': coverUrl,
+        'is_favorite': isFavorite,
+        'reading_status': readingStatus,
+        'notify': notify,
+        'sort_order': sortOrder,
+        'content_rating': contentRating,
+        'rating': rating,
+        'mature_override': matureOverride,
+        'known_chapters': [for (final c in knownChapters) c.toJson()],
+        'chapter_count': chapterCount,
+        'last_checked_at': lastCheckedAt?.toIso8601String(),
+        'created_at': createdAt?.toIso8601String(),
+        'updated_at': updatedAt?.toIso8601String(),
+      };
 }
 
 /// Per-chapter reading position overlaid on the [SeriesDetail] payload.

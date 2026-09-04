@@ -26,4 +26,15 @@ class KnownChapter {
             : null,
         pageCount: (json['page_count'] as num?)?.toInt(),
       );
+
+  /// Round-trips through [KnownChapter.fromJson] — the write half of the
+  /// offline library cache, so a cached series lists the same chapters it
+  /// listed online.
+  Map<String, dynamic> toJson() => {
+        'key': key,
+        'number': number,
+        'title': title,
+        'published_at': publishedAt?.toIso8601String(),
+        'page_count': pageCount,
+      };
 }

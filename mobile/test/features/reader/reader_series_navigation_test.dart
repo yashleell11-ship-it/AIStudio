@@ -109,7 +109,7 @@ class _ProgressOnlyReaderRepository implements ReaderRepository {
 /// without leaving a pending Timer behind to fail teardown.
 List<Override> _pendingSeriesDetails() => [
       seriesDetailProvider(_followedId)
-          .overrideWith((ref) => Completer<SeriesDetail>().future),
+          .overrideWith((ref) => Completer<SeriesDetailView>().future),
       sourceSeriesDetailProvider(
         (sourceId: _libSourceId, seriesId: _libSeriesKey),
       ).overrideWith((ref) => Completer<SourceSeriesDetailData>().future),

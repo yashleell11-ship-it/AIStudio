@@ -311,7 +311,8 @@ Future<Widget> _buildSeriesDetailApp(
       updatesRepositoryProvider.overrideWithValue(
         updatesRepo ?? _FakeUpdatesRepository(),
       ),
-      seriesDetailProvider(1).overrideWith((ref) async => detail),
+      seriesDetailProvider(1)
+          .overrideWith((ref) async => (series: detail, isOffline: false)),
     ],
     child: const MaterialApp(
       home: SeriesDetailScreen(seriesId: 1),
@@ -466,7 +467,8 @@ void main() {
               _FakeLibraryRepository(detail),
             ),
             updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
-            seriesDetailProvider(1).overrideWith((ref) async => detail),
+            seriesDetailProvider(1)
+          .overrideWith((ref) async => (series: detail, isOffline: false)),
           ],
           child: MaterialApp.router(routerConfig: router),
         ),
