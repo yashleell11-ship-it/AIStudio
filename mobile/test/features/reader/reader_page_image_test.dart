@@ -1,5 +1,7 @@
-﻿import 'dart:typed_data';
+﻿import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -202,5 +204,102 @@ void main() {
       expect(size.width, 90);
       expect(size.height, moreOrLessEquals(135, epsilon: 1));
     });
+
+    testWidgets('is static — nothing in it animates', (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          width: 90,
+          child: const ReaderPageImage(
+            imageUrl: 'http://127.0.0.1:1/never-loads.png',
+            alt: 'page',
+            aspectRatio: 2 / 3,
+            fitMode: ReaderFitMode.width,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // The reader keeps ~20 unloaded pages alive at once inside the list's
+      // cache window, and a sliver child in the cache region is not ticker-
+      // disabled. One indeterminate spinner each means the engine never
+      // reaches an idle frame.
+      expect(find.byType(CircularProgressIndicator), findsNothing);
+    });
+
+    testWidgets('a network page does not cross-fade in', (tester) async {
+      await tester.pumpWidget(
+        _harness(
+          width: 90,
+          child: const ReaderPageImage(
+            imageUrl: 'http://127.0.0.1:1/never-loads.png',
+            alt: 'page',
+            aspectRatio: 2 / 3,
+            fitMode: ReaderFitMode.width,
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // The fade is a FadeTransition, i.e. a saveLayer over a full-width page,
+      // and several overlap during a fast scroll. There is nothing to fade
+      // against anyway: the page already occupies its reserved extent.
+      final image =
+          tester.widget<CachedNetworkImage>(find.byType(CachedNetworkImage));
+      expect(image.fadeInDuration, Duration.zero);
+      // The fade-out is the half that matters: while it runs, octo_image keeps
+      // the placeholder stacked under the page. Left at its one-second default
+      // the page still cross-fades no matter what the fade-in says.
+      expect(image.fadeOutDuration, Duration.zero);
+    });
+  });
+
+  group('ReaderPageImage on-device page', () {
+    testWidgets(
+      'renders the very provider it observes '
+      '(regression: the blob was also decoded at full native size)',
+      (tester) async {
+        final dir = Directory.systemTemp.createTempSync('reader_page_image');
+        addTearDown(() => dir.deleteSync(recursive: true));
+        final file = File('${dir.path}/page.png')
+          ..writeAsBytesSync(buildPng(10, 300));
+
+        await tester.pumpWidget(
+          _harness(
+            width: 90,
+            child: ReaderPageImage(
+              imageUrl: '',
+              alt: 'page',
+              aspectRatio: 2 / 3,
+              fitMode: ReaderFitMode.width,
+              viewportWidth: 90,
+              localFile: file,
+            ),
+          ),
+        );
+        await tester.pump();
+
+        final outer = tester.widget<Image>(
+          find.byWidgetPredicate(
+            (widget) =>
+                widget is Image && widget.key == ValueKey('local:${file.path}:0'),
+          ),
+        );
+        // Downsampled to the display size, not the blob's native size.
+        expect(outer.image, isA<ResizeImage>());
+
+        // The widget handed back once a frame has decoded must reuse that
+        // exact provider. A separately constructed one is a different
+        // ImageCache key, so the page is decoded twice — and the discarded
+        // decode is the full-resolution one.
+        final loaded = outer.frameBuilder!(
+          tester.element(find.byType(ReaderPageImage)),
+          const SizedBox(),
+          0,
+          false,
+        );
+        expect(loaded, isA<ReaderLoadedPageImage>());
+        expect((loaded as ReaderLoadedPageImage).image, same(outer.image));
+      },
+    );
   });
 }

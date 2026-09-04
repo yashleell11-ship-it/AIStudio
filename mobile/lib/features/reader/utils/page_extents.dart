@@ -178,7 +178,7 @@ class ReaderPageExtents extends ChangeNotifier {
 /// disagree.
 @immutable
 class ReaderPageMetrics {
-  const ReaderPageMetrics({
+  ReaderPageMetrics({
     required this.ratios,
     required this.direction,
     required this.fitMode,
@@ -186,7 +186,15 @@ class ReaderPageMetrics {
     required this.viewportHeight,
     this.zoom = 1,
     this.leadingInsets = const {},
-  });
+  }) : _pageStarts = _pageStartsFor(
+          ratios: ratios,
+          direction: direction,
+          fitMode: fitMode,
+          contentWidth: _contentWidthFor(viewportWidth, zoom),
+          viewportHeight: viewportHeight,
+          zoom: zoom,
+          leadingInsets: leadingInsets,
+        );
 
   factory ReaderPageMetrics.of(
     ReaderPageExtents extents, {
@@ -223,6 +231,17 @@ class ReaderPageMetrics {
   /// offsets the page counter, the scrub rail and every jump resolve to.
   final Map<int, double> leadingInsets;
 
+  /// Where every page starts, as a prefix sum: `_pageStarts[i]` is the scroll
+  /// offset of page `i`'s top edge and `_pageStarts[pageCount]` is the end of
+  /// the last one.
+  ///
+  /// Built once here rather than re-walked per query. Read-all makes that the
+  /// difference between noise and a stall: the scroll listener asks for the
+  /// current page on every frame and the list asks for the total extent on
+  /// every build, and a feed of several hundred pages turns each of those into
+  /// a full walk of the feed on frames that are already busy decoding.
+  final Float64List _pageStarts;
+
   int get pageCount => ratios.length;
 
   double leadingInsetAt(int index) => leadingInsets[index] ?? 0;
@@ -233,9 +252,7 @@ class ReaderPageMetrics {
   /// [maxContentWidth] so a tablet does not stretch a phone-sized strip across
   /// the screen; past 1x the cap is lifted and the page deliberately overflows
   /// the viewport, which is what zooming in means here.
-  double get contentWidth =>
-      (zoom > 1 ? viewportWidth : math.min(viewportWidth, maxContentWidth)) *
-      zoom;
+  double get contentWidth => _contentWidthFor(viewportWidth, zoom);
 
   double ratioAt(int index) =>
       (index >= 0 && index < ratios.length) ? ratios[index] : defaultAspectRatio;
@@ -247,9 +264,67 @@ class ReaderPageMetrics {
       extentForRatio(ratioAt(index)) + leadingInsetAt(index);
 
   /// Extent a page of [ratio] would occupy along the scroll axis.
-  double extentForRatio(double ratio) {
-    final safe =
-        (ratio.isFinite && ratio > 0) ? ratio : defaultAspectRatio;
+  double extentForRatio(double ratio) => _extentForRatio(
+        ratio,
+        direction: direction,
+        fitMode: fitMode,
+        contentWidth: contentWidth,
+        viewportHeight: viewportHeight,
+        zoom: zoom,
+      );
+
+  /// Scroll offset at which page [pageNumber] (1-based) starts.
+  double offsetToPage(int pageNumber) {
+    if (pageCount == 0) return 0;
+    return _pageStarts[(pageNumber - 1).clamp(0, pageCount - 1)];
+  }
+
+  /// The 1-based page being read when the top of the viewport is at
+  /// [scrollOffset].
+  int pageAtOffset(double scrollOffset) {
+    if (pageCount == 0) return 1;
+    final probe = scrollOffset + readerVisiblePageLead;
+    // The last page that starts at or before the probe. Page starts are
+    // non-decreasing, so this is a binary search rather than a walk — and it
+    // resolves ties the way a walk did, on the last of them.
+    var low = 0;
+    var high = pageCount - 1;
+    var active = 0;
+    while (low <= high) {
+      final mid = (low + high) >> 1;
+      if (_pageStarts[mid] <= probe) {
+        active = mid;
+        low = mid + 1;
+      } else {
+        high = mid - 1;
+      }
+    }
+    return active + 1;
+  }
+
+  /// Total extent of every page, excluding the list's own padding.
+  ///
+  /// Handed to the list so it reports the chapter's real scrollable range
+  /// instead of extrapolating it from the average height of the few pages it
+  /// happens to have laid out.
+  double get totalPagesExtent =>
+      _pageStarts[pageCount] - readerListLeadingPadding;
+
+  static double _contentWidthFor(double viewportWidth, double zoom) =>
+      (zoom > 1 ? viewportWidth : math.min(viewportWidth, maxContentWidth)) *
+      zoom;
+
+  /// Static so the prefix sum can be built in the initializer list, before
+  /// there is a `this` to ask.
+  static double _extentForRatio(
+    double ratio, {
+    required ReadingDirection direction,
+    required ReaderFitMode fitMode,
+    required double contentWidth,
+    required double viewportHeight,
+    required double zoom,
+  }) {
+    final safe = (ratio.isFinite && ratio > 0) ? ratio : defaultAspectRatio;
     if (direction.isVertical) {
       return switch (fitMode) {
         // Webtoon case: the page spans the content width and its height falls
@@ -265,42 +340,31 @@ class ReaderPageMetrics {
     return viewportHeight * zoom * safe + readerPagedGap;
   }
 
-  /// Scroll offset at which page [pageNumber] (1-based) starts.
-  double offsetToPage(int pageNumber) {
-    if (pageCount == 0) return 0;
-    final target = (pageNumber - 1).clamp(0, pageCount - 1);
+  static Float64List _pageStartsFor({
+    required List<double> ratios,
+    required ReadingDirection direction,
+    required ReaderFitMode fitMode,
+    required double contentWidth,
+    required double viewportHeight,
+    required double zoom,
+    required Map<int, double> leadingInsets,
+  }) {
+    final starts = Float64List(ratios.length + 1);
     var offset = readerListLeadingPadding;
-    for (var index = 0; index < target; index++) {
-      offset += extentAt(index);
+    starts[0] = offset;
+    for (var index = 0; index < ratios.length; index++) {
+      offset += _extentForRatio(
+            ratios[index],
+            direction: direction,
+            fitMode: fitMode,
+            contentWidth: contentWidth,
+            viewportHeight: viewportHeight,
+            zoom: zoom,
+          ) +
+          (leadingInsets[index] ?? 0);
+      starts[index + 1] = offset;
     }
-    return offset;
-  }
-
-  /// The 1-based page being read when the top of the viewport is at
-  /// [scrollOffset].
-  int pageAtOffset(double scrollOffset) {
-    if (pageCount == 0) return 1;
-    final probe = scrollOffset + readerVisiblePageLead;
-    var cumulative = readerListLeadingPadding;
-    var active = 1;
-    for (var index = 0; index < pageCount; index++) {
-      if (cumulative <= probe) active = index + 1;
-      cumulative += extentAt(index);
-    }
-    return active;
-  }
-
-  /// Total extent of every page, excluding the list's own padding.
-  ///
-  /// Handed to the list so it reports the chapter's real scrollable range
-  /// instead of extrapolating it from the average height of the few pages it
-  /// happens to have laid out.
-  double get totalPagesExtent {
-    var total = 0.0;
-    for (var index = 0; index < pageCount; index++) {
-      total += extentAt(index);
-    }
-    return total;
+    return starts;
   }
 }
 

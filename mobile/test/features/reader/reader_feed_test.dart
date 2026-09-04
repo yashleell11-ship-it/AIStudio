@@ -183,20 +183,20 @@ void main() {
 
   group('ReaderPageMetrics seam insets', () {
     test('a seam adds to the extent of the page it sits above', () {
-      const withoutSeam = ReaderPageMetrics(
-        ratios: [1, 1, 1],
+      final withoutSeam = ReaderPageMetrics(
+        ratios: const [1, 1, 1],
         direction: ReadingDirection.vertical,
         fitMode: ReaderFitMode.width,
         viewportWidth: 400,
         viewportHeight: 800,
       );
-      const withSeam = ReaderPageMetrics(
-        ratios: [1, 1, 1],
+      final withSeam = ReaderPageMetrics(
+        ratios: const [1, 1, 1],
         direction: ReadingDirection.vertical,
         fitMode: ReaderFitMode.width,
         viewportWidth: 400,
         viewportHeight: 800,
-        leadingInsets: {1: 60},
+        leadingInsets: const {1: 60},
       );
 
       expect(withSeam.extentAt(0), withoutSeam.extentAt(0));
@@ -209,13 +209,13 @@ void main() {
     });
 
     test('the page counter respects the seam it just scrolled past', () {
-      const metrics = ReaderPageMetrics(
-        ratios: [1, 1],
+      final metrics = ReaderPageMetrics(
+        ratios: const [1, 1],
         direction: ReadingDirection.vertical,
         fitMode: ReaderFitMode.width,
         viewportWidth: 400,
         viewportHeight: 800,
-        leadingInsets: {1: 200},
+        leadingInsets: const {1: 200},
       );
       // Page 2 starts 200px later than it would without the divider, so an
       // offset inside the divider is still page 1.
