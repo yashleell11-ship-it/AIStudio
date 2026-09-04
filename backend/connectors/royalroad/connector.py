@@ -40,6 +40,19 @@ from connectors.royalroad.mappers import (
 
 logger = logging.getLogger(__name__)
 
+
+def _is_not_found(exc: ConnectorHttpError) -> bool:
+    """True when the failure was an upstream HTTP 404.
+
+    The shared client only attaches ``status_code`` for RETRYABLE_STATUS
+    responses; a plain 404 surfaces re-wrapped with ``status_code=None`` and
+    httpx's ``raise_for_status`` text ("Client error '404 Not Found' for
+    url ..."), so match both forms — a bare ``status_code == 404`` check is
+    dead code against this client.
+    """
+    return exc.status_code == 404 or "404 Not Found" in str(exc)
+
+
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -148,7 +161,7 @@ class RoyalRoadConnector(SourceConnector):
             html = self._http.get_text(series_path(series_key))
         except ConnectorHttpError as exc:
             logger.warning("RoyalRoad detail %s failed: %s", series_key, exc)
-            if exc.status_code == 404:
+            if _is_not_found(exc):
                 return None, []
             raise
         parsed = parse_fiction_page(html, series_key)
@@ -174,7 +187,7 @@ class RoyalRoadConnector(SourceConnector):
         try:
             html = self._http.get_text(path)
         except ConnectorHttpError as exc:
-            if exc.status_code == 404:
+            if _is_not_found(exc):
                 logger.warning("RoyalRoad chapter %s not found", path)
                 return None
             raise

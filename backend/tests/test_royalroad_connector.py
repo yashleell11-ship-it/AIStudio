@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
+from connectors.http.client import ConnectorHttpError
 from connectors.novel_text import hidden_classes_from_styles
 from connectors.royalroad.connector import RoyalRoadConnector
 from connectors.royalroad.mappers import (
@@ -286,3 +287,28 @@ def test_connector_browse_hits_the_selected_view(connector):
     assert seen["path"] == "/fictions/latest-updates"
     assert seen["params"] == {"page": 1}
     assert listing.items
+
+
+def test_connector_404_is_clean_not_found_in_the_shared_clients_real_shape(connector):
+    """The shared client re-raises a 404 with ``status_code=None`` and only
+    httpx's message text — the connector must recognise THAT shape, not a
+    ``status_code == 404`` that never occurs (dead-check regression)."""
+    real_shape = ConnectorHttpError(
+        "Client error '404 Not Found' for url "
+        "'https://www.royalroad.com/fiction/999999/nope'",
+        status_code=None,
+    )
+
+    with patch.object(connector._http, "get_text", side_effect=real_shape):
+        assert connector.get_series("999999/nope") is None
+        assert connector.get_chapters("999999/nope") == []
+        assert connector.chapter_text("999999/nope", "1/ch") is None
+
+
+def test_connector_non_404_errors_still_raise(connector):
+    boom = ConnectorHttpError("Retryable HTTP 503", status_code=503)
+    with patch.object(connector._http, "get_text", side_effect=boom):
+        with pytest.raises(ConnectorHttpError):
+            connector.get_series("21221/other")
+        with pytest.raises(ConnectorHttpError):
+            connector.chapter_text("21221/other", "1/ch")
