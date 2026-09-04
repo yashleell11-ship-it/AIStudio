@@ -10,7 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
+import { GhostPillButton } from "@/components/premium/GhostPillButton";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
+import { readAllHref } from "@/features/reader/reader-link";
 import {
   followKey,
   useFollow,
@@ -211,6 +213,21 @@ function MangaSeriesDetailView({
       : null;
   const primaryLabel = latestRead ? "Continue" : "Read Online";
 
+  /**
+   * Read all (spec 2026-09-05 R2): the whole series as one continuous scroll.
+   *
+   * Beside "Read online", never instead of it — they are different intentions,
+   * and a run through thirty chapters is a thing you choose rather than a mode
+   * you have to go and find. It starts where the reader left off for the same
+   * reason "Continue" does: forty chapters in, nobody means chapter one. There
+   * is nothing to read THROUGH in a single-chapter series, so it stays hidden
+   * until there are at least two.
+   */
+  const readAllTarget =
+    chapters.length > 1
+      ? readAllHref({ sourceId, seriesKey: seriesId }, latestRead?.chapterId ?? null)
+      : null;
+
   const prefetchChapter = prefetchChapterPayload;
 
   const toggleFollow = async () => {
@@ -291,6 +308,14 @@ function MangaSeriesDetailView({
                 onFocus={() => primaryChapterId && prefetchChapter(primaryChapterId)}
               >
                 <PrimaryPillButton href={primaryHref}>{primaryLabel}</PrimaryPillButton>
+              </span>
+            )}
+            {readAllTarget && (
+              <span
+                className="inline-flex"
+                title="Every chapter in one continuous scroll"
+              >
+                <GhostPillButton href={readAllTarget}>Read all</GhostPillButton>
               </span>
             )}
             <Button

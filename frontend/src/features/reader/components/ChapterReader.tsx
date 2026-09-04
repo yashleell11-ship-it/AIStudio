@@ -46,6 +46,7 @@ import { useFullscreen } from "../use-fullscreen";
 import { useReaderPreferences } from "../use-reader-preferences";
 import { useReaderSettings } from "../use-reader-settings";
 import { useReaderShortcuts } from "../use-reader-shortcuts";
+import type { StripEdge } from "../use-chapter-strip";
 import type { ReadingMode } from "../types";
 import { ContinuousStrip, type StripHandle } from "./ContinuousStrip";
 import { PagedView } from "./PagedView";
@@ -75,6 +76,13 @@ interface ChapterReaderProps {
    * or a deep link still reaches its chapter list without retracing history.
    */
   seriesHref: string;
+  /**
+   * What lies just outside each end of the strip. The strip's owner knows this
+   * and the strip does not: Read-all reads it off the series' chapter list,
+   * while the plain reader has only the manifest's own neighbour links.
+   */
+  head: StripEdge;
+  tail: StripEdge;
   /** Fires on every scroll frame with the chapter and page being read. */
   onPosition?: (position: StripPosition) => void;
   onBookmark?: (page: number) => void;
@@ -117,6 +125,8 @@ export function ChapterReader({
   seriesKey,
   initialPage = 1,
   seriesHref,
+  head,
+  tail,
   onPosition,
   onBookmark,
   onLoadPrevious,
@@ -191,8 +201,6 @@ export function ChapterReader({
   const chapterTitle = chapter ? stripChapterLabel(chapter) : "Chapter";
   const continuous = readingMode === "continuous";
 
-  const firstChapter = chapters[0];
-  const lastChapter = chapters[chapters.length - 1];
   const previousChapterHref =
     chapter?.previousChapterKey && chapter
       ? readerChapterHref({
@@ -902,17 +910,17 @@ export function ChapterReader({
       {continuous ? (
         <div className="flex-1 py-4 pb-28">
           <StripHead
-            label={firstChapter ? nextChapterLabelFor(firstChapter, "previous") : null}
+            label={head.label}
             href={
-              firstChapter?.previousChapterKey
+              head.chapterKey
                 ? readerChapterHref({
-                    sourceId: firstChapter.sourceId,
-                    seriesKey: firstChapter.seriesKey,
-                    chapterKey: firstChapter.previousChapterKey,
+                    sourceId: chapter.sourceId,
+                    seriesKey: chapter.seriesKey,
+                    chapterKey: head.chapterKey,
                   })
                 : null
             }
-            visible={atTop && Boolean(firstChapter?.previousChapterKey)}
+            visible={atTop && Boolean(head.chapterKey)}
             loading={loadingPrevious}
             onLoad={onLoadPrevious}
           />
@@ -930,16 +938,16 @@ export function ChapterReader({
             />
           ) : null}
           <StripTail
-            hasMore={Boolean(lastChapter?.nextChapterKey)}
+            hasMore={Boolean(tail.chapterKey)}
             error={nextError}
             onRetry={onRetryNext}
-            label={lastChapter ? nextChapterLabelFor(lastChapter) : null}
+            label={tail.label}
             href={
-              lastChapter?.nextChapterKey
+              tail.chapterKey
                 ? readerChapterHref({
-                    sourceId: lastChapter.sourceId,
-                    seriesKey: lastChapter.seriesKey,
-                    chapterKey: lastChapter.nextChapterKey,
+                    sourceId: chapter.sourceId,
+                    seriesKey: chapter.seriesKey,
+                    chapterKey: tail.chapterKey,
                   })
                 : null
             }
