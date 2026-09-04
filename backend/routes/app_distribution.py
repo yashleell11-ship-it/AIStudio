@@ -130,6 +130,21 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.13.0",
+        build=27,
+        date="September 2026",
+        highlights=[
+            "Statistics is an actual statistics screen now: reading streaks, "
+            "a 30-day activity chart, time spent, busiest hours, per-source "
+            "breakdown and recent sessions — built from your real reading, "
+            "which the app also only started recording properly today, so it "
+            "fills in from here",
+            "Late-night chapters count toward the right day. Days were being "
+            "bucketed in server time, so reading at 11pm could land on "
+            "tomorrow and quietly break a streak",
+        ],
+    ),
+    ChangelogEntry(
         version="1.12.0",
         build=26,
         date="September 2026",
