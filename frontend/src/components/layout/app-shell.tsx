@@ -8,7 +8,7 @@ import { ShortcutsDialog } from "@/components/keyboard";
 import { mobileNav } from "@/config/nav";
 import { HELP_SHORTCUT_KEYS, useShortcut } from "@/lib/keyboard";
 import { ScrollContainerProvider } from "@/lib/scroll-container";
-import { isImmersiveReaderPath } from "@/lib/reader-route";
+import { isImmersivePath, isImmersiveReaderPath } from "@/lib/reader-route";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
 // Direct, not via the `@/features/preferences` barrel: that barrel also exports
@@ -72,7 +72,11 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const closeShortcuts = useUiStore((s) => s.closeShortcuts);
   const [scrollContainer, setScrollContainer] = useState<HTMLElement | null>(null);
 
-  const isReaderChapter = isImmersiveReaderPath(pathname);
+  // Both readers lose the app chrome; only the manga one gets the obsidian
+  // page, because the novel reader paints its own reading palette and a
+  // near-black shell under a Paper page would defeat the point of choosing it.
+  const isMangaChapter = isImmersiveReaderPath(pathname);
+  const isReaderChapter = isImmersivePath(pathname);
 
   const assignScrollContainer = useCallback((node: HTMLElement | null) => {
     setScrollContainer(node);
@@ -203,7 +207,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
             tabIndex={-1}
             className={cn(
               "flex-1 overflow-y-auto outline-none",
-              isReaderChapter && "bg-obsidian",
+              isMangaChapter && "bg-obsidian",
               // Clears the floating tab pill (56px tall + its 16px inset and
               // safe-area padding) so the last row of covers is never under it.
               !isReaderChapter && "max-md:pb-24",

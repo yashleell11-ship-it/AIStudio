@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   clampFontSize,
@@ -92,5 +94,24 @@ describe("isNovelFontFamily", () => {
     expect(isNovelFontFamily("sans")).toBe(true);
     expect(isNovelFontFamily("cursive")).toBe(false);
     expect(isNovelFontFamily(null)).toBe(false);
+  });
+});
+
+/**
+ * `--font-book` in globals.css is the same stack as `NOVEL_SERIF_STACK`, so the
+ * shelf and the front matter (which use the Tailwind `font-book` utility) and
+ * the reader (which applies the stack inline, because the reader's face is a
+ * per-series preference) cannot drift onto different serifs.
+ */
+describe("the CSS token and the TS stack are one stack", () => {
+  const CSS = readFileSync(
+    path.resolve(__dirname, "../../app/globals.css"),
+    "utf8",
+  );
+
+  it("declares --font-book identically to NOVEL_SERIF_STACK", () => {
+    const match = /--font-book:\s*([^;]+);/.exec(CSS);
+    expect(match, "--font-book is not declared in globals.css").not.toBeNull();
+    expect(match![1].trim()).toBe(NOVEL_SERIF_STACK);
   });
 });

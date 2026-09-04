@@ -1,0 +1,220 @@
+import { describe, expect, it } from "vitest";
+import {
+  byline,
+  estimateSeriesLength,
+  formatChapterCount,
+  formatChapterNumber,
+  formatEstimatedTotal,
+  formatEstimatedWords,
+  isSceneBreak,
+  MIN_DROP_CAP_LENGTH,
+  MIN_LENGTH_SAMPLE,
+  splitDropCap,
+  tocEntry,
+} from "./book";
+
+const LONG = "A".repeat(MIN_DROP_CAP_LENGTH + 20);
+
+describe("byline", () => {
+  it("names the author, and says nothing when there is none", () => {
+    expect(byline("Sanderson")).toBe("by Sanderson");
+    expect(byline("  Sanderson  ")).toBe("by Sanderson");
+    expect(byline("")).toBeNull();
+    expect(byline("   ")).toBeNull();
+    expect(byline(null)).toBeNull();
+    expect(byline(undefined)).toBeNull();
+  });
+});
+
+describe("formatChapterCount", () => {
+  it("counts chapters, respecting the singular", () => {
+    expect(formatChapterCount(412)).toBe("412 chapters");
+    expect(formatChapterCount(1)).toBe("1 chapter");
+  });
+
+  it("says nothing when the source reported no count", () => {
+    expect(formatChapterCount(0)).toBeNull();
+    expect(formatChapterCount(null)).toBeNull();
+    expect(formatChapterCount(undefined)).toBeNull();
+    expect(formatChapterCount(Number.NaN)).toBeNull();
+    expect(formatChapterCount(-3)).toBeNull();
+  });
+});
+
+describe("estimateSeriesLength", () => {
+  it("projects the sample mean across the catalogue", () => {
+    const estimate = estimateSeriesLength(100, [2000, 3000, 2500]);
+    expect(estimate.sampleSize).toBe(3);
+    expect(estimate.meanWords).toBe(2500);
+    expect(estimate.totalWords).toBe(250_000);
+    // 250,000 words at 250 wpm.
+    expect(estimate.minutes).toBe(1000);
+  });
+
+  it("refuses to project from too small a sample — that would be invention", () => {
+    const one = estimateSeriesLength(400, [2500]);
+    expect(one.sampleSize).toBe(1);
+    expect(one.meanWords).toBeNull();
+    expect(one.minutes).toBeNull();
+    expect(MIN_LENGTH_SAMPLE).toBeGreaterThan(1);
+  });
+
+  it("refuses to project when the source reports no chapter count", () => {
+    const estimate = estimateSeriesLength(0, [2000, 3000]);
+    expect(estimate.chapters).toBe(0);
+    expect(estimate.minutes).toBeNull();
+  });
+
+  it("ignores unusable samples rather than averaging zeros in", () => {
+    const estimate = estimateSeriesLength(10, [0, Number.NaN, -5, 1000, 3000]);
+    expect(estimate.sampleSize).toBe(2);
+    expect(estimate.meanWords).toBe(2000);
+  });
+
+  it("handles an empty sample", () => {
+    const estimate = estimateSeriesLength(120, []);
+    expect(estimate.sampleSize).toBe(0);
+    expect(estimate.totalWords).toBeNull();
+  });
+});
+
+describe("formatEstimatedTotal", () => {
+  it("reports whole hours for a book-length estimate", () => {
+    expect(formatEstimatedTotal(estimateSeriesLength(100, [2500, 2500]))).toBe("≈ 17 h");
+  });
+
+  it("falls back to minutes for something under an hour", () => {
+    expect(formatEstimatedTotal(estimateSeriesLength(2, [1000, 1000]))).toBe("≈ 8 min");
+  });
+
+  it("says nothing when there is nothing to project from", () => {
+    expect(formatEstimatedTotal(estimateSeriesLength(100, []))).toBeNull();
+  });
+});
+
+describe("formatEstimatedWords", () => {
+  it("rounds hard, because this is a projection and not a count", () => {
+    // 400 chapters x 2,600 words = 1.04M.
+    expect(formatEstimatedWords(estimateSeriesLength(400, [2600, 2600]))).toBe(
+      "≈ 1.0M words",
+    );
+    // 30 x 2,800 = 84,000.
+    expect(formatEstimatedWords(estimateSeriesLength(30, [2800, 2800]))).toBe(
+      "≈ 84k words",
+    );
+    // 3 x 1,240 = 3,720 -> nearest hundred.
+    expect(formatEstimatedWords(estimateSeriesLength(3, [1240, 1240]))).toBe(
+      "≈ 3,700 words",
+    );
+  });
+
+  it("says nothing without a projection", () => {
+    expect(formatEstimatedWords(estimateSeriesLength(400, [2600]))).toBeNull();
+  });
+});
+
+describe("tocEntry", () => {
+  it("puts the number in its own column and the title beside it, once", () => {
+    expect(tocEntry({ number: 12, title: "Chapter 12: The Gate Opens" })).toEqual({
+      ordinal: "12",
+      title: "The Gate Opens",
+    });
+    expect(tocEntry({ number: 134, title: "The Culprit (7)" })).toEqual({
+      ordinal: "134",
+      title: "The Culprit (7)",
+    });
+  });
+
+  it("leaves the title column empty for a number-only chapter", () => {
+    expect(tocEntry({ number: 133, title: "Chapter 133" })).toEqual({
+      ordinal: "133",
+      title: null,
+    });
+    expect(tocEntry({ number: 133, title: null })).toEqual({
+      ordinal: "133",
+      title: null,
+    });
+  });
+
+  it("keeps decimals, which are real chapters", () => {
+    expect(tocEntry({ number: 12.5, title: "Interlude" })).toEqual({
+      ordinal: "12.5",
+      title: "Interlude",
+    });
+  });
+
+  it("falls back to the title when the source numbers nothing", () => {
+    expect(tocEntry({ number: null, title: "Prologue" })).toEqual({
+      ordinal: null,
+      title: "Prologue",
+    });
+    expect(tocEntry({ number: null, title: null })).toEqual({
+      ordinal: null,
+      title: "Chapter",
+    });
+  });
+});
+
+describe("formatChapterNumber", () => {
+  it("renders nothing rather than NaN", () => {
+    expect(formatChapterNumber(12)).toBe("12");
+    expect(formatChapterNumber(12.5)).toBe("12.5");
+    expect(formatChapterNumber(Number.NaN)).toBe("");
+    expect(formatChapterNumber(Number.POSITIVE_INFINITY)).toBe("");
+  });
+});
+
+describe("splitDropCap", () => {
+  it("splits the initial letter off a real opening paragraph", () => {
+    const text = `The rain had not stopped for nine days. ${LONG}`;
+    expect(splitDropCap(text)).toEqual({
+      initial: "T",
+      rest: text.slice(1),
+    });
+  });
+
+  it("refuses dialogue openers — a raised quotation mark reads as a mistake", () => {
+    expect(splitDropCap(`"Wait," she said, and the door closed. ${LONG}`)).toBeNull();
+    expect(splitDropCap(`“Wait,” she said, and the door closed. ${LONG}`)).toBeNull();
+    expect(splitDropCap(`— and then nothing at all, for a while. ${LONG}`)).toBeNull();
+    expect(splitDropCap(`1892 was a bad year for the family. ${LONG}`)).toBeNull();
+  });
+
+  it("refuses a paragraph too short to set an initial against", () => {
+    expect(splitDropCap("The rain stopped.")).toBeNull();
+    expect(splitDropCap("A".repeat(MIN_DROP_CAP_LENGTH - 1))).toBeNull();
+    expect(splitDropCap("A".repeat(MIN_DROP_CAP_LENGTH))).not.toBeNull();
+  });
+
+  it("handles absent, blank and non-Latin openers", () => {
+    expect(splitDropCap(undefined)).toBeNull();
+    expect(splitDropCap("")).toBeNull();
+    expect(splitDropCap("   ")).toBeNull();
+    const cyrillic = `Дождь не прекращался девять дней подряд. ${LONG}`;
+    expect(splitDropCap(cyrillic)?.initial).toBe("Д");
+  });
+
+  it("trims before splitting, so leading whitespace never becomes the cap", () => {
+    const text = `   Morning came slowly to the valley. ${LONG}`;
+    expect(splitDropCap(text)?.initial).toBe("M");
+  });
+});
+
+describe("isSceneBreak", () => {
+  it("recognises the ornaments sources use between scenes", () => {
+    for (const marker of ["***", "* * *", "---", "◇◇◇", "※", "· · ·", "~~~"]) {
+      expect(isSceneBreak(marker), marker).toBe(true);
+      expect(isSceneBreak(`  ${marker}  `), marker).toBe(true);
+    }
+  });
+
+  it("never swallows prose", () => {
+    expect(isSceneBreak("— and then nothing at all")).toBe(false);
+    expect(isSceneBreak("He ran.")).toBe(false);
+    expect(isSceneBreak("1892")).toBe(false);
+    expect(isSceneBreak("")).toBe(false);
+    expect(isSceneBreak("   ")).toBe(false);
+    // A long line of punctuation is a formatting accident, not an ornament.
+    expect(isSceneBreak("*".repeat(60))).toBe(false);
+  });
+});
