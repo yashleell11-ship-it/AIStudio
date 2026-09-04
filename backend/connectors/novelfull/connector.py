@@ -37,6 +37,20 @@ from connectors.novelfull.mappers import (
 
 logger = logging.getLogger(__name__)
 
+
+def _is_not_found(exc: ConnectorHttpError) -> bool:
+    """True when the failure was an upstream HTTP 404.
+
+    The shared client only attaches ``status_code`` for RETRYABLE_STATUS
+    responses; a 404 surfaces as httpx's ``raise_for_status`` message
+    ("Client error '404 Not Found' for url ..."), so match both forms — a
+    bare ``status_code == 404`` test is dead code. Verified live from the
+    VPS: missing novels, missing chapters and unknown novelIds all answer a
+    real 404.
+    """
+    return exc.status_code == 404 or "404 Not Found" in str(exc)
+
+
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -140,7 +154,7 @@ class NovelFullConnector(SourceConnector):
             return self._http.get_text(series_path(series_key))
         except ConnectorHttpError as exc:
             logger.warning("NovelFull detail %s failed: %s", series_key, exc)
-            if exc.status_code == 404:
+            if _is_not_found(exc):
                 return None
             raise
 
@@ -156,9 +170,13 @@ class NovelFullConnector(SourceConnector):
         if series is None:
             return None
         novel_id = parse_novel_id(html)
+        # Seed the id cache first so get_chapters below reuses this fetch
+        # instead of pulling the detail page a second time; with no id there
+        # is no chapter index to ask for at all.
+        chapters: list[Chapter] = []
         if novel_id:
             self._novel_id_cache.set(series_key, novel_id)
-        chapters = self.get_chapters(series_key)
+            chapters = self.get_chapters(series_key)
         if chapters:
             series = Series(
                 id=series.id,
@@ -200,7 +218,11 @@ class NovelFullConnector(SourceConnector):
             )
         except ConnectorHttpError as exc:
             logger.warning("NovelFull chapters %s failed: %s", series_key, exc)
-            return []
+            if _is_not_found(exc):
+                return []
+            # A transient failure must not be cached as "this novel has no
+            # chapters" — let it out so the source cache serves stale.
+            raise
         chapters = parse_chapter_options(html, series_key)
         if chapters:
             self._chapters_cache.set(series_key, chapters)
@@ -218,7 +240,7 @@ class NovelFullConnector(SourceConnector):
         try:
             html = self._http.get_text(path)
         except ConnectorHttpError as exc:
-            if exc.status_code == 404:
+            if _is_not_found(exc):
                 logger.warning("NovelFull chapter %s not found", path)
                 return None
             raise
