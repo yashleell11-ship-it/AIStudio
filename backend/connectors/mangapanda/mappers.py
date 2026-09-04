@@ -33,10 +33,13 @@ PAGE_SIZE = 30
 
 #: Browse mode id -> listing path segment. The site exposes each of these as
 #: its own top-level route; ``search`` with no query is the A-Z directory.
+#: ``/new`` is deliberately absent: the site still routes it, but it has no
+#: content behind it — it renders "No Manga found!" for every request. An
+#: always-empty browse mode is worse than one fewer mode, so it is not
+#: exposed. (Verified live from the VPS.)
 SORT_TO_SEGMENT: dict[str, str] = {
     "default": "updates",
     "popular": "popular",
-    "added": "new",
     "completed": "completed",
     "alphabetical": "search",
 }
