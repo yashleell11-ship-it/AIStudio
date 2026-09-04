@@ -100,9 +100,21 @@ EOF
   fi
 }
 
-# ABIs packaged inside an APK, one per line (e.g. arm64-v8a, armeabi-v7a).
+# ABIs an APK can actually RUN on, one per line (e.g. arm64-v8a, armeabi-v7a).
+#
+# A lib/<abi>/ directory on its own proves nothing. Several plugins ship
+# prebuilt .so files for every architecture whatever the build targets, so
+# `flutter build apk --target-platform android-arm64` still leaves a 79 KB
+# lib/armeabi-v7a/ behind — enough to fool a directory listing, nowhere near
+# enough to start the app. An ABI counts only when both halves of Flutter are
+# there: the engine (libflutter.so) and the app's compiled Dart (libapp.so).
 apk_abis(){
-  unzip -Z1 "$1" 2>/dev/null | sed -n 's|^lib/\([^/]*\)/.*|\1|p' | sort -u
+  local names abi
+  names="$(unzip -Z1 "$1" 2>/dev/null)"
+  while read -r abi; do
+    [ -n "$abi" ] || continue
+    grep -qx "lib/$abi/libapp.so" <<<"$names" && echo "$abi"
+  done < <(sed -n 's|^lib/\([^/]*\)/libflutter\.so$|\1|p' <<<"$names" | sort -u)
 }
 
 # Refuse to publish an APK that some phone in the owner's circle cannot install.
@@ -114,14 +126,16 @@ apk_abis(){
 verify_apk(){
   local apk="$1" abis missing=""
   abis="$(apk_abis "$apk")"
-  [ -n "$abis" ] || { echo "!! $apk contains no native libraries at all — refusing" >&2; exit 3; }
+  [ -n "$abis" ] || {
+    echo "!! $apk carries no runnable ABI (no lib/<abi>/ with both libflutter.so" >&2
+    echo "   and libapp.so in it) — refusing" >&2; exit 3; }
   for want in arm64-v8a armeabi-v7a; do
     grep -qx "$want" <<<"$abis" || missing="$missing $want"
   done
   if [ -n "$missing" ]; then
     cat >&2 <<EOF
-!! REFUSING TO PUBLISH: this APK is missing ABI(s):$missing
-   it contains: $(tr '\n' ' ' <<<"$abis")
+!! REFUSING TO PUBLISH: this APK cannot run on:$missing
+   it runs on: $(tr '\n' ' ' <<<"$abis")
    /app/download hands one file to every phone. Publishing this one means any
    friend on a missing architecture gets "App not installed" and no reason why.
    Rebuild with: flutter build apk --release
@@ -134,7 +148,7 @@ EOF
     say "note: this APK still carries x86_64 (~21 MB no phone can use) — the"
     say "      release exclusion in android/app/build.gradle.kts did not apply"
   fi
-  say "APK check: $(du -h "$apk" | cut -f1), ABIs [$(tr '\n' ' ' <<<"$abis" | sed 's/ $//')], built $(( ( $(date +%s) - $(stat -c %Y "$apk") ) / 60 )) min ago"
+  say "APK check: $(du -h "$apk" | cut -f1), runs on [$(tr '\n' ' ' <<<"$abis" | sed 's/ $//')], built $(( ( $(date +%s) - $(stat -c %Y "$apk") ) / 60 )) min ago"
 }
 
 stamp(){
