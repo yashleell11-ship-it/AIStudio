@@ -430,10 +430,19 @@ def test_find_page_resolves_without_refetching(api: FakeApi):
     assert len(api.queries) == 1
 
 
-def test_find_page_rejects_a_key_without_a_page_marker():
-    connector = MangaHubConnector()
-    with patch.object(SyncConnectorHttpClient, "get_json", FakeApi()) as _:
+def test_find_page_rejects_a_key_without_a_page_marker(api: FakeApi):
+    """A page id must carry the ``:N`` marker, and a miss must cost no request.
+
+    The interesting input is a string that is a perfectly valid *chapter* key:
+    if find_page treated it as one it would happily fetch the chapter and hand
+    back page 1 for an id that names no page at all.
+    """
+    api.default = _load("chapter_solo_1.json")
+    connector = _connector_with(api)
+    with patch.object(SyncConnectorHttpClient, "get_json", api):
+        assert connector.find_page(f"{SERIES_KEY}/1") is None
         assert connector.find_page("no-colon-here") is None
+    assert api.queries == [], "an unmarked page id must not reach the network"
 
 
 def test_page_count_backfills_into_the_chapter_list(api: FakeApi):
