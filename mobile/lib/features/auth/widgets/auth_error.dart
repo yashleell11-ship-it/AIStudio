@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Inline error banner shown beneath the auth form fields.
 class AuthError extends StatelessWidget {
@@ -15,19 +13,19 @@ class AuthError extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.danger.withAlpha(24),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         border: Border.all(color: context.colors.danger.withAlpha(90)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(context.space.md),
         child: Row(
           children: [
             Icon(Icons.error_outline, color: context.colors.danger, size: 18),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Expanded(
               child: Text(
                 message,
-                style: AppTypography.bodySm.copyWith(color: context.colors.fg),
+                style: context.text.bodySm.copyWith(color: context.colors.fg),
               ),
             ),
           ],

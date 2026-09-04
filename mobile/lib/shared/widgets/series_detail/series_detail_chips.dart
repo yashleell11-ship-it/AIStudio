@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// One labelled pill in a [SeriesDetailChipRow].
 class SeriesDetailChip {
@@ -29,23 +28,23 @@ class SeriesDetailChipRow extends StatelessWidget {
   Widget build(BuildContext context) {
     if (chips.isEmpty) return const SizedBox.shrink();
     return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
+      spacing: context.space.sm,
+      runSpacing: context.space.sm,
       children: [
         for (final chip in chips)
           Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.xs,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.space.md,
+              vertical: context.space.xs,
             ),
             decoration: BoxDecoration(
               color: (chip.color ?? context.colors.fg).withAlpha(13),
-              borderRadius: BorderRadius.circular(AppRadius.full),
+              borderRadius: BorderRadius.circular(context.radii.full),
               border: Border.all(color: context.colors.border.withAlpha(128)),
             ),
             child: Text(
               chip.label,
-              style: AppTypography.caption.copyWith(
+              style: context.text.caption.copyWith(
                 color: chip.color ?? context.colors.muted,
                 fontWeight: FontWeight.w500,
               ),

@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/downloaded_series_group.dart';
@@ -137,10 +135,10 @@ class _ChaptersTab extends ConsumerWidget {
       slivers: [
         const SliverToBoxAdapter(child: OcrRunBanner()),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.xl2,
-            AppSpacing.lg,
-            AppSpacing.xl2,
+          padding: EdgeInsets.fromLTRB(
+            context.space.xl2,
+            context.space.lg,
+            context.space.xl2,
             0,
           ),
           sliver: SliverToBoxAdapter(
@@ -153,10 +151,10 @@ class _ChaptersTab extends ConsumerWidget {
         ),
         if (queueExpanded && queued.isNotEmpty)
           SliverPadding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.md,
-              AppSpacing.sm,
-              AppSpacing.md,
+            padding: EdgeInsets.fromLTRB(
+              context.space.md,
+              context.space.sm,
+              context.space.md,
               0,
             ),
             sliver: SliverList.builder(
@@ -165,14 +163,14 @@ class _ChaptersTab extends ConsumerWidget {
                   QueuedChapterRow(chapter: queued[index]),
             ),
           ),
-        const SliverPadding(
+        SliverPadding(
           padding: EdgeInsets.fromLTRB(
-            AppSpacing.xl2,
-            AppSpacing.lg,
-            AppSpacing.xl2,
+            context.space.xl2,
+            context.space.lg,
+            context.space.xl2,
             0,
           ),
-          sliver: SliverToBoxAdapter(child: _WhereItLivesCard()),
+          sliver: const SliverToBoxAdapter(child: _WhereItLivesCard()),
         ),
         ...groupsAsync.when(
           loading: () => const [
@@ -187,7 +185,7 @@ class _ChaptersTab extends ConsumerWidget {
               child: Center(
                 child: Text(
                   'Could not load downloads.',
-                  style: AppTypography.body.copyWith(color: context.colors.danger),
+                  style: context.text.body.copyWith(color: context.colors.danger),
                 ),
               ),
             ),
@@ -262,16 +260,16 @@ class _ChaptersTab extends ConsumerWidget {
 
     return [
       SliverPadding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl2,
-          AppSpacing.xl2,
-          AppSpacing.xl2,
-          AppSpacing.sm,
+        padding: EdgeInsets.fromLTRB(
+          context.space.xl2,
+          context.space.xl2,
+          context.space.xl2,
+          context.space.sm,
         ),
         sliver: SliverToBoxAdapter(
           child: Text(
             'On this phone — biggest first',
-            style: AppTypography.labelSm.copyWith(
+            style: context.text.labelSm.copyWith(
               color: context.colors.muted,
               letterSpacing: 1.0,
             ),
@@ -280,15 +278,15 @@ class _ChaptersTab extends ConsumerWidget {
       ),
       SliverPadding(
         padding: EdgeInsets.fromLTRB(
-          AppSpacing.xl2,
+          context.space.xl2,
           0,
-          AppSpacing.xl2,
-          AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+          context.space.xl2,
+          context.space.xl7 + MediaQuery.paddingOf(context).bottom,
         ),
         sliver: SliverList.builder(
           itemCount: ordered.length,
           itemBuilder: (context, index) => Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: EdgeInsets.only(bottom: context.space.md),
             child: _SeriesDownloadCard(group: ordered[index]),
           ),
         ),
@@ -304,10 +302,10 @@ class _StorageTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: EdgeInsets.fromLTRB(
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl7 + MediaQuery.paddingOf(context).bottom,
       ),
       children: const [DownloadsStorageCard()],
     );
@@ -331,11 +329,11 @@ class _WhereItLivesCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.fg.withAlpha(13),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         border: Border.all(color: context.colors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(context.space.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -344,14 +342,14 @@ class _WhereItLivesCard extends StatelessWidget {
               color: context.colors.muted,
               size: 18,
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Expanded(
               child: Text(
                 'Downloaded chapters are stored inside ManhwaManiacs and read '
                 'offline straight from this tab — there is nothing to find in '
                 'the Files app. For a copy you can open elsewhere, use Save to '
                 'Files on a series or chapter.',
-                style: AppTypography.caption.copyWith(
+                style: context.text.caption.copyWith(
                   color: context.colors.muted,
                   height: 1.5,
                 ),
@@ -396,7 +394,7 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
           InkWell(
             onTap: () => setState(() => _expanded = !_expanded),
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.md),
+              padding: EdgeInsets.all(context.space.md),
               child: Row(
                 children: [
                   Expanded(
@@ -405,14 +403,14 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
                       children: [
                         Text(
                           _seriesLabel,
-                          style: AppTypography.labelLg,
+                          style: context.text.labelLg,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        const SizedBox(height: AppSpacing.xxs),
+                        SizedBox(height: context.space.xxs),
                         Text(
                           _subtitle(saved, group),
-                          style: AppTypography.caption.copyWith(color: context.colors.muted)
+                          style: context.text.caption.copyWith(color: context.colors.muted)
                               .copyWith(color: context.colors.muted),
                         ),
                       ],
@@ -459,7 +457,7 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
                 seriesLabel: _seriesLabel,
                 onRemoved: () => ref.invalidate(downloadedSeriesProvider),
               ),
-          if (_expanded) const SizedBox(height: AppSpacing.xs),
+          if (_expanded) SizedBox(height: context.space.xs),
         ],
       ),
     );
@@ -493,12 +491,12 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: context.colors.surfaceElevated,
-        title: Text('Remove downloads?', style: AppTypography.h4),
+        title: Text('Remove downloads?', style: context.text.h4),
         content: Text(
           'Deletes every downloaded chapter of $_seriesLabel from this phone. '
           'Your reading progress is kept, and you can download them again any '
           'time.',
-          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+          style: context.text.bodySm.copyWith(color: context.colors.muted),
         ),
         actions: [
           TextButton(
@@ -509,7 +507,7 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
               'Remove',
-              style: AppTypography.label.copyWith(color: context.colors.danger),
+              style: context.text.label.copyWith(color: context.colors.danger),
             ),
           ),
         ],
@@ -554,12 +552,12 @@ class _ChapterRow extends ConsumerWidget {
 
     return ListTile(
       dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
-      title: Text(label.primary, style: AppTypography.bodySm),
+      contentPadding: EdgeInsets.symmetric(horizontal: context.space.md),
+      title: Text(label.primary, style: context.text.bodySm),
       subtitle: Text(
         '${_stateLabel(chapter.state, chapter.error)} · '
         '${formatDownloadBytes(chapter.bytes)}',
-        style: AppTypography.caption.copyWith(color: context.colors.muted),
+        style: context.text.caption.copyWith(color: context.colors.muted),
       ),
       // The row's own `kind` decides which reader opens — not the sources
       // listing, which is exactly what a downloaded chapter cannot rely on.

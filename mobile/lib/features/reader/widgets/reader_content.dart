@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/core/platform/native_bridge.dart';
 import 'package:manhwamaniacs/core/platform/system_ui.dart';
@@ -860,8 +860,8 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       // Swipe-down-to-dismiss with a visible grab handle (system back alone was
       // not discoverable). enableDrag defaults to true.
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(context.radii.xl)),
       ),
       builder: (_) => ReaderMoreSheet(
         onPreviousChapter: widget.onPreviousChapter,

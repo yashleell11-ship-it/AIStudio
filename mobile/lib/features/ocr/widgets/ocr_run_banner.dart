@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/ocr/controllers/ocr_run_controller.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 
@@ -62,22 +61,22 @@ class OcrRunBanner extends ConsumerWidget {
     };
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl2,
-        AppSpacing.lg,
-        AppSpacing.xl2,
+      padding: EdgeInsets.fromLTRB(
+        context.space.xl2,
+        context.space.lg,
+        context.space.xl2,
         0,
       ),
       child: GlassCard(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(context.space.md),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 Icon(icon, color: color, size: 20),
-                const SizedBox(width: AppSpacing.sm),
-                Expanded(child: Text(message, style: AppTypography.bodySm)),
+                SizedBox(width: context.space.sm),
+                Expanded(child: Text(message, style: context.text.bodySm)),
                 if (run.isBusy)
                   TextButton(
                     key: const Key('ocr-cancel'),
@@ -88,9 +87,9 @@ class OcrRunBanner extends ConsumerWidget {
             ),
             if (run.phase == OcrRunPhase.recognizing ||
                 run.phase == OcrRunPhase.paused) ...[
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: context.space.sm),
               ClipRRect(
-                borderRadius: BorderRadius.circular(AppRadius.sm),
+                borderRadius: BorderRadius.circular(context.radii.sm),
                 child: LinearProgressIndicator(
                   value: run.progress,
                   minHeight: 3,

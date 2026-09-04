@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// A shimmering placeholder block used across every loading state.
 ///
@@ -13,17 +13,20 @@ class SkeletonBox extends StatelessWidget {
     super.key,
     required this.width,
     required this.height,
-    this.borderRadius = AppRadius.md,
+    this.borderRadius,
   });
 
   final double? width;
   final double height;
-  final double borderRadius;
+
+  /// Null takes the preset's `md` corner — a default that has to be read
+  /// from the tree, not baked into the constructor signature.
+  final double? borderRadius;
 
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
+      borderRadius: BorderRadius.circular(borderRadius ?? context.radii.md),
       child: SizedBox(
         width: width,
         height: height,

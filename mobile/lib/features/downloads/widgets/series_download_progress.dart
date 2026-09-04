@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
@@ -61,7 +60,7 @@ class SeriesDownloadProgress extends ConsumerWidget {
         : downloadPauseMessage(queue.pauseReason, ref.watch(storageCapProvider));
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       glowColor: queue.isBlocked ? context.colors.warning : context.colors.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -73,19 +72,19 @@ class SeriesDownloadProgress extends ConsumerWidget {
                 size: 20,
                 color: saved == total ? context.colors.success : context.colors.primary,
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: context.space.sm),
               Expanded(
                 child: Text(
                   '$saved of $total chapters saved on this phone',
                   key: const Key('series-download-saved-count'),
-                  style: AppTypography.labelLg,
+                  style: context.text.labelLg,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.xs),
+            borderRadius: BorderRadius.circular(context.space.xs),
             child: LinearProgressIndicator(
               key: const Key('series-download-bar'),
               value: total == 0 ? 0 : (saved / total).clamp(0.0, 1.0),
@@ -97,50 +96,50 @@ class SeriesDownloadProgress extends ConsumerWidget {
             ),
           ),
           if (active != null) ...[
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Text(
               active.progress.pageTotal > 0
                   ? 'Downloading now · page ${active.progress.pagesDone} of '
                       '${active.progress.pageTotal}'
                   : 'Downloading now · reading chapter details…',
               key: const Key('series-download-current'),
-              style: AppTypography.bodySm.copyWith(color: context.colors.primary),
+              style: context.text.bodySm.copyWith(color: context.colors.primary),
             ),
           ],
           if (waiting > 0 || failed > 0) ...[
-            const SizedBox(height: AppSpacing.xxs),
+            SizedBox(height: context.space.xxs),
             Text(
               [
                 if (waiting > 0) '$waiting waiting in the queue',
                 if (failed > 0) '$failed failed',
               ].join(' · '),
               key: const Key('series-download-queue-summary'),
-              style: AppTypography.caption.copyWith(
+              style: context.text.caption.copyWith(
                 color: failed > 0 ? context.colors.danger : context.colors.muted,
               ),
             ),
           ],
           if (pauseMessage != null) ...[
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.info_outline, color: context.colors.warning, size: 16),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
                 Expanded(
                   child: Text(
                     pauseMessage,
-                    style: AppTypography.bodySm.copyWith(height: 1.4),
+                    style: context.text.bodySm.copyWith(height: 1.4),
                   ),
                 ),
               ],
             ),
           ],
           if (waiting > 0 || active != null) ...[
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Text(
               kForegroundOnlyDownloadsNote,
-              style: AppTypography.caption.copyWith(color: context.colors.muted),
+              style: context.text.caption.copyWith(color: context.colors.muted),
             ),
           ],
         ],

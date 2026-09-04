@@ -6,8 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/diagnostics/performance_monitor.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_display_mode.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
@@ -72,22 +71,22 @@ class _DiagnosticsScreenState extends ConsumerState<DiagnosticsScreen> {
         title: const Text('Diagnostics'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.xl2),
+        padding: EdgeInsets.all(context.space.xl2),
         children: [
           const _SectionHeading('Rendering performance'),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           _PerformanceCard(monitor: _monitor),
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           const _SectionHeading('Display'),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           _DisplayCard(info: _display, loading: _loadingDisplay),
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           const _SectionHeading('Device'),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           _DeviceCard(ref: ref),
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           const _SectionHeading('Image cache'),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           const _ImageCacheCard(),
         ],
       ),
@@ -105,7 +104,7 @@ class _SectionHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+      padding: EdgeInsets.only(bottom: context.space.xxs),
       child: Row(
         children: [
           Container(
@@ -113,13 +112,13 @@ class _SectionHeading extends StatelessWidget {
             height: 15,
             decoration: BoxDecoration(
               color: context.colors.primary,
-              borderRadius: BorderRadius.circular(AppRadius.full),
+              borderRadius: BorderRadius.circular(context.radii.full),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           Text(
             text.toUpperCase(),
-            style: AppTypography.h1.copyWith(
+            style: context.text.h1.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: 2,
@@ -143,10 +142,10 @@ class _PerformanceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final m = monitor;
     if (m == null) {
-      return const GlassCard(
+      return GlassCard(
         child: Padding(
-          padding: EdgeInsets.all(AppSpacing.md),
-          child: Text('Starting profiler…'),
+          padding: EdgeInsets.all(context.space.md),
+          child: const Text('Starting profiler…'),
         ),
       );
     }
@@ -192,7 +191,7 @@ class _PerformanceCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const Divider(height: AppSpacing.xl2),
+              Divider(height: context.space.xl2),
               _InfoRow(
                 label: 'Avg frame time',
                 value: '${s.avgFrameMs.toStringAsFixed(2)} ms',
@@ -360,12 +359,12 @@ class _Metric extends StatelessWidget {
       children: [
         Text(
           value,
-          style: AppTypography.h2.copyWith(color: accent),
+          style: context.text.h2.copyWith(color: accent),
         ),
-        const SizedBox(height: AppSpacing.xxs),
+        SizedBox(height: context.space.xxs),
         Text(
           label.toUpperCase(),
-          style: AppTypography.labelSm.copyWith(
+          style: context.text.labelSm.copyWith(
             color: context.colors.muted,
             letterSpacing: 1,
           ),
@@ -384,20 +383,20 @@ class _InfoRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: context.space.xs),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: context.space.md),
           Flexible(
             child: Text(
               value,
-              style: AppTypography.labelLg,
+              style: context.text.labelLg,
               textAlign: TextAlign.right,
             ),
           ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 
@@ -155,7 +154,7 @@ class SeriesChapterTile extends StatelessWidget {
     final download = this.download;
 
     final card = Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: EdgeInsets.only(bottom: context.space.sm),
       child: GlassCard(
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -171,10 +170,10 @@ class SeriesChapterTile extends StatelessWidget {
                 onTap: onTap,
                 child: Padding(
                   padding: EdgeInsets.symmetric(
-                    vertical: AppSpacing.sm,
+                    vertical: context.space.sm,
                     // Rows without a checkbox would otherwise start hard against
                     // the card edge where selectable rows start inset.
-                    horizontal: selection == null ? AppSpacing.md : 0,
+                    horizontal: selection == null ? context.space.md : 0,
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -184,23 +183,23 @@ class SeriesChapterTile extends StatelessWidget {
                           Flexible(
                             child: Text(
                               label.primary,
-                              style: AppTypography.labelLg.copyWith(
+                              style: context.text.labelLg.copyWith(
                                 color: isRead ? context.colors.muted : null,
                               ),
                             ),
                           ),
                           if (isCurrent) ...[
-                            const SizedBox(width: AppSpacing.sm),
+                            SizedBox(width: context.space.sm),
                             const _ReadingPill(),
                           ],
                         ],
                       ),
                       if (label.secondary != null)
-                        Text(label.secondary!, style: AppTypography.bodySm),
+                        Text(label.secondary!, style: context.text.bodySm),
                       if (progressText != null)
                         Text(
                           progressText!,
-                          style: AppTypography.caption.copyWith(
+                          style: context.text.caption.copyWith(
                             color:
                                 inProgress ? context.colors.primary : context.colors.muted,
                           ),
@@ -249,11 +248,11 @@ class _DownloadStatusLine extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(text, style: AppTypography.caption.copyWith(color: color)),
+        Text(text, style: context.text.caption.copyWith(color: color)),
         if (download.phase == SeriesChapterDownloadPhase.downloading) ...[
-          const SizedBox(height: AppSpacing.xxs),
+          SizedBox(height: context.space.xxs),
           ClipRRect(
-            borderRadius: BorderRadius.circular(AppSpacing.xs),
+            borderRadius: BorderRadius.circular(context.space.xs),
             child: LinearProgressIndicator(
               key: const Key('chapter-download-bar'),
               value: download.progressValue,
@@ -359,18 +358,18 @@ class _ReadingPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xxs,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.space.md,
+        vertical: context.space.xxs,
       ),
       decoration: BoxDecoration(
         color: context.colors.primary.withAlpha(40),
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         border: Border.all(color: context.colors.primary.withAlpha(80)),
       ),
       child: Text(
         'Reading',
-        style: AppTypography.caption.copyWith(
+        style: context.text.caption.copyWith(
           color: context.colors.primary,
           fontWeight: FontWeight.w700,
           letterSpacing: 0.4,

@@ -4,9 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
@@ -104,35 +102,35 @@ class _GeneralSettingsPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
-      children: const [
-        _SectionHeading('Account'),
-        SizedBox(height: AppSpacing.sm),
-        _AccountSection(),
-        SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('Content'),
-        SizedBox(height: AppSpacing.sm),
-        _MatureContentToggle(),
-        SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('History'),
-        SizedBox(height: AppSpacing.sm),
-        _HistorySection(),
-        SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('Theme'),
-        SizedBox(height: AppSpacing.sm),
-        _ThemeSelector(),
-        SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('Language'),
-        SizedBox(height: AppSpacing.sm),
-        _LanguageSelector(),
-        SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('Feedback'),
-        SizedBox(height: AppSpacing.sm),
-        _HapticsToggle(),
-        SizedBox(height: AppSpacing.xl2),
-        _SectionHeading('Default reader preferences'),
-        SizedBox(height: AppSpacing.sm),
-        _ReaderDefaultsSection(),
+      padding: EdgeInsets.all(context.space.xl2),
+      children: [
+        const _SectionHeading('Account'),
+        SizedBox(height: context.space.sm),
+        const _AccountSection(),
+        SizedBox(height: context.space.xl2),
+        const _SectionHeading('Content'),
+        SizedBox(height: context.space.sm),
+        const _MatureContentToggle(),
+        SizedBox(height: context.space.xl2),
+        const _SectionHeading('History'),
+        SizedBox(height: context.space.sm),
+        const _HistorySection(),
+        SizedBox(height: context.space.xl2),
+        const _SectionHeading('Theme'),
+        SizedBox(height: context.space.sm),
+        const _ThemeSelector(),
+        SizedBox(height: context.space.xl2),
+        const _SectionHeading('Language'),
+        SizedBox(height: context.space.sm),
+        const _LanguageSelector(),
+        SizedBox(height: context.space.xl2),
+        const _SectionHeading('Feedback'),
+        SizedBox(height: context.space.sm),
+        const _HapticsToggle(),
+        SizedBox(height: context.space.xl2),
+        const _SectionHeading('Default reader preferences'),
+        SizedBox(height: context.space.sm),
+        const _ReaderDefaultsSection(),
       ],
     );
   }
@@ -150,7 +148,7 @@ class _SectionHeading extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
+      padding: EdgeInsets.only(bottom: context.space.xxs),
       child: Row(
         children: [
           Container(
@@ -158,13 +156,13 @@ class _SectionHeading extends StatelessWidget {
             height: 15,
             decoration: BoxDecoration(
               color: context.colors.primary,
-              borderRadius: BorderRadius.circular(AppRadius.full),
+              borderRadius: BorderRadius.circular(context.radii.full),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           Text(
             text.toUpperCase(),
-            style: AppTypography.h1.copyWith(
+            style: context.text.h1.copyWith(
               fontSize: 14,
               fontWeight: FontWeight.w600,
               letterSpacing: 2,
@@ -198,19 +196,19 @@ class _AccountSection extends ConsumerWidget {
                 backgroundColor: context.colors.primary,
                 child: Text(
                   initial,
-                  style: AppTypography.labelLg
+                  style: context.text.labelLg
                       .copyWith(color: context.colors.primaryFg),
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: context.space.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(user.label, style: AppTypography.labelLg),
+                    Text(user.label, style: context.text.labelLg),
                     Text(
                       '@${user.username}',
-                      style: AppTypography.bodySm
+                      style: context.text.bodySm
                           .copyWith(color: context.colors.muted),
                     ),
                   ],
@@ -219,7 +217,7 @@ class _AccountSection extends ConsumerWidget {
               if (user.isAdmin) const _AdminBadge(),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           OutlinedButton.icon(
             onPressed: () => _confirmSignOut(context, ref),
             icon: const Icon(Icons.logout, size: 18),
@@ -266,24 +264,24 @@ class _HistorySection extends StatelessWidget {
       child: Row(
         children: [
           Container(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: EdgeInsets.all(context.space.sm),
             decoration: BoxDecoration(
               color: context.colors.primary.withAlpha(30),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(context.radii.md),
               border: Border.all(color: context.colors.primary.withAlpha(64)),
             ),
             child: Icon(Icons.history_rounded, color: context.colors.primary),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: context.space.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Reading history', style: AppTypography.labelLg),
-                const SizedBox(height: AppSpacing.xxs),
+                Text('Reading history', style: context.text.labelLg),
+                SizedBox(height: context.space.xxs),
                 Text(
                   'See what you read last',
-                  style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                  style: context.text.bodySm.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -301,18 +299,18 @@ class _AdminBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.space.sm,
+        vertical: context.space.xxs,
       ),
       decoration: BoxDecoration(
         color: context.colors.primary.withAlpha(36),
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         border: Border.all(color: context.colors.primary.withAlpha(90)),
       ),
       child: Text(
         'Admin',
-        style: AppTypography.labelSm.copyWith(color: context.colors.primary),
+        style: context.text.labelSm.copyWith(color: context.colors.primary),
       ),
     );
   }
@@ -337,7 +335,7 @@ class _ThemeSelector extends ConsumerWidget {
             palettes: AppPalettes.darkPalettes,
             activeId: active.id,
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           _ThemeGroup(
             label: 'Light',
             palettes: AppPalettes.lightPalettes,
@@ -367,15 +365,15 @@ class _ThemeGroup extends ConsumerWidget {
       children: [
         Text(
           label.toUpperCase(),
-          style: AppTypography.labelSm.copyWith(
+          style: context.text.labelSm.copyWith(
             color: context.colors.muted,
             letterSpacing: 1.2,
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         Wrap(
-          spacing: AppSpacing.sm,
-          runSpacing: AppSpacing.sm,
+          spacing: context.space.sm,
+          runSpacing: context.space.sm,
           children: [
             for (final palette in palettes)
               _ThemeSwatch(
@@ -429,10 +427,10 @@ class _ThemeSwatch extends StatelessWidget {
                   Container(
                     width: _width,
                     height: 64,
-                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    padding: EdgeInsets.all(context.space.sm),
                     decoration: BoxDecoration(
                       color: palette.bg,
-                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      borderRadius: BorderRadius.circular(context.radii.md),
                       border: Border.all(
                         color: selected
                             ? context.colors.primary
@@ -441,26 +439,26 @@ class _ThemeSwatch extends StatelessWidget {
                       ),
                     ),
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.sm,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.space.sm,
                       ),
                       decoration: BoxDecoration(
                         color: palette.surface,
-                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        borderRadius: BorderRadius.circular(context.radii.sm),
                         border: Border.all(color: palette.border),
                       ),
                       child: Row(
                         children: [
                           Text(
                             'Aa',
-                            style: AppTypography.h4.copyWith(
+                            style: context.text.h4.copyWith(
                               color: palette.fg,
                               fontSize: 15,
                             ),
                           ),
                           const Spacer(),
                           _dot(palette.primary),
-                          const SizedBox(width: AppSpacing.xs),
+                          SizedBox(width: context.space.xs),
                           _dot(palette.accent),
                         ],
                       ),
@@ -468,8 +466,8 @@ class _ThemeSwatch extends StatelessWidget {
                   ),
                   if (selected)
                     Positioned(
-                      top: AppSpacing.xs,
-                      right: AppSpacing.xs,
+                      top: context.space.xs,
+                      right: context.space.xs,
                       child: Container(
                         padding: const EdgeInsets.all(2),
                         decoration: BoxDecoration(
@@ -485,12 +483,12 @@ class _ThemeSwatch extends StatelessWidget {
                     ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: context.space.xs),
               Text(
                 palette.name,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.labelSm.copyWith(
+                style: context.text.labelSm.copyWith(
                   color: selected ? context.colors.fg : context.colors.muted,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 ),
@@ -673,14 +671,14 @@ class _SectionErrorCard extends StatelessWidget {
             color: context.colors.muted,
             size: 18,
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           Expanded(
             child: Text(
               "Couldn't load $label.",
-              style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+              style: context.text.bodySm.copyWith(color: context.colors.muted),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           TextButton(onPressed: onRetry, child: const Text('Retry')),
         ],
       ),
@@ -707,8 +705,8 @@ class _ReaderDefaultsSection extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Text('Reading direction', style: AppTypography.labelLg),
+            padding: EdgeInsets.only(bottom: context.space.xs),
+            child: Text('Reading direction', style: context.text.labelLg),
           ),
           SegmentedButton<ReadingDirection>(
             segments: ReadingDirection.values
@@ -718,10 +716,10 @@ class _ReaderDefaultsSection extends ConsumerWidget {
             onSelectionChanged: (selection) =>
                 notifier.setDirection(selection.first),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
-            child: Text('Fit mode', style: AppTypography.labelLg),
+            padding: EdgeInsets.only(bottom: context.space.xs),
+            child: Text('Fit mode', style: context.text.labelLg),
           ),
           SegmentedButton<ReaderFitMode>(
             segments: ReaderFitMode.values
@@ -732,21 +730,21 @@ class _ReaderDefaultsSection extends ConsumerWidget {
                 notifier.setFitMode(selection.first),
           ),
           if (hasDisplayModes) ...[
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.xxs),
-              child: Text('Refresh rate', style: AppTypography.labelLg),
+              padding: EdgeInsets.only(bottom: context.space.xxs),
+              child: Text('Refresh rate', style: context.text.labelLg),
             ),
             Padding(
-              padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+              padding: EdgeInsets.only(bottom: context.space.sm),
               child: Text(
                 'Auto uses the highest rate your screen supports.',
-                style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                style: context.text.bodySm.copyWith(color: context.colors.muted),
               ),
             ),
             Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
+              spacing: context.space.sm,
+              runSpacing: context.space.xs,
               children: ReaderRefreshRate.values.map((rate) {
                 return ChoiceChip(
                   label: Text(rate.label),
@@ -756,7 +754,7 @@ class _ReaderDefaultsSection extends ConsumerWidget {
               }).toList(),
             ),
           ],
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           // SwitchListTile paints on the nearest Material ancestor; GlassCard
           // doesn't provide one unless onTap is set.
           Material(
@@ -820,15 +818,15 @@ class _ServerSettingsPanel extends ConsumerWidget {
       data: (url) {
         if (controller.text.isEmpty) controller.text = url;
         return ListView(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
+          padding: EdgeInsets.all(context.space.xl2),
           children: [
             const _SectionHeading('Server connection'),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Text(
               'Configure the ManhwaManiacs backend URL for this device.',
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             TextField(
               controller: controller,
               decoration: const InputDecoration(
@@ -837,7 +835,7 @@ class _ServerSettingsPanel extends ConsumerWidget {
               ),
               keyboardType: TextInputType.url,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             FilledButton(
               onPressed: () async {
                 final error = await ref
@@ -858,7 +856,7 @@ class _ServerSettingsPanel extends ConsumerWidget {
               },
               child: const Text('Save URL'),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             OutlinedButton(
               onPressed: () async {
                 await ref.read(settingsActionsProvider).resetApiUrl();
@@ -891,38 +889,38 @@ class _AboutPanel extends ConsumerWidget {
     final channel = AppUpdateChannel.forPlatform(Theme.of(context).platform);
 
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       children: [
         const _SectionHeading('About'),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         infoAsync.when(
           loading: () => const SkeletonBox(width: double.infinity, height: 100),
           error: (_, __) => Text(
             'Unable to read app info',
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
           data: (info) => GlassCard(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('ManhwaManiacs', style: AppTypography.h3),
-                const SizedBox(height: AppSpacing.xs),
+                Text('ManhwaManiacs', style: context.text.h3),
+                SizedBox(height: context.space.xs),
                 Text(
                   'Local-first manga & manhwa reader',
-                  style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                  style: context.text.bodySm.copyWith(color: context.colors.muted),
                 ),
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: context.space.lg),
                 _InfoRow(label: 'Version', value: info.version),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: context.space.sm),
                 _InfoRow(label: 'Build', value: info.buildNumber),
               ],
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         // Update check
         const _SectionHeading('Updates'),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         // The two channels are not comparable, so neither is their UI: the
         // APK card runs a build-number check the SideStore channel has no
         // equivalent for. See AppVersionInfo.hasUpdate.
@@ -930,7 +928,7 @@ class _AboutPanel extends ConsumerWidget {
           const _SideStoreUpdateCard()
         else
           const _ApkUpdateCard(),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         OutlinedButton(
           onPressed: () {
             final info = infoAsync.valueOrNull;
@@ -964,10 +962,10 @@ class _ApkUpdateCard extends ConsumerWidget {
               color: context.colors.muted,
               size: 18,
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Text(
               'Could not check for updates',
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
             ),
           ],
         ),
@@ -982,11 +980,11 @@ class _ApkUpdateCard extends ConsumerWidget {
                   color: context.colors.muted,
                   size: 18,
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
                 Text(
                   'Server unreachable',
                   style:
-                      AppTypography.body.copyWith(color: context.colors.muted),
+                      context.text.body.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -1001,10 +999,10 @@ class _ApkUpdateCard extends ConsumerWidget {
                   color: context.colors.success,
                   size: 18,
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
                 Text(
                   'Up to date — v${info.localVersion}',
-                  style: AppTypography.body,
+                  style: context.text.body,
                 ),
               ],
             ),
@@ -1021,22 +1019,22 @@ class _ApkUpdateCard extends ConsumerWidget {
                     color: context.colors.primary,
                     size: 18,
                   ),
-                  const SizedBox(width: AppSpacing.sm),
+                  SizedBox(width: context.space.sm),
                   Text(
                     'Update available',
-                    style: AppTypography.labelLg.copyWith(
+                    style: context.text.labelLg.copyWith(
                       color: context.colors.primary,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: context.space.xs),
               Text(
                 'v${info.localVersion} → v${info.remoteVersion}',
                 style:
-                    AppTypography.bodySm.copyWith(color: context.colors.muted),
+                    context.text.bodySm.copyWith(color: context.colors.muted),
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: context.space.md),
               OutlinedButton.icon(
                 onPressed: () async {
                   final uri = Uri.tryParse(info.downloadUrl);
@@ -1093,27 +1091,27 @@ class _SideStoreUpdateCard extends ConsumerWidget {
                 color: context.colors.primary,
                 size: 18,
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: context.space.sm),
               Text(
                 'Managed by SideStore',
-                style: AppTypography.labelLg.copyWith(
+                style: context.text.labelLg.copyWith(
                   color: context.colors.primary,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             'This build is sideloaded. SideStore watches the source below and '
             'offers new builds itself — there is nothing to download here.',
-            style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+            style: context.text.bodySm.copyWith(color: context.colors.muted),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           SelectableText(
             sourceUrl,
-            style: AppTypography.bodySm.copyWith(color: context.colors.fg),
+            style: context.text.bodySm.copyWith(color: context.colors.fg),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           OutlinedButton.icon(
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: sourceUrl));
@@ -1125,12 +1123,12 @@ class _SideStoreUpdateCard extends ConsumerWidget {
             icon: const Icon(Icons.copy_outlined, size: 16),
             label: const Text('Copy source URL'),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           Text(
             'A free Apple ID signature lasts 7 days. If the app stops '
             'launching, open SideStore and refresh it — re-signing with the '
             'same Apple ID keeps you signed in here.',
-            style: AppTypography.caption.copyWith(color: context.colors.muted),
+            style: context.text.caption.copyWith(color: context.colors.muted),
           ),
         ],
       ),
@@ -1150,12 +1148,12 @@ class _InfoRow extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: AppTypography.body.copyWith(color: context.colors.muted)),
-        const SizedBox(width: AppSpacing.md),
+        Text(label, style: context.text.body.copyWith(color: context.colors.muted)),
+        SizedBox(width: context.space.md),
         Flexible(
           child: Text(
             value,
-            style: AppTypography.labelLg,
+            style: context.text.labelLg,
             textAlign: TextAlign.right,
           ),
         ),
@@ -1172,22 +1170,22 @@ class _DebugPanel extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       children: [
         const _SectionHeading('Diagnostics'),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         GlassCard(
           onTap: () => context.push(Routes.diagnostics),
           child: Row(
             children: [
               Icon(Icons.speed_rounded, color: context.colors.primary),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: context.space.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Performance & display', style: AppTypography.labelLg),
-                    const SizedBox(height: AppSpacing.xxs),
+                    Text('Performance & display', style: context.text.labelLg),
+                    SizedBox(height: context.space.xxs),
                     Text(
                       // Refresh rate is only a readable/switchable thing on
                       // Android (`flutter_displaymode`); do not advertise it
@@ -1195,7 +1193,7 @@ class _DebugPanel extends ConsumerWidget {
                       Theme.of(context).platform == TargetPlatform.android
                           ? 'Refresh rate, FPS, frame timing, device info, cache'
                           : 'FPS, frame timing, device info, cache',
-                      style: AppTypography.bodySm
+                      style: context.text.bodySm
                           .copyWith(color: context.colors.muted),
                     ),
                   ],
@@ -1205,24 +1203,24 @@ class _DebugPanel extends ConsumerWidget {
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         const _SectionHeading('Reset'),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         GlassCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
                 'Restore reader defaults',
-                style: AppTypography.labelLg,
+                style: context.text.labelLg,
               ),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: context.space.xs),
               Text(
                 'Resets direction, fit, brightness, warmth, background, color '
                 'mode and refresh rate. Server URL and library are untouched.',
-                style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                style: context.text.bodySm.copyWith(color: context.colors.muted),
               ),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: context.space.md),
               OutlinedButton.icon(
                 onPressed: () => _confirmResetReader(context, ref),
                 icon: const Icon(Icons.restart_alt, size: 18),

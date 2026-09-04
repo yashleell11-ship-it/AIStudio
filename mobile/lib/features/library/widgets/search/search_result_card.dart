@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
@@ -33,7 +31,7 @@ class SearchResultCard extends ConsumerWidget {
 
     return GlassCard(
       onTap: tappable ? onTap : null,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(context.space.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -42,7 +40,7 @@ class SearchResultCard extends ConsumerWidget {
             width: 80,
             height: 120,
           ),
-          const SizedBox(width: AppSpacing.lg),
+          SizedBox(width: context.space.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -55,12 +53,12 @@ class SearchResultCard extends ConsumerWidget {
                         series.title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.labelLg.copyWith(
+                        style: context.text.labelLg.copyWith(
                           fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
+                    SizedBox(width: context.space.sm),
                     _Badge(isFavorite: series.isFavorite),
                     IconButton(
                       onPressed: onToggleFavorite,
@@ -79,30 +77,30 @@ class SearchResultCard extends ConsumerWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: context.space.sm),
                 Text(
                   '${series.chapterCount} chapters',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.bodySm.copyWith(
+                  style: context.text.bodySm.copyWith(
                     color: context.colors.muted.withAlpha(204),
                     height: 1.5,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: context.space.md),
                 if (series.readingStatus.isNotEmpty)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.space.sm,
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
                       color: context.colors.fg.withAlpha(13),
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderRadius: BorderRadius.circular(context.radii.sm),
                     ),
                     child: Text(
                       readingStatusLabel(series.readingStatus).toUpperCase(),
-                      style: AppTypography.caption.copyWith(
+                      style: context.text.caption.copyWith(
                         color: context.colors.muted,
                         fontSize: 10,
                         fontWeight: FontWeight.w600,
@@ -134,7 +132,7 @@ class _Badge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             'Fav',
-            style: AppTypography.caption.copyWith(color: context.colors.warning),
+            style: context.text.caption.copyWith(color: context.colors.warning),
           ),
         ],
       );
@@ -149,24 +147,24 @@ class SearchResultCardSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const GlassCard(
-      padding: EdgeInsets.all(AppSpacing.md),
+    return GlassCard(
+      padding: EdgeInsets.all(context.space.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SkeletonBox(width: 80, height: 120, borderRadius: AppRadius.lg),
-          SizedBox(width: AppSpacing.lg),
+          SkeletonBox(width: 80, height: 120, borderRadius: context.radii.lg),
+          SizedBox(width: context.space.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                SkeletonBox(width: double.infinity, height: 18),
-                SizedBox(height: AppSpacing.sm),
-                SkeletonBox(width: 120, height: 14),
-                SizedBox(height: AppSpacing.md),
-                SkeletonBox(width: double.infinity, height: 40),
-                SizedBox(height: AppSpacing.md),
-                SkeletonBox(width: 80, height: 12),
+                const SkeletonBox(width: double.infinity, height: 18),
+                SizedBox(height: context.space.sm),
+                const SkeletonBox(width: 120, height: 14),
+                SizedBox(height: context.space.md),
+                const SkeletonBox(width: double.infinity, height: 40),
+                SizedBox(height: context.space.md),
+                const SkeletonBox(width: 80, height: 12),
               ],
             ),
           ),
@@ -190,9 +188,9 @@ class SearchResultsSkeleton extends StatelessWidget {
     return Column(
       children: List.generate(
         4,
-        (_) => const Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.md),
-          child: SearchResultCardSkeleton(),
+        (_) => Padding(
+          padding: EdgeInsets.only(bottom: context.space.md),
+          child: const SearchResultCardSkeleton(),
         ),
       ),
     );

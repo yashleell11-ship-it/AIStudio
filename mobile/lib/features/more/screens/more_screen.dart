@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/ocr/providers/ocr_providers.dart';
@@ -51,10 +49,10 @@ class MoreScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('More')),
       body: ListView(
         padding: EdgeInsets.only(
-          left: AppSpacing.lg,
-          right: AppSpacing.lg,
-          top: AppSpacing.md,
-          bottom: MediaQuery.paddingOf(context).bottom + AppSpacing.xl7,
+          left: context.space.lg,
+          right: context.space.lg,
+          top: context.space.md,
+          bottom: MediaQuery.paddingOf(context).bottom + context.space.xl7,
         ),
         // Everything that leaves this tab uses `push`, never `go`.
         //
@@ -85,7 +83,7 @@ class MoreScreen extends ConsumerWidget {
             label: 'Collections',
             onTap: () => context.push(Routes.collections),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           const _SectionHeader('Account'),
           _MoreTile(
             icon: Icons.person_outline,
@@ -93,7 +91,7 @@ class MoreScreen extends ConsumerWidget {
             label: 'Switch profile',
             onTap: () => context.push(ProfileRoutes.picker),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           const _SectionHeader('Library'),
           _MoreTile(
             icon: Icons.history_outlined,
@@ -119,7 +117,7 @@ class MoreScreen extends ConsumerWidget {
             label: 'Recommendations',
             onTap: () => context.go(Routes.recommendations),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           const _SectionHeader('App'),
           _MoreTile(
             icon: Icons.settings_outlined,
@@ -162,7 +160,7 @@ class MoreScreen extends ConsumerWidget {
               return _UpdateBanner(info: info);
             },
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           const _SectionHeader('About'),
           _MoreTile(
             icon: Icons.new_releases_outlined,
@@ -185,14 +183,14 @@ class _SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(
-        left: AppSpacing.sm,
-        bottom: AppSpacing.xs,
-        top: AppSpacing.xs,
+      padding: EdgeInsets.only(
+        left: context.space.sm,
+        bottom: context.space.xs,
+        top: context.space.xs,
       ),
       child: Text(
         title.toUpperCase(),
-        style: AppTypography.labelSm.copyWith(
+        style: context.text.labelSm.copyWith(
           color: context.colors.muted,
           letterSpacing: 1.0,
         ),
@@ -219,38 +217,38 @@ class _MoreTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: context.space.sm,
+        vertical: context.space.xxs,
       ),
       leading: Icon(icon, color: context.colors.accentAmber, size: 22),
-      title: Text(label, style: AppTypography.labelLg),
+      title: Text(label, style: context.text.labelLg),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (badge != null)
             Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: AppSpacing.sm,
-                vertical: AppSpacing.xxs,
+              padding: EdgeInsets.symmetric(
+                horizontal: context.space.sm,
+                vertical: context.space.xxs,
               ),
               decoration: BoxDecoration(
                 color: context.colors.primary,
-                borderRadius: BorderRadius.circular(AppRadius.full),
+                borderRadius: BorderRadius.circular(context.radii.full),
               ),
               child: Text(
                 badge!,
-                style: AppTypography.labelSm.copyWith(
+                style: context.text.labelSm.copyWith(
                   color: context.colors.primaryFg,
                 ),
               ),
             ),
-          const SizedBox(width: AppSpacing.xs),
+          SizedBox(width: context.space.xs),
           Icon(Icons.chevron_right, color: context.colors.muted, size: 18),
         ],
       ),
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
       ),
       onTap: onTap,
     );
@@ -265,10 +263,10 @@ class _UpdateBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.sm),
+      padding: EdgeInsets.symmetric(vertical: context.space.sm),
       child: GlassPanel(
-        borderRadius: AppRadius.lg,
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        borderRadius: context.radii.lg,
+        padding: EdgeInsets.all(context.space.lg),
         child: DecoratedBox(
           // Warm amber wash + glow layered inside the frosted panel.
           decoration: BoxDecoration(
@@ -278,10 +276,10 @@ class _UpdateBanner extends StatelessWidget {
                 context.colors.accentRose.withAlpha(14),
               ],
             ),
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(context.radii.md),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.sm),
+            padding: EdgeInsets.all(context.space.sm),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -292,45 +290,45 @@ class _UpdateBanner extends StatelessWidget {
                       color: context.colors.accentAmber,
                       size: 18,
                     ),
-                    const SizedBox(width: AppSpacing.sm),
+                    SizedBox(width: context.space.sm),
                     Text(
                       'Update available',
-                      style: AppTypography.labelLg.copyWith(
+                      style: context.text.labelLg.copyWith(
                         color: context.colors.accentAmber,
                       ),
                     ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: context.space.sm),
                 _VersionRow(
                   label: 'Installed',
                   version: info.localVersion,
                   buildNumber: info.localBuild,
                   emphasized: false,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                SizedBox(height: context.space.xxs),
                 _VersionRow(
                   label: 'Available',
                   version: info.remoteVersion,
                   buildNumber: info.remoteBuild,
                   emphasized: true,
                 ),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: context.space.md),
                 FilledButton.icon(
                   onPressed: () => _launchDownload(context, info.downloadUrl),
                   icon: const Icon(Icons.download_outlined, size: 16),
                   label: const Text('Download update'),
                 ),
-                const SizedBox(height: AppSpacing.xs),
+                SizedBox(height: context.space.xs),
                 Text(
                   'Downloading does not install automatically. Open the '
                   'downloaded file to install, then return here.',
-                  style: AppTypography.caption.copyWith(color: context.colors.muted),
+                  style: context.text.caption.copyWith(color: context.colors.muted),
                 ),
-                const SizedBox(height: AppSpacing.xxs),
+                SizedBox(height: context.space.xxs),
                 Text(
                   'Updating from 1.2.x? Uninstall the old app first.',
-                  style: AppTypography.caption.copyWith(color: context.colors.muted),
+                  style: context.text.caption.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -366,9 +364,9 @@ class _UpdateBanner extends StatelessWidget {
               color: context.colors.accentAmber,
               size: 20,
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Expanded(
-              child: Text('Install now', style: AppTypography.h3),
+              child: Text('Install now', style: context.text.h3),
             ),
           ],
         ),
@@ -378,9 +376,9 @@ class _UpdateBanner extends StatelessWidget {
           children: [
             Text(
               'The new version is downloading to your device.',
-              style: AppTypography.body.copyWith(color: context.colors.fg),
+              style: context.text.body.copyWith(color: context.colors.fg),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             const _Step(
               number: '1',
               text: 'Open the downloaded APK from your notification shade '
@@ -429,20 +427,20 @@ class _VersionRow extends StatelessWidget {
           width: 72,
           child: Text(
             label,
-            style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+            style: context.text.bodySm.copyWith(color: context.colors.muted),
           ),
         ),
         Text(
           'v$version',
-          style: AppTypography.bodySm.copyWith(
+          style: context.text.bodySm.copyWith(
             color: emphasized ? context.colors.accentAmber : context.colors.fg,
             fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
-        const SizedBox(width: AppSpacing.xs),
+        SizedBox(width: context.space.xs),
         Text(
           '(build $buildNumber)',
-          style: AppTypography.caption.copyWith(color: context.colors.muted),
+          style: context.text.caption.copyWith(color: context.colors.muted),
         ),
       ],
     );
@@ -458,7 +456,7 @@ class _Step extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+      padding: EdgeInsets.only(bottom: context.space.sm),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -472,17 +470,17 @@ class _Step extends StatelessWidget {
             ),
             child: Text(
               number,
-              style: AppTypography.caption.copyWith(
+              style: context.text.caption.copyWith(
                 color: context.colors.accentAmber,
                 fontWeight: FontWeight.w700,
               ),
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           Expanded(
             child: Text(
               text,
-              style: AppTypography.bodySm.copyWith(color: context.colors.fg),
+              style: context.text.bodySm.copyWith(color: context.colors.fg),
             ),
           ),
         ],
@@ -505,7 +503,7 @@ class _AppInfoTile extends ConsumerWidget {
       loading: () => const SizedBox.shrink(),
       error: (_, __) => const SizedBox.shrink(),
       data: (info) => ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+        contentPadding: EdgeInsets.symmetric(horizontal: context.space.sm),
         leading: Container(
           width: 40,
           height: 40,
@@ -515,7 +513,7 @@ class _AppInfoTile extends ConsumerWidget {
               end: Alignment.bottomRight,
               colors: [context.colors.accentAmber, context.colors.accentRose],
             ),
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(context.radii.md),
           ),
           child: const Center(
             child: Text(
@@ -528,10 +526,10 @@ class _AppInfoTile extends ConsumerWidget {
             ),
           ),
         ),
-        title: Text('ManhwaManiacs', style: AppTypography.labelLg),
+        title: Text('ManhwaManiacs', style: context.text.labelLg),
         subtitle: Text(
           'v${info.version} (${info.buildNumber})',
-          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+          style: context.text.bodySm.copyWith(color: context.colors.muted),
         ),
         trailing: Icon(Icons.chevron_right, color: context.colors.muted, size: 18),
         onTap: () => context.push(Routes.settings),

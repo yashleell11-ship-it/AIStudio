@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
@@ -118,42 +116,42 @@ class FollowedSeriesCard extends ConsumerWidget {
         children: [
           Expanded(
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
                   if (coverUrl == null)
                     ColoredBox(color: context.colors.surface2)
                   else
-                    SeriesCoverImage(url: coverUrl, borderRadius: AppRadius.xl),
+                    SeriesCoverImage(url: coverUrl, borderRadius: context.radii.xl),
                   if (meta.unreadCount > 0)
                     Positioned(
-                      top: AppSpacing.sm,
-                      right: AppSpacing.sm,
+                      top: context.space.sm,
+                      right: context.space.sm,
                       child: _NewBadge(count: meta.unreadCount),
                     ),
                 ],
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           Text(
             series.title,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTypography.label.copyWith(
+            style: context.text.label.copyWith(
               color: context.colors.fg,
               height: 1.25,
               fontWeight: FontWeight.w600,
             ),
           ),
           if (subtitle != null) ...[
-            const SizedBox(height: AppSpacing.xxs),
+            SizedBox(height: context.space.xxs),
             Text(
               subtitle,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: AppTypography.caption.copyWith(color: context.colors.muted),
+              style: context.text.caption.copyWith(color: context.colors.muted),
             ),
           ],
         ],
@@ -171,17 +169,17 @@ class _NewBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
-        vertical: AppSpacing.xxs,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.space.sm,
+        vertical: context.space.xxs,
       ),
       decoration: BoxDecoration(
         color: context.colors.primary,
-        borderRadius: BorderRadius.circular(AppRadius.pill),
+        borderRadius: BorderRadius.circular(context.radii.pill),
       ),
       child: Text(
         '$count NEW',
-        style: AppTypography.caption.copyWith(
+        style: context.text.caption.copyWith(
           color: context.colors.primaryFg,
           fontSize: 10,
           fontWeight: FontWeight.w700,

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Premium glass card with subtle gradient highlight and optional accent glow.
 class GlassCard extends StatelessWidget {
@@ -20,12 +20,12 @@ class GlassCard extends StatelessWidget {
   /// Optional color for a subtle ambient glow behind the card.
   final Color? glowColor;
 
-  /// Override border radius (defaults to AppRadius.xl).
+  /// Override border radius (defaults to context.radii.xl).
   final double? borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    final radius = borderRadius ?? AppRadius.xl;
+    final radius = borderRadius ?? context.radii.xl;
     final br = BorderRadius.circular(radius);
 
     final card = Container(

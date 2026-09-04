@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
@@ -39,11 +38,11 @@ class ReadingHistoryScreen extends ConsumerWidget {
       ),
       body: historyAsync.when(
         loading: () => ListView(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
-          children: const [
-            SkeletonBox(width: double.infinity, height: 100),
-            SizedBox(height: AppSpacing.md),
-            SkeletonBox(width: double.infinity, height: 100),
+          padding: EdgeInsets.all(context.space.xl2),
+          children: [
+            const SkeletonBox(width: double.infinity, height: 100),
+            SizedBox(height: context.space.md),
+            const SkeletonBox(width: double.infinity, height: 100),
           ],
         ),
         error: (error, _) => Center(
@@ -52,9 +51,9 @@ class ReadingHistoryScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load reading history.',
-                style: AppTypography.body.copyWith(color: context.colors.danger),
+                style: context.text.body.copyWith(color: context.colors.danger),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: context.space.lg),
               FilledButton(
                 onPressed: () => ref.invalidate(readingHistoryProvider),
                 child: const Text('Retry'),
@@ -68,15 +67,15 @@ class ReadingHistoryScreen extends ConsumerWidget {
           color: context.colors.primary,
           onRefresh: () async => ref.invalidate(readingHistoryProvider),
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             children: [
               const HeroHeading(text: 'Reading History'),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: context.space.xs),
               Text(
                 'Your most recently read chapters.',
-                style: AppTypography.body.copyWith(color: context.colors.muted),
+                style: context.text.body.copyWith(color: context.colors.muted),
               ),
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               if (sessions.isEmpty)
                 const EmptyState(
                   icon: Icons.history,
@@ -86,7 +85,7 @@ class ReadingHistoryScreen extends ConsumerWidget {
               else
                 ...sessions.map(
                   (session) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    padding: EdgeInsets.only(bottom: context.space.md),
                     child: _SessionCard(
                       session: session,
                       isNovel: scope.modeOf(session.sourceId) ==
@@ -136,22 +135,22 @@ class _SessionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(label.primary, style: AppTypography.labelLg),
-          const SizedBox(height: AppSpacing.xs),
+          Text(label.primary, style: context.text.labelLg),
+          SizedBox(height: context.space.xs),
           Text(
             session.sourceId,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             session.isCompleted
                 ? '${session.pageCount}/${session.pageCount} pages'
                 : 'Page ${session.lastPage}${session.pageCount > 0 ? '/${session.pageCount}' : ''}',
-            style: AppTypography.caption.copyWith(color: context.colors.muted),
+            style: context.text.caption.copyWith(color: context.colors.muted),
           ),
           if (lastRead != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(lastRead, style: AppTypography.caption.copyWith(color: context.colors.muted)),
+            SizedBox(height: context.space.xs),
+            Text(lastRead, style: context.text.caption.copyWith(color: context.colors.muted)),
           ],
         ],
       ),

@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
@@ -64,11 +62,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: GlassPanel(
-                padding: const EdgeInsets.all(AppSpacing.xl2),
+                padding: EdgeInsets.all(context.space.xl2),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -82,7 +80,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                           end: Alignment.bottomRight,
                           colors: [context.colors.primary, context.colors.accent],
                         ),
-                        borderRadius: BorderRadius.circular(AppRadius.lg),
+                        borderRadius: BorderRadius.circular(context.radii.lg),
                         boxShadow: [
                           BoxShadow(
                             color: context.colors.primary.withValues(alpha: 0.28),
@@ -94,20 +92,20 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       child: Center(
                         child: Text(
                           'M',
-                          style: AppTypography.h1.copyWith(color: Colors.white),
+                          style: context.text.h1.copyWith(color: Colors.white),
                         ),
                       ),
                     ),
-                    const SizedBox(height: AppSpacing.xl2),
+                    SizedBox(height: context.space.xl2),
                     const HeroHeading(text: 'Get Started', fontSize: 38),
-                    const SizedBox(height: AppSpacing.sm),
+                    SizedBox(height: context.space.sm),
                     Text(
                       'Connect to your ManhwaManiacs backend to browse, '
                       'download, and read.',
                       style:
-                          AppTypography.body.copyWith(color: context.colors.muted),
+                          context.text.body.copyWith(color: context.colors.muted),
                     ),
-                    const SizedBox(height: AppSpacing.xl2),
+                    SizedBox(height: context.space.xl2),
                     TextField(
                       controller: _controller,
                       decoration: InputDecoration(
@@ -120,7 +118,7 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       enabled: !_pending,
                       onSubmitted: (_) => _continue(),
                     ),
-                    const SizedBox(height: AppSpacing.lg),
+                    SizedBox(height: context.space.lg),
                     // Warm CTA pill. `_continue` already no-ops while pending;
                     // the IgnorePointer + dimming just makes that visible.
                     IgnorePointer(

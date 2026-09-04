@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 
 /// Reveals [child] with a subtle fade + upward slide the first time it enters
@@ -41,7 +42,7 @@ class _ScrollRevealState extends State<ScrollReveal>
   Duration get _staggerDelay {
     final index = widget.index;
     if (index == null) return Duration.zero;
-    final stepMs = (AppSpacing.md * 2).toInt();
+    final stepMs = (context.space.md * 2).toInt();
     return Duration(milliseconds: (index % 5) * stepMs);
   }
 

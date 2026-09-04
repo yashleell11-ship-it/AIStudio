@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/settings/models/app_changelog.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_changelog_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
@@ -38,29 +37,29 @@ class WhatsNewSheet extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl2,
+              padding: EdgeInsets.fromLTRB(
+                context.space.xl2,
                 0,
-                AppSpacing.xl2,
-                AppSpacing.md,
+                context.space.xl2,
+                context.space.md,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text("What's new", style: AppTypography.h2),
-                  const SizedBox(height: AppSpacing.xxs),
+                  Text("What's new", style: context.text.h2),
+                  SizedBox(height: context.space.xxs),
                   Text(
                     'Recent improvements to ManhwaManiacs',
-                    style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                    style: context.text.bodySm.copyWith(color: context.colors.muted),
                   ),
                 ],
               ),
             ),
             Flexible(
               child: releasesAsync.when(
-                loading: () => const Padding(
-                  padding: EdgeInsets.symmetric(vertical: AppSpacing.xl5),
-                  child: Center(
+                loading: () => Padding(
+                  padding: EdgeInsets.symmetric(vertical: context.space.xl5),
+                  child: const Center(
                     child: CircularProgressIndicator(strokeWidth: 2),
                   ),
                 ),
@@ -69,15 +68,15 @@ class WhatsNewSheet extends ConsumerWidget {
                   if (releases.isEmpty) return const _Unavailable();
                   return ListView.separated(
                     shrinkWrap: true,
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl2,
+                    padding: EdgeInsets.fromLTRB(
+                      context.space.xl2,
                       0,
-                      AppSpacing.xl2,
-                      AppSpacing.xl2,
+                      context.space.xl2,
+                      context.space.xl2,
                     ),
                     itemCount: releases.length,
                     separatorBuilder: (_, __) =>
-                        const SizedBox(height: AppSpacing.lg),
+                        SizedBox(height: context.space.lg),
                     itemBuilder: (_, i) => _ReleaseCard(
                       release: releases[i],
                       isLatest: i == 0,
@@ -98,9 +97,9 @@ class _Unavailable extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const Padding(
-      padding: EdgeInsets.only(bottom: AppSpacing.xl2),
-      child: EmptyState(
+    return Padding(
+      padding: EdgeInsets.only(bottom: context.space.xl2),
+      child: const EmptyState(
         icon: Icons.cloud_off_outlined,
         message: 'Release notes unavailable',
         subtitle: "Connect to your server to see what's changed.",
@@ -123,10 +122,10 @@ class _ReleaseCard extends StatelessWidget {
     ].join(' · ');
 
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       decoration: BoxDecoration(
         color: context.colors.panel,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(context.radii.lg),
         border: Border.all(color: context.colors.border),
       ),
       child: Column(
@@ -135,38 +134,38 @@ class _ReleaseCard extends StatelessWidget {
           Row(
             children: [
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.sm,
-                  vertical: AppSpacing.xxs,
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.space.sm,
+                  vertical: context.space.xxs,
                 ),
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [context.colors.accentAmber, context.colors.accentRose],
                   ),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  borderRadius: BorderRadius.circular(context.radii.full),
                 ),
                 child: Text(
                   'v${release.version}',
-                  style: AppTypography.labelSm.copyWith(
+                  style: context.text.labelSm.copyWith(
                     color: context.colors.primaryFg,
                   ),
                 ),
               ),
               if (isLatest) ...[
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.sm,
-                    vertical: AppSpacing.xxs,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.space.sm,
+                    vertical: context.space.xxs,
                   ),
                   decoration: BoxDecoration(
                     color: context.colors.accent.withAlpha(30),
-                    borderRadius: BorderRadius.circular(AppRadius.full),
+                    borderRadius: BorderRadius.circular(context.radii.full),
                     border: Border.all(color: context.colors.accent.withAlpha(90)),
                   ),
                   child: Text(
                     'Latest',
-                    style: AppTypography.labelSm.copyWith(
+                    style: context.text.labelSm.copyWith(
                       color: context.colors.accentAmber,
                     ),
                   ),
@@ -179,16 +178,16 @@ class _ReleaseCard extends StatelessWidget {
                     meta,
                     textAlign: TextAlign.right,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption.copyWith(color: context.colors.muted),
+                    style: context.text.caption.copyWith(color: context.colors.muted),
                   ),
                 ),
             ],
           ),
           if (release.highlights.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             for (final note in release.highlights)
               Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacing.sm),
+                padding: EdgeInsets.only(bottom: context.space.sm),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -203,11 +202,11 @@ class _ReleaseCard extends StatelessWidget {
                         shape: BoxShape.circle,
                       ),
                     ),
-                    const SizedBox(width: AppSpacing.sm),
+                    SizedBox(width: context.space.sm),
                     Expanded(
                       child: Text(
                         note,
-                        style: AppTypography.body.copyWith(
+                        style: context.text.body.copyWith(
                           color: context.colors.fg.withAlpha(220),
                         ),
                       ),

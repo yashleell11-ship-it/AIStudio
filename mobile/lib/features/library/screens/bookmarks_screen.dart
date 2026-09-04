@@ -1,11 +1,10 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
@@ -35,11 +34,11 @@ class BookmarksScreen extends ConsumerWidget {
       ),
       body: bookmarksAsync.when(
         loading: () => ListView(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
-          children: const [
-            SkeletonBox(width: double.infinity, height: 100),
-            SizedBox(height: AppSpacing.md),
-            SkeletonBox(width: double.infinity, height: 100),
+          padding: EdgeInsets.all(context.space.xl2),
+          children: [
+            const SkeletonBox(width: double.infinity, height: 100),
+            SizedBox(height: context.space.md),
+            const SkeletonBox(width: double.infinity, height: 100),
           ],
         ),
         error: (error, _) => Center(
@@ -48,9 +47,9 @@ class BookmarksScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load bookmarks.',
-                style: AppTypography.body.copyWith(color: context.colors.danger),
+                style: context.text.body.copyWith(color: context.colors.danger),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: context.space.lg),
               FilledButton(
                 onPressed: () => ref.invalidate(bookmarksProvider),
                 child: const Text('Retry'),
@@ -64,15 +63,15 @@ class BookmarksScreen extends ConsumerWidget {
           color: context.colors.primary,
           onRefresh: () async => ref.read(bookmarksProvider.notifier).refresh(),
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             children: [
               const HeroHeading(text: 'Bookmarks'),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: context.space.xs),
               Text(
                 'Jump back into a saved page or remove ones you no longer need.',
-                style: AppTypography.body.copyWith(color: context.colors.muted),
+                style: context.text.body.copyWith(color: context.colors.muted),
               ),
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               if (bookmarks.isEmpty)
                 const EmptyState(
                   icon: Icons.bookmark_border,
@@ -82,7 +81,7 @@ class BookmarksScreen extends ConsumerWidget {
               else
                 ...bookmarks.map(
                   (bookmark) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    padding: EdgeInsets.only(bottom: context.space.md),
                     child: _BookmarkCard(
                       bookmark: bookmark,
                       actionPending: data.actionPending,
@@ -142,21 +141,21 @@ class _BookmarkCard extends ConsumerWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label.primary, style: AppTypography.labelLg),
-                const SizedBox(height: AppSpacing.xs),
+                Text(label.primary, style: context.text.labelLg),
+                SizedBox(height: context.space.xs),
                 Text(
                   bookmark.sourceId,
-                  style: AppTypography.body.copyWith(color: context.colors.muted),
+                  style: context.text.body.copyWith(color: context.colors.muted),
                 ),
-                const SizedBox(height: AppSpacing.xs),
-                Text('Page ${bookmark.page}', style: AppTypography.caption.copyWith(color: context.colors.muted)),
+                SizedBox(height: context.space.xs),
+                Text('Page ${bookmark.page}', style: context.text.caption.copyWith(color: context.colors.muted)),
                 if (bookmark.note != null && bookmark.note!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(bookmark.note!, style: AppTypography.body),
+                  SizedBox(height: context.space.xs),
+                  Text(bookmark.note!, style: context.text.body),
                 ],
                 if (created != null) ...[
-                  const SizedBox(height: AppSpacing.xs),
-                  Text(created, style: AppTypography.caption.copyWith(color: context.colors.muted)),
+                  SizedBox(height: context.space.xs),
+                  Text(created, style: context.text.caption.copyWith(color: context.colors.muted)),
                 ],
               ],
             ),

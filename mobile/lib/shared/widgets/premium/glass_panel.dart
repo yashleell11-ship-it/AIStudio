@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Frosted-glass panel: a backdrop blur behind a translucent warm-dark surface
 /// with a subtle border and large rounded corners.
@@ -19,12 +19,12 @@ class GlassPanel extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
 
-  /// Overrides the default `AppRadius.xl2` corner radius.
+  /// Overrides the default `context.radii.xl2` corner radius.
   final double? borderRadius;
 
   @override
   Widget build(BuildContext context) {
-    final br = BorderRadius.circular(borderRadius ?? AppRadius.xl2);
+    final br = BorderRadius.circular(borderRadius ?? context.radii.xl2);
 
     return ClipRRect(
       borderRadius: br,

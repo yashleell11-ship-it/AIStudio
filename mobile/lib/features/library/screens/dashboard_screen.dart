@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
@@ -84,7 +82,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
               onPressed: () => context.go(Routes.sources),
             ),
           const ProfileSwitcherChip(),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
         ],
       ),
       body: updatesAsync.when(
@@ -159,10 +157,10 @@ class _FollowedGrid extends StatelessWidget {
       slivers: [
         SliverPadding(
           padding: EdgeInsets.fromLTRB(
-            AppSpacing.xl2,
+            context.space.xl2,
             _headingTopPadding(context),
-            AppSpacing.xl2,
-            AppSpacing.xl,
+            context.space.xl2,
+            context.space.xl,
           ),
           sliver: SliverToBoxAdapter(
             child: FadeIn(
@@ -170,17 +168,17 @@ class _FollowedGrid extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const HeroHeading(text: 'Library', fontSize: 40),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: context.space.xs),
                   Text(
                     '${followed.length} $noun followed',
                     style:
-                        AppTypography.caption.copyWith(color: context.colors.muted),
+                        context.text.caption.copyWith(color: context.colors.muted),
                   ),
                   // The app-wide Manga/Novels switch. Nothing renders here
                   // when the novels gate is shut.
-                  const Padding(
-                    padding: EdgeInsets.only(top: AppSpacing.md),
-                    child: ContentModeSwitch(),
+                  Padding(
+                    padding: EdgeInsets.only(top: context.space.md),
+                    child: const ContentModeSwitch(),
                   ),
                 ],
               ),
@@ -188,12 +186,12 @@ class _FollowedGrid extends StatelessWidget {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl2),
+          padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
           sliver: SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: context.seriesGridColumns,
-              crossAxisSpacing: AppSpacing.md,
-              mainAxisSpacing: AppSpacing.xl,
+              crossAxisSpacing: context.space.md,
+              mainAxisSpacing: context.space.xl,
               childAspectRatio: 0.5,
             ),
             itemCount: followed.length,
@@ -214,7 +212,7 @@ class _FollowedGrid extends StatelessWidget {
           ),
         ),
         SliverToBoxAdapter(
-          child: SizedBox(height: AppSpacing.xl6 + bottomPad),
+          child: SizedBox(height: context.space.xl6 + bottomPad),
         ),
       ],
     );
@@ -223,7 +221,7 @@ class _FollowedGrid extends StatelessWidget {
 
 /// Clears the transparent app bar the body is drawn behind.
 double _headingTopPadding(BuildContext context) =>
-    MediaQuery.paddingOf(context).top + kToolbarHeight + AppSpacing.lg;
+    MediaQuery.paddingOf(context).top + kToolbarHeight + context.space.lg;
 
 /// Empty shelf — every account on this server starts here, so it has to say
 /// what to do and offer the one way to do it.
@@ -243,7 +241,7 @@ class _LibraryEmpty extends StatelessWidget {
           SliverFillRemaining(
             hasScrollBody: false,
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl3),
+              padding: EdgeInsets.all(context.space.xl3),
               child: Center(
                 child: EmptyState(
                   icon: Icons.menu_book_outlined,
@@ -276,29 +274,29 @@ class _LibrarySkeleton extends StatelessWidget {
       slivers: [
         SliverPadding(
           padding: EdgeInsets.fromLTRB(
-            AppSpacing.xl2,
+            context.space.xl2,
             _headingTopPadding(context),
-            AppSpacing.xl2,
-            AppSpacing.xl,
+            context.space.xl2,
+            context.space.xl,
           ),
           sliver: const SliverToBoxAdapter(
             child: SkeletonBox(width: 200, height: 40),
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl2),
+          padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
           sliver: SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: context.seriesGridColumns,
-              crossAxisSpacing: AppSpacing.md,
-              mainAxisSpacing: AppSpacing.xl,
+              crossAxisSpacing: context.space.md,
+              mainAxisSpacing: context.space.xl,
               childAspectRatio: 0.5,
             ),
             itemCount: 6,
-            itemBuilder: (_, __) => const SkeletonBox(
+            itemBuilder: (_, __) => SkeletonBox(
               width: double.infinity,
               height: double.infinity,
-              borderRadius: AppRadius.xl,
+              borderRadius: context.radii.xl,
             ),
           ),
         ),
@@ -320,7 +318,7 @@ class _FollowedSeriesError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl3),
+        padding: EdgeInsets.all(context.space.xl3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -333,15 +331,15 @@ class _FollowedSeriesError extends StatelessWidget {
               ),
               child: Icon(Icons.error_outline, color: context.colors.danger, size: 32),
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             const HeroHeading(text: 'Oops', fontSize: 40, textAlign: TextAlign.center),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xl3),
+            SizedBox(height: context.space.xl3),
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
