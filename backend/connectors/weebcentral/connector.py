@@ -11,6 +11,14 @@ connector talks to those partials directly:
 
 Images are proxied through ManhwaManiacs; the CDN hosts are enforced by the
 SSRF allowlist in ``allowed_image_hosts`` and require a site ``Referer``.
+
+DEREGISTERED 2026-09-05 (see ``connectors/excluded.py``): two of the four page
+image CDN zones Weeb Central shards across -- ``official.lowee.us`` and
+``scans.lastation.us`` -- Cloudflare-block this deployment's datacenter egress,
+and between them they carry every series on the Latest Updates page and a
+third of the Popularity one. Nothing here is broken; the code and its fixtures
+are kept intact so the source comes back by deleting one line the day the
+deployment reads from residential egress.
 """
 
 from __future__ import annotations
@@ -123,7 +131,10 @@ class WeebCentralConnector(SourceConnector):
         )
 
     def image_fetch_headers(self) -> dict[str, str]:
-        # The image CDNs enforce hotlink protection; a site Referer is required.
+        # Measured 2026-09-05, correcting the old "hotlink protection" note:
+        # the CDNs do not check Referer at all -- a bare GET with no headers
+        # returns the PNG from a residential IP, and no header set gets it from
+        # the VPS. Kept because the site sends them and they cost nothing.
         return {"Referer": f"{SITE_BASE}/", "User-Agent": BROWSER_USER_AGENT}
 
     def list_browse_modes(self) -> list[BrowseMode]:

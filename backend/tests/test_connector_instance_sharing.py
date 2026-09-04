@@ -64,7 +64,10 @@ def test_every_configless_connector_is_shared(novels_on):
 def test_the_shared_instance_shares_its_http_client(novels_on):
     """Not just the same object — the same client, which is the pool and the
     rate lock the bulk windows depend on."""
-    for source_type in ("webtoons", "weebcentral", "asurascans", "freewebnovel"):
+    # webtoons is one of the two connectors this file's docstring is about;
+    # the other, weebcentral, was deregistered 2026-09-05 (its page-image CDNs
+    # Cloudflare-block the VPS), so tapas stands in for it here.
+    for source_type in ("webtoons", "tapas", "asurascans", "freewebnovel"):
         first = create_connector(source_type)
         second = create_connector(source_type)
         assert first is second, source_type
