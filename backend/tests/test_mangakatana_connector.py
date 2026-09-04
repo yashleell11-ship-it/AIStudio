@@ -145,6 +145,64 @@ def test_parse_chapter_pages_extracts_script_urls():
     assert all(page.remote_url and "mangakatana.com" in page.remote_url for page in pages)
 
 
+def test_chapter_pages_ask_for_the_fast_image_server():
+    """MangaKatana's three image hosts are interchangeable but not equally fast.
+
+    Measured from the production container across four chapters, each probed
+    in a different server order so a warm origin could not be mistaken for a
+    fast host, three sampled pages cost 10.9-19.3s on the default server and
+    0.3-1.3s on server 3. The reader page must therefore be requested with the
+    `sv=3` switch, not bare.
+    """
+    connector = MangaKatanaConnector()
+    captured: list[tuple[str, dict | None]] = []
+    html = _load("chapter_reader_sv3.html")
+
+    def fake_get_text(path: str, *, params=None):
+        captured.append((path, params))
+        return html
+
+    with patch.object(connector._http, "get_text", side_effect=fake_get_text):
+        pages = connector.get_chapter_pages("aishiteru-uso-dakedo.10797/c1")
+
+    assert captured == [("/manga/aishiteru-uso-dakedo.10797/c1", {"sv": "3"})]
+    assert pages
+    assert all("i6.mangakatana.com" in page.remote_url for page in pages)
+
+
+def test_fast_server_serves_the_identical_page_set():
+    """Recorded from the same chapter on both servers: switching hosts must
+    change only which box the bytes come from."""
+    default_pages = parse_chapter_pages(_load("chapter_reader.html"), "x/c1")
+    fast_pages = parse_chapter_pages(_load("chapter_reader_sv3.html"), "x/c1")
+
+    assert len(fast_pages) == len(default_pages) > 0
+    assert [page.remote_url.rsplit("/", 1)[-1] for page in fast_pages] == [
+        page.remote_url.rsplit("/", 1)[-1] for page in default_pages
+    ]
+    assert all("i1.mangakatana.com" in page.remote_url for page in default_pages)
+    assert all("i6.mangakatana.com" in page.remote_url for page in fast_pages)
+
+
+def test_chapter_missing_from_the_fast_server_falls_back_to_the_default():
+    """A chapter server 3 has not mirrored must stay readable, not merely slow."""
+    connector = MangaKatanaConnector()
+    captured: list[dict | None] = []
+
+    def fake_get_text(path: str, *, params=None):
+        captured.append(params)
+        if params:
+            return "<html><body>no reader script here</body></html>"
+        return _load("chapter_reader.html")
+
+    with patch.object(connector._http, "get_text", side_effect=fake_get_text):
+        pages = connector.get_chapter_pages("aishiteru-uso-dakedo.10797/c1")
+
+    assert captured == [{"sv": "3"}, None]
+    assert pages
+    assert all("i1.mangakatana.com" in page.remote_url for page in pages)
+
+
 def test_parse_chapters_filters_by_series():
     html = _load("series_detail.html")
     chapters = parse_chapters(html, "aishiteru-uso-dakedo.10797")

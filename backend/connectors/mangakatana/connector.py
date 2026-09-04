@@ -14,6 +14,7 @@ from connectors.mangakatana.mappers import (
     PAGE_SIZE,
     SITE_BASE,
     chapter_id_to_path,
+    chapter_params,
     listing_params,
     listing_path,
     normalize_sort,
@@ -318,13 +319,26 @@ class MangaKatanaConnector(SourceConnector):
             return cached
 
         path = chapter_id_to_path(api_key)
+        params = chapter_params()
         try:
-            html = self._http.get_text(path)
+            html = self._http.get_text(path, params=params)
         except ConnectorHttpError as exc:
-            self._log_request("pages", path, status="error", detail=str(exc))
+            self._log_request("pages", path, params=params, status="error", detail=str(exc))
             return []
 
         pages = parse_chapter_pages(html, api_key)
+        if not pages:
+            # Server 3 held every one of the 18 chapters this was checked
+            # against, but a chapter it has not mirrored would otherwise be
+            # unreadable rather than merely slow. The default reader page is
+            # the source of truth, so fall back to it — one extra request, and
+            # only on the chapters that would have returned nothing at all.
+            try:
+                html = self._http.get_text(path)
+            except ConnectorHttpError as exc:
+                self._log_request("pages", path, status="error", detail=str(exc))
+                return []
+            pages = parse_chapter_pages(html, api_key)
         if pages:
             self._page_cache.set(api_key, pages)
             self._remember_page_count(api_key, len(pages))
