@@ -31,6 +31,13 @@ const FADE_MS = 500;
 const LONG_HINT_MS = 3000;
 /** How many recent reads to pull for the carousel. */
 const HISTORY_LIMIT = 9;
+/**
+ * One carousel tile: a third of the `max-w-xl` slide, gaps taken off. Both a
+ * `sizes` hint and the width the cover proxy renders to (`lib/cover-url.ts`) —
+ * these are decorative tiles behind a loading state, so they should never be
+ * the heaviest thing on the screen.
+ */
+const SLIDE_COVER_SIZES = "170px";
 
 /**
  * Animated "Latest reads" loading state shown over the source catalog while
@@ -174,11 +181,14 @@ export function SourceBrowseLoading({
                     className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-surface-2"
                   >
                     <Image
-                      src={seriesCoverUrl({ sourceId: item.source_id, seriesKey: item.series_key })}
+                      src={seriesCoverUrl(
+                        { sourceId: item.source_id, seriesKey: item.series_key },
+                        SLIDE_COVER_SIZES,
+                      )}
                       alt=""
                       fill
                       className="object-cover"
-                      sizes="160px"
+                      sizes={SLIDE_COVER_SIZES}
                       unoptimized
                     />
                   </div>

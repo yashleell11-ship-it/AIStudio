@@ -27,6 +27,13 @@ const gridItemProps = {
     "block rounded-2xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/70 focus-visible:ring-offset-2 focus-visible:ring-offset-bg",
 } as const;
 
+/**
+ * The list row's cover box (`size-16`). Fixed, so unlike the grid it needs no
+ * breakpoints — and it is both the browser's `sizes` hint and the width the
+ * cover proxy renders to (`lib/cover-url.ts`).
+ */
+const LIST_COVER_SIZES = "64px";
+
 /** How a card reports a click on its checkbox (or on itself, in select mode). */
 export type SeriesSelectHandler = (seriesId: number, shiftKey: boolean) => void;
 
@@ -148,7 +155,7 @@ function SeriesCardContent({
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-white/5 transition-all duration-300 group-hover:ring-primary/30">
         <Image
-          src={libraryCoverUrl(series.cover_url)}
+          src={libraryCoverUrl(series.cover_url, densityCoverSizes(density))}
           alt={series.title}
           fill
           className={cn(
@@ -323,11 +330,11 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
       ) : null}
       <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-surface-2">
         <Image
-          src={libraryCoverUrl(series.cover_url)}
+          src={libraryCoverUrl(series.cover_url, LIST_COVER_SIZES)}
           alt={series.title}
           fill
           className="object-cover"
-          sizes="64px"
+          sizes={LIST_COVER_SIZES}
           unoptimized
         />
       </div>

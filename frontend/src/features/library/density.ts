@@ -153,17 +153,29 @@ export function densityGridClassName(density: LibraryDensity): string {
 
 /**
  * The `sizes` hint for a cover at this density. Wrong values here cost real
- * bandwidth on a NAS: a 12-column compact grid asking for full-width images
- * would fetch roughly six times the pixels it can show.
+ * bandwidth: this string is now what the cover proxy's `?w=` is derived from
+ * (`lib/cover-url.ts`), so it is no longer only a hint the browser may round —
+ * it is the width the backend renders to.
+ *
+ * The phone branch is therefore written as the exact cell, not as a round `vw`.
+ * `grid-cols-2 gap-5` inside the view's `px-6` is `calc(50vw - 34px)`, which is
+ * 153px on a 375px phone; the old `50vw` claimed 187px, and 187 x DPR 3 lands
+ * one rung further up the server's ladder (720 instead of 480) for every cover
+ * on the screen. Above `sm` the layout gains columns faster than the viewport
+ * grows and a single value cannot track it, so the wide branch is the widest
+ * cell the grid reaches — over-asking on a desktop costs one ladder rung on the
+ * connection least likely to care, while under-asking would be a blurry grid.
  */
 export function densityCoverSizes(density: LibraryDensity): string {
   switch (density) {
     case "compact":
-      return "(max-width: 640px) 33vw, (max-width: 1280px) 16vw, 8vw";
+      // `grid-cols-3 gap-3`; widest cell is the 12-up 2xl row inside max-w-110rem.
+      return "(max-width: 639px) calc(33.33vw - 24px), 140px";
     case "list":
       return "64px";
     default:
-      return "(max-width: 640px) 50vw, (max-width: 1280px) 25vw, 16vw";
+      // `grid-cols-2 gap-5`; widest cell is the 6-up 2xl row inside max-w-110rem.
+      return "(max-width: 639px) calc(50vw - 34px), 264px";
   }
 }
 

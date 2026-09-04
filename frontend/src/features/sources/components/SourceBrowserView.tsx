@@ -17,7 +17,7 @@ import {
   useSourceGenres,
   useSources,
 } from "../hooks";
-import { coverPath } from "@/features/novels/shelf";
+import { SHELF_PLATE_SIZES, coverPath } from "@/features/novels/shelf";
 import { sourceImageUrl } from "../api";
 import { BrowseFreshness } from "./BrowseFreshness";
 import { SourceBrowseLoading } from "./SourceBrowseLoading";
@@ -254,7 +254,7 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
               status: series.status,
               genres: series.genres,
               coverUrl: coverPath(series.cover_url)
-                ? sourceImageUrl(series.cover_url)
+                ? sourceImageUrl(series.cover_url, SHELF_PLATE_SIZES)
                 : null,
               note: null,
             }))}

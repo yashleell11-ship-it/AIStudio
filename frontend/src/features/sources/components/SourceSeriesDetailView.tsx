@@ -46,6 +46,13 @@ import {
   SourceSeriesDetailSkeleton,
 } from "./SourceSeriesDetailSkeleton";
 
+/**
+ * The poster: capped at `max-w-[200px]` below `lg`, then the 220px grid column.
+ * Both the browser's `sizes` hint and the width the cover proxy renders to
+ * (`lib/cover-url.ts`).
+ */
+const POSTER_SIZES = "(max-width: 1023px) 200px, 220px";
+
 type ChapterSortOrder = "newest" | "oldest";
 
 interface SourceSeriesDetailViewProps {
@@ -278,11 +285,11 @@ function MangaSeriesDetailView({
         <Card className="mx-auto w-full max-w-[200px] overflow-hidden rounded-3xl lg:mx-0 lg:max-w-none lg:sticky lg:top-24 lg:self-start">
           <div className="relative aspect-[2/3] w-full bg-surface-2">
             <Image
-              src={sourceImageUrl(series.cover_url)}
+              src={sourceImageUrl(series.cover_url, POSTER_SIZES)}
               alt={series.title}
               fill
               className="object-cover"
-              sizes="(max-width: 1023px) 200px, 220px"
+              sizes={POSTER_SIZES}
               unoptimized
             />
           </div>

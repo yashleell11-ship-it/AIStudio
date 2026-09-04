@@ -4,7 +4,13 @@ import Link from "next/link";
 import { Check, SearchX, TriangleAlert } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/cn";
-import { shelfBlurb, shelfGenres, shelfMetaParts, type ShelfBook } from "../shelf";
+import {
+  SHELF_PLATE_SIZES,
+  shelfBlurb,
+  shelfGenres,
+  shelfMetaParts,
+  type ShelfBook,
+} from "../shelf";
 import { BookPlate } from "./BookPlate";
 
 /**
@@ -139,7 +145,7 @@ function ShelfRow({
         coverUrl={book.coverUrl}
         title={book.title}
         className="h-[4.25rem] w-12"
-        sizes="48px"
+        sizes={SHELF_PLATE_SIZES}
       />
 
       <div className="min-w-0 flex-1">

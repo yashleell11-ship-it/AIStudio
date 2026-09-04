@@ -63,6 +63,14 @@ const SERIES_RESULT_LIMIT = 8;
 /** The shortest query worth a round trip. One character matches nearly everything. */
 const MIN_QUERY_LENGTH = 2;
 
+/**
+ * A result row's thumbnail, `size-8`. The palette opens on every `/` keypress
+ * and lists eight series, so its covers are the ones most likely to be fetched
+ * for nothing — this is the width the cover proxy renders to, not just a
+ * `sizes` hint (`lib/cover-url.ts`).
+ */
+const ROW_IMAGE_SIZES = "32px";
+
 const KIND_ICON = {
   route: ArrowRight,
   series: BookOpen,
@@ -200,7 +208,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       kind: "series",
       href: `/library/${series.id}`,
       keywords: [series.source_id],
-      imageUrl: libraryCoverUrl(series.cover_url),
+      imageUrl: libraryCoverUrl(series.cover_url, ROW_IMAGE_SIZES),
     }));
 
     const sourceCommands: Command[] = (sources.data ?? []).map((source) => ({
