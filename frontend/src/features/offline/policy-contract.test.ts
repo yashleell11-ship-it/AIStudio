@@ -32,6 +32,7 @@ interface Policy {
   DEFAULT_RETENTION_MS: number;
   STORAGE_RESERVE_BYTES: number;
   SWR_ALLOWLIST: string[];
+  OFFLINE_FALLBACK_ALLOWLIST: string[];
   INTERNAL_PREFIX: string;
   scopeToken(scope: unknown): string | null;
   shellCacheName(): string;
@@ -46,6 +47,7 @@ interface Policy {
   apiPath(url: string, apiBase: string): string | null;
   isAuthUrl(url: string, apiBase: string | null): boolean;
   isSwrAllowedPath(path: string): boolean;
+  isOfflineFallbackPath(path: string): boolean;
   isPageImagePath(path: string): boolean;
   isChapterManifestPath(path: string): boolean;
   classifyRequest(input: Record<string, unknown>): string;
@@ -230,11 +232,39 @@ describe("what may be cached", () => {
     expect(policy.isSwrAllowedPath("/reader/chapter/manifest")).toBe(false);
   });
 
+  it("keeps the bookmark listing readable with no signal, but never stale-first", () => {
+    // Network-first with a stored fallback, NOT stale-while-revalidate: the
+    // reader writes to this list from inside the app, and a cache-first answer
+    // would drop the bookmark just made or resurrect the one just deleted.
+    expect(get(`${API}/reader/bookmarks`)).toBe("api-offline-fallback");
+    expect(policy.isSwrAllowedPath("/reader/bookmarks")).toBe(false);
+  });
+
+  it("keeps the two API cache lists disjoint, so a path has one strategy", () => {
+    for (const entry of policy.OFFLINE_FALLBACK_ALLOWLIST) {
+      expect(policy.isSwrAllowedPath(entry)).toBe(false);
+      expect(policy.isAuthUrl(`${API}${entry}`, API)).toBe(false);
+    }
+    for (const entry of policy.SWR_ALLOWLIST) {
+      expect(policy.isOfflineFallbackPath(entry)).toBe(false);
+    }
+  });
+
+  it("still never caches a mutation on a fallback path", () => {
+    // Deleting a bookmark is `DELETE /reader/bookmarks/{id}` — same prefix,
+    // and rule 1 has to win over the allowlist.
+    expect(get(`${API}/reader/bookmarks/7`, { method: "DELETE" })).toBe("bypass");
+    expect(get(`${API}/reader/bookmark`, { method: "POST" })).toBe("bypass");
+  });
+
   it("does not widen an allowlist entry into a sibling path", () => {
     expect(policy.isSwrAllowedPath("/library/series")).toBe(true);
     expect(policy.isSwrAllowedPath("/library/series/4")).toBe(true);
     expect(policy.isSwrAllowedPath("/library/series-private")).toBe(false);
     expect(policy.isSwrAllowedPath("/library/collections")).toBe(false);
+    expect(policy.isOfflineFallbackPath("/reader/bookmarks")).toBe(true);
+    expect(policy.isOfflineFallbackPath("/reader/bookmarks-shared")).toBe(false);
+    expect(policy.isOfflineFallbackPath("/reader/bookmark")).toBe(false);
   });
 
   it("answers a saved page image from the device first, by URL shape or by destination", () => {

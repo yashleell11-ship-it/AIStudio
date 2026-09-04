@@ -85,6 +85,30 @@
    */
   var SWR_ALLOWLIST = ["/library/series", "/sources"];
 
+  /**
+   * API GET paths whose last good answer is kept ONLY as an offline fallback.
+   *
+   * Different from the SWR list above, and deliberately so. SWR answers from
+   * the cache FIRST and refreshes behind you, which is fine for a catalogue
+   * and wrong for a list the reader has just written to: pressing `b` in the
+   * reader refetches the bookmarks, and a stale-first answer would not contain
+   * the bookmark that was just made — nor would a delete stick until something
+   * else happened to refetch. So the network always wins when there is one,
+   * and the stored copy is consulted only when the fetch actually failed.
+   *
+   * This is why the web needs no bookmark outbox: reads survive with no
+   * signal, which is the whole of `bookmarks must work offline` that a browser
+   * can honestly promise. CREATING one offline stays the phone's job — it has
+   * a real on-device store and a sync outbox (`POST /reader/bookmarks/batch`),
+   * and inventing a second, weaker one in a service worker would mean two
+   * merge implementations to keep correct.
+   *
+   *   /reader/bookmarks — the saved-places listing. The rows are the reader's
+   *                       own deliberate markers; showing yesterday's set on a
+   *                       train beats showing an error page.
+   */
+  var OFFLINE_FALLBACK_ALLOWLIST = ["/reader/bookmarks"];
+
   /** The source-proxy page-bytes endpoint: `/sources/{source}/pages/{page:path}/image`. */
   var PAGE_IMAGE_PATTERN = /^\/sources\/[^/]+\/pages\/.+\/image$/;
 
@@ -245,13 +269,22 @@
     return path === "/auth" || path.indexOf("/auth/") === 0;
   }
 
-  function isSwrAllowedPath(path) {
+  /** Exact entry, or a path below it — never a sibling that merely shares a prefix. */
+  function matchesAllowlist(list, path) {
     if (!isNonEmptyString(path)) return false;
-    for (var i = 0; i < SWR_ALLOWLIST.length; i += 1) {
-      var entry = SWR_ALLOWLIST[i];
+    for (var i = 0; i < list.length; i += 1) {
+      var entry = list[i];
       if (path === entry || path.indexOf(entry + "/") === 0) return true;
     }
     return false;
+  }
+
+  function isSwrAllowedPath(path) {
+    return matchesAllowlist(SWR_ALLOWLIST, path);
+  }
+
+  function isOfflineFallbackPath(path) {
+    return matchesAllowlist(OFFLINE_FALLBACK_ALLOWLIST, path);
   }
 
   /** A source-proxy page image — the bytes an explicit "save for offline" stores. */
@@ -283,6 +316,8 @@
    *   "navigation"        network first, cached document, then the offline page.
    *   "static"            cache first; content-hashed URLs cannot go stale.
    *   "api-swr"           cached copy now, refreshed in the background.
+   *   "api-offline-fallback" the live answer always, or the last good one when
+   *                       there is no network at all.
    *   "saved-first"       a saved page image: cache first, network only on miss.
    *   "network-then-saved" network first, falling back to a saved copy offline.
    *
@@ -330,6 +365,10 @@
       // urls move on a re-list), and the saved copy is checked for drift as it
       // passes. Only an explicit save caches it.
       if (isChapterManifestPath(path)) return "network-then-saved";
+      // Checked before the SWR list, not after: the two would answer the same
+      // request differently and the difference is the whole point of having
+      // both. Nothing may be in both lists — the contract test asserts it.
+      if (isOfflineFallbackPath(path)) return "api-offline-fallback";
       if (isSwrAllowedPath(path)) return "api-swr";
       return "network-then-saved";
     }
@@ -464,6 +503,7 @@
     STORAGE_RESERVE_BYTES: STORAGE_RESERVE_BYTES,
     MAX_USAGE_RATIO: MAX_USAGE_RATIO,
     SWR_ALLOWLIST: SWR_ALLOWLIST,
+    OFFLINE_FALLBACK_ALLOWLIST: OFFLINE_FALLBACK_ALLOWLIST,
     scopeToken: scopeToken,
     shellCacheName: shellCacheName,
     staticCacheName: staticCacheName,
@@ -478,6 +518,7 @@
     apiPath: apiPath,
     isAuthUrl: isAuthUrl,
     isSwrAllowedPath: isSwrAllowedPath,
+    isOfflineFallbackPath: isOfflineFallbackPath,
     isPageImagePath: isPageImagePath,
     isChapterManifestPath: isChapterManifestPath,
     isImmutableAssetPath: isImmutableAssetPath,

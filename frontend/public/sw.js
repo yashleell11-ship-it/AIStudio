@@ -36,7 +36,7 @@
  * (so the update cannot be served an old policy from the HTTP cache).
  */
 
-var SW_BUILD = "2026-09-03.1";
+var SW_BUILD = "2026-09-05.1";
 
 importScripts("/sw-policy.js?v=" + SW_BUILD);
 
@@ -274,6 +274,8 @@ function dispatch(event, request, strategy, context) {
       return handleStatic(request);
     case "api-swr":
       return handleApiSwr(event, request, context);
+    case "api-offline-fallback":
+      return handleApiOfflineFallback(event, request, context);
     case "saved-first":
       return handleSavedFirst(request, context);
     case "network-then-saved":
@@ -395,6 +397,37 @@ async function handleApiSwr(event, request, context) {
   }
   var fresh = await revalidate;
   return fresh || Response.error();
+}
+
+/**
+ * The live answer whenever there is one; the last good answer when there is
+ * not. For `/reader/bookmarks` — see the allowlist's own note in sw-policy.js.
+ *
+ * Network FIRST, unlike `handleApiSwr`, and that is the entire difference
+ * between the two: this list holds data the reader writes to from inside the
+ * app, so answering from the cache while a refresh runs behind it would show
+ * a bookmark that was just deleted, or omit one that was just made.
+ *
+ * The cache is the per-profile API cache, so one profile's saved places can
+ * never be served to another; with no scope published there is no cache and
+ * this is a plain fetch, exactly like the SWR path.
+ */
+async function handleApiOfflineFallback(event, request, context) {
+  var cacheName = policy.apiCacheName(context.scope);
+  if (cacheName === null) return fetch(request);
+
+  var cache = await caches.open(cacheName);
+  try {
+    var response = await fetch(request);
+    if (policy.isCacheableResponse(response)) {
+      var copy = response.clone();
+      event.waitUntil(cache.put(request, copy));
+    }
+    return response;
+  } catch {
+    var hit = await cache.match(request, { ignoreVary: true });
+    return hit || Response.error();
+  }
 }
 
 /** A saved page image: the whole point of saving is not asking the network. */
