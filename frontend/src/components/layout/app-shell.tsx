@@ -199,7 +199,13 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
         Skip to content
       </a>
 
-      <Sidebar />
+      {/* A phone held sideways is 812x375: wide enough for `md:` to unhide the
+          desktop rail, short enough that the rail plus the reader's own control
+          bar leave a letterbox to read in. Height is what separates that case
+          from a genuine desktop window, so the reader — and only the reader —
+          drops the rail below 500px of viewport. `!hidden` because the base
+          class already resolves to `md:flex` at this width. */}
+      <Sidebar className={isReaderChapter ? "[@media(max-height:500px)]:!hidden" : undefined} />
 
       <div className="relative flex min-w-0 flex-1 flex-col">
         {/* The novel reader paints its own page, and that page can be cream.
@@ -227,7 +233,13 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
             ref={assignScrollContainer}
             tabIndex={-1}
             className={cn(
-              "flex-1 overflow-y-auto outline-none",
+              // `overscroll-y-contain`: this is the app's only scroller, and on
+              // iOS Safari a flick past its end otherwise chains to the document
+              // and fires the browser's own rubber-band / pull-to-refresh. In a
+              // reader — where reaching the end of a chapter and flicking again
+              // is the normal gesture — that reloads the page out from under
+              // the reader. Contained here, the scroll simply stops.
+              "flex-1 overflow-y-auto overscroll-y-contain outline-none",
               isMangaChapter && "bg-obsidian",
               // Clears the floating tab pill (56px tall + its 16px inset and
               // safe-area padding) so the last row of covers is never under it.
@@ -296,7 +308,10 @@ function MobileBottomNav() {
               href={item.href}
               aria-current={active ? "page" : undefined}
               className={cn(
-                "flex flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 transition-colors",
+                // `min-h-11` = 44px, the smallest target a thumb hits reliably.
+                // `py-2` alone gave a 38px tab, and five of them share a 375px
+                // bar, so every one of them was under the line.
+                "flex min-h-11 flex-1 flex-col items-center justify-center gap-0.5 rounded-2xl py-2 transition-colors",
                 active ? "bg-primary/12 text-primary" : "text-muted hover:text-fg",
               )}
             >

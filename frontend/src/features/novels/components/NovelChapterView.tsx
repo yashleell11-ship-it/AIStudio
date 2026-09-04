@@ -456,7 +456,11 @@ export function NovelChapterView({
       ) : (
         <article
           ref={articleRef}
-          className="mx-auto px-6 pb-24 pt-14 sm:pt-20"
+          // Horizontal insets, not a flat `px-6`: held in landscape on a
+          // notched iPhone the 1.5rem gutter is entirely inside the notch's
+          // shadow on one side, and the first character of every line sits
+          // under it.
+          className="mx-auto pb-24 pt-14 pl-[max(1.5rem,env(safe-area-inset-left))] pr-[max(1.5rem,env(safe-area-inset-right))] sm:pt-20"
           style={{
             maxWidth: `${measure}ch`,
             fontFamily: fontStack,
@@ -627,14 +631,20 @@ function RunningHead({
 }) {
   return (
     <div
-      className="sticky top-0 z-40"
+      // The novel reader is the one screen that hides the app's Topbar and
+      // paints its own chrome, which means it is also the one screen that has
+      // to clear the notch itself: `viewport-fit=cover` plus the installed
+      // app's `black-translucent` status bar draw this row straight under the
+      // Dynamic Island. Padding rather than a margin so the head's own page
+      // colour fills the strip behind the clock instead of a black band.
+      className="sticky top-0 z-40 pt-[env(safe-area-inset-top)]"
       style={{ backgroundColor: surface.bg, color: surface.ink }}
     >
-      <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-3 sm:px-6">
+      <div className="mx-auto flex max-w-5xl items-center gap-3 py-3 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] sm:pl-[max(1.5rem,env(safe-area-inset-left))] sm:pr-[max(1.5rem,env(safe-area-inset-right))]">
         <Link
           href={seriesHref}
           aria-label="Back to the book"
-          className="flex size-8 shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+          className="flex size-8 shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-70 [@media(pointer:coarse)]:size-11"
           style={{ color: surface.muted }}
         >
           <ArrowLeft className="size-4" aria-hidden />
@@ -663,7 +673,7 @@ function RunningHead({
             onClick={onBookmark}
             disabled={bookmarkPending}
             title="Bookmark this spot (B)"
-            className="flex size-8 shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40 [@media(pointer:coarse)]:size-11"
             style={{ color: bookmarkSaved ? surface.ink : surface.muted }}
           >
             {bookmarkSaved ? (
@@ -679,7 +689,7 @@ function RunningHead({
             aria-label="Type and page settings"
             aria-expanded={typePanelOpen}
             onClick={onToggleTypePanel}
-            className="flex size-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70"
+            className="flex size-8 items-center justify-center rounded-lg transition-opacity hover:opacity-70 [@media(pointer:coarse)]:size-11"
             style={{
               color: surface.ink,
               border: `1px solid ${typePanelOpen ? surface.rule : "transparent"}`,

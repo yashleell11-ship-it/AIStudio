@@ -257,21 +257,30 @@ function MangaSeriesDetailView({
       </div>
 
       <div className="grid gap-6 lg:grid-cols-[220px_1fr]">
-        <Card className="overflow-hidden rounded-3xl lg:sticky lg:top-24 lg:self-start">
+        {/* Capped and centred below `lg`, exactly as the library's own series
+            page already does it (`SeriesDetailView`). Left uncapped, a 2:3
+            cover at the full width of a 375px phone is ~490px tall — the entire
+            first screen is the cover, and the title, the buttons and the
+            chapter list all start below the fold. */}
+        <Card className="mx-auto w-full max-w-[200px] overflow-hidden rounded-3xl lg:mx-0 lg:max-w-none lg:sticky lg:top-24 lg:self-start">
           <div className="relative aspect-[2/3] w-full bg-surface-2">
             <Image
               src={sourceImageUrl(series.cover_url)}
               alt={series.title}
               fill
               className="object-cover"
-              sizes="220px"
+              sizes="(max-width: 1023px) 200px, 220px"
               unoptimized
             />
           </div>
         </Card>
 
         <div>
-          <h1 className="font-display text-4xl leading-tight text-fg">{series.title}</h1>
+          {/* `text-4xl` on a phone gives a long title four lines of display
+              face. Same ramp the library's series page uses. */}
+          <h1 className="font-display text-3xl leading-tight text-fg md:text-4xl">
+            {series.title}
+          </h1>
           {series.author && <p className="mt-2 text-muted">Author: {series.author}</p>}
           {series.artist && <p className="mt-1 text-muted">Artist: {series.artist}</p>}
           {series.status && (
@@ -410,10 +419,24 @@ function MangaSeriesDetailView({
                 progressText = pageCount > 0 ? `${pageCount} pages` : null;
               }
               return (
-                <div
+                // The WHOLE row is the link, not the "Read" button at its end.
+                // A 90px-tall row whose only target was a 62x32 button meant a
+                // thumb aiming at the chapter title hit nothing — the novel
+                // side has always linked the whole row (`NovelSeriesDetailView`)
+                // and this brings the manga side into line. The button keeps its
+                // look as a plain span: it is the affordance, the row is the hit
+                // area, and nesting a real button inside a link would be two
+                // controls where the reader sees one.
+                <Link
                   key={chapter.id}
+                  href={sourceReaderChapterPath(sourceId, seriesId, chapter.id)}
+                  onMouseEnter={() => hoverIntent.enter(chapter.id)}
+                  onMouseLeave={hoverIntent.leave}
+                  onFocus={() => hoverIntent.enter(chapter.id)}
+                  onBlur={hoverIntent.leave}
                   className={cn(
-                    "flex flex-wrap items-center justify-between gap-3 px-2 py-3 transition-colors first:pt-0 hover:bg-surface-2/60",
+                    "group flex flex-wrap items-center justify-between gap-3 px-2 py-3 transition-colors first:pt-0 hover:bg-surface-2/60",
+                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60",
                     completed && "bg-void/40",
                   )}
                 >
@@ -434,20 +457,13 @@ function MangaSeriesDetailView({
                       )}
                     </div>
                   </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link
-                      href={sourceReaderChapterPath(sourceId, seriesId, chapter.id)}
-                      onMouseEnter={() => hoverIntent.enter(chapter.id)}
-                      onMouseLeave={hoverIntent.leave}
-                      onFocus={() => hoverIntent.enter(chapter.id)}
-                      onBlur={hoverIntent.leave}
-                    >
-                      <Button variant="ghost" size="sm">
-                        Read
-                      </Button>
-                    </Link>
-                  </div>
-                </div>
+                  <span
+                    aria-hidden
+                    className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg px-3 text-sm font-medium text-muted transition-colors group-hover:bg-white/5 group-hover:text-fg"
+                  >
+                    Read
+                  </span>
+                </Link>
               );
             })
           )}
