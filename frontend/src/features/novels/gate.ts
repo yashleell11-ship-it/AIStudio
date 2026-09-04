@@ -30,18 +30,12 @@ export function isNovelSource(source: SourceSummary | null | undefined): boolean
   return source?.content_kind === "novel";
 }
 
-/**
- * Which reader a series from this source opens in.
+/*
+ * There is deliberately no `readerKindForSource` here.
  *
- * Defaults to the manga reader for anything unknown — an unloaded source list,
- * a connector that predates `content_kind`, a flag that is off. Guessing
- * "novel" wrong strands a reader on a text view of a comic; guessing "manga"
- * wrong is a page that says the chapter has no images, from which the series
- * page is one click away.
+ * "Which reader does this open in?" is only ever asked in order to build a
+ * link, and `useChapterHref` (`use-chapter-href.ts`) is where that decision is
+ * made — once, for every screen that links into a chapter. A second helper
+ * answering the same question is a second place for the two answers to
+ * disagree.
  */
-export function readerKindForSource(
-  source: SourceSummary | null | undefined,
-  status: BootstrapStatus | null | undefined,
-): "manga" | "novel" {
-  return isNovelsEnabled(status) && isNovelSource(source) ? "novel" : "manga";
-}

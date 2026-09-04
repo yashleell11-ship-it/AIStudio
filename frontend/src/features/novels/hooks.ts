@@ -7,7 +7,7 @@ import { useSources } from "@/features/sources/hooks";
 import type { ChapterId, SeriesId } from "@/types/api";
 import { novelsApi, toNovelChapter } from "./api";
 import { isNovelsEnabled, isNovelSource } from "./gate";
-import type { NovelChapterContent, NovelChapterPayload } from "./types";
+import type { NovelChapterPayload } from "./types";
 
 const NOVELS_KEY = ["novels"] as const;
 /** Chapter text is immutable in practice; the server caches it for days. */
@@ -30,19 +30,6 @@ export function useNovelChapter(ref: ChapterId | null) {
     enabled: ref !== null,
     staleTime: NOVEL_CHAPTER_STALE_MS,
   });
-}
-
-/** Warm a chapter into the cache and hand back its rendered form. */
-export async function ensureNovelChapter(
-  queryClient: QueryClient,
-  ref: ChapterId,
-): Promise<NovelChapterContent> {
-  const payload = await queryClient.ensureQueryData({
-    queryKey: novelChapterQueryKey(ref),
-    queryFn: () => novelsApi.chapter(ref),
-    staleTime: NOVEL_CHAPTER_STALE_MS,
-  });
-  return toNovelChapter(payload);
 }
 
 export function prefetchNovelChapter(queryClient: QueryClient, ref: ChapterId) {
