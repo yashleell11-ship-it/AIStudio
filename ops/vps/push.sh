@@ -14,10 +14,17 @@
 #
 # Gates: a full or frontend push runs the frontend build locally first, because
 # a Next build failure on the VPS leaves the old container up but wastes a slow
-# remote rebuild — and the box has 2 vCores. `apk` checks what is inside the
-# APK before publishing it: /app/download serves ONE file to every phone, so an
-# APK that is missing an ABI is not a smaller download, it is a friend staring
-# at "App not installed" with nothing on screen to explain why.
+# remote rebuild — and the box has 2 vCores. A full or backend push runs the
+# backend test suite first, for the same reason and a worse one: unlike a failed
+# Next build, a backend that imports cleanly and behaves wrongly starts happily
+# and serves the fault. `apk` checks what is inside the APK before publishing
+# it: /app/download serves ONE file to every phone, so an APK that is missing an
+# ABI is not a smaller download, it is a friend staring at "App not installed"
+# with nothing on screen to explain why.
+#
+# MM_SKIP_TESTS=1 bypasses the backend gate. It exists for an incident where the
+# fix matters more than the suite; it prints a warning because a bypass that is
+# quiet becomes the default.
 # =============================================================================
 set -euo pipefail
 
@@ -25,6 +32,7 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 HOST="${MM_VPS_HOST:-ubuntu@135.148.43.147}"
 REMOTE="${MM_VPS_PATH:-/srv/manhwamaniacs/app}"
 NODE_BIN="${MM_NODE_BIN:-/home/yash/.local/node/bin}"
+PY_BIN="${MM_PY_BIN:-$REPO/backend/.venv/bin/python}"
 
 RSYNC_EXCLUDES=(
   --exclude .git
@@ -59,6 +67,21 @@ verify_frontend(){
   say "building the frontend locally (fail fast before a slow remote rebuild)"
   ( cd "$REPO/frontend" && PATH="$NODE_BIN:$PATH" npm run build >/dev/null )
   say "local build OK"
+}
+
+verify_backend(){
+  if [ "${MM_SKIP_TESTS:-0}" = "1" ]; then
+    printf '\033[33m==>\033[0m %s\n' \
+      "MM_SKIP_TESTS=1 — shipping the backend WITHOUT running its tests"
+    return 0
+  fi
+  if [ ! -x "$PY_BIN" ]; then
+    echo "no backend interpreter at $PY_BIN (set MM_PY_BIN)" >&2
+    exit 1
+  fi
+  say "running the backend test suite (fail fast before a slow remote rebuild)"
+  ( cd "$REPO/backend" && "$PY_BIN" -m pytest -q -x --no-header )
+  say "backend tests OK"
 }
 
 sync_dir(){
@@ -173,6 +196,7 @@ remote_deploy(){
 
 case "${1:-all}" in
   all)
+    verify_backend
     verify_frontend
     sync_dir frontend; sync_dir backend; sync_dir ops; sync_mobile_meta
     read -r c b < <(stamp); remote_deploy "$c" "$b" ;;
@@ -181,6 +205,7 @@ case "${1:-all}" in
     sync_dir frontend; sync_dir ops
     read -r c b < <(stamp); remote_deploy "$c" "$b" ;;
   backend)
+    verify_backend
     sync_dir backend; sync_dir ops
     read -r c b < <(stamp); remote_deploy "$c" "$b" ;;
   apk)
