@@ -94,25 +94,13 @@ class ReaderRepositoryImpl implements ReaderRepository {
   }
 
   @override
-  Future<Result<Bookmark>> addBookmark({
-    required String sourceId,
-    required String seriesKey,
-    required String chapterKey,
-    required int page,
-    String? note,
-  }) async {
+  Future<Result<BookmarkSyncResult>> syncBookmarks(List<BookmarkOp> ops) async {
     try {
       final r = await _dio.post<Map<String, dynamic>>(
-        '/reader/bookmark',
-        data: {
-          'source_id': sourceId,
-          'series_key': seriesKey,
-          'chapter_key': chapterKey,
-          'page': page,
-          if (note != null) 'note': note,
-        },
+        '/reader/bookmarks/batch',
+        data: [for (final op in ops) op.toJson()],
       );
-      return Ok(Bookmark.fromJson(r.data!));
+      return Ok(BookmarkSyncResult.fromJson(r.data!));
     } on DioException catch (e) {
       return Err(_err(e));
     } catch (e) {
@@ -124,6 +112,9 @@ class ReaderRepositoryImpl implements ReaderRepository {
   Future<Result<List<Bookmark>>> listBookmarks({
     String? sourceId,
     String? seriesKey,
+    DateTime? since,
+    bool includeDeleted = false,
+    int? limit,
   }) async {
     try {
       final r = await _dio.get<List<dynamic>>(
@@ -131,6 +122,9 @@ class ReaderRepositoryImpl implements ReaderRepository {
         queryParameters: {
           if (sourceId != null) 'source': sourceId,
           if (seriesKey != null) 'series': seriesKey,
+          if (since != null) 'since': since.toUtc().toIso8601String(),
+          if (includeDeleted) 'include_deleted': true,
+          if (limit != null) 'limit': limit,
         },
       );
       final items = (r.data ?? [])

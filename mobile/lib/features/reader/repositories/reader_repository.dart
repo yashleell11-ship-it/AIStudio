@@ -24,17 +24,26 @@ abstract interface class ReaderRepository {
     required String seriesKey,
   });
 
-  Future<Result<Bookmark>> addBookmark({
-    required String sourceId,
-    required String seriesKey,
-    required String chapterKey,
-    required int page,
-    String? note,
-  });
+  /// Push a batch of offline bookmark ops — `POST /reader/bookmarks/batch`.
+  ///
+  /// The ONLY write path for bookmarks on this client, single deliberate taps
+  /// included. `POST /reader/bookmark` would work while online, but a reader
+  /// that used one path with signal and another without would have two sets of
+  /// merge semantics to keep correct; the batch is a superset of the single
+  /// create and is idempotent under replay, so there is one.
+  Future<Result<BookmarkSyncResult>> syncBookmarks(List<BookmarkOp> ops);
 
+  /// The pull half of bookmark sync, and the Bookmarks screen's refresh.
+  ///
+  /// [includeDeleted] is how a device *learns* about a delete made elsewhere:
+  /// a tombstone arrives as a row, where an absence would be
+  /// indistinguishable from a short page.
   Future<Result<List<Bookmark>>> listBookmarks({
     String? sourceId,
     String? seriesKey,
+    DateTime? since,
+    bool includeDeleted = false,
+    int? limit,
   });
 
   Future<Result<void>> deleteBookmark(int bookmarkId);
