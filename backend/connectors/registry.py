@@ -41,6 +41,8 @@ from connectors.mangahub.connector import MangaHubConnector
 from connectors.mangapill.connector import MangaPillConnector
 from connectors.archiveorg.connector import ArchiveOrgConnector
 from connectors.freewebnovel.connector import FreeWebNovelConnector
+from connectors.gutenberg.connector import GutenbergConnector
+from connectors.novelbuddy.connector import NovelBuddyConnector
 from connectors.novelarchive.connector import NovelArchiveConnector
 from connectors.novelfull.connector import NovelFullConnector
 from connectors.royalroad.connector import RoyalRoadConnector
@@ -105,6 +107,10 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     FirstKissMangaConnector.SOURCE_TYPE,
     ArchiveOrgConnector.SOURCE_TYPE,
     FreeWebNovelConnector.SOURCE_TYPE,
+
+    GutenbergConnector.SOURCE_TYPE,
+
+    NovelBuddyConnector.SOURCE_TYPE,
     NovelArchiveConnector.SOURCE_TYPE,
     NovelFullConnector.SOURCE_TYPE,
     RoyalRoadConnector.SOURCE_TYPE,
@@ -228,6 +234,10 @@ def _register_builtin_connectors() -> None:
         # is off (see _novels_enabled) — production stays a manhwa site.
         (ArchiveOrgConnector.SOURCE_TYPE, ArchiveOrgConnector),
         (FreeWebNovelConnector.SOURCE_TYPE, FreeWebNovelConnector),
+
+        (GutenbergConnector.SOURCE_TYPE, GutenbergConnector),
+
+        (NovelBuddyConnector.SOURCE_TYPE, NovelBuddyConnector),
         (NovelArchiveConnector.SOURCE_TYPE, NovelArchiveConnector),
         (NovelFullConnector.SOURCE_TYPE, NovelFullConnector),
         (RoyalRoadConnector.SOURCE_TYPE, RoyalRoadConnector),
