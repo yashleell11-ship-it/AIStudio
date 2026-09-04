@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -190,15 +192,8 @@ def test_get_series_falls_back_to_canvas_path_on_originals_404(
     assert webtoons_connector._slug_cache.get("843210") == ("canvas", "late-bloomer")
 
 
-def test_get_chapters_falls_back_to_canvas_path_then_paginates_canonically(
-    webtoons_connector: WebtoonsConnector,
-):
-    """Same fallback, exercised through get_chapters: page 1 needs the
-    Canvas-shaped retry, and once the real slug is learned, page 2 (empty,
-    ending pagination) must be requested against the canonical Canvas path —
-    never the Originals placeholder again."""
-    canvas_detail = _load("detail_canvas.html")
-    captured: list[str] = []
+def _canvas_fake(canvas_detail: str, captured: list[str]):
+    """The Canvas fallback: the Originals placeholder 404s, Canvas answers."""
 
     def fake(path: str, *, params=None):
         captured.append(path)
@@ -208,11 +203,55 @@ def test_get_chapters_falls_back_to_canvas_path_then_paginates_canonically(
             return canvas_detail
         return "<html><body>no more episodes here</body></html>"
 
-    with patch.object(webtoons_connector._http, "get_text", side_effect=fake):
+    return fake
+
+
+def test_get_chapters_does_not_probe_past_a_single_page_series(
+    webtoons_connector: WebtoonsConnector,
+):
+    """A short Canvas title renders no pagination strip, so there is no page 2.
+
+    Chapter collection used to walk pages until one came back empty, which
+    cost every single-page series one guaranteed-wasted round trip. It now
+    fetches only the pages WEBTOON's own pagination advertises.
+    """
+    captured: list[str] = []
+    with patch.object(
+        webtoons_connector._http,
+        "get_text",
+        side_effect=_canvas_fake(_load("detail_canvas.html"), captured),
+    ):
         chapters = webtoons_connector.get_chapters("843210")
 
     assert len(chapters) == 2
     assert all(parse_chapter_id(c.id)[2] == "canvas" for c in chapters)
+    assert captured == [
+        "/en/_/_/list?title_no=843210",
+        "/en/canvas/_/list?title_no=843210",
+    ]
+
+
+def test_get_chapters_paginates_against_the_canonical_canvas_path(
+    webtoons_connector: WebtoonsConnector,
+):
+    """Once the real slug is learned, deeper pages must use the canonical
+    Canvas path — never the Originals placeholder again."""
+    canvas_detail = _load("detail_canvas.html").replace(
+        "</body>",
+        '<div class="paginate">'
+        '<a href="/en/canvas/late-bloomer/list?title_no=843210&page=2"'
+        ' class=pg_page><span>2</span></a></div></body>',
+    )
+    captured: list[str] = []
+
+    with patch.object(
+        webtoons_connector._http,
+        "get_text",
+        side_effect=_canvas_fake(canvas_detail, captured),
+    ):
+        chapters = webtoons_connector.get_chapters("843210")
+
+    assert len(chapters) == 2
     assert captured == [
         "/en/_/_/list?title_no=843210",
         "/en/canvas/_/list?title_no=843210",
@@ -276,3 +315,64 @@ def test_list_genres_populated(webtoons_connector: WebtoonsConnector):
     ids = {g.id for g in genres}
     assert "romance" in ids
     assert "fantasy" in ids
+
+
+def test_get_series_and_get_chapters_share_one_page_one_fetch(
+    webtoons_connector: WebtoonsConnector,
+):
+    """Opening a series must not fetch its episode-list page twice.
+
+    ``get_series`` and ``get_chapters`` both read page 1 -- metadata from one,
+    episode rows from the other -- and the reader calls them back to back. The
+    second call now reads the first call's HTML out of a short-lived cache.
+    """
+    detail = _load("detail.html")
+    captured: list[str] = []
+
+    def fake(path: str, *, params=None):
+        captured.append(path)
+        return detail
+
+    with patch.object(webtoons_connector._http, "get_text", side_effect=fake):
+        webtoons_connector.get_series("679")
+        webtoons_connector.get_chapters("679")
+
+    page_one_paths = [p for p in captured if "page=" not in p or p.endswith("page=1")]
+    assert len(page_one_paths) == 1, captured
+
+
+def test_get_chapters_fetches_every_advertised_page(
+    webtoons_connector: WebtoonsConnector,
+):
+    """All pages the pagination strip names are fetched, and their episodes merged.
+
+    The old loop walked pages one at a time and stopped at the first empty
+    response; a 114-episode title cost twelve serial round trips (8.0s from
+    the VPS). Pages named by the strip are now fetched in parallel batches.
+    """
+    detail = _load("detail.html")
+    # Distinct episode rows per page so a merge failure is visible.
+    def page_html(page: int) -> str:
+        return detail.replace("episode_no=", f"episode_no=9{page}0") if page > 1 else detail
+
+    captured: list[str] = []
+
+    def fake(path: str, *, params=None):
+        captured.append(path)
+        match = re.search(r"[?&]page=(\d+)", path)
+        return page_html(int(match.group(1)) if match else 1)
+
+    with patch.object(webtoons_connector._http, "get_text", side_effect=fake):
+        chapters = webtoons_connector.get_chapters("679")
+
+    requested_pages = {
+        int(m.group(1))
+        for m in (re.search(r"[?&]page=(\d+)", p) for p in captured)
+        if m
+    }
+    # detail.html's strip advertises pages 2-11; the first batch is 2-7.
+    assert {2, 3, 4, 5, 6, 7} <= requested_pages, captured
+    assert all(
+        "/en/super-hero/unordinary/list" in p for p in captured if "page=" in p
+    ), captured
+    assert len(chapters) > len(parse_episodes(detail, "679"))

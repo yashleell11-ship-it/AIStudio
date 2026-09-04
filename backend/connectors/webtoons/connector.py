@@ -8,6 +8,7 @@ see :meth:`WebtoonsConnector.image_fetch_headers`.
 
 from __future__ import annotations
 
+import concurrent.futures as cf
 import logging
 from dataclasses import replace
 from typing import Any
@@ -35,6 +36,7 @@ from connectors.webtoons.mappers import (
     parse_chapter_id,
     parse_chapter_pages,
     parse_episodes,
+    parse_max_list_page,
     parse_search_results,
     parse_series_cards,
     parse_series_detail,
@@ -46,6 +48,19 @@ from connectors.webtoons.mappers import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Episode-list pages are fetched in bounded parallel batches. WEBTOON paginates
+# a long series into ten-episode pages, so a 114-episode title used to cost
+# twelve strictly sequential round trips (measured 8.0s from the VPS). The
+# pagination strip already names the next ten pages, so they can be fetched
+# together. Kept small: the box has 2 vCPU and this must not read as a flood
+# to one host -- the shared client's own 0.21s spacing still applies to each
+# request as it starts.
+_CHAPTER_PAGE_WORKERS = 6
+# One episode-list page answers both get_series (metadata) and get_chapters
+# (episode rows). Short-lived on purpose: it exists to collapse the two calls
+# a single "open this series" makes, not to serve stale chapter lists.
+_LIST_HTML_TTL_SECONDS = 60.0
 
 # A real desktop browser User-Agent -- WEBTOON serves a degraded / bot page to
 # generic clients.
@@ -92,6 +107,9 @@ class WebtoonsConnector(SourceConnector):
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
         self._page_cache: TTLCache[list[Page]] = TTLCache(ttl_seconds=600.0)
         self._page_count_cache: TTLCache[int] = TTLCache(ttl_seconds=600.0)
+        self._list_html_cache: TTLCache[str] = TTLCache(
+            ttl_seconds=_LIST_HTML_TTL_SECONDS
+        )
 
     # -- Descriptors --------------------------------------------------------
 
@@ -197,16 +215,23 @@ class WebtoonsConnector(SourceConnector):
         request for a given series; every later call (including deeper
         pagination) goes straight to the canonical path.
         """
+        cache_key = f"{api_key}:{page}"
+        cached = self._list_html_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
         path = self._series_list_path(api_key, page)
         try:
-            return self._http.get_text(path)
+            html = self._http.get_text(path)
         except ConnectorHttpError:
             # Only retry the cold-cache guess-and-check; if the genre/slug is
             # already known, this path was already canonical and a fresh
             # failure is a real error, not a wrong-section guess.
             if page != 1 or self._slug_cache.get(api_key) is not None:
                 raise
-            return self._http.get_text(canvas_detail_path(api_key))
+            html = self._http.get_text(canvas_detail_path(api_key))
+        self._list_html_cache.set(cache_key, html)
+        return html
 
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
         page = max(page, 1)
@@ -324,34 +349,54 @@ class WebtoonsConnector(SourceConnector):
             return self._enrich(cached)
 
         collected: dict[str, Chapter] = {}
-        for page in range(1, MAX_EPISODE_PAGES + 1):
-            path = self._series_list_path(api_key, page)
-            try:
-                html = self._get_series_html(api_key, page)
-            except ConnectorHttpError as exc:
-                self._log("chapters", path, status="error", detail=str(exc))
-                break
-            batch = parse_episodes(html, api_key)
-            if not batch:
-                break
-            if page == 1 and self._slug_cache.get(api_key) is None:
-                detail = parse_series_detail(html, api_key)
-                if detail is not None:
-                    slug = extract_slug_from_canonical_path(detail.canonical_path)
-                    if slug is not None:
-                        self._slug_cache.set(api_key, slug)
-            elif batch:
-                parsed = parse_chapter_id(batch[0].id)
-                if parsed is not None:
-                    _, _, genre, series_slug = parsed
-                    self._slug_cache.set(api_key, (genre, series_slug))
-            added = 0
-            for chapter in batch:
-                if chapter.id not in collected:
-                    collected[chapter.id] = chapter
-                    added += 1
-            if page > 1 and added == 0:
-                break
+
+        # Page 1 must go first and alone: it is what teaches ``_slug_cache``
+        # the canonical genre/slug, and every deeper page's URL is built from
+        # that. It is also usually already in _list_html_cache, put there by
+        # the get_series call the reader made a moment earlier.
+        first_path = self._series_list_path(api_key, 1)
+        try:
+            first_html = self._get_series_html(api_key, 1)
+        except ConnectorHttpError as exc:
+            self._log("chapters", first_path, status="error", detail=str(exc))
+            return []
+
+        first_batch = parse_episodes(first_html, api_key)
+        self._learn_slug(api_key, first_html, first_batch)
+        for chapter in first_batch:
+            collected[chapter.id] = chapter
+
+        if first_batch:
+            # WEBTOON's pagination strip names the next ten pages, so they can
+            # be fetched together instead of one-at-a-time-until-empty. A
+            # 114-episode title was twelve serial round trips (8.0s).
+            known_max = min(parse_max_list_page(first_html), MAX_EPISODE_PAGES)
+            pending = list(range(2, known_max + 1))
+            exhausted = False
+            while pending and not exhausted:
+                batch_pages = pending[:_CHAPTER_PAGE_WORKERS]
+                pending = pending[len(batch_pages):]
+                for page, html in self._fetch_list_pages(api_key, batch_pages):
+                    if html is None:
+                        exhausted = True
+                        break
+                    episodes = parse_episodes(html, api_key)
+                    if not episodes:
+                        exhausted = True
+                        break
+                    added = sum(
+                        1 for ch in episodes if collected.setdefault(ch.id, ch) is ch
+                    )
+                    if added == 0:
+                        # Same rows as a previous page: WEBTOON is clamping an
+                        # over-range page number rather than serving new ones.
+                        exhausted = True
+                        break
+                    # A later strip reveals the next group of ten.
+                    revealed = min(parse_max_list_page(html), MAX_EPISODE_PAGES)
+                    if revealed > known_max:
+                        pending.extend(range(known_max + 1, revealed + 1))
+                        known_max = revealed
 
         chapters = sorted(
             collected.values(),
@@ -362,6 +407,62 @@ class WebtoonsConnector(SourceConnector):
         enriched = self._enrich(chapters)
         self._log("chapters", series_detail_path(api_key), status="ok", detail=f"count={len(enriched)}")
         return enriched
+
+    def _learn_slug(
+        self, api_key: str, html: str, episodes: list[Chapter]
+    ) -> None:
+        """Cache the canonical (genre, slug) this series lives under.
+
+        Every episode-list page past the first is addressed by that pair, so
+        it has to be learned from page 1 before anything deeper is requested.
+        """
+        if self._slug_cache.get(api_key) is None:
+            detail = parse_series_detail(html, api_key)
+            if detail is not None:
+                slug = extract_slug_from_canonical_path(detail.canonical_path)
+                if slug is not None:
+                    self._slug_cache.set(api_key, slug)
+                    return
+        if episodes:
+            parsed = parse_chapter_id(episodes[0].id)
+            if parsed is not None:
+                _, _, genre, series_slug = parsed
+                self._slug_cache.set(api_key, (genre, series_slug))
+
+    def _fetch_list_pages(
+        self, api_key: str, pages: list[int]
+    ) -> list[tuple[int, str | None]]:
+        """Fetch several episode-list pages at once, returned in page order.
+
+        A failed page yields ``None`` rather than raising: the caller treats
+        it the way the old serial loop treated an error, as the end of the
+        list, so a transient failure deep in a long series still returns the
+        episodes already collected instead of nothing.
+        """
+        if not pages:
+            return []
+        results: dict[int, str | None] = {}
+        with cf.ThreadPoolExecutor(
+            max_workers=min(_CHAPTER_PAGE_WORKERS, len(pages)),
+            thread_name_prefix="webtoons-eplist",
+        ) as ex:
+            futures = {
+                ex.submit(self._get_series_html, api_key, page): page
+                for page in pages
+            }
+            for future in cf.as_completed(futures):
+                page = futures[future]
+                try:
+                    results[page] = future.result()
+                except ConnectorHttpError as exc:
+                    self._log(
+                        "chapters",
+                        self._series_list_path(api_key, page),
+                        status="error",
+                        detail=str(exc),
+                    )
+                    results[page] = None
+        return [(page, results.get(page)) for page in pages]
 
     def _enrich(self, chapters: list[Chapter]) -> list[Chapter]:
         enriched: list[Chapter] = []

@@ -322,6 +322,28 @@ def extract_slug_from_canonical_path(canonical_path: str | None) -> tuple[str, s
 
 # -- Episodes / chapters ----------------------------------------------------
 
+PAGINATE_BLOCK_RE = re.compile(
+    r'<div class="paginate">(?P<body>.*?)</div>', re.I | re.S
+)
+_PAGINATE_LINK_RE = re.compile(r"[?&]page=(\d+)")
+
+
+def parse_max_list_page(html: str) -> int:
+    """Highest episode-list page number the pagination strip advertises.
+
+    WEBTOON shows ten page links at a time, so this is a *lower bound* on a
+    long series -- page 10's strip reveals 11-20, and so on. That is exactly
+    what it is used for: it turns "fetch page after page until one comes back
+    empty" into "fetch the ten we already know exist, at once". Restricted to
+    the paginate block because ``page=`` also appears in unrelated links.
+    """
+    block = PAGINATE_BLOCK_RE.search(html)
+    if block is None:
+        return 1
+    pages = [int(value) for value in _PAGINATE_LINK_RE.findall(block.group("body"))]
+    return max(pages) if pages else 1
+
+
 def parse_episodes(html: str, series_id: str) -> list[Chapter]:
     """Parse the episode rows on one detail/list page (newest-first)."""
     chapters: list[Chapter] = []
