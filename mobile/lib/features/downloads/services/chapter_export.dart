@@ -241,9 +241,10 @@ String sanitizeExportName(String raw) {
       .replaceAll(RegExp(r'[\\/:*?"<>|\x00-\x1F]'), ' ')
       .replaceAll(RegExp(r'\s+'), ' ')
       .trim()
-      // A leading dot hides the entry on every Unix-derived filesystem; a
-      // trailing dot or space is silently dropped by some of them.
-      .replaceAll(RegExp(r'^\.+'), '')
+      // A leading dot hides the entry on every Unix-derived filesystem, and
+      // a name that is nothing but dots is a relative-path component; a
+      // trailing dot or space is silently dropped by some filesystems.
+      .replaceAll(RegExp(r'^[. ]+'), '')
       .replaceAll(RegExp(r'[. ]+$'), '')
       .trim();
   if (cleaned.isEmpty) return 'Untitled';
