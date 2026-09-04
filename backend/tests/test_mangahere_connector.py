@@ -546,6 +546,37 @@ def test_partial_chapterfun_resolution_serves_nothing(connector: MangaHereConnec
     assert len(blanked) >= 2, "the missing page must be re-asked for at least once"
 
 
+def test_flat_refusal_aborts_instead_of_finishing_the_fan_out(
+    connector: MangaHereConnector,
+):
+    """When chapterfun refuses, it refuses everything -- so stop early.
+
+    Measured from the VPS: a refused chapter answered 0/28 across serial,
+    paced-serial and parallel runs alike. Finishing the fan-out and then
+    retrying it cost eleven seconds to learn what three requests say in
+    under one, and the owner's whole ask is that nothing feels slow.
+    """
+    record: list[tuple[str, dict | None]] = []
+    serve = _fixture_http(record)
+
+    def refusing(path: str, *, params: dict | None = None) -> str:
+        if "chapterfun.ashx" in path:
+            record.append((path, params))
+            return ""
+        return serve(path, params=params)
+
+    with patch.object(connector._http, "get_text", side_effect=refusing):
+        pages = connector.get_chapter_pages(ASHX_CHAPTER)
+
+    assert pages == []
+    attempted = [p for p, params in record if params and "page" in params]
+    expected_full_fan_out = (ASHX_IMAGE_COUNT + 1) // 2
+    assert len(attempted) < expected_full_fan_out, (
+        f"aborted after {len(attempted)} calls; a full fan-out is "
+        f"{expected_full_fan_out} and the old code did that twice"
+    )
+
+
 def test_transient_blank_reply_recovers_on_retry(connector: MangaHereConnector):
     """One blank reply must not cost the whole chapter."""
     record: list[tuple[str, dict | None]] = []
