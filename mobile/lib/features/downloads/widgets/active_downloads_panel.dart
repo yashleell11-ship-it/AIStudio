@@ -217,9 +217,14 @@ class _CurrentChapterProgress extends ConsumerWidget {
         ),
         const SizedBox(height: AppSpacing.xxs),
         Text(
-          total > 0
-              ? '${label.primary} · page ${queue.pagesDone} of $total'
-              : '${label.primary} · reading chapter details…',
+          // "page 1 of 1" would be a lie about a novel chapter, which is one
+          // blob of text and no pages at all — so prose says what it is doing
+          // instead of counting to one.
+          chapter.kind.isNovel
+              ? '${label.primary} · ${queue.pagesDone > 0 ? 'saving the text…' : 'fetching the text…'}'
+              : total > 0
+                  ? '${label.primary} · page ${queue.pagesDone} of $total'
+                  : '${label.primary} · reading chapter details…',
           style: AppTypography.bodySm.copyWith(color: context.colors.muted),
         ),
         const SizedBox(height: AppSpacing.sm),
