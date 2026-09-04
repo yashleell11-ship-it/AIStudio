@@ -7,6 +7,19 @@ For every registered connector, exercise the full read path a user hits:
     detail  -> get_series(first.id)
     chapters-> get_chapters(first.id)          ("chapters inside the series")
     pages   -> get_chapter_pages(first chapter) ("pages inside the chapter")
+    images  -> find_page(page.id) + fetch the bytes the image proxy would serve
+
+The ``images`` stage is the one that separates "the site still lists things"
+from "a reader can actually read it": a source whose page CDN 404s, hotlinks
+behind a Referer we do not send, or answers with a redirect the proxy refuses
+to follow is *broken*, even though every earlier stage passes. It runs the
+real production code path (``BrowseService._fetch_url`` — SSRF allowlist,
+``fetch_proxied_image`` hook, connector ``image_fetch_headers``, no redirect
+following) so a PASS here means the deployed reader works.
+
+Run this ON THE VPS, not on a laptop: sources are gated on egress IP
+reputation, and a residential IP reports sources as live that are dead in
+production. See ``--remote`` for the one-liner that does it.
 
 Records a per-stage PASS/FAIL + timing + error so we can print a tick-mark
 table of what actually works live. Runs connectors concurrently with a hard
@@ -17,12 +30,19 @@ Usage:
     ./.venv/bin/python scripts/e2e_connector_check.py --mature   # include mature
     ./.venv/bin/python scripts/e2e_connector_check.py --only id1,id2
     ./.venv/bin/python scripts/e2e_connector_check.py --workers 8 --timeout 30
+    ./.venv/bin/python scripts/e2e_connector_check.py --no-images  # skip byte fetch
+
+    # from the laptop, executed inside the production container:
+    ./.venv/bin/python scripts/e2e_connector_check.py --remote
 """
 from __future__ import annotations
 
 import argparse
 import concurrent.futures as cf
 import json
+import os
+import shlex
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -30,9 +50,20 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(REPO))
 
+# When --sync-code ships the working tree's connectors/ into the container,
+# they land in an overlay dir that must win over the image's baked-in copy.
+# Prepending here (before the first `connectors` import) is what makes a
+# remote run exercise the fix rather than what is currently deployed.
+_OVERLAY = os.environ.get("MM_PROBE_OVERLAY", "")
+if _OVERLAY and Path(_OVERLAY).is_dir():
+    sys.path.insert(0, _OVERLAY)
+
 from connectors.registry import create_connector, list_installed_connectors  # noqa: E402
 
-STAGES = ("browse", "detail", "chapters", "pages")
+STAGES = ("browse", "detail", "chapters", "pages", "images")
+
+VPS_HOST = os.environ.get("MM_VPS_HOST", "ubuntu@135.148.43.147")
+VPS_CONTAINER = os.environ.get("MM_VPS_CONTAINER", "manhwamaniacs-backend")
 
 
 def _first_id(items) -> str | None:
@@ -43,17 +74,95 @@ def _first_id(items) -> str | None:
     return None
 
 
-def check_one(source_type: str) -> dict:
+# --- image bytes -----------------------------------------------------------
+# Reuse the *production* fetch verbatim rather than reimplementing it: the
+# allowlist, the Referer headers and the refuse-to-follow-redirects rule are
+# exactly the things that decide whether a page renders for a real user, so a
+# hand-rolled copy here would drift and lie. BrowseService.__new__ skips
+# __init__ (no DB/profile needed) — _fetch_url only touches module-level
+# helpers via self.
+def _image_fetcher():
+    from services.browse_service import BrowseService
+
+    svc = BrowseService.__new__(BrowseService)
+    return lambda url, connector: BrowseService._fetch_url(svc, url, connector)
+
+
+def _sample_indices(n: int, want: int) -> list[int]:
+    """First / middle / last page indices — a chapter often rots unevenly."""
+    if n <= want:
+        return list(range(n))
+    if want <= 1:
+        return [0]
+    step = (n - 1) / (want - 1)
+    return sorted({int(round(i * step)) for i in range(want)})
+
+
+def check_images(conn, pages, samples: int) -> tuple[str, int, int, str]:
+    """Fetch real bytes for a few pages the way the image proxy would.
+
+    Returns (status, n_ok, n_tried, error). Also exercises ``find_page``,
+    which the reader route uses to resolve a page id back to a Page — a
+    connector can list pages fine and still serve nothing if that is broken.
+    """
+    if not pages:
+        return "-", 0, 0, ""
+    try:
+        fetch = _image_fetcher()
+    except Exception as exc:  # noqa: BLE001
+        return "ERROR", 0, 0, f"image harness: {type(exc).__name__}: {exc}"[:200]
+
+    idxs = _sample_indices(len(pages), samples)
+    n_ok = 0
+    n_tried = 0
+    first_error = ""
+    for i in idxs:
+        page = pages[i]
+        n_tried += 1
+        try:
+            # production resolves id -> Page before fetching; verify that too
+            resolved = conn.find_page(page.id)
+            if resolved is None or not getattr(resolved, "remote_url", None):
+                first_error = first_error or f"find_page({page.id})-> none/no url"
+                continue
+            media_type, data = fetch(resolved.remote_url, conn)
+        except Exception as exc:  # noqa: BLE001
+            detail = f"{type(exc).__name__}: {exc}"
+            # AppError carries the upstream status in .details
+            extra = getattr(exc, "details", None)
+            if isinstance(extra, dict) and extra.get("reason"):
+                detail = f"{detail} [{extra['reason']}]"
+            first_error = first_error or f"p{i}: {detail}"[:200]
+            continue
+        if not data:
+            first_error = first_error or f"p{i}: empty body"
+            continue
+        if not media_type.startswith("image/"):
+            first_error = first_error or f"p{i}: content-type {media_type}"
+            continue
+        n_ok += 1
+
+    if n_ok == n_tried and n_tried:
+        return "PASS", n_ok, n_tried, ""
+    if n_ok:
+        return "PARTIAL", n_ok, n_tried, first_error
+    return "FAIL", n_ok, n_tried, first_error or "no image bytes"
+
+
+def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) -> dict:
     result = {
         "source_id": source_type,
         "browse": "-",
         "detail": "-",
         "chapters": "-",
         "pages": "-",
+        "images": "-",
         "series_sample": "",
         "n_series": 0,
         "n_chapters": 0,
         "n_pages": 0,
+        "n_images_ok": 0,
+        "n_images_tried": 0,
         "error": "",
         "ok": False,
         "secs": 0.0,
@@ -90,9 +199,9 @@ def check_one(source_type: str) -> dict:
     # no readable chapters), so try the next series before declaring failure.
     # We keep the best (deepest-reaching) attempt.
     candidate_ids = [sid for sid in (_first_id([it]) for it in items[:5]) if sid]
-    best = {"detail": "FAIL", "chapters": "FAIL", "pages": "-",
-            "n_chapters": 0, "n_pages": 0, "sample": result["series_sample"],
-            "error": "", "depth": -1}
+    best = {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
+            "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
+            "sample": result["series_sample"], "error": "", "depth": -1}
 
     def _depth(d: dict) -> int:
         score = 0
@@ -102,11 +211,17 @@ def check_one(source_type: str) -> dict:
             score = 2
         if d["pages"] == "PASS":
             score = 3
+        if d["images"] == "PARTIAL":
+            score = 4
+        if d["images"] == "PASS":
+            score = 5
         return score
 
+    target_depth = 5 if images else 3
+
     for series_id in candidate_ids:
-        attempt = {"detail": "FAIL", "chapters": "FAIL", "pages": "-",
-                   "n_chapters": 0, "n_pages": 0,
+        attempt = {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
+                   "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
                    "sample": result["series_sample"], "error": "", "depth": -1}
         chapter_id = None
         try:
@@ -129,31 +244,191 @@ def check_one(source_type: str) -> dict:
         except Exception as exc:  # noqa: BLE001
             attempt["error"] = attempt["error"] or f"chapters: {type(exc).__name__}: {exc}"[:200]
         if chapter_id is not None:
+            page_list: list = []
             try:
-                pages = list(conn.get_chapter_pages(chapter_id) or [])
-                attempt["n_pages"] = len(pages)
-                has_url = bool(pages) and bool(getattr(pages[0], "remote_url", None))
+                page_list = list(conn.get_chapter_pages(chapter_id) or [])
+                attempt["n_pages"] = len(page_list)
+                has_url = bool(page_list) and bool(getattr(page_list[0], "remote_url", None))
                 attempt["pages"] = "PASS" if has_url else "FAIL"
                 if not has_url and not attempt["error"]:
                     attempt["error"] = "0 pages / no image url"
             except Exception as exc:  # noqa: BLE001
                 attempt["error"] = attempt["error"] or f"pages: {type(exc).__name__}: {exc}"[:200]
+            if images and attempt["pages"] == "PASS":
+                status, n_ok, n_tried, img_err = check_images(conn, page_list, image_samples)
+                attempt["images"] = status
+                attempt["n_images_ok"] = n_ok
+                attempt["n_images_tried"] = n_tried
+                if status != "PASS" and not attempt["error"]:
+                    attempt["error"] = f"images: {img_err}"[:200]
         attempt["depth"] = _depth(attempt)
         if attempt["depth"] > best["depth"]:
             best = attempt
-        if attempt["depth"] == 3:
+        if attempt["depth"] >= target_depth:
             break  # fully working — no need to try more series
 
     result["detail"] = best["detail"]
     result["chapters"] = best["chapters"]
     result["pages"] = best["pages"]
+    result["images"] = best["images"]
     result["n_chapters"] = best["n_chapters"]
     result["n_pages"] = best["n_pages"]
+    result["n_images_ok"] = best["n_images_ok"]
+    result["n_images_tried"] = best["n_images_tried"]
     result["series_sample"] = best["sample"]
     result["error"] = best["error"]
-    result["ok"] = all(result[s] == "PASS" for s in STAGES)
+    required = STAGES if images else STAGES[:-1]
+    result["ok"] = all(result[s] == "PASS" for s in required)
     result["secs"] = round(time.monotonic() - t0, 1)
     return result
+
+
+def _sync_code_to_container() -> str:
+    """Ship the working tree's connectors/ into the container as an overlay.
+
+    Verifying a connector fix means running the *new* code against the live
+    site from the production egress IP. Rebuilding the image for each attempt
+    is far too slow, and overwriting /app/connectors would mutate the running
+    service. So the tree goes to a scratch dir that is prepended to sys.path
+    for the probe process only; the served app is untouched.
+    """
+    overlay = "/app/_probe_overlay"
+    host_dir = "/tmp/mm_probe_overlay"
+    print(f"==> syncing working-tree connectors/ -> {VPS_CONTAINER}:{overlay}", flush=True)
+    subprocess.run(
+        ["ssh", "-o", "BatchMode=yes", VPS_HOST, f"mkdir -p {host_dir}/connectors"],
+        check=True,
+    )
+    subprocess.run(
+        ["rsync", "-az", "--delete", "-e", "ssh -o BatchMode=yes",
+         "--exclude", "__pycache__", "--exclude", "*.pyc",
+         f"{REPO}/connectors/", f"{VPS_HOST}:{host_dir}/connectors/"],
+        check=True,
+    )
+    subprocess.run(
+        ["ssh", "-o", "BatchMode=yes", VPS_HOST,
+         f"docker exec {VPS_CONTAINER} rm -rf {overlay} && "
+         f"docker exec {VPS_CONTAINER} mkdir -p {overlay} && "
+         f"docker cp {host_dir}/connectors {VPS_CONTAINER}:{overlay}/connectors"],
+        check=True,
+    )
+    return overlay
+
+
+def _run_remote(argv: list[str], out: str, probe_out: str, sync_code: bool = False) -> int:
+    """Re-run this script inside the production container over ssh.
+
+    Probing from a laptop is actively misleading — residential egress sails
+    past bot walls that reject the VPS, so a local run reports dead sources as
+    live. This ships the script to the box and execs it in the backend
+    container, which has the exact TLS stack, headers and egress IP prod uses,
+    then copies the JSON results back so the local repo holds VPS truth.
+
+    The script lands in /app/scripts/ so ``parents[1]`` still resolves to the
+    app root the way it does in the repo.
+    """
+    script = Path(__file__).resolve()
+    host_tmp = "/tmp/e2e_connector_check.py"
+    ctr_out = "/tmp/e2e_results.json"
+    ctr_probe = "/tmp/probe_results.json"
+
+    inner_args = list(argv) + ["--out", ctr_out]
+    if probe_out:
+        inner_args += ["--probe-out", ctr_probe]
+    inner = " ".join(shlex.quote(a) for a in inner_args)
+
+    overlay = _sync_code_to_container() if sync_code else ""
+
+    print(f"==> copying {script.name} to {VPS_HOST}:{host_tmp}", flush=True)
+    subprocess.run(
+        ["scp", "-o", "BatchMode=yes", str(script), f"{VPS_HOST}:{host_tmp}"],
+        check=True,
+    )
+    print(f"==> exec in {VPS_CONTAINER}: {inner}"
+          + (f"  [overlay {overlay}]" if overlay else ""), flush=True)
+    remote_cmd = (
+        f"set -e; docker exec {VPS_CONTAINER} mkdir -p /app/scripts; "
+        f"docker cp {host_tmp} {VPS_CONTAINER}:/app/scripts/_e2e_check.py; "
+        f"docker exec -w /app -e MM_PROBE_FROM=vps "
+        + (f"-e MM_PROBE_OVERLAY={overlay} " if overlay else "")
+        + f"{VPS_CONTAINER} "
+        f"python /app/scripts/_e2e_check.py {inner}; "
+        f"rc=$?; docker exec {VPS_CONTAINER} rm -f /app/scripts/_e2e_check.py; "
+        f"docker cp {VPS_CONTAINER}:{ctr_out} {host_tmp}.out.json 2>/dev/null || true; "
+        + (f"docker cp {VPS_CONTAINER}:{ctr_probe} {host_tmp}.probe.json 2>/dev/null || true; "
+           if probe_out else "")
+        + "exit $rc"
+    )
+    rc = subprocess.run(["ssh", "-o", "BatchMode=yes", VPS_HOST, remote_cmd]).returncode
+
+    for remote_file, local_path in (
+        (f"{host_tmp}.out.json", out),
+        (f"{host_tmp}.probe.json", probe_out),
+    ):
+        if not local_path:
+            continue
+        Path(local_path).parent.mkdir(parents=True, exist_ok=True)
+        fetched = subprocess.run(
+            ["scp", "-o", "BatchMode=yes", f"{VPS_HOST}:{remote_file}", local_path]
+        )
+        if fetched.returncode == 0:
+            print(f"==> pulled {local_path}")
+    return rc
+
+
+def _write_probe_results(results: list[dict], path: Path, mature_ids: set[str]) -> None:
+    """Emit docs/connector_probe_results.json in the established shape.
+
+    Keeps the keys the existing consumers read (``generate_connector_status``,
+    ``apply_probe_prune``: source_id/status/items/mature/detail/sample_title)
+    and adds the per-stage breakdown, because "browse works" and "a chapter is
+    readable" are different facts and only the second one matters to a reader.
+    """
+    out: list[dict] = []
+    for r in results:
+        if r["ok"]:
+            status = "LIVE"
+        elif r["browse"] == "PASS":
+            # lists fine but the read path is broken somewhere downstream
+            status = "PARTIAL"
+        elif r["browse"] in ("TIMEOUT", "ERROR"):
+            status = "ERROR"
+        else:
+            status = "DEAD"
+        out.append({
+            "source_id": r["source_id"],
+            "status": status,
+            "items": r.get("n_series", 0),
+            "mature": r["source_id"] in mature_ids,
+            "detail": r.get("error", "") or "",
+            "sample_title": r.get("series_sample", "") or "",
+            "stages": {s: r.get(s, "-") for s in STAGES},
+            "n_chapters": r.get("n_chapters", 0),
+            "n_pages": r.get("n_pages", 0),
+            "n_images_ok": r.get("n_images_ok", 0),
+            "n_images_tried": r.get("n_images_tried", 0),
+        })
+    out.sort(key=lambda r: ({"LIVE": 0, "PARTIAL": 1, "DEAD": 2, "ERROR": 3}[r["status"]],
+                            r["source_id"]))
+    counts = {k: sum(1 for r in out if r["status"] == k)
+              for k in ("LIVE", "PARTIAL", "DEAD", "ERROR")}
+    from datetime import UTC, datetime
+
+    payload = {
+        "probed_at": datetime.now(UTC).isoformat(),
+        "probed_from": "vps" if os.environ.get("MM_PROBE_FROM") == "vps" else "unknown",
+        "total": len(out),
+        "live": counts["LIVE"],
+        "partial": counts["PARTIAL"],
+        "dead": counts["DEAD"],
+        "error": counts["ERROR"],
+        "results": out,
+    }
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"Wrote {path} "
+          f"(LIVE {counts['LIVE']} / PARTIAL {counts['PARTIAL']} / "
+          f"DEAD {counts['DEAD']} / ERROR {counts['ERROR']})")
 
 
 def main() -> None:
@@ -163,7 +438,38 @@ def main() -> None:
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--timeout", type=float, default=30.0, help="per-connector seconds")
     ap.add_argument("--out", default=str(REPO / "docs" / "connector_e2e_results.json"))
+    ap.add_argument("--probe-out", default="",
+                    help="also write docs/connector_probe_results.json-shaped JSON here")
+    ap.add_argument("--no-images", dest="images", action="store_false",
+                    help="skip the image-bytes stage (browse/detail/chapters/pages only)")
+    ap.add_argument("--image-samples", type=int, default=3,
+                    help="pages per chapter to fetch bytes for (first/middle/last)")
+    ap.add_argument("--remote", action="store_true",
+                    help="run this check inside the production container over ssh")
+    ap.add_argument("--sync-code", action="store_true",
+                    help="with --remote: overlay the working tree's connectors/ "
+                         "so a fix is verified before it is deployed")
     args = ap.parse_args()
+
+    if args.remote:
+        # --out/--probe-out are rewritten to container paths and copied back
+        passthrough: list[str] = []
+        skip_next = False
+        for a in sys.argv[1:]:
+            if skip_next:
+                skip_next = False
+                continue
+            if a in ("--remote", "--sync-code"):
+                continue
+            if a in ("--out", "--probe-out"):
+                skip_next = True
+                continue
+            if a.startswith(("--out=", "--probe-out=")):
+                continue
+            passthrough.append(a)
+        raise SystemExit(
+            _run_remote(passthrough, args.out, args.probe_out, sync_code=args.sync_code)
+        )
 
     descriptors = list(list_installed_connectors(include_mature=True))
     ids = [d.source_type for d in descriptors]
@@ -177,52 +483,66 @@ def main() -> None:
     ids = [i for i in ids if i != "local_filesystem"]
 
     print(f"Checking {len(ids)} connectors "
-          f"(workers={args.workers}, timeout={args.timeout}s, mature={args.mature})...",
+          f"(workers={args.workers}, timeout={args.timeout}s, mature={args.mature}, "
+          f"images={args.images})...",
           flush=True)
+
+    def _stub(sid: str, stage_status: str, error: str, secs: float) -> dict:
+        return {
+            "source_id": sid, "browse": stage_status, "detail": "-",
+            "chapters": "-", "pages": "-", "images": "-", "series_sample": "",
+            "n_series": 0, "n_chapters": 0, "n_pages": 0,
+            "n_images_ok": 0, "n_images_tried": 0,
+            "error": error, "ok": False, "secs": secs,
+        }
 
     results: list[dict] = []
     with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = {ex.submit(check_one, sid): sid for sid in ids}
+        futs = {
+            ex.submit(check_one, sid, images=args.images,
+                      image_samples=args.image_samples): sid
+            for sid in ids
+        }
         for fut in cf.as_completed(futs):
             sid = futs[fut]
             try:
                 results.append(fut.result(timeout=args.timeout))
             except cf.TimeoutError:
-                results.append({
-                    "source_id": sid, "browse": "TIMEOUT", "detail": "-",
-                    "chapters": "-", "pages": "-", "series_sample": "",
-                    "n_series": 0, "n_chapters": 0, "n_pages": 0,
-                    "error": f"timeout >{args.timeout}s", "ok": False,
-                    "secs": args.timeout,
-                })
+                results.append(_stub(sid, "TIMEOUT", f"timeout >{args.timeout}s", args.timeout))
             except Exception as exc:  # noqa: BLE001
-                results.append({
-                    "source_id": sid, "browse": "ERROR", "detail": "-",
-                    "chapters": "-", "pages": "-", "series_sample": "",
-                    "n_series": 0, "n_chapters": 0, "n_pages": 0,
-                    "error": f"{type(exc).__name__}: {exc}"[:200], "ok": False,
-                    "secs": 0.0,
-                })
+                results.append(_stub(sid, "ERROR", f"{type(exc).__name__}: {exc}"[:200], 0.0))
 
     results.sort(key=lambda r: (not r["ok"], r["source_id"]))
     fully_ok = [r for r in results if r["ok"]]
+    # browse works but the reader path does not — the population worth fixing
+    partial = [r for r in results if not r["ok"] and r["browse"] == "PASS"]
 
     def mark(v: str) -> str:
-        return {"PASS": "✅", "FAIL": "❌", "TIMEOUT": "⏱", "ERROR": "💥", "-": "·"}.get(v, v)
+        return {"PASS": "✅", "FAIL": "❌", "PARTIAL": "◐", "TIMEOUT": "⏱",
+                "ERROR": "💥", "-": "·"}.get(v, v)
 
     print()
-    print(f"{'source':22} {'br':>2} {'de':>2} {'ch':>2} {'pg':>2}  {'ser/ch/pg':>12}  sample / error")
-    print("-" * 100)
+    print(f"{'source':22} {'br':>2} {'de':>2} {'ch':>2} {'pg':>2} {'im':>2}  "
+          f"{'ser/ch/pg/img':>14}  sample / error")
+    print("-" * 110)
     for r in results:
-        counts = f"{r['n_series']}/{r['n_chapters']}/{r['n_pages']}"
+        counts = (f"{r['n_series']}/{r['n_chapters']}/{r['n_pages']}/"
+                  f"{r['n_images_ok']}of{r['n_images_tried']}")
         tail = r["series_sample"] if r["ok"] else (r["error"] or r["series_sample"])
         print(f"{r['source_id']:22} "
-              f"{mark(r['browse']):>2} {mark(r['detail']):>2} {mark(r['chapters']):>2} {mark(r['pages']):>2}  "
-              f"{counts:>12}  {tail[:52]}")
+              f"{mark(r['browse']):>2} {mark(r['detail']):>2} {mark(r['chapters']):>2} "
+              f"{mark(r['pages']):>2} {mark(r['images']):>2}  "
+              f"{counts:>14}  {tail[:52]}")
 
-    print("-" * 100)
-    print(f"FULLY WORKING (browse+detail+chapters+pages): {len(fully_ok)}/{len(results)}")
+    print("-" * 110)
+    label = "browse+detail+chapters+pages" + ("+images" if args.images else "")
+    print(f"FULLY WORKING ({label}): {len(fully_ok)}/{len(results)}")
     print("  " + ", ".join(r["source_id"] for r in fully_ok))
+    if partial:
+        print(f"\nPARTIAL (browses, but read path broken): {len(partial)}")
+        for r in partial:
+            failed = next((s for s in STAGES if r[s] not in ("PASS", "-")), "?")
+            print(f"  {r['source_id']:22} fails at {failed:9} {r['error'][:60]}")
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps({
@@ -231,6 +551,10 @@ def main() -> None:
         "results": results,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
     print(f"\nWrote {args.out}")
+
+    if args.probe_out:
+        mature_ids = {d.source_type for d in descriptors if getattr(d, "mature", False)}
+        _write_probe_results(results, Path(args.probe_out), mature_ids)
 
 
 if __name__ == "__main__":
