@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_db.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_store.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
@@ -92,24 +91,6 @@ extension DownloadsStoreBookmarks on DownloadsStore {
           '${DownloadsSchema.colDeletedAt} IS NULL',
       whereArgs: [scopeId],
       orderBy: '${DownloadsSchema.colUpdatedAt} DESC',
-    );
-    return rows.map(_fromRow).toList();
-  }
-
-  /// The live bookmarks inside one chapter, earliest position first — what
-  /// the reader asks for when it opens a chapter.
-  Future<List<Bookmark>> chapterBookmarks(ChapterIdentity id) async {
-    final db = await database;
-    final rows = await db.query(
-      DownloadsSchema.bookmarks,
-      where: '${DownloadsSchema.colScopeId} = ? AND '
-          '${DownloadsSchema.colSourceId} = ? AND '
-          '${DownloadsSchema.colSeriesKey} = ? AND '
-          '${DownloadsSchema.colChapterKey} = ? AND '
-          '${DownloadsSchema.colDeletedAt} IS NULL',
-      whereArgs: [scopeId, id.sourceId, id.seriesKey, id.chapterKey],
-      orderBy: '${DownloadsSchema.colAnchorIndex} ASC, '
-          '${DownloadsSchema.colAnchorFraction} ASC',
     );
     return rows.map(_fromRow).toList();
   }
