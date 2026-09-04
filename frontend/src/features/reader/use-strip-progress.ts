@@ -41,8 +41,26 @@ export function useStripProgress({
 }: StripProgressInput): (position: StripPosition) => void {
   const saveProgress = useSaveProgress();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Furthest page already reported, per chapter — a strip visits several. */
-  const furthestSent = useRef<Map<string, number>>(new Map());
+  /**
+   * Furthest page already REPORTED, per chapter — a strip visits several.
+   *
+   * Reported, not written: a report only arms the debounce below, and the next
+   * scroll frame disarms it again. This map exists to stop the reader rewinding
+   * within a chapter, and it must never be read as "the server has this".
+   */
+  const furthestSeen = useRef<Map<string, number>>(new Map());
+  /**
+   * Chapters whose completion HAS actually been sent.
+   *
+   * Separate from `furthestSeen` on purpose, and the distinction is the whole
+   * point: reading a chapter straight through sets `furthestSeen` to its last
+   * page while only arming a 500 ms timer, and crossing the seam clears that
+   * timer before it fires. A `completeChapter` that took `furthestSeen` as
+   * proof of a write therefore skipped the one write that survives the
+   * crossing, and a reader who read four chapters in one scroll had three of
+   * them recorded nowhere at all.
+   */
+  const completedSent = useRef<Set<string>>(new Set());
   const positionRef = useRef<StripPosition | null>(null);
 
   useEffect(() => {
@@ -55,8 +73,9 @@ export function useStripProgress({
     (chapterKey: string) => {
       const chapter = chapters[chapterIndexOf(chapters, chapterKey)];
       if (!chapter || chapter.pages.length === 0) return;
-      if (furthestSent.current.get(chapterKey) === chapter.pages.length) return;
-      furthestSent.current.set(chapterKey, chapter.pages.length);
+      if (completedSent.current.has(chapterKey)) return;
+      completedSent.current.add(chapterKey);
+      furthestSeen.current.set(chapterKey, chapter.pages.length);
       saveProgress.mutate({
         ref: { sourceId, seriesKey, chapterKey },
         body: {
@@ -89,9 +108,9 @@ export function useStripProgress({
         onChapterChange?.(position.chapterKey);
       }
 
-      const furthest = furthestSent.current.get(position.chapterKey) ?? 0;
+      const furthest = furthestSeen.current.get(position.chapterKey) ?? 0;
       if (position.pageNumber <= furthest) return;
-      furthestSent.current.set(position.chapterKey, position.pageNumber);
+      furthestSeen.current.set(position.chapterKey, position.pageNumber);
 
       const chapterNumber =
         chapters[chapterIndexOf(chapters, position.chapterKey)]?.chapterNumber ?? null;
