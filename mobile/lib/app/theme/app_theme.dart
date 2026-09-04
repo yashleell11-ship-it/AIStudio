@@ -1,26 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_palette.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 
-// Re-export spacing + radius so callers can import just app_theme.dart.
+// Re-export the palette + colors + spacing + typography so callers can import
+// just app_theme.dart.
 export 'package:manhwamaniacs/app/theme/app_colors.dart';
+export 'package:manhwamaniacs/app/theme/app_palette.dart';
+export 'package:manhwamaniacs/app/theme/app_palettes.dart';
 export 'package:manhwamaniacs/app/theme/app_spacing.dart';
 export 'package:manhwamaniacs/app/theme/app_typography.dart';
 
-/// ManhwaManiacs v2 Material dark theme — dark-only.
+/// ManhwaManiacs Material theme, built from any registered [AppPalette].
 abstract final class AppTheme {
-  /// System overlay (status bar / nav bar) style for the whole app.
+  /// System overlay (status bar / nav bar) style for the default palette.
   ///
-  /// The two brightness fields are inverted by design and read by different
-  /// platforms. `statusBarIconBrightness` describes the *glyphs* and is
-  /// Android-only; `statusBarBrightness` describes the *background behind* the
-  /// bar and is the only field the iOS embedder looks at — it early-returns
-  /// when that key is absent, which is why every AppBar's overlay style used to
-  /// be a no-op on iPhone. The app pins a dark theme on both `theme` and
-  /// `darkTheme`, so this is a constant rather than something derived from the
-  /// system appearance.
+  /// Kept for call sites that predate multi-theme; themed screens should use
+  /// [overlayStyleFor] with the active palette instead.
   static const SystemUiOverlayStyle systemOverlayStyle = SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -29,80 +27,112 @@ abstract final class AppTheme {
     systemNavigationBarIconBrightness: Brightness.light,
   );
 
-  static ThemeData get dark {
-    const colorScheme = ColorScheme.dark(
-      surface: AppColors.panel,
-      onSurface: AppColors.fg,
-      primary: AppColors.primary,
-      onPrimary: AppColors.primaryFg,
-      secondary: AppColors.accent,
-      onSecondary: AppColors.accentFg,
-      error: AppColors.danger,
-      onError: AppColors.primaryFg,
-      outline: AppColors.border,
-      surfaceContainerHighest: AppColors.surface2,
-      scrim: AppColors.scrim,
+  /// Overlay style matching [palette]'s brightness.
+  ///
+  /// The two brightness fields are inverted by design and read by different
+  /// platforms. `statusBarIconBrightness` describes the *glyphs* and is
+  /// Android-only; `statusBarBrightness` describes the *background behind* the
+  /// bar and is the only field the iOS embedder looks at — it early-returns
+  /// when that key is absent, which is why every AppBar's overlay style used
+  /// to be a no-op on iPhone. Light palettes therefore need
+  /// `statusBarBrightness: Brightness.light` (iOS shows dark glyphs) and
+  /// `statusBarIconBrightness: Brightness.dark` (Android draws dark glyphs) —
+  /// without this, light themes get invisible white status text.
+  static SystemUiOverlayStyle overlayStyleFor(AppPalette palette) {
+    final glyphs = palette.isDark ? Brightness.light : Brightness.dark;
+    return SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: glyphs,
+      statusBarBrightness: palette.brightness,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: glyphs,
+    );
+  }
+
+  /// The default (Eclipse) theme — what the app wore before multi-theme.
+  static ThemeData get dark => fromPalette(AppPalettes.eclipse);
+
+  static ThemeData fromPalette(AppPalette p) {
+    final base =
+        p.isDark ? const ColorScheme.dark() : const ColorScheme.light();
+    final colorScheme = base.copyWith(
+      surface: p.surface,
+      onSurface: p.fg,
+      primary: p.primary,
+      onPrimary: p.primaryFg,
+      secondary: p.accent,
+      onSecondary: p.accentFg,
+      error: p.danger,
+      // Matches the pre-multi-theme choice: dark ink on the error fill for
+      // the dark default, light ink for light palettes — [p.primaryFg] is
+      // exactly that per-palette "ink on a filled control" tone.
+      onError: p.primaryFg,
+      outline: p.border,
+      surfaceContainerHighest: p.surface2,
+      scrim: p.scrim,
     );
 
     return ThemeData(
       useMaterial3: true,
-      brightness: Brightness.dark,
+      brightness: p.brightness,
       colorScheme: colorScheme,
-      scaffoldBackgroundColor: AppColors.bg,
-      canvasColor: AppColors.panel,
-      cardColor: AppColors.panel,
-      dividerColor: AppColors.border,
-      textTheme: AppTypography.textTheme,
+      scaffoldBackgroundColor: p.bg,
+      canvasColor: p.surface,
+      cardColor: p.surface,
+      dividerColor: p.border,
+      // The palette rides on the ThemeData so `context.colors` reads register
+      // a Theme dependency — that is the entire repaint mechanism.
+      extensions: [p],
+      textTheme: AppTypography.textTheme.apply(
+        bodyColor: p.fg,
+        displayColor: p.fg,
+      ),
       fontFamily: AppTypography.fontFamilyBody,
 
       // ── AppBar ────────────────────────────────────────────────────────────
-      appBarTheme: const AppBarTheme(
+      appBarTheme: AppBarTheme(
         backgroundColor: Colors.transparent,
-        foregroundColor: AppColors.fg,
+        foregroundColor: p.fg,
         elevation: 0,
         scrolledUnderElevation: 0,
         centerTitle: false,
         surfaceTintColor: Colors.transparent,
-        systemOverlayStyle: systemOverlayStyle,
+        systemOverlayStyle: overlayStyleFor(p),
       ),
 
       // ── Navigation Bar (M3) ───────────────────────────────────────────────
       navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: AppColors.sidebar,
+        backgroundColor: p.sidebar,
         surfaceTintColor: Colors.transparent,
         shadowColor: Colors.transparent,
         elevation: 0,
         height: 56,
-        indicatorColor: AppColors.violetGlow,
+        indicatorColor: p.violetGlow,
         indicatorShape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.lg),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
             size: 20,
-            color: states.contains(WidgetState.selected)
-                ? AppColors.primary
-                : AppColors.muted,
+            color: states.contains(WidgetState.selected) ? p.primary : p.muted,
           ),
         ),
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => AppTypography.labelSm.copyWith(
             fontSize: 10,
             fontWeight: FontWeight.w600,
-            color: states.contains(WidgetState.selected)
-                ? AppColors.primary
-                : AppColors.muted,
+            color: states.contains(WidgetState.selected) ? p.primary : p.muted,
           ),
         ),
       ),
 
       // ── Cards ─────────────────────────────────────────────────────────────
       cardTheme: CardThemeData(
-        color: AppColors.panel,
+        color: p.surface,
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.xl),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: p.border),
         ),
         margin: EdgeInsets.zero,
         clipBehavior: Clip.antiAlias,
@@ -111,8 +141,8 @@ abstract final class AppTheme {
       // ── Buttons ───────────────────────────────────────────────────────────
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: AppColors.primary,
-          foregroundColor: AppColors.primaryFg,
+          backgroundColor: p.primary,
+          foregroundColor: p.primaryFg,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
@@ -127,8 +157,8 @@ abstract final class AppTheme {
 
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: AppColors.primary,
-          side: const BorderSide(color: AppColors.primary),
+          foregroundColor: p.primary,
+          side: BorderSide(color: p.primary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
@@ -142,33 +172,33 @@ abstract final class AppTheme {
 
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: AppColors.primary,
+          foregroundColor: p.primary,
           textStyle: AppTypography.labelLg,
         ),
       ),
 
       iconButtonTheme: IconButtonThemeData(
         style: IconButton.styleFrom(
-          foregroundColor: AppColors.muted,
+          foregroundColor: p.muted,
         ),
       ),
 
       // ── Input ─────────────────────────────────────────────────────────────
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: AppColors.surface2,
-        hintStyle: AppTypography.body.copyWith(color: AppColors.muted),
+        fillColor: p.surface2,
+        hintStyle: AppTypography.body.copyWith(color: p.muted),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: p.border),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.border),
+          borderSide: BorderSide(color: p.border),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
-          borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
+          borderSide: BorderSide(color: p.primary, width: 1.5),
         ),
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.lg,
@@ -178,10 +208,10 @@ abstract final class AppTheme {
 
       // ── Chips ─────────────────────────────────────────────────────────────
       chipTheme: ChipThemeData(
-        backgroundColor: AppColors.surface2,
-        selectedColor: AppColors.violetGlow,
-        labelStyle: AppTypography.labelSm,
-        side: const BorderSide(color: AppColors.border),
+        backgroundColor: p.surface2,
+        selectedColor: p.violetGlow,
+        labelStyle: AppTypography.labelSm.copyWith(color: p.fg),
+        side: BorderSide(color: p.border),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.full),
         ),
@@ -192,16 +222,16 @@ abstract final class AppTheme {
       ),
 
       // ── Divider ───────────────────────────────────────────────────────────
-      dividerTheme: const DividerThemeData(
-        color: AppColors.border,
+      dividerTheme: DividerThemeData(
+        color: p.border,
         thickness: 1,
         space: 0,
       ),
 
       // ── SnackBar ──────────────────────────────────────────────────────────
       snackBarTheme: SnackBarThemeData(
-        backgroundColor: AppColors.surfaceElevated,
-        contentTextStyle: AppTypography.body,
+        backgroundColor: p.surfaceElevated,
+        contentTextStyle: AppTypography.body.copyWith(color: p.fg),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
@@ -210,10 +240,10 @@ abstract final class AppTheme {
       ),
 
       // ── Bottom Sheet ──────────────────────────────────────────────────────
-      bottomSheetTheme: const BottomSheetThemeData(
-        backgroundColor: AppColors.panel,
+      bottomSheetTheme: BottomSheetThemeData(
+        backgroundColor: p.surface,
         surfaceTintColor: Colors.transparent,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
             top: Radius.circular(AppRadius.xl),
           ),
@@ -223,21 +253,21 @@ abstract final class AppTheme {
 
       // ── Dialog ────────────────────────────────────────────────────────────
       dialogTheme: DialogThemeData(
-        backgroundColor: AppColors.panel,
+        backgroundColor: p.surface,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.xl2),
-          side: const BorderSide(color: AppColors.border),
+          side: BorderSide(color: p.border),
         ),
       ),
 
       // ── List Tiles ────────────────────────────────────────────────────────
       listTileTheme: ListTileThemeData(
         tileColor: Colors.transparent,
-        selectedTileColor: AppColors.violetGlow,
-        selectedColor: AppColors.primary,
-        iconColor: AppColors.muted,
-        textColor: AppColors.fg,
+        selectedTileColor: p.violetGlow,
+        selectedColor: p.primary,
+        iconColor: p.muted,
+        textColor: p.fg,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: AppSpacing.xl2,
           vertical: AppSpacing.xs,
@@ -248,47 +278,44 @@ abstract final class AppTheme {
       ),
 
       // ── Progress Indicator ────────────────────────────────────────────────
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: AppColors.primary,
-        linearTrackColor: AppColors.surface2,
-        circularTrackColor: AppColors.surface2,
+      progressIndicatorTheme: ProgressIndicatorThemeData(
+        color: p.primary,
+        linearTrackColor: p.surface2,
+        circularTrackColor: p.surface2,
       ),
 
       // ── Switches / Checkboxes ─────────────────────────────────────────────
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected) ? AppColors.primary : AppColors.muted,
+          (s) => s.contains(WidgetState.selected) ? p.primary : p.muted,
         ),
         trackColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected)
-              ? AppColors.violetGlow
-              : AppColors.surface2,
+          (s) =>
+              s.contains(WidgetState.selected) ? p.violetGlow : p.surface2,
         ),
       ),
 
       checkboxTheme: CheckboxThemeData(
         fillColor: WidgetStateProperty.resolveWith(
-          (s) => s.contains(WidgetState.selected)
-              ? AppColors.primary
-              : AppColors.surface2,
+          (s) => s.contains(WidgetState.selected) ? p.primary : p.surface2,
         ),
-        checkColor: WidgetStateProperty.all(AppColors.primaryFg),
+        checkColor: WidgetStateProperty.all(p.primaryFg),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.xs),
         ),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(color: p.border),
       ),
 
       // ── Floating Action Button ────────────────────────────────────────────
-      floatingActionButtonTheme: const FloatingActionButtonThemeData(
-        backgroundColor: AppColors.primary,
-        foregroundColor: AppColors.primaryFg,
+      floatingActionButtonTheme: FloatingActionButtonThemeData(
+        backgroundColor: p.primary,
+        foregroundColor: p.primaryFg,
         elevation: 0,
       ),
 
       // ── Scrollbar ─────────────────────────────────────────────────────────
       scrollbarTheme: ScrollbarThemeData(
-        thumbColor: WidgetStateProperty.all(AppColors.muted.withAlpha(80)),
+        thumbColor: WidgetStateProperty.all(p.muted.withAlpha(80)),
         radius: const Radius.circular(AppRadius.full),
         thickness: WidgetStateProperty.all(3),
       ),
