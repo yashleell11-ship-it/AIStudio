@@ -133,6 +133,12 @@ function TapZoneRow({
 
 interface ReaderControlsProps {
   chapterTitle: string;
+  /**
+   * Where this chapter sits in the series, e.g. "13 of 40". Only a Read-all run
+   * has it — that is the one place the reader is far enough from a chapter list
+   * that "which chapter am I in?" stops being obvious.
+   */
+  chapterPosition?: string | null;
   scrollProgress: number;
   visiblePage: number;
   pageCount: number;
@@ -199,6 +205,7 @@ interface ReaderControlsProps {
 
 export function ReaderControls({
   chapterTitle,
+  chapterPosition,
   scrollProgress,
   visiblePage,
   pageCount,
@@ -641,7 +648,14 @@ export function ReaderControls({
           <div className="glass-panel rounded-2xl p-4 shadow-glass">
             <div className="mb-3 flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-fg">{chapterTitle}</p>
+                <p className="flex items-baseline gap-2 text-sm font-semibold text-fg">
+                  <span className="truncate">{chapterTitle}</span>
+                  {chapterPosition ? (
+                    <span className="shrink-0 font-mono text-[11px] font-normal tabular-nums text-muted">
+                      {chapterPosition}
+                    </span>
+                  ) : null}
+                </p>
                 <p className="mt-0.5 font-mono text-xs tabular-nums text-primary">
                   Page {visiblePage} / {pageCount}
                   <span className="text-muted"> · {scrollProgress}%</span>

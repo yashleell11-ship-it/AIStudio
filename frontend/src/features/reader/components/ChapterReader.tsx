@@ -87,6 +87,8 @@ interface ChapterReaderProps {
    */
   head: StripEdge;
   tail: StripEdge;
+  /** Where the active chapter sits in the series, e.g. "13 of 40". */
+  chapterPosition?: string | null;
   /** Fires on every scroll frame with the chapter and page being read. */
   onPosition?: (position: StripPosition) => void;
   onBookmark?: (page: number) => void;
@@ -131,6 +133,7 @@ export function ChapterReader({
   seriesHref,
   head,
   tail,
+  chapterPosition,
   onPosition,
   onBookmark,
   onLoadPrevious,
@@ -468,7 +471,7 @@ export function ChapterReader({
   );
 
   const updateScrollState = useCallback(() => {
-    if (!scrollElement) return;
+    if (!scrollElement || chapters.length === 0) return;
     if (readingModeRef.current !== "continuous") return;
 
     const { scrollTop, scrollHeight, clientHeight } = scrollElement;
@@ -494,11 +497,13 @@ export function ChapterReader({
       if (anchor) writeReaderPosition(anchor.key, anchor.position);
       scrollSaveTimerRef.current = null;
     }, SCROLL_SAVE_MS);
-    // Re-made when the active chapter changes so the listener effect below
-    // re-attaches and recomputes at once: crossing a seam and STOPPING would
-    // otherwise leave the read-out showing the chapter above at 100%, with no
-    // further scroll to correct it.
-  }, [activeChapterKey, scrollElement]);
+    // Re-made whenever the active chapter changes OR the strip does, so the
+    // listener effect below re-attaches and recomputes at once. Both move the
+    // ground this reads: crossing a seam changes which chapter's range the
+    // percentage is against, and pulling a chapter onto the head moves every
+    // range in the strip. Either, followed by STOPPING, would otherwise leave a
+    // stale read-out with no further scroll to correct it.
+  }, [activeChapterKey, chapters, scrollElement]);
 
   useEffect(() => {
     if (!scrollElement) return;
@@ -1026,6 +1031,7 @@ export function ChapterReader({
       <div onClick={(event) => event.stopPropagation()} role="presentation">
         <ReaderControls
           chapterTitle={chapterTitle}
+          chapterPosition={chapterPosition}
           scrollProgress={
             continuous ? scrollProgress : Math.round(scrubPercent(visiblePage, pages.length))
           }

@@ -6,7 +6,7 @@ import { useSourceChapters } from "@/features/sources/hooks";
 import { useAddBookmark } from "../hooks";
 import { readAllHref, seriesPageHref } from "../reader-link";
 import { readerSeriesKey } from "../preferences";
-import { readAllEntryKey, readingOrder } from "../read-all";
+import { orderIndexOf, readAllEntryKey, readingOrder } from "../read-all";
 import { READ_ALL_STRIP_WINDOW } from "../strip";
 import { bulkChapterSource } from "../strip-source";
 import { useChapterStrip } from "../use-chapter-strip";
@@ -109,6 +109,15 @@ export function ReadAllReader({
     [activeChapterKey, addBookmark, entryChapterKey, seriesKey, sourceId],
   );
 
+  /**
+   * "13 of 40" — the one thing a run through a whole series needs that reading
+   * a single chapter does not: some sense of where in the book you are. The
+   * chapter's own title is not it when there are three hundred of them.
+   */
+  const positionInSeries = orderIndexOf(order, activeChapterKey || entryChapterKey);
+  const chapterPosition =
+    positionInSeries >= 0 ? `${positionInSeries + 1} of ${order.length}` : null;
+
   const listFailed =
     chaptersQuery.isError || (!chaptersQuery.isLoading && order.length === 0);
 
@@ -128,6 +137,7 @@ export function ReadAllReader({
       seriesHref={seriesPageHref({ sourceId, seriesKey })}
       head={strip.head}
       tail={strip.tail}
+      chapterPosition={chapterPosition}
       onPosition={handlePosition}
       onBookmark={handleBookmark}
       onLoadPrevious={strip.loadPrevious}
