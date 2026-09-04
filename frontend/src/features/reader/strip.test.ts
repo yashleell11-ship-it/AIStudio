@@ -5,6 +5,8 @@ import {
   chapterIndexOf,
   chapterLastRow,
   findStripRow,
+  freezeChapterHeight,
+  nextChapterLabelFor,
   releasedChapterKeys,
   shouldExtendAhead,
   stripChapterLabel,
@@ -228,5 +230,72 @@ describe("stripChapterLabel", () => {
 
   it("never renders an empty divider", () => {
     expect(stripChapterLabel({ ...one, title: "   " })).toBe("Chapter");
+  });
+});
+
+describe("freezeChapterHeight", () => {
+  const measured = new Map([
+    ["ch-1:1", 1400],
+    ["ch-1:2", 1600],
+  ]);
+  const estimate = () => 1500;
+
+  it("adds up what the pages actually occupied", () => {
+    const { total } = freezeChapterHeight(one, measured, estimate);
+    expect(total).toBe(1400 + 1600 + 1500);
+  });
+
+  it("freezes a height for every row, so expanding restores the same total", () => {
+    const { total, frozen } = freezeChapterHeight(one, measured, estimate);
+    expect(frozen.map(([key]) => key)).toEqual(["ch-1:1", "ch-1:2", "ch-1:3"]);
+    // The invariant the whole releasing scheme rests on: the spacer is exactly
+    // as tall as the rows it replaced, and those rows come back the same size.
+    expect(frozen.reduce((sum, [, height]) => sum + height, 0)).toBe(total);
+  });
+
+  it("keeps every measured height it was given", () => {
+    const { frozen } = freezeChapterHeight(one, measured, estimate);
+    expect(new Map(frozen).get("ch-1:1")).toBe(1400);
+    expect(new Map(frozen).get("ch-1:3")).toBe(1500);
+  });
+
+  it("never freezes a negative height", () => {
+    const { total } = freezeChapterHeight(one, new Map(), () => -10);
+    expect(total).toBe(0);
+  });
+
+  it("has nothing to freeze for a chapter with no pages", () => {
+    const empty = { ...one, pages: [], pageCount: 0 };
+    expect(freezeChapterHeight(empty, measured, estimate)).toEqual({
+      total: 0,
+      frozen: [],
+    });
+  });
+});
+
+describe("nextChapterLabelFor", () => {
+  const numbered = { ...one, chapterNumber: 41, nextChapterKey: "ch-42", previousChapterKey: "ch-40" };
+
+  it("names the neighbour from this chapter's own number", () => {
+    expect(nextChapterLabelFor(numbered)).toBe("Ch 42");
+    expect(nextChapterLabelFor(numbered, "previous")).toBe("Ch 40");
+  });
+
+  it("refuses to guess across a split chapter", () => {
+    // 41.5's neighbour is not 42.5, and a wrong number is worse than none.
+    const split = { ...numbered, chapterNumber: 41.5 };
+    expect(nextChapterLabelFor(split)).toBe("Next chapter");
+    expect(nextChapterLabelFor(split, "previous")).toBe("Previous chapter");
+  });
+
+  it("says nothing when there is no neighbour", () => {
+    expect(nextChapterLabelFor({ ...numbered, nextChapterKey: null })).toBeNull();
+    expect(
+      nextChapterLabelFor({ ...numbered, previousChapterKey: null }, "previous"),
+    ).toBeNull();
+  });
+
+  it("falls back for an unnumbered chapter", () => {
+    expect(nextChapterLabelFor({ ...numbered, chapterNumber: null })).toBe("Next chapter");
   });
 });

@@ -304,3 +304,40 @@ export function nextChapterLabelFor(
   }
   return `Ch ${direction === "next" ? number + 1 : number - 1}`;
 }
+
+/** What a released chapter leaves behind: one height, and the rows it came from. */
+export interface FrozenChapterHeight {
+  /** The spacer's height — exactly what the released pages occupied. */
+  total: number;
+  /** Row key → height, to be remembered so expanding restores the same total. */
+  frozen: Array<[string, number]>;
+}
+
+/**
+ * Fix a chapter's height before its pages are released.
+ *
+ * The whole releasing scheme rests on one equality: the spacer that replaces a
+ * chapter's pages is exactly as tall as they were, so releasing and expanding
+ * move nothing. That only holds if the individual heights are FROZEN at the
+ * moment of release — a page never measured would otherwise be re-estimated on
+ * expansion from a running average that has moved on since, and the chapter
+ * would come back a different height than it left.
+ *
+ * So every row gets a number here, measured where there is one and estimated
+ * where there is not, and the caller remembers all of them.
+ */
+export function freezeChapterHeight(
+  chapter: StripChapter,
+  measured: ReadonlyMap<string, number>,
+  estimate: (page: ReaderPage) => number,
+): FrozenChapterHeight {
+  const frozen: Array<[string, number]> = [];
+  let total = 0;
+  chapter.pages.forEach((page, index) => {
+    const key = stripPageRowKey(chapter.chapterKey, index + 1);
+    const height = measured.get(key) ?? Math.max(0, estimate(page));
+    frozen.push([key, height]);
+    total += height;
+  });
+  return { total, frozen };
+}
