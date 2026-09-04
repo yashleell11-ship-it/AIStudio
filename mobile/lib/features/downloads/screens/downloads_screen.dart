@@ -6,6 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/downloaded_series_group.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
@@ -122,9 +123,12 @@ class _ChaptersTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final groupsAsync = ref.watch(downloadedSeriesProvider);
-    final queued =
-        ref.watch(activeDownloadQueueProvider).valueOrNull ??
-            const <SavedChapter>[];
+    final scope = ref.watch(contentModeScopeProvider);
+    final queued = _inMode(
+      ref.watch(activeDownloadQueueProvider).valueOrNull ??
+          const <SavedChapter>[],
+      scope,
+    );
 
     // Slivers, not a ListView of everything: both the queue and the saved
     // library are unbounded (a "download series" can be hundreds of
@@ -188,25 +192,63 @@ class _ChaptersTab extends ConsumerWidget {
               ),
             ),
           ],
-          data: (groups) => _savedSlivers(context, groups),
+          data: (groups) => _savedSlivers(
+            context,
+            _groupsInMode(groups, scope),
+            scope,
+          ),
         ),
       ],
     );
   }
 
+  /// Rows of the active mode.
+  ///
+  /// Filtered on each ROW's own `kind`, not through the source-mode index:
+  /// the Downloads screen is the one screen that must be right with no
+  /// network, and the index is built from a `/sources` call that a phone in
+  /// airplane mode never made.
+  List<SavedChapter> _inMode(List<SavedChapter> rows, ContentModeScope scope) {
+    if (!scope.novelsEnabled) return rows;
+    return rows.where((c) => c.kind.isNovel == scope.isNovel).toList();
+  }
+
+  List<DownloadedSeriesGroup> _groupsInMode(
+    List<DownloadedSeriesGroup> groups,
+    ContentModeScope scope,
+  ) {
+    if (!scope.novelsEnabled) return groups;
+    final out = <DownloadedSeriesGroup>[];
+    for (final group in groups) {
+      final chapters = _inMode(group.chapters, scope);
+      if (chapters.isEmpty) continue;
+      out.add(
+        DownloadedSeriesGroup(
+          sourceId: group.sourceId,
+          seriesKey: group.seriesKey,
+          seriesTitle: group.seriesTitle,
+          chapters: chapters,
+        ),
+      );
+    }
+    return out;
+  }
+
   List<Widget> _savedSlivers(
     BuildContext context,
     List<DownloadedSeriesGroup> groups,
+    ContentModeScope scope,
   ) {
     if (groups.isEmpty) {
-      return const [
+      return [
         SliverFillRemaining(
           hasScrollBody: false,
           child: EmptyState(
             icon: Icons.download_outlined,
-            message: 'No downloads yet',
-            subtitle:
-                'Chapters you download for offline reading show up here.',
+            message: scope.isNovel ? 'No books downloaded' : 'No downloads yet',
+            subtitle: scope.isNovel
+                ? 'Chapters you download read offline, text and all.'
+                : 'Chapters you download for offline reading show up here.',
           ),
         ),
       ];
@@ -519,9 +561,21 @@ class _ChapterRow extends ConsumerWidget {
         '${formatDownloadBytes(chapter.bytes)}',
         style: AppTypography.caption.copyWith(color: context.colors.muted),
       ),
+      // The row's own `kind` decides which reader opens — not the sources
+      // listing, which is exactly what a downloaded chapter cannot rely on.
       onTap: complete
           ? () => context.push(
-                RoutePaths.reader(chapter.sourceId, chapter.seriesKey, chapter.chapterKey),
+                chapter.kind.isNovel
+                    ? RoutePaths.novelReader(
+                        chapter.sourceId,
+                        chapter.seriesKey,
+                        chapter.chapterKey,
+                      )
+                    : RoutePaths.reader(
+                        chapter.sourceId,
+                        chapter.seriesKey,
+                        chapter.chapterKey,
+                      ),
               )
           : null,
       // `mainAxisSize.min` because a ListTile's trailing slot is unbounded:
@@ -531,7 +585,10 @@ class _ChapterRow extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           OcrChapterAction(chapter: chapter),
-          if (complete)
+          // "Save to Files" writes a CBZ of page images. A novel chapter has
+          // one text blob and no pages, so the export would be a zip of
+          // nothing — the action is not offered rather than offered broken.
+          if (complete && !chapter.kind.isNovel)
             IconButton(
               key: Key(
                 'export-${chapter.sourceId}-${chapter.seriesKey}-${chapter.chapterKey}',

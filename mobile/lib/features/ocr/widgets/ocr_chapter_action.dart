@@ -30,6 +30,9 @@ class OcrChapterAction extends ConsumerWidget {
     if (chapter.state != DownloadChapterState.complete) {
       return const SizedBox.shrink();
     }
+    // OCR recognises text FROM PAGE IMAGES. A novel chapter is already text
+    // and has no images to read, so the action could only ever fail.
+    if (chapter.kind.isNovel) return const SizedBox.shrink();
 
     final id = chapter.identity;
     final run = ref.watch(ocrRunControllerProvider);
