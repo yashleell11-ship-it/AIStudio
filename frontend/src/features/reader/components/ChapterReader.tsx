@@ -8,7 +8,6 @@ import { useUiStore } from "@/stores/ui-store";
 import { cn } from "@/lib/cn";
 import { moodReaderMargin, useActiveProfileStore } from "@/features/profiles";
 import { DownloadChapterControl } from "@/features/offline";
-import { ApiError } from "@/types/api";
 import { autoScrollPxPerSecond } from "../auto-scroll";
 import { readerDebug } from "../debug";
 import { effectiveFitMode, wheelZoomSteps, zoomBy } from "../fit";
@@ -21,6 +20,7 @@ import {
   type TapZone,
 } from "../keymap";
 import { estimateScrollOffsetToPage, resolveContainerWidth } from "../page-layout";
+import { readerChapterHref } from "../reader-link";
 import {
   clearChapterScrollPreparation,
   resolveInitialScrollTop,
@@ -32,6 +32,13 @@ import { readScrollPosition, writeScrollPosition } from "../scroll-storage";
 import { scrubPercent } from "../scrub";
 import { buildPageViews, findViewIndex, viewLeadPage } from "../spread";
 import { useReaderStore } from "../store";
+import {
+  chapterIndexOf,
+  nextChapterLabelFor,
+  stripChapterLabel,
+  type StripChapter,
+  type StripPosition,
+} from "../strip";
 import { useAutoScroll } from "../use-auto-scroll";
 import { useCinema } from "../use-cinema";
 import { useChapterPreload } from "../use-chapter-preload";
@@ -39,38 +46,45 @@ import { useFullscreen } from "../use-fullscreen";
 import { useReaderPreferences } from "../use-reader-preferences";
 import { useReaderSettings } from "../use-reader-settings";
 import { useReaderShortcuts } from "../use-reader-shortcuts";
-import type { ReaderChapterContent, ReadingMode } from "../types";
+import type { ReadingMode } from "../types";
+import { ContinuousStrip, type StripHandle } from "./ContinuousStrip";
 import { PagedView } from "./PagedView";
-import { ChapterEdgePrompt, ChapterEndCard, ReaderControls } from "./ReaderControls";
-import { VirtualPageList } from "./VirtualPageList";
+import { ReaderControls, StripHead, StripTail } from "./ReaderControls";
 
 interface ChapterReaderProps {
-  chapter: ReaderChapterContent | undefined;
+  /**
+   * The strip: every chapter currently loaded, in reading order. Continuous
+   * mode renders them as ONE scroll, so the last page of chapter N and the
+   * first of N+1 sit in the same viewport (spec 2026-09-05 R1). The paged
+   * modes still show one chapter at a time — a seam has no meaning when the
+   * viewport holds exactly one page.
+   */
+  chapters: readonly StripChapter[];
+  /** The chapter the strip opened on: whose saved scroll and page it restores. */
+  entryChapterKey: string;
   isLoading: boolean;
-  error: unknown;
-  scrollKey: string;
+  /** Why the ENTRY chapter did not load; a later one is `nextError`. */
+  error: string | null;
+  onRetry?: () => void;
   /** Identifies the series whose reading mode / fit / zoom this reader restores. */
   seriesKey: string;
   initialPage?: number;
-  previousChapterHref: string | null;
-  nextChapterHref: string | null;
   /**
    * This chapter's own series page. It is both where the reader exits to and
    * where the "Series" control jumps, so a chapter opened from search, Updates
    * or a deep link still reaches its chapter list without retracing history.
    */
   seriesHref: string;
-  /** Short label for the next chapter, e.g. "Ch 41". Drives the end-card copy. */
-  nextChapterLabel?: string | null;
-  /**
-   * Swap straight into the next chapter with no route navigation (continuous
-   * mode only, spec §3.3.4). When set, the end of the strip shows a slide-up
-   * end-card; a tap on it or a continued downward scroll calls this.
-   */
-  onSeamlessNext?: () => void;
+  /** Fires on every scroll frame with the chapter and page being read. */
+  onPosition?: (position: StripPosition) => void;
   onBookmark?: (page: number) => void;
-  onPageProgress?: (page: number, pageCount: number) => void;
-  /** Resolves the next chapter's payload so the reader can pull it early. */
+  /** Pull the chapter BEFORE the strip's first onto its head. */
+  onLoadPrevious?: () => void;
+  loadingPrevious?: boolean;
+  /** Why the next chapter did not arrive, if it did not. */
+  nextError?: string | null;
+  onRetryNext?: () => void;
+  /** Resolves the next chapter's payload so the paged modes can pull it early. */
   preloadNextChapter?: () => Promise<ReadonlyArray<{ imageUrl: string }>>;
   bookmarkPending?: boolean;
   showBookmark?: boolean;
@@ -80,6 +94,8 @@ const SCROLL_EDGE_THRESHOLD = 48;
 const SCROLL_SAVE_MS = 250;
 /** Fraction of the viewport a Space press travels, leaving an overlap to re-read. */
 const SCREEN_SCROLL_RATIO = 0.9;
+/** Wheel travel past the top that pulls the previous chapter onto the strip. */
+const OVERSCROLL_TRIGGER = 140;
 
 /** Stable no-op so `useChapterPreload` is not re-armed by an identity change. */
 const NO_PRELOAD = async (): Promise<ReadonlyArray<{ imageUrl: string }>> => [];
@@ -87,20 +103,26 @@ const NO_PRELOAD = async (): Promise<ReadonlyArray<{ imageUrl: string }>> => [];
 /** Stable placeholder view for the frame before any page is known. */
 const FIRST_PAGE_VIEW = [1];
 
+/** The per-chapter key reading positions have always been stored under. */
+function chapterScrollKey(chapter: StripChapter): string {
+  return `${chapter.sourceId}:${chapter.seriesKey}:${chapter.chapterKey}`;
+}
+
 export function ChapterReader({
-  chapter,
+  chapters,
+  entryChapterKey,
   isLoading,
   error,
-  scrollKey,
+  onRetry,
   seriesKey,
   initialPage = 1,
-  previousChapterHref,
-  nextChapterHref,
   seriesHref,
-  nextChapterLabel,
-  onSeamlessNext,
+  onPosition,
   onBookmark,
-  onPageProgress,
+  onLoadPrevious,
+  loadingPrevious = false,
+  nextError = null,
+  onRetryNext,
   preloadNextChapter,
   bookmarkPending,
   showBookmark = true,
@@ -137,11 +159,12 @@ export function ChapterReader({
   const fullscreen = useFullscreen();
 
   const scrollSaveTimerRef = useRef<number | null>(null);
-  const scrollToPageRef = useRef<((pageNumber: number) => void) | null>(null);
+  const stripHandleRef = useRef<StripHandle | null>(null);
   const pendingScrollPageRef = useRef<number | null>(null);
   const readingModeRef = useRef(readingMode);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [visiblePage, setVisiblePage] = useState(Math.max(1, initialPage));
+  const [activeChapterKey, setActiveChapterKey] = useState(entryChapterKey);
   const [atTop, setAtTop] = useState(false);
   const [atBottom, setAtBottom] = useState(false);
   // The shortcuts sheet is app-wide (shell-owned) — the reader only needs to
@@ -150,9 +173,56 @@ export function ChapterReader({
   const closeShortcuts = useUiStore((state) => state.closeShortcuts);
   const toggleShortcuts = useUiStore((state) => state.toggleShortcuts);
 
+  /**
+   * The chapter the chrome describes: the one whose pages the reader is on.
+   *
+   * In a strip that is not always the chapter the route named — crossing a seam
+   * moves it without any navigation — so every per-chapter thing below (title,
+   * page count, download control, progress, saved scroll) reads from here.
+   */
+  const activeIndex = chapterIndexOf(chapters, activeChapterKey);
+  const chapter = activeIndex >= 0 ? chapters[activeIndex] : chapters[0];
+  const entryChapter = useMemo(
+    () => chapters.find((entry) => entry.chapterKey === entryChapterKey) ?? chapters[0],
+    [chapters, entryChapterKey],
+  );
+
   const pages = useMemo(() => chapter?.pages ?? [], [chapter]);
-  const chapterTitle = chapter?.title ?? "Chapter";
+  const chapterTitle = chapter ? stripChapterLabel(chapter) : "Chapter";
   const continuous = readingMode === "continuous";
+
+  const firstChapter = chapters[0];
+  const lastChapter = chapters[chapters.length - 1];
+  const previousChapterHref =
+    chapter?.previousChapterKey && chapter
+      ? readerChapterHref({
+          sourceId: chapter.sourceId,
+          seriesKey: chapter.seriesKey,
+          chapterKey: chapter.previousChapterKey,
+        })
+      : null;
+  const nextChapterHref =
+    chapter?.nextChapterKey && chapter
+      ? readerChapterHref({
+          sourceId: chapter.sourceId,
+          seriesKey: chapter.seriesKey,
+          chapterKey: chapter.nextChapterKey,
+        })
+      : null;
+  const nextChapterLabel = chapter ? nextChapterLabelFor(chapter) : null;
+
+  const activeChapterKeyRef = useRef(activeChapterKey);
+  useEffect(() => {
+    activeChapterKeyRef.current = activeChapterKey;
+  }, [activeChapterKey]);
+
+  // Follow the route when it names a different chapter (a Previous/Next link, a
+  // deep link into a strip that is already mounted).
+  const [routedEntry, setRoutedEntry] = useState(entryChapterKey);
+  if (routedEntry !== entryChapterKey) {
+    setRoutedEntry(entryChapterKey);
+    setActiveChapterKey(entryChapterKey);
+  }
 
   /**
    * Tap-zone customisation (reader settings §3). `tapZones` is `null` until a
@@ -195,6 +265,9 @@ export function ChapterReader({
   const autoScroll = useAutoScroll({
     scrollElement,
     active: continuous && Boolean(chapter) && !isLoading && !error,
+    // Auto-scroll stops at the end of the STRIP, not at the end of a chapter:
+    // in continuous mode the next chapter is already below, so the run
+    // continues straight through the seam.
     atBottom,
     pxPerSecond: autoScrollPxPerSecond(autoScrollSpeed),
   });
@@ -210,48 +283,68 @@ export function ChapterReader({
   const viewIndex = useMemo(() => findViewIndex(views, visiblePage), [views, visiblePage]);
   const currentView = views[viewIndex];
 
+  /**
+   * Where the strip lands when it mounts.
+   *
+   * Always resolved against the ENTRY chapter, which is the strip's first
+   * chapter at mount: a saved offset was written relative to its own chapter's
+   * start (see the scroll writer below), so it is directly usable here and
+   * nowhere else.
+   */
+  const entryPages = useMemo(() => entryChapter?.pages ?? [], [entryChapter]);
   const initialScrollTop = useMemo(() => {
-    if (pages.length === 0) {
+    if (entryPages.length === 0) {
       return 0;
     }
 
     const containerWidth = resolveContainerWidth(scrollElement);
-    const targetPage = Math.max(1, Math.min(initialPage, pages.length));
+    const targetPage = Math.max(1, Math.min(initialPage, entryPages.length));
     return resolveInitialScrollTop({
-      savedScroll: readScrollPosition(scrollKey),
+      savedScroll: entryChapter ? readScrollPosition(chapterScrollKey(entryChapter)) : null,
       initialPage: targetPage,
-      pageCount: pages.length,
+      pageCount: entryPages.length,
       estimatedOffsetToPage: estimateScrollOffsetToPage(
-        pages,
+        entryPages,
         targetPage,
         containerWidth,
         zoom,
       ),
     });
-  }, [initialPage, pages, scrollElement, scrollKey, zoom]);
+  }, [entryChapter, entryPages, initialPage, scrollElement, zoom]);
+
+  const stripScrollKey = entryChapter ? chapterScrollKey(entryChapter) : entryChapterKey;
 
   /**
-   * Where to resume this chapter, resolved at the moment the reader leaves.
+   * Where to resume the chapter being read, resolved at the moment the reader
+   * leaves.
    *
-   * The strip reports its live offset, exactly as before. A paged mode has none
-   * — the container never scrolls — so it reports the offset its current page
-   * would occupy in the strip. Saving the container's literal 0 instead would
-   * wipe the chapter's restore point the first time anyone opened it as pages.
+   * The offset is stored RELATIVE to the chapter's own start in the strip, not
+   * as a raw container offset: a strip that has grown a chapter at its head
+   * would otherwise hand back a number that means something different every
+   * time. A paged mode has no scroll of its own, so it reports the offset its
+   * current page would occupy.
    */
-  const scrollAnchorRef = useRef<() => number | null>(() => null);
+  const scrollAnchorRef = useRef<() => { key: string; offset: number } | null>(() => null);
   useEffect(() => {
     scrollAnchorRef.current = () => {
-      if (!scrollElement) return null;
-      if (readingModeRef.current === "continuous") return scrollElement.scrollTop;
-      if (pages.length === 0) return null;
-      return estimateScrollOffsetToPage(
-        pages,
-        visiblePage,
-        resolveContainerWidth(scrollElement),
-        zoom,
-      );
+      if (!scrollElement || !chapter) return null;
+      const key = chapterScrollKey(chapter);
+      if (readingModeRef.current !== "continuous") {
+        if (pages.length === 0) return null;
+        return {
+          key,
+          offset: estimateScrollOffsetToPage(
+            pages,
+            visiblePage,
+            resolveContainerWidth(scrollElement),
+            zoom,
+          ),
+        };
+      }
+      const range = stripHandleRef.current?.chapterRange(chapter.chapterKey);
+      return { key, offset: scrollElement.scrollTop - (range?.start ?? 0) };
     };
-  }, [pages, scrollElement, visiblePage, zoom]);
+  }, [chapter, pages, scrollElement, visiblePage, zoom]);
 
   useEffect(() => {
     return () => {
@@ -261,75 +354,89 @@ export function ChapterReader({
       }
       const anchor = scrollAnchorRef.current();
       if (anchor != null) {
-        writeScrollPosition(scrollKey, anchor);
+        writeScrollPosition(anchor.key, Math.max(0, anchor.offset));
       }
-      clearChapterScrollPreparation(scrollKey);
+      clearChapterScrollPreparation(stripScrollKey);
     };
-  }, [scrollElement, scrollKey]);
+  }, [scrollElement, stripScrollKey]);
 
   useEffect(() => {
-    readerDebug("route-entered", { scrollKey, initialPage, isLoading, hasChapter: Boolean(chapter) });
-  }, [scrollKey, initialPage, isLoading, chapter]);
+    readerDebug("route-entered", {
+      entryChapterKey,
+      initialPage,
+      isLoading,
+      chapters: chapters.length,
+    });
+  }, [entryChapterKey, initialPage, isLoading, chapters.length]);
 
   useEffect(() => {
     if (isLoading) {
-      readerDebug("loading-state", { scrollKey, reason: "chapter-pending" });
+      readerDebug("loading-state", { entryChapterKey, reason: "chapter-pending" });
     }
-  }, [isLoading, scrollKey]);
+  }, [isLoading, entryChapterKey]);
 
   useEffect(() => {
     if (!chapter) return;
     readerDebug("chapter-render-ready", {
-      scrollKey,
+      chapterKey: chapter.chapterKey,
       pagesLength: pages.length,
       title: chapter.title,
     });
-  }, [chapter, pages.length, scrollKey]);
-
-  useEffect(() => {
-    readerDebug("reader-mounted", { scrollKey, scrollReady: Boolean(scrollElement) });
-  }, [scrollKey, scrollElement]);
+  }, [chapter, pages.length]);
 
   const handleImagesReady = useCallback(() => {
-    readerDebug("images-initialized", { scrollKey, pageCount: pages.length });
     readerDebug("reader-ready", {
-      scrollKey,
+      entryChapterKey,
       pageCount: pages.length,
       scrollReady: Boolean(scrollElement),
     });
-  }, [pages.length, scrollElement, scrollKey]);
+  }, [entryChapterKey, pages.length, scrollElement]);
 
-  const handleVisiblePageChange = useCallback(
-    (pageNumber: number) => {
-      setVisiblePage(pageNumber);
-      onPageProgress?.(pageNumber, pages.length);
+  /**
+   * The strip's report, on every scroll frame: which chapter, which page.
+   *
+   * This is where a seam crossing actually happens — no navigation, no remount,
+   * just the row under the reading line belonging to a different chapter than
+   * the row above it. Progress goes to the parent with the chapter attached, so
+   * pages either side of the boundary are recorded against the right one.
+   */
+  const handleStripPosition = useCallback(
+    (position: StripPosition) => {
+      setActiveChapterKey(position.chapterKey);
+      setVisiblePage(position.pageNumber);
+      onPosition?.(position);
     },
-    [onPageProgress, pages.length],
+    [onPosition],
   );
 
-  const registerScrollToPage = useCallback(
-    (scrollToPage: ((pageNumber: number) => void) | null) => {
-      scrollToPageRef.current = scrollToPage;
-      // A pending target means the strip was just re-entered from a paged mode.
-      // Consume it on the first registration — the list has mounted and its own
-      // restore has already run, so this is the last word on where to land.
-      const pending = pendingScrollPageRef.current;
-      if (scrollToPage && pending != null) {
-        pendingScrollPageRef.current = null;
-        scrollToPage(pending);
-      }
-    },
-    [],
-  );
+  const registerStripHandle = useCallback((handle: StripHandle | null) => {
+    stripHandleRef.current = handle;
+    // A pending target means the strip was just re-entered from a paged mode.
+    // Consume it on the first registration — the list has mounted and its own
+    // restore has already run, so this is the last word on where to land.
+    const pending = pendingScrollPageRef.current;
+    if (handle && pending != null) {
+      pendingScrollPageRef.current = null;
+      handle.scrollToPosition(activeChapterKeyRef.current, pending);
+    }
+  }, []);
 
   const updateScrollState = useCallback(() => {
     if (!scrollElement) return;
     if (readingModeRef.current !== "continuous") return;
 
     const { scrollTop, scrollHeight, clientHeight } = scrollElement;
-    const maxScroll = Math.max(scrollHeight - clientHeight, 0);
-    const progress = maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : 100;
-    setScrollProgress(progress);
+    // Progress is per CHAPTER, not per strip: "62%" has to mean 62% of what
+    // the chrome says you are reading, whatever else is loaded around it.
+    const range = stripHandleRef.current?.chapterRange(activeChapterKeyRef.current);
+    if (range && range.end > range.start) {
+      const span = Math.max(1, range.end - range.start - clientHeight);
+      const ratio = (scrollTop - range.start) / span;
+      setScrollProgress(Math.round(Math.min(1, Math.max(0, ratio)) * 100));
+    } else {
+      const maxScroll = Math.max(scrollHeight - clientHeight, 0);
+      setScrollProgress(maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : 100);
+    }
     setAtTop(scrollTop <= SCROLL_EDGE_THRESHOLD);
     setAtBottom(scrollTop + clientHeight >= scrollHeight - SCROLL_EDGE_THRESHOLD);
 
@@ -337,10 +444,11 @@ export function ChapterReader({
       clearTimeout(scrollSaveTimerRef.current);
     }
     scrollSaveTimerRef.current = window.setTimeout(() => {
-      writeScrollPosition(scrollKey, scrollTop);
+      const anchor = scrollAnchorRef.current();
+      if (anchor) writeScrollPosition(anchor.key, Math.max(0, anchor.offset));
       scrollSaveTimerRef.current = null;
     }, SCROLL_SAVE_MS);
-  }, [scrollElement, scrollKey]);
+  }, [scrollElement]);
 
   useEffect(() => {
     if (!scrollElement) return;
@@ -360,46 +468,59 @@ export function ChapterReader({
   }, [scrollElement, updateScrollState]);
 
   useLayoutEffect(() => {
-    if (isLoading || error || !chapter || pages.length === 0 || !scrollElement) {
+    if (isLoading || error || !chapter || entryPages.length === 0 || !scrollElement) {
       return;
     }
-    syncChapterScroll(scrollKey, scrollElement, initialScrollTop);
+    syncChapterScroll(stripScrollKey, scrollElement, initialScrollTop);
   }, [
     chapter,
+    entryPages.length,
     error,
     initialScrollTop,
     isLoading,
-    pages.length,
     scrollElement,
-    scrollKey,
+    stripScrollKey,
   ]);
 
+  /** A chapter already in the strip is a scroll away; anything else is a route. */
+  const jumpToChapter = useCallback(
+    (chapterKey: string | null, href: string | null, page: number) => {
+      if (!chapterKey) return;
+      const handle = stripHandleRef.current;
+      if (continuous && handle && chapterIndexOf(chapters, chapterKey) >= 0) {
+        handle.scrollToPosition(chapterKey, page);
+        return;
+      }
+      if (href) router.push(href);
+    },
+    [chapters, continuous, router],
+  );
+
   const goPreviousChapter = useCallback(() => {
-    if (previousChapterHref) {
-      router.push(previousChapterHref);
-    }
-  }, [previousChapterHref, router]);
+    const previousKey = chapter?.previousChapterKey ?? null;
+    // "Last page" is only knowable for a chapter already loaded; a route jump
+    // lands on page one, which is what it has always done.
+    const loaded = previousKey ? chapters[chapterIndexOf(chapters, previousKey)] : undefined;
+    jumpToChapter(previousKey, previousChapterHref, loaded ? loaded.pages.length : 1);
+  }, [chapter, chapters, jumpToChapter, previousChapterHref]);
 
   const goNextChapter = useCallback(() => {
-    if (nextChapterHref) {
-      router.push(nextChapterHref);
-    }
-  }, [nextChapterHref, router]);
+    jumpToChapter(chapter?.nextChapterKey ?? null, nextChapterHref, 1);
+  }, [chapter, jumpToChapter, nextChapterHref]);
 
   const goToPage = useCallback(
     (pageNumber: number) => {
-      if (pages.length === 0) return;
+      if (pages.length === 0 || !chapter) return;
       const target = Math.min(pages.length, Math.max(1, Math.round(pageNumber)));
       setVisiblePage(target);
-      onPageProgress?.(target, pages.length);
 
       if (readingMode !== "continuous") return;
 
       // The virtualizer knows the measured page heights; the estimator is only
       // the fallback for the frame before it has published its jump.
-      const scrollToPage = scrollToPageRef.current;
-      if (scrollToPage) {
-        scrollToPage(target);
+      const handle = stripHandleRef.current;
+      if (handle) {
+        handle.scrollToPosition(chapter.chapterKey, target);
       } else {
         setReaderScrollTop(
           scrollElement,
@@ -412,7 +533,7 @@ export function ChapterReader({
         );
       }
     },
-    [onPageProgress, pages, readingMode, scrollElement, zoom],
+    [chapter, pages, readingMode, scrollElement, zoom],
   );
 
   const turnPage = useCallback(
@@ -421,7 +542,18 @@ export function ChapterReader({
       const step = turn === "advance" ? 1 : -1;
 
       if (readingMode === "continuous") {
-        goToPage(visiblePage + step);
+        const target = visiblePage + step;
+        // The strip has no hard edge any more: a turn off the end of a chapter
+        // continues into the neighbour that is already sitting under it.
+        if (target < 1) {
+          goPreviousChapter();
+          return;
+        }
+        if (target > pages.length) {
+          goNextChapter();
+          return;
+        }
+        goToPage(target);
         return;
       }
 
@@ -537,27 +669,33 @@ export function ChapterReader({
     return () => scrollElement.removeEventListener("wheel", handleWheel);
   }, [continuous, scrollElement, zoomSteps]);
 
-  // "Continued scroll past the end-card" (spec §3.3.4): once the strip is pinned
-  // at the bottom, another downward wheel gesture drops into the next chapter.
-  const seamlessNextRef = useRef(onSeamlessNext);
+  /**
+   * Keep scrolling UP at the top of the strip and the chapter before it is
+   * pulled onto the head — the mirror of the gesture that used to drop into the
+   * next chapter at the bottom.
+   *
+   * Deliberately a sustained overscroll rather than "you touched the top":
+   * every chapter opens at scroll zero, so an automatic pull would fetch the
+   * previous chapter for every reader who never intended to go backwards.
+   */
+  const loadPreviousRef = useRef(onLoadPrevious);
   useEffect(() => {
-    seamlessNextRef.current = onSeamlessNext;
-  }, [onSeamlessNext]);
+    loadPreviousRef.current = onLoadPrevious;
+  }, [onLoadPrevious]);
   useEffect(() => {
-    if (!scrollElement || !continuous || !atBottom || !onSeamlessNext) return;
+    if (!scrollElement || !continuous || !atTop || !onLoadPrevious) return;
     let overscroll = 0;
     let resetTimer: number | null = null;
-    const OVERSCROLL_TRIGGER = 140;
     const handleWheel = (event: WheelEvent) => {
-      if (event.ctrlKey || event.metaKey || event.deltaY <= 0) return;
-      overscroll += event.deltaY;
+      if (event.ctrlKey || event.metaKey || event.deltaY >= 0) return;
+      overscroll -= event.deltaY;
       if (resetTimer) window.clearTimeout(resetTimer);
       resetTimer = window.setTimeout(() => {
         overscroll = 0;
       }, 320);
       if (overscroll >= OVERSCROLL_TRIGGER) {
         overscroll = 0;
-        seamlessNextRef.current?.();
+        loadPreviousRef.current?.();
       }
     };
     scrollElement.addEventListener("wheel", handleWheel, { passive: true });
@@ -565,7 +703,7 @@ export function ChapterReader({
       scrollElement.removeEventListener("wheel", handleWheel);
       if (resetTimer) window.clearTimeout(resetTimer);
     };
-  }, [scrollElement, continuous, atBottom, onSeamlessNext]);
+  }, [scrollElement, continuous, atTop, onLoadPrevious]);
 
   const handleEscape = useCallback(() => {
     switch (resolveEscapeTarget({ helpOpen, fullscreen: fullscreen.active })) {
@@ -628,11 +766,14 @@ export function ChapterReader({
     onZoomReset: resetZoom,
   });
 
+  // The strip pulls the next chapter itself and warms images straight across
+  // the seam, so this is only for the paged modes, where there is no strip.
   useChapterPreload({
-    chapterKey: scrollKey,
+    chapterKey: activeChapterKey,
     page: visiblePage,
     pageCount: pages.length,
-    hasNextChapter: nextChapterHref != null && preloadNextChapter != null,
+    hasNextChapter:
+      !continuous && chapter?.nextChapterKey != null && preloadNextChapter != null,
     loadNextChapter: preloadNextChapter ?? NO_PRELOAD,
   });
 
@@ -657,17 +798,26 @@ export function ChapterReader({
   }
 
   if (error) {
-    const message =
-      error instanceof ApiError ? error.message : "Failed to load chapter.";
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 bg-bg p-6 text-center">
-        <p className="text-danger">{message}</p>
-        <Link
-          href={seriesHref}
-          className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
-        >
-          Go to series
-        </Link>
+        <p className="text-danger">{error}</p>
+        <div className="flex items-center gap-2">
+          {onRetry ? (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex h-10 items-center justify-center rounded-lg bg-primary px-4 text-sm font-medium text-primary-fg transition-colors hover:bg-primary-hover"
+            >
+              Try again
+            </button>
+          ) : null}
+          <Link
+            href={seriesHref}
+            className="inline-flex h-10 items-center justify-center rounded-lg border border-border/60 px-4 text-sm font-medium text-fg transition-colors hover:bg-white/5"
+          >
+            Go to series
+          </Link>
+        </div>
       </div>
     );
   }
@@ -751,42 +901,49 @@ export function ChapterReader({
 
       {continuous ? (
         <div className="flex-1 py-4 pb-28">
-          {atTop && previousChapterHref != null && (
-            <ChapterEdgePrompt
-              href={previousChapterHref}
-              direction="previous"
-              label="Previous chapter"
-            />
-          )}
+          <StripHead
+            label={firstChapter ? nextChapterLabelFor(firstChapter, "previous") : null}
+            href={
+              firstChapter?.previousChapterKey
+                ? readerChapterHref({
+                    sourceId: firstChapter.sourceId,
+                    seriesKey: firstChapter.seriesKey,
+                    chapterKey: firstChapter.previousChapterKey,
+                  })
+                : null
+            }
+            visible={atTop && Boolean(firstChapter?.previousChapterKey)}
+            loading={loadingPrevious}
+            onLoad={onLoadPrevious}
+          />
           {scrollElement ? (
-            <VirtualPageList
-              key={scrollKey}
-              pages={pages}
-              chapterTitle={chapterTitle}
+            <ContinuousStrip
+              key={stripScrollKey}
+              chapters={chapters}
               zoom={zoom}
               pageGap={pageGap}
               scrollElement={scrollElement}
               initialScrollTop={initialScrollTop}
-              onVisiblePageChange={handleVisiblePageChange}
+              onPositionChange={handleStripPosition}
               onImagesReady={handleImagesReady}
-              onScrollToPageReady={registerScrollToPage}
+              onHandleReady={registerStripHandle}
             />
           ) : null}
-          {atBottom && nextChapterHref != null ? (
-            onSeamlessNext ? (
-              <ChapterEndCard
-                href={nextChapterHref}
-                label={nextChapterLabel ?? "Next chapter"}
-                onAdvance={onSeamlessNext}
-              />
-            ) : (
-              <ChapterEdgePrompt
-                href={nextChapterHref}
-                direction="next"
-                label="Next chapter"
-              />
-            )
-          ) : null}
+          <StripTail
+            hasMore={Boolean(lastChapter?.nextChapterKey)}
+            error={nextError}
+            onRetry={onRetryNext}
+            label={lastChapter ? nextChapterLabelFor(lastChapter) : null}
+            href={
+              lastChapter?.nextChapterKey
+                ? readerChapterHref({
+                    sourceId: lastChapter.sourceId,
+                    seriesKey: lastChapter.seriesKey,
+                    chapterKey: lastChapter.nextChapterKey,
+                  })
+                : null
+            }
+          />
         </div>
       ) : (
         <PagedView
@@ -848,8 +1005,11 @@ export function ChapterReader({
           onBookmark={onBookmark ? handleBookmark : undefined}
           previousChapterHref={previousChapterHref}
           nextChapterHref={nextChapterHref}
+          nextChapterLabel={nextChapterLabel}
           seriesHref={seriesHref}
           onOpenSeries={openSeries}
+          onPreviousChapter={goPreviousChapter}
+          onNextChapter={goNextChapter}
           bookmarkPending={bookmarkPending}
           showBookmark={showBookmark}
           visible={chromeVisible}

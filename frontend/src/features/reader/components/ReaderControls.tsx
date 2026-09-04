@@ -179,6 +179,15 @@ interface ReaderControlsProps {
   onBookmark?: () => void;
   previousChapterHref: string | null;
   nextChapterHref: string | null;
+  /** e.g. "Ch 41" — names the neighbour the Next control leads to. */
+  nextChapterLabel?: string | null;
+  /**
+   * Plain-click handlers for the chapter steps. In continuous mode a neighbour
+   * is usually already in the strip, so stepping to it is a scroll rather than
+   * a navigation; the hrefs stay real so middle-click still opens a tab.
+   */
+  onPreviousChapter?: () => void;
+  onNextChapter?: () => void;
   /** This chapter's series page — a real href, so it opens in a new tab too. */
   seriesHref: string;
   /** Plain-click / shortcut route to `seriesHref`, which also drops fullscreen. */
@@ -229,6 +238,9 @@ export function ReaderControls({
   onBookmark,
   previousChapterHref,
   nextChapterHref,
+  nextChapterLabel,
+  onPreviousChapter,
+  onNextChapter,
   seriesHref,
   onOpenSeries,
   bookmarkPending,
@@ -670,7 +682,11 @@ export function ReaderControls({
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-1">
                 {previousChapterHref != null ? (
-                  <Link href={previousChapterHref} className={cn(linkButtonClass)}>
+                  <Link
+                    href={previousChapterHref}
+                    onClick={interceptPlainClick(onPreviousChapter)}
+                    className={cn(linkButtonClass)}
+                  >
                     <ChevronLeft className="size-4" />
                     Prev
                   </Link>
@@ -681,7 +697,12 @@ export function ReaderControls({
                   </span>
                 )}
                 {nextChapterHref != null ? (
-                  <Link href={nextChapterHref} className={cn(linkButtonClass)}>
+                  <Link
+                    href={nextChapterHref}
+                    title={nextChapterLabel ?? undefined}
+                    onClick={interceptPlainClick(onNextChapter)}
+                    className={cn(linkButtonClass)}
+                  >
                     Next
                     <ChevronRight className="size-4" />
                   </Link>
@@ -768,75 +789,130 @@ export function ReaderControls({
   );
 }
 
-interface ChapterEdgePromptProps {
-  href: string;
-  direction: "previous" | "next";
-  label: string;
+/**
+ * A plain click is ours; a modified one belongs to the browser.
+ *
+ * Every chapter step in the reader is a real `<Link>` so middle-click and
+ * cmd-click still open a tab — but when the destination is already sitting in
+ * the strip, the plain click should scroll to it rather than reload the reader.
+ */
+function interceptPlainClick(handler: (() => void) | undefined) {
+  if (!handler) return undefined;
+  return (event: React.MouseEvent) => {
+    if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    event.stopPropagation();
+    handler();
+  };
 }
 
-export function ChapterEdgePrompt({ href, direction, label }: ChapterEdgePromptProps) {
+interface StripHeadProps {
+  /** e.g. "Ch 39" — the chapter waiting above, or null if there is none. */
+  label: string | null;
+  /** Real href for that chapter, so middle-click still opens it on its own. */
+  href: string | null;
+  visible: boolean;
+  loading: boolean;
+  /** Pull it onto the head of the strip instead of navigating to it. */
+  onLoad?: () => void;
+}
+
+/**
+ * The top of the strip.
+ *
+ * The boundary below the reader is crossed by scrolling; the one ABOVE the
+ * first loaded chapter has to be asked for, because every chapter opens at
+ * scroll zero and an automatic pull would fetch the previous chapter for
+ * everyone who never meant to go back. So: a quiet invitation, which a click —
+ * or a sustained upward overscroll, handled by `ChapterReader` — accepts.
+ */
+export function StripHead({ label, href, visible, loading, onLoad }: StripHeadProps) {
+  if (!visible || !href) return null;
   return (
-    <div
-      className={cn(
-        "mx-auto flex w-full max-w-3xl justify-center px-4 py-6",
-        direction === "previous" ? "pb-2" : "pt-2",
-      )}
-    >
+    <div className="mx-auto flex w-full max-w-3xl justify-center px-4 pb-2 pt-6">
       <Link
         href={href}
-        onClick={(event) => event.stopPropagation()}
+        onClick={interceptPlainClick(onLoad)}
         className="glass-card inline-flex items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-medium text-fg transition-all hover:border-primary/30 hover:shadow-glow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
       >
-        {direction === "previous" ? (
-          <ChevronLeft className="size-4 text-primary" />
-        ) : null}
-        {label}
-        {direction === "next" ? (
-          <ChevronRight className="size-4 text-primary" />
-        ) : null}
+        <ChevronLeft className="size-4 rotate-90 text-primary" aria-hidden />
+        {loading ? `Loading ${label ?? "the previous chapter"}…` : (label ?? "Previous chapter")}
+        <span className="text-xs text-muted">{loading ? "" : "· keep scrolling up"}</span>
       </Link>
     </div>
   );
 }
 
-interface ChapterEndCardProps {
-  /** Real href for the next chapter (middle-click / open-in-new-tab). */
-  href: string;
-  /** Short label, e.g. "Ch 41". */
-  label: string;
-  /** Swap into the next chapter with no route navigation. */
-  onAdvance: () => void;
+interface StripTailProps {
+  /** Whether the source has another chapter after the last one loaded. */
+  hasMore: boolean;
+  /** Why the next chapter did not arrive, if it did not. */
+  error: string | null;
+  onRetry?: () => void;
+  label: string | null;
+  href: string | null;
 }
 
 /**
- * End-of-chapter affordance for the continuous strip (spec §3.3.4). Slides up
- * as the reader reaches the bottom (the CSS animation collapses to an instant
- * appearance under reduced motion); a tap — or a continued downward scroll,
- * handled by `ChapterReader` — swaps straight into the next chapter, which is
- * already prefetched, with no full-page navigation.
+ * The bottom of the strip.
+ *
+ * There is no "next chapter" button any more: in continuous mode the next
+ * chapter is pulled onto the strip before the reader gets here, so what is at
+ * the bottom is either the last few pixels before it arrives, an honest failure
+ * with a way to retry, or the end of what the source has published.
  */
-export function ChapterEndCard({ href, label, onAdvance }: ChapterEndCardProps) {
-  return (
-    <div className="mx-auto flex w-full max-w-3xl justify-center overflow-hidden px-4 pb-10 pt-4">
-      <Link
-        href={href}
-        onClick={(event) => {
-          event.stopPropagation();
-          if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
-          event.preventDefault();
-          onAdvance();
-        }}
-        className="glass-card group reader-end-card-enter flex w-full max-w-md flex-col items-center gap-1 rounded-2xl px-6 py-5 text-center shadow-glass focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40"
+export function StripTail({
+  hasMore,
+  error,
+  onRetry,
+  label,
+  href,
+}: StripTailProps) {
+  if (error && href) {
+    return (
+      <div className="mx-auto flex w-full max-w-3xl justify-center px-4 pb-10 pt-4">
+        <div className="glass-card reader-end-card-enter flex w-full max-w-md flex-col items-center gap-3 rounded-2xl px-6 py-5 text-center shadow-glass">
+          <span className="text-[11px] font-semibold uppercase tracking-widest text-muted">
+            {label ?? "Next chapter"}
+          </span>
+          <span className="text-sm text-danger">{error}</span>
+          <div className="flex items-center gap-2">
+            {onRetry ? (
+              <Button variant="secondary" size="sm" onClick={onRetry}>
+                Try again
+              </Button>
+            ) : null}
+            <Link
+              href={href}
+              onClick={(event) => event.stopPropagation()}
+              className={cn(linkButtonClass)}
+            >
+              Open it on its own
+              <ChevronRight className="size-4" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (hasMore) {
+    return (
+      <div
+        className="mx-auto flex w-full max-w-3xl items-center justify-center gap-3 px-4 pb-16 pt-6 text-sm text-muted"
+        aria-live="polite"
       >
-        <span className="text-[11px] font-semibold uppercase tracking-widest text-muted">
-          Next chapter
-        </span>
-        <span className="flex items-center gap-1.5 text-base font-semibold text-fg">
-          {label}
-          <ChevronRight className="size-4 text-primary transition-transform group-hover:translate-x-0.5" />
-        </span>
-        <span className="mt-0.5 text-xs text-muted">Tap or keep scrolling</span>
-      </Link>
+        <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
+        {label ? `${label} is on its way…` : "Loading the next chapter…"}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-3xl justify-center px-4 pb-16 pt-8">
+      <p className="text-center text-sm text-muted">
+        That is everything this source has published so far.
+      </p>
     </div>
   );
 }
