@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
@@ -97,11 +96,11 @@ class _NovelSeriesDetailViewState extends ConsumerState<NovelSeriesDetailView> {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.lg,
-            AppSpacing.xl,
-            AppSpacing.lg,
-            AppSpacing.sm,
+          padding: EdgeInsets.fromLTRB(
+            context.space.lg,
+            context.space.xl,
+            context.space.lg,
+            context.space.sm,
           ),
           sliver: SliverToBoxAdapter(
             child: Row(
@@ -127,7 +126,7 @@ class _NovelSeriesDetailViewState extends ConsumerState<NovelSeriesDetailView> {
         if (ordered.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.xl),
+              padding: EdgeInsets.all(context.space.xl),
               child: Center(
                 child: Text(
                   'This source did not return any chapters for this book.',
@@ -170,7 +169,7 @@ class _NovelSeriesDetailViewState extends ConsumerState<NovelSeriesDetailView> {
           ),
         SliverToBoxAdapter(
           child: SizedBox(
-            height: AppSpacing.xl5 + MediaQuery.paddingOf(context).bottom,
+            height: context.space.xl5 + MediaQuery.paddingOf(context).bottom,
           ),
         ),
       ],
@@ -208,10 +207,10 @@ class _FrontMatter extends ConsumerWidget {
     final genres = shelfGenres(series.genres);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.lg,
-        AppSpacing.lg,
+      padding: EdgeInsets.fromLTRB(
+        context.space.lg,
+        context.space.lg,
+        context.space.lg,
         0,
       ),
       child: Column(
@@ -236,7 +235,7 @@ class _FrontMatter extends ConsumerWidget {
                       ),
                     ),
                     if (meta.isNotEmpty) ...[
-                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(height: context.space.sm),
                       Text(
                         meta,
                         style: TextStyle(fontSize: 13, color: colors.muted),
@@ -248,9 +247,9 @@ class _FrontMatter extends ConsumerWidget {
               // Small and subordinate — present when the art is real, never
               // the thing the page is built around.
               if (series.coverUrl.isNotEmpty) ...[
-                const SizedBox(width: AppSpacing.lg),
+                SizedBox(width: context.space.lg),
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(context.radii.md),
                   child: SizedBox(
                     width: 76,
                     height: 112,
@@ -264,13 +263,13 @@ class _FrontMatter extends ConsumerWidget {
             ],
           ),
           if (_lengthLine() != null) ...[
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             Text(
               _lengthLine()!,
               style: TextStyle(fontSize: 12, color: colors.muted),
             ),
           ],
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           Row(
             children: [
               Expanded(
@@ -280,7 +279,7 @@ class _FrontMatter extends ConsumerWidget {
                   seriesKey: seriesId,
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: context.space.sm),
               DownloadSeriesButton(
                 chapters: [
                   for (final chapter in chapters)
@@ -302,7 +301,7 @@ class _FrontMatter extends ConsumerWidget {
             ],
           ),
           if (blurb != null) ...[
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             Text(
               blurb,
               style: TextStyle(
@@ -315,19 +314,19 @@ class _FrontMatter extends ConsumerWidget {
             ),
           ],
           if (genres.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             Wrap(
-              spacing: AppSpacing.xs,
-              runSpacing: AppSpacing.xs,
+              spacing: context.space.xs,
+              runSpacing: context.space.xs,
               children: [
                 for (final genre in genres)
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: AppSpacing.sm,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.space.sm,
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
+                      borderRadius: BorderRadius.circular(context.radii.sm),
                       border: Border.all(color: colors.border),
                     ),
                     child: Text(
@@ -394,9 +393,9 @@ class _TocRow extends ConsumerWidget {
     return InkWell(
       onTap: onOpen,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.sm + 2,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.space.lg,
+          vertical: context.space.sm + 2,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

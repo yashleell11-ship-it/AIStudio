@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 class SectionHeader extends StatelessWidget {
   const SectionHeader({
@@ -20,7 +19,7 @@ class SectionHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xl),
+      padding: EdgeInsets.only(bottom: context.space.xl),
       child: Row(
         children: [
           // Left accent bar
@@ -33,16 +32,16 @@ class SectionHeader extends StatelessWidget {
                 end: Alignment.bottomCenter,
                 colors: [context.colors.cyan400, context.colors.primary],
               ),
-              borderRadius: BorderRadius.circular(AppRadius.full),
+              borderRadius: BorderRadius.circular(context.radii.full),
             ),
           ),
-          const SizedBox(width: AppSpacing.md),
+          SizedBox(width: context.space.md),
           Icon(icon, size: 15, color: context.colors.cyan400),
-          const SizedBox(width: AppSpacing.xs),
+          SizedBox(width: context.space.xs),
           Expanded(
             child: Text(
               title.toUpperCase(),
-              style: AppTypography.label.copyWith(
+              style: context.text.label.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.4,
                 color: context.colors.fg,
@@ -55,13 +54,13 @@ class SectionHeader extends StatelessWidget {
               child: Container(
                 constraints: const BoxConstraints(minHeight: 44),
                 alignment: Alignment.center,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.xs,
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.space.md,
+                  vertical: context.space.xs,
                 ),
                 decoration: BoxDecoration(
                   color: context.colors.fg.withAlpha(10),
-                  borderRadius: BorderRadius.circular(AppRadius.full),
+                  borderRadius: BorderRadius.circular(context.radii.full),
                   border: Border.all(color: context.colors.border.withAlpha(100)),
                 ),
                 child: Row(
@@ -69,7 +68,7 @@ class SectionHeader extends StatelessWidget {
                   children: [
                     Text(
                       viewAllLabel,
-                      style: AppTypography.caption.copyWith(
+                      style: context.text.caption.copyWith(
                         color: context.colors.muted,
                         fontWeight: FontWeight.w500,
                       ),

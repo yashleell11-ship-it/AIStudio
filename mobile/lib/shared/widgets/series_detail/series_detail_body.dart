@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_sort.dart';
 import 'package:manhwamaniacs/shared/widgets/series_detail/series_detail_header.dart';
 
@@ -70,10 +69,10 @@ class SeriesDetailBody extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       padding: EdgeInsets.fromLTRB(
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl2 + MediaQuery.paddingOf(context).bottom,
       ),
       children: [
         SeriesDetailHeader(
@@ -86,30 +85,30 @@ class SeriesDetailBody extends StatelessWidget {
           description: description,
         ),
         if (primaryAction != null) ...[
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           primaryAction!,
         ],
         if (followAction != null) ...[
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           followAction!,
         ],
         if (secondaryActions.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
+            spacing: context.space.sm,
+            runSpacing: context.space.sm,
             children: secondaryActions,
           ),
         ],
         for (final detail in details) ...[
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           detail,
         ],
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Chapters', style: AppTypography.h3),
+            Text('Chapters', style: context.text.h3),
             if (chapterTiles.isNotEmpty)
               SeriesChapterSortToggle(
                 value: sortOrder,
@@ -117,7 +116,7 @@ class SeriesDetailBody extends StatelessWidget {
               ),
           ],
         ),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: context.space.md),
         if (chapterTiles.isEmpty) emptyChapters else ...chapterTiles,
       ],
     );

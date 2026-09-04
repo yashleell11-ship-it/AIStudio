@@ -2,7 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -18,14 +18,17 @@ class SeriesCoverImage extends ConsumerWidget {
     required this.url,
     this.width,
     this.height,
-    this.borderRadius = AppRadius.md,
+    this.borderRadius,
     this.fit = BoxFit.cover,
   });
 
   final String url;
   final double? width;
   final double? height;
-  final double borderRadius;
+
+  /// Null takes the preset's `md` corner — a default that has to be read
+  /// from the tree, not baked into the constructor signature.
+  final double? borderRadius;
   final BoxFit fit;
 
   @override
@@ -36,7 +39,7 @@ class SeriesCoverImage extends ConsumerWidget {
     );
 
     return ClipRRect(
-      borderRadius: BorderRadius.circular(borderRadius),
+      borderRadius: BorderRadius.circular(borderRadius ?? context.radii.md),
       child: CachedNetworkImage(
         imageUrl: url,
         httpHeaders: headers,

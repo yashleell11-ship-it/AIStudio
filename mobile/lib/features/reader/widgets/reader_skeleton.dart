@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/reader/theme/reader_colors.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
@@ -14,26 +12,26 @@ class ReaderSkeleton extends StatelessWidget {
       color: ReaderColors.bg,
       child: Center(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
+          padding: EdgeInsets.all(context.space.xl2),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 420),
-                child: const Column(
+                child: Column(
                   children: [
-                    SkeletonBox(width: double.infinity, height: 360, borderRadius: AppRadius.lg),
-                    SizedBox(height: AppSpacing.md),
-                    SkeletonBox(width: double.infinity, height: 360, borderRadius: AppRadius.lg),
-                    SizedBox(height: AppSpacing.md),
-                    SkeletonBox(width: double.infinity, height: 360, borderRadius: AppRadius.lg),
+                    SkeletonBox(width: double.infinity, height: 360, borderRadius: context.radii.lg),
+                    SizedBox(height: context.space.md),
+                    SkeletonBox(width: double.infinity, height: 360, borderRadius: context.radii.lg),
+                    SizedBox(height: context.space.md),
+                    SkeletonBox(width: double.infinity, height: 360, borderRadius: context.radii.lg),
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               Text(
                 'Loading chapter…',
-                style: AppTypography.body.copyWith(color: ReaderColors.muted),
+                style: context.text.body.copyWith(color: ReaderColors.muted),
               ),
             ],
           ),

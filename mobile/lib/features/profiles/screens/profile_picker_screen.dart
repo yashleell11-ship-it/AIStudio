@@ -5,9 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
@@ -310,11 +308,11 @@ class _MoodTakeover extends StatelessWidget {
           size: 132,
           ringColor: context.colors.accentAmber,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         Text(
           profile.name,
           textAlign: TextAlign.center,
-          style: AppTypography.h2,
+          style: context.text.h2,
         ),
       ],
     );
@@ -451,11 +449,11 @@ class _PickerBody extends StatelessWidget {
     ];
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl4,
+      padding: EdgeInsets.fromLTRB(
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl4,
       ),
       child: Column(
         children: [
@@ -468,28 +466,28 @@ class _PickerBody extends StatelessWidget {
                   fontSize: 44,
                   textAlign: TextAlign.center,
                 ),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: context.space.md),
                 Text(
                   'What are you going to read today?',
                   textAlign: TextAlign.center,
-                  style: AppTypography.h3.copyWith(color: context.colors.fg),
+                  style: context.text.h3.copyWith(color: context.colors.fg),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: context.space.sm),
                 Text(
                   manage
                       ? 'Tap a profile to edit it.'
                       : 'Choose a profile to continue.',
                   textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: context.colors.muted),
+                  style: context.text.body.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.xl3),
+          SizedBox(height: context.space.xl3),
           Wrap(
             alignment: WrapAlignment.center,
-            spacing: AppSpacing.xl2,
-            runSpacing: AppSpacing.xl2,
+            spacing: context.space.xl2,
+            runSpacing: context.space.xl2,
             children: tiles,
           ),
         ],
@@ -544,11 +542,11 @@ class _UnreachableBody extends StatelessWidget {
     }
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl2,
-        AppSpacing.xl4,
+      padding: EdgeInsets.fromLTRB(
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl2,
+        context.space.xl4,
       ),
       child: Column(
         children: [
@@ -557,25 +555,25 @@ class _UnreachableBody extends StatelessWidget {
             fontSize: 44,
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           Text(
             error.userMessage,
             textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           Text(
             'Continue as your last profile, or retry once it is back.',
             textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
-          const SizedBox(height: AppSpacing.xl3),
+          SizedBox(height: context.space.xl3),
           Semantics(
             label: profile.name,
             button: true,
             child: InkWell(
               onTap: onResume,
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               child: _GlassTileCard(
                 focused: false,
                 child: SizedBox(
@@ -584,13 +582,13 @@ class _UnreachableBody extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       ProfileAvatar(avatarKey: profile.avatarKey),
-                      const SizedBox(height: AppSpacing.sm),
+                      SizedBox(height: context.space.sm),
                       Text(
                         profile.name,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         textAlign: TextAlign.center,
-                        style: AppTypography.labelLg,
+                        style: context.text.labelLg,
                       ),
                     ],
                   ),
@@ -598,7 +596,7 @@ class _UnreachableBody extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           retry,
         ],
       ),
@@ -656,7 +654,7 @@ class _ProfileTile extends StatelessWidget {
         onTap: onTap,
         onTapDown: (details) => onTapAt(details.globalPosition),
         onLongPress: onLongPress,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(context.radii.xl),
         child: _GlassTileCard(
           focused: focused,
           child: SizedBox(
@@ -691,13 +689,13 @@ class _ProfileTile extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: context.space.sm),
                 Text(
                   profile.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.center,
-                  style: AppTypography.labelLg,
+                  style: context.text.labelLg,
                 ),
               ],
             ),
@@ -743,7 +741,7 @@ class _AddTile extends StatelessWidget {
         button: true,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          borderRadius: BorderRadius.circular(context.radii.xl),
           child: _GlassTileCard(
             focused: false,
             child: SizedBox(
@@ -769,11 +767,11 @@ class _AddTile extends StatelessWidget {
                       size: 34,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(height: context.space.sm),
                   Text(
                     'Add profile',
                     textAlign: TextAlign.center,
-                    style: AppTypography.labelLg.copyWith(
+                    style: context.text.labelLg.copyWith(
                       color: context.colors.muted,
                     ),
                   ),
@@ -798,15 +796,15 @@ class _GlassTileCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.xl);
+    final radius = BorderRadius.circular(context.radii.xl);
     return ClipRRect(
       borderRadius: radius,
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.lg,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.space.md,
+            vertical: context.space.lg,
           ),
           decoration: BoxDecoration(
             color: context.colors.surface.withValues(

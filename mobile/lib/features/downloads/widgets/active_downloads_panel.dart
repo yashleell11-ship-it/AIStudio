@@ -2,8 +2,7 @@ import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/downloaded_series_group.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
@@ -60,25 +59,25 @@ class ActiveDownloadsPanel extends ConsumerWidget {
     final waiting = pending.length - failedCount;
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       glowColor: queue.isBlocked ? context.colors.warning : context.colors.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _HeaderRow(queue: queue, hasPending: pending.isNotEmpty),
           if (current != null) ...[
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             _CurrentChapterProgress(chapter: current, queue: queue),
           ],
           if (queue.isBlocked) ...[
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             _PauseReasonNotice(
               queue: queue,
               onOpenStorageSettings: onOpenStorageSettings,
             ),
           ],
           if (pending.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             _QueueSummaryRow(
               waiting: waiting,
               failedCount: failedCount,
@@ -86,10 +85,10 @@ class ActiveDownloadsPanel extends ConsumerWidget {
               onToggleExpanded: onToggleExpanded,
             ),
           ],
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           Text(
             kForegroundOnlyDownloadsNote,
-            style: AppTypography.caption.copyWith(color: context.colors.muted),
+            style: context.text.caption.copyWith(color: context.colors.muted),
           ),
         ],
       ),
@@ -116,7 +115,7 @@ class _HeaderRow extends ConsumerWidget {
           color: paused ? context.colors.warning : context.colors.primary,
           size: 20,
         ),
-        const SizedBox(width: AppSpacing.sm),
+        SizedBox(width: context.space.sm),
         Expanded(
           child: Text(
             paused
@@ -124,7 +123,7 @@ class _HeaderRow extends ConsumerWidget {
                 : queue.isDownloading
                     ? 'Downloading'
                     : 'Waiting to start',
-            style: AppTypography.h4,
+            style: context.text.h4,
           ),
         ),
         if (hasPending)
@@ -162,11 +161,11 @@ class _HeaderRow extends ConsumerWidget {
       context: context,
       builder: (dialogContext) => AlertDialog(
         backgroundColor: context.colors.surfaceElevated,
-        title: Text('Cancel all downloads?', style: AppTypography.h4),
+        title: Text('Cancel all downloads?', style: context.text.h4),
         content: Text(
           'Everything still queued, downloading or failed is dropped. '
           'Chapters already finished stay on your phone.',
-          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+          style: context.text.bodySm.copyWith(color: context.colors.muted),
         ),
         actions: [
           TextButton(
@@ -177,7 +176,7 @@ class _HeaderRow extends ConsumerWidget {
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
               'Cancel all',
-              style: AppTypography.label.copyWith(color: context.colors.danger),
+              style: context.text.label.copyWith(color: context.colors.danger),
             ),
           ),
         ],
@@ -211,20 +210,20 @@ class _CurrentChapterProgress extends ConsumerWidget {
       children: [
         Text(
           seriesName,
-          style: AppTypography.labelLg,
+          style: context.text.labelLg,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        const SizedBox(height: AppSpacing.xxs),
+        SizedBox(height: context.space.xxs),
         Text(
           total > 0
               ? '${label.primary} · page ${queue.pagesDone} of $total'
               : '${label.primary} · reading chapter details…',
-          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+          style: context.text.bodySm.copyWith(color: context.colors.muted),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         ClipRRect(
-          borderRadius: BorderRadius.circular(AppSpacing.xs),
+          borderRadius: BorderRadius.circular(context.space.xs),
           child: LinearProgressIndicator(
             key: const Key('current-chapter-progress'),
             value: value,
@@ -233,7 +232,7 @@ class _CurrentChapterProgress extends ConsumerWidget {
             valueColor: AlwaysStoppedAnimation(context.colors.primary),
           ),
         ),
-        const SizedBox(height: AppSpacing.xs),
+        SizedBox(height: context.space.xs),
         _SeriesProgressLine(chapter: chapter),
       ],
     );
@@ -263,7 +262,7 @@ class _SeriesProgressLine extends ConsumerWidget {
         .length;
     return Text(
       '$done of ${group.chapters.length} chapters saved in this series',
-      style: AppTypography.caption.copyWith(color: context.colors.muted),
+      style: context.text.caption.copyWith(color: context.colors.muted),
     );
   }
 }
@@ -290,17 +289,17 @@ class _PauseReasonNotice extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Icon(Icons.info_outline, color: context.colors.warning, size: 16),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Expanded(
               child: Text(
                 message,
-                style: AppTypography.bodySm.copyWith(height: 1.4),
+                style: context.text.bodySm.copyWith(height: 1.4),
               ),
             ),
           ],
         ),
         if (queue.pauseReason == DownloadQueuePauseReason.cap) ...[
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           OutlinedButton(
             key: const Key('queue-open-storage-settings'),
             onPressed: onOpenStorageSettings,
@@ -308,7 +307,7 @@ class _PauseReasonNotice extends ConsumerWidget {
           ),
         ],
         if (queue.pauseReason == DownloadQueuePauseReason.userPaused) ...[
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           FilledButton.icon(
             key: const Key('queue-resume'),
             onPressed:
@@ -347,7 +346,7 @@ class _QueueSummaryRow extends StatelessWidget {
         Expanded(
           child: Text(
             parts.join(' · '),
-            style: AppTypography.bodySm.copyWith(
+            style: context.text.bodySm.copyWith(
               color: failedCount > 0 ? context.colors.danger : context.colors.muted,
             ),
           ),
@@ -381,7 +380,7 @@ class QueuedChapterRow extends ConsumerWidget {
 
     return ListTile(
       dense: true,
-      contentPadding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+      contentPadding: EdgeInsets.symmetric(horizontal: context.space.md),
       leading: Icon(
         failed ? Icons.error_outline : Icons.schedule,
         size: 18,
@@ -389,7 +388,7 @@ class QueuedChapterRow extends ConsumerWidget {
       ),
       title: Text(
         '$seriesName · ${label.primary}',
-        style: AppTypography.bodySm,
+        style: context.text.bodySm,
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
@@ -402,7 +401,7 @@ class QueuedChapterRow extends ConsumerWidget {
           DownloadChapterState.complete =>
             'Waiting in the queue',
         },
-        style: AppTypography.caption.copyWith(
+        style: context.text.caption.copyWith(
           color: failed ? context.colors.danger : context.colors.muted,
         ),
         maxLines: 2,

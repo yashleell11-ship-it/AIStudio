@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Secondary "ghost" pill — transparent with a 2px foreground border.
 ///
@@ -25,7 +24,7 @@ class GhostPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.pill);
+    final radius = BorderRadius.circular(context.radii.pill);
 
     final content = Row(
       mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
@@ -33,11 +32,11 @@ class GhostPillButton extends StatelessWidget {
       children: [
         if (icon != null) ...[
           Icon(icon, size: 18, color: context.colors.fg),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
         ],
         Text(
           label.toUpperCase(),
-          style: AppTypography.labelLg.copyWith(
+          style: context.text.labelLg.copyWith(
             color: context.colors.fg,
             fontWeight: FontWeight.w500,
             letterSpacing: 1.2,
@@ -58,9 +57,9 @@ class GhostPillButton extends StatelessWidget {
             borderRadius: radius,
             border: Border.all(color: context.colors.fg, width: 2),
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl2,
-            vertical: AppSpacing.md + 2,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.space.xl2,
+            vertical: context.space.md + 2,
           ),
           child: content,
         ),

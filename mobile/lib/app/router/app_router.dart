@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/screens/login_screen.dart';
@@ -401,14 +401,14 @@ class _AppShell extends ConsumerWidget {
       bottomNavigationBar: showBottomNav
           ? Padding(
         padding: EdgeInsets.fromLTRB(
-          AppSpacing.lg,
+          context.space.lg,
           0,
-          AppSpacing.lg,
-          bottomPad > 0 ? bottomPad : AppSpacing.sm,
+          context.space.lg,
+          bottomPad > 0 ? bottomPad : context.space.sm,
         ),
         child: DecoratedBox(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            borderRadius: BorderRadius.circular(context.radii.xl),
             boxShadow: [
               BoxShadow(
                 color: Colors.black.withAlpha(110),
@@ -423,7 +423,7 @@ class _AppShell extends ConsumerWidget {
             ],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            borderRadius: BorderRadius.circular(context.radii.xl),
             child: BackdropFilter(
               filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
               child: DecoratedBox(
@@ -432,7 +432,7 @@ class _AppShell extends ConsumerWidget {
                   // alpha over the mood backdrop, with the subtle warm-neutral
                   // border edge.
                   color: context.colors.surface.withAlpha(217),
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  borderRadius: BorderRadius.circular(context.radii.xl),
                   border: Border.all(color: context.colors.border),
                 ),
                 child: NavigationBarTheme(

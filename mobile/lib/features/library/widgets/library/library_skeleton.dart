@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
@@ -20,9 +19,9 @@ class LibrarySkeleton extends StatelessWidget {
       return Column(
         children: List.generate(
           8,
-          (_) => const Padding(
-            padding: EdgeInsets.only(bottom: AppSpacing.md),
-            child: SkeletonBox(width: double.infinity, height: 80),
+          (_) => Padding(
+            padding: EdgeInsets.only(bottom: context.space.md),
+            child: const SkeletonBox(width: double.infinity, height: 80),
           ),
         ),
       );
@@ -35,8 +34,8 @@ class LibrarySkeleton extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        crossAxisSpacing: AppSpacing.lg,
-        mainAxisSpacing: AppSpacing.lg,
+        crossAxisSpacing: context.space.lg,
+        mainAxisSpacing: context.space.lg,
         childAspectRatio: 2 / 3,
       ),
       itemCount: 12,
@@ -73,21 +72,21 @@ class LibraryEmptyPanel extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.xl4),
+      padding: EdgeInsets.all(context.space.xl4),
       decoration: BoxDecoration(
         color: context.colors.panel,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(context.radii.xl),
         border: Border.all(
           color: context.colors.border,
         ),
       ),
       child: Column(
         children: [
-          Text(copy.$1, style: AppTypography.h4, textAlign: TextAlign.center),
-          const SizedBox(height: AppSpacing.sm),
+          Text(copy.$1, style: context.text.h4, textAlign: TextAlign.center),
+          SizedBox(height: context.space.sm),
           Text(
             copy.$2,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
             textAlign: TextAlign.center,
           ),
         ],

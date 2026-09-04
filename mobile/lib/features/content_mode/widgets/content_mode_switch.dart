@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
@@ -39,7 +38,7 @@ class ContentModeSwitch extends ConsumerWidget {
           padding: const EdgeInsets.all(3),
           decoration: BoxDecoration(
             color: colors.surface2,
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(context.radii.lg),
             border: Border.all(color: colors.border),
           ),
           child: Row(
@@ -85,17 +84,17 @@ class _ModePill extends StatelessWidget {
       label: '${mode.label} mode',
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
           curve: Curves.easeOut,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.xs + 2,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.space.md,
+            vertical: context.space.xs + 2,
           ),
           decoration: BoxDecoration(
             color: selected ? colors.primary : Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(context.radii.md),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
@@ -107,7 +106,7 @@ class _ModePill extends StatelessWidget {
                 size: 16,
                 color: selected ? colors.primaryFg : colors.muted,
               ),
-              const SizedBox(width: AppSpacing.xs),
+              SizedBox(width: context.space.xs),
               Text(
                 mode.label,
                 style: TextStyle(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/novels/models/novel_typography.dart';
 import 'package:manhwamaniacs/features/novels/utils/novel_book.dart';
 import 'package:manhwamaniacs/shared/widgets/scroll_reveal.dart';
@@ -36,8 +35,8 @@ class NovelShelf extends StatelessWidget {
       separatorBuilder: (context, index) => Divider(
         height: 1,
         thickness: 1,
-        indent: AppSpacing.lg,
-        endIndent: AppSpacing.lg,
+        indent: context.space.lg,
+        endIndent: context.space.lg,
         color: context.colors.border,
       ),
       itemBuilder: (context, index) => ScrollReveal(
@@ -114,9 +113,9 @@ class _ShelfRow extends StatelessWidget {
     return InkWell(
       onTap: book.onTap,
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.space.lg,
+          vertical: context.space.md,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -165,7 +164,7 @@ class _ShelfRow extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
+            SizedBox(width: context.space.md),
             _Plate(coverUrl: book.coverUrl, title: book.title),
           ],
         ),
@@ -192,7 +191,7 @@ class _Plate extends StatelessWidget {
 
     if (coverUrl != null && coverUrl!.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(context.radii.sm),
         child: SizedBox(
           width: size.width,
           height: size.height,
@@ -207,7 +206,7 @@ class _Plate extends StatelessWidget {
       height: size.height,
       alignment: Alignment.center,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(context.radii.sm),
         color: colors.surface2,
         border: Border.all(color: colors.border),
       ),

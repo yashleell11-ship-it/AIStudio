@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/collections/utils/collection_sorting.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
@@ -28,14 +26,14 @@ class CollectionBannerCard extends StatelessWidget {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(context.radii.xl),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            borderRadius: BorderRadius.circular(context.radii.xl),
             border: Border.all(color: context.colors.border.withAlpha(80)),
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
+            borderRadius: BorderRadius.circular(context.radii.xl),
             child: AspectRatio(
               aspectRatio: 21 / 9,
               child: Stack(
@@ -73,7 +71,7 @@ class CollectionBannerCard extends StatelessWidget {
                     ),
                   ),
                   Padding(
-                    padding: const EdgeInsets.all(AppSpacing.xl),
+                    padding: EdgeInsets.all(context.space.xl),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -82,21 +80,21 @@ class CollectionBannerCard extends StatelessWidget {
                           collection.name,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTypography.h3.copyWith(color: Colors.white),
+                          style: context.text.h3.copyWith(color: Colors.white),
                         ),
                         if (collection.description != null &&
                             collection.description!.isNotEmpty) ...[
-                          const SizedBox(height: AppSpacing.xs),
+                          SizedBox(height: context.space.xs),
                           Text(
                             collection.description!,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.body.copyWith(
+                            style: context.text.body.copyWith(
                               color: Colors.white.withAlpha(179),
                             ),
                           ),
                         ],
-                        const SizedBox(height: AppSpacing.sm),
+                        SizedBox(height: context.space.sm),
                         Row(
                           children: [
                             Icon(
@@ -104,10 +102,10 @@ class CollectionBannerCard extends StatelessWidget {
                               size: 14,
                               color: Colors.white.withAlpha(153),
                             ),
-                            const SizedBox(width: AppSpacing.xs),
+                            SizedBox(width: context.space.xs),
                             Text(
                               '${collection.seriesCount} series',
-                              style: AppTypography.caption.copyWith(
+                              style: context.text.caption.copyWith(
                                 color: Colors.white.withAlpha(153),
                               ),
                             ),
@@ -152,10 +150,10 @@ class _GradientFallback extends StatelessWidget {
         Align(
           alignment: Alignment.centerRight,
           child: Padding(
-            padding: const EdgeInsets.only(right: AppSpacing.xl3),
+            padding: EdgeInsets.only(right: context.space.xl3),
             child: Text(
               collectionInitials(collection.name),
-              style: AppTypography.displayMd.copyWith(
+              style: context.text.displayMd.copyWith(
                 color: Colors.white.withAlpha(26),
                 letterSpacing: 8,
               ),
@@ -221,11 +219,11 @@ class CollectionHeroBanner extends ConsumerWidget {
             ),
           ),
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl2,
-              AppSpacing.xl,
-              AppSpacing.xl2,
-              AppSpacing.xl2,
+            padding: EdgeInsets.fromLTRB(
+              context.space.xl2,
+              context.space.xl,
+              context.space.xl2,
+              context.space.xl2,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -235,25 +233,25 @@ class CollectionHeroBanner extends ConsumerWidget {
                   name,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.displayMd,
+                  style: context.text.displayMd,
                 ),
                 if (description != null && description!.isNotEmpty) ...[
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(height: context.space.sm),
                   Text(
                     description!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(color: context.colors.muted),
+                    style: context.text.body.copyWith(color: context.colors.muted),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: context.space.md),
                 Row(
                   children: [
                     Icon(Icons.menu_book_outlined, size: 16, color: context.colors.accent),
-                    const SizedBox(width: AppSpacing.xs),
+                    SizedBox(width: context.space.xs),
                     Text(
                       '$seriesCount series',
-                      style: AppTypography.body.copyWith(color: context.colors.muted),
+                      style: context.text.body.copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
@@ -401,7 +399,7 @@ class _CollectionFormDialogState extends State<CollectionFormDialog> {
               textInputAction: TextInputAction.next,
               onChanged: (_) => setState(() {}),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             TextField(
               controller: _descriptionController,
               decoration: const InputDecoration(
@@ -411,10 +409,10 @@ class _CollectionFormDialogState extends State<CollectionFormDialog> {
               maxLines: 2,
             ),
             if (_errorMessage != null) ...[
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: context.space.md),
               Text(
                 _errorMessage!,
-                style: AppTypography.caption.copyWith(color: context.colors.danger),
+                style: context.text.caption.copyWith(color: context.colors.danger),
               ),
             ],
           ],

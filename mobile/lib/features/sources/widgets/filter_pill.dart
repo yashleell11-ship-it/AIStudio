@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Selectable pill for the Sources and Search filter rows.
 ///
@@ -33,15 +31,15 @@ class FilterPill extends StatelessWidget {
 
     return Material(
       color: selected ? context.colors.primary : context.colors.fg.withAlpha(13),
-      borderRadius: BorderRadius.circular(AppRadius.full),
+      borderRadius: BorderRadius.circular(context.radii.full),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         child: Container(
           height: height,
-          padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+          padding: EdgeInsets.symmetric(horizontal: context.space.lg),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.full),
+            borderRadius: BorderRadius.circular(context.radii.full),
             border: Border.all(
               color: selected
                   ? Colors.transparent
@@ -54,16 +52,16 @@ class FilterPill extends StatelessWidget {
             children: [
               Text(
                 label,
-                style: AppTypography.label.copyWith(
+                style: context.text.label.copyWith(
                   color: foreground,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
               if (count != null) ...[
-                const SizedBox(width: AppSpacing.xs),
+                SizedBox(width: context.space.xs),
                 Text(
                   '$count',
-                  style: AppTypography.labelSm.copyWith(
+                  style: context.text.labelSm.copyWith(
                     color: foreground.withAlpha(selected ? 200 : 150),
                   ),
                 ),

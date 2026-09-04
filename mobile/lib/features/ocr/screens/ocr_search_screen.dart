@@ -5,9 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/ocr/models/ocr_search_result.dart';
 import 'package:manhwamaniacs/features/ocr/providers/ocr_providers.dart';
 import 'package:manhwamaniacs/features/ocr/services/ocr_snippet.dart';
@@ -65,11 +63,11 @@ class _OcrSearchScreenState extends ConsumerState<OcrSearchScreen> {
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl2,
-              AppSpacing.lg,
-              AppSpacing.xl2,
-              AppSpacing.md,
+            padding: EdgeInsets.fromLTRB(
+              context.space.xl2,
+              context.space.lg,
+              context.space.xl2,
+              context.space.md,
             ),
             child: TextField(
               key: const Key('ocr-search-field'),
@@ -85,7 +83,7 @@ class _OcrSearchScreenState extends ConsumerState<OcrSearchScreen> {
                 hintText: 'Search text inside chapters',
                 prefixIcon: const Icon(Icons.search),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.lg),
+                  borderRadius: BorderRadius.circular(context.radii.lg),
                 ),
               ),
             ),
@@ -104,10 +102,10 @@ class _OcrSearchScreenState extends ConsumerState<OcrSearchScreen> {
                         const Center(child: CircularProgressIndicator()),
                     error: (error, _) => Center(
                       child: Padding(
-                        padding: const EdgeInsets.all(AppSpacing.xl2),
+                        padding: EdgeInsets.all(context.space.xl2),
                         child: Text(
                           'Search failed — check your connection and try again.',
-                          style: AppTypography.body
+                          style: context.text.body
                               .copyWith(color: context.colors.danger),
                           textAlign: TextAlign.center,
                         ),
@@ -125,14 +123,14 @@ class _OcrSearchScreenState extends ConsumerState<OcrSearchScreen> {
                       }
                       return ListView.builder(
                         padding: EdgeInsets.fromLTRB(
-                          AppSpacing.xl2,
+                          context.space.xl2,
                           0,
-                          AppSpacing.xl2,
-                          AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
+                          context.space.xl2,
+                          context.space.xl2 + MediaQuery.paddingOf(context).bottom,
                         ),
                         itemCount: page.items.length,
                         itemBuilder: (context, index) => Padding(
-                          padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                          padding: EdgeInsets.only(bottom: context.space.md),
                           child: _OcrResultCard(result: page.items[index]),
                         ),
                       );
@@ -153,7 +151,7 @@ class _OcrResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(context.space.md),
       onTap: () => context.push(
         RoutePaths.reader(result.sourceId, result.seriesKey, result.chapterKey),
       ),
@@ -162,19 +160,19 @@ class _OcrResultCard extends StatelessWidget {
         children: [
           Text(
             result.seriesKey,
-            style: AppTypography.labelLg,
+            style: context.text.labelLg,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
-          const SizedBox(height: AppSpacing.xxs),
+          SizedBox(height: context.space.xxs),
           Text(
             '${result.sourceId} · ${result.chapterKey}',
-            style: AppTypography.caption.copyWith(color: context.colors.muted),
+            style: context.text.caption.copyWith(color: context.colors.muted),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
           if (result.snippet.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             _Snippet(snippet: result.snippet),
           ],
         ],
@@ -192,7 +190,7 @@ class _Snippet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = AppTypography.bodySm.copyWith(color: context.colors.muted);
+    final base = context.text.bodySm.copyWith(color: context.colors.muted);
     return Text.rich(
       TextSpan(
         children: [

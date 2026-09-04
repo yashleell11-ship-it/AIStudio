@@ -5,9 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
@@ -192,7 +190,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     required SearchGroupFilter groupFilter,
     required List<String> pinnedIds,
   }) {
-    const horizontalPadding = EdgeInsets.symmetric(horizontal: AppSpacing.xl2);
+    final horizontalPadding = EdgeInsets.symmetric(horizontal: context.space.xl2);
 
     // "Nothing matched anywhere" is the one case that earns the full empty
     // panel. If any source failed we still draw the sections, because the
@@ -207,10 +205,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
     final slivers = <Widget>[
       SliverPadding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl2,
-          AppSpacing.xl2,
-          AppSpacing.xl2,
+        padding: EdgeInsets.fromLTRB(
+          context.space.xl2,
+          context.space.xl2,
+          context.space.xl2,
           0,
         ),
         sliver: SliverToBoxAdapter(
@@ -284,10 +282,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           child: Column(
             children: [
               if (state?.isLoadingMore ?? false) ...[
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
                 Center(
                   child: Padding(
-                    padding: const EdgeInsets.all(AppSpacing.lg),
+                    padding: EdgeInsets.all(context.space.lg),
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: context.colors.primary,
@@ -300,7 +298,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
               // `extendBody`, so the last result otherwise comes to rest
               // underneath both. Matches sources_list_screen.dart.
               SizedBox(
-                height: AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+                height: context.space.xl7 + MediaQuery.paddingOf(context).bottom,
               ),
             ],
           ),
@@ -350,10 +348,10 @@ class _SearchHeader extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const FadeIn(
+        FadeIn(
           child: Padding(
-            padding: EdgeInsets.only(bottom: AppSpacing.xl2),
-            child: Align(
+            padding: EdgeInsets.only(bottom: context.space.xl2),
+            child: const Align(
               alignment: Alignment.centerLeft,
               child: HeroHeading(text: 'Search', fontSize: 40),
             ),
@@ -369,25 +367,25 @@ class _SearchHeader extends StatelessWidget {
             filled: true,
             fillColor: context.colors.fg.withAlpha(8),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               borderSide: BorderSide(color: context.colors.primary.withAlpha(77)),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl2,
-              vertical: AppSpacing.lg,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: context.space.xl2,
+              vertical: context.space.lg,
             ),
           ),
         ),
         if (!hasQuery) ...[
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           SearchSuggestionsPanel(
             recentSearches: recentSearches,
             onSelect: onSelectSuggestion,
@@ -396,10 +394,10 @@ class _SearchHeader extends StatelessWidget {
           ),
         ],
         if (hasQuery) ...[
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           _StatusLine(isLoading: isLoading, state: state),
           if (showGroupFilters && state != null) ...[
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             _GroupFilterRow(
               filter: groupFilter,
               onChanged: onGroupFilterChanged,
@@ -413,7 +411,7 @@ class _SearchHeader extends StatelessWidget {
                   .length,
             ),
           ],
-          const SizedBox(height: AppSpacing.xl),
+          SizedBox(height: context.space.xl),
           if (isLoading)
             const _SearchSectionsSkeleton()
           else if (showEmptyPanel)
@@ -454,14 +452,14 @@ class _GroupFilterRow extends StatelessWidget {
             selected: filter == SearchGroupFilter.all,
             onTap: () => onChanged(SearchGroupFilter.all),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           FilterPill(
             label: 'With results',
             count: withResultsCount,
             selected: filter == SearchGroupFilter.hasResults,
             onTap: () => onChanged(SearchGroupFilter.hasResults),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           FilterPill(
             label: 'Pinned',
             count: pinnedCount,
@@ -500,12 +498,12 @@ class _SourceSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xl2),
+      padding: EdgeInsets.only(bottom: context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _SourceSectionHeader(group: group),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           _body(context),
         ],
       ),
@@ -541,7 +539,7 @@ class _SourceSection extends StatelessWidget {
         scrollDirection: Axis.horizontal,
         padding: EdgeInsets.zero,
         itemCount: group.items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (_, __) => SizedBox(width: context.space.md),
         itemBuilder: (context, index) {
           final item = group.items[index];
           return SizedBox(
@@ -577,7 +575,7 @@ class _SourceSectionHeader extends StatelessWidget {
             height: _logoSize,
             decoration: BoxDecoration(
               color: context.colors.primary.withAlpha(28),
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(context.radii.md),
               border: Border.all(color: context.colors.primary.withAlpha(90)),
             ),
             child: Icon(
@@ -593,20 +591,20 @@ class _SourceSectionHeader extends StatelessWidget {
             iconUrl: group.iconUrl,
             size: _logoSize,
           ),
-        const SizedBox(width: AppSpacing.md),
+        SizedBox(width: context.space.md),
         Flexible(
           child: Text(
             group.sourceName,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: AppTypography.labelLg.copyWith(
+            style: context.text.labelLg.copyWith(
               fontWeight: FontWeight.w600,
               color: context.colors.fg,
             ),
           ),
         ),
         if (group.items.isNotEmpty) ...[
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           _CountBadge(count: group.total),
         ],
       ],
@@ -622,18 +620,18 @@ class _CountBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.sm,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.space.sm,
         vertical: 1,
       ),
       decoration: BoxDecoration(
         color: context.colors.fg.withAlpha(13),
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         border: Border.all(color: context.colors.border.withAlpha(128)),
       ),
       child: Text(
         '$count',
-        style: AppTypography.caption.copyWith(
+        style: context.text.caption.copyWith(
           color: context.colors.muted,
           fontWeight: FontWeight.w600,
         ),
@@ -662,13 +660,13 @@ class _SourceSectionNote extends StatelessWidget {
     return Row(
       children: [
         Icon(icon, size: 14, color: tone.withAlpha(180)),
-        const SizedBox(width: AppSpacing.sm),
+        SizedBox(width: context.space.sm),
         Expanded(
           child: Text(
             message,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTypography.bodySm.copyWith(color: tone),
+            style: context.text.bodySm.copyWith(color: tone),
           ),
         ),
         if (onRetry != null)
@@ -677,9 +675,9 @@ class _SourceSectionNote extends StatelessWidget {
             style: TextButton.styleFrom(
               foregroundColor: context.colors.primary,
               minimumSize: const Size(64, 36),
-              padding: const EdgeInsets.symmetric(horizontal: AppSpacing.md),
+              padding: EdgeInsets.symmetric(horizontal: context.space.md),
             ),
-            child: Text('Retry', style: AppTypography.label),
+            child: Text('Retry', style: context.text.label),
           ),
       ],
     );
@@ -702,21 +700,21 @@ class _NoteCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       decoration: BoxDecoration(
         color: context.colors.panel,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
+        borderRadius: BorderRadius.circular(context.radii.xl),
         border: Border.all(color: context.colors.border),
       ),
       child: Column(
         children: [
           Icon(icon, size: 28, color: context.colors.muted.withAlpha(140)),
-          const SizedBox(height: AppSpacing.md),
-          Text(title, style: AppTypography.h4, textAlign: TextAlign.center),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.md),
+          Text(title, style: context.text.h4, textAlign: TextAlign.center),
+          SizedBox(height: context.space.sm),
           Text(
             message,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
             textAlign: TextAlign.center,
           ),
         ],
@@ -736,16 +734,16 @@ class _SearchSectionsSkeleton extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (var i = 0; i < 3; i++) ...[
-          const Row(
+          Row(
             children: [
-              SkeletonBox(width: 28, height: 28),
-              SizedBox(width: AppSpacing.md),
-              SkeletonBox(width: 120, height: 14),
+              const SkeletonBox(width: 28, height: 28),
+              SizedBox(width: context.space.md),
+              const SkeletonBox(width: 120, height: 14),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           const _ShelfSkeleton(),
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
         ],
       ],
     );
@@ -764,7 +762,7 @@ class _ShelfSkeleton extends StatelessWidget {
         physics: const NeverScrollableScrollPhysics(),
         padding: EdgeInsets.zero,
         itemCount: 4,
-        separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+        separatorBuilder: (_, __) => SizedBox(width: context.space.md),
         itemBuilder: (_, __) => const SkeletonBox(
           width: _SourceSection.cardWidth,
           height: _SourceSection.shelfHeight,
@@ -789,7 +787,7 @@ class _StatusLine extends StatelessWidget {
     if (isLoading || state == null) {
       return Text(
         'Searching sources…',
-        style: AppTypography.body.copyWith(color: context.colors.muted),
+        style: context.text.body.copyWith(color: context.colors.muted),
       );
     }
 
@@ -808,13 +806,13 @@ class _StatusLine extends StatelessWidget {
       children: [
         Text(
           buffer.toString(),
-          style: AppTypography.body.copyWith(color: context.colors.muted),
+          style: context.text.body.copyWith(color: context.colors.muted),
         ),
         if (failed > 0) ...[
           const SizedBox(height: 2),
           Text(
             'Some sources unavailable',
-            style: AppTypography.caption.copyWith(
+            style: context.text.caption.copyWith(
               color: context.colors.warning.withAlpha(204),
             ),
           ),
@@ -859,24 +857,24 @@ class _SearchError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl3),
+        padding: EdgeInsets.all(context.space.xl3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, color: context.colors.danger, size: 48),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             Text(
               'Search failed',
-              style: AppTypography.h3,
+              style: context.text.h3,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             PrimaryPillButton(
               label: 'Try Again',
               icon: Icons.refresh,

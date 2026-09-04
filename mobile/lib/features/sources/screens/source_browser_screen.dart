@@ -4,8 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
@@ -114,11 +113,11 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
               iconUrl: source?.iconUrl,
               size: 28,
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Expanded(
               child: Text(
                 sourceName,
-                style: AppTypography.h4.copyWith(color: context.colors.primary),
+                style: context.text.h4.copyWith(color: context.colors.primary),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -129,17 +128,17 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(56),
           child: Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.lg,
+            padding: EdgeInsets.fromLTRB(
+              context.space.lg,
               0,
-              AppSpacing.lg,
-              AppSpacing.sm,
+              context.space.lg,
+              context.space.sm,
             ),
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
                 hintText: 'Search series…',
-                hintStyle: AppTypography.body.copyWith(color: context.colors.muted),
+                hintStyle: context.text.body.copyWith(color: context.colors.muted),
                 prefixIcon: const Icon(Icons.search, size: 20),
                 suffixIcon: query.search.isNotEmpty
                     ? IconButton(
@@ -175,13 +174,13 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                     height: 44,
                     child: ListView.separated(
                       scrollDirection: Axis.horizontal,
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: AppSpacing.lg,
-                        vertical: AppSpacing.sm,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.space.lg,
+                        vertical: context.space.sm,
                       ),
                       itemCount: modes.length,
                       separatorBuilder: (_, __) =>
-                          const SizedBox(width: AppSpacing.xs),
+                          SizedBox(width: context.space.xs),
                       itemBuilder: (context, i) {
                         final mode = modes[i];
                         final selected = query.sort == mode.id;
@@ -253,11 +252,11 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                           slivers: [
                           // Result count header
                           SliverPadding(
-                            padding: const EdgeInsets.fromLTRB(
-                              AppSpacing.lg,
-                              AppSpacing.sm,
-                              AppSpacing.lg,
-                              AppSpacing.sm,
+                            padding: EdgeInsets.fromLTRB(
+                              context.space.lg,
+                              context.space.sm,
+                              context.space.lg,
+                              context.space.sm,
                             ),
                             sliver: SliverToBoxAdapter(
                               child: Text(
@@ -265,7 +264,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                                     ? '${state.total} '
                                         '${state.total == 1 ? 'book' : 'books'}'
                                     : '${state.total} series',
-                                style: AppTypography.caption.copyWith(color: context.colors.muted),
+                                style: context.text.caption.copyWith(color: context.colors.muted),
                               ),
                             ),
                           ),
@@ -299,15 +298,15 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                             )
                           else
                           SliverPadding(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppSpacing.sm,
+                            padding: EdgeInsets.symmetric(
+                              horizontal: context.space.sm,
                             ),
                             sliver: SliverGrid.builder(
                               gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                  SliverGridDelegateWithFixedCrossAxisCount(
                                 crossAxisCount: 3,
-                                crossAxisSpacing: AppSpacing.xs,
-                                mainAxisSpacing: AppSpacing.xs,
+                                crossAxisSpacing: context.space.xs,
+                                mainAxisSpacing: context.space.xs,
                                 childAspectRatio: 0.56,
                               ),
                               itemCount: state.items.length,
@@ -329,9 +328,9 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                             ),
                           ),
                           if (state.isLoadingMore)
-                            const SliverPadding(
-                              padding: EdgeInsets.symmetric(vertical: AppSpacing.xl2),
-                              sliver: SliverToBoxAdapter(
+                            SliverPadding(
+                              padding: EdgeInsets.symmetric(vertical: context.space.xl2),
+                              sliver: const SliverToBoxAdapter(
                                 child: Center(
                                   child: CircularProgressIndicator(strokeWidth: 2),
                                 ),
@@ -354,8 +353,8 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
           // Floating back-to-top button (always on top of grid)
           if (_showBackToTop)
             Positioned(
-              bottom: MediaQuery.paddingOf(context).bottom + AppSpacing.xl7 + AppSpacing.sm,
-              right: AppSpacing.lg,
+              bottom: MediaQuery.paddingOf(context).bottom + context.space.xl7 + context.space.sm,
+              right: context.space.lg,
               child: _NavPill(
                 icon: Icons.keyboard_arrow_up,
                 label: 'Top',
@@ -381,10 +380,10 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
             error is AppError
                 ? error.userMessage
                 : 'Failed to load source series.',
-            style: AppTypography.body.copyWith(color: context.colors.danger),
+            style: context.text.body.copyWith(color: context.colors.danger),
             textAlign: TextAlign.center,
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           FilledButton(
             onPressed: () =>
                 ref.invalidate(sourceBrowseProvider(widget.sourceId)),
@@ -417,10 +416,10 @@ class _NavPill extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         Icon(icon, size: 18, color: context.colors.primaryFg),
-        const SizedBox(width: AppSpacing.xs),
+        SizedBox(width: context.space.xs),
         Text(
           label,
-          style: AppTypography.labelLg.copyWith(color: context.colors.primaryFg),
+          style: context.text.labelLg.copyWith(color: context.colors.primaryFg),
         ),
       ],
     );
@@ -428,17 +427,17 @@ class _NavPill extends StatelessWidget {
     if (outlined) {
       return Material(
         color: context.colors.panel.withAlpha(230),
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(AppRadius.full),
+          borderRadius: BorderRadius.circular(context.radii.full),
           child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.md,
-              vertical: AppSpacing.sm,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.space.md,
+              vertical: context.space.sm,
             ),
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(AppRadius.full),
+              borderRadius: BorderRadius.circular(context.radii.full),
               border: Border.all(color: context.colors.border),
             ),
             child: content,
@@ -450,12 +449,12 @@ class _NavPill extends StatelessWidget {
     return FilledButton(
       onPressed: onTap,
       style: FilledButton.styleFrom(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.sm,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.space.md,
+          vertical: context.space.sm,
         ),
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.full),
+          borderRadius: BorderRadius.circular(context.radii.full),
         ),
       ),
       child: content,
@@ -483,7 +482,7 @@ class _SourceOpeningState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl2),
+        padding: EdgeInsets.all(context.space.xl2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -493,13 +492,13 @@ class _SourceOpeningState extends StatelessWidget {
               iconUrl: iconUrl,
               size: 72,
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: context.space.xl),
             Text(
               'Opening $sourceName…',
               textAlign: TextAlign.center,
-              style: AppTypography.h4,
+              style: context.text.h4,
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: context.space.xl),
             SizedBox(
               width: 28,
               height: 28,
@@ -528,11 +527,11 @@ class _DenseSeriesCard extends StatelessWidget {
     return Pressable(
       onTap: onTap,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: context.colors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(context.radii.md),
             border: Border.all(color: context.colors.border),
           ),
           child: Column(
@@ -547,15 +546,15 @@ class _DenseSeriesCard extends StatelessWidget {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.xxs,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.space.xs,
+                    vertical: context.space.xxs,
                   ),
                   child: Text(
                     series.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption.copyWith(
+                    style: context.text.caption.copyWith(
                       color: context.colors.fg,
                       fontSize: 10,
                       height: 1.2,

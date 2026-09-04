@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/downloads/models/retention_policy.dart';
 import 'package:manhwamaniacs/features/downloads/models/storage_cap.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
@@ -45,50 +43,50 @@ class DownloadsStorageCard extends ConsumerWidget {
     final isIOS = Theme.of(context).platform == TargetPlatform.iOS;
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(Icons.download_done_outlined, color: context.colors.primary, size: 20),
-              const SizedBox(width: AppSpacing.sm),
-              Text('Downloaded chapters', style: AppTypography.h4),
+              SizedBox(width: context.space.sm),
+              Text('Downloaded chapters', style: context.text.h4),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             'Chapters saved to this phone for offline reading. Deleting a '
             'chapter here never rewinds your reading progress — it stays on '
             'the server and can be re-downloaded any time.',
-            style: AppTypography.bodySm.copyWith(color: context.colors.muted, height: 1.5),
+            style: context.text.bodySm.copyWith(color: context.colors.muted, height: 1.5),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           totalAsync.when(
             loading: () => const SkeletonBox(width: 120, height: 20),
             error: (_, __) => Text(
               'Unable to read download usage',
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
             ),
             data: (bytes) => Row(
               crossAxisAlignment: CrossAxisAlignment.baseline,
               textBaseline: TextBaseline.alphabetic,
               children: [
-                Text(formatDownloadBytes(bytes), style: AppTypography.h3),
-                const SizedBox(width: AppSpacing.xs),
+                Text(formatDownloadBytes(bytes), style: context.text.h3),
+                SizedBox(width: context.space.xs),
                 Text(
                   cap.bytes == null ? 'used' : 'of ${cap.label} used',
-                  style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                  style: context.text.bodySm.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
-          Text('Storage cap', style: AppTypography.labelLg),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.lg),
+          Text('Storage cap', style: context.text.labelLg),
+          SizedBox(height: context.space.xs),
           Wrap(
-            spacing: AppSpacing.sm,
-            runSpacing: AppSpacing.sm,
+            spacing: context.space.sm,
+            runSpacing: context.space.sm,
             children: [
               for (final option in StorageCap.values)
                 ChoiceChip(
@@ -100,21 +98,21 @@ class DownloadsStorageCard extends ConsumerWidget {
                 ),
             ],
           ),
-          const SizedBox(height: AppSpacing.md),
-          Text('Auto-delete after reading', style: AppTypography.labelLg),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.md),
+          Text('Auto-delete after reading', style: context.text.labelLg),
+          SizedBox(height: context.space.xs),
           Text(
             'Finishing a chapter starts a timer; the phone copy is removed '
             'once it elapses (checked on app open, never in the background).',
-            style: AppTypography.caption.copyWith(color: context.colors.muted),
+            style: context.text.caption.copyWith(color: context.colors.muted),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Consumer(
             builder: (context, ref, _) {
               final interval = ref.watch(retentionIntervalProvider);
               return Wrap(
-                spacing: AppSpacing.sm,
-                runSpacing: AppSpacing.sm,
+                spacing: context.space.sm,
+                runSpacing: context.space.sm,
                 children: [
                   for (final option in RetentionInterval.values)
                     ChoiceChip(
@@ -129,16 +127,16 @@ class DownloadsStorageCard extends ConsumerWidget {
               );
             },
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           if (isIOS)
             const _ManageInFilesNotice()
           else
             Text(
               'Files live in the app\'s private storage. A folder picker for '
               'Android is planned but not in this build.',
-              style: AppTypography.caption.copyWith(color: context.colors.muted),
+              style: context.text.caption.copyWith(color: context.colors.muted),
             ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           breakdownAsync.when(
             loading: () => const SkeletonBox(width: double.infinity, height: 60),
             error: (_, __) => const SizedBox.shrink(),
@@ -147,16 +145,16 @@ class DownloadsStorageCard extends ConsumerWidget {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('By series', style: AppTypography.labelLg),
-                  const SizedBox(height: AppSpacing.xs),
+                  Text('By series', style: context.text.labelLg),
+                  SizedBox(height: context.space.xs),
                   for (final entry in series)
                     Padding(
-                      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xxs),
+                      padding: EdgeInsets.symmetric(vertical: context.space.xxs),
                       child: Row(
                         children: [
                           if (entry.anyPinned) ...[
                             Icon(Icons.push_pin, size: 14, color: context.colors.primary),
-                            const SizedBox(width: AppSpacing.xxs),
+                            SizedBox(width: context.space.xxs),
                           ],
                           Expanded(
                             child: Text(
@@ -165,18 +163,18 @@ class DownloadsStorageCard extends ConsumerWidget {
                                   : entry.seriesKey,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: AppTypography.bodySm,
+                              style: context.text.bodySm,
                             ),
                           ),
-                          const SizedBox(width: AppSpacing.sm),
+                          SizedBox(width: context.space.sm),
                           Text(
                             '${entry.chapterCount} ch · ${formatDownloadBytes(entry.bytes)}',
-                            style: AppTypography.caption.copyWith(color: context.colors.muted),
+                            style: context.text.caption.copyWith(color: context.colors.muted),
                           ),
                         ],
                       ),
                     ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: context.space.md),
                 ],
               );
             },
@@ -216,20 +214,20 @@ class _ManageInFilesNotice extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.fg.withAlpha(13),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         border: Border.all(color: context.colors.border),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.md),
+        padding: EdgeInsets.all(context.space.md),
         child: Row(
           children: [
             Icon(Icons.folder_open_outlined, color: context.colors.muted, size: 18),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Expanded(
               child: Text(
                 'Browse, copy or delete downloaded chapters from the Files '
                 'app: On My iPhone → ManhwaManiacs.',
-                style: AppTypography.caption.copyWith(color: context.colors.muted),
+                style: context.text.caption.copyWith(color: context.colors.muted),
               ),
             ),
           ],
