@@ -291,6 +291,10 @@ class _FrontMatter extends ConsumerWidget {
               ),
               const SizedBox(width: AppSpacing.sm),
               DownloadSeriesButton(
+                // The whole book, fetched in server-sized windows rather than
+                // one request per chapter — see
+                // `DownloadQueueController._primeNovelWindow`.
+                label: 'Download book',
                 chapters: [
                   for (final chapter in chapters)
                     (

@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/novels/models/novel_chapter.dart';
+import 'package:manhwamaniacs/features/novels/models/novel_chapter_window.dart';
 import 'package:manhwamaniacs/features/novels/repositories/novels_repository.dart';
 
 class NovelsRepositoryImpl implements NovelsRepository {
@@ -25,6 +26,29 @@ class NovelsRepositoryImpl implements NovelsRepository {
         },
       );
       return Ok(NovelChapter.fromJson(r.data ?? const {}));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<NovelChapterWindow>> chapterWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
+  }) async {
+    try {
+      final r = await _dio.post<Map<String, dynamic>>(
+        '/novels/chapters',
+        data: {
+          'source_id': sourceId,
+          'series_key': seriesKey,
+          'chapter_keys': chapterKeys,
+        },
+      );
+      return Ok(NovelChapterWindow.fromJson(r.data ?? const {}));
     } on DioException catch (e) {
       return Err(_err(e));
     } catch (e) {

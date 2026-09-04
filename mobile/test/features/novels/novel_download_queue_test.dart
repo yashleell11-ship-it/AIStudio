@@ -15,6 +15,7 @@ import 'package:manhwamaniacs/features/downloads/services/device_storage_info.da
 import 'package:manhwamaniacs/features/downloads/services/offline_novel_reader.dart';
 import 'package:manhwamaniacs/features/downloads/services/retention_maintenance.dart';
 import 'package:manhwamaniacs/features/novels/models/novel_chapter.dart';
+import 'package:manhwamaniacs/features/novels/models/novel_chapter_window.dart';
 import 'package:manhwamaniacs/features/novels/repositories/novels_repository.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
@@ -40,6 +41,18 @@ class _ScriptedNovelsRepository implements NovelsRepository {
     calls++;
     return _chapter();
   }
+
+  /// Windowed fetching is off in this file: every test here is about the
+  /// single-chapter path's retry bound, failure recording and completeness
+  /// guard, and a window that answered would take those chapters off it.
+  /// `novel_bulk_window_test.dart` covers the windowed path.
+  @override
+  Future<Result<NovelChapterWindow>> chapterWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
+  }) async =>
+      const Err(NetworkError(message: 'no window in this test'));
 }
 
 /// Fails the test if the queue ever reaches for a page image on a novel.

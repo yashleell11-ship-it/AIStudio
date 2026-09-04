@@ -20,3 +20,18 @@ const int kMaxPageRetries = 3;
 
 const Duration kChapterRetryBackoff = Duration(seconds: 2);
 const Duration kPageRetryBackoff = Duration(milliseconds: 600);
+
+/// How many novel chapters one `POST /novels/chapters` window asks for
+/// before the server has said otherwise.
+///
+/// Matches the deployed `MM_NOVEL_BULK_MAX_CHAPTERS`, but is only a starting
+/// guess: every successful window echoes `max_chapters`, and the queue adopts
+/// that number, so a deployment that raises or lowers its cap needs no app
+/// release. Over the cap is a `batch_too_large` 413, which the queue also
+/// reads and shrinks to.
+const int kNovelWindowChapters = 20;
+
+/// Below this, a window is not worth asking for: the single-chapter endpoint
+/// sits on a far more generous rate-limit bucket than the `bulk` one, so
+/// spending a bulk token on one chapter is a straight loss.
+const int kMinNovelWindowChapters = 2;
