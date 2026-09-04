@@ -34,6 +34,15 @@ def h(as_user, acct):
     return as_user(uid, pid)
 
 
+@pytest.fixture
+def follows(seed_follow, acct):
+    """Reading a transcript back is follow-scoped; the upload bounds these
+    tests are about are not, so the follow is just what makes the read-back
+    assertions observable."""
+    uid, pid = acct
+    seed_follow(uid, pid, source_id=SRC, series_key=SERIES)
+
+
 def _upload(client, h, pages):
     return client.post(
         "/ocr/chapter",
@@ -74,7 +83,7 @@ def test_total_text_ceiling_rejected(client, h):
     assert _upload(client, h, pages).status_code == 422
 
 
-def test_free_form_box_junk_is_dropped_not_stored(client, h):
+def test_free_form_box_junk_is_dropped_not_stored(client, h, follows):
     """Boxes are a typed shape now: unknown keys and nested JSON are discarded
     before the row is written."""
     pages = [
