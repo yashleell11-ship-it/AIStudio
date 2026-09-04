@@ -47,7 +47,15 @@ export interface FollowedSeries {
   /** Effective rating after gate/override resolution ("mature" | "safe" | ...). */
   rating: string;
   mature_override: boolean | null;
-  known_chapters: KnownChapter[];
+  /**
+   * The series' whole chapter list — **absent from every list payload**.
+   * `GET /library/series`, `/library/recently-updated` and the collection
+   * listings omit it (it was ~830 KB of the 832 KB a 40-row page weighed,
+   * and no list view draws it); the detail endpoint, `follow` and `patch`
+   * still send it, so `SeriesDetail` re-declares it as required. Use
+   * `chapter_count` for a count — that is present everywhere.
+   */
+  known_chapters?: KnownChapter[];
   chapter_count: number;
   last_checked_at: string | null;
   created_at: string | null;
@@ -77,6 +85,8 @@ export interface ChapterProgressEntry {
  * live chapter list, and a `chapter_key -> progress` overlay.
  */
 export interface SeriesDetail extends FollowedSeries {
+  /** Present on the detail payload (narrowed from the optional above). */
+  known_chapters: KnownChapter[];
   description: string | null;
   author: string | null;
   genres: string[] | null;
