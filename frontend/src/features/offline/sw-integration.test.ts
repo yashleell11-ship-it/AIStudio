@@ -37,6 +37,8 @@ const PAYLOAD =
   `${API_BASE}/reader/chapter/manifest` +
   `?source=${SOURCE}&series=${encodeURIComponent(SERIES)}&chapter=${encodeURIComponent(CHAPTER)}`;
 const DOCUMENT_URL = `${ORIGIN}/reader/${SOURCE}/${encodeURIComponent(SERIES)}/ch/50`;
+const BOOKMARKS = `${API_BASE}/reader/bookmarks`;
+const ALICE_API_CACHE = "mm-api-v2-u1p10";
 
 const CHAPTER_BODY = JSON.stringify({
   source_id: SOURCE,
@@ -94,6 +96,7 @@ beforeEach(() => {
   route(harness, PAGE_TWO, { body: "page-two-bytes", headers: { "content-type": "image/jpeg" } });
   route(harness, PAYLOAD, { body: CHAPTER_BODY });
   route(harness, DOCUMENT_URL, { body: "<html>reader</html>" });
+  route(harness, BOOKMARKS, { body: '[{"id":1,"anchor_index":7}]' });
 });
 
 describe("install and activate", () => {
@@ -323,6 +326,53 @@ describe("reading with no network", () => {
       mode: "navigate",
     });
     expect(await outcome.response?.text()).toBe("<html>reader</html>");
+  });
+});
+
+describe("bookmarks with no network", () => {
+  it("hands back the last listing it saw", async () => {
+    await boot();
+    await harness.dispatchFetch({ url: BOOKMARKS });
+
+    harness.offline = true;
+    const outcome = await harness.dispatchFetch({ url: BOOKMARKS });
+    expect(outcome.handled).toBe(true);
+    expect(await outcome.response?.text()).toBe('[{"id":1,"anchor_index":7}]');
+  });
+
+  it("prefers the live listing whenever there is one", async () => {
+    await boot();
+    await harness.dispatchFetch({ url: BOOKMARKS });
+
+    // A bookmark added since. A stale-first strategy would not show it.
+    route(harness, BOOKMARKS, { body: '[{"id":2},{"id":1,"anchor_index":7}]' });
+    const outcome = await harness.dispatchFetch({ url: BOOKMARKS });
+    expect(await outcome.response?.text()).toBe('[{"id":2},{"id":1,"anchor_index":7}]');
+  });
+
+  it("fails honestly when it has never seen the listing", async () => {
+    await boot();
+    harness.offline = true;
+
+    const outcome = await harness.dispatchFetch({ url: BOOKMARKS });
+    // The screen shows its offline state rather than an empty bookmark list,
+    // which would read as "you have no bookmarks".
+    expect(outcome.response?.type ?? "error").toBe("error");
+  });
+
+  it("keeps one profile's saved places out of another's", async () => {
+    await boot();
+    await harness.dispatchFetch({ url: BOOKMARKS });
+    expect(await harness.cacheNames()).toContain(ALICE_API_CACHE);
+
+    await harness.dispatchMessage(
+      { type: "mm-offline/set-scope", scope: BOB, apiBase: API_BASE },
+      "client-a",
+    );
+    harness.offline = true;
+
+    const outcome = await harness.dispatchFetch({ url: BOOKMARKS });
+    expect(outcome.response?.type ?? "error").toBe("error");
   });
 });
 
