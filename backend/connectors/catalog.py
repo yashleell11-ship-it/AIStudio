@@ -39,6 +39,24 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #   topmanhua - cdn.topmanhua.net is permanently 526 (CF cannot validate the
     #               origin cert) and topmanhua.com now 302s to a monetisation
     #               domain, so no page image can ever be served
+    #
+    # Probed and DELIBERATELY NOT ADDED 2026-09-05 (all four fingerprinted as
+    # Madara from the outside; three do not behave like it). Do not re-add
+    # without re-probing from the VPS:
+    #   kingofshojo.com - not Madara at all. Runs the Themesia "mangareader"
+    #               theme: chapters live at the site root as
+    #               /<series>-chapter-<n>/, there is no wp-manga markup, and
+    #               admin-ajax.php answers manga_get_chapters with 400 "0".
+    #               Needs a bespoke connector, not a catalog line.
+    #   mangaeffect.com - a permanent 301 to www.mangaread.org for every path,
+    #               i.e. a second domain for the `mangaread` entry above.
+    #   mangagg.com - genuine Madara (url_segment "comic"), and browse/search/
+    #               detail/pages/image bytes all work, but the install
+    #               publishes only the newest 24 chapters of every series
+    #               through every enumerable route (36/36 sampled series
+    #               returned exactly 24, none starting at chapter 1; the
+    #               chapter-1 URLs are live but unreachable from any listing).
+    #               A source you can never start reading from the beginning.
     _site("mangaread", "MangaRead", "mangaread.org"),
     _site("manhuaplus", "ManhuaPlus", "manhuaplus.com", extra_image_hosts=frozenset({"cdn.manhuaplus.com"})),
     _site("manhuakey", "ManhuaKey", "manhuakey.com", use_cf=False),
@@ -49,6 +67,18 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     _site("manhwaden", "ManhwaDen", "manhwaden.com", mature=True, use_cf=False, extra_image_hosts=frozenset({"remanhwa.me"})),
     _site("manhwanex", "ManhwaNex", "manhwanex.com", mature=True, use_cf=False),
     _site("s2manga", "S2Manga", "s2read.com", use_cf=False),
+    # Added 2026-09-05 after an end-to-end probe from the VPS container.
+    # Real Madara (wp-content/themes/madara), /manga/ series pages, chapters
+    # from the per-series ``{series}/ajax/chapters/`` endpoint — its
+    # /wp-admin/admin-ajax.php answers manga_get_chapters with 400, so the
+    # connector settles on the relative shape after one probe. Plain httpx
+    # cleared every stage from the OVH egress (~120 requests, no challenge),
+    # so use_cf=False buys the cheaper client; covers and page images are all
+    # on mangasushi.org itself, so the host-derived allowlist already covers
+    # them and no extra_image_hosts are needed. Genres are stock-Madara with
+    # 2 adult-tagged series site-wide, so it stays a general (non-mature)
+    # source like mangaread/manhuaplus.
+    _site("mangasushi", "MangaSushi", "mangasushi.org", use_cf=False),
     _site(
         "allporncomic",
         "AllPornComic",
