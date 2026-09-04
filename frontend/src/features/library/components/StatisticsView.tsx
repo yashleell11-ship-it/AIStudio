@@ -286,7 +286,7 @@ function SeriesRow({ row }: { row: SeriesReading }) {
       <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface-2 ring-1 ring-white/5">
         {row.cover_url ? (
           <Image
-            src={libraryCoverUrl(row.cover_url)}
+            src={libraryCoverUrl(row.cover_url, "44px")}
             alt=""
             fill
             className="object-cover"

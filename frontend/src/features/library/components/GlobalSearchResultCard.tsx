@@ -6,6 +6,17 @@ import { Globe, ImageOff, Library } from "lucide-react";
 import { globalSearchHref } from "@/features/sources/global-search";
 import { prettifySourceId } from "@/features/sources/source-branding";
 import type { GlobalSearchItem } from "@/features/sources/types";
+import { withCoverWidth } from "@/lib/cover-url";
+
+/**
+ * The result card's cover box, a fixed `w-[80px]`.
+ *
+ * Applied here rather than in `searchGroupFromSourceSeries`, which builds the
+ * retry path's rows: the federated payload arrives with its `cover_url` already
+ * absolute, so the only place that knows the box for BOTH the first response
+ * and a retried section is the card that paints them. See `lib/cover-url.ts`.
+ */
+const COVER_SIZES = "80px";
 
 interface GlobalSearchResultCardProps {
   item: GlobalSearchItem;
@@ -58,11 +69,11 @@ export function GlobalSearchResultCard({
         <div className="relative h-[120px] w-[80px] shrink-0 overflow-hidden rounded-lg bg-surface-2">
           {item.cover_url ? (
             <Image
-              src={item.cover_url}
+              src={withCoverWidth(item.cover_url, COVER_SIZES)}
               alt={item.title}
               fill
               className="object-cover transition-transform duration-300 group-hover:scale-105"
-              sizes="80px"
+              sizes={COVER_SIZES}
               unoptimized
             />
           ) : (

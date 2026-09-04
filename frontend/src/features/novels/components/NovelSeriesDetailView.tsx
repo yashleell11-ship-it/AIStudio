@@ -62,6 +62,13 @@ const PREFETCH_CHAPTERS = 3;
  */
 const VISIBLE_CHAPTERS = 400;
 
+/**
+ * The front-matter plate: `w-[9rem]` (144px), `w-[10.5rem]` (168px) from `sm`.
+ * Both a `sizes` hint and the width the cover proxy renders to
+ * (`lib/cover-url.ts`).
+ */
+const FRONT_MATTER_PLATE_SIZES = "(max-width: 639px) 144px, 168px";
+
 type ChapterSortOrder = "newest" | "oldest";
 
 /**
@@ -260,12 +267,14 @@ export function NovelSeriesDetailView({
         <div className="mt-6 flex flex-col gap-8 sm:flex-row-reverse sm:items-start sm:gap-10">
           <BookPlate
             coverUrl={
-              coverPath(series.cover_url) ? sourceImageUrl(series.cover_url) : null
+              coverPath(series.cover_url)
+                ? sourceImageUrl(series.cover_url, FRONT_MATTER_PLATE_SIZES)
+                : null
             }
             title={series.title}
             alt={series.title}
             className="h-[13rem] w-[9rem] sm:h-[15.5rem] sm:w-[10.5rem]"
-            sizes="168px"
+            sizes={FRONT_MATTER_PLATE_SIZES}
           />
 
           <div className="min-w-0 flex-1">

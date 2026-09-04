@@ -26,6 +26,12 @@ import { cn } from "@/lib/cn";
 import { READING_STATUSES } from "../url-state";
 import type { KnownChapter, SeriesDetail } from "../types";
 
+/**
+ * The poster: capped at `max-w-[220px]`, and 220px wide from `lg` up. Both a
+ * `sizes` hint and the width the cover proxy renders to (`lib/cover-url.ts`).
+ */
+const POSTER_SIZES = "220px";
+
 interface SeriesDetailViewProps {
   seriesId: number;
 }
@@ -138,7 +144,12 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
     sourceId: detail.source_id,
     seriesKey: detail.series_key,
   };
-  const cover = libraryCoverUrl(detail.cover_url);
+  // One URL for both the poster and the blurred backdrop behind it, which is
+  // one fetch rather than two: the backdrop is `blur-sm` at 35% brightness
+  // under a gradient, so it has no detail to lose from being painted at the
+  // poster's width, and a second `100vw` request for it would be the largest
+  // cover download on the page.
+  const cover = libraryCoverUrl(detail.cover_url, POSTER_SIZES);
   const hasProgress = Object.keys(detail.progress).length > 0;
 
   return (
@@ -174,7 +185,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                 alt={detail.title}
                 fill
                 className="object-cover"
-                sizes="220px"
+                sizes={POSTER_SIZES}
                 unoptimized
                 priority
               />

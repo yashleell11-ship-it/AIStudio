@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { withCoverWidth } from "@/lib/cover-url";
 import { http } from "@/services/http";
 import type {
   GlobalSearchResponse,
@@ -11,12 +12,21 @@ import type {
   SourceSummary,
 } from "./types";
 
-export function sourceImageUrl(path: string): string {
+/**
+ * Resolve a source-served image path (a cover, a connector icon) against the
+ * API base, leaving an absolute URL alone.
+ *
+ * `sizes` is the caller's `next/image` hint for the box the image is painted
+ * into; on a cover it becomes the proxy's `?w=` and the backend renders to fit.
+ * Callers that are not painting a cover — the source icons — pass nothing, and
+ * nothing changes for them. See `lib/cover-url.ts`.
+ */
+export function sourceImageUrl(path: string, sizes?: string | null): string {
   if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
+    return withCoverWidth(path, sizes);
   }
   const normalized = path.startsWith("/") ? path.slice(1) : path;
-  return `${env.apiUrl}/${normalized}`;
+  return withCoverWidth(`${env.apiUrl}/${normalized}`, sizes);
 }
 
 export interface SourceReaderChapterResponse {

@@ -15,6 +15,15 @@ import {
 import { useFollowedIndex } from "../hooks";
 import type { ContinueReadingItem } from "../types";
 
+/**
+ * The hero card's cover: `w-28` (112px) below `sm`, `w-40`/`w-44` above — and
+ * the rail card's, a fixed `w-[70px]`. Both are `sizes` hints AND the widths
+ * the cover proxy renders to (`lib/cover-url.ts`), which is why they name the
+ * real boxes rather than a round number.
+ */
+const HERO_COVER_SIZES = "(max-width: 639px) 112px, 176px";
+const RAIL_COVER_SIZES = "70px";
+
 interface ContinueReadingProps {
   items: ContinueReadingItem[];
   isLoading?: boolean;
@@ -76,11 +85,11 @@ export function ContinueReading({ items, isLoading, novels }: ContinueReadingPro
         <article className="glass-card relative flex gap-4 overflow-hidden rounded-3xl p-3 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60 sm:gap-6 sm:p-4">
           <div className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-2xl bg-surface-2 sm:w-40 md:w-44">
             <Image
-              src={seriesCoverUrl(continueReadingRef(hero))}
+              src={seriesCoverUrl(continueReadingRef(hero), HERO_COVER_SIZES)}
               alt={resolveSeriesTitle(hero, titles)}
               fill
               className="object-cover"
-              sizes="(max-width: 640px) 112px, 176px"
+              sizes={HERO_COVER_SIZES}
               unoptimized
             />
             <div className="absolute inset-0 flex items-center justify-center bg-void/40 opacity-0 transition-opacity group-hover:opacity-100">
@@ -131,11 +140,11 @@ export function ContinueReading({ items, isLoading, novels }: ContinueReadingPro
                 <article className="glass-card flex h-full gap-3 overflow-hidden rounded-2xl p-2 transition-colors hover:border-primary/40">
                   <div className="relative h-[104px] w-[70px] shrink-0 overflow-hidden rounded-lg bg-surface-2">
                     <Image
-                      src={seriesCoverUrl(continueReadingRef(item))}
+                      src={seriesCoverUrl(continueReadingRef(item), RAIL_COVER_SIZES)}
                       alt={resolveSeriesTitle(item, titles)}
                       fill
                       className="object-cover"
-                      sizes="70px"
+                      sizes={RAIL_COVER_SIZES}
                       unoptimized
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-void/40 opacity-0 transition-opacity group-hover:opacity-100">

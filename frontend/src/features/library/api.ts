@@ -1,4 +1,5 @@
 import { env } from "@/config/env";
+import { withCoverWidth } from "@/lib/cover-url";
 import { http } from "@/services/http";
 import type { SeriesId } from "@/types/api";
 import type {
@@ -21,17 +22,30 @@ import type {
  * either an absolute source URL or a backend-relative proxy path
  * (`/sources/{source}/series/{series}/cover`); the relative form is resolved
  * against the API base here.
+ *
+ * `sizes` is the caller's `next/image` hint for the box this cover is painted
+ * into, and it is what turns into the proxy's `?w=`. Omit it and the original,
+ * source-resolution image is served — correct, and up to 1.6 MB into a
+ * thumbnail. See `lib/cover-url.ts`.
  */
-export function libraryCoverUrl(coverUrl: string): string {
-  if (/^https?:\/\//i.test(coverUrl)) return coverUrl;
-  return `${env.apiUrl}${coverUrl.startsWith("/") ? "" : "/"}${coverUrl}`;
+export function libraryCoverUrl(coverUrl: string, sizes?: string | null): string {
+  const url = /^https?:\/\//i.test(coverUrl)
+    ? coverUrl
+    : `${env.apiUrl}${coverUrl.startsWith("/") ? "" : "/"}${coverUrl}`;
+  return withCoverWidth(url, sizes);
 }
 
 /** Source cover proxy for a `(source, series_key)` with no payload in hand. */
-export function seriesCoverUrl({ sourceId, seriesKey }: SeriesId): string {
-  return `${env.apiUrl}/sources/${encodeURIComponent(sourceId)}/series/${encodeURIComponent(
-    seriesKey,
-  )}/cover`;
+export function seriesCoverUrl(
+  { sourceId, seriesKey }: SeriesId,
+  sizes?: string | null,
+): string {
+  return withCoverWidth(
+    `${env.apiUrl}/sources/${encodeURIComponent(sourceId)}/series/${encodeURIComponent(
+      seriesKey,
+    )}/cover`,
+    sizes,
+  );
 }
 
 export const libraryApi = {

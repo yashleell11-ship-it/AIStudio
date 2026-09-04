@@ -1,6 +1,16 @@
 import { byline, formatChapterCount } from "./book";
 
 /**
+ * The shelf row's cover plate: `h-[4.25rem] w-12`, a fixed 48px.
+ *
+ * Declared here rather than in the row that paints it because the three views
+ * that build `ShelfBook`s have to resolve `coverUrl` at the same width the
+ * plate is rendered at — that width is what the cover proxy renders to
+ * (`lib/cover-url.ts`), so a copy per view would be three chances to drift.
+ */
+export const SHELF_PLATE_SIZES = "48px";
+
+/**
  * One book on a shelf.
  *
  * The shelf is the novel side's answer to the manga grid, and the reason it is

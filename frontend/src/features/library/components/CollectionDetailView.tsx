@@ -252,7 +252,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                 >
                   <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2 ring-1 ring-white/10">
                     <Image
-                      src={libraryCoverUrl(series.cover_url)}
+                      src={libraryCoverUrl(series.cover_url, "32px")}
                       alt={series.title}
                       fill
                       className="object-cover"
