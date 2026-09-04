@@ -5,6 +5,8 @@ import 'package:manhwamaniacs/features/library/repositories/global_search_reposi
 import 'package:manhwamaniacs/features/library/repositories/global_search_repository_impl.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository_impl.dart';
+import 'package:manhwamaniacs/features/novels/repositories/novels_repository.dart';
+import 'package:manhwamaniacs/features/novels/repositories/novels_repository_impl.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository_impl.dart';
 import 'package:manhwamaniacs/features/settings/repositories/backup_repository.dart';
@@ -38,6 +40,11 @@ final backupRepositoryProvider = Provider<BackupRepository>(
 final readerRepositoryProvider = Provider<ReaderRepository>(
   (ref) => ReaderRepositoryImpl(ref.watch(dioProvider)),
   name: 'readerRepository',
+);
+
+final novelsRepositoryProvider = Provider<NovelsRepository>(
+  (ref) => NovelsRepositoryImpl(ref.watch(dioProvider)),
+  name: 'novelsRepository',
 );
 
 final sourcesRepositoryProvider = Provider<SourcesRepository>(
