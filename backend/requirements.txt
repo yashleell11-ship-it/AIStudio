@@ -9,3 +9,7 @@ alembic==1.18.5
 httpx==0.28.1
 argon2-cffi==25.1.0
 slowapi==0.1.10
+# Cover downscaling only (GET /sources/.../cover?w=). Prebuilt manylinux
+# wheel with libwebp + libjpeg-turbo bundled, so the Dockerfile still needs no
+# apt packages; ~7 MB installed. See services/image_resize.py.
+pillow==12.3.0

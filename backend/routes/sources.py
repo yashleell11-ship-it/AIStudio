@@ -10,6 +10,11 @@ from pydantic import BaseModel, Field
 from core.rate_limit import limiter, sources_limit
 from services.browse_service import BrowseService, get_browse_service
 from services.reader_service import ReaderService, get_reader_service
+from services.image_resize import (
+    COVER_WIDTHS,
+    negotiate_cover_format,
+    snap_cover_width,
+)
 from services.source_cache_service import (
     SourceCacheService,
     get_source_cache_service,
@@ -59,9 +64,13 @@ def _image_proxy_headers() -> dict[str, str]:
 # a source swapping a cover is rare), so it gets a long ``public`` max-age:
 # the client caches it locally, Cloudflare may cache it at the edge, and both
 # stop re-proxying the same bytes through the VPS. ``public`` is load-bearing —
-# without it an edge will not cache an authenticated response. No cover bytes
-# are ever stored server-side (spec: the VPS never holds image bytes); only
-# these headers change.
+# without it an edge will not cache an authenticated response.
+#
+# A cover requested WITHOUT ``?w=`` is still never stored server-side: it is
+# streamed through and forgotten, as it always was. Only the DERIVED,
+# downscaled renderings live on disk, in ``source_cover_cache``, under a hard
+# byte budget — see ``database.models.SourceCoverCache`` for why that does not
+# breach the no-chapter-images rule. Page images are untouched by all of this.
 _COVER_MAX_AGE_SECONDS = 30 * 24 * 3600  # 30 days
 
 
@@ -294,7 +303,18 @@ def get_source_series_cover(
     source_id: str,
     series_id: str,
     service: BrowseDep,
+    cache: CacheDep,
     request: Request,
+    w: int | None = Query(
+        None,
+        ge=1,
+        le=10000,
+        description=(
+            "Render the cover at this width in device pixels. Snapped onto "
+            f"{list(COVER_WIDTHS)}; the width actually served comes back in "
+            "X-Cover-Width. Omit for the original, full-resolution image."
+        ),
+    ),
 ) -> Response:
     """Proxy a series cover image from an online source.
 
@@ -305,12 +325,47 @@ def get_source_series_cover(
     Covers get the long-lived cacheable treatment (see _COVER_MAX_AGE_SECONDS)
     plus an ETag with 304 handling, so browsing the same grid twice costs the
     box nothing after the first paint.
+
+    ``?w=`` is the fix for the biggest measured waste in the product: covers
+    were served at source resolution into thumbnail boxes (1.64 MB average,
+    6.27 MB max, ~39 MB for one 24-cover grid at a 375 px viewport). With a
+    width the cover is downscaled and re-encoded — WebP when the client's
+    ``Accept`` says so, JPEG otherwise — and cached in ``source_cover_cache``.
+    Without one, nothing changes at all: the original streams straight through
+    and is never written down.
+
+    ``w`` SNAPS onto ``image_resize.COVER_WIDTHS`` rather than being honoured
+    verbatim. A free-form integer would be a cache explosion and a cheap DoS
+    (a thousand distinct widths is a thousand decode/encode cycles on 2 vCPU
+    from one caller), and snapping beats rejecting because a client with a
+    hard-coded odd number still gets a right-sized cover instead of a 422.
+    ``X-Cover-Width`` reports what was actually rendered, and is absent when
+    the original was served (unresizable bytes, a re-encode that would not
+    have been smaller, or the MM_COVER_RESIZE_ENABLED kill switch). ``w`` is
+    still validated (1..10000) before it is snapped, so a nonsense value is a
+    422 rather than something to reason about further down.
+
+    ``Vary: Accept`` is mandatory whenever a width is in play: the response
+    body depends on the Accept header, and without it Cloudflare would happily
+    hand a WebP to a client that asked for JPEG.
     """
-    media_type, data = service.resolve_series_cover(source_id, series_id)
     headers = {
         **_image_proxy_headers(),
         "Cache-Control": f"public, max-age={_COVER_MAX_AGE_SECONDS}",
     }
+    if w is None:
+        media_type, data = service.resolve_series_cover(source_id, series_id)
+        return _conditional_image_response(request, media_type, data, headers)
+
+    media_type, data, served_width = cache.get_series_cover(
+        source_id,
+        series_id,
+        width=snap_cover_width(w),
+        fmt=negotiate_cover_format(request.headers.get("accept")),
+    )
+    headers["Vary"] = "Accept"
+    if served_width is not None:
+        headers["X-Cover-Width"] = str(served_width)
     return _conditional_image_response(request, media_type, data, headers)
 
 

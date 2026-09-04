@@ -3,11 +3,13 @@
 ``source_series_cache`` lets the library grid, continue-reading strip, and
 notifications render titles/covers/chapter counts without hitting a connector
 on every request. ``source_browse_cache`` does the same for whole browse
-*pages*, so opening a source renders the grid without a live scrape. Both are
+*pages*, so opening a source renders the grid without a live scrape.
+``source_cover_cache`` holds DOWNSCALED cover bytes for ``GET .../cover?w=``
+so a 2-vCPU box renders each (series, width, format) once. All three are
 *purely* caches: any row may be deleted at any time and is repopulated on the
 next read.
 
-Semantics (both tables):
+Semantics (all three tables):
   * fresh row (``fetched_at`` within its TTL)   → serve it
   * missing / stale                             → refetch, upsert, serve
   * connector failure with any row present      → serve stale (flagged)
@@ -16,7 +18,8 @@ Semantics (both tables):
 Rows are GLOBAL — a page one caller fetched serves every caller — but the
 18+ gate is applied per caller on every browse-cache read
 (``BrowseService.ensure_visible``), so a mature source's cached page can
-never reach a profile whose gate is closed.
+never reach a profile whose gate is closed. The same rule, enforced the same
+way, covers the cover cache: see ``get_series_cover``.
 """
 
 from __future__ import annotations
@@ -29,7 +32,7 @@ from datetime import timedelta
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
@@ -37,9 +40,10 @@ from core.config import get_settings
 from core.content_rating import rating_from_genres
 from core.errors import AppError
 from core.time_utils import utcnow
-from database.models import SourceBrowseCache, SourceSeriesCache
+from database.models import SourceBrowseCache, SourceCoverCache, SourceSeriesCache
 from database.session import get_db
 from services.browse_service import BrowseService, get_browse_service
+from services.image_resize import COVER_FORMATS, resize_cover
 
 logger = logging.getLogger("manhwamaniacs.source_cache")
 
@@ -137,6 +141,20 @@ def reset_chapter_memo() -> None:
     with _chapter_memo_lock:
         _chapter_memo.clear()
         _chapter_memo_chapters = 0
+
+
+# --- rendered-cover cache tuning -------------------------------------------
+#
+# ``last_used_at`` drives LRU eviction, but a cover grid touches 24 rows per
+# screen and bumping every one of them on every paint would turn a read-only
+# request into 24 writes against SQLite's single writer. Hourly resolution is
+# far finer than an eviction sweep needs, so a row whose stamp is younger than
+# this is left alone.
+_COVER_LRU_BUMP_MINUTES = 60
+# How many rows one eviction pass considers at a time. Deletes are issued as
+# Core statements against the primary key rather than by loading ORM objects,
+# so an eviction never pulls the blobs it is about to throw away into memory.
+_COVER_EVICT_BATCH = 256
 
 
 def _normalize_sort(sort: str | None) -> str:
@@ -314,6 +332,213 @@ class SourceCacheService:
         if warm_next:
             self._maybe_warm_next(source_id, sort_key, genre_key, page, payload)
         return payload
+
+    # --- rendered covers -------------------------------------------------
+
+    def get_series_cover(
+        self,
+        source_id: str,
+        series_key: str,
+        *,
+        width: int | None,
+        fmt: str = "jpeg",
+    ) -> tuple[str, bytes, int | None]:
+        """One series cover, optionally downscaled. Returns
+        ``(media_type, data, served_width)``; ``served_width`` is ``None``
+        when the ORIGINAL bytes are what came back.
+
+        ``width`` must already be snapped onto ``image_resize.COVER_WIDTHS``
+        (the route does that) — this method will happily key a cache row on
+        whatever it is handed, and the closed width set is the only thing
+        bounding the key space.
+
+        THE 18+ GATE IS THE FIRST THING THAT HAPPENS, before any cache lookup,
+        and it is re-checked by ``resolve_series_cover`` on every miss. Cover
+        rows are GLOBAL and carry no ``user_id``/``profile_id``, exactly like
+        ``source_browse_cache``: what varies per (user, profile) is whether
+        this reader may see the SOURCE, not what the cover looks like. Baking
+        the gate into the cache key would cache the leak instead of preventing
+        it — the gate has to be evaluated per request, on the request's own
+        profile, which is what ``ensure_visible`` does here.
+
+        Degradation matches the other caches: if the connector fails and a row
+        exists (even an expired one) the row is served rather than an error,
+        because a stale cover is indistinguishable from a fresh one and a
+        missing cover is a hole in the grid.
+
+        Every resize failure — corrupt bytes, an unsupported format, a source
+        answering with HTML, Pillow missing entirely — falls back to the
+        original bytes and stores nothing. See ``image_resize.resize_cover``.
+        """
+        self._browse.ensure_visible(source_id)
+
+        settings = get_settings()
+        if width is None or fmt not in COVER_FORMATS or not settings.cover_resize_enabled:
+            media_type, data = self._browse.resolve_series_cover(source_id, series_key)
+            return media_type, data, None
+
+        key = (source_id, fully_unquote(series_key), width, fmt)
+        row = self._cover_row(key)
+        if row is not None and self._cover_row_fresh(row):
+            self._touch_cover(row)
+            return row.media_type, bytes(row.data), width
+
+        try:
+            media_type, data = self._browse.resolve_series_cover(source_id, series_key)
+        except (AppError, Exception):  # noqa: BLE001 - cache must degrade
+            if row is not None:
+                logger.warning(
+                    "cover_cache: connector failed for %s/%s, serving stale "
+                    "(w=%d fmt=%s, fetched %s)",
+                    key[0],
+                    key[1],
+                    width,
+                    fmt,
+                    row.fetched_at,
+                )
+                self._touch_cover(row)
+                return row.media_type, bytes(row.data), width
+            raise
+
+        resized = resize_cover(data, width=width, fmt=fmt)
+        if resized is None:
+            # Nothing to gain (or nothing decodable) — the original is served
+            # and deliberately NOT stored: only derived, downscaled bytes ever
+            # land on disk.
+            return media_type, data, None
+
+        out_media_type, out_data = resized
+        self._store_cover(key, out_media_type, out_data)
+        return out_media_type, out_data, width
+
+    # --- rendered-cover internals ----------------------------------------
+
+    def _cover_row(self, key: tuple[str, str, int, str]) -> SourceCoverCache | None:
+        try:
+            return self._db.get(SourceCoverCache, key)
+        except Exception:  # noqa: BLE001 - e.g. a DB predating the migration
+            logger.warning("cover_cache unavailable; serving live", exc_info=True)
+            self._db.rollback()
+            return None
+
+    def _cover_row_fresh(self, row: SourceCoverCache) -> bool:
+        ttl = timedelta(minutes=get_settings().cover_cache_ttl_minutes)
+        return (utcnow() - row.fetched_at) < ttl
+
+    def _touch_cover(self, row: SourceCoverCache) -> None:
+        """Bump ``last_used_at`` for LRU — at most once an hour per row.
+
+        Without the throttle a 24-cover grid would issue 24 UPDATEs against
+        SQLite's single writer on a request that otherwise writes nothing.
+        """
+        now = utcnow()
+        if row.last_used_at is not None and (
+            now - row.last_used_at
+        ) < timedelta(minutes=_COVER_LRU_BUMP_MINUTES):
+            return
+        try:
+            row.last_used_at = now
+            self._db.commit()
+        except Exception:  # noqa: BLE001 - an LRU bump must never break a read
+            logger.debug("cover_cache: last_used_at bump failed", exc_info=True)
+            self._db.rollback()
+
+    def _store_cover(
+        self, key: tuple[str, str, int, str], media_type: str, data: bytes
+    ) -> None:
+        """Upsert one rendered cover and sweep the byte budget. Best effort."""
+        max_row_bytes = get_settings().cover_cache_max_row_bytes
+        if max_row_bytes > 0 and len(data) > max_row_bytes:
+            # Served, never stored: one pathological source must not be able to
+            # spend the whole budget.
+            logger.info(
+                "cover_cache: %d bytes exceeds the per-row ceiling; not stored",
+                len(data),
+            )
+            return
+        source_id, series_key, width, fmt = key
+        try:
+            row = self._db.get(SourceCoverCache, key)
+            if row is None:
+                row = SourceCoverCache(
+                    source_id=source_id,
+                    series_key=series_key,
+                    width=width,
+                    fmt=fmt,
+                )
+                self._db.add(row)
+            row.media_type = media_type
+            row.data = data
+            row.byte_size = len(data)
+            row.fetched_at = utcnow()
+            row.last_used_at = utcnow()
+            self._evict_cover_bytes()
+            self._db.commit()
+        except Exception:  # noqa: BLE001 - a cache write must never break a read
+            logger.exception("cover_cache: cache write failed")
+            self._db.rollback()
+
+    def _evict_cover_bytes(self) -> None:
+        """Delete least-recently-used rows until the table fits its byte budget.
+
+        A byte budget rather than the row cap the JSON caches use: these rows
+        are encoded images, they differ in size by an order of magnitude, and
+        the thing that actually has to be bounded on a 20 GB VPS is bytes.
+        ``settings.cover_cache_max_bytes`` is therefore a HARD ceiling on what
+        this feature can ever occupy. The caller commits.
+
+        The ``SUM`` runs on every store, not only when the budget is blown:
+        measured on the VPS it is 22 ms over 10,000 rows (13 ms at the ~6,000
+        the default budget actually holds), against the ~130 ms of CPU the
+        render that triggered it just spent. It stays cheap because
+        ``byte_size`` is declared BEFORE ``data`` in the table, so the scan
+        reads each record's first page instead of walking blob overflow pages.
+        """
+        cap = get_settings().cover_cache_max_bytes
+        if cap <= 0:
+            return
+        # autoflush is off session-wide; flush so the row just added counts.
+        self._db.flush()
+        total = self._db.execute(
+            select(func.coalesce(func.sum(SourceCoverCache.byte_size), 0))
+        ).scalar_one()
+        if total <= cap:
+            return
+        evicted = 0
+        while total > cap:
+            batch = self._db.execute(
+                select(
+                    SourceCoverCache.source_id,
+                    SourceCoverCache.series_key,
+                    SourceCoverCache.width,
+                    SourceCoverCache.fmt,
+                    SourceCoverCache.byte_size,
+                )
+                .order_by(SourceCoverCache.last_used_at.asc())
+                .limit(_COVER_EVICT_BATCH)
+            ).all()
+            if not batch:
+                break
+            for victim in batch:
+                if total <= cap:
+                    break
+                self._db.execute(
+                    delete(SourceCoverCache).where(
+                        SourceCoverCache.source_id == victim.source_id,
+                        SourceCoverCache.series_key == victim.series_key,
+                        SourceCoverCache.width == victim.width,
+                        SourceCoverCache.fmt == victim.fmt,
+                    )
+                )
+                total -= victim.byte_size or 0
+                evicted += 1
+        if evicted:
+            logger.info(
+                "cover_cache: evicted %d least-recently-used row(s) "
+                "(budget %d bytes)",
+                evicted,
+                cap,
+            )
 
     def write_through(
         self,
