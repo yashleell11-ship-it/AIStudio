@@ -8,14 +8,17 @@ from typing import Any
 from connectors.base import SourceConnector
 from connectors.demonicscans.mappers import (
     PAGE_SIZE,
+    SEARCH_PATH,
     SITE_BASE,
     chapter_id_to_reader_path,
     listing_path,
     page_id_chapter_id,
     parse_chapter_pages,
     parse_chapters,
+    parse_search_results,
     parse_series_detail,
     parse_series_list,
+    search_params,
 )
 from connectors.http.cache import TTLCache
 from connectors.http.client import ConnectorHttpError, SyncConnectorHttpClient
@@ -139,17 +142,27 @@ class DemonicScansConnector(SourceConnector):
         return listing
 
     def search_series(self, query: str, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
+        """Query DemonicScans' own search endpoint.
+
+        This used to fetch ``/advanced.php`` -- one fixed 85KB catalog page --
+        and substring-filter its titles in Python. That is not a search: it
+        could only ever find the ~56 series that happened to be on that page,
+        so a query for anything else returned nothing while reporting success.
+        ``/search.php?manga=<q>`` is the site's real search, answers in ~0.2s
+        with 17KB, and covers the whole catalog.
+        """
         if page < 1:
             page = 1
-        normalized = query.strip().casefold()
-        path = listing_path(page, kind="search")
-        try:
-            html = self._http.get_text(path)
-        except ConnectorHttpError as exc:
-            self._log_request("search", path, status="error", detail=str(exc))
-            raise
-        listing = parse_series_list(html, page=page, page_size=PAGE_SIZE)
+        normalized = query.strip()
         if not normalized:
+            # An empty query is a browse, not a search.
+            path = listing_path(page, kind="search")
+            try:
+                html = self._http.get_text(path)
+            except ConnectorHttpError as exc:
+                self._log_request("search", path, status="error", detail=str(exc))
+                raise
+            listing = parse_series_list(html, page=page, page_size=PAGE_SIZE)
             self._log_request(
                 "search",
                 path,
@@ -157,19 +170,22 @@ class DemonicScansConnector(SourceConnector):
                 detail=f"page={page} query='' count={len(listing.items)} total={listing.total}",
             )
             return listing
-        filtered = [item for item in listing.items if normalized in item.title.casefold()]
-        result = PaginatedSeriesList(
-            items=filtered,
-            page=page,
-            page_size=PAGE_SIZE,
-            total=len(filtered),
-            api_has_more=False,
+
+        params = search_params(normalized)
+        try:
+            html = self._http.get_text(SEARCH_PATH, params=params)
+        except ConnectorHttpError as exc:
+            self._log_request("search", SEARCH_PATH, params=params, status="error", detail=str(exc))
+            raise
+        result = parse_search_results(
+            html, page=page, query=normalized, page_size=PAGE_SIZE
         )
         self._log_request(
             "search",
-            path,
+            SEARCH_PATH,
+            params=params,
             status="ok",
-            detail=f"page={page} query={normalized!r} count={len(filtered)} total={len(filtered)}",
+            detail=f"page={page} query={normalized!r} count={len(result.items)}",
         )
         return result
 
