@@ -98,7 +98,13 @@ export const libraryApi = {
       query: { limit },
     }),
 
-  statistics: () => http.get<Statistics>("/library/statistics"),
+  /**
+   * Library shape + reading activity. `tz_offset_minutes` decides where a day
+   * starts for the daily buckets, the hour histogram and the streak — the
+   * backend stores naive UTC and will not guess, so the caller has to say.
+   */
+  statistics: (params: { days: number; tz_offset_minutes: number }) =>
+    http.get<Statistics>("/library/statistics", { query: params }),
 
   // --- Search over the followed set ---
   search: (params: { q: string; page?: number; per_page?: number }) =>
