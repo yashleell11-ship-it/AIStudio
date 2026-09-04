@@ -45,6 +45,7 @@ import re
 import shlex
 import subprocess
 import sys
+import threading
 import time
 from pathlib import Path
 
@@ -65,8 +66,15 @@ from connectors.registry import create_connector, list_installed_connectors  # n
 # timed but deliberately kept out of READ_STAGES: a source whose search is
 # broken is still readable by browsing, and conflating the two would flip
 # perfectly good sources to PARTIAL.
-STAGES = ("browse", "search", "detail", "chapters", "pages", "images")
+#
+# ``text`` is the novel analog of pages+images: a novel source has no page
+# images at all (``get_chapter_pages`` returns [] by contract), so probing it
+# through the manga stages would report every novel source as PARTIAL. For
+# ``content_kind == "novel"`` the walk ends at ``chapter_text`` instead, which
+# is the thing a novel reader actually waits on.
+STAGES = ("browse", "search", "detail", "chapters", "pages", "images", "text")
 READ_STAGES = ("browse", "detail", "chapters", "pages", "images")
+NOVEL_READ_STAGES = ("browse", "detail", "chapters", "text")
 
 # Latency budgets (seconds) for the summary table. The owner's complaint is
 # "make everything fast", so a stage that PASSes slowly is still a finding.
@@ -75,6 +83,70 @@ SLOW_TOTAL_SECS = 8.0
 
 VPS_HOST = os.environ.get("MM_VPS_HOST", "ubuntu@135.148.43.147")
 VPS_CONTAINER = os.environ.get("MM_VPS_CONTAINER", "manhwamaniacs-backend")
+
+
+# --- outbound request counting ---------------------------------------------
+# Latency alone cannot tell an N+1 apart from a slow origin: 3s of chapter
+# list is a different bug depending on whether it was 1 request or 40. Count
+# real network round trips per stage by wrapping httpx's single-request send
+# (below the redirect loop, so every hop counts) and reading the delta at each
+# stage boundary.
+#
+# The counter is PROCESS-wide, not per-thread. A thread-local one looks tidier
+# but silently under-reports the connectors that matter most: webtoons and
+# e-hentai fan their fetches out across a ThreadPoolExecutor, and their work
+# lands on threads the probe never looks at — webtoons' chapter stage reported
+# "0 requests, 3.75s", which reads as free when it was really unmeasured.
+#
+# The cost is that counts are only attributable with ``--workers 1``; a
+# concurrent run mixes sources together. Run the audit single-threaded when
+# the request counts are the point, concurrently when the timings are.
+_REQ_LOCK = threading.Lock()
+_REQ_TOTAL = 0
+
+
+def _install_request_counter() -> None:
+    import httpx
+
+    if not getattr(httpx.Client, "_mm_probe_counted", False):
+        original = httpx.Client._send_single_request
+
+        def counted(self, request, *args, **kwargs):
+            _bump()
+            return original(self, request, *args, **kwargs)
+
+        httpx.Client._send_single_request = counted
+        httpx.Client._mm_probe_counted = True
+
+    # curl_cffi carries every Cloudflare/DDoS-Guard source (cf_client,
+    # ddg_client). Counting only httpx reported those as 0 requests, which
+    # reads as "free" when it is really "unmeasured" — the worst kind of
+    # number in a performance report.
+    try:
+        from curl_cffi.requests import Session
+    except Exception:  # noqa: BLE001 - optional at probe time
+        return
+    if getattr(Session, "_mm_probe_counted", False):
+        return
+    original_request = Session.request
+
+    def counted_request(self, *args, **kwargs):
+        _bump()
+        return original_request(self, *args, **kwargs)
+
+    Session.request = counted_request
+    Session._mm_probe_counted = True
+
+
+def _bump() -> None:
+    global _REQ_TOTAL
+    with _REQ_LOCK:
+        _REQ_TOTAL += 1
+
+
+def _requests_so_far() -> int:
+    with _REQ_LOCK:
+        return _REQ_TOTAL
 
 
 _WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9\'-]{3,}")
@@ -201,12 +273,14 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
     """
     result = {
         "source_id": source_type,
+        "kind": "manga",
         "browse": "-",
         "search": "-",
         "detail": "-",
         "chapters": "-",
         "pages": "-",
         "images": "-",
+        "text": "-",
         "series_sample": "",
         "search_term": "",
         "n_series": 0,
@@ -215,6 +289,8 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         "n_pages": 0,
         "n_images_ok": 0,
         "n_images_tried": 0,
+        "n_paragraphs": 0,
+        "n_words": 0,
         "error": "",
         "ok": False,
         "secs": 0.0,
@@ -222,8 +298,13 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         # PASS/FAIL grid cannot express: a source that returns the right bytes
         # in nine seconds is a source the owner experiences as broken.
         "t": {s: 0.0 for s in STAGES},
+        # Outbound HTTP round trips per stage. Latency says a stage is slow;
+        # this says whether it is slow because of the origin or because the
+        # connector asked N times.
+        "req": {s: 0 for s in STAGES},
         "t_find_page": 0.0,
     }
+    _install_request_counter()
     t0 = time.monotonic()
     deadline = (t0 + budget) if budget > 0 else float("inf")
 
@@ -237,12 +318,17 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         result["secs"] = round(time.monotonic() - t0, 1)
         return result
 
+    is_novel = str(getattr(conn, "content_kind", "manga")) == "novel"
+    result["kind"] = "novel" if is_novel else "manga"
+
     # browse
     t_stage = time.monotonic()
+    r_stage = _requests_so_far()
     try:
         listing = conn.get_series_list(1)
         items = list(getattr(listing, "items", []) or [])
         result["t"]["browse"] = round(time.monotonic() - t_stage, 2)
+        result["req"]["browse"] = _requests_so_far() - r_stage
         result["n_series"] = len(items)
         if not items:
             result["browse"] = "FAIL"
@@ -264,6 +350,7 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         term = _search_term(result["series_sample"])
         result["search_term"] = term
         t_stage = time.monotonic()
+        r_stage = _requests_so_far()
         try:
             found = conn.search_series(term, 1)
             hits = list(getattr(found, "items", []) or [])
@@ -277,17 +364,26 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
             result["t"]["search"] = round(time.monotonic() - t_stage, 2)
             result["search"] = "FAIL"
             result["search_error"] = f"{type(exc).__name__}: {exc}"[:160]
+        result["req"]["search"] = _requests_so_far() - r_stage
 
     # Walk detail->chapters->pages for up to a few browsed series: a single
     # title can be a source-data anomaly (e.g. a licensed/delisted series with
     # no readable chapters), so try the next series before declaring failure.
     # We keep the best (deepest-reaching) attempt.
     candidate_ids = [sid for sid in (_first_id([it]) for it in items[:5]) if sid]
-    best = {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
-            "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
-            "sample": result["series_sample"], "error": "", "depth": -1,
-            "t_detail": 0.0, "t_chapters": 0.0, "t_pages": 0.0, "t_images": 0.0,
-            "t_find_page": 0.0}
+
+    def _blank_attempt() -> dict:
+        return {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
+                "text": "-",
+                "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
+                "n_paragraphs": 0, "n_words": 0,
+                "sample": result["series_sample"], "error": "", "depth": -1,
+                "t_detail": 0.0, "t_chapters": 0.0, "t_pages": 0.0, "t_images": 0.0,
+                "t_text": 0.0, "t_find_page": 0.0,
+                "r_detail": 0, "r_chapters": 0, "r_pages": 0, "r_images": 0,
+                "r_text": 0}
+
+    best = _blank_attempt()
 
     def _depth(d: dict) -> int:
         score = 0
@@ -295,6 +391,10 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
             score = 1
         if d["chapters"] == "PASS":
             score = 2
+        if is_novel:
+            # A novel's read path is detail -> chapters -> chapter_text; there
+            # is no page or image stage to reach, so full depth is the text.
+            return 5 if d["text"] == "PASS" else score
         if d["pages"] == "PASS":
             score = 3
         if d["images"] == "PARTIAL":
@@ -303,19 +403,16 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
             score = 5
         return score
 
-    target_depth = 5 if images else 3
+    target_depth = 5 if (images or is_novel) else 3
 
     for series_id in candidate_ids:
         if _out_of_time():
             best["error"] = best["error"] or f"budget {budget:.0f}s exhausted"
             break
-        attempt = {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
-                   "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
-                   "sample": result["series_sample"], "error": "", "depth": -1,
-                   "t_detail": 0.0, "t_chapters": 0.0, "t_pages": 0.0, "t_images": 0.0,
-                   "t_find_page": 0.0}
+        attempt = _blank_attempt()
         chapter_id = None
         t_stage = time.monotonic()
+        r_stage = _requests_so_far()
         try:
             series = conn.get_series(series_id)
             attempt["t_detail"] = round(time.monotonic() - t_stage, 2)
@@ -327,7 +424,9 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         except Exception as exc:  # noqa: BLE001
             attempt["t_detail"] = round(time.monotonic() - t_stage, 2)
             attempt["error"] = f"detail: {type(exc).__name__}: {exc}"[:200]
+        attempt["r_detail"] = _requests_so_far() - r_stage
         t_stage = time.monotonic()
+        r_stage = _requests_so_far()
         try:
             chapters = list(conn.get_chapters(series_id) or [])
             attempt["t_chapters"] = round(time.monotonic() - t_stage, 2)
@@ -340,9 +439,33 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         except Exception as exc:  # noqa: BLE001
             attempt["t_chapters"] = round(time.monotonic() - t_stage, 2)
             attempt["error"] = attempt["error"] or f"chapters: {type(exc).__name__}: {exc}"[:200]
-        if chapter_id is not None:
+        attempt["r_chapters"] = _requests_so_far() - r_stage
+        if is_novel and chapter_id is not None:
+            # ``chapter_text(series_key, chapter_key)`` is the whole novel read
+            # path. Request count matters more here than anywhere else: an
+            # archive.org book is meant to cost 2 requests for the FIRST touch
+            # and 0 for every chapter after it, and only a counter proves it.
+            t_stage = time.monotonic()
+            r_stage = _requests_so_far()
+            try:
+                text = conn.chapter_text(series_id, chapter_id)
+                attempt["t_text"] = round(time.monotonic() - t_stage, 2)
+                if text is None or not getattr(text, "paragraphs", ()):
+                    attempt["text"] = "FAIL"
+                    attempt["error"] = attempt["error"] or "chapter_text: none/empty"
+                else:
+                    attempt["text"] = "PASS"
+                    attempt["n_paragraphs"] = len(text.paragraphs)
+                    attempt["n_words"] = text.word_count
+            except Exception as exc:  # noqa: BLE001
+                attempt["t_text"] = round(time.monotonic() - t_stage, 2)
+                attempt["text"] = "FAIL"
+                attempt["error"] = attempt["error"] or f"text: {type(exc).__name__}: {exc}"[:200]
+            attempt["r_text"] = _requests_so_far() - r_stage
+        elif chapter_id is not None:
             page_list: list = []
             t_stage = time.monotonic()
+            r_stage = _requests_so_far()
             try:
                 page_list = list(conn.get_chapter_pages(chapter_id) or [])
                 attempt["t_pages"] = round(time.monotonic() - t_stage, 2)
@@ -354,13 +477,16 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
             except Exception as exc:  # noqa: BLE001
                 attempt["t_pages"] = round(time.monotonic() - t_stage, 2)
                 attempt["error"] = attempt["error"] or f"pages: {type(exc).__name__}: {exc}"[:200]
+            attempt["r_pages"] = _requests_so_far() - r_stage
             if images and attempt["pages"] == "PASS":
                 t_stage = time.monotonic()
+                r_stage = _requests_so_far()
                 status, n_ok, n_tried, img_err, t_find, t_bytes = check_images(
                     conn, page_list, image_samples
                 )
                 attempt["t_images"] = round(time.monotonic() - t_stage, 2)
                 attempt["t_find_page"] = round(t_find, 2)
+                attempt["r_images"] = _requests_so_far() - r_stage
                 attempt["images"] = status
                 attempt["n_images_ok"] = n_ok
                 attempt["n_images_tried"] = n_tried
@@ -372,20 +498,21 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         if attempt["depth"] >= target_depth:
             break  # fully working — no need to try more series
 
-    result["detail"] = best["detail"]
-    result["chapters"] = best["chapters"]
-    result["pages"] = best["pages"]
-    result["images"] = best["images"]
-    result["n_chapters"] = best["n_chapters"]
-    result["n_pages"] = best["n_pages"]
-    result["n_images_ok"] = best["n_images_ok"]
-    result["n_images_tried"] = best["n_images_tried"]
+    for key in ("detail", "chapters", "pages", "images", "text"):
+        result[key] = best[key]
+    for key in ("n_chapters", "n_pages", "n_images_ok", "n_images_tried",
+                "n_paragraphs", "n_words"):
+        result[key] = best[key]
     result["series_sample"] = best["sample"]
     result["error"] = best["error"]
-    for stage in ("detail", "chapters", "pages", "images"):
+    for stage in ("detail", "chapters", "pages", "images", "text"):
         result["t"][stage] = best[f"t_{stage}"]
+        result["req"][stage] = best[f"r_{stage}"]
     result["t_find_page"] = best["t_find_page"]
-    required = READ_STAGES if images else READ_STAGES[:-1]
+    if is_novel:
+        required = NOVEL_READ_STAGES
+    else:
+        required = READ_STAGES if images else READ_STAGES[:-1]
     result["ok"] = all(result[s] == "PASS" for s in required)
     result["secs"] = round(time.monotonic() - t0, 1)
     return result
@@ -509,6 +636,7 @@ def _write_probe_results(results: list[dict], path: Path, mature_ids: set[str]) 
     out: list[dict] = []
     for r in results:
         timings = r.get("t") or {}
+        reqs = r.get("req") or {}
         if r["ok"]:
             status = "LIVE"
         elif r["browse"] == "PASS":
@@ -521,6 +649,7 @@ def _write_probe_results(results: list[dict], path: Path, mature_ids: set[str]) 
         out.append({
             "source_id": r["source_id"],
             "status": status,
+            "kind": r.get("kind", "manga"),
             "items": r.get("n_series", 0),
             "mature": r["source_id"] in mature_ids,
             "detail": r.get("error", "") or "",
@@ -535,11 +664,21 @@ def _write_probe_results(results: list[dict], path: Path, mature_ids: set[str]) 
                 "find_page": round(float(r.get("t_find_page", 0.0)), 2),
                 "total": round(float(r.get("secs", 0.0)), 2),
             },
+            # Outbound HTTP round trips per stage (redirect hops included).
+            # ``detail: 2`` on a source whose series page carries the chapter
+            # list is a redundant fetch; ``images: 9`` for 3 sampled pages is
+            # an N+1 in find_page. Neither is visible in the timings alone.
+            "requests": {
+                **{s: int(reqs.get(s, 0)) for s in STAGES},
+                "total": int(sum(reqs.get(s, 0) for s in STAGES)),
+            },
             "search_hits": r.get("n_search", 0),
             "n_chapters": r.get("n_chapters", 0),
             "n_pages": r.get("n_pages", 0),
             "n_images_ok": r.get("n_images_ok", 0),
             "n_images_tried": r.get("n_images_tried", 0),
+            "n_paragraphs": r.get("n_paragraphs", 0),
+            "n_words": r.get("n_words", 0),
         })
     out.sort(key=lambda r: ({"LIVE": 0, "PARTIAL": 1, "DEAD": 2, "ERROR": 3}[r["status"]],
                             r["source_id"]))
@@ -627,14 +766,18 @@ def main() -> None:
 
     def _stub(sid: str, stage_status: str, error: str, secs: float) -> dict:
         return {
-            "source_id": sid, "browse": stage_status, "search": "-", "detail": "-",
-            "chapters": "-", "pages": "-", "images": "-", "series_sample": "",
+            "source_id": sid, "kind": "manga",
+            "browse": stage_status, "search": "-", "detail": "-",
+            "chapters": "-", "pages": "-", "images": "-", "text": "-",
+            "series_sample": "",
             "search_term": "", "n_series": 0, "n_search": 0, "n_chapters": 0,
             "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
+            "n_paragraphs": 0, "n_words": 0,
             "error": error, "ok": False, "secs": secs,
             # A timeout is a latency measurement too: attribute the whole
             # budget to browse so the slow-source ranking still sees it.
             "t": {st: (secs if st == "browse" else 0.0) for st in STAGES},
+            "req": {st: 0 for st in STAGES},
             "t_find_page": 0.0,
         }
 
@@ -675,21 +818,26 @@ def main() -> None:
                 "ERROR": "💥", "-": "·"}.get(v, v)
 
     print()
-    print(f"{'source':22} {'br':>2} {'se':>2} {'de':>2} {'ch':>2} {'pg':>2} {'im':>2}  "
-          f"{'browse':>6} {'srch':>5} {'detl':>5} {'chap':>5} {'page':>5} {'img':>5} "
-          f"{'TOTAL':>6}  sample / error")
-    print("-" * 150)
+    print(f"{'source':22} {'k':>1} {'br':>2} {'se':>2} {'de':>2} {'ch':>2} "
+          f"{'pg':>2} {'im':>2} {'tx':>2}  "
+          f"{'browse':>6} {'srch':>5} {'detl':>5} {'chap':>5} {'pg/tx':>5} {'img':>5} "
+          f"{'TOTAL':>6} {'req':>4}  sample / error")
+    print("-" * 158)
     for r in results:
         t = r.get("t") or {}
+        req = r.get("req") or {}
         tail = r["series_sample"] if r["ok"] else (r["error"] or r["series_sample"])
-        print(f"{r['source_id']:22} "
+        novel = r.get("kind") == "novel"
+        print(f"{r['source_id']:22} {'N' if novel else 'M':>1} "
               f"{mark(r['browse']):>2} {mark(r.get('search', '-')):>2} "
               f"{mark(r['detail']):>2} {mark(r['chapters']):>2} "
-              f"{mark(r['pages']):>2} {mark(r['images']):>2}  "
+              f"{mark(r['pages']):>2} {mark(r['images']):>2} "
+              f"{mark(r.get('text', '-')):>2}  "
               f"{t.get('browse', 0):>6.2f} {t.get('search', 0):>5.2f} "
               f"{t.get('detail', 0):>5.2f} {t.get('chapters', 0):>5.2f} "
-              f"{t.get('pages', 0):>5.2f} {t.get('images', 0):>5.2f} "
-              f"{r['secs']:>6.1f}  {tail[:40]}")
+              f"{(t.get('text', 0) if novel else t.get('pages', 0)):>5.2f} "
+              f"{t.get('images', 0):>5.2f} "
+              f"{r['secs']:>6.1f} {sum(req.values()):>4}  {tail[:40]}")
 
     print("-" * 150)
     label = "browse+detail+chapters+pages" + ("+images" if args.images else "")
@@ -698,7 +846,8 @@ def main() -> None:
     if partial:
         print(f"\nPARTIAL (browses, but read path broken): {len(partial)}")
         for r in partial:
-            failed = next((s for s in READ_STAGES if r[s] not in ("PASS", "-")), "?")
+            stages = NOVEL_READ_STAGES if r.get("kind") == "novel" else READ_STAGES
+            failed = next((s for s in stages if r[s] not in ("PASS", "-")), "?")
             print(f"  {r['source_id']:22} fails at {failed:9} {r['error'][:60]}")
 
     # Speed is half the audit: rank the working sources the owner waits on.
