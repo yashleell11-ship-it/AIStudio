@@ -1,0 +1,2385 @@
+{
+ "meta": {
+  "total": 284,
+  "per_page": 24,
+  "current_page": 1,
+  "last_page": 12,
+  "first_page": 1,
+  "first_page_url": "/?page=1",
+  "last_page_url": "/?page=12",
+  "next_page_url": "/?page=2",
+  "previous_page_url": null
+ },
+ "data": [
+  {
+   "id": 794,
+   "title": "I Love You Very Much",
+   "description": "Jeongchan has long been in love with his best friend's mother. Although his first confession is rejected, she gives him one condition if he wants to confess again: he must experience other kinds of love first. And so, Jeongchan becomes involved with women of vastly different charms, encountering the many faces of love, desire, and devotion along the way...\n",
+   "alternative_names": "사랑합니다 아주 많이",
+   "series_type": "Comic",
+   "series_slug": "i-love-you-very-much",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/i4wgxmloacnbq1le1w6vucer.jpg",
+   "total_views": 1175,
+   "status": "Ongoing",
+   "created_at": "2026-09-04T15:56:27.600+00:00",
+   "updated_at": "2026-09-04T15:56:27.600+00:00",
+   "badge": "NEW",
+   "rating": 5,
+   "release_schedule": {
+    "fri": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14360,
+     "chapter_name": "Chapter 1",
+     "chapter_slug": "chapter-1",
+     "created_at": "2026-09-04T16:45:29.698+00:00",
+     "series_id": 794,
+     "index": "1.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14366,
+     "chapter_name": "Chapter 7",
+     "chapter_slug": "chapter-7",
+     "created_at": "2026-09-04T17:40:21.027+00:00",
+     "series_id": 794,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14365,
+     "chapter_name": "Chapter 6",
+     "chapter_slug": "chapter-6",
+     "created_at": "2026-09-04T17:23:00.725+00:00",
+     "series_id": 794,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "7"
+   }
+  },
+  {
+   "id": 663,
+   "title": "Cleaning Service",
+   "description": "Thanks to his mother's connections, Junho got a new job working for a mother and daughter who he had a crush on. Captivated by the unassuming allure of the mother, he began to lay his hands on her...\n\"I did it... with a guy the same age as my daughter...\"",
+   "alternative_names": "클리닝 서비스",
+   "series_type": "Comic",
+   "series_slug": "cleaning-service",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/nwl043fvt1t1b4wae0j4fm2n.webp",
+   "total_views": 2960942,
+   "status": "Ongoing",
+   "created_at": "2024-11-29T11:49:49.546+00:00",
+   "updated_at": "2024-11-29T11:49:49.546+00:00",
+   "badge": "NEW",
+   "rating": 4.8,
+   "release_schedule": {
+    "fri": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14270,
+     "chapter_name": "Chapter 77",
+     "chapter_slug": "chapter-77",
+     "created_at": "2026-09-02T03:00:00.541+00:00",
+     "series_id": 663,
+     "index": "77.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14218,
+     "chapter_name": "Chapter 76",
+     "chapter_slug": "chapter-76",
+     "created_at": "2026-08-27T04:00:00.072+00:00",
+     "series_id": 663,
+     "index": "76.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14150,
+     "chapter_name": "Chapter 75",
+     "chapter_slug": "chapter-75",
+     "created_at": "2026-08-19T03:00:00.481+00:00",
+     "series_id": 663,
+     "index": "75.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14080,
+     "chapter_name": "Chapter 74",
+     "chapter_slug": "chapter-74",
+     "created_at": "2026-08-12T03:00:00.064+00:00",
+     "series_id": 663,
+     "index": "74.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14034,
+     "chapter_name": "Chapter 73",
+     "chapter_slug": "chapter-73",
+     "created_at": "2026-08-07T03:00:00.053+00:00",
+     "series_id": 663,
+     "index": "73.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14359,
+     "chapter_name": "Chapter 78",
+     "chapter_slug": "chapter-78",
+     "created_at": "2026-09-04T16:31:34.370+00:00",
+     "series_id": 663,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "80"
+   }
+  },
+  {
+   "id": 708,
+   "title": "The Reincarnated Man",
+   "description": "Kang Sunho wakes up after losing consciousness in an accident. \"Hello~ It's time for your semen extraction <3\" \nSo in this world... men are rare?! Women that are trying to seduce me and begging to be fucked...\nSince it's come to this, thank you for the meal!!!",
+   "alternative_names": "남자가 희귀함",
+   "series_type": "Comic",
+   "series_slug": "the-reincarnated-man",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/gl9spi7d99tqttkfm0w27vgq.webp",
+   "total_views": 2924628,
+   "status": "Ongoing",
+   "created_at": "2025-06-24T13:08:27.718+00:00",
+   "updated_at": "2025-06-24T13:08:27.718+00:00",
+   "badge": "NEW",
+   "rating": 4.8,
+   "release_schedule": {
+    "tue": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14265,
+     "chapter_name": "Chapter 64",
+     "chapter_slug": "chapter-64",
+     "created_at": "2026-09-01T18:00:00.278+00:00",
+     "series_id": 708,
+     "index": "64.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14214,
+     "chapter_name": "Chapter 63",
+     "chapter_slug": "chapter-63",
+     "created_at": "2026-08-26T17:00:00.329+00:00",
+     "series_id": 708,
+     "index": "63.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14178,
+     "chapter_name": "Chapter 62",
+     "chapter_slug": "chapter-62",
+     "created_at": "2026-08-23T19:00:00.075+00:00",
+     "series_id": 708,
+     "index": "62.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14177,
+     "chapter_name": "Chapter 61",
+     "chapter_slug": "chapter-61",
+     "created_at": "2026-08-22T19:00:00.064+00:00",
+     "series_id": 708,
+     "index": "61.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14053,
+     "chapter_name": "Chapter 60",
+     "chapter_slug": "chapter-60",
+     "created_at": "2026-08-09T03:00:00.073+00:00",
+     "series_id": 708,
+     "index": "60.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14358,
+     "chapter_name": "Chapter 65",
+     "chapter_slug": "chapter-65",
+     "created_at": "2026-09-04T15:53:32.616+00:00",
+     "series_id": 708,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "66"
+   }
+  },
+  {
+   "id": 764,
+   "title": "New Town Massage",
+   "description": "Such a soft and plump texture, like pudding… Ji Seongmin became a massage therapist just so he could touch women. Now he lives out his dreams in the New Town of Seotan, a place filled with young, fit married women!\n“I don’t think I can touch a body like yours without feeling something.”",
+   "alternative_names": "신도시 마사지",
+   "series_type": "Comic",
+   "series_slug": "new-town-massage",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/kn4kr7whrhxatwt0cl2j9evs.webp",
+   "total_views": 923277,
+   "status": "Ongoing",
+   "created_at": "2026-04-23T11:48:12.417+00:00",
+   "updated_at": "2026-04-23T11:48:12.417+00:00",
+   "badge": "NEW",
+   "rating": 4.6875,
+   "release_schedule": {
+    "thu": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14288,
+     "chapter_name": "Chapter 24",
+     "chapter_slug": "chapter-24",
+     "created_at": "2026-09-02T22:00:00.630+00:00",
+     "series_id": 764,
+     "index": "24.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14216,
+     "chapter_name": "Chapter 23",
+     "chapter_slug": "chapter-23",
+     "created_at": "2026-08-27T03:00:00.489+00:00",
+     "series_id": 764,
+     "index": "23.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14153,
+     "chapter_name": "Chapter 22",
+     "chapter_slug": "chapter-22",
+     "created_at": "2026-08-19T07:00:00.052+00:00",
+     "series_id": 764,
+     "index": "22.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14084,
+     "chapter_name": "Chapter 21",
+     "chapter_slug": "chapter-21",
+     "created_at": "2026-08-12T15:00:00.086+00:00",
+     "series_id": 764,
+     "index": "21.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14023,
+     "chapter_name": "Chapter 20",
+     "chapter_slug": "chapter-20",
+     "created_at": "2026-08-05T09:00:00.192+00:00",
+     "series_id": 764,
+     "index": "20.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14357,
+     "chapter_name": "Chapter 25",
+     "chapter_slug": "chapter-25",
+     "created_at": "2026-09-04T15:03:49.652+00:00",
+     "series_id": 764,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "25"
+   }
+  },
+  {
+   "id": 723,
+   "title": "The Female Delinquent Set Her Eyes On Me!",
+   "description": "You know that adult subscription platform full of provocative posts 'OnlyFence'? If you post porn there, you'll make a shitload of money! So you know... Hehe \"Hey, loser, take off your pants. Lol\"\n",
+   "alternative_names": "여자 일진에게 찍혔다!",
+   "series_type": "Comic",
+   "series_slug": "the-female-delinquent-set-her-eyes-on-me",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/be89ftclnp560g0o0wgkx7ss.webp",
+   "total_views": 1763603,
+   "status": "Ongoing",
+   "created_at": "2025-08-30T13:42:00.248+00:00",
+   "updated_at": "2025-08-30T13:42:00.248+00:00",
+   "badge": "NEW",
+   "rating": 4.857143,
+   "release_schedule": {
+    "sat": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14300,
+     "chapter_name": "Chapter 55",
+     "chapter_slug": "chapter-55",
+     "created_at": "2026-09-04T04:00:04.176+00:00",
+     "series_id": 723,
+     "index": "55.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14246,
+     "chapter_name": "Chapter 54",
+     "chapter_slug": "chapter-54",
+     "created_at": "2026-08-31T00:00:00.111+00:00",
+     "series_id": 723,
+     "index": "54.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14174,
+     "chapter_name": "Chapter 53",
+     "chapter_slug": "chapter-53",
+     "created_at": "2026-08-22T03:00:00.083+00:00",
+     "series_id": 723,
+     "index": "53.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14111,
+     "chapter_name": "Chapter 52",
+     "chapter_slug": "chapter-52",
+     "created_at": "2026-08-15T05:00:00.063+00:00",
+     "series_id": 723,
+     "index": "52.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14003,
+     "chapter_name": "Chapter 51",
+     "chapter_slug": "chapter-51",
+     "created_at": "2026-08-04T04:00:00.173+00:00",
+     "series_id": 723,
+     "index": "51.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14356,
+     "chapter_name": "Chapter 56",
+     "chapter_slug": "chapter-56",
+     "created_at": "2026-09-04T15:01:45.754+00:00",
+     "series_id": 723,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "57"
+   }
+  },
+  {
+   "id": 793,
+   "title": "Living with My Teacher!",
+   "description": "Soohyun loses his place to live after falling victim to a rental deposit scam. Of all people, he ends up staying at his former homeroom teacher's house. The woman he once found intimidating has a secret(?) side to her...?\n\"You can keep this secret from the others, right...? In return, I'll help you relax ♥️ \"",
+   "alternative_names": "선생님과 산다",
+   "series_type": "Comic",
+   "series_slug": "living-with-my-teacher",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/jb6hpsd0ur9z4c9ug2kb3jfk.jpg",
+   "total_views": 64341,
+   "status": "Ongoing",
+   "created_at": "2026-09-02T13:53:47.310+00:00",
+   "updated_at": "2026-09-02T13:53:47.310+00:00",
+   "badge": "NEW",
+   "rating": 4.8333335,
+   "release_schedule": {
+    "wed": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14328,
+     "chapter_name": "Chapter 3",
+     "chapter_slug": "chapter-3",
+     "created_at": "2026-09-04T15:00:01.288+00:00",
+     "series_id": 793,
+     "index": "3.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14327,
+     "chapter_name": "Chapter 2",
+     "chapter_slug": "chapter-2",
+     "created_at": "2026-09-03T15:00:00.297+00:00",
+     "series_id": 793,
+     "index": "2.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14325,
+     "chapter_name": "Chapter 1",
+     "chapter_slug": "chapter-1",
+     "created_at": "2026-09-02T14:19:24.965+00:00",
+     "series_id": 793,
+     "index": "1.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14333,
+     "chapter_name": "Chapter 6",
+     "chapter_slug": "chapter-6",
+     "created_at": "2026-09-02T16:56:08.735+00:00",
+     "series_id": 793,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14330,
+     "chapter_name": "Chapter 5",
+     "chapter_slug": "chapter-5",
+     "created_at": "2026-09-02T16:14:32.346+00:00",
+     "series_id": 793,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "6"
+   }
+  },
+  {
+   "id": 765,
+   "title": "Magical Girl Wife",
+   "description": "Ordinary married woman by day, magical girl by night? Taegon is indifferent to his perfect wife, ‘Sora’. Anyone would see her as an ideal woman, but because he loves the magical girl ‘Pink Lumina’, he neglects her. However, one day, he discovers Lumina’s true identity... “My wife… is a magical girl?!”",
+   "alternative_names": "마법소녀 마누라",
+   "series_type": "Comic",
+   "series_slug": "magical-girl-wife",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/tqqrjlkld301uyswpkp89lui.webp",
+   "total_views": 1395749,
+   "status": "Ongoing",
+   "created_at": "2026-04-29T13:22:13.005+00:00",
+   "updated_at": "2026-04-29T13:22:13.005+00:00",
+   "badge": "NEW",
+   "rating": 4.5172415,
+   "release_schedule": {
+    "thu": true,
+    "wed": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14340,
+     "chapter_name": "Chapter 24",
+     "chapter_slug": "chapter-24",
+     "created_at": "2026-09-04T15:00:00.406+00:00",
+     "series_id": 765,
+     "index": "24.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14255,
+     "chapter_name": "Chapter 23",
+     "chapter_slug": "chapter-23",
+     "created_at": "2026-08-28T12:00:00.065+00:00",
+     "series_id": 765,
+     "index": "23.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14199,
+     "chapter_name": "Chapter 22",
+     "chapter_slug": "chapter-22",
+     "created_at": "2026-08-21T13:00:00.059+00:00",
+     "series_id": 765,
+     "index": "22.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14134,
+     "chapter_name": "Chapter 21",
+     "chapter_slug": "chapter-21",
+     "created_at": "2026-08-14T14:00:00.239+00:00",
+     "series_id": 765,
+     "index": "21.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14076,
+     "chapter_name": "Chapter 20",
+     "chapter_slug": "chapter-20",
+     "created_at": "2026-08-08T09:00:00.069+00:00",
+     "series_id": 765,
+     "index": "20.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "24"
+   }
+  },
+  {
+   "id": 787,
+   "title": "Capitalist Harem",
+   "description": "Cheolsu was a crypto investor who had hit rock bottom. Left with nothing but despair, a fateful encounter with one woman turned his entire life upside down. But the more wealth they gathered, the closer they came to a choice from which neither of them could turn back...",
+   "alternative_names": "자본주의 하렘",
+   "series_type": "Comic",
+   "series_slug": "capitalist-harem",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/r05zg8rezb8zjtmn5tz3wfo9.webp",
+   "total_views": 537532,
+   "status": "Ongoing",
+   "created_at": "2026-07-30T13:43:34.880+00:00",
+   "updated_at": "2026-07-30T13:43:34.880+00:00",
+   "badge": "NEW",
+   "rating": 4.8,
+   "release_schedule": {
+    "thu": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14262,
+     "chapter_name": "Chapter 10",
+     "chapter_slug": "chapter-10",
+     "created_at": "2026-09-01T08:00:00.066+00:00",
+     "series_id": 787,
+     "index": "10.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14205,
+     "chapter_name": "Chapter 9",
+     "chapter_slug": "chapter-9",
+     "created_at": "2026-08-26T02:00:00.067+00:00",
+     "series_id": 787,
+     "index": "9.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14136,
+     "chapter_name": "Chapter 8",
+     "chapter_slug": "chapter-8",
+     "created_at": "2026-08-18T04:00:00.514+00:00",
+     "series_id": 787,
+     "index": "8.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14069,
+     "chapter_name": "Chapter 7",
+     "chapter_slug": "chapter-7",
+     "created_at": "2026-08-11T07:00:00.212+00:00",
+     "series_id": 787,
+     "index": "7.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14016,
+     "chapter_name": "Chapter 6",
+     "chapter_slug": "chapter-6",
+     "created_at": "2026-08-05T08:00:00.056+00:00",
+     "series_id": 787,
+     "index": "6.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14355,
+     "chapter_name": "Chapter 11",
+     "chapter_slug": "chapter-11",
+     "created_at": "2026-09-04T13:29:20.703+00:00",
+     "series_id": 787,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "11"
+   }
+  },
+  {
+   "id": 792,
+   "title": "Your Mom Is the Best",
+   "description": "A story about a childhood friend, who's a forum admin, and her mother, who worries about her. The protagonist ends up tangled in a strange love triangle with the beautiful mother and her daughter.",
+   "alternative_names": "니네 엄마 최고",
+   "series_type": "Comic",
+   "series_slug": "your-mom-is-the-best",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/fcwsoj9vu05u4jn0i4hxwywl.jpg",
+   "total_views": 250633,
+   "status": "Ongoing",
+   "created_at": "2026-08-28T20:44:15.919+00:00",
+   "updated_at": "2026-08-28T20:44:15.919+00:00",
+   "badge": "NEW",
+   "rating": 4.8,
+   "release_schedule": {
+    "fri": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14281,
+     "chapter_name": "Chapter 6",
+     "chapter_slug": "chapter-6",
+     "created_at": "2026-09-04T11:00:00.094+00:00",
+     "series_id": 792,
+     "index": "6.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14280,
+     "chapter_name": "Chapter 5",
+     "chapter_slug": "chapter-5",
+     "created_at": "2026-09-03T11:00:00.067+00:00",
+     "series_id": 792,
+     "index": "5.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14279,
+     "chapter_name": "Chapter 4",
+     "chapter_slug": "chapter-4",
+     "created_at": "2026-09-02T10:00:00.295+00:00",
+     "series_id": 792,
+     "index": "4.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14278,
+     "chapter_name": "Chapter 3",
+     "chapter_slug": "chapter-3",
+     "created_at": "2026-09-01T07:00:00.063+00:00",
+     "series_id": 792,
+     "index": "3.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14277,
+     "chapter_name": "Chapter 2",
+     "chapter_slug": "chapter-2",
+     "created_at": "2026-08-31T06:00:32.820+00:00",
+     "series_id": 792,
+     "index": "2.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14284,
+     "chapter_name": "Chapter 8",
+     "chapter_slug": "chapter-8",
+     "created_at": "2026-08-28T23:10:31.387+00:00",
+     "series_id": 792,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14282,
+     "chapter_name": "Chapter 7",
+     "chapter_slug": "chapter-7",
+     "created_at": "2026-08-28T22:39:57.845+00:00",
+     "series_id": 792,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "8"
+   }
+  },
+  {
+   "id": 733,
+   "title": "Little Miss Delinquent",
+   "description": "Ahyoung, the delinquent girl who has bullied him during his school days suddenly reappears in front of \"Baekhyun\" as an adult while also making him a secret offer.\nHe thought he was barely able to escape his loser lifestyle, but... What?",
+   "alternative_names": "작은 일진님",
+   "series_type": "Comic",
+   "series_slug": "little-miss-delinquent",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/oyfir08wmju2vq0kk5x5hsvt.webp",
+   "total_views": 1758416,
+   "status": "Ongoing",
+   "created_at": "2025-10-26T07:30:23.020+00:00",
+   "updated_at": "2025-10-26T07:30:23.020+00:00",
+   "badge": "NEW",
+   "rating": 4.7777777,
+   "release_schedule": {
+    "tue": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14223,
+     "chapter_name": "Chapter 50",
+     "chapter_slug": "chapter-50",
+     "created_at": "2026-08-28T18:00:00.302+00:00",
+     "series_id": 733,
+     "index": "50.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14222,
+     "chapter_name": "Chapter 49",
+     "chapter_slug": "chapter-49",
+     "created_at": "2026-08-27T17:00:00.118+00:00",
+     "series_id": 733,
+     "index": "49.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14115,
+     "chapter_name": "Chapter 48",
+     "chapter_slug": "chapter-48",
+     "created_at": "2026-08-15T23:00:00.730+00:00",
+     "series_id": 733,
+     "index": "48.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 13989,
+     "chapter_name": "Chapter 47",
+     "chapter_slug": "chapter-47",
+     "created_at": "2026-08-01T21:00:00.064+00:00",
+     "series_id": 733,
+     "index": "47.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 13980,
+     "chapter_name": "Chapter 46",
+     "chapter_slug": "chapter-46",
+     "created_at": "2026-07-31T20:00:00.064+00:00",
+     "series_id": 733,
+     "index": "46.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14354,
+     "chapter_name": "Chapter 52",
+     "chapter_slug": "chapter-52",
+     "created_at": "2026-09-04T10:44:16.067+00:00",
+     "series_id": 733,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14353,
+     "chapter_name": "Chapter 51",
+     "chapter_slug": "chapter-51",
+     "created_at": "2026-09-04T10:13:22.605+00:00",
+     "series_id": 733,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "52"
+   }
+  },
+  {
+   "id": 554,
+   "title": "Relationship Reversal",
+   "description": "<p><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">\"You look like you</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">'re fun to play with</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">,</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">\" said my arrogant female senior who treats me like a pet</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">. However</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">, in a complete reversal of roles</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">, the seniors end up obeying Juyeong</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">. </span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">\"I</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">'ll reverse this relationship</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">. I</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">'ll be the one in charge</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">!</span><span style=\"padding: 0px; border: 0px; font-weight: 400; font-style: normal; vertical-align: baseline; outline: 0px; font-variant-ligatures: normal; font-variant-caps: normal; letter-spacing: normal; orphans: 2; text-align: left; text-indent: 0px; text-transform: none; widows: 2; word-spacing: 0px; -webkit-text-stroke-width: 0px; white-space: break-spaces; text-decoration-thickness: initial; text-decoration-style: initial; text-decoration-color: initial;\" data-darkreader-inline-border-top=\"\" data-darkreader-inline-border-right=\"\" data-darkreader-inline-border-bottom=\"\" data-darkreader-inline-border-left=\"\" data-darkreader-inline-outline=\"\">\"</span></p>",
+   "alternative_names": "관계역전",
+   "series_type": "Comic",
+   "series_slug": "relationship-reversal",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/g0zkk077e9v933sf3x9dlk26.webp",
+   "total_views": 5509384,
+   "status": "Ongoing",
+   "created_at": "2024-03-22T08:10:15.940+00:00",
+   "updated_at": "2024-03-22T08:10:15.940+00:00",
+   "badge": "new",
+   "rating": 4.970588,
+   "release_schedule": {
+    "sun": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14304,
+     "chapter_name": "Chapter 122",
+     "chapter_slug": "chapter-122",
+     "created_at": "2026-09-04T08:00:00.285+00:00",
+     "series_id": 554,
+     "index": "122.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14207,
+     "chapter_name": "Chapter 121",
+     "chapter_slug": "chapter-121",
+     "created_at": "2026-08-26T04:00:00.267+00:00",
+     "series_id": 554,
+     "index": "121.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14149,
+     "chapter_name": "Chapter 120",
+     "chapter_slug": "chapter-120",
+     "created_at": "2026-08-19T03:00:00.185+00:00",
+     "series_id": 554,
+     "index": "120.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14082,
+     "chapter_name": "Chapter 119",
+     "chapter_slug": "chapter-119",
+     "created_at": "2026-08-12T07:00:00.059+00:00",
+     "series_id": 554,
+     "index": "119.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14047,
+     "chapter_name": "Chapter 118",
+     "chapter_slug": "chapter-118",
+     "created_at": "2026-08-08T12:00:00.056+00:00",
+     "series_id": 554,
+     "index": "118.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "125"
+   }
+  },
+  {
+   "id": 747,
+   "title": "Ero: The Princess Submits",
+   "description": "Fallen to the invasion of the Demon King Zermes, the noble royal princess and queen of the Solaris Kingdom begin their awful days as sex slave instructors, branded with the ‘womb tattoo’ that forces them to seek pleasure. The queen who chooses her own corruption for the sake of her daughter, and the princess who lost even the smallest bit of hope gradually become tamed to the Demon King's pleasure...\n",
+   "alternative_names": "음락 : 왕녀 굴복하다",
+   "series_type": "Comic",
+   "series_slug": "ero-the-princess-submits",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/r4bjwjqcd6jk5xf9q6fda98d.webp",
+   "total_views": 1668512,
+   "status": "Ongoing",
+   "created_at": "2025-12-19T16:07:41.170+00:00",
+   "updated_at": "2025-12-19T16:07:41.170+00:00",
+   "badge": "NEW",
+   "rating": 4.529412,
+   "release_schedule": {
+    "fri": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14301,
+     "chapter_name": "Chapter 33",
+     "chapter_slug": "chapter-33",
+     "created_at": "2026-09-04T05:00:00.723+00:00",
+     "series_id": 747,
+     "index": "33.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14248,
+     "chapter_name": "Chapter 32",
+     "chapter_slug": "chapter-32",
+     "created_at": "2026-08-31T05:00:00.079+00:00",
+     "series_id": 747,
+     "index": "32.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14104,
+     "chapter_name": "Chapter 31",
+     "chapter_slug": "chapter-31",
+     "created_at": "2026-08-15T06:00:00.069+00:00",
+     "series_id": 747,
+     "index": "31.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14103,
+     "chapter_name": "Chapter 30",
+     "chapter_slug": "chapter-30",
+     "created_at": "2026-08-14T05:00:00.247+00:00",
+     "series_id": 747,
+     "index": "30.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14100,
+     "chapter_name": "Chapter 29",
+     "chapter_slug": "chapter-29",
+     "created_at": "2026-08-09T15:03:35.424+00:00",
+     "series_id": 747,
+     "index": "29.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14331,
+     "chapter_name": "Chapter 34",
+     "chapter_slug": "chapter-34",
+     "created_at": "2026-09-02T16:17:57.501+00:00",
+     "series_id": 747,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "35"
+   }
+  },
+  {
+   "id": 743,
+   "title": "I Will Teach You Self Defense",
+   "description": "\"Sex... no, I'll teach you self defense.\" Sunghyun is the head of the failing Hapkido Dojo. One day, he happens to obtain a mysterious system message. It says the dojo will expand every time he clears a quest but the next quest is...?! [Quest] Make the female members climax! \n",
+   "alternative_names": "호신술 가르쳐드립니다",
+   "series_type": "Comic",
+   "series_slug": "i-will-teach-you-self-defense",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/r57vvsi1utskjd3kgt02lnyh.webp",
+   "total_views": 2410449,
+   "status": "Ongoing",
+   "created_at": "2025-11-30T07:13:44.382+00:00",
+   "updated_at": "2025-11-30T07:13:44.382+00:00",
+   "badge": "NEW",
+   "rating": 4.7083335,
+   "release_schedule": {
+    "sat": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14313,
+     "chapter_name": "Chapter 41",
+     "chapter_slug": "chapter-41",
+     "created_at": "2026-09-04T05:00:00.424+00:00",
+     "series_id": 743,
+     "index": "41.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14251,
+     "chapter_name": "Chapter 40.5",
+     "chapter_slug": "chapter-40-5",
+     "created_at": "2026-08-27T02:20:55.377+00:00",
+     "series_id": 743,
+     "index": "40.5",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14176,
+     "chapter_name": "Chapter 40",
+     "chapter_slug": "chapter-40",
+     "created_at": "2026-08-22T15:00:00.186+00:00",
+     "series_id": 743,
+     "index": "40.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14124,
+     "chapter_name": "Chapter 39",
+     "chapter_slug": "chapter-39",
+     "created_at": "2026-08-16T16:00:00.679+00:00",
+     "series_id": 743,
+     "index": "39.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14039,
+     "chapter_name": "Chapter 38",
+     "chapter_slug": "chapter-38",
+     "created_at": "2026-08-07T14:00:00.099+00:00",
+     "series_id": 743,
+     "index": "38.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14350,
+     "chapter_name": "Chapter 42",
+     "chapter_slug": "chapter-42",
+     "created_at": "2026-09-04T03:35:41.599+00:00",
+     "series_id": 743,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "43"
+   }
+  },
+  {
+   "id": 720,
+   "title": "I Became an Apartment Security Manager",
+   "description": "Lee Han's life was going nowhere until he received an offer too tempting and dangerous to ignore: \"Get close to the women in this building! Seduce them, romance them, blackmail them, whatever method works.\" Lee Han is thrown into a risky game of secrets and seduction, where every woman has a weakness and finding it might completely change his life. \"I need to start with the married woman at unit 301, Han Soojin, and find her weakness quickly!\" ",
+   "alternative_names": "아파트 관리인이 되었다",
+   "series_type": "Comic",
+   "series_slug": "i-became-an-apartment-security-manager",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/ps7s4clht8zia4xppzsxehxq.webp",
+   "total_views": 2845541,
+   "status": "Ongoing",
+   "created_at": "2025-08-10T12:05:11.266+00:00",
+   "updated_at": "2025-08-10T12:05:11.267+00:00",
+   "badge": "NEW",
+   "rating": 4.730769,
+   "release_schedule": {
+    "sun": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14302,
+     "chapter_name": "Chapter 57",
+     "chapter_slug": "chapter-57",
+     "created_at": "2026-09-04T05:00:00.257+00:00",
+     "series_id": 720,
+     "index": "57.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14236,
+     "chapter_name": "Chapter 56",
+     "chapter_slug": "chapter-56",
+     "created_at": "2026-08-30T01:00:00.080+00:00",
+     "series_id": 720,
+     "index": "56.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14074,
+     "chapter_name": "Chapter 55.5",
+     "chapter_slug": "chapter-55-5",
+     "created_at": "2026-08-07T02:19:27.592+00:00",
+     "series_id": 720,
+     "index": "55.5",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14018,
+     "chapter_name": "Chapter 55",
+     "chapter_slug": "chapter-55",
+     "created_at": "2026-08-04T10:00:00.269+00:00",
+     "series_id": 720,
+     "index": "55.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 13938,
+     "chapter_name": "Chapter 54",
+     "chapter_slug": "chapter-54",
+     "created_at": "2026-07-27T01:00:00.070+00:00",
+     "series_id": 720,
+     "index": "54.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "58"
+   }
+  },
+  {
+   "id": 713,
+   "title": "Believe Me! I Offer You My First",
+   "description": "There was this girl on the street trying to recruit people for her religion, and she was totally my type-- so I flirted with her a bit and somehow ended up taking her virginity. In return, she begged me to come to their church, saying that's all she wanted. So I went there once and... what the heck? This place was a cult?\n",
+   "alternative_names": "믿으세요! 처음을 바칠지어니",
+   "series_type": "Comic",
+   "series_slug": "believe-me-i-offer-you-my-first",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/ybc3srxxjex45urkf9vj6izr.webp",
+   "total_views": 1680825,
+   "status": "Ongoing",
+   "created_at": "2025-07-15T10:25:16.204+00:00",
+   "updated_at": "2025-07-15T10:25:16.204+00:00",
+   "badge": "NEW",
+   "rating": 5,
+   "release_schedule": {
+    "mon": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14303,
+     "chapter_name": "Chapter 57",
+     "chapter_slug": "chapter-57",
+     "created_at": "2026-09-04T05:00:00.078+00:00",
+     "series_id": 713,
+     "index": "57.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14217,
+     "chapter_name": "Chapter 56",
+     "chapter_slug": "chapter-56",
+     "created_at": "2026-08-27T03:00:00.297+00:00",
+     "series_id": 713,
+     "index": "56.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14164,
+     "chapter_name": "Chapter 55",
+     "chapter_slug": "chapter-55",
+     "created_at": "2026-08-20T22:00:00.269+00:00",
+     "series_id": 713,
+     "index": "55.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14138,
+     "chapter_name": "Chapter 54",
+     "chapter_slug": "chapter-54",
+     "created_at": "2026-08-18T06:00:00.058+00:00",
+     "series_id": 713,
+     "index": "54.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14044,
+     "chapter_name": "Chapter 53",
+     "chapter_slug": "chapter-53",
+     "created_at": "2026-08-08T06:00:00.194+00:00",
+     "series_id": 713,
+     "index": "53.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "58"
+   }
+  },
+  {
+   "id": 716,
+   "title": "A Theme For Every Building",
+   "description": "A Theme For Every Building - Newly employed Kang Yihyun stops by a convenience store after work to buy some soju, but what's up with that part-timer?! 'Is that part-timer really naked right now?' Jeez, just what the hell is going on here...?",
+   "alternative_names": "건물마다 컨셉이 다름",
+   "series_type": "Comic",
+   "series_slug": "a-theme-for-every-building",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/blisn8bivy1a0dirkb225p5h.webp",
+   "total_views": 3106400,
+   "status": "Ongoing",
+   "created_at": "2025-07-22T13:07:21.852+00:00",
+   "updated_at": "2025-07-22T13:07:21.852+00:00",
+   "badge": "NEW",
+   "rating": 4.90625,
+   "release_schedule": {
+    "tue": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14264,
+     "chapter_name": "Chapter 56",
+     "chapter_slug": "chapter-56",
+     "created_at": "2026-09-01T16:00:00.078+00:00",
+     "series_id": 716,
+     "index": "56.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14197,
+     "chapter_name": "Chapter 55",
+     "chapter_slug": "chapter-55",
+     "created_at": "2026-08-24T16:00:00.070+00:00",
+     "series_id": 716,
+     "index": "55.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14132,
+     "chapter_name": "Chapter 54",
+     "chapter_slug": "chapter-54",
+     "created_at": "2026-08-17T15:00:00.926+00:00",
+     "series_id": 716,
+     "index": "54.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14022,
+     "chapter_name": "Chapter 53",
+     "chapter_slug": "chapter-53",
+     "created_at": "2026-08-05T15:00:00.085+00:00",
+     "series_id": 716,
+     "index": "53.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14021,
+     "chapter_name": "Chapter 52",
+     "chapter_slug": "chapter-52",
+     "created_at": "2026-08-04T15:00:00.056+00:00",
+     "series_id": 716,
+     "index": "52.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14352,
+     "chapter_name": "Chapter 57",
+     "chapter_slug": "chapter-57",
+     "created_at": "2026-09-04T03:36:35.746+00:00",
+     "series_id": 716,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "58"
+   }
+  },
+  {
+   "id": 760,
+   "title": "Ogh Reboot",
+   "description": "What’s important in living life is dopamine! With no social skills, shut-in loser Shin Jangseok wishes for the world to be rebooted… “Ah ~ isn’t there a world where everything works with just one dick...”\n",
+   "alternative_names": "오곡 리부트",
+   "series_type": "Comic",
+   "series_slug": "ogh-reboot",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/llzhkif2jy59kkns1czip5h9.webp",
+   "total_views": 1173073,
+   "status": "Ongoing",
+   "created_at": "2026-03-21T14:11:12.442+00:00",
+   "updated_at": "2026-03-21T14:11:12.442+00:00",
+   "badge": "NEW",
+   "rating": 4.8461537,
+   "release_schedule": {
+    "sat": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14298,
+     "chapter_name": "Chapter 28",
+     "chapter_slug": "chapter-28",
+     "created_at": "2026-09-03T14:00:00.369+00:00",
+     "series_id": 760,
+     "index": "28.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14186,
+     "chapter_name": "Chapter 27",
+     "chapter_slug": "chapter-27",
+     "created_at": "2026-08-24T17:00:00.085+00:00",
+     "series_id": 760,
+     "index": "27.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14185,
+     "chapter_name": "Chapter 26",
+     "chapter_slug": "chapter-26",
+     "created_at": "2026-08-23T16:00:00.405+00:00",
+     "series_id": 760,
+     "index": "26.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14087,
+     "chapter_name": "Chapter 25",
+     "chapter_slug": "chapter-25",
+     "created_at": "2026-08-13T13:00:00.226+00:00",
+     "series_id": 760,
+     "index": "25.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14040,
+     "chapter_name": "Chapter 24",
+     "chapter_slug": "chapter-24",
+     "created_at": "2026-08-07T14:00:00.504+00:00",
+     "series_id": 760,
+     "index": "24.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14351,
+     "chapter_name": "Chapter 29",
+     "chapter_slug": "chapter-29",
+     "created_at": "2026-09-04T03:36:10.196+00:00",
+     "series_id": 760,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "29"
+   }
+  },
+  {
+   "id": 766,
+   "title": "Guaranteed Pass! Grades Training Camp ♥",
+   "description": "Yoojin fails to get into his desired university because of his unusual sex drive.\nTo prepare for another entrance exam attempt, he begins a special training camp with private tutors.\nBut teachers... why are you suddenly taking your clothes off?!",
+   "alternative_names": "절대합격! 성적 ♥ 합숙",
+   "series_type": "Comic",
+   "series_slug": "guaranteed-pass-grades-training-camp",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/wtrv8pios1ads8nym5jofx86.webp",
+   "total_views": 619006,
+   "status": "Completed",
+   "created_at": "2026-05-09T13:37:52.350+00:00",
+   "updated_at": "2026-05-09T13:37:52.351+00:00",
+   "badge": "NEW",
+   "rating": 4.5,
+   "release_schedule": {
+    "fri": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14297,
+     "chapter_name": "Chapter 23",
+     "chapter_slug": "chapter-23",
+     "created_at": "2026-09-03T14:00:00.542+00:00",
+     "series_id": 766,
+     "index": "23.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14201,
+     "chapter_name": "Chapter 22",
+     "chapter_slug": "chapter-22",
+     "created_at": "2026-08-25T16:00:00.094+00:00",
+     "series_id": 766,
+     "index": "22.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14162,
+     "chapter_name": "Chapter 21",
+     "chapter_slug": "chapter-21",
+     "created_at": "2026-08-20T18:00:00.070+00:00",
+     "series_id": 766,
+     "index": "21.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14073,
+     "chapter_name": "Chapter 20",
+     "chapter_slug": "chapter-20",
+     "created_at": "2026-08-11T13:00:00.579+00:00",
+     "series_id": 766,
+     "index": "20.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14020,
+     "chapter_name": "Chapter 19",
+     "chapter_slug": "chapter-19",
+     "created_at": "2026-08-04T15:00:00.312+00:00",
+     "series_id": 766,
+     "index": "19.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14349,
+     "chapter_name": "Chapter 24",
+     "chapter_slug": "chapter-24",
+     "created_at": "2026-09-04T03:33:47.911+00:00",
+     "series_id": 766,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "24"
+   }
+  },
+  {
+   "id": 689,
+   "title": "Wireless Onahole",
+   "description": "\"The onahole... moved?!\"\nPark Woojin, an engineering student, just so happened to buy an onahole that synchronizes with women around it. Let's start with the goddess of our school, Ahyoung...!",
+   "alternative_names": "무선 연결 오나홀",
+   "series_type": "Comic",
+   "series_slug": "wireless-onahole",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/c2pkxyutdjkr2uzvdekasv4f.webp",
+   "total_views": 11450196,
+   "status": "Ongoing",
+   "created_at": "2025-03-21T11:38:33.247+00:00",
+   "updated_at": "2025-03-21T11:38:33.247+00:00",
+   "badge": "NEW",
+   "rating": 4.9,
+   "release_schedule": {
+    "fri": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14213,
+     "chapter_name": "Chapter 114",
+     "chapter_slug": "chapter-114",
+     "created_at": "2026-08-26T11:00:00.308+00:00",
+     "series_id": 689,
+     "index": "114.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14165,
+     "chapter_name": "Chapter 113",
+     "chapter_slug": "chapter-113",
+     "created_at": "2026-08-21T00:00:00.112+00:00",
+     "series_id": 689,
+     "index": "113.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14109,
+     "chapter_name": "Chapter 112",
+     "chapter_slug": "chapter-112",
+     "created_at": "2026-08-15T23:00:00.084+00:00",
+     "series_id": 689,
+     "index": "112.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14106,
+     "chapter_name": "Chapter 111",
+     "chapter_slug": "chapter-111",
+     "created_at": "2026-08-14T23:00:00.058+00:00",
+     "series_id": 689,
+     "index": "111.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14029,
+     "chapter_name": "Chapter 110",
+     "chapter_slug": "chapter-110",
+     "created_at": "2026-08-06T01:00:00.072+00:00",
+     "series_id": 689,
+     "index": "110.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14348,
+     "chapter_name": "Chapter 116",
+     "chapter_slug": "chapter-116",
+     "created_at": "2026-09-04T00:05:05.499+00:00",
+     "series_id": 689,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14320,
+     "chapter_name": "Chapter 115",
+     "chapter_slug": "chapter-115",
+     "created_at": "2026-09-01T20:23:58.374+00:00",
+     "series_id": 689,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "116"
+   }
+  },
+  {
+   "id": 757,
+   "title": "Money Games",
+   "description": "“If you don’t want to get sued for touching my breasts, you’d better apologize properly.” Manjae has worked more diligently than anyone at a female-dominated company, yet he remains at the very bottom of the hierarchy. One day, after enduring all kinds of humiliation from his female colleagues, he decides to seize a secret investment opportunity that came his way… His life starts becoming insanely exciting from then on.\n",
+   "alternative_names": "돈놀이",
+   "series_type": "Comic",
+   "series_slug": "money-games",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/i1uk9jh6yvj7hr8q4p9cxeut.webp",
+   "total_views": 758734,
+   "status": "Ongoing",
+   "created_at": "2026-02-18T12:39:54.641+00:00",
+   "updated_at": "2026-02-18T12:39:54.641+00:00",
+   "badge": "NEW",
+   "rating": 5,
+   "release_schedule": {
+    "wed": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14283,
+     "chapter_name": "Chapter 28",
+     "chapter_slug": "chapter-28",
+     "created_at": "2026-09-02T12:00:00.056+00:00",
+     "series_id": 757,
+     "index": "28.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14063,
+     "chapter_name": "Chapter 27.5",
+     "chapter_slug": "chapter-27-5",
+     "created_at": "2026-08-06T00:16:36.049+00:00",
+     "series_id": 757,
+     "index": "27.5",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14026,
+     "chapter_name": "Chapter 27",
+     "chapter_slug": "chapter-27",
+     "created_at": "2026-08-05T11:00:00.057+00:00",
+     "series_id": 757,
+     "index": "27.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 13901,
+     "chapter_name": "Chapter 26",
+     "chapter_slug": "chapter-26",
+     "created_at": "2026-07-22T11:00:00.060+00:00",
+     "series_id": 757,
+     "index": "26.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 13814,
+     "chapter_name": "Chapter 25",
+     "chapter_slug": "chapter-25",
+     "created_at": "2026-07-12T23:24:15.255+00:00",
+     "series_id": 757,
+     "index": "25.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14347,
+     "chapter_name": "Chapter 29",
+     "chapter_slug": "chapter-29",
+     "created_at": "2026-09-03T22:54:29.462+00:00",
+     "series_id": 757,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "30"
+   }
+  },
+  {
+   "id": 602,
+   "title": "Isekai Dragondick Knight Commander",
+   "description": "\"Kihwan\" got isekaied due to an accident.\nBut, wait, 3% of his body, his dick, became draconic?\nElves, half-animals, lords... many different isekai women come to him, lusting after his dragon dick...",
+   "alternative_names": "이세계 용근 기사단장",
+   "series_type": "Comic",
+   "series_slug": "isekai-dragondick-knight-commander",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/xv27imhczzsbbc651ztqf6ws.webp",
+   "total_views": 5816560,
+   "status": "Ongoing",
+   "created_at": "2024-07-17T13:27:48.103+00:00",
+   "updated_at": "2024-07-17T13:27:48.103+00:00",
+   "badge": "NEW",
+   "rating": 4.5172415,
+   "release_schedule": {},
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14294,
+     "chapter_name": "Chapter 107",
+     "chapter_slug": "chapter-107",
+     "created_at": "2026-09-03T12:00:00.061+00:00",
+     "series_id": 602,
+     "index": "107.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14212,
+     "chapter_name": "Chapter 106",
+     "chapter_slug": "chapter-106",
+     "created_at": "2026-08-26T09:00:00.062+00:00",
+     "series_id": 602,
+     "index": "106.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14170,
+     "chapter_name": "Chapter 105",
+     "chapter_slug": "chapter-105",
+     "created_at": "2026-08-21T21:00:00.111+00:00",
+     "series_id": 602,
+     "index": "105.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14083,
+     "chapter_name": "Chapter 104",
+     "chapter_slug": "chapter-104",
+     "created_at": "2026-08-12T11:00:00.115+00:00",
+     "series_id": 602,
+     "index": "104.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14028,
+     "chapter_name": "Chapter 103",
+     "chapter_slug": "chapter-103",
+     "created_at": "2026-08-05T20:00:00.439+00:00",
+     "series_id": 602,
+     "index": "103.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14346,
+     "chapter_name": "Chapter 108",
+     "chapter_slug": "chapter-108",
+     "created_at": "2026-09-03T21:49:33.358+00:00",
+     "series_id": 602,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "109"
+   }
+  },
+  {
+   "id": 791,
+   "title": "Love and Risk",
+   "description": "An ordinary university student Nam Namju happened to get his hands on the mysterious board game, 'Love and Risk'. The moment he rolls the dice to play it with members of the board game club, missions and penalties that stir their desires are revealed.\n",
+   "alternative_names": "러브 앤 리스크",
+   "series_type": "Comic",
+   "series_slug": "love-and-risk",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/hzhe1v4i7gf1d51oz1yqxd4r.jpg",
+   "total_views": 173372,
+   "status": "Ongoing",
+   "created_at": "2026-08-27T14:05:43.309+00:00",
+   "updated_at": "2026-08-27T14:05:43.309+00:00",
+   "badge": "NEW",
+   "rating": 5,
+   "release_schedule": {
+    "thu": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14261,
+     "chapter_name": "Chapter 6",
+     "chapter_slug": "chapter-6",
+     "created_at": "2026-09-03T05:00:00.371+00:00",
+     "series_id": 791,
+     "index": "6.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14260,
+     "chapter_name": "Chapter 5",
+     "chapter_slug": "chapter-5",
+     "created_at": "2026-09-02T04:00:02.072+00:00",
+     "series_id": 791,
+     "index": "5.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14259,
+     "chapter_name": "Chapter 4",
+     "chapter_slug": "chapter-4",
+     "created_at": "2026-09-01T04:00:00.071+00:00",
+     "series_id": 791,
+     "index": "4.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14258,
+     "chapter_name": "Chapter 3",
+     "chapter_slug": "chapter-3",
+     "created_at": "2026-08-29T19:00:00.272+00:00",
+     "series_id": 791,
+     "index": "3.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14257,
+     "chapter_name": "Chapter 2",
+     "chapter_slug": "chapter-2",
+     "created_at": "2026-08-28T18:16:14.322+00:00",
+     "series_id": 791,
+     "index": "2.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14345,
+     "chapter_name": "Chapter 7",
+     "chapter_slug": "chapter-7",
+     "created_at": "2026-09-03T20:48:31.832+00:00",
+     "series_id": 791,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "7"
+   }
+  },
+  {
+   "id": 711,
+   "title": "A Dangerous Deal and The Girl Next Door",
+   "description": "\"If you take my wife's clothes off, you'll really fuck her...\" The naked body of the woman next door was seen on CCTV by chance... Sooheon felt a sense of guilt, till the woman’s husband proposed a dangerous deal…",
+   "alternative_names": "위험한 거래 그리고 옆집 여자",
+   "series_type": "Comic",
+   "series_slug": "a-dangerous-deal-and-the-girl-next-door",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/o9g22g337i8csfeo43apbeh6.webp",
+   "total_views": 3324801,
+   "status": "Ongoing",
+   "created_at": "2025-07-03T13:22:52.338+00:00",
+   "updated_at": "2025-07-03T13:22:52.338+00:00",
+   "badge": "NEW",
+   "rating": 4.2093024,
+   "release_schedule": {
+    "thu": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14299,
+     "chapter_name": "Chapter 60",
+     "chapter_slug": "chapter-60",
+     "created_at": "2026-09-03T19:00:00.276+00:00",
+     "series_id": 711,
+     "index": "60.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14219,
+     "chapter_name": "Chapter 59",
+     "chapter_slug": "chapter-59",
+     "created_at": "2026-08-27T04:00:00.304+00:00",
+     "series_id": 711,
+     "index": "59.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14156,
+     "chapter_name": "Chapter 58",
+     "chapter_slug": "chapter-58",
+     "created_at": "2026-08-19T19:00:00.068+00:00",
+     "series_id": 711,
+     "index": "58.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14064,
+     "chapter_name": "Chapter 57",
+     "chapter_slug": "chapter-57",
+     "created_at": "2026-08-10T20:00:00.073+00:00",
+     "series_id": 711,
+     "index": "57.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14009,
+     "chapter_name": "Chapter 56",
+     "chapter_slug": "chapter-56",
+     "created_at": "2026-07-30T12:23:47.955+00:00",
+     "series_id": 711,
+     "index": "56.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "61"
+   }
+  },
+  {
+   "id": 700,
+   "title": "I’m the Only Man on the Military Base",
+   "description": "“I’m considering sending you to join the female soldiers.” Jaejun is a participant in the -Mixed Gender Operation Pilot Program-. He ends up transferring to a military base comprised entirely of female soldiers with himself as the sole male… Will he be able to complete his military service in a base where temptation lurks around every corner?!\n",
+   "alternative_names": "주웠다부대에 남군이 나 혼자",
+   "series_type": "Comic",
+   "series_slug": "im-the-only-man-on-the-military-base",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/nzdebyks2bw5gg5h2crfy59b.webp",
+   "total_views": 4671000,
+   "status": "Ongoing",
+   "created_at": "2025-05-14T11:58:32.841+00:00",
+   "updated_at": "2025-05-14T11:58:32.841+00:00",
+   "badge": "NEW",
+   "rating": 4.794872,
+   "release_schedule": {
+    "wed": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 14272,
+     "chapter_name": "Chapter 71",
+     "chapter_slug": "chapter-71",
+     "created_at": "2026-09-02T04:00:00.453+00:00",
+     "series_id": 700,
+     "index": "71.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 14192,
+     "chapter_name": "Chapter 70",
+     "chapter_slug": "chapter-70",
+     "created_at": "2026-08-24T02:00:00.066+00:00",
+     "series_id": 700,
+     "index": "70.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 14133,
+     "chapter_name": "Chapter 69",
+     "chapter_slug": "chapter-69",
+     "created_at": "2026-08-18T02:00:00.290+00:00",
+     "series_id": 700,
+     "index": "69.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 14081,
+     "chapter_name": "Chapter 68",
+     "chapter_slug": "chapter-68",
+     "created_at": "2026-08-12T04:00:00.078+00:00",
+     "series_id": 700,
+     "index": "68.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 14005,
+     "chapter_name": "Chapter 67",
+     "chapter_slug": "chapter-67",
+     "created_at": "2026-08-03T12:00:00.066+00:00",
+     "series_id": 700,
+     "index": "67.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [
+    {
+     "id": 14344,
+     "chapter_name": "Chapter 72",
+     "chapter_slug": "chapter-72",
+     "created_at": "2026-09-03T16:17:07.913+00:00",
+     "series_id": 700,
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    }
+   ],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": null,
+    "metadata": {},
+    "chapters_count": "72"
+   }
+  }
+ ]
+}

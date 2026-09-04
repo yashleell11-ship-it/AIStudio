@@ -1,0 +1,61 @@
+{
+ "chapter": {
+  "id": 1125,
+  "series_id": 7,
+  "season_id": 13,
+  "index": "1.0",
+  "chapter_name": "Chapter 1",
+  "chapter_title": null,
+  "chapter_data": {
+   "images": [
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/01.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/02.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/03.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/04.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/05.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/06.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/07.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/08.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/09.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/10.jpg",
+    "https://media.omegascans.org/file/zFSsXt/uploads/series/sex-stopwatch/ac3a7e66-aba2-4b6f-9ae3-cb453670b252/11.jpg"
+   ]
+  },
+  "chapter_content": null,
+  "chapter_thumbnail": "https://media.omegascans.org/file/zFSsXt/thumbnails/868c5303-4d43-47a0-a336-d37cc6ea6b41.jpg",
+  "chapter_slug": "chapter-1",
+  "chapter_unique_id": "ac3a7e66-aba2-4b6f-9ae3-cb453670b252",
+  "views": 238496,
+  "chapter_type": "Comic",
+  "price": 0,
+  "created_at": "2023-04-01T22:50:21.376+00:00",
+  "updated_at": "2026-09-04T17:01:24.394+00:00",
+  "storage": "s3",
+  "public": true,
+  "release_date": null,
+  "free_at": null,
+  "free_timer_value": null,
+  "free_timer_unit": null,
+  "series": {
+   "id": 7,
+   "series_slug": "sex-stopwatch",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/vzq49pwb62fcuxfgmllu3cr1.webp",
+   "title": "Sex Stopwatch",
+   "latest_chapter": null,
+   "meta": {}
+  },
+  "chapters_to_be_freed": [],
+  "meta": {
+   "continuation": null
+  }
+ },
+ "previous_chapter": null,
+ "next_chapter": {
+  "id": 890,
+  "chapter_name": "Chapter 2",
+  "chapter_title": null,
+  "chapter_slug": "chapter-2",
+  "chapters_to_be_freed": [],
+  "meta": {}
+ }
+}
