@@ -44,22 +44,72 @@ const double readerVisiblePageLead = 80;
 /// [commitPending].
 class ReaderPageExtents extends ChangeNotifier {
   ReaderPageExtents(List<ReaderPage> pages)
-      : _ratios = List<double?>.generate(
-          pages.length,
-          (index) => _usableRatio(
-            pages[index].width?.toDouble(),
-            pages[index].height?.toDouble(),
-          ),
-          growable: false,
-        );
+      : _ratios = _ratiosFor(pages);
 
   /// Seed directly from ratios. ``null`` marks a page whose size is unknown.
   @visibleForTesting
   ReaderPageExtents.fromRatios(List<double?> ratios)
-      : _ratios = List<double?>.of(ratios, growable: false);
+      : _ratios = List<double?>.of(ratios);
 
+  /// Growable on purpose (spec R1/R2): a continuous feed gains a chapter's
+  /// pages at either end as the reader approaches a seam, and every ratio
+  /// already resolved has to survive that. Rebuilding this object instead
+  /// would re-measure every page on screen and jerk the reader.
   final List<double?> _ratios;
   final Map<int, double> _pending = <int, double>{};
+
+  static List<double?> _ratiosFor(List<ReaderPage> pages) => [
+        for (final page in pages)
+          _usableRatio(page.width?.toDouble(), page.height?.toDouble()),
+      ];
+
+  /// Adds [pages] after the last one. Indices already in use are untouched, so
+  /// nothing above the viewport moves and no correction is needed.
+  void appendPages(List<ReaderPage> pages) {
+    if (pages.isEmpty) return;
+    _ratios.addAll(_ratiosFor(pages));
+  }
+
+  /// Adds [pages] before the first one.
+  ///
+  /// **Every index shifts** by `pages.length`, including the keys of anything
+  /// staged and not yet committed — remapped here rather than dropped, because
+  /// a dropped measurement is a page that silently keeps a wrong height for
+  /// the rest of the session. The caller still owes the scroll position a
+  /// correction for the extent that just appeared above it.
+  void prependPages(List<ReaderPage> pages) {
+    if (pages.isEmpty) return;
+    _ratios.insertAll(0, _ratiosFor(pages));
+    _shiftPending(pages.length);
+  }
+
+  /// Drops the first [count] pages — the far-behind end of a Read-all window.
+  void removeLeadingPages(int count) {
+    final drop = count.clamp(0, _ratios.length);
+    if (drop <= 0) return;
+    _ratios.removeRange(0, drop);
+    _shiftPending(-drop);
+  }
+
+  /// Drops the last [count] pages.
+  void removeTrailingPages(int count) {
+    final drop = count.clamp(0, _ratios.length);
+    if (drop <= 0) return;
+    _ratios.removeRange(_ratios.length - drop, _ratios.length);
+    _pending.removeWhere((index, _) => index >= _ratios.length);
+  }
+
+  void _shiftPending(int delta) {
+    if (_pending.isEmpty || delta == 0) return;
+    final shifted = <int, double>{};
+    for (final entry in _pending.entries) {
+      final index = entry.key + delta;
+      if (index >= 0 && index < _ratios.length) shifted[index] = entry.value;
+    }
+    _pending
+      ..clear()
+      ..addAll(shifted);
+  }
 
   int get length => _ratios.length;
 
@@ -76,7 +126,8 @@ class ReaderPageExtents extends ChangeNotifier {
   }
 
   /// Every page's layout ratio, fallbacks included — the input to
-  /// [ReaderPageMetrics].
+  /// [ReaderPageMetrics]. A snapshot: metrics are immutable and must not see
+  /// the list grow under them.
   List<double> get layoutRatios =>
       List<double>.generate(_ratios.length, ratioAt, growable: false);
 
@@ -134,6 +185,7 @@ class ReaderPageMetrics {
     required this.viewportWidth,
     required this.viewportHeight,
     this.zoom = 1,
+    this.leadingInsets = const {},
   });
 
   factory ReaderPageMetrics.of(
@@ -143,6 +195,7 @@ class ReaderPageMetrics {
     required double viewportWidth,
     required double viewportHeight,
     double zoom = 1,
+    Map<int, double> leadingInsets = const {},
   }) =>
       ReaderPageMetrics(
         ratios: extents.layoutRatios,
@@ -151,6 +204,7 @@ class ReaderPageMetrics {
         viewportWidth: viewportWidth,
         viewportHeight: viewportHeight,
         zoom: zoom,
+        leadingInsets: leadingInsets,
       );
 
   final List<double> ratios;
@@ -160,7 +214,18 @@ class ReaderPageMetrics {
   final double viewportHeight;
   final double zoom;
 
+  /// Extra space reserved **above** particular pages, by index — the chapter
+  /// seam divider (spec R1) and nothing else so far.
+  ///
+  /// Part of the geometry rather than a widget the list happens to contain,
+  /// because everything here has to agree: a divider the list drew but the
+  /// metrics did not know about would push every page after it out of the
+  /// offsets the page counter, the scrub rail and every jump resolve to.
+  final Map<int, double> leadingInsets;
+
   int get pageCount => ratios.length;
+
+  double leadingInsetAt(int index) => leadingInsets[index] ?? 0;
 
   /// Width a page image is actually painted at.
   ///
@@ -175,8 +240,11 @@ class ReaderPageMetrics {
   double ratioAt(int index) =>
       (index >= 0 && index < ratios.length) ? ratios[index] : defaultAspectRatio;
 
-  /// Extent page [index] occupies along the scroll axis.
-  double extentAt(int index) => extentForRatio(ratioAt(index));
+  /// Extent page [index] occupies along the scroll axis, its seam divider
+  /// included — the number the list is forced to and every offset is summed
+  /// from.
+  double extentAt(int index) =>
+      extentForRatio(ratioAt(index)) + leadingInsetAt(index);
 
   /// Extent a page of [ratio] would occupy along the scroll axis.
   double extentForRatio(double ratio) {
