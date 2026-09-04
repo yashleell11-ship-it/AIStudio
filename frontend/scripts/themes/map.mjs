@@ -23,11 +23,12 @@
  * comment you are not reading. A library grid does not.
  *
  * So a token that misses its floor is walked along the SCHEME'S OWN foreground
- * ramp (toward `base07`, the far end of the bg→fg gradient in both variants)
- * until it clears — the same move the mobile palettes made by hand, and one
- * that keeps the hue family. Each walk is capped. A scheme that cannot be made
- * legible inside those caps is REJECTED rather than shipped bent out of shape:
- * the point of the gate is that not all 338 deserve to ship.
+ * ramp — toward whichever of base00–base07 sits furthest from the page, which
+ * is the light end of a dark scheme and the dark end of a light one — until it
+ * clears. That is the same move the mobile palettes made by hand, and it keeps
+ * the hue family. Each walk is capped. A scheme that cannot be made legible
+ * inside those caps is REJECTED rather than shipped bent out of shape: the
+ * point of the gate is that not all 338 deserve to ship.
  */
 
 // ---------------------------------------------------------------------------
@@ -320,31 +321,20 @@ function hue(hex) {
   return ((raw * 60) % 360 + 360) % 360;
 }
 
-/** Shortest angle between two hues; greys are treated as maximally distant. */
+/**
+ * Shortest angle between two hues; greys are treated as maximally distant.
+ *
+ * This is what keeps the supporting accent off the primary's hue. Without it
+ * Gruvbox ships an aqua primary beside a green accent and the two read as one
+ * colour someone got wrong twice; the app spends them on genuinely different
+ * jobs (active nav vs. the ember highlight) and they have to be tellable apart.
+ */
 function hueGap(a, b) {
   const ha = hue(a);
   const hb = hue(b);
   if (ha === null || hb === null) return 180;
   const delta = Math.abs(ha - hb) % 360;
   return Math.min(delta, 360 - delta);
-}
-
-/**
- * First slot in `order` whose colour clears `min` on every surface.
- *
- * `minHueGap` keeps the supporting accent off the primary's hue. Without it
- * Gruvbox ships an aqua primary beside a green accent and the two read as one
- * colour someone got wrong twice; the app spends them on genuinely different
- * jobs (active nav vs. the ember highlight) and they have to be tellable apart.
- */
-function pickAccent(palette, order, backgrounds, min, against, minHueGap = 0) {
-  for (const slot of order) {
-    const value = palette[slot];
-    if (against && value.toLowerCase() === against.toLowerCase()) continue;
-    if (against && hueGap(value, against) < minHueGap) continue;
-    if (worst(value, backgrounds) >= min) return { slot, value: value.toUpperCase() };
-  }
-  return null;
 }
 
 /**

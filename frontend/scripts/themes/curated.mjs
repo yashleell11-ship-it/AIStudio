@@ -1,7 +1,7 @@
 /**
  * The schemes that actually ship.
  *
- * 216 of the corpus's 338 survive the contrast gate. Shipping all of them would
+ * 227 of the corpus's 338 survive the contrast gate. Shipping all of them would
  * be worse than shipping none: a picker holding ninety near-identical dark
  * greys is not a feature, it is a wall, and the good ones stop being findable.
  * So the gate answers "is this legible" and this file answers "is this worth a
@@ -13,7 +13,7 @@
  * Dracula, Catppuccin, Rosé Pine, Kanagawa, Everforest, Ayu, One Dark, Monokai,
  * Solarized's descendants, the editor defaults from GitHub and IBM — plus a
  * handful with a distinct enough character to earn their place (Spaceduck,
- * Eldritch, Vesper, Zenburn).
+ * Eldritch, Vesper, Zenburn, Sakura).
  *
  * Deliberately NOT here, though they pass: the eleven `black-metal-*` variants
  * (identical but for one accent), `windows-95` / `windows-nt` / `linux-vt`
