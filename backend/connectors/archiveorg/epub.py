@@ -219,6 +219,12 @@ def _resolve(base_dir: str, href: str) -> str | None:
     href = unquote(href.split("#", 1)[0]).strip()
     if not href or href.startswith(("http://", "https://", "data:")):
         return None
+    # EPUB hrefs are relative by spec. An absolute one must be refused rather
+    # than resolved: posixpath.join drops the base directory for it, and
+    # normpath then eats the leading "..", so "/../../x" would quietly become
+    # "x" -- escaping the OPF root without ever tripping the check below.
+    if href.startswith("/"):
+        return None
     joined = posixpath.join(base_dir, href) if base_dir else href
     normalized = posixpath.normpath(joined).lstrip("/")
     if normalized in (".", "..") or normalized.startswith("../"):
