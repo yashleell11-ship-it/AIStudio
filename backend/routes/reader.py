@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query, Request, Response
@@ -10,6 +11,12 @@ from pydantic import BaseModel, Field
 from core.errors import AppError
 from core.profile_context import require_profile_context
 from core.rate_limit import bulk_limit, limiter
+from services.bookmark_service import (
+    OP_UPSERT,
+    BookmarkOp,
+    BookmarkService,
+    get_bookmark_service,
+)
 from services.progress_service import (
     ProgressInput,
     ProgressService,
@@ -22,6 +29,7 @@ router = APIRouter(prefix="/reader", tags=["reader"])
 
 ReaderDep = Annotated[ReaderService, Depends(get_reader_service)]
 ProgressDep = Annotated[ProgressService, Depends(get_progress_service)]
+BookmarkDep = Annotated[BookmarkService, Depends(get_bookmark_service)]
 
 
 class ProgressRequest(BaseModel):
@@ -49,12 +57,74 @@ class ProgressRequest(BaseModel):
         )
 
 
-class BookmarkRequest(BaseModel):
+class BookmarkBody(BaseModel):
+    """One bookmark on the wire, for both the single POST and the batch.
+
+    The position is the generic anchor triple + ``media_type`` discriminator
+    described in ``database.models.Bookmark``: ``anchor_index`` counts pages
+    for manga and paragraphs for novels (1-based in both), ``anchor_fraction``
+    is 0.0-1.0 *within* that unit, ``anchor_total`` is the unit count the
+    client saw (0 = unknown).
+
+    ``page`` is a deprecated alias for ``anchor_index``, kept because the
+    shipped web reader still posts it: an old page-only create keeps working
+    and lands at offset 0.0 of that page, exactly like the rows the migration
+    carried forward.
+    """
+
+    client_id: str | None = Field(default=None, max_length=64)
     source_id: str = Field(min_length=1, max_length=64)
     series_key: str = Field(min_length=1, max_length=512)
     chapter_key: str = Field(min_length=1, max_length=512)
-    page: int = Field(ge=1)
+    chapter_number: float | None = None
+    media_type: str = Field(default="manga", max_length=16)
+    anchor_index: int = Field(default=1, ge=1)
+    anchor_fraction: float = Field(default=0.0, ge=0.0, le=1.0)
+    anchor_total: int = Field(default=0, ge=0)
     note: str | None = None
+    #: Deprecated: pre-2026-09-05 clients. Used only when anchor_index is unset.
+    page: int | None = Field(default=None, ge=1)
+
+    def resolved_index(self) -> int:
+        return self.anchor_index if self.anchor_index != 1 else (self.page or 1)
+
+
+class BookmarkOpRequest(BookmarkBody):
+    """One item of an offline flush: a ``BookmarkBody`` plus op + clock.
+
+    ``client_id`` is REQUIRED here (unlike the single POST, which mints one):
+    a batch item with no client id has no sync identity, so a retry of the
+    same flush would create a duplicate every time.
+
+    The identity fields relax to optional for a delete — a device replaying a
+    delete may no longer hold the bookmark's body, and the server re-identifies
+    by ``client_id`` alone.
+    """
+
+    op: str = Field(default=OP_UPSERT, max_length=16)
+    client_id: str = Field(min_length=1, max_length=64)
+    source_id: str = Field(default="", max_length=64)
+    series_key: str = Field(default="", max_length=512)
+    chapter_key: str = Field(default="", max_length=512)
+    #: The client's own clock for this change; absent means "server now".
+    #: Any offset is accepted and normalized to UTC.
+    updated_at: datetime | None = None
+
+    def to_op(self) -> BookmarkOp:
+        return BookmarkOp(
+            op=self.op,
+            client_id=self.client_id,
+            source_id=self.source_id,
+            series_key=self.series_key,
+            chapter_key=self.chapter_key,
+            chapter_number=self.chapter_number,
+            media_type=self.media_type,
+            anchor_index=self.resolved_index(),
+            anchor_fraction=self.anchor_fraction,
+            anchor_total=self.anchor_total,
+            note=self.note,
+            updated_at=self.updated_at,
+        )
 
 
 @router.get("/chapter/manifest")
@@ -169,25 +239,103 @@ def reading_history(
     return items
 
 
+# Same cap and the same 413 shape as ``/reader/progress/batch``: an unbounded
+# array is parsed fully into memory and then hammers the single-writer SQLite.
+BOOKMARK_BATCH_MAX_ITEMS = 200
+
+
 @router.post("/bookmark", dependencies=[Depends(require_profile_context)])
-def create_bookmark(body: BookmarkRequest, service: ProgressDep) -> dict[str, object]:
+def create_bookmark(body: BookmarkBody, service: BookmarkDep) -> dict[str, object]:
+    """Bookmark the current position, in one action (design §5).
+
+    Returns the stored bookmark, including the server-minted ``client_id``
+    when the client did not supply one — a client that wants to delete this
+    bookmark through the offline batch later must keep that id.
+
+    409 ``bookmark_deleted`` if the ``client_id`` is already tombstoned: this
+    endpoint speaks for one deliberate user action, so silently doing nothing
+    would show a bookmark that then vanishes on the next refresh.
+    """
     return service.add_bookmark(
+        client_id=body.client_id,
         source_id=body.source_id,
         series_key=body.series_key,
         chapter_key=body.chapter_key,
-        page=body.page,
+        chapter_number=body.chapter_number,
+        media_type=body.media_type,
+        anchor_index=body.resolved_index(),
+        anchor_fraction=body.anchor_fraction,
+        anchor_total=body.anchor_total,
         note=body.note,
     )
 
 
+@router.post("/bookmarks/batch", dependencies=[Depends(require_profile_context)])
+def sync_bookmarks_batch(
+    body: list[BookmarkOpRequest], service: BookmarkDep
+) -> dict[str, object]:
+    """Offline-sync catch-up for bookmarks: creates, edits and deletes.
+
+    Modelled on ``POST /reader/progress/batch`` (one transaction, one commit,
+    the same 413 over ``BOOKMARK_BATCH_MAX_ITEMS``) and merged by the OPPOSITE
+    rules — bookmarks are user-created objects, not a furthest-wins scalar.
+    See ``services.bookmark_service.decide``; in short, a tombstone is
+    terminal, so a stale device replaying its create outbox can never
+    resurrect a bookmark deleted elsewhere.
+
+    Per item: ``{client_id, op, status, bookmark}`` where ``status`` is
+    ``created`` / ``updated`` / ``tombstoned`` / ``already_deleted`` /
+    ``stale`` / ``rejected_deleted``. A refused item is reported, never fatal:
+    a flush that 400s as a whole leaves the device unable to make progress at
+    all.
+    """
+    if len(body) > BOOKMARK_BATCH_MAX_ITEMS:
+        raise AppError(
+            "Too many bookmark items in one batch.",
+            code="batch_too_large",
+            status_code=413,
+            details={
+                "max_items": BOOKMARK_BATCH_MAX_ITEMS,
+                "received": len(body),
+            },
+        )
+    return service.apply_batch([item.to_op() for item in body])
+
+
 @router.get("/bookmarks")
 def list_bookmarks(
-    service: ProgressDep,
+    service: BookmarkDep,
     response: Response,
     source: str | None = None,
     series: str | None = None,
+    since: datetime | None = Query(
+        None,
+        description=(
+            "Delta pull: only bookmarks changed strictly after this instant, "
+            "OLDEST first so a client can page forward on the last updated_at."
+        ),
+    ),
+    include_deleted: bool = Query(
+        False, description="Include tombstones, so a device learns about deletes."
+    ),
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
 ) -> list[dict[str, object]]:
-    items = service.list_bookmarks(source_id=source, series_key=series)
+    """The Bookmarks screen, and the pull half of sync.
+
+    Each item carries everything the screen needs without a second round trip:
+    ``series_title``, ``chapter_number``, ``position_fraction`` (0.0-1.0 through
+    the chapter, or null when the client never recorded a unit count) and, for
+    novels, ``snippet`` — the cached sanitized text at that exact position.
+    """
+    items = service.list_bookmarks(
+        source_id=source,
+        series_key=series,
+        since=since,
+        include_deleted=include_deleted,
+        limit=limit,
+        offset=offset,
+    )
     set_list_total_header(response, len(items))
     return items
 
@@ -197,5 +345,6 @@ def list_bookmarks(
     status_code=204,
     dependencies=[Depends(require_profile_context)],
 )
-def delete_bookmark(bookmark_id: int, service: ProgressDep) -> None:
+def delete_bookmark(bookmark_id: int, service: BookmarkDep) -> None:
+    """Tombstone one bookmark by row id. The row is never removed."""
     service.delete_bookmark(bookmark_id)
