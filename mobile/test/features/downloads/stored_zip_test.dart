@@ -24,8 +24,10 @@ void main() {
     test('matches the standard check vectors', () {
       expect(crc32(ascii.encode('123456789')), 0xCBF43926);
       expect(crc32(const []), 0);
-      expect(crc32(ascii.encode('The quick brown fox jumps over the lazy dog')),
-          0x414FA339);
+      expect(
+        crc32(ascii.encode('The quick brown fox jumps over the lazy dog')),
+        0x414FA339,
+      );
     });
   });
 

@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
@@ -366,6 +368,224 @@ void main() {
     await controller.debugWaitUntilIdle();
 
     expect(fetchCount, 2);
+  });
+
+  test('pause holds the queue mid-chapter; resume finishes what it started',
+      () async {
+    late DownloadQueueController controller;
+    final requested = <String>[];
+    var pausedOnce = false;
+    final container = buildContainer(
+      readerRepository: _ScriptedReaderRepository(
+        () async => Ok(_manifestWithPages(6)),
+      ),
+      pageFetcher: _ScriptedPageFetcher(
+        (url) async {
+          // Pause once, as soon as the first chunk is in flight: the queue
+          // must stop at the next chunk boundary, not abandon what it has.
+          if (!pausedOnce) {
+            pausedOnce = true;
+            controller.pause();
+          }
+          return [1];
+        },
+        onFetch: requested.add,
+      ),
+    );
+    controller = container.read(downloadQueueControllerProvider.notifier);
+
+    await controller.enqueueChapter(id: _id);
+    await controller.debugWaitUntilIdle();
+
+    expect(requested, hasLength(kPageFetchConcurrency));
+    expect(
+      container.read(downloadQueueControllerProvider).pauseReason,
+      DownloadQueuePauseReason.userPaused,
+    );
+    final store = harness.storeFor('u1p1');
+    final held = await store.getChapter(_id);
+    // Held, not dropped and not falsely completed.
+    expect(held!.state, DownloadChapterState.downloading);
+    expect(await store.existingPageNumbers(held.rowId), {1, 2});
+
+    controller.resume();
+    await controller.debugWaitUntilIdle();
+
+    expect((await store.getChapter(_id))!.state, DownloadChapterState.complete);
+    // The two pages already on disk were never re-fetched.
+    expect(requested, hasLength(6));
+  });
+
+  test('a user pause outlives a trip to the home screen', () async {
+    var fetchCount = 0;
+    final container = buildContainer(
+      readerRepository: _ScriptedReaderRepository(
+        () async => Ok(_manifestWithPages(2)),
+      ),
+      pageFetcher: _ScriptedPageFetcher((url) async {
+        fetchCount++;
+        return [1];
+      }),
+    );
+    final controller = container.read(downloadQueueControllerProvider.notifier);
+    controller.pause();
+
+    await controller.enqueueChapter(id: _id);
+    await controller.debugWaitUntilIdle();
+    expect(fetchCount, 0);
+
+    // Backgrounding and returning must not silently undo a deliberate pause:
+    // every other pause reason clears itself, this one only clears on resume.
+    controller.setForeground(false);
+    controller.setForeground(true);
+    await controller.debugWaitUntilIdle();
+
+    expect(fetchCount, 0);
+    expect(
+      container.read(downloadQueueControllerProvider).pauseReason,
+      DownloadQueuePauseReason.userPaused,
+    );
+
+    controller.resume();
+    await controller.debugWaitUntilIdle();
+    expect(fetchCount, 2);
+  });
+
+  test('cancelling a queued chapter removes its row and frees its bytes',
+      () async {
+    final store = harness.storeFor('u1p1');
+    final rowId = await store.ensureQueued(id: _id);
+    await store.updateManifestInfo(rowId: rowId, pageCount: 3);
+    await store.savePage(rowId: rowId, pageNumber: 1, bytes: [1, 2, 3]);
+
+    final container = buildContainer(
+      readerRepository: _ScriptedReaderRepository(
+        () async => Ok(_manifestWithPages(3)),
+      ),
+      pageFetcher: _ScriptedPageFetcher((url) async => [9]),
+    );
+    final controller = container.read(downloadQueueControllerProvider.notifier);
+    // Deliberately not running: this is the "cancel something waiting in the
+    // queue" path, which deletes inline.
+    controller.pause();
+
+    await controller.cancelChapter(_id);
+
+    expect(await store.getChapter(_id), isNull);
+    final db = await harness.openDatabase();
+    expect(await db.query('saved_pages'), isEmpty);
+    expect(await db.query('blobs'), isEmpty);
+  });
+
+  test('cancelling the chapter being fetched leaks no pages, blobs or files',
+      () async {
+    late DownloadQueueController controller;
+    Future<void>? cancelling;
+    final container = buildContainer(
+      readerRepository: _ScriptedReaderRepository(
+        () async => Ok(_manifestWithPages(8)),
+      ),
+      pageFetcher: _ScriptedPageFetcher((url) async {
+        // Cancel while the loop still owns this row's writes — the case that
+        // would otherwise insert saved_pages rows against a deleted chapter
+        // and strand the blob refcounts they hold.
+        cancelling ??= controller.cancelChapter(_id);
+        return [for (var i = 0; i < 16; i++) url.hashCode & 0xFF];
+      }),
+    );
+    controller = container.read(downloadQueueControllerProvider.notifier);
+
+    await controller.enqueueChapter(id: _id);
+    await controller.debugWaitUntilIdle();
+    await cancelling;
+    // The cancel may have landed after the loop finished the chapter; either
+    // way the loop drains once more before it settles.
+    await controller.debugWaitUntilIdle();
+
+    final store = harness.storeFor('u1p1');
+    expect(await store.getChapter(_id), isNull);
+
+    final db = await harness.openDatabase();
+    expect(await db.query('saved_chapters'), isEmpty);
+    expect(await db.query('saved_pages'), isEmpty);
+    expect(await db.query('blobs'), isEmpty);
+
+    final blobs = await harness.openBlobStore();
+    final leftOver = blobs.rootDirectory.existsSync()
+        ? blobs.rootDirectory
+            .listSync(recursive: true)
+            .whereType<File>()
+            .toList()
+        : <File>[];
+    expect(leftOver, isEmpty, reason: 'blob files outlived their last ref');
+  });
+
+  test('cancelAll empties the queue but keeps finished downloads', () async {
+    const other = (
+      sourceId: 'asura',
+      seriesKey: 'solo-leveling',
+      chapterKey: 'c2',
+    );
+    final store = harness.storeFor('u1p1');
+
+    final container = buildContainer(
+      readerRepository: _ScriptedReaderRepository(
+        () async => Ok(_manifestWithPages(1)),
+      ),
+      pageFetcher: _ScriptedPageFetcher((url) async => [7]),
+    );
+    final controller = container.read(downloadQueueControllerProvider.notifier);
+
+    // One chapter downloaded for real...
+    await controller.enqueueChapter(id: _id);
+    await controller.debugWaitUntilIdle();
+    expect((await store.getChapter(_id))!.state, DownloadChapterState.complete);
+
+    // ...and one left waiting behind a pause.
+    controller.pause();
+    await controller.enqueueChapter(id: other);
+    await controller.debugWaitUntilIdle();
+
+    await controller.cancelAll();
+
+    expect(await store.getChapter(other), isNull);
+    expect((await store.getChapter(_id))!.state, DownloadChapterState.complete);
+  });
+
+  test('queueing a batch bumps the list revision once, not once per chapter',
+      () async {
+    final container = buildContainer(
+      readerRepository: _ScriptedReaderRepository(
+        () async => Ok(_manifestWithPages(1)),
+      ),
+      pageFetcher: _ScriptedPageFetcher((url) async => [1]),
+    );
+    final controller = container.read(downloadQueueControllerProvider.notifier);
+    controller.pause();
+
+    final before = container.read(downloadQueueControllerProvider).queueRevision;
+    await controller.enqueueChapters([
+      for (var i = 0; i < 5; i++)
+        (
+          id: (
+            sourceId: 'asura',
+            seriesKey: 'solo-leveling',
+            chapterKey: 'c$i',
+          ),
+          chapterNumber: i.toDouble(),
+          title: null,
+          seriesTitle: 'Solo Leveling',
+        ),
+    ]);
+    await controller.debugWaitUntilIdle();
+
+    // A 200-chapter "download series" must cost the store-backed lists one
+    // re-query, not two hundred.
+    expect(
+      container.read(downloadQueueControllerProvider).queueRevision - before,
+      1,
+    );
+    expect(await harness.storeFor('u1p1').pendingChapters(), hasLength(5));
   });
 }
 
