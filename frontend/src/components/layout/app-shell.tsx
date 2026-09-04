@@ -43,11 +43,13 @@ import { Topbar } from "./topbar";
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
 
-  // Above the auth branch on purpose: the reading theme paints the login and
-  // register screens too. Without a profile there is no scoped value to read,
-  // so those screens land on the OS preference — which is the right answer for
-  // a screen that belongs to nobody yet.
-  useApplyReadingTheme();
+  // Above the auth branch on purpose: the site theme paints the login and
+  // register screens too. Those screens get `honourBootTheme: false`, which
+  // lets the OS preference win there even if a boot-applied palette was carried
+  // in by a client-side redirect — without a session the scope never resolves,
+  // so nothing else would ever clear it, and a login form wearing the last
+  // profile's palette announces on a shared machine who was here.
+  useApplyReadingTheme(!isPublicAuthPath(pathname));
 
   if (isPublicAuthPath(pathname)) {
     return <>{children}</>;
