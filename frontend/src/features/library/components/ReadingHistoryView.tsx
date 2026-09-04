@@ -92,7 +92,12 @@ export function ReadingHistoryView() {
                       </p>
                       <Link
                         href={chapterHref(ref, entry.last_page)}
-                        className="text-xs text-primary hover:underline"
+                        // The row's actual action, and at `text-xs` its line
+                        // box is 16px tall — the smallest thing on the screen
+                        // is the one thing anyone comes here to press. Given
+                        // real height on touch only, so the desktop row keeps
+                        // its density.
+                        className="inline-flex items-center text-xs text-primary hover:underline [@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:pr-3"
                       >
                         {/* A novel has no pages: its position is a progress
                             bucket, so it reads back as a percentage. */}
