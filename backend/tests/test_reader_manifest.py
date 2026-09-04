@@ -84,3 +84,79 @@ def test_manifest_endpoint(app, client):
     body = resp.json()
     assert body["page_count"] == 3
     assert body["next"] == "ch-3"
+
+
+# --- the chapter list comes from the cache, not the connector --------------
+
+
+def test_manifest_serves_the_chapter_list_from_the_source_cache(db_session):
+    """A second chapter open must not re-fetch the series from upstream.
+
+    The manifest needs the chapter list only to locate the chapter and name its
+    neighbours. Asking the connector for it meant a live series-page fetch per
+    chapter open — measured at 272 ms and 355 ms against the owner's own
+    asurascans follows, versus ~1 ms from ``source_series_cache``.
+    """
+    browse = FakeBrowse(FIXTURE)
+    svc = ReaderService(browse, db=db_session)
+
+    def kinds(calls):
+        return {c.split(":", 1)[0] for c in calls}
+
+    svc.manifest(SRC, SERIES, "ch-2")
+    assert "get_chapters" in kinds(browse.calls), (
+        "first open should populate the cache"
+    )
+
+    browse.calls.clear()
+    second = svc.manifest(SRC, SERIES, "ch-3")
+
+    assert second["prev"] == "ch-2" and second["next"] is None
+    assert "get_chapters" not in kinds(browse.calls), (
+        "chapter list should have come from source_series_cache; "
+        f"connector calls were {browse.calls}"
+    )
+    assert "get_series" not in kinds(browse.calls), (
+        "the series page is the expensive upstream fetch and must not be "
+        f"repeated; connector calls were {browse.calls}"
+    )
+    # Pages are per-chapter and genuinely live — they must still be fetched.
+    assert "get_chapter_pages" in kinds(browse.calls)
+
+
+def test_manifest_refetches_when_the_chapter_is_newer_than_the_cache(db_session):
+    """A chapter published after the cached list was written still resolves.
+
+    This is what makes serving the reader from a cache safe: the one chapter a
+    stale list cannot contain is the newest one, which is exactly the chapter
+    the owner is most likely to be opening.
+    """
+    browse = FakeBrowse(FIXTURE)
+    svc = ReaderService(browse, db=db_session)
+    svc.manifest(SRC, SERIES, "ch-2")  # cache now holds ch-1..ch-3
+
+    # Upstream publishes ch-4 while the cached row is still inside its TTL.
+    browse.series[(SRC, SERIES)]["chapters"].append(
+        {"id": "ch-4", "number": 4.0, "title": "Episode 3"}
+    )
+    browse.series[(SRC, SERIES)]["pages"]["ch-4"] = [
+        {"number": 1, "image_url": "/sources/mangadex/pages/p9/image"}
+    ]
+
+    m = svc.manifest(SRC, SERIES, "ch-4")
+
+    assert m["chapter_number"] == 4.0
+    assert m["prev"] == "ch-3"
+    assert m["next"] is None
+
+
+def test_manifest_still_404s_for_a_chapter_that_does_not_exist(db_session):
+    """The refetch must not turn "no such chapter" into something else."""
+    browse = FakeBrowse(FIXTURE)
+    svc = ReaderService(browse, db=db_session)
+    svc.manifest(SRC, SERIES, "ch-2")
+
+    with pytest.raises(AppError) as excinfo:
+        svc.manifest(SRC, SERIES, "ch-does-not-exist")
+    assert excinfo.value.status_code == 404
+    assert excinfo.value.code == "chapter_not_found"
