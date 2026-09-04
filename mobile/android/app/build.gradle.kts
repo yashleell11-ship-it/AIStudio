@@ -4,6 +4,15 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+// Release signing. `android/key.properties` and the .jks beside it are gitignored:
+// the upload key never reaches the repository. A missing file is not fatal — the
+// release build falls back to debug signing so `flutter run --release` still works
+// on a machine that has no key, which is how CI and fresh clones behave.
+val keystoreProperties = java.util.Properties().apply {
+    val f = rootProject.file("key.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 android {
     namespace = "com.manhwamaniacs.reader"
     compileSdk = flutter.compileSdkVersion
@@ -15,7 +24,6 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.manhwamaniacs.reader"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
@@ -25,11 +33,29 @@ android {
         versionName = flutter.versionName
     }
 
+    signingConfigs {
+        create("release") {
+            val alias = keystoreProperties.getProperty("keyAlias")
+            if (alias != null) {
+                keyAlias = alias
+                keyPassword = keystoreProperties.getProperty("keyPassword")
+                storeFile = file(keystoreProperties.getProperty("storeFile"))
+                storePassword = keystoreProperties.getProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // The upload key when key.properties is present, debug otherwise.
+            // An APK signed with a DIFFERENT key cannot upgrade an installed one —
+            // Android refuses it — so everyone still running a debug-signed build
+            // must uninstall once before taking this and every future release.
+            signingConfig = if (keystoreProperties.getProperty("keyAlias") != null) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

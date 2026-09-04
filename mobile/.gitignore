@@ -32,3 +32,9 @@ coverage/
 # Secrets
 .env
 *.keystore
+
+# Release signing — passwords and the upload key never reach git.
+key.properties
+*.jks
+android/key.properties
+android/app/*.jks
