@@ -2,17 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import {
-  Activity,
-  Bell,
-  BookOpenText,
-  ChevronRight,
-  History,
-  Keyboard,
-  LayoutTemplate,
-  Palette,
-  ShieldAlert,
-} from "lucide-react";
+import { Activity, Bell, ChevronRight, History } from "lucide-react";
 import { NotificationSettingsPanel } from "@/features/updates";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
@@ -22,62 +12,15 @@ import {
   ReaderPanel,
 } from "@/features/preferences";
 import { KeyboardShortcutsPanel } from "@/components/settings/keyboard-shortcuts-panel";
+import {
+  resolveSettingsTab,
+  visibleSettingsTabs,
+  type SettingsTabId,
+} from "@/config/settings-tabs";
 import { FadeIn } from "@/components/premium/FadeIn";
 import { GlassPanel } from "@/components/premium/GlassPanel";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
-
-type SettingsTab =
-  | "design"
-  | "appearance"
-  | "reader"
-  | "notifications"
-  | "content"
-  | "shortcuts";
-
-const NAV_ITEMS: {
-  id: SettingsTab;
-  label: string;
-  icon: React.ComponentType<{ className?: string }>;
-  description: string;
-}[] = [
-  {
-    id: "design",
-    label: "Design",
-    icon: LayoutTemplate,
-    description: "How the app is shaped",
-  },
-  {
-    id: "appearance",
-    label: "Appearance",
-    icon: Palette,
-    description: "Reading theme",
-  },
-  {
-    id: "reader",
-    label: "Reader",
-    icon: BookOpenText,
-    description: "Page gap and cinema mode",
-  },
-  {
-    id: "notifications",
-    label: "Notifications",
-    icon: Bell,
-    description: "Update checks and alerts",
-  },
-  {
-    id: "content",
-    label: "Content",
-    icon: ShieldAlert,
-    description: "Mature (18+) content",
-  },
-  {
-    id: "shortcuts",
-    label: "Shortcuts",
-    icon: Keyboard,
-    description: "Keyboard bindings",
-  },
-];
 
 /** Reusable shortcut card in the header band. */
 function ShortcutCard({
@@ -113,10 +56,14 @@ function ShortcutCard({
 export default function SettingsPage() {
   // Design first: it is the coarser of the two appearance axes — a preset
   // decides what the app is shaped like, a theme only what colour it is.
-  const [activeTab, setActiveTab] = useState<SettingsTab>("design");
-  // System status is instance-wide health, so the entry point is only offered
-  // to the account the API marks as admin — the same flag the sidebar uses.
+  const [requestedTab, setRequestedTab] = useState<SettingsTabId>("design");
+  // System status and the update-checker panel are instance-wide, so they are
+  // only offered to the account the API marks as admin — the same flag the
+  // sidebar uses. Everything else on this page is the reader's own.
   const { data: user } = useCurrentUser();
+  const isAdmin = user?.is_admin ?? false;
+  const tabs = visibleSettingsTabs(isAdmin);
+  const activeTab = resolveSettingsTab(requestedTab, isAdmin);
 
   return (
     <div className="page-shell bg-bg">
@@ -130,8 +77,8 @@ export default function SettingsPage() {
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">
             Reshape the app with a design preset, recolour it with a reading
-            theme, tune the reader, and configure automatic updates, mature
-            content, and keyboard shortcuts.
+            theme, tune the reader, and set your mature-content gate and
+            keyboard shortcuts.
           </p>
         </FadeIn>
 
@@ -143,7 +90,7 @@ export default function SettingsPage() {
               title="Reading History"
               description="Revisit everything you've read, most recent first."
             />
-            {user?.is_admin ? (
+            {isAdmin ? (
               <ShortcutCard
                 href="/admin/status"
                 icon={Activity}
@@ -159,14 +106,14 @@ export default function SettingsPage() {
             <nav aria-label="Settings sections">
               <GlassPanel className="rounded-3xl p-2">
                 <ul className="flex gap-1 overflow-x-auto lg:flex-col lg:overflow-visible">
-                {NAV_ITEMS.map((item) => {
+                {tabs.map((item) => {
                   const Icon = item.icon;
                   const active = activeTab === item.id;
                   return (
                     <li key={item.id} className="shrink-0 lg:shrink">
                       <button
                         type="button"
-                        onClick={() => setActiveTab(item.id)}
+                        onClick={() => setRequestedTab(item.id)}
                         className={cn(
                           "flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition-all duration-200",
                           active
@@ -195,7 +142,11 @@ export default function SettingsPage() {
               {activeTab === "design" && <DesignPanel />}
               {activeTab === "appearance" && <AppearancePanel />}
               {activeTab === "reader" && <ReaderPanel />}
-              {activeTab === "notifications" && <NotificationSettingsPanel />}
+              {/* Admin-gated in `visibleSettingsTabs`, and re-checked here so the
+                  instance-global form cannot render off a stale tab. */}
+              {activeTab === "notifications" && isAdmin && (
+                <NotificationSettingsPanel />
+              )}
               {activeTab === "content" && <MatureContentPanel />}
               {activeTab === "shortcuts" && <KeyboardShortcutsPanel />}
             </div>
