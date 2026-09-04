@@ -48,6 +48,9 @@ abstract final class Routes {
   static const String more = '/more';
 
   // ── Downloads ─────────────────────────────────────────────────────────────
+  /// A bottom-nav tab root, not a pushed detail screen: an offline library
+  /// nobody can find is an offline library nobody uses, and this one was
+  /// reachable only from More.
   static const String downloads = '/downloads';
 
   // ── OCR ───────────────────────────────────────────────────────────────────
@@ -67,11 +70,12 @@ abstract final class Routes {
   static const String setup = '/setup';
 }
 
-/// True only on the four primary tab roots — not browse, series detail, etc.
+/// True only on the five primary tab roots — not browse, series detail, etc.
 bool isMainTabRoute(String path) {
   return path == Routes.library ||
       path == Routes.sources ||
       path == Routes.search ||
+      path == Routes.downloads ||
       path == Routes.more;
 }
 

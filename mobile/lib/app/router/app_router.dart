@@ -13,6 +13,7 @@ import 'package:manhwamaniacs/features/auth/screens/register_screen.dart';
 import 'package:manhwamaniacs/features/auth/screens/splash_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collection_detail_screen.dart';
 import 'package:manhwamaniacs/features/collections/screens/collections_screen.dart';
+import 'package:manhwamaniacs/features/downloads/providers/active_download_queue_provider.dart';
 import 'package:manhwamaniacs/features/downloads/screens/downloads_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/bookmarks_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/dashboard_screen.dart';
@@ -233,7 +234,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             ],
           ),
 
-          // 3 — More
+          // 3 — Downloads. A branch rather than a top-level route so the
+          // bottom nav stays visible on it and its scroll position survives
+          // a trip to another tab — an offline library is somewhere you dip
+          // in and out of while reading, not a settings page you visit once.
+          StatefulShellBranch(
+            routes: [
+              GoRoute(
+                path: Routes.downloads,
+                builder: (context, state) => const DownloadsScreen(),
+              ),
+            ],
+          ),
+
+          // 4 — More
           StatefulShellBranch(
             routes: [
               GoRoute(
@@ -285,10 +299,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.storage,
         builder: (context, state) => const StorageScreen(),
-      ),
-      GoRoute(
-        path: Routes.downloads,
-        builder: (context, state) => const DownloadsScreen(),
       ),
       GoRoute(
         path: Routes.ocrSearch,
@@ -346,6 +356,10 @@ class _AppShell extends ConsumerWidget {
     // behind every tab and bleeds through the frosted nav bar. The reader
     // renders outside this shell (rootNavigatorKey) so it stays black.
     final mood = ref.watch(activeProfileProvider)?.mood ?? Mood.neutral;
+    // The badge is the fix for "I tapped Download Series and nothing seemed
+    // to happen": it makes an active queue visible from every other tab, not
+    // only from the one screen that reports on it.
+    final pendingDownloads = ref.watch(activeDownloadCountProvider);
 
     return MoodBackdrop(
       mood: mood,
@@ -436,23 +450,34 @@ class _AppShell extends ConsumerWidget {
                     indicatorColor: AppColors.primary.withAlpha(30),
                     labelBehavior:
                         NavigationDestinationLabelBehavior.onlyShowSelected,
-                    destinations: const [
-                    NavigationDestination(
+                    destinations: [
+                    const NavigationDestination(
                       icon: Icon(Icons.menu_book_outlined),
                       selectedIcon: Icon(Icons.menu_book),
                       label: 'Library',
                     ),
-                    NavigationDestination(
+                    const NavigationDestination(
                       icon: Icon(Icons.public_outlined),
                       selectedIcon: Icon(Icons.public),
                       label: 'Sources',
                     ),
-                    NavigationDestination(
+                    const NavigationDestination(
                       icon: Icon(Icons.search_outlined),
                       selectedIcon: Icon(Icons.search),
                       label: 'Search',
                     ),
                     NavigationDestination(
+                      icon: _DownloadsTabIcon(
+                        icon: Icons.download_outlined,
+                        count: pendingDownloads,
+                      ),
+                      selectedIcon: _DownloadsTabIcon(
+                        icon: Icons.download,
+                        count: pendingDownloads,
+                      ),
+                      label: 'Downloads',
+                    ),
+                    const NavigationDestination(
                       icon: Icon(Icons.more_horiz_outlined),
                       selectedIcon: Icon(Icons.more_horiz),
                       label: 'More',
@@ -469,5 +494,26 @@ class _AppShell extends ConsumerWidget {
     ),
     ),
   );
+  }
+}
+
+/// The Downloads destination's icon, with a count badge while the queue has
+/// work left. Hidden at zero rather than showing "0" — an idle queue is the
+/// normal state and should not draw the eye.
+class _DownloadsTabIcon extends StatelessWidget {
+  const _DownloadsTabIcon({required this.icon, required this.count});
+
+  final IconData icon;
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Badge.count(
+      count: count,
+      isLabelVisible: count > 0,
+      backgroundColor: AppColors.primary,
+      textColor: AppColors.primaryFg,
+      child: Icon(icon),
+    );
   }
 }

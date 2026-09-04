@@ -120,12 +120,9 @@ class MoreScreen extends ConsumerWidget {
             label: 'Settings',
             onTap: () => context.push(Routes.settings),
           ),
-          _MoreTile(
-            icon: Icons.download_outlined,
-            selectedIcon: Icons.download,
-            label: 'Downloads',
-            onTap: () => context.push(Routes.downloads),
-          ),
+          // Downloads is a bottom-nav tab of its own now — a duplicate entry
+          // here would push a second, chrome-less copy of the same screen
+          // outside the shell.
           _MoreTile(
             icon: Icons.storage_outlined,
             selectedIcon: Icons.storage,
