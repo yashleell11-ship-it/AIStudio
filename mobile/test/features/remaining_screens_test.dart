@@ -427,6 +427,11 @@ void main() {
 
   group('Remaining screens', () {
     testWidgets('StatisticsScreen renders stat cards', (tester) async {
+      // The fake's payload has no reading sessions, so the screen leads with
+      // the "no reading recorded" card and the library grid sits below the
+      // default 600px fold of the lazy ListView — give it a tall surface.
+      await tester.binding.setSurfaceSize(const Size(600, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(
         await _wrap(
           const StatisticsScreen(),
@@ -439,6 +444,8 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
       // Title is rendered by HeroHeading, which uppercases its text.
       expect(find.text('READING STATISTICS'), findsWidgets);
+      // No sessions recorded → the honest empty state, not a wall of zeroes.
+      expect(find.text('No reading recorded yet'), findsOneWidget);
       expect(find.text('Followed Series'), findsOneWidget);
     });
 

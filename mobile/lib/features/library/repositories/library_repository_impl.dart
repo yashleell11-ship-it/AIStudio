@@ -142,7 +142,20 @@ class LibraryRepositoryImpl implements LibraryRepository {
 
   @override
   Future<Result<LibraryStatistics>> statistics() => _request(
-        () => _dio.get<Map<String, dynamic>>('/library/statistics'),
+        () => _dio.get<Map<String, dynamic>>(
+          '/library/statistics',
+          queryParameters: {
+            // The server stores naive UTC and refuses to guess where a day
+            // starts (`routes/library.py`); daily buckets, the hour histogram
+            // and the streak are all cut at this offset. Without it a chapter
+            // read at 11 PM IST lands on "tomorrow" and the streak breaks at
+            // 05:30 instead of midnight. Clamped to the API's accepted range
+            // (UTC-12:00..UTC+14:00, the range of real offsets) so a
+            // mis-zoned device degrades to UTC-ish bucketing, not a 422.
+            'tz_offset_minutes':
+                DateTime.now().timeZoneOffset.inMinutes.clamp(-720, 840),
+          },
+        ),
         LibraryStatistics.fromJson,
       );
 
