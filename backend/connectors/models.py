@@ -52,6 +52,28 @@ class Series:
 
 
 @dataclass(frozen=True, slots=True)
+class NovelChapterText:
+    """One novel chapter as sanitized PLAIN TEXT (spec 2026-09-04 §3).
+
+    ``paragraphs`` is the canonical storage form: scripts/styles/ads stripped,
+    aggregator watermark/self-promo lines removed, entities decoded, whitespace
+    normalized. No HTML ever reaches clients from here — chosen deliberately so
+    a future TTS pipeline can read the paragraphs directly.
+
+    ``chapter_number`` may be None when the chapter page itself does not carry
+    a number; the novel service backfills it from the chapter list.
+    """
+
+    title: str
+    paragraphs: tuple[str, ...]
+    chapter_number: float | None = None
+
+    @property
+    def word_count(self) -> int:
+        return sum(len(p.split()) for p in self.paragraphs)
+
+
+@dataclass(frozen=True, slots=True)
 class BrowseMode:
     """A catalog view supported by a source connector (e.g. popular, latest)."""
 

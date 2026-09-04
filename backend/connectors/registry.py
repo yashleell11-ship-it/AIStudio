@@ -28,6 +28,7 @@ from connectors.hentaiera import HentaiEraConnector
 from connectors.asurascans.connector import AsuraScansConnector
 from connectors.base import SourceConnector
 from connectors.branding import connector_icon_url
+from core.config import get_settings
 from connectors.coffeemanga.connector import CoffeeMangaConnector
 from connectors.eightmuses.connector import EightMusesConnector
 from connectors.local_filesystem.connector import LocalFilesystemConnector
@@ -109,6 +110,33 @@ class ConnectorDescriptor:
     supports_import: bool
     mature: bool = False
     icon_url: str | None = None
+    # "manga" (default) or "novel" — clients branch on it to open the right
+    # reader (spec 2026-09-04-novels-design §3).
+    content_kind: str = "manga"
+    # BCP-47-ish language of the source's content ("en"), None when unknown.
+    # Novel connectors are English-only by decree and set LANGUAGE = "en";
+    # existing manga connectors carry no declaration and stay None.
+    language: str | None = None
+
+
+def _novels_enabled() -> bool:
+    """The MM_NOVELS_ENABLED gate, read at CALL time, not import time.
+
+    Production must remain a manhwa site while the flag is off (spec
+    2026-09-04-novels-design §2): novel connector classes stay in the static
+    ``_REGISTRY`` (imports are unconditional and cheap), but every query
+    surface below — listing, instantiation, type enumeration — filters them
+    out when the flag is off, so from anywhere outside this module an
+    unflagged deployment genuinely does not have them: ``GET /sources`` never
+    lists them and ``create_connector`` refuses them exactly like an unknown
+    source type (404 upstream). Reading the flag per call keeps both states
+    testable in one process; the env var itself only changes on restart.
+    """
+    return bool(getattr(get_settings(), "novels_enabled", False))
+
+
+def _is_novel_class(connector_cls: type[SourceConnector]) -> bool:
+    return getattr(connector_cls, "CONTENT_KIND", "manga") == "novel"
 
 
 _REGISTRY: dict[str, type[SourceConnector]] = {}
@@ -239,13 +267,23 @@ def registry_snapshot() -> dict[str, object]:
 
 
 def list_connector_types() -> list[str]:
-    """Return all registered connector source types."""
-    return sorted(_REGISTRY)
+    """Return all registered connector source types (novels only when flagged)."""
+    novels_on = _novels_enabled()
+    return sorted(
+        source_type
+        for source_type, connector_cls in _REGISTRY.items()
+        if novels_on or not _is_novel_class(connector_cls)
+    )
 
 
 def create_connector(source_type: str, **config: Any) -> SourceConnector:
     """Instantiate a connector by source type."""
     connector_cls = _REGISTRY.get(source_type)
+    if connector_cls is not None and _is_novel_class(connector_cls) and not _novels_enabled():
+        # Flag off => a novel source type does not exist, full stop. Falling
+        # through to the unknown-type error keeps every caller's behaviour
+        # (404 source_not_found) identical to a source that was never built.
+        connector_cls = None
     if connector_cls is None:
         supported = ", ".join(list_connector_types()) or "none"
         raise ValueError(
@@ -277,6 +315,8 @@ def _descriptor_for(connector_cls: type[SourceConnector]) -> ConnectorDescriptor
         supports_import=getattr(connector_cls, "SUPPORTS_IMPORT", False),
         mature=getattr(connector_cls, "MATURE", False),
         icon_url=connector_icon_url(connector_cls),
+        content_kind=getattr(connector_cls, "CONTENT_KIND", "manga"),
+        language=getattr(connector_cls, "LANGUAGE", None),
     )
 
 
@@ -289,8 +329,13 @@ def list_installed_connectors(
     respect the user's ``mature_content_enabled`` preference pass the
     setting through here. The default keeps this a neutral listing so the
     maturity *policy* lives with the browse service, not the registry."""
+    novels_on = _novels_enabled()
     descriptors: list[ConnectorDescriptor] = []
     for connector_cls in _REGISTRY.values():
+        if not novels_on and _is_novel_class(connector_cls):
+            # MM_NOVELS_ENABLED off: novel sources are not merely hidden,
+            # they are absent from every listing surface (spec §2).
+            continue
         descriptor = _descriptor_for(connector_cls)
         if browsable_only and not descriptor.browsable:
             continue

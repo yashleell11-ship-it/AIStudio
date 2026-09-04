@@ -4,7 +4,14 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 
-from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Series
+from connectors.models import (
+    BrowseMode,
+    Chapter,
+    NovelChapterText,
+    Page,
+    PaginatedSeriesList,
+    Series,
+)
 
 
 class SourceConnector(ABC):
@@ -46,6 +53,29 @@ class SourceConnector(ABC):
         property and the registry descriptor read that attribute, so a
         connector never needs to override this method."""
         return bool(getattr(self, "MATURE", False))
+
+    @property
+    def content_kind(self) -> str:
+        """What this source serves: ``"manga"`` (default) or ``"novel"``.
+
+        Clients branch on this to open the right reader. Like ``is_mature``,
+        it reads a class attribute (``CONTENT_KIND``) so both this property
+        and the registry descriptor agree without per-connector overrides;
+        the ~50 existing connectors are implicitly ``"manga"`` via this
+        default and need no change (spec 2026-09-04-novels-design §3)."""
+        return str(getattr(self, "CONTENT_KIND", "manga"))
+
+    def chapter_text(self, series_key: str, chapter_key: str) -> NovelChapterText | None:
+        """Return one chapter's sanitized plain-text paragraphs.
+
+        Novel connectors (``content_kind == "novel"``) MUST override this;
+        return ``None`` when the chapter does not exist upstream or the page
+        no longer parses, raise ``ConnectorHttpError`` for network failure
+        (the novel service serves its cache stale on either). Meaningless for
+        manga sources, hence not abstract."""
+        raise NotImplementedError(
+            f"{type(self).__name__} does not serve novel chapter text."
+        )
 
     @property
     def allowed_image_hosts(self) -> frozenset[str]:

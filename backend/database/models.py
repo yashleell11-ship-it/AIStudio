@@ -619,6 +619,49 @@ class SourceSeriesCache(Base):
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
+class NovelChapterCache(Base):
+    """One novel chapter's sanitized plain-text paragraphs (GLOBAL, TTL+LRU).
+
+    Keyed by the identity triple, keys stored raw like everywhere else.
+    ``paragraphs`` is a JSON array of CLEAN plain-text strings — the
+    connector sanitizes before anything reaches this table, so a row is
+    exactly what ``GET /novels/chapter`` serves and exactly what a future
+    TTS pipeline reads (spec 2026-09-04-novels-design §3). Storing chapter
+    TEXT server-side does not violate the no-chapter-bytes rule: that rule
+    exists for multi-GB image libraries; a novel chapter is ~15 KB.
+
+    Purely a cache: any row may be deleted at any time. TTL is long
+    (``settings.novel_cache_ttl_minutes``, default 7 days — published text is
+    immutable in practice) and expired rows are served stale when the
+    connector is down, like the browse cache. Bounded by
+    ``settings.novel_cache_max_rows`` with LEAST-RECENTLY-USED eviction:
+    the read path bumps ``last_used_at`` (unlike the browse cache's
+    oldest-``fetched_at`` sweep, because a well-read old chapter should
+    outlive a once-opened new one) — hence the index.
+
+    ``prev_key``/``next_key`` snapshot the neighbours as of the fetch; the
+    novel service recomputes them from the live (cached) chapter list on
+    every serve and these only answer when that list is unavailable.
+    """
+
+    __tablename__ = "novel_chapter_cache"
+    __table_args__ = (
+        Index("ix_novel_chapter_cache_last_used_at", "last_used_at"),
+    )
+
+    source_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    series_key: Mapped[str] = mapped_column(String(512), primary_key=True)
+    chapter_key: Mapped[str] = mapped_column(String(512), primary_key=True)
+    title: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    chapter_number: Mapped[float | None] = mapped_column(Float)
+    paragraphs: Mapped[str] = mapped_column(Text, nullable=False)
+    word_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    prev_key: Mapped[str | None] = mapped_column(String(512))
+    next_key: Mapped[str | None] = mapped_column(String(512))
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_used_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
 class SourceBrowseCache(Base):
     """One cached browse *page* of a source's catalog (GLOBAL, TTL).
 
