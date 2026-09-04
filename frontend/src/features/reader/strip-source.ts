@@ -55,10 +55,10 @@ export interface StripFetchResult {
 }
 
 /** How long to wait out a rate-limited window before trying it again. */
-export const RATE_LIMIT_RETRY_MS = 12_000;
+const RATE_LIMIT_RETRY_MS = 12_000;
 
 /** Human-readable reason a chapter did not arrive. */
-export function fetchErrorMessage(cause: unknown): string {
+function fetchErrorMessage(cause: unknown): string {
   if (cause instanceof ApiError) {
     if (cause.status === 429) {
       return "Asking the source for chapters faster than it allows — picking up again shortly.";
@@ -69,7 +69,7 @@ export function fetchErrorMessage(cause: unknown): string {
 }
 
 /** A failure that will pass on its own, and how long that takes. */
-export function retryDelayFor(cause: unknown): number | undefined {
+function retryDelayFor(cause: unknown): number | undefined {
   return cause instanceof ApiError && cause.status === 429
     ? RATE_LIMIT_RETRY_MS
     : undefined;
@@ -140,8 +140,8 @@ export function linkedChapterSource(
  * bulk bucket is rate-limited per CALL: one window of six spends the same
  * budget as one chapter, and a run through a long series must not stall on it.
  */
-export const BULK_WINDOW_STRIDE = 6;
-export const BULK_WINDOW_CAP = 20;
+const BULK_WINDOW_STRIDE = 6;
+const BULK_WINDOW_CAP = 20;
 
 /**
  * Read-all's source: an ordered series list plus the bulk manifest endpoint.
