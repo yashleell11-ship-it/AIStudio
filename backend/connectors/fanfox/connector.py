@@ -49,9 +49,17 @@ from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Se
 
 logger = logging.getLogger(__name__)
 
+#: The ``Referer`` is load-bearing, not politeness. Once the client is holding
+#: fanfox's own session cookies (which it is from the first page fetch), a
+#: ``chapterfun.ashx`` request WITHOUT a referer is answered ``200`` with an
+#: EMPTY BODY rather than an error — a mode-B chapter silently reads as zero
+#: pages. Verified from the VPS: cookies + no referer -> 0 bytes; cookies +
+#: referer -> 783 bytes. A site-root value satisfies it (the exact chapter URL
+#: is not required), so it can live in the client's default headers.
 HTML_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
     "Accept-Language": "en-US,en;q=0.9",
+    "Referer": f"{SITE_BASE}/",
 }
 
 #: How many ``chapterfun.ashx`` calls run at once for a mode-B chapter. Each
@@ -104,6 +112,19 @@ class FanFoxConnector(SourceConnector):
             burst=_PAGE_WORKERS,
             extra_redirect_hosts=frozenset({"fanfox.net", "m.fanfox.net"}),
         )
+        # Fanfox hides the chapter table of ecchi/mature-tagged titles behind a
+        # self-declared age gate. Those titles are still listed in the ordinary
+        # /directory/ catalog, so without this cookie the connector shows the
+        # reader series it then reports as having ZERO chapters — a listed but
+        # unopenable title, which reads as a connector bug rather than a gate.
+        # Verified from the VPS: isekai_meikyuu_de_harem_o returns 0 chapters
+        # without it and 117 with it, and its pages then serve real bytes.
+        # (Source-level adult gating remains the app's own MATURE/mature_content
+        # mechanism; this only stops fanfox from truncating its own catalog.)
+        self._http._client.cookies.set(  # noqa: SLF001
+            "isAdult", "1", domain=".fanfox.net"
+        )
+
         # One series fetch feeds BOTH get_series and get_chapters: fanfox
         # renders the whole chapter table inside the detail page, so caching
         # the raw HTML is what stops a series open from downloading that same

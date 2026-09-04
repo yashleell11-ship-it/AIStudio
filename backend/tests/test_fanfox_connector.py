@@ -401,6 +401,28 @@ def test_image_proxy_contract():
     assert connector.content_kind == "manga"
 
 
+def test_request_headers_carry_the_referer_chapterfun_requires():
+    """chapterfun.ashx answers 200 with an EMPTY body if the referer is absent.
+
+    Once the client holds fanfox's session cookies, a referer-less call to the
+    reader endpoint is not an error — it is a silent empty response, which
+    would surface as a chapter with zero pages. Losing this header is a
+    plausible "harmless cleanup", so it is pinned here.
+    """
+    connector = _connector()
+    assert connector._http._client.headers["Referer"] == "https://fanfox.net/"
+
+
+def test_age_gate_cookie_is_set():
+    """Fanfox truncates ecchi-tagged titles to ZERO chapters without this.
+
+    The affected series are listed in the ordinary catalog, so losing the
+    cookie does not fail loudly — it silently serves unopenable series.
+    """
+    connector = _connector()
+    assert connector._http._client.cookies.get("isAdult", domain=".fanfox.net") == "1"
+
+
 def test_browse_and_genre_paths_are_requested(directory_html):
     connector = _connector()
     with patch.object(connector._http, "get_text", return_value=directory_html) as get_text:
