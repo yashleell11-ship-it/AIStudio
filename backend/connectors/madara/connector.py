@@ -31,6 +31,26 @@ BROWSER_IMPERSONATE = "chrome131"
 # Alternate url_segment values when the configured one returns an empty listing.
 LISTING_FALLBACKS = ("manga", "serie")
 
+#: How long a site's answer to "which AJAX chapter endpoint do you speak" is
+#: trusted. Long, because it is a property of the WordPress install and not of
+#: any series; bounded, so a site that gains or loses the endpoint is picked up
+#: without a restart.
+AJAX_SHAPE_TTL_SECONDS = 3600.0
+_AJAX_SHAPE_KEY = "site"
+_SHAPE_ADMIN = "admin"
+_SHAPE_RELATIVE = "relative"
+
+
+def _is_deterministic(exc: ConnectorHttpError) -> bool:
+    """True when the site gave an answer, not when the network did.
+
+    A 4xx is the install telling us this endpoint is not there. A timeout, a
+    reset or a 5xx is a bad moment, and must never be cached as a fact about
+    the site.
+    """
+    status = exc.status_code
+    return status is not None and 400 <= status < 500 and status not in (408, 429)
+
 
 class MadaraConnector(SourceConnector):
     """Browse/read any WordPress Madara-theme catalog via site config."""
@@ -60,6 +80,18 @@ class MadaraConnector(SourceConnector):
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
         self._page_cache: TTLCache[list[Page]] = TTLCache(ttl_seconds=600.0)
         self._chapter_page_count_cache: TTLCache[int] = TTLCache(ttl_seconds=600.0)
+        # Which of the two Madara AJAX shapes this SITE speaks. A single
+        # site-wide entry, not a per-series one: /wp-admin/admin-ajax.php is a
+        # WordPress endpoint, so whether it accepts manga_get_chapters is a
+        # property of the install. Measured from the VPS, five registered sites
+        # answer it 400/403 and fall through to the per-series route — without
+        # this, every series open re-asks the dead endpoint first.
+        #
+        # Cached POSITIVELY as well as negatively so the working shape is
+        # tried first, and only ever written from a *deterministic* answer:
+        # a timeout must never teach the connector that an endpoint is gone.
+        # The TTL bounds the damage if a site changes its mind.
+        self._ajax_shape: TTLCache[str] = TTLCache(ttl_seconds=AJAX_SHAPE_TTL_SECONDS)
 
     @property
     def source_type(self) -> str:
@@ -240,12 +272,32 @@ class MadaraConnector(SourceConnector):
         """Load chapters via Madara AJAX when they are not embedded in the HTML.
 
         Older Madara builds POST to ``admin-ajax.php?action=manga_get_chapters``.
-        Newer builds POST to ``{series_url}ajax/chapters/``.  Try both.
+        Newer builds POST to ``{series_url}ajax/chapters/``.
+
+        Both are still tried, but in the order this site last answered in, and
+        the losing one is skipped entirely while that answer is cached: on the
+        five sites whose admin-ajax route 400/403s, probing it first cost a
+        wasted round trip on every series open.
         """
+        if self._ajax_shape.get(_AJAX_SHAPE_KEY) == _SHAPE_RELATIVE:
+            chapters = self._fetch_relative_ajax_chapters(series_id, referer)
+            if chapters:
+                return chapters
+            # The remembered shape stopped working — fall through and re-probe
+            # the other one rather than reporting a series with no chapters.
+            return self._fetch_admin_ajax_chapters(manga_id, series_id, referer)
         chapters = self._fetch_admin_ajax_chapters(manga_id, series_id, referer)
         if chapters:
             return chapters
         return self._fetch_relative_ajax_chapters(series_id, referer)
+
+    def _remember_shape(self, shape: str) -> None:
+        self._ajax_shape.set(_AJAX_SHAPE_KEY, shape)
+
+    def _forget_shape_if(self, shape: str) -> None:
+        """Drop a remembered shape that just failed deterministically."""
+        if self._ajax_shape.get(_AJAX_SHAPE_KEY) == shape:
+            self._ajax_shape.pop(_AJAX_SHAPE_KEY)
 
     def _fetch_admin_ajax_chapters(
         self, manga_id: str, series_id: str, referer: str
@@ -260,11 +312,22 @@ class MadaraConnector(SourceConnector):
                     "Accept": "*/*",
                 },
             )
-        except ConnectorHttpError:
+        except ConnectorHttpError as exc:
+            # Only a deterministic answer is evidence about the SITE. A
+            # timeout or a 503 says nothing, and caching it would make one bad
+            # minute hide the endpoint for an hour.
+            if _is_deterministic(exc):
+                self._remember_shape(_SHAPE_RELATIVE)
+            self._forget_shape_if(_SHAPE_ADMIN)
             return []
         if not html_fragment.strip() or html_fragment.strip() in {"0", "-1"}:
+            # A 200 that means "I do not serve this" is deterministic too.
+            self._remember_shape(_SHAPE_RELATIVE)
             return []
-        return self._html.parse_chapters(html_fragment, series_id)
+        chapters = self._html.parse_chapters(html_fragment, series_id)
+        if chapters:
+            self._remember_shape(_SHAPE_ADMIN)
+        return chapters
 
     def _fetch_relative_ajax_chapters(
         self, series_id: str, referer: str
@@ -280,9 +343,14 @@ class MadaraConnector(SourceConnector):
                     "Accept": "*/*",
                 },
             )
-        except ConnectorHttpError:
+        except ConnectorHttpError as exc:
+            if _is_deterministic(exc):
+                self._forget_shape_if(_SHAPE_RELATIVE)
             return []
-        return self._html.parse_chapters(html_fragment, series_id)
+        chapters = self._html.parse_chapters(html_fragment, series_id)
+        if chapters:
+            self._remember_shape(_SHAPE_RELATIVE)
+        return chapters
 
     def _chapters_from_html(
         self, html: str, api_key: str, path: str
