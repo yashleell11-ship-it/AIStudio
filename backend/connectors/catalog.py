@@ -83,7 +83,7 @@ MADARA_LIVE: frozenset[str] = frozenset(s.source_id for s in MADARA_CATALOG)
 HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
     "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "nhentai",
     "18porncomic", "3hentai", "8muses", "akuma", "asmhentai", "aurorascans", "bbato", "beehentai",
-    "baozimh", "cmanhua", "comicasura", "comicsvalley", "comicland", "doujins", "ehentai", "elftoon", "flamescans",
+    "baozimh", "comicasura", "comicsvalley", "comicland", "doujins", "ehentai", "elftoon", "flamescans",
     "freeadultcomix", "galaxymanga", "hentai20", "hentaifox", "hentaiera",
     "webtoons", "weebcentral", "tapas",
 })
