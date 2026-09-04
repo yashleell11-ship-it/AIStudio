@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Callable
 
@@ -8,12 +9,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
+from core.time_utils import utcnow
 from database.models import (
     Base,
     Bookmark,
     ChapterProgress,
     FollowedSeries,
     ReadingProfile,
+    ReadingSession,
     User,
 )
 from database.session import get_db
@@ -341,6 +344,56 @@ def seed_progress(db_session: Session) -> Callable[..., ChapterProgress]:
             chapter_key=chapter_key,
             chapter_number=chapter_number,
             last_page=last_page,
+            **extra,
+        )
+        db_session.add(row)
+        db_session.commit()
+        db_session.refresh(row)
+        return row
+
+    return _make
+
+
+@pytest.fixture
+def seed_session(db_session: Session) -> Callable[..., ReadingSession]:
+    """Insert one ``reading_sessions`` row.
+
+    ``ended_at`` defaults to ``started_at + duration_seconds`` so the common
+    case reads as "a session that lasted N seconds"; pass ``ended_at=None``
+    explicitly for a session the client never closed.
+    """
+
+    def _make(
+        user_id: int,
+        profile_id: int,
+        *,
+        source_id: str = "mangadex",
+        series_key: str = "series-1",
+        chapter_key: str = "ch-1",
+        chapter_number: float | None = 1.0,
+        pages_read: int = 10,
+        started_at: datetime | None = None,
+        duration_seconds: int | None = 600,
+        **extra: Any,
+    ) -> ReadingSession:
+        start = started_at or utcnow()
+        if "ended_at" not in extra:
+            extra["ended_at"] = (
+                start + timedelta(seconds=duration_seconds)
+                if duration_seconds is not None
+                else None
+            )
+        row = ReadingSession(
+            user_id=user_id,
+            profile_id=profile_id,
+            source_id=source_id,
+            series_key=series_key,
+            chapter_key=chapter_key,
+            chapter_number=chapter_number,
+            start_page=1,
+            end_page=max(1, pages_read),
+            pages_read=pages_read,
+            started_at=start,
             **extra,
         )
         db_session.add(row)
