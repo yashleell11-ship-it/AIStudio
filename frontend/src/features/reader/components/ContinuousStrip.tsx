@@ -98,16 +98,26 @@ export interface StripHandle {
 }
 
 interface VirtualPageRowProps {
+  /** This row's strip key — what every measurement of it is filed under. */
+  rowKey: string;
   page: ReaderPage;
   pageNumber: number;
   chapterTitle: string;
   zoom: number;
   priority: boolean;
   pageGap: boolean;
-  onImageLoad: () => void;
+  /**
+   * Takes the row key instead of closing over it, so the strip can hand every
+   * row the SAME function. A closure rebuilt per render defeats this `memo`
+   * and `PageImage`'s below it, which during a fast flick is the difference
+   * between a scroll frame re-rendering nothing and re-rendering every visible
+   * page.
+   */
+  onImageLoad: (rowKey: string) => void;
 }
 
 const VirtualPageRow = memo(function VirtualPageRow({
+  rowKey,
   page,
   pageNumber,
   chapterTitle,
@@ -117,6 +127,8 @@ const VirtualPageRow = memo(function VirtualPageRow({
   onImageLoad,
 }: VirtualPageRowProps) {
   const sizing = continuousPageSizing(zoom);
+  // Both inputs are stable, so `PageImage` keeps the identity it needs to bail.
+  const handleLoad = useCallback(() => onImageLoad(rowKey), [onImageLoad, rowKey]);
   return (
     <div
       id={`reader-page-${pageNumber}`}
@@ -133,7 +145,7 @@ const VirtualPageRow = memo(function VirtualPageRow({
         height={page.height}
         priority={priority}
         seamless={!pageGap}
-        onLoad={onImageLoad}
+        onLoad={handleLoad}
       />
     </div>
   );
@@ -198,8 +210,13 @@ interface ContinuousStripProps {
  *    (frozen page by page first, so re-expanding restores the same total).
  *    Hundreds of chapters therefore cost hundreds of rows, not tens of
  *    thousands, and nothing under the reader ever moves.
+ *
+ * Memoised because the chrome above it holds one integer of scroll progress
+ * that moves on every frame of a flick. The virtualizer re-renders this itself
+ * whenever the visible range moves — that is the render the strip is for — and
+ * a percentage read-out has no business adding a second one to the same frame.
  */
-export function ContinuousStrip({
+export const ContinuousStrip = memo(function ContinuousStrip({
   chapters,
   zoom,
   pageGap,
@@ -266,8 +283,6 @@ export function ContinuousStrip({
     [containerWidth, pageGap, zoom],
   );
 
-  // TanStack Virtual returns fresh functions each render that cannot be memoized.
-  // eslint-disable-next-line react-hooks/incompatible-library
   const virtualizer = useVirtualizer({
     count: rows.length,
     getScrollElement: () => scrollElement,
@@ -491,6 +506,42 @@ export function ContinuousStrip({
     onPositionChangeRef.current(position);
   }, [prefetchAhead, scrollElement, virtualizer]);
 
+  /**
+   * A page finished decoding: correct its estimated height with the real one.
+   *
+   * One function for the whole strip, keyed by the row rather than bound to it,
+   * because the alternative — a closure per row — is what kept every visible
+   * `VirtualPageRow` and `PageImage` re-rendering on renders where nothing
+   * about them had changed.
+   *
+   * The node comes from the virtualizer's own element cache, which the
+   * `measureElement` ref below already populates under this same key. Looking
+   * it up by key rather than by `data-index` is also the correct lookup: a
+   * prepended chapter shifts every index while no key moves.
+   */
+  const handleImageLoad = useCallback(
+    (rowKey: string) => {
+      const element = virtualizer.elementsCache.get(rowKey);
+      if (element) {
+        // Measured BEFORE `measureElement`, not after. `measureElement` ends by
+        // correcting the scroll offset to absorb the height change, and a read
+        // taken after that write has to flush layout a second time; taken
+        // first, it is the only flush and the one inside `measureElement`
+        // reads a layout that is still clean.
+        const height = Math.round(element.getBoundingClientRect().height);
+        if (height > 0) {
+          virtualizer.measureElement(element);
+          recordMeasuredHeight(rowKey, height);
+        }
+      }
+      // The first page to paint is the strip's "ready", whichever one it is: a
+      // resumed chapter may never render row 0.
+      notifyReady();
+      reportPosition();
+    },
+    [notifyReady, recordMeasuredHeight, reportPosition, virtualizer],
+  );
+
   useEffect(() => {
     let frame = 0;
     const handleScroll = () => {
@@ -573,25 +624,14 @@ export function ContinuousStrip({
               <div style={{ height: `${row.height}px` }} aria-hidden />
             ) : (
               <VirtualPageRow
+                rowKey={row.key}
                 page={row.page}
                 pageNumber={row.pageNumber}
                 chapterTitle={row.label}
                 zoom={zoom}
                 pageGap={pageGap}
                 priority={virtualItem.index < 2}
-                onImageLoad={() => {
-                  const element = document.querySelector(
-                    `[data-index="${virtualItem.index}"]`,
-                  );
-                  if (element instanceof HTMLElement) {
-                    virtualizer.measureElement(element);
-                    recordMeasuredHeight(row.key, element.offsetHeight);
-                  }
-                  // The first page to paint is the strip's "ready", whichever
-                  // one it is: a resumed chapter may never render row 0.
-                  notifyReady();
-                  reportPosition();
-                }}
+                onImageLoad={handleImageLoad}
               />
             )}
           </div>
@@ -599,4 +639,4 @@ export function ContinuousStrip({
       })}
     </div>
   );
-}
+});
