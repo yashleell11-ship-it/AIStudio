@@ -1,7 +1,7 @@
 name: manhwamaniacs
 description: ManhwaManiacs mobile client — manga/manhwa reader
 publish_to: 'none'
-version: 1.9.0+23
+version: 1.10.0+24
 
 environment:
   sdk: '>=3.4.0 <4.0.0'
