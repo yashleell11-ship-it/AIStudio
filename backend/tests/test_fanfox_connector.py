@@ -58,6 +58,11 @@ def directory_html() -> str:
 
 
 @pytest.fixture(scope="module")
+def directory_p2_html() -> str:
+    return _load("directory_p2.html")
+
+
+@pytest.fixture(scope="module")
 def search_html() -> str:
     return _load("search.html")
 
@@ -157,6 +162,22 @@ def test_parse_series_list_reports_pagination(directory_html):
     listing = parse_series_list(directory_html, page=1)
     assert listing.total_pages == 143
     assert listing.has_more is True
+
+
+def test_parse_series_list_on_a_later_page(directory_p2_html):
+    """Page 2 carries a "previous" pager arm page 1 does not.
+
+    Parsing must key off the numbered links, not position, and must not
+    mistake the page-1 back-link for the highest page number.
+    """
+    listing = parse_series_list(directory_p2_html, page=2)
+    assert len(listing.items) == 70
+    assert listing.page == 2
+    assert listing.total_pages == 143
+    assert listing.has_more is True
+    # A genuinely different slice of the catalog, not page 1 again.
+    assert listing.items[0].id != "a_story_about_treating_a_female_knight_who_has_never_been_treated_as_a_woman_as_a_woman"
+    assert all(item.title and item.cover_url for item in listing.items)
 
 
 # --- search -----------------------------------------------------------------
