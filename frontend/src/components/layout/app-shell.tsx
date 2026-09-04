@@ -18,6 +18,7 @@ import { useUiStore } from "@/stores/ui-store";
 // Direct, not via the `@/features/preferences` barrel: that barrel also exports
 // the settings panels, and the shell wraps every page.
 import { useApplyReadingTheme } from "@/features/preferences/theme-store";
+import { useApplyDesignPreset } from "@/features/preferences/preset-store";
 import { isPublicAuthPath } from "@/features/auth/access";
 import { useCurrentUser } from "@/features/auth/hooks";
 import { AuthPending } from "@/features/auth/components/auth-pending";
@@ -50,6 +51,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   // so nothing else would ever clear it, and a login form wearing the last
   // profile's palette announces on a shared machine who was here.
   useApplyReadingTheme(!isPublicAuthPath(pathname));
+  // The shape half of the same decision, on the same terms: applied live from
+  // a token bundle, so changing it reflows the page in place rather than
+  // asking anyone to restart or reload.
+  useApplyDesignPreset(!isPublicAuthPath(pathname));
 
   if (isPublicAuthPath(pathname)) {
     return <>{children}</>;

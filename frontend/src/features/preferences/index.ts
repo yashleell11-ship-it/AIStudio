@@ -11,6 +11,25 @@ export {
   matureToggleBlockReason,
 } from "./mature-gate";
 export {
+  DEFAULT_DESIGN_PRESET,
+  DESIGN_PRESETS,
+  DESIGN_PRESET_META,
+  designPresetList,
+  initialDesignPreset,
+  isDesignPreset,
+  parseDesignPreset,
+} from "./presets";
+export type { DesignPreset, DesignPresetMeta, PresetPreview } from "./presets";
+export {
+  activeDesignPreset,
+  subscribeDesignPreset,
+  useActivePresetMeta,
+  useApplyDesignPreset,
+  useDesignPreset,
+  usePresetMotion,
+} from "./preset-store";
+export type { DesignPresetState } from "./preset-store";
+export {
   BUILT_IN_THEMES,
   DEFAULT_READING_THEME,
   READING_THEMES,
