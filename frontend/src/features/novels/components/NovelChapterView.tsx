@@ -1,7 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  memo,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -26,7 +35,9 @@ import {
   restoreParagraphAnchor,
   type ParagraphAnchor,
 } from "../paragraph-anchor";
+import { createParagraphRefs } from "../paragraph-refs";
 import { activeParagraphIndex, paragraphForBucket, progressForParagraph } from "../progress";
+import { createReadingPercent, type ReadingPercentStore } from "../reading-percent";
 import { formatChapterLength } from "../reading-time";
 import { novelFontStack, stepFontSize } from "../typography";
 import { useNovelPalette } from "../use-novel-palette";
@@ -132,7 +143,9 @@ export function NovelChapterView({
   const fontStack = novelFontStack(fontFamily);
 
   const [typePanelOpen, setTypePanelOpen] = useState(false);
-  const [percent, setPercent] = useState(0);
+  // Not state: see `reading-percent.ts`. Only the two elements that print the
+  // number subscribe, so scrolling never re-renders the page of prose.
+  const [readingPercent] = useState(createReadingPercent);
   const [atBottom, setAtBottom] = useState(false);
   /** The bookmark this chapter opened from pointed past the end of the text. */
   const [anchorMoved, setAnchorMoved] = useState(false);
@@ -140,6 +153,14 @@ export function NovelChapterView({
   const paragraphs = useMemo(() => chapter?.paragraphs ?? [], [chapter]);
   const paragraphCount = paragraphs.length;
   const paragraphNodes = useRef<(HTMLParagraphElement | null)[]>([]);
+  // Stable for the life of the chapter, which is what lets `ChapterBody` hold
+  // one unchanging ref callback per paragraph (`paragraph-refs.ts`).
+  const registerParagraph = useCallback(
+    (index: number, node: HTMLParagraphElement | null) => {
+      paragraphNodes.current[index] = node;
+    },
+    [],
+  );
   const offsetsRef = useRef<number[]>([]);
   const articleRef = useRef<HTMLElement>(null);
   const restoredRef = useRef(false);
@@ -249,7 +270,7 @@ export function NovelChapterView({
     if (!container) return;
     const { scrollTop, scrollHeight, clientHeight } = container;
     const maxScroll = Math.max(scrollHeight - clientHeight, 0);
-    setPercent(maxScroll > 0 ? Math.round((scrollTop / maxScroll) * 100) : 100);
+    readingPercent.set(maxScroll > 0 ? (scrollTop / maxScroll) * 100 : 100);
     setAtBottom(scrollTop + clientHeight >= scrollHeight - SCROLL_EDGE_THRESHOLD);
 
     const offsets = offsetsRef.current;
@@ -259,7 +280,7 @@ export function NovelChapterView({
       scrollTop + clientHeight * READING_LINE_RATIO,
     );
     onProgressRef.current(progressForParagraph(index, offsets.length));
-  }, [scrollElement]);
+  }, [readingPercent, scrollElement]);
 
   useEffect(() => {
     const container = scrollElement;
@@ -400,7 +421,7 @@ export function NovelChapterView({
         seriesTitle={seriesTitle}
         seriesHref={seriesHref}
         chapterLabel={heading.eyebrow ?? heading.title}
-        percent={percent}
+        readingPercent={readingPercent}
         onBookmark={paragraphCount > 0 ? handleBookmark : undefined}
         bookmarkPending={bookmarkPending}
         bookmarkSaved={bookmarkSaved}
@@ -490,9 +511,7 @@ export function NovelChapterView({
           <ChapterBody
             paragraphs={paragraphs}
             surface={surface}
-            registerParagraph={(index, node) => {
-              paragraphNodes.current[index] = node;
-            }}
+            registerParagraph={registerParagraph}
           />
 
           <footer className="mt-16">
@@ -608,7 +627,7 @@ function RunningHead({
   seriesTitle,
   seriesHref,
   chapterLabel,
-  percent,
+  readingPercent,
   onBookmark,
   bookmarkPending,
   bookmarkSaved,
@@ -620,7 +639,12 @@ function RunningHead({
   seriesTitle: string;
   seriesHref: string;
   chapterLabel: string;
-  percent: number;
+  /**
+   * Subscribed to by the read-out and the hairline INDIVIDUALLY rather than
+   * read here: a head that re-rendered on every scroll frame would take the
+   * open type panel down with it.
+   */
+  readingPercent: ReadingPercentStore;
   /** Absent until there is text on screen to take a position in. */
   onBookmark?: () => void;
   bookmarkPending: boolean;
@@ -657,12 +681,7 @@ function RunningHead({
           <span aria-hidden> · </span>
           <span className="truncate">{chapterLabel}</span>
         </p>
-        <span
-          className="shrink-0 text-[0.6875rem] tabular-nums"
-          style={{ color: surface.muted }}
-        >
-          {percent}%
-        </span>
+        <PercentReadout store={readingPercent} color={surface.muted} />
         {/* The pointer equivalent of `b`. Set in the muted ink like every
             other piece of furniture in the head, so it is findable without
             competing with the prose. */}
@@ -701,13 +720,52 @@ function RunningHead({
         </div>
       </div>
       {/* The progress indicator: one hairline, the width of how far you are. */}
-      <div className="h-px w-full" style={{ backgroundColor: surface.rule }}>
-        <div
-          className="h-px transition-[width] duration-150"
-          style={{ width: `${percent}%`, backgroundColor: surface.muted }}
-          aria-hidden
-        />
-      </div>
+      <ProgressHairline store={readingPercent} surface={surface} />
+    </div>
+  );
+}
+
+/**
+ * The only two things a scroll frame is allowed to re-render.
+ *
+ * `store.get` doubles as the server snapshot: the position is measured from a
+ * scroll container that does not exist during SSR, so zero is both the honest
+ * starting value and the one the client hydrates against.
+ */
+function useReadingPercent(store: ReadingPercentStore): number {
+  return useSyncExternalStore(store.subscribe, store.get, store.get);
+}
+
+function PercentReadout({
+  store,
+  color,
+}: {
+  store: ReadingPercentStore;
+  color: string;
+}) {
+  const percent = useReadingPercent(store);
+  return (
+    <span className="shrink-0 text-[0.6875rem] tabular-nums" style={{ color }}>
+      {percent}%
+    </span>
+  );
+}
+
+function ProgressHairline({
+  store,
+  surface,
+}: {
+  store: ReadingPercentStore;
+  surface: ReturnType<typeof paletteSurface>;
+}) {
+  const percent = useReadingPercent(store);
+  return (
+    <div className="h-px w-full" style={{ backgroundColor: surface.rule }}>
+      <div
+        className="h-px transition-[width] duration-150"
+        style={{ width: `${percent}%`, backgroundColor: surface.muted }}
+        aria-hidden
+      />
     </div>
   );
 }
@@ -720,8 +778,12 @@ function RunningHead({
  * chat log. The opening paragraph is flush and carries the drop cap; scene
  * breaks are set centred with air around them instead of being run through the
  * body style as a line of asterisks.
+ *
+ * Memoised, and every prop it takes is stable for the life of the chapter, so
+ * nothing that happens in the head — the type panel opening, a bookmark being
+ * saved, the reader arriving at the bottom — walks a page of prose again.
  */
-function ChapterBody({
+const ChapterBody = memo(function ChapterBody({
   paragraphs,
   surface,
   registerParagraph,
@@ -731,12 +793,15 @@ function ChapterBody({
   registerParagraph: (index: number, node: HTMLParagraphElement | null) => void;
 }) {
   const dropCap = splitDropCap(paragraphs[0]);
+  const paragraphRef = useMemo(
+    () => createParagraphRefs(registerParagraph),
+    [registerParagraph],
+  );
 
   return (
     <>
       {paragraphs.map((paragraph, index) => {
-        const register = (node: HTMLParagraphElement | null) =>
-          registerParagraph(index, node);
+        const register = paragraphRef(index);
 
         if (isSceneBreak(paragraph)) {
           return (
@@ -777,7 +842,7 @@ function ChapterBody({
       })}
     </>
   );
-}
+});
 
 /**
  * The shape of a page of prose, while it loads.
