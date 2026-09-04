@@ -74,6 +74,17 @@ class NovelReaderScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final chapterAsync = ref.watch(resolvedNovelChapterProvider(_key));
+    // Watched, never awaited (spec R3): a downloaded chapter opens off the
+    // phone, and what comes next is filled in whenever the network can say.
+    final neighbours =
+        ref.watch(novelChapterNeighboursProvider(_key)).valueOrNull;
+
+    void retry() {
+      // The payload is its own cache entry; invalidating only the resolved
+      // provider would re-read its stored error and do nothing visible.
+      ref.invalidate(novelChapterPayloadProvider(_key));
+      ref.invalidate(resolvedNovelChapterProvider(_key));
+    }
 
     return chapterAsync.when(
       loading: () => const _NovelReaderSkeleton(),
@@ -83,7 +94,7 @@ class NovelReaderScreen extends ConsumerWidget {
             : UnknownError(message: error.toString(), cause: error);
         return ReaderErrorState(
           error: appError,
-          onRetry: () => ref.invalidate(resolvedNovelChapterProvider(_key)),
+          onRetry: retry,
           onBack: () => context.pop(),
         );
       },
@@ -91,7 +102,7 @@ class NovelReaderScreen extends ConsumerWidget {
         if (chapter.paragraphs.isEmpty) {
           return ReaderErrorState(
             error: const UnknownError(message: 'This chapter has no text.'),
-            onRetry: () => ref.invalidate(resolvedNovelChapterProvider(_key)),
+            onRetry: retry,
             onBack: () => context.pop(),
           );
         }
@@ -104,6 +115,7 @@ class NovelReaderScreen extends ConsumerWidget {
           child: _NovelReaderBody(
             key: ValueKey('$sourceId:$seriesKey:$chapterKey'),
             chapter: chapter,
+            neighbours: neighbours,
             initialBucket: initialBucket,
           ),
         );
@@ -116,10 +128,17 @@ class _NovelReaderBody extends ConsumerStatefulWidget {
   const _NovelReaderBody({
     super.key,
     required this.chapter,
+    required this.neighbours,
     required this.initialBucket,
   });
 
   final NovelChapter chapter;
+
+  /// Adjacent keys, when the network has supplied them. Kept beside the
+  /// chapter rather than folded into it so a later arrival never replaces the
+  /// paragraph list this state is measuring against — the reading position
+  /// would jump.
+  final NovelChapterNeighbours? neighbours;
   final int initialBucket;
 
   @override
@@ -143,6 +162,14 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
   Timer? _progressTimer;
   Timer? _autoNextTimer;
   bool _autoNextTriggered = false;
+
+  /// The chapter to continue into, from whichever source knows it: the
+  /// online payload carries its own, a disk copy learns it out of band.
+  String? get _nextKey =>
+      widget.chapter.nextChapterKey ?? widget.neighbours?.nextChapterKey;
+
+  String? get _previousKey =>
+      widget.chapter.previousChapterKey ?? widget.neighbours?.previousChapterKey;
 
   int? _pendingRestoreParagraph;
   int _restoreFrames = 0;
@@ -351,7 +378,7 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
   /// makes a bounce at the bottom, or a second scroll event in the same
   /// window, incapable of firing it twice.
   void _maybeScheduleAutoNext() {
-    final next = widget.chapter.nextChapterKey;
+    final next = _nextKey;
     if (!ref.read(readerDefaultsProvider).autoNextChapter ||
         next == null ||
         _autoNextTriggered ||
@@ -466,9 +493,9 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
                     child: _ChapterFoot(
                       chapter: chapter,
                       surface: surface,
-                      onNext: chapter.nextChapterKey == null
+                      onNext: _nextKey == null
                           ? null
-                          : () => _openChapter(chapter.nextChapterKey!),
+                          : () => _openChapter(_nextKey!),
                     ),
                   ),
                 ],
@@ -482,12 +509,10 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
             percent: chapterPercent(_bucket, chapter.buckets),
             isOffline: chapter.isOffline,
             onBack: () => context.pop(),
-            onPrevious: chapter.previousChapterKey == null
+            onPrevious: _previousKey == null
                 ? null
-                : () => _openChapter(chapter.previousChapterKey!),
-            onNext: chapter.nextChapterKey == null
-                ? null
-                : () => _openChapter(chapter.nextChapterKey!),
+                : () => _openChapter(_previousKey!),
+            onNext: _nextKey == null ? null : () => _openChapter(_nextKey!),
             onType: () => NovelTypePanel.show(
               context,
               seriesPrefsKey: prefsKey,

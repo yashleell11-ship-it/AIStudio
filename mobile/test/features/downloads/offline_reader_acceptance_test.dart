@@ -108,19 +108,23 @@ void main() {
         }
 
         // No manifest to fall back on offline — prev/next are honestly
-        // absent rather than guessed at.
+        // absent rather than guessed at. `chapterNeighboursProvider` is where
+        // they come from when a network can supply them.
         expect(resolved.prev, isNull);
         expect(resolved.next, isNull);
 
-        // The repository really was asked, and really did fail — this is
-        // the fallback path, not a lucky online success.
-        verify(
+        // Since R3 the store is asked FIRST, so an unreachable server is not
+        // even contacted for a chapter already on the phone — the failure
+        // above is now genuinely irrelevant to whether this renders, which is
+        // the point. `offline_first_resolution_test.dart` pins that ordering
+        // against a network that hangs rather than fails.
+        verifyNever(
           () => failingRepo.manifest(
-            sourceId: _id.sourceId,
-            seriesKey: _id.seriesKey,
-            chapterKey: _id.chapterKey,
+            sourceId: any(named: 'sourceId'),
+            seriesKey: any(named: 'seriesKey'),
+            chapterKey: any(named: 'chapterKey'),
           ),
-        ).called(1);
+        );
       },
     );
 

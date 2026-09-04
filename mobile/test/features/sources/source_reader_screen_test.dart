@@ -76,7 +76,7 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider((
+            sourceReaderPayloadProvider((
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
@@ -107,7 +107,7 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider((
+            sourceReaderPayloadProvider((
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
@@ -141,7 +141,7 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider((
+            sourceReaderPayloadProvider((
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',
@@ -191,7 +191,7 @@ void main() {
         _wrap(
           [
             sharedPrefsProvider.overrideWithValue(prefs),
-            sourceReaderChapterProvider((
+            sourceReaderPayloadProvider((
               sourceId: 'mangadex',
               seriesId: 'manga-1',
               chapterId: 'manga-1:1',

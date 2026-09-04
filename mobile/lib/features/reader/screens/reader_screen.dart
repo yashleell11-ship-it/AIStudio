@@ -43,6 +43,19 @@ class ReaderScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final resolvedAsync = ref.watch(resolvedReaderChapterProvider(_key));
+    // Watched, never awaited (spec R3). A chapter rendered from disk knows its
+    // own pages but not its neighbours; this fills them in whenever the
+    // network can supply them, and stays null forever if it cannot — which
+    // costs the reader nothing but the prev/next affordances.
+    final neighbours = ref.watch(chapterNeighboursProvider(_key)).valueOrNull;
+
+    void retry() {
+      // Both, not just the resolved provider: the manifest is a separate
+      // cache entry and a retry that re-read its stored error would be a
+      // button that does nothing.
+      ref.invalidate(chapterManifestProvider(_key));
+      ref.invalidate(resolvedReaderChapterProvider(_key));
+    }
 
     return resolvedAsync.when(
       loading: () => const ReaderSkeleton(),
@@ -52,7 +65,7 @@ class ReaderScreen extends ConsumerWidget {
             : UnknownError(message: error.toString(), cause: error);
         return ReaderErrorState(
           error: appError,
-          onRetry: () => ref.invalidate(resolvedReaderChapterProvider(_key)),
+          onRetry: retry,
           onBack: () => context.pop(),
         );
       },
@@ -60,7 +73,7 @@ class ReaderScreen extends ConsumerWidget {
         if (resolved.chapter.pages.isEmpty) {
           return ReaderErrorState(
             error: const UnknownError(message: 'This chapter has no pages.'),
-            onRetry: () => ref.invalidate(resolvedReaderChapterProvider(_key)),
+            onRetry: retry,
             onBack: () => context.pop(),
           );
         }
@@ -72,6 +85,7 @@ class ReaderScreen extends ConsumerWidget {
             seriesKey: seriesKey,
             chapterKey: chapterKey,
             resolved: resolved,
+            neighbours: neighbours,
             initialPage: initialPage,
           ),
         );
@@ -86,6 +100,7 @@ class _ManifestReaderBody extends ConsumerWidget {
     required this.seriesKey,
     required this.chapterKey,
     required this.resolved,
+    required this.neighbours,
     required this.initialPage,
   });
 
@@ -93,7 +108,20 @@ class _ManifestReaderBody extends ConsumerWidget {
   final String seriesKey;
   final String chapterKey;
   final ResolvedReaderChapter resolved;
+
+  /// Adjacent keys from the manifest, or null while (or if) it never lands.
+  /// Only ever *adds* to what [resolved] already carries — a chapter resolved
+  /// online got them in the same payload.
+  final ChapterNeighbours? neighbours;
   final int initialPage;
+
+  String? get _prev => resolved.prev ?? neighbours?.prev;
+  String? get _next => resolved.next ?? neighbours?.next;
+
+  /// The number progress is filed under. The store stamps it at download time
+  /// from the same manifest, so the two agree; the manifest wins only when the
+  /// store had none to stamp.
+  double? get _chapterNumber => resolved.chapterNumber ?? neighbours?.chapterNumber;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -120,14 +148,14 @@ class _ManifestReaderBody extends ConsumerWidget {
         sourceId: sourceId,
         seriesKey: seriesKey,
       ),
-      onPreviousChapter: resolved.prev != null
+      onPreviousChapter: _prev != null
           ? () => context.go(
-                RoutePaths.reader(sourceId, seriesKey, resolved.prev!),
+                RoutePaths.reader(sourceId, seriesKey, _prev!),
               )
           : null,
-      onNextChapter: resolved.next != null
+      onNextChapter: _next != null
           ? () => context.go(
-                RoutePaths.reader(sourceId, seriesKey, resolved.next!),
+                RoutePaths.reader(sourceId, seriesKey, _next!),
               )
           : null,
       onSaveProgress: (page) async {
@@ -140,7 +168,7 @@ class _ManifestReaderBody extends ConsumerWidget {
             sourceId: sourceId,
             seriesKey: seriesKey,
             chapterKey: chapterKey,
-            chapterNumber: resolved.chapterNumber,
+            chapterNumber: _chapterNumber,
             lastPage: page,
             pageCount: readerChapter.pageCount,
             isCompleted: isCompleted,

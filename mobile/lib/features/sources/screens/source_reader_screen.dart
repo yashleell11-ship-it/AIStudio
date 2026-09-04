@@ -9,7 +9,6 @@ import 'package:manhwamaniacs/core/network/network_connectivity.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/open_chapter_scope.dart';
-import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
@@ -80,9 +79,7 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
     }
   }
 
-  Future<void> _maybeQueueNextChapter(ReaderChapter chapter) async {
-    final nextId = chapter.nextChapterId;
-    if (nextId == null) return;
+  Future<void> _maybeQueueNextChapter(String nextId) async {
     if (ref.read(activeDownloadsScopeIdProvider) == null) return;
 
     if (ref.read(preferencesProvider).wifiOnlyDownloads) {
@@ -101,15 +98,24 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final chapterAsync = ref.watch(
-      sourceReaderChapterProvider(
-        (
-          sourceId: widget.sourceId,
-          seriesId: widget.seriesId,
-          chapterId: widget.chapterId,
-        ),
-      ),
+    final key = (
+      sourceId: widget.sourceId,
+      seriesId: widget.seriesId,
+      chapterId: widget.chapterId,
     );
+    final chapterAsync = ref.watch(sourceReaderChapterProvider(key));
+    // Watched, never awaited (spec R3): a chapter served from disk knows its
+    // pages but not its neighbours, and waiting on the network to learn them
+    // would put the network back in front of first paint.
+    final neighbours = ref.watch(sourceChapterNeighboursProvider(key)).valueOrNull;
+
+    void retry() {
+      // The payload is its own cache entry — invalidating only the resolved
+      // provider would re-read the stored error and the button would do
+      // nothing.
+      ref.invalidate(sourceReaderPayloadProvider(key));
+      ref.invalidate(sourceReaderChapterProvider(key));
+    }
 
     return chapterAsync.when(
       loading: () => const ReaderSkeleton(),
@@ -119,15 +125,7 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
             : UnknownError(message: error.toString(), cause: error);
         return ReaderErrorState(
           error: appError,
-          onRetry: () => ref.invalidate(
-            sourceReaderChapterProvider(
-              (
-                sourceId: widget.sourceId,
-                seriesId: widget.seriesId,
-                chapterId: widget.chapterId,
-              ),
-            ),
-          ),
+          onRetry: retry,
           onBack: () => context.go(
             RoutePaths.sourceSeriesDetail(widget.sourceId, widget.seriesId),
           ),
@@ -139,27 +137,29 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
             error: const UnknownError(
               message: 'This chapter has no pages.',
             ),
-            onRetry: () => ref.invalidate(
-              sourceReaderChapterProvider((
-                sourceId: widget.sourceId,
-                seriesId: widget.seriesId,
-                chapterId: widget.chapterId,
-              ),),
-            ),
+            onRetry: retry,
             onBack: () => context.go(
               RoutePaths.sourceSeriesDetail(widget.sourceId, widget.seriesId),
             ),
           );
         }
 
-        if (_prefetchedFor != widget.chapterId) {
+        final previousChapterId =
+            chapter.previousChapterId ?? neighbours?.previousChapterId;
+        final nextChapterId = chapter.nextChapterId ?? neighbours?.nextChapterId;
+
+        // Guarded on the id being *known*, not merely on the chapter having
+        // been shown: a downloaded chapter paints from disk before anything
+        // knows what comes next, and the eager queue must still fire once the
+        // neighbours land rather than being marked done against a null.
+        if (nextChapterId != null && _prefetchedFor != widget.chapterId) {
           _prefetchedFor = widget.chapterId;
           // Deferred past this build, like every other one-shot side effect
           // triggered from a build method in this codebase (see
           // OpenChapterScope._claim) — reading providers is safe mid-build,
           // but a network/DB-touching side effect belongs after it.
           WidgetsBinding.instance.addPostFrameCallback(
-            (_) => unawaited(_maybeQueueNextChapter(chapter)),
+            (_) => unawaited(_maybeQueueNextChapter(nextChapterId)),
           );
         }
 
@@ -189,21 +189,21 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
               sourceId: widget.sourceId,
               seriesKey: widget.seriesId,
             ),
-            onPreviousChapter: chapter.previousChapterId != null
+            onPreviousChapter: previousChapterId != null
                 ? () => context.go(
                       RoutePaths.sourceReader(
                         widget.sourceId,
                         widget.seriesId,
-                        chapter.previousChapterId!,
+                        previousChapterId,
                       ),
                     )
                 : null,
-            onNextChapter: chapter.nextChapterId != null
+            onNextChapter: nextChapterId != null
                 ? () => context.go(
                       RoutePaths.sourceReader(
                         widget.sourceId,
                         widget.seriesId,
-                        chapter.nextChapterId!,
+                        nextChapterId,
                       ),
                     )
                 : null,
