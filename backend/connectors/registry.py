@@ -101,6 +101,15 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     NovelFullConnector.SOURCE_TYPE,
     RoyalRoadConnector.SOURCE_TYPE,
     StandardEbooksConnector.SOURCE_TYPE,
+    # Both take no constructor arguments and hold exactly the state this set
+    # exists to keep alive -- a pooled keep-alive HTTP client, its per-site
+    # rate lock, and several TTL caches. Leaving them out built all of that
+    # fresh on every call and threw it away: no connection reuse, TTL caches
+    # that never hit, and (the one that bites) no SHARED min_interval, so
+    # concurrent reads of one of these sources were not spaced at all. That
+    # last part is what the bulk chapter windows rely on for politeness.
+    WebtoonsConnector.SOURCE_TYPE,
+    WeebCentralConnector.SOURCE_TYPE,
     *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
 }
 
