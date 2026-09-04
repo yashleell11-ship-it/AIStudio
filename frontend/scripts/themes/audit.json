@@ -1,0 +1,2264 @@
+{
+  "source": "https://github.com/tinted-theming/schemes",
+  "revision": "fdca32a0d14ec80ad83a78a9ccb85592ca6cb9e1",
+  "generatedFrom": "scripts/themes/map.mjs",
+  "total": 338,
+  "passedGate": 227,
+  "rejected": 111,
+  "shipped": 38,
+  "schemes": {
+    "3024": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 45% along base05→base03",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 5% along its own ramp"
+      ]
+    },
+    "0x96f": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 45% along base05→base03",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "apathy": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "apprentice": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "arroz-con-dulce-dark": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "arroz-con-dulce": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)"
+      ]
+    },
+    "ascendancy": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 35% along its own ramp",
+        "danger lifted 25% along its own ramp"
+      ]
+    },
+    "ashes": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "atelier-cave-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 60% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 10% along its own ramp",
+        "success lifted 25% along its own ramp",
+        "warning lifted 15% along its own ramp"
+      ]
+    },
+    "atelier-cave": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-dune-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-dune": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-estuary-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-estuary": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-forest-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-forest": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-heath-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-heath": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-lakeside-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-lakeside": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-plateau-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 65% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 10% along its own ramp",
+        "success lifted 20% along its own ramp",
+        "warning lifted 15% along its own ramp"
+      ]
+    },
+    "atelier-plateau": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-savanna-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-savanna": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-seaside-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-seaside": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-sulphurpool-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atelier-sulphurpool": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "atlas": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "ayu-dark": {
+      "verdict": "shipped",
+      "notes": []
+    },
+    "ayu-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "ayu-mirage": {
+      "verdict": "shipped",
+      "notes": [
+        "muted derived 30% along base05→base03"
+      ]
+    },
+    "aztec": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 45% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 5% along its own ramp"
+      ]
+    },
+    "bespin": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "black-metal-bathory": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "black-metal-burzum": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "black-metal-dark-funeral": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "black-metal-gorgoroth": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "black-metal-immortal": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp",
+        "warning lifted 20% along its own ramp"
+      ]
+    },
+    "black-metal-khold": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "black-metal-marduk": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp",
+        "warning lifted 15% along its own ramp"
+      ]
+    },
+    "black-metal-mayhem": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "black-metal-nile": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "black-metal-venom": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp",
+        "warning lifted 45% along its own ramp"
+      ]
+    },
+    "black-metal": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "blueforest": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 100% along base05→base03"
+      ]
+    },
+    "blueish": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 35% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 10% along its own ramp"
+      ]
+    },
+    "boo-shnickle-dark": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "boo-shnickle-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "bosque": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "brasa": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "brewer": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary lifted 10% along its own ramp",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "bright": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 100% along base05→base03"
+      ]
+    },
+    "brogrammer": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "brushtrees-dark": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "brushtrees": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "cacao": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "caroline": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "catppuccin-frappe": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "muted derived 25% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 10% along its own ramp"
+      ]
+    },
+    "catppuccin-latte": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 25% along base05→base03",
+        "primary lifted 10% along its own ramp",
+        "success lifted 50% along its own ramp",
+        "warning lifted 60% along its own ramp"
+      ]
+    },
+    "catppuccin-macchiato": {
+      "verdict": "shipped",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "muted derived 35% along base05→base03"
+      ]
+    },
+    "catppuccin-mocha": {
+      "verdict": "shipped",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "muted derived 40% along base05→base03"
+      ]
+    },
+    "cerulean-signal-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "cerulean-signal-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "chalk": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "charcoal-dark": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "charcoal-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)"
+      ]
+    },
+    "chicago-day": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 45% along base05→base03",
+        "success lifted 30% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "chicago-night": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "chinoiserie-midnight": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "chinoiserie-morandi": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp",
+        "danger lifted 10% along its own ramp"
+      ]
+    },
+    "chinoiserie-night": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "chinoiserie": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 80% along base05→base03",
+        "accent lifted 5% along its own ramp",
+        "success lifted 5% along its own ramp",
+        "warning lifted 35% along its own ramp"
+      ]
+    },
+    "circus": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "classic-dark": {
+      "verdict": "passed",
+      "notes": [
+        "accent lifted 5% along its own ramp",
+        "danger lifted 25% along its own ramp"
+      ]
+    },
+    "classic-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "primary from base08 (base0D unusable)",
+        "accent lifted 20% along its own ramp",
+        "success lifted 35% along its own ramp",
+        "warning lifted 50% along its own ramp"
+      ]
+    },
+    "codeschool": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "colors": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "cupcake": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "cupertino": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 65% along base05→base03"
+      ]
+    },
+    "cyberpunk": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "da-one-black": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "da-one-gray": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "da-one-ocean": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "da-one-paper": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 100% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 25% along its own ramp",
+        "danger lifted 20% along its own ramp",
+        "success lifted 30% along its own ramp",
+        "warning lifted 15% along its own ramp"
+      ]
+    },
+    "da-one-sea": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base09 (base0D unusable)",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "da-one-white": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 100% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 30% along its own ramp",
+        "danger lifted 15% along its own ramp",
+        "success lifted 25% along its own ramp",
+        "warning lifted 5% along its own ramp"
+      ]
+    },
+    "danqing-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "danqing": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "darcula": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "darkmoss": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 35% along base05→base03",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "darktooth": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "darkviolet": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 35% along its own ramp"
+      ]
+    },
+    "decaf": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03"
+      ]
+    },
+    "deep-oceanic-next": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 40% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 10% along its own ramp"
+      ]
+    },
+    "default-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 20% along its own ramp"
+      ]
+    },
+    "default-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "primary from base08 (base0D unusable)",
+        "success lifted 40% along its own ramp",
+        "warning lifted 55.00000000000001% along its own ramp"
+      ]
+    },
+    "digital-rain": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "dirtysea": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)"
+      ]
+    },
+    "dracula": {
+      "verdict": "shipped",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 55% along base05→base03",
+        "primary lifted 10% along its own ramp",
+        "accent lifted 10% along its own ramp"
+      ]
+    },
+    "edge-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "edge-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "primary lifted 35% along its own ramp",
+        "accent lifted 35% along its own ramp",
+        "danger lifted 30% along its own ramp",
+        "success lifted 35% along its own ramp",
+        "warning lifted 60% along its own ramp"
+      ]
+    },
+    "eighties": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 10% along its own ramp"
+      ]
+    },
+    "eldritch": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 60% along base05→base03"
+      ]
+    },
+    "embers-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 20% along its own ramp",
+        "success lifted 30% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "embers": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "emil": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "danger lifted 25% along its own ramp",
+        "warning lifted 40% along its own ramp"
+      ]
+    },
+    "equilibrium-dark": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 10% along its own ramp",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "equilibrium-gray-dark": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 10% along its own ramp",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "equilibrium-gray-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "warning lifted 10% along its own ramp"
+      ]
+    },
+    "equilibrium-light": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "primary lifted 5% along its own ramp",
+        "warning lifted 15% along its own ramp"
+      ]
+    },
+    "eris": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "espresso": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 25% along its own ramp"
+      ]
+    },
+    "eva-dim": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "eva": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "evenok-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "everforest-dark-hard": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 45% along base05→base03",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "everforest-dark-medium": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "everforest-dark-soft": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "everforest-light-hard": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "everforest-light-medium": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "everforest-light-soft": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "everforest": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "flat": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 40% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 35% along its own ramp",
+        "danger lifted 40% along its own ramp"
+      ]
+    },
+    "flexoki-dark": {
+      "verdict": "shipped",
+      "notes": [
+        "muted derived 50% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 5% along its own ramp"
+      ]
+    },
+    "flexoki-light": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 30% along base05→base03",
+        "success lifted 5% along its own ramp",
+        "warning lifted 20% along its own ramp"
+      ]
+    },
+    "framer": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "fruit-soda": {
+      "verdict": "rejected",
+      "reason": "success (base0B) cannot reach 4.5:1 on the page"
+    },
+    "gigavolt": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 100% along base05→base03",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "github-dark-colorblind": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "github-dark-dimmed": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "github-dark-high-contrast": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "github-dark": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "github-light-colorblind": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 45% along base05→base03",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 10% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "github-light-high-contrast": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 55% along base05→base03"
+      ]
+    },
+    "github": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 45% along base05→base03",
+        "primary lifted 5% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "google-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 85% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 25% along its own ramp",
+        "danger lifted 25% along its own ramp",
+        "success lifted 15% along its own ramp"
+      ]
+    },
+    "google-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 40% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 15% along its own ramp",
+        "warning lifted 45% along its own ramp"
+      ]
+    },
+    "gotham": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "grayscale-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "grayscale-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 30% along base05→base03",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 10% along its own ramp",
+        "success lifted 25% along its own ramp",
+        "warning lifted 35% along its own ramp"
+      ]
+    },
+    "greenscreen": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "gruber": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 50% along base05→base03"
+      ]
+    },
+    "gruvbox-dark-hard": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "gruvbox-dark-medium-forest": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "danger lifted 10% along its own ramp"
+      ]
+    },
+    "gruvbox-dark-medium": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 10% along its own ramp"
+      ]
+    },
+    "gruvbox-dark-pale": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "gruvbox-dark-soft": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 20% along its own ramp"
+      ]
+    },
+    "gruvbox-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 35% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "primary lifted 20% along its own ramp",
+        "accent lifted 35% along its own ramp",
+        "danger lifted 40% along its own ramp"
+      ]
+    },
+    "gruvbox-light-hard": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "success lifted 5% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "gruvbox-light-medium": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "success lifted 5% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "gruvbox-light-soft": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "success lifted 15% along its own ramp",
+        "warning lifted 35% along its own ramp"
+      ]
+    },
+    "gruvbox-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 40% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 15% along its own ramp",
+        "success lifted 35% along its own ramp",
+        "warning lifted 45% along its own ramp"
+      ]
+    },
+    "gruvbox-material-dark-hard": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "gruvbox-material-dark-medium": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "gruvbox-material-dark-soft": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 10% along its own ramp"
+      ]
+    },
+    "gruvbox-material-light-hard": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 40% along base05→base03",
+        "danger lifted 5% along its own ramp",
+        "success lifted 5% along its own ramp",
+        "warning lifted 20% along its own ramp"
+      ]
+    },
+    "gruvbox-material-light-medium": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 30% along base05→base03",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 5% along its own ramp",
+        "success lifted 10% along its own ramp",
+        "warning lifted 20% along its own ramp"
+      ]
+    },
+    "gruvbox-material-light-soft": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 30% along base05→base03",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 15% along its own ramp",
+        "success lifted 15% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "hardcore": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 35% along base05→base03",
+        "danger lifted 10% along its own ramp"
+      ]
+    },
+    "hardhacker": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 55% along base05→base03"
+      ]
+    },
+    "harmonic16-dark": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "harmonic16-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "heetch-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 40% along base05→base03",
+        "primary from base09 (base0D unusable)",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 10% along its own ramp",
+        "success lifted 30% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "heetch": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "helios": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 55% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 30% along its own ramp"
+      ]
+    },
+    "hopscotch": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "horizon-dark": {
+      "verdict": "shipped",
+      "notes": [
+        "primary from base0A (base0D unusable)",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 10% along its own ramp"
+      ]
+    },
+    "horizon-light": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 40% along base05→base03",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 45% along its own ramp",
+        "success lifted 55.00000000000001% along its own ramp",
+        "warning lifted 60% along its own ramp"
+      ]
+    },
+    "horizon-terminal-dark": {
+      "verdict": "passed",
+      "notes": [
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "horizon-terminal-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 40% along base05→base03",
+        "primary from base0E (base0D unusable)",
+        "primary lifted 35% along its own ramp",
+        "accent lifted 35% along its own ramp",
+        "danger lifted 25% along its own ramp",
+        "success lifted 50% along its own ramp",
+        "warning lifted 60% along its own ramp"
+      ]
+    },
+    "humanoid-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 30% along its own ramp"
+      ]
+    },
+    "humanoid-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "primary from base0E (base0D unusable)",
+        "success lifted 10% along its own ramp",
+        "warning lifted 45% along its own ramp"
+      ]
+    },
+    "ia-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 60% along base05→base03"
+      ]
+    },
+    "ia-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 65% along base05→base03",
+        "primary from base09 (base0D unusable)",
+        "primary lifted 10% along its own ramp",
+        "accent lifted 10% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "icy": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "irblack": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 40% along base05→base03"
+      ]
+    },
+    "isotope": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 95% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "jabuti": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 25% along base05→base03",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "jellybeans": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "kanagawa-dragon": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 40% along base05→base03",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "kanagawa": {
+      "verdict": "shipped",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "muted derived 45% along base05→base03",
+        "danger lifted 30% along its own ramp"
+      ]
+    },
+    "katy": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "kimber": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 35% along base05→base03",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "kissa-latte": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)"
+      ]
+    },
+    "kissa-macchiato": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary lifted 10% along its own ramp",
+        "accent lifted 15% along its own ramp"
+      ]
+    },
+    "lichen-chartreuse-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "lichen-chartreuse-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "primary lifted 5% along its own ramp"
+      ]
+    },
+    "lime": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "linux-vt": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary lifted 15% along its own ramp",
+        "danger lifted 30% along its own ramp"
+      ]
+    },
+    "macintosh": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "marrakesh": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "materia": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 35% along base05→base03",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "material-darker": {
+      "verdict": "shipped",
+      "notes": []
+    },
+    "material-lighter": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "material-palenight": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "material-vivid": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "material": {
+      "verdict": "passed",
+      "notes": [
+        "primary lifted 5% along its own ramp",
+        "accent lifted 10% along its own ramp"
+      ]
+    },
+    "measured-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "measured-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)"
+      ]
+    },
+    "mellow-purple": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "muted derived 45% along base05→base03",
+        "primary from base0E (base0D unusable)",
+        "warning lifted 5% along its own ramp"
+      ]
+    },
+    "mexico-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "primary from base0E (base0D unusable)",
+        "primary lifted 15% along its own ramp",
+        "success lifted 10% along its own ramp",
+        "warning lifted 40% along its own ramp"
+      ]
+    },
+    "mezcal": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "mocha": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "monokai": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 50% along base05→base03",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 20% along its own ramp"
+      ]
+    },
+    "moonlight": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "mountain": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 40% along base05→base03"
+      ]
+    },
+    "nebula": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "neovim-dark": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "neovim-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)"
+      ]
+    },
+    "noche": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "nord-light": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 35% along base05→base03",
+        "primary lifted 5% along its own ramp",
+        "success lifted 30% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "nord": {
+      "verdict": "shipped",
+      "notes": [
+        "muted derived 30% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 30% along its own ramp"
+      ]
+    },
+    "nova": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "ocean": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "oceanicnext": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "ocote": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "one-light": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 45% along base05→base03",
+        "primary from base0E (base0D unusable)",
+        "success lifted 25% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "onedark-dark": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03"
+      ]
+    },
+    "onedark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "outrun-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "oxocarbon-dark": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 50% along base05→base03"
+      ]
+    },
+    "oxocarbon-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "pandora": {
+      "verdict": "passed",
+      "notes": [
+        "body text lifted 5% along its own ramp",
+        "muted derived 100% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 40% along its own ramp"
+      ]
+    },
+    "papel": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "success lifted 10% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "papercolor-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "papercolor-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "paraiso": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "pasque": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "primary from base0B (base0D unusable)",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 25% along its own ramp",
+        "danger lifted 40% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "pastelon-de-amarillos-dark": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "pastelon-de-amarillos": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)"
+      ]
+    },
+    "penumbra-dark-contrast-plus-plus": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "penumbra-dark-contrast-plus": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "penumbra-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "penumbra-light-contrast-plus-plus": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "penumbra-light-contrast-plus": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "penumbra-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "phd": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "pico": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "pinky": {
+      "verdict": "passed",
+      "notes": [
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "pop": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "porple": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "precious-dark-eleven": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "precious-dark-fifteen": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "precious-light-warm": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 65% along base05→base03"
+      ]
+    },
+    "precious-light-white": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 50% along base05→base03"
+      ]
+    },
+    "primer-dark-dimmed": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "primer-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03"
+      ]
+    },
+    "primer-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 5% along its own ramp",
+        "success lifted 25% along its own ramp",
+        "warning lifted 55.00000000000001% along its own ramp"
+      ]
+    },
+    "purpledream": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "qualia": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 40% along base05→base03"
+      ]
+    },
+    "railscasts": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "muted derived 40% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 25% along its own ramp"
+      ]
+    },
+    "rebecca": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "muted derived 50% along base05→base03",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "rose-pine-dawn": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 40% along base05→base03",
+        "primary from base0B (base0D unusable)",
+        "accent lifted 30% along its own ramp",
+        "danger lifted 30% along its own ramp",
+        "warning lifted 60% along its own ramp"
+      ]
+    },
+    "rose-pine-moon": {
+      "verdict": "shipped",
+      "notes": [
+        "muted derived 50% along base05→base03",
+        "success lifted 5% along its own ramp"
+      ]
+    },
+    "rose-pine": {
+      "verdict": "shipped",
+      "notes": [
+        "success lifted 20% along its own ramp"
+      ]
+    },
+    "saga": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 50% along base05→base03"
+      ]
+    },
+    "sagelight": {
+      "verdict": "rejected",
+      "reason": "no accent reaches 4.5:1 on all three surfaces"
+    },
+    "sakura": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 100% along base05→base03",
+        "danger lifted 10% along its own ramp",
+        "success lifted 25% along its own ramp",
+        "warning lifted 45% along its own ramp"
+      ]
+    },
+    "sandcastle": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "selenized-black": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 50% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 5% along its own ramp"
+      ]
+    },
+    "selenized-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "selenized-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "selenized-white": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 55% along base05→base03",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "seti": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 40% along base05→base03",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "shades-of-purple": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 60% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 35% along its own ramp"
+      ]
+    },
+    "shadesmear-dark": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 100% along base05→base03",
+        "primary from base0E (base0D unusable)",
+        "accent lifted 25% along its own ramp",
+        "danger lifted 20% along its own ramp",
+        "warning lifted 25% along its own ramp"
+      ]
+    },
+    "shadesmear-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 100% along base05→base03",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 30% along its own ramp",
+        "success lifted 40% along its own ramp",
+        "warning lifted 20% along its own ramp"
+      ]
+    },
+    "shapeshifter": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "accent lifted 15% along its own ramp",
+        "danger lifted 10% along its own ramp",
+        "success lifted 40% along its own ramp",
+        "warning lifted 50% along its own ramp"
+      ]
+    },
+    "silk-dark": {
+      "verdict": "passed",
+      "notes": [
+        "primary from base0A (base0D unusable)",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "silk-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 80% along base05→base03",
+        "primary from base0E (base0D unusable)",
+        "accent lifted 10% along its own ramp",
+        "danger lifted 10% along its own ramp",
+        "success lifted 45% along its own ramp",
+        "warning lifted 55.00000000000001% along its own ramp"
+      ]
+    },
+    "snazzy": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 50% along base05→base03"
+      ]
+    },
+    "soft-server": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 55% along base05→base03"
+      ]
+    },
+    "solarflare-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "solarflare": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "solarized-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "solarized-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "spaceduck": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 70% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "spacemacs": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "sparky": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 40% along base05→base03",
+        "primary lifted 15% along its own ramp"
+      ]
+    },
+    "standardized-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 50% along base05→base03",
+        "primary lifted 15% along its own ramp"
+      ]
+    },
+    "standardized-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 80% along base05→base03",
+        "primary lifted 10% along its own ramp",
+        "accent lifted 15% along its own ramp",
+        "warning lifted 20% along its own ramp"
+      ]
+    },
+    "stella": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "still-alive": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "primary lifted 5% along its own ramp",
+        "success lifted 30% along its own ramp",
+        "warning lifted 60% along its own ramp"
+      ]
+    },
+    "summercamp": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "summerfruit-dark": {
+      "verdict": "passed",
+      "notes": [
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "summerfruit-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 55% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "danger lifted 10% along its own ramp",
+        "success lifted 35% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "swamp-dark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base09 (base0D unusable)",
+        "accent lifted 10% along its own ramp",
+        "success lifted 20% along its own ramp",
+        "warning lifted 35% along its own ramp"
+      ]
+    },
+    "swamp-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "synth-midnight-dark": {
+      "verdict": "passed",
+      "notes": [
+        "danger lifted 20% along its own ramp"
+      ]
+    },
+    "synth-midnight-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "primary from base08 (base0D unusable)",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 5% along its own ramp",
+        "danger lifted 5% along its own ramp",
+        "success lifted 55.00000000000001% along its own ramp",
+        "warning lifted 55.00000000000001% along its own ramp"
+      ]
+    },
+    "tango": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 25% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "primary lifted 25% along its own ramp",
+        "accent lifted 25% along its own ramp",
+        "danger lifted 55.00000000000001% along its own ramp",
+        "success lifted 20% along its own ramp"
+      ]
+    },
+    "tarot": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "tender": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "danger lifted 15% along its own ramp"
+      ]
+    },
+    "terracotta-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "terracotta": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "muted derived 40% along base05→base03",
+        "success lifted 25% along its own ramp",
+        "warning lifted 45% along its own ramp"
+      ]
+    },
+    "tinta": {
+      "verdict": "passed",
+      "notes": []
+    },
+    "tokyo-city-dark": {
+      "verdict": "shipped",
+      "notes": []
+    },
+    "tokyo-city-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)"
+      ]
+    },
+    "tokyo-city-terminal-dark": {
+      "verdict": "passed",
+      "notes": [
+        "danger lifted 5% along its own ramp"
+      ]
+    },
+    "tokyo-city-terminal-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)"
+      ]
+    },
+    "tokyo-night-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "tokyo-night-light": {
+      "verdict": "shipped",
+      "notes": [
+        "surfaces derived toward white (base01/base02 descend into the text)",
+        "warning lifted 5% along its own ramp"
+      ]
+    },
+    "tokyo-night-moon": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "tokyo-night-storm": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "tokyo-night-terminal-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "tokyo-night-terminal-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "tokyo-night-terminal-storm": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "tokyodark-terminal": {
+      "verdict": "passed",
+      "notes": [
+        "muted derived 25% along base05→base03"
+      ]
+    },
+    "tokyodark": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 20% along base05→base03"
+      ]
+    },
+    "tomorrow-night-eighties": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 55% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 10% along its own ramp"
+      ]
+    },
+    "tomorrow-night": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 85% along base05→base03",
+        "danger lifted 5% along its own ramp"
+      ]
+    },
+    "tomorrow": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 40% along base05→base03",
+        "primary lifted 5% along its own ramp",
+        "accent lifted 5% along its own ramp",
+        "success lifted 15% along its own ramp",
+        "warning lifted 45% along its own ramp"
+      ]
+    },
+    "tube": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 55% along base05→base03",
+        "primary lifted 15% along its own ramp",
+        "danger lifted 15% along its own ramp",
+        "success lifted 20% along its own ramp"
+      ]
+    },
+    "twilight": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "unikitty-dark": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "unikitty-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "unikitty-reversible": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 45% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 25% along its own ramp",
+        "danger lifted 35% along its own ramp"
+      ]
+    },
+    "uwunicorn": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 40% along base05→base03",
+        "primary from base0E (base0D unusable)",
+        "primary lifted 15% along its own ramp",
+        "accent lifted 20% along its own ramp",
+        "danger lifted 5% along its own ramp",
+        "warning lifted 30% along its own ramp"
+      ]
+    },
+    "valua": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "vesper": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)"
+      ]
+    },
+    "vice": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "vulcan": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "windows-10-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "windows-10": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 75% along base05→base03",
+        "primary lifted 10% along its own ramp"
+      ]
+    },
+    "windows-95-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 25% along base05→base03",
+        "success lifted 20% along its own ramp"
+      ]
+    },
+    "windows-95": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "windows-highcontrast-light": {
+      "verdict": "passed",
+      "notes": [
+        "surfaces derived downward (the page is already white)",
+        "muted derived 20% along base05→base03",
+        "warning lifted 10% along its own ramp"
+      ]
+    },
+    "windows-highcontrast": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "windows-nt-light": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "windows-nt": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)"
+      ]
+    },
+    "woodland": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "danger lifted 5% along its own ramp"
+      ]
+    },
+    "xcode-dusk": {
+      "verdict": "rejected",
+      "reason": "body text cannot reach 4.5:1 on its own surfaces"
+    },
+    "yesterday-bright": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 30% along its own ramp",
+        "danger lifted 40% along its own ramp"
+      ]
+    },
+    "yesterday-night": {
+      "verdict": "passed",
+      "notes": [
+        "surface derived (base01 is not a panel tone)",
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 20% along its own ramp",
+        "danger lifted 30% along its own ramp"
+      ]
+    },
+    "yesterday": {
+      "verdict": "passed",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 85% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "accent lifted 35% along its own ramp",
+        "danger lifted 30% along its own ramp",
+        "success lifted 5% along its own ramp"
+      ]
+    },
+    "zenbones": {
+      "verdict": "rejected",
+      "reason": "no tone sits below body text and still clears 4.5:1"
+    },
+    "zenburn": {
+      "verdict": "shipped",
+      "notes": [
+        "elevated derived (base02 is a selection tone, not a panel)",
+        "muted derived 30% along base05→base03",
+        "primary from base0A (base0D unusable)",
+        "success lifted 35% along its own ramp"
+      ]
+    }
+  }
+}

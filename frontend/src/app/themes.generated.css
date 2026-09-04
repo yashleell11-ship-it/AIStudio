@@ -1,0 +1,1338 @@
+/*
+ * themes.generated.css — GENERATED, do not edit.
+ *
+ * Source:    https://github.com/tinted-theming/schemes
+ * Revision:  fdca32a0d14ec80ad83a78a9ccb85592ca6cb9e1
+ * Regenerate: node scripts/themes/build-themes.mjs
+ *
+ * 38 palettes, mapped from base16 by scripts/themes/map.mjs and gated at
+ * WCAG AA. 227 of the corpus's 338 schemes clear the gate;
+ * scripts/themes/curated.mjs picks which of those are worth a tile.
+ */
+
+/* Gruvbox Hard — Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); primary from base0A (base0D unusable). */
+:root[data-theme="gruvbox-dark-hard"] {
+  color-scheme: dark;
+  --mm-bg: #1D2021;
+  --mm-surface: #3C3836;
+  --mm-elevated: #47423D;
+  --mm-fg: #D5C4A1;
+  --mm-muted: #BDAE93;
+  --mm-border: rgba(213, 196, 161, 0.14);
+  --mm-contrast-bg: #FBF1C7;
+  --mm-contrast-fg: #1D2021;
+  --mm-contrast-border: rgba(29, 32, 33, 0.16);
+  --mm-primary: #FABD2F;
+  --mm-primary-hover: #F3BE46;
+  --mm-primary-fg: #1D2021;
+  --mm-primary-tint: #FACD5D;
+  --mm-accent: #8EC07C;
+  --mm-accent-fg: #1D2021;
+  --mm-accent-warm: #FE8019;
+  --mm-danger: #FB4934;
+  --mm-success: #B8BB26;
+  --mm-warning: #FABD2F;
+  --mm-glass-panel: rgba(60, 56, 54, 0.72);
+  --mm-glass-card: rgba(71, 66, 61, 0.62);
+  --mm-glass-border: rgba(213, 196, 161, 0.1);
+  --mm-hero-from: #FABD2F;
+  --mm-hero-to: #D5C4A1;
+  --mm-scrollbar: rgba(189, 174, 147, 0.35);
+  --mm-scrollbar-hover: rgba(189, 174, 147, 0.55);
+  --mm-glow: 0 0 24px rgba(250, 189, 47, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #FABD2F;
+}
+
+/* Gruvbox — Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); primary from base0A (base0D unusable); danger lifted 10% along its own ramp. */
+:root[data-theme="gruvbox-dark-medium"] {
+  color-scheme: dark;
+  --mm-bg: #282828;
+  --mm-surface: #3C3836;
+  --mm-elevated: #47423D;
+  --mm-fg: #D5C4A1;
+  --mm-muted: #BDAE93;
+  --mm-border: rgba(213, 196, 161, 0.14);
+  --mm-contrast-bg: #FBF1C7;
+  --mm-contrast-fg: #282828;
+  --mm-contrast-border: rgba(40, 40, 40, 0.16);
+  --mm-primary: #FABD2F;
+  --mm-primary-hover: #F3BE46;
+  --mm-primary-fg: #282828;
+  --mm-primary-tint: #FACD5D;
+  --mm-accent: #8EC07C;
+  --mm-accent-fg: #282828;
+  --mm-accent-warm: #FE8019;
+  --mm-danger: #FB5A43;
+  --mm-success: #B8BB26;
+  --mm-warning: #FABD2F;
+  --mm-glass-panel: rgba(60, 56, 54, 0.72);
+  --mm-glass-card: rgba(71, 66, 61, 0.62);
+  --mm-glass-border: rgba(213, 196, 161, 0.1);
+  --mm-hero-from: #FABD2F;
+  --mm-hero-to: #D5C4A1;
+  --mm-scrollbar: rgba(189, 174, 147, 0.35);
+  --mm-scrollbar-hover: rgba(189, 174, 147, 0.55);
+  --mm-glow: 0 0 24px rgba(250, 189, 47, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #FABD2F;
+}
+
+/* Gruvbox Material — Mayush Kumar (https://github.com/MayushKumar), sainnhe (https://github.com/sainnhe/gruvbox-material-vscode).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); primary lifted 5% along its own ramp; accent lifted 15% along its own ramp. */
+:root[data-theme="gruvbox-material-dark-medium"] {
+  color-scheme: dark;
+  --mm-bg: #292828;
+  --mm-surface: #32302F;
+  --mm-elevated: #3E3B37;
+  --mm-fg: #DDC7A1;
+  --mm-muted: #BDAE93;
+  --mm-border: rgba(221, 199, 161, 0.14);
+  --mm-contrast-bg: #FBF1C7;
+  --mm-contrast-fg: #292828;
+  --mm-contrast-border: rgba(41, 40, 40, 0.16);
+  --mm-primary: #83B1A5;
+  --mm-primary-hover: #95B5A4;
+  --mm-primary-fg: #292828;
+  --mm-primary-tint: #A7C4AF;
+  --mm-accent: #D996A2;
+  --mm-accent-fg: #292828;
+  --mm-accent-warm: #E78A4E;
+  --mm-danger: #EA6962;
+  --mm-success: #A9B665;
+  --mm-warning: #D8A657;
+  --mm-glass-panel: rgba(50, 48, 47, 0.72);
+  --mm-glass-card: rgba(62, 59, 55, 0.62);
+  --mm-glass-border: rgba(221, 199, 161, 0.1);
+  --mm-hero-from: #83B1A5;
+  --mm-hero-to: #DDC7A1;
+  --mm-scrollbar: rgba(189, 174, 147, 0.35);
+  --mm-scrollbar-hover: rgba(189, 174, 147, 0.55);
+  --mm-glow: 0 0 24px rgba(131, 177, 165, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #83B1A5;
+}
+
+/* Nord — arcticicestudio.
+ * Adjusted: muted derived 30% along base05→base03; primary from base0A (base0D unusable); accent lifted 10% along its own ramp; danger lifted 30% along its own ramp. */
+:root[data-theme="nord"] {
+  color-scheme: dark;
+  --mm-bg: #2E3440;
+  --mm-surface: #3B4252;
+  --mm-elevated: #434C5E;
+  --mm-fg: #E5E9F0;
+  --mm-muted: #B7BDC8;
+  --mm-border: rgba(229, 233, 240, 0.14);
+  --mm-contrast-bg: #ECEFF4;
+  --mm-contrast-fg: #2E3440;
+  --mm-contrast-border: rgba(46, 52, 64, 0.16);
+  --mm-primary: #EBCB8B;
+  --mm-primary-hover: #EAD19F;
+  --mm-primary-fg: #2E3440;
+  --mm-primary-tint: #EBD6AB;
+  --mm-accent: #92C5D4;
+  --mm-accent-fg: #2E3440;
+  --mm-accent-warm: #D08770;
+  --mm-danger: #CD8C93;
+  --mm-success: #A3BE8C;
+  --mm-warning: #EBCB8B;
+  --mm-glass-panel: rgba(59, 66, 82, 0.72);
+  --mm-glass-card: rgba(67, 76, 94, 0.62);
+  --mm-glass-border: rgba(229, 233, 240, 0.1);
+  --mm-hero-from: #EBCB8B;
+  --mm-hero-to: #E5E9F0;
+  --mm-scrollbar: rgba(183, 189, 200, 0.35);
+  --mm-scrollbar-hover: rgba(183, 189, 200, 0.55);
+  --mm-glow: 0 0 24px rgba(235, 203, 139, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #EBCB8B;
+}
+
+/* Dracula — clach04 (https://github.com/clach04).
+ * Adjusted: surface derived (base01 is not a panel tone); elevated derived (base02 is a selection tone, not a panel); muted derived 55% along base05→base03; primary lifted 10% along its own ramp; accent lifted 10% along its own ramp. */
+:root[data-theme="dracula"] {
+  color-scheme: dark;
+  --mm-bg: #282A36;
+  --mm-surface: #32343F;
+  --mm-elevated: #40424C;
+  --mm-fg: #F8F8F2;
+  --mm-muted: #A6AEC7;
+  --mm-border: rgba(248, 248, 242, 0.14);
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #282A36;
+  --mm-contrast-border: rgba(40, 42, 54, 0.16);
+  --mm-primary: #C49EFA;
+  --mm-primary-hover: #CEB0F8;
+  --mm-primary-fg: #282A36;
+  --mm-primary-tint: #D6BBFC;
+  --mm-accent: #FF86CC;
+  --mm-accent-fg: #282A36;
+  --mm-accent-warm: #FFB86C;
+  --mm-danger: #FF5555;
+  --mm-success: #50FA7B;
+  --mm-warning: #F1FA8C;
+  --mm-glass-panel: rgba(50, 52, 63, 0.72);
+  --mm-glass-card: rgba(64, 66, 76, 0.62);
+  --mm-glass-border: rgba(248, 248, 242, 0.1);
+  --mm-hero-from: #C49EFA;
+  --mm-hero-to: #F8F8F2;
+  --mm-scrollbar: rgba(166, 174, 199, 0.35);
+  --mm-scrollbar-hover: rgba(166, 174, 199, 0.55);
+  --mm-glow: 0 0 24px rgba(196, 158, 250, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #C49EFA;
+}
+
+/* Catppuccin Mocha — https://github.com/catppuccin/catppuccin.
+ * Adjusted: surface derived (base01 is not a panel tone); muted derived 40% along base05→base03. */
+:root[data-theme="catppuccin-mocha"] {
+  color-scheme: dark;
+  --mm-bg: #1E1E2E;
+  --mm-surface: #272738;
+  --mm-elevated: #313244;
+  --mm-fg: #CDD6F4;
+  --mm-muted: #979DB6;
+  --mm-border: rgba(205, 214, 244, 0.14);
+  --mm-contrast-bg: #F5E0DC;
+  --mm-contrast-fg: #1E1E2E;
+  --mm-contrast-border: rgba(30, 30, 46, 0.16);
+  --mm-primary: #89B4FA;
+  --mm-primary-hover: #97BBF9;
+  --mm-primary-fg: #1E1E2E;
+  --mm-primary-tint: #A9C1F1;
+  --mm-accent: #CBA6F7;
+  --mm-accent-fg: #1E1E2E;
+  --mm-accent-warm: #FAB387;
+  --mm-danger: #F38BA8;
+  --mm-success: #A6E3A1;
+  --mm-warning: #F9E2AF;
+  --mm-glass-panel: rgba(39, 39, 56, 0.72);
+  --mm-glass-card: rgba(49, 50, 68, 0.62);
+  --mm-glass-border: rgba(205, 214, 244, 0.1);
+  --mm-hero-from: #89B4FA;
+  --mm-hero-to: #CDD6F4;
+  --mm-scrollbar: rgba(151, 157, 182, 0.35);
+  --mm-scrollbar-hover: rgba(151, 157, 182, 0.55);
+  --mm-glow: 0 0 24px rgba(137, 180, 250, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #89B4FA;
+}
+
+/* Catppuccin Macchiato — https://github.com/catppuccin/catppuccin.
+ * Adjusted: surface derived (base01 is not a panel tone); muted derived 35% along base05→base03. */
+:root[data-theme="catppuccin-macchiato"] {
+  color-scheme: dark;
+  --mm-bg: #24273A;
+  --mm-surface: #2C3043;
+  --mm-elevated: #363A4F;
+  --mm-fg: #CAD3F5;
+  --mm-muted: #9DA4C2;
+  --mm-border: rgba(202, 211, 245, 0.14);
+  --mm-contrast-bg: #F4DBD6;
+  --mm-contrast-fg: #24273A;
+  --mm-contrast-border: rgba(36, 39, 58, 0.16);
+  --mm-primary: #8AADF4;
+  --mm-primary-hover: #97B5F4;
+  --mm-primary-fg: #24273A;
+  --mm-primary-tint: #AABBEB;
+  --mm-accent: #C6A0F6;
+  --mm-accent-fg: #24273A;
+  --mm-accent-warm: #F5A97F;
+  --mm-danger: #ED8796;
+  --mm-success: #A6DA95;
+  --mm-warning: #EED49F;
+  --mm-glass-panel: rgba(44, 48, 67, 0.72);
+  --mm-glass-card: rgba(54, 58, 79, 0.62);
+  --mm-glass-border: rgba(202, 211, 245, 0.1);
+  --mm-hero-from: #8AADF4;
+  --mm-hero-to: #CAD3F5;
+  --mm-scrollbar: rgba(157, 164, 194, 0.35);
+  --mm-scrollbar-hover: rgba(157, 164, 194, 0.55);
+  --mm-glow: 0 0 24px rgba(138, 173, 244, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #8AADF4;
+}
+
+/* Rosé Pine — Emilia Dunfelt <edun@dunfelt.se>.
+ * Adjusted: success lifted 20% along its own ramp. */
+:root[data-theme="rose-pine"] {
+  color-scheme: dark;
+  --mm-bg: #191724;
+  --mm-surface: #1F1D2E;
+  --mm-elevated: #26233A;
+  --mm-fg: #E0DEF4;
+  --mm-muted: #908CAA;
+  --mm-border: rgba(224, 222, 244, 0.14);
+  --mm-contrast-bg: #E0DEF4;
+  --mm-contrast-fg: #191724;
+  --mm-contrast-border: rgba(25, 23, 36, 0.16);
+  --mm-primary: #C4A7E7;
+  --mm-primary-hover: #CAB2EA;
+  --mm-primary-fg: #191724;
+  --mm-primary-tint: #CCB8EB;
+  --mm-accent: #F6C177;
+  --mm-accent-fg: #191724;
+  --mm-accent-warm: #F6C177;
+  --mm-danger: #EB6F92;
+  --mm-success: #5489A3;
+  --mm-warning: #EBBCBA;
+  --mm-glass-panel: rgba(31, 29, 46, 0.72);
+  --mm-glass-card: rgba(38, 35, 58, 0.62);
+  --mm-glass-border: rgba(224, 222, 244, 0.1);
+  --mm-hero-from: #C4A7E7;
+  --mm-hero-to: #E0DEF4;
+  --mm-scrollbar: rgba(144, 140, 170, 0.35);
+  --mm-scrollbar-hover: rgba(144, 140, 170, 0.55);
+  --mm-glow: 0 0 24px rgba(196, 167, 231, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #C4A7E7;
+}
+
+/* Rosé Pine Moon — Emilia Dunfelt <edun@dunfelt.se>.
+ * Adjusted: muted derived 50% along base05→base03; success lifted 5% along its own ramp. */
+:root[data-theme="rose-pine-moon"] {
+  color-scheme: dark;
+  --mm-bg: #232136;
+  --mm-surface: #2A273F;
+  --mm-elevated: #393552;
+  --mm-fg: #E0DEF4;
+  --mm-muted: #A7A4BD;
+  --mm-border: rgba(224, 222, 244, 0.14);
+  --mm-contrast-bg: #E0DEF4;
+  --mm-contrast-fg: #232136;
+  --mm-contrast-border: rgba(35, 33, 54, 0.16);
+  --mm-primary: #C4A7E7;
+  --mm-primary-hover: #CAB2EA;
+  --mm-primary-fg: #232136;
+  --mm-primary-tint: #CCB8EB;
+  --mm-accent: #F6C177;
+  --mm-accent-fg: #232136;
+  --mm-accent-warm: #F6C177;
+  --mm-danger: #EB6F92;
+  --mm-success: #4693B3;
+  --mm-warning: #EA9A97;
+  --mm-glass-panel: rgba(42, 39, 63, 0.72);
+  --mm-glass-card: rgba(57, 53, 82, 0.62);
+  --mm-glass-border: rgba(224, 222, 244, 0.1);
+  --mm-hero-from: #C4A7E7;
+  --mm-hero-to: #E0DEF4;
+  --mm-scrollbar: rgba(167, 164, 189, 0.35);
+  --mm-scrollbar-hover: rgba(167, 164, 189, 0.55);
+  --mm-glow: 0 0 24px rgba(196, 167, 231, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #C4A7E7;
+}
+
+/* Kanagawa — Tommaso Laurenzi (https://github.com/rebelot).
+ * Adjusted: surface derived (base01 is not a panel tone); muted derived 45% along base05→base03; danger lifted 30% along its own ramp. */
+:root[data-theme="kanagawa"] {
+  color-scheme: dark;
+  --mm-bg: #1F1F28;
+  --mm-surface: #28282F;
+  --mm-elevated: #223249;
+  --mm-fg: #DCD7BA;
+  --mm-muted: #9F9C97;
+  --mm-border: rgba(220, 215, 186, 0.14);
+  --mm-contrast-bg: #DCD7BA;
+  --mm-contrast-fg: #1F1F28;
+  --mm-contrast-border: rgba(31, 31, 40, 0.16);
+  --mm-primary: #7E9CD8;
+  --mm-primary-hover: #91A8D2;
+  --mm-primary-fg: #1F1F28;
+  --mm-primary-tint: #9AAECF;
+  --mm-accent: #FFA066;
+  --mm-accent-fg: #1F1F28;
+  --mm-accent-warm: #FFA066;
+  --mm-danger: #CB6D67;
+  --mm-success: #76946A;
+  --mm-warning: #C0A36E;
+  --mm-glass-panel: rgba(40, 40, 47, 0.72);
+  --mm-glass-card: rgba(34, 50, 73, 0.62);
+  --mm-glass-border: rgba(220, 215, 186, 0.1);
+  --mm-hero-from: #7E9CD8;
+  --mm-hero-to: #DCD7BA;
+  --mm-scrollbar: rgba(159, 156, 151, 0.35);
+  --mm-scrollbar-hover: rgba(159, 156, 151, 0.55);
+  --mm-glow: 0 0 24px rgba(126, 156, 216, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #7E9CD8;
+}
+
+/* Everforest — Sainnhe Park (https://github.com/sainnhe).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 45% along base05→base03; accent lifted 5% along its own ramp. */
+:root[data-theme="everforest-dark-hard"] {
+  color-scheme: dark;
+  --mm-bg: #272E33;
+  --mm-surface: #2E383C;
+  --mm-elevated: #3A4244;
+  --mm-fg: #D3C6AA;
+  --mm-muted: #B0AF9B;
+  --mm-border: rgba(211, 198, 170, 0.14);
+  --mm-contrast-bg: #FFFBEF;
+  --mm-contrast-fg: #272E33;
+  --mm-contrast-border: rgba(39, 46, 51, 0.16);
+  --mm-primary: #7FBBB3;
+  --mm-primary-hover: #90BDB1;
+  --mm-primary-fg: #272E33;
+  --mm-primary-tint: #A5CEC5;
+  --mm-accent: #D89EB9;
+  --mm-accent-fg: #272E33;
+  --mm-accent-warm: #E69875;
+  --mm-danger: #E67E80;
+  --mm-success: #A7C080;
+  --mm-warning: #DBBC7F;
+  --mm-glass-panel: rgba(46, 56, 60, 0.72);
+  --mm-glass-card: rgba(58, 66, 68, 0.62);
+  --mm-glass-border: rgba(211, 198, 170, 0.1);
+  --mm-hero-from: #7FBBB3;
+  --mm-hero-to: #D3C6AA;
+  --mm-scrollbar: rgba(176, 175, 155, 0.35);
+  --mm-scrollbar-hover: rgba(176, 175, 155, 0.55);
+  --mm-glow: 0 0 24px rgba(127, 187, 179, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #7FBBB3;
+}
+
+/* Tokyo City — Michaël Ball. */
+:root[data-theme="tokyo-city-dark"] {
+  color-scheme: dark;
+  --mm-bg: #171D23;
+  --mm-surface: #1D252C;
+  --mm-elevated: #28323A;
+  --mm-fg: #D8E2EC;
+  --mm-muted: #B7C5D3;
+  --mm-border: rgba(216, 226, 236, 0.14);
+  --mm-contrast-bg: #FBFBFD;
+  --mm-contrast-fg: #171D23;
+  --mm-contrast-border: rgba(23, 29, 35, 0.16);
+  --mm-primary: #7AA2F7;
+  --mm-primary-hover: #8DAFF5;
+  --mm-primary-fg: #171D23;
+  --mm-primary-tint: #A1BDF9;
+  --mm-accent: #BB9AF7;
+  --mm-accent-fg: #171D23;
+  --mm-accent-warm: #FF9E64;
+  --mm-danger: #F7768E;
+  --mm-success: #9ECE6A;
+  --mm-warning: #B7C5D3;
+  --mm-glass-panel: rgba(29, 37, 44, 0.72);
+  --mm-glass-card: rgba(40, 50, 58, 0.62);
+  --mm-glass-border: rgba(216, 226, 236, 0.1);
+  --mm-hero-from: #7AA2F7;
+  --mm-hero-to: #D8E2EC;
+  --mm-scrollbar: rgba(183, 197, 211, 0.35);
+  --mm-scrollbar-hover: rgba(183, 197, 211, 0.55);
+  --mm-glow: 0 0 24px rgba(122, 162, 247, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #7AA2F7;
+}
+
+/* Ayu Dark — Tinted Theming (https://github.com/tinted-theming), Ayu Theme (https://github.com/ayu-theme). */
+:root[data-theme="ayu-dark"] {
+  color-scheme: dark;
+  --mm-bg: #0B0E14;
+  --mm-surface: #131721;
+  --mm-elevated: #202229;
+  --mm-fg: #E6E1CF;
+  --mm-muted: #BFBDB6;
+  --mm-border: rgba(230, 225, 207, 0.14);
+  --mm-contrast-bg: #F2F0E7;
+  --mm-contrast-fg: #0B0E14;
+  --mm-contrast-border: rgba(11, 14, 20, 0.16);
+  --mm-primary: #59C2FF;
+  --mm-primary-hover: #75C8F5;
+  --mm-primary-fg: #0B0E14;
+  --mm-primary-tint: #87D0F8;
+  --mm-accent: #D2A6FF;
+  --mm-accent-fg: #0B0E14;
+  --mm-accent-warm: #FF8F40;
+  --mm-danger: #F07178;
+  --mm-success: #AAD94C;
+  --mm-warning: #FFB454;
+  --mm-glass-panel: rgba(19, 23, 33, 0.72);
+  --mm-glass-card: rgba(32, 34, 41, 0.62);
+  --mm-glass-border: rgba(230, 225, 207, 0.1);
+  --mm-hero-from: #59C2FF;
+  --mm-hero-to: #E6E1CF;
+  --mm-scrollbar: rgba(191, 189, 182, 0.35);
+  --mm-scrollbar-hover: rgba(191, 189, 182, 0.55);
+  --mm-glow: 0 0 24px rgba(89, 194, 255, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #59C2FF;
+}
+
+/* Ayu Mirage — Tinted Theming (https://github.com/tinted-theming), Ayu Theme (https://github.com/ayu-theme).
+ * Adjusted: muted derived 30% along base05→base03. */
+:root[data-theme="ayu-mirage"] {
+  color-scheme: dark;
+  --mm-bg: #1F2430;
+  --mm-surface: #242936;
+  --mm-elevated: #323844;
+  --mm-fg: #CCCAC2;
+  --mm-muted: #A5A5A3;
+  --mm-border: rgba(204, 202, 194, 0.14);
+  --mm-contrast-bg: #F3F4F5;
+  --mm-contrast-fg: #1F2430;
+  --mm-contrast-border: rgba(31, 36, 48, 0.16);
+  --mm-primary: #73D0FF;
+  --mm-primary-hover: #85CFF3;
+  --mm-primary-fg: #1F2430;
+  --mm-primary-tint: #99DBFC;
+  --mm-accent: #D4BFFF;
+  --mm-accent-fg: #1F2430;
+  --mm-accent-warm: #FFAD66;
+  --mm-danger: #F28779;
+  --mm-success: #D5FF80;
+  --mm-warning: #FFD173;
+  --mm-glass-panel: rgba(36, 41, 54, 0.72);
+  --mm-glass-card: rgba(50, 56, 68, 0.62);
+  --mm-glass-border: rgba(204, 202, 194, 0.1);
+  --mm-hero-from: #73D0FF;
+  --mm-hero-to: #CCCAC2;
+  --mm-scrollbar: rgba(165, 165, 163, 0.35);
+  --mm-scrollbar-hover: rgba(165, 165, 163, 0.55);
+  --mm-glow: 0 0 24px rgba(115, 208, 255, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #73D0FF;
+}
+
+/* One Dark — olimorris (https://github.com/olimorris).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 30% along base05→base03. */
+:root[data-theme="onedark-dark"] {
+  color-scheme: dark;
+  --mm-bg: #000000;
+  --mm-surface: #1C1F24;
+  --mm-elevated: #26292F;
+  --mm-fg: #ABB2BF;
+  --mm-muted: #8C929E;
+  --mm-border: rgba(171, 178, 191, 0.14);
+  --mm-contrast-bg: #C8CCD4;
+  --mm-contrast-fg: #000000;
+  --mm-contrast-border: rgba(0, 0, 0, 0.16);
+  --mm-primary: #61AFEF;
+  --mm-primary-hover: #70B0E5;
+  --mm-primary-fg: #000000;
+  --mm-primary-tint: #80B8E7;
+  --mm-accent: #D55FDE;
+  --mm-accent-fg: #000000;
+  --mm-accent-warm: #D19A66;
+  --mm-danger: #EF596F;
+  --mm-success: #89CA78;
+  --mm-warning: #E5C07B;
+  --mm-glass-panel: rgba(28, 31, 36, 0.72);
+  --mm-glass-card: rgba(38, 41, 47, 0.62);
+  --mm-glass-border: rgba(171, 178, 191, 0.1);
+  --mm-hero-from: #61AFEF;
+  --mm-hero-to: #ABB2BF;
+  --mm-scrollbar: rgba(140, 146, 158, 0.35);
+  --mm-scrollbar-hover: rgba(140, 146, 158, 0.55);
+  --mm-glow: 0 0 24px rgba(97, 175, 239, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #61AFEF;
+}
+
+/* Monokai — Wimer Hazenberg (http://www.monokai.nl).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 50% along base05→base03; accent lifted 5% along its own ramp; danger lifted 20% along its own ramp. */
+:root[data-theme="monokai"] {
+  color-scheme: dark;
+  --mm-bg: #272822;
+  --mm-surface: #383830;
+  --mm-elevated: #45453E;
+  --mm-fg: #F8F8F2;
+  --mm-muted: #B7B5A8;
+  --mm-border: rgba(248, 248, 242, 0.14);
+  --mm-contrast-bg: #F9F8F5;
+  --mm-contrast-fg: #272822;
+  --mm-contrast-border: rgba(39, 40, 34, 0.16);
+  --mm-primary: #66D9EF;
+  --mm-primary-hover: #83DFF0;
+  --mm-primary-fg: #272822;
+  --mm-primary-tint: #92E2F1;
+  --mm-accent: #FD9C2A;
+  --mm-accent-fg: #272822;
+  --mm-accent-warm: #FD971F;
+  --mm-danger: #F9508C;
+  --mm-success: #A6E22E;
+  --mm-warning: #F4BF75;
+  --mm-glass-panel: rgba(56, 56, 48, 0.72);
+  --mm-glass-card: rgba(69, 69, 62, 0.62);
+  --mm-glass-border: rgba(248, 248, 242, 0.1);
+  --mm-hero-from: #66D9EF;
+  --mm-hero-to: #F8F8F2;
+  --mm-scrollbar: rgba(183, 181, 168, 0.35);
+  --mm-scrollbar-hover: rgba(183, 181, 168, 0.55);
+  --mm-glow: 0 0 24px rgba(102, 217, 239, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #66D9EF;
+}
+
+/* Material — Nate Peterson. */
+:root[data-theme="material-darker"] {
+  color-scheme: dark;
+  --mm-bg: #212121;
+  --mm-surface: #303030;
+  --mm-elevated: #353535;
+  --mm-fg: #EEFFFF;
+  --mm-muted: #B2CCD6;
+  --mm-border: rgba(238, 255, 255, 0.14);
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #212121;
+  --mm-contrast-border: rgba(33, 33, 33, 0.16);
+  --mm-primary: #82AAFF;
+  --mm-primary-hover: #98BBFF;
+  --mm-primary-fg: #212121;
+  --mm-primary-tint: #A8C4FF;
+  --mm-accent: #C792EA;
+  --mm-accent-fg: #212121;
+  --mm-accent-warm: #F78C6C;
+  --mm-danger: #F07178;
+  --mm-success: #C3E88D;
+  --mm-warning: #FFCB6B;
+  --mm-glass-panel: rgba(48, 48, 48, 0.72);
+  --mm-glass-card: rgba(53, 53, 53, 0.62);
+  --mm-glass-border: rgba(238, 255, 255, 0.1);
+  --mm-hero-from: #82AAFF;
+  --mm-hero-to: #EEFFFF;
+  --mm-scrollbar: rgba(178, 204, 214, 0.35);
+  --mm-scrollbar-hover: rgba(178, 204, 214, 0.55);
+  --mm-glow: 0 0 24px rgba(130, 170, 255, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #82AAFF;
+}
+
+/* GitHub Dark — Tinted Theming (https://github.com/tinted-theming).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel). */
+:root[data-theme="github-dark"] {
+  color-scheme: dark;
+  --mm-bg: #0D1117;
+  --mm-surface: #161B22;
+  --mm-elevated: #23282F;
+  --mm-fg: #C9D1D9;
+  --mm-muted: #8B949E;
+  --mm-border: rgba(201, 209, 217, 0.14);
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #0D1117;
+  --mm-contrast-border: rgba(13, 17, 23, 0.16);
+  --mm-primary: #D2A8FF;
+  --mm-primary-hover: #D0B0F7;
+  --mm-primary-fg: #0D1117;
+  --mm-primary-tint: #E0C2FF;
+  --mm-accent: #FF7B72;
+  --mm-accent-fg: #0D1117;
+  --mm-accent-warm: #79C0FF;
+  --mm-danger: #FFA657;
+  --mm-success: #A5D6FF;
+  --mm-warning: #BB8009;
+  --mm-glass-panel: rgba(22, 27, 34, 0.72);
+  --mm-glass-card: rgba(35, 40, 47, 0.62);
+  --mm-glass-border: rgba(201, 209, 217, 0.1);
+  --mm-hero-from: #D2A8FF;
+  --mm-hero-to: #C9D1D9;
+  --mm-scrollbar: rgba(139, 148, 158, 0.35);
+  --mm-scrollbar-hover: rgba(139, 148, 158, 0.55);
+  --mm-glow: 0 0 24px rgba(210, 168, 255, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #D2A8FF;
+}
+
+/* Flexoki Dark — Steph Ango (https://github.com/kepano/flexoki).
+ * Adjusted: muted derived 50% along base05→base03; primary lifted 15% along its own ramp; accent lifted 5% along its own ramp; danger lifted 5% along its own ramp. */
+:root[data-theme="flexoki-dark"] {
+  color-scheme: dark;
+  --mm-bg: #100F0F;
+  --mm-surface: #1C1B1A;
+  --mm-elevated: #282726;
+  --mm-fg: #CECDC3;
+  --mm-muted: #93928B;
+  --mm-border: rgba(206, 205, 195, 0.14);
+  --mm-contrast-bg: #FFFCF0;
+  --mm-contrast-fg: #100F0F;
+  --mm-contrast-border: rgba(16, 15, 15, 0.16);
+  --mm-primary: #5F97C6;
+  --mm-primary-hover: #75A2C5;
+  --mm-primary-fg: #100F0F;
+  --mm-primary-tint: #8FB5D3;
+  --mm-accent: #9184CA;
+  --mm-accent-fg: #100F0F;
+  --mm-accent-warm: #DA702C;
+  --mm-danger: #D3564A;
+  --mm-success: #879A39;
+  --mm-warning: #D0A215;
+  --mm-glass-panel: rgba(28, 27, 26, 0.72);
+  --mm-glass-card: rgba(40, 39, 38, 0.62);
+  --mm-glass-border: rgba(206, 205, 195, 0.1);
+  --mm-hero-from: #5F97C6;
+  --mm-hero-to: #CECDC3;
+  --mm-scrollbar: rgba(147, 146, 139, 0.35);
+  --mm-scrollbar-hover: rgba(147, 146, 139, 0.55);
+  --mm-glow: 0 0 24px rgba(95, 151, 198, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #5F97C6;
+}
+
+/* Oxocarbon — shaunsingh/IBM, Tinted Theming (https://github.com/tinted-theming).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 50% along base05→base03. */
+:root[data-theme="oxocarbon-dark"] {
+  color-scheme: dark;
+  --mm-bg: #161616;
+  --mm-surface: #262626;
+  --mm-elevated: #343435;
+  --mm-fg: #F2F4F8;
+  --mm-muted: #A2A3A5;
+  --mm-border: rgba(242, 244, 248, 0.14);
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #161616;
+  --mm-contrast-border: rgba(22, 22, 22, 0.16);
+  --mm-primary: #33B1FF;
+  --mm-primary-hover: #59BEFE;
+  --mm-primary-fg: #161616;
+  --mm-primary-tint: #70C8FF;
+  --mm-accent: #BE95FF;
+  --mm-accent-fg: #161616;
+  --mm-accent-warm: #FF7EB6;
+  --mm-danger: #EE5396;
+  --mm-success: #42BE65;
+  --mm-warning: #FF6F00;
+  --mm-glass-panel: rgba(38, 38, 38, 0.72);
+  --mm-glass-card: rgba(52, 52, 53, 0.62);
+  --mm-glass-border: rgba(242, 244, 248, 0.1);
+  --mm-hero-from: #33B1FF;
+  --mm-hero-to: #F2F4F8;
+  --mm-scrollbar: rgba(162, 163, 165, 0.35);
+  --mm-scrollbar-hover: rgba(162, 163, 165, 0.55);
+  --mm-glow: 0 0 24px rgba(51, 177, 255, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #33B1FF;
+}
+
+/* Spaceduck — Guillermo Rodriguez (https://github.com/pineapplegiant), packaged by Gabriel Fontes (https://github.com/Misterio77).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 70% along base05→base03; primary from base0A (base0D unusable); danger lifted 15% along its own ramp. */
+:root[data-theme="spaceduck"] {
+  color-scheme: dark;
+  --mm-bg: #16172D;
+  --mm-surface: #1B1C36;
+  --mm-elevated: #2A2B40;
+  --mm-fg: #ECF0C1;
+  --mm-muted: #9096A6;
+  --mm-border: rgba(236, 240, 193, 0.14);
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #16172D;
+  --mm-contrast-border: rgba(22, 23, 45, 0.16);
+  --mm-primary: #F2CE00;
+  --mm-primary-hover: #F1D527;
+  --mm-primary-fg: #16172D;
+  --mm-primary-tint: #F6DD4D;
+  --mm-accent: #B3A1E6;
+  --mm-accent-fg: #16172D;
+  --mm-accent-warm: #E39400;
+  --mm-danger: #E75226;
+  --mm-success: #5CCC96;
+  --mm-warning: #F2CE00;
+  --mm-glass-panel: rgba(27, 28, 54, 0.72);
+  --mm-glass-card: rgba(42, 43, 64, 0.62);
+  --mm-glass-border: rgba(236, 240, 193, 0.1);
+  --mm-hero-from: #F2CE00;
+  --mm-hero-to: #ECF0C1;
+  --mm-scrollbar: rgba(144, 150, 166, 0.35);
+  --mm-scrollbar-hover: rgba(144, 150, 166, 0.55);
+  --mm-glow: 0 0 24px rgba(242, 206, 0, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #F2CE00;
+}
+
+/* Eldritch — https://github.com/eldritch-theme.
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 60% along base05→base03. */
+:root[data-theme="eldritch"] {
+  color-scheme: dark;
+  --mm-bg: #212337;
+  --mm-surface: #323449;
+  --mm-elevated: #3F4255;
+  --mm-fg: #EBFAFA;
+  --mm-muted: #A1B1E1;
+  --mm-border: rgba(235, 250, 250, 0.14);
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #212337;
+  --mm-contrast-border: rgba(33, 35, 55, 0.16);
+  --mm-primary: #39DDFD;
+  --mm-primary-hover: #5DE3FC;
+  --mm-primary-fg: #212337;
+  --mm-primary-tint: #74E7FE;
+  --mm-accent: #F7C67F;
+  --mm-accent-fg: #212337;
+  --mm-accent-warm: #F7C67F;
+  --mm-danger: #F16C75;
+  --mm-success: #37F499;
+  --mm-warning: #F1FC79;
+  --mm-glass-panel: rgba(50, 52, 73, 0.72);
+  --mm-glass-card: rgba(63, 66, 85, 0.62);
+  --mm-glass-border: rgba(235, 250, 250, 0.1);
+  --mm-hero-from: #39DDFD;
+  --mm-hero-to: #EBFAFA;
+  --mm-scrollbar: rgba(161, 177, 225, 0.35);
+  --mm-scrollbar-hover: rgba(161, 177, 225, 0.55);
+  --mm-glow: 0 0 24px rgba(57, 221, 253, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #39DDFD;
+}
+
+/* Selenized Black — Jan Warchol (https://github.com/jan-warchol/selenized) / adapted to base16 by ali.
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 50% along base05→base03; primary from base0A (base0D unusable); accent lifted 5% along its own ramp. */
+:root[data-theme="selenized-black"] {
+  color-scheme: dark;
+  --mm-bg: #181818;
+  --mm-surface: #252525;
+  --mm-elevated: #2F2F2F;
+  --mm-fg: #B9B9B9;
+  --mm-muted: #989898;
+  --mm-border: rgba(185, 185, 185, 0.14);
+  --mm-contrast-bg: #DEDEDE;
+  --mm-contrast-fg: #181818;
+  --mm-contrast-border: rgba(24, 24, 24, 0.16);
+  --mm-primary: #DBB32D;
+  --mm-primary-hover: #D4B449;
+  --mm-primary-fg: #181818;
+  --mm-primary-tint: #DCC062;
+  --mm-accent: #A885E2;
+  --mm-accent-fg: #181818;
+  --mm-accent-warm: #E67F43;
+  --mm-danger: #ED4A46;
+  --mm-success: #70B433;
+  --mm-warning: #DBB32D;
+  --mm-glass-panel: rgba(37, 37, 37, 0.72);
+  --mm-glass-card: rgba(47, 47, 47, 0.62);
+  --mm-glass-border: rgba(185, 185, 185, 0.1);
+  --mm-hero-from: #DBB32D;
+  --mm-hero-to: #B9B9B9;
+  --mm-scrollbar: rgba(152, 152, 152, 0.35);
+  --mm-scrollbar-hover: rgba(152, 152, 152, 0.55);
+  --mm-glow: 0 0 24px rgba(219, 179, 45, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #DBB32D;
+}
+
+/* Horizon Dark — Michaël Ball (http://github.com/michael-ball/).
+ * Adjusted: primary from base0A (base0D unusable); accent lifted 15% along its own ramp; danger lifted 10% along its own ramp. */
+:root[data-theme="horizon-dark"] {
+  color-scheme: dark;
+  --mm-bg: #1C1E26;
+  --mm-surface: #232530;
+  --mm-elevated: #2E303E;
+  --mm-fg: #CBCED0;
+  --mm-muted: #9DA0A2;
+  --mm-border: rgba(203, 206, 208, 0.14);
+  --mm-contrast-bg: #E3E6EE;
+  --mm-contrast-fg: #1C1E26;
+  --mm-contrast-border: rgba(28, 30, 38, 0.16);
+  --mm-primary: #EFB993;
+  --mm-primary-hover: #E8BD9F;
+  --mm-primary-fg: #1C1E26;
+  --mm-primary-tint: #EBC7AE;
+  --mm-accent: #B883D5;
+  --mm-accent-fg: #1C1E26;
+  --mm-accent-warm: #E58D7D;
+  --mm-danger: #E84D67;
+  --mm-success: #EFAF8E;
+  --mm-warning: #EFB993;
+  --mm-glass-panel: rgba(35, 37, 48, 0.72);
+  --mm-glass-card: rgba(46, 48, 62, 0.62);
+  --mm-glass-border: rgba(203, 206, 208, 0.1);
+  --mm-hero-from: #EFB993;
+  --mm-hero-to: #CBCED0;
+  --mm-scrollbar: rgba(157, 160, 162, 0.35);
+  --mm-scrollbar-hover: rgba(157, 160, 162, 0.55);
+  --mm-glow: 0 0 24px rgba(239, 185, 147, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #EFB993;
+}
+
+/* Zenburn — elnawe.
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 30% along base05→base03; primary from base0A (base0D unusable); success lifted 35% along its own ramp. */
+:root[data-theme="zenburn"] {
+  color-scheme: dark;
+  --mm-bg: #383838;
+  --mm-surface: #404040;
+  --mm-elevated: #4B4B4A;
+  --mm-fg: #DCDCCC;
+  --mm-muted: #BBBBB0;
+  --mm-border: rgba(220, 220, 204, 0.14);
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #383838;
+  --mm-contrast-border: rgba(56, 56, 56, 0.16);
+  --mm-primary: #E0CF9F;
+  --mm-primary-hover: #DFD2A8;
+  --mm-primary-fg: #383838;
+  --mm-primary-tint: #E9DDBC;
+  --mm-accent: #93E0E3;
+  --mm-accent-fg: #383838;
+  --mm-accent-warm: #DFAF8F;
+  --mm-danger: #DCA3A3;
+  --mm-success: #97AC97;
+  --mm-warning: #E0CF9F;
+  --mm-glass-panel: rgba(64, 64, 64, 0.72);
+  --mm-glass-card: rgba(75, 75, 74, 0.62);
+  --mm-glass-border: rgba(220, 220, 204, 0.1);
+  --mm-hero-from: #E0CF9F;
+  --mm-hero-to: #DCDCCC;
+  --mm-scrollbar: rgba(187, 187, 176, 0.35);
+  --mm-scrollbar-hover: rgba(187, 187, 176, 0.55);
+  --mm-glow: 0 0 24px rgba(224, 207, 159, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #E0CF9F;
+}
+
+/* Vesper — FormalSnake (https://github.com/formalsnake).
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel). */
+:root[data-theme="vesper"] {
+  color-scheme: dark;
+  --mm-bg: #101010;
+  --mm-surface: #232323;
+  --mm-elevated: #2D2D2D;
+  --mm-fg: #B7B7B7;
+  --mm-muted: #999999;
+  --mm-border: rgba(183, 183, 183, 0.14);
+  --mm-contrast-bg: #D5D5D5;
+  --mm-contrast-fg: #101010;
+  --mm-contrast-border: rgba(16, 16, 16, 0.16);
+  --mm-primary: #8EAAAA;
+  --mm-primary-hover: #96ADAD;
+  --mm-primary-fg: #101010;
+  --mm-primary-tint: #A3B7B7;
+  --mm-accent: #D69094;
+  --mm-accent-fg: #101010;
+  --mm-accent-warm: #DAB083;
+  --mm-danger: #DE6E6E;
+  --mm-success: #5F8787;
+  --mm-warning: #FFC799;
+  --mm-glass-panel: rgba(35, 35, 35, 0.72);
+  --mm-glass-card: rgba(45, 45, 45, 0.62);
+  --mm-glass-border: rgba(183, 183, 183, 0.1);
+  --mm-hero-from: #8EAAAA;
+  --mm-hero-to: #B7B7B7;
+  --mm-scrollbar: rgba(153, 153, 153, 0.35);
+  --mm-scrollbar-hover: rgba(153, 153, 153, 0.55);
+  --mm-glow: 0 0 24px rgba(142, 170, 170, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #8EAAAA;
+}
+
+/* Catppuccin Latte — https://github.com/catppuccin/catppuccin.
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 25% along base05→base03; primary lifted 10% along its own ramp; success lifted 50% along its own ramp; warning lifted 60% along its own ramp. */
+:root[data-theme="catppuccin-latte"] {
+  color-scheme: light;
+  --mm-bg: #EFF1F5;
+  --mm-surface: #F5F6F9;
+  --mm-elevated: #FBFBFC;
+  --mm-fg: #4C4F69;
+  --mm-muted: #686B82;
+  --mm-border: rgba(76, 79, 105, 0.18);
+  --mm-contrast-bg: #4C4F69;
+  --mm-contrast-fg: #EFF1F5;
+  --mm-contrast-border: rgba(239, 241, 245, 0.16);
+  --mm-primary: #2364E7;
+  --mm-primary-hover: #2B60CE;
+  --mm-primary-fg: #EFF1F5;
+  --mm-primary-tint: #2F5EC1;
+  --mm-accent: #8839EF;
+  --mm-accent-fg: #EFF1F5;
+  --mm-accent-warm: #FE640B;
+  --mm-danger: #D20F39;
+  --mm-success: #46784A;
+  --mm-warning: #87684B;
+  --mm-glass-panel: rgba(245, 246, 249, 0.72);
+  --mm-glass-card: rgba(251, 251, 252, 0.62);
+  --mm-glass-border: rgba(76, 79, 105, 0.1);
+  --mm-hero-from: #2364E7;
+  --mm-hero-to: #4C4F69;
+  --mm-scrollbar: rgba(104, 107, 130, 0.35);
+  --mm-scrollbar-hover: rgba(104, 107, 130, 0.55);
+  --mm-glow: 0 2px 16px rgba(35, 100, 231, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(76, 79, 105, 0.12);
+  --mm-focus: #2364E7;
+}
+
+/* Rosé Pine Dawn — Emilia Dunfelt <edun@dunfelt.se>.
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 40% along base05→base03; primary from base0B (base0D unusable); accent lifted 30% along its own ramp; danger lifted 30% along its own ramp; warning lifted 60% along its own ramp. */
+:root[data-theme="rose-pine-dawn"] {
+  color-scheme: light;
+  --mm-bg: #FAF4ED;
+  --mm-surface: #FCF8F3;
+  --mm-elevated: #FEFCFA;
+  --mm-fg: #575279;
+  --mm-muted: #716C8B;
+  --mm-border: rgba(87, 82, 121, 0.18);
+  --mm-contrast-bg: #575279;
+  --mm-contrast-fg: #FAF4ED;
+  --mm-contrast-border: rgba(250, 244, 237, 0.16);
+  --mm-primary: #286983;
+  --mm-primary-hover: #316481;
+  --mm-primary-fg: #FAF4ED;
+  --mm-primary-tint: #366280;
+  --mm-accent: #985E7A;
+  --mm-accent-fg: #FAF4ED;
+  --mm-accent-warm: #EA9D34;
+  --mm-danger: #985E7A;
+  --mm-success: #286983;
+  --mm-warning: #8A657B;
+  --mm-glass-panel: rgba(252, 248, 243, 0.72);
+  --mm-glass-card: rgba(254, 252, 250, 0.62);
+  --mm-glass-border: rgba(87, 82, 121, 0.1);
+  --mm-hero-from: #286983;
+  --mm-hero-to: #575279;
+  --mm-scrollbar: rgba(113, 108, 139, 0.35);
+  --mm-scrollbar-hover: rgba(113, 108, 139, 0.55);
+  --mm-glow: 0 2px 16px rgba(40, 105, 131, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(87, 82, 121, 0.12);
+  --mm-focus: #286983;
+}
+
+/* Gruvbox Light — Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox).
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); success lifted 5% along its own ramp; warning lifted 25% along its own ramp. */
+:root[data-theme="gruvbox-light-medium"] {
+  color-scheme: light;
+  --mm-bg: #FBF1C7;
+  --mm-surface: #FCF6DB;
+  --mm-elevated: #FEFBEF;
+  --mm-fg: #504945;
+  --mm-muted: #665C54;
+  --mm-border: rgba(80, 73, 69, 0.18);
+  --mm-contrast-bg: #282828;
+  --mm-contrast-fg: #FBF1C7;
+  --mm-contrast-border: rgba(251, 241, 199, 0.16);
+  --mm-primary: #076678;
+  --mm-primary-hover: #16606E;
+  --mm-primary-fg: #FBF1C7;
+  --mm-primary-tint: #115360;
+  --mm-accent: #8F3F71;
+  --mm-accent-fg: #FBF1C7;
+  --mm-accent-warm: #AF3A03;
+  --mm-danger: #9D0006;
+  --mm-success: #75700F;
+  --mm-warning: #926319;
+  --mm-glass-panel: rgba(252, 246, 219, 0.72);
+  --mm-glass-card: rgba(254, 251, 239, 0.62);
+  --mm-glass-border: rgba(80, 73, 69, 0.1);
+  --mm-hero-from: #076678;
+  --mm-hero-to: #504945;
+  --mm-scrollbar: rgba(102, 92, 84, 0.35);
+  --mm-scrollbar-hover: rgba(102, 92, 84, 0.55);
+  --mm-glow: 0 2px 16px rgba(7, 102, 120, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(80, 73, 69, 0.12);
+  --mm-focus: #076678;
+}
+
+/* One Light — Daniel Pfeifer (http://github.com/purpleKarrot).
+ * Adjusted: surfaces derived downward (the page is already white); muted derived 45% along base05→base03; primary from base0E (base0D unusable); success lifted 25% along its own ramp; warning lifted 25% along its own ramp. */
+:root[data-theme="one-light"] {
+  color-scheme: light;
+  --mm-bg: #FAFAFA;
+  --mm-surface: #F2F2F3;
+  --mm-elevated: #EAEAEA;
+  --mm-fg: #383A42;
+  --mm-muted: #67686F;
+  --mm-border: rgba(56, 58, 66, 0.18);
+  --mm-contrast-bg: #090A0B;
+  --mm-contrast-fg: #FAFAFA;
+  --mm-contrast-border: rgba(250, 250, 250, 0.16);
+  --mm-primary: #A626A4;
+  --mm-primary-hover: #902A90;
+  --mm-primary-fg: #FAFAFA;
+  --mm-primary-tint: #771E76;
+  --mm-accent: #CA1243;
+  --mm-accent-fg: #FAFAFA;
+  --mm-accent-warm: #D75F00;
+  --mm-danger: #CA1243;
+  --mm-success: #3E7B3E;
+  --mm-warning: #936604;
+  --mm-glass-panel: rgba(242, 242, 243, 0.72);
+  --mm-glass-card: rgba(234, 234, 234, 0.62);
+  --mm-glass-border: rgba(56, 58, 66, 0.1);
+  --mm-hero-from: #A626A4;
+  --mm-hero-to: #383A42;
+  --mm-scrollbar: rgba(103, 104, 111, 0.35);
+  --mm-scrollbar-hover: rgba(103, 104, 111, 0.55);
+  --mm-glow: 0 2px 16px rgba(166, 38, 164, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(56, 58, 66, 0.12);
+  --mm-focus: #A626A4;
+}
+
+/* GitHub Light — Tinted Theming (https://github.com/tinted-theming).
+ * Adjusted: surfaces derived downward (the page is already white); muted derived 45% along base05→base03; primary lifted 5% along its own ramp; warning lifted 25% along its own ramp. */
+:root[data-theme="github"] {
+  color-scheme: light;
+  --mm-bg: #FFFFFF;
+  --mm-surface: #F7F8F8;
+  --mm-elevated: #EFF0F0;
+  --mm-fg: #424A53;
+  --mm-muted: #636C75;
+  --mm-border: rgba(66, 74, 83, 0.18);
+  --mm-contrast-bg: #1F2328;
+  --mm-contrast-fg: #FFFFFF;
+  --mm-contrast-border: rgba(255, 255, 255, 0.16);
+  --mm-primary: #7D4ED6;
+  --mm-primary-hover: #714DBC;
+  --mm-primary-fg: #FFFFFF;
+  --mm-primary-tint: #6141A2;
+  --mm-accent: #CF222E;
+  --mm-accent-fg: #FFFFFF;
+  --mm-accent-warm: #0550AE;
+  --mm-danger: #953800;
+  --mm-success: #0A3069;
+  --mm-warning: #976E0A;
+  --mm-glass-panel: rgba(247, 248, 248, 0.72);
+  --mm-glass-card: rgba(239, 240, 240, 0.62);
+  --mm-glass-border: rgba(66, 74, 83, 0.1);
+  --mm-hero-from: #7D4ED6;
+  --mm-hero-to: #424A53;
+  --mm-scrollbar: rgba(99, 108, 117, 0.35);
+  --mm-scrollbar-hover: rgba(99, 108, 117, 0.55);
+  --mm-glow: 0 2px 16px rgba(125, 78, 214, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(66, 74, 83, 0.12);
+  --mm-focus: #7D4ED6;
+}
+
+/* Flexoki Light — Steph Ango (https://github.com/kepano/flexoki).
+ * Adjusted: surfaces derived downward (the page is already white); muted derived 30% along base05→base03; success lifted 5% along its own ramp; warning lifted 20% along its own ramp. */
+:root[data-theme="flexoki-light"] {
+  color-scheme: light;
+  --mm-bg: #FFFCF0;
+  --mm-surface: #F7F4E9;
+  --mm-elevated: #EFECE1;
+  --mm-fg: #403E3C;
+  --mm-muted: #6B6965;
+  --mm-border: rgba(64, 62, 60, 0.18);
+  --mm-contrast-bg: #100F0F;
+  --mm-contrast-fg: #FFFCF0;
+  --mm-contrast-border: rgba(255, 252, 240, 0.16);
+  --mm-primary: #205EA6;
+  --mm-primary-hover: #265891;
+  --mm-primary-fg: #FFFCF0;
+  --mm-primary-tint: #1B4679;
+  --mm-accent: #5E409D;
+  --mm-accent-fg: #FFFCF0;
+  --mm-accent-warm: #BC5215;
+  --mm-danger: #AF3029;
+  --mm-success: #627A0B;
+  --mm-warning: #8E6C04;
+  --mm-glass-panel: rgba(247, 244, 233, 0.72);
+  --mm-glass-card: rgba(239, 236, 225, 0.62);
+  --mm-glass-border: rgba(64, 62, 60, 0.1);
+  --mm-hero-from: #205EA6;
+  --mm-hero-to: #403E3C;
+  --mm-scrollbar: rgba(107, 105, 101, 0.35);
+  --mm-scrollbar-hover: rgba(107, 105, 101, 0.55);
+  --mm-glow: 0 2px 16px rgba(32, 94, 166, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(64, 62, 60, 0.12);
+  --mm-focus: #205EA6;
+}
+
+/* Nord Light — threddast, based on fuxialexander's doom-nord-light-theme (Doom Emacs).
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 35% along base05→base03; primary lifted 5% along its own ramp; success lifted 30% along its own ramp; warning lifted 25% along its own ramp. */
+:root[data-theme="nord-light"] {
+  color-scheme: light;
+  --mm-bg: #E5E9F0;
+  --mm-surface: #EEF1F5;
+  --mm-elevated: #F8F9FB;
+  --mm-fg: #2E3440;
+  --mm-muted: #5B6372;
+  --mm-border: rgba(46, 52, 64, 0.18);
+  --mm-contrast-bg: #2E3440;
+  --mm-contrast-fg: #E5E9F0;
+  --mm-contrast-border: rgba(229, 233, 240, 0.16);
+  --mm-primary: #3A6BA3;
+  --mm-primary-hover: #38608F;
+  --mm-primary-fg: #E5E9F0;
+  --mm-primary-tint: #365B85;
+  --mm-accent: #97365B;
+  --mm-accent-fg: #E5E9F0;
+  --mm-accent-warm: #AC4426;
+  --mm-danger: #99324B;
+  --mm-success: #457048;
+  --mm-warning: #7F6510;
+  --mm-glass-panel: rgba(238, 241, 245, 0.72);
+  --mm-glass-card: rgba(248, 249, 251, 0.62);
+  --mm-glass-border: rgba(46, 52, 64, 0.1);
+  --mm-hero-from: #3A6BA3;
+  --mm-hero-to: #2E3440;
+  --mm-scrollbar: rgba(91, 99, 114, 0.35);
+  --mm-scrollbar-hover: rgba(91, 99, 114, 0.55);
+  --mm-glow: 0 2px 16px rgba(58, 107, 163, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(46, 52, 64, 0.12);
+  --mm-focus: #3A6BA3;
+}
+
+/* Tokyo Night Light — Michaël Ball.
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); warning lifted 5% along its own ramp. */
+:root[data-theme="tokyo-night-light"] {
+  color-scheme: light;
+  --mm-bg: #D5D6DB;
+  --mm-surface: #E4E4E8;
+  --mm-elevated: #F3F4F5;
+  --mm-fg: #343B59;
+  --mm-muted: #4C505E;
+  --mm-border: rgba(52, 59, 89, 0.18);
+  --mm-contrast-bg: #1A1B26;
+  --mm-contrast-fg: #D5D6DB;
+  --mm-contrast-border: rgba(213, 214, 219, 0.16);
+  --mm-primary: #34548A;
+  --mm-primary-hover: #344F80;
+  --mm-primary-fg: #D5D6DB;
+  --mm-primary-tint: #2C436C;
+  --mm-accent: #5A4A78;
+  --mm-accent-fg: #D5D6DB;
+  --mm-accent-warm: #965027;
+  --mm-danger: #343B58;
+  --mm-success: #485E30;
+  --mm-warning: #166371;
+  --mm-glass-panel: rgba(228, 228, 232, 0.72);
+  --mm-glass-card: rgba(243, 244, 245, 0.62);
+  --mm-glass-border: rgba(52, 59, 89, 0.1);
+  --mm-hero-from: #34548A;
+  --mm-hero-to: #343B59;
+  --mm-scrollbar: rgba(76, 80, 94, 0.35);
+  --mm-scrollbar-hover: rgba(76, 80, 94, 0.55);
+  --mm-glow: 0 2px 16px rgba(52, 84, 138, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(52, 59, 89, 0.12);
+  --mm-focus: #34548A;
+}
+
+/* Selenized White — Jan Warchol (https://github.com/jan-warchol/selenized) / adapted to base16 by ali.
+ * Adjusted: surfaces derived downward (the page is already white); muted derived 55% along base05→base03; warning lifted 25% along its own ramp. */
+:root[data-theme="selenized-white"] {
+  color-scheme: light;
+  --mm-bg: #FFFFFF;
+  --mm-surface: #F8F8F8;
+  --mm-elevated: #EFEFEF;
+  --mm-fg: #474747;
+  --mm-muted: #6A6A6A;
+  --mm-border: rgba(71, 71, 71, 0.18);
+  --mm-contrast-bg: #282828;
+  --mm-contrast-fg: #FFFFFF;
+  --mm-contrast-border: rgba(255, 255, 255, 0.16);
+  --mm-primary: #0054CF;
+  --mm-primary-hover: #0E51B4;
+  --mm-primary-fg: #FFFFFF;
+  --mm-primary-tint: #0C479D;
+  --mm-accent: #6B40C3;
+  --mm-accent-fg: #FFFFFF;
+  --mm-accent-warm: #BA3700;
+  --mm-danger: #BF0000;
+  --mm-success: #008400;
+  --mm-warning: #8D6E0A;
+  --mm-glass-panel: rgba(248, 248, 248, 0.72);
+  --mm-glass-card: rgba(239, 239, 239, 0.62);
+  --mm-glass-border: rgba(71, 71, 71, 0.1);
+  --mm-hero-from: #0054CF;
+  --mm-hero-to: #474747;
+  --mm-scrollbar: rgba(106, 106, 106, 0.35);
+  --mm-scrollbar-hover: rgba(106, 106, 106, 0.55);
+  --mm-glow: 0 2px 16px rgba(0, 84, 207, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(71, 71, 71, 0.12);
+  --mm-focus: #0054CF;
+}
+
+/* Equilibrium Light — Carlo Abelli.
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); primary lifted 5% along its own ramp; warning lifted 15% along its own ramp. */
+:root[data-theme="equilibrium-light"] {
+  color-scheme: light;
+  --mm-bg: #F5F0E7;
+  --mm-surface: #F9F5EF;
+  --mm-elevated: #FCFBF8;
+  --mm-fg: #43474E;
+  --mm-muted: #5A5F66;
+  --mm-border: rgba(67, 71, 78, 0.18);
+  --mm-contrast-bg: #181C22;
+  --mm-contrast-fg: #F5F0E7;
+  --mm-contrast-border: rgba(245, 240, 231, 0.16);
+  --mm-primary: #016FAE;
+  --mm-primary-hover: #0E679B;
+  --mm-primary-fg: #F5F0E7;
+  --mm-primary-tint: #085684;
+  --mm-accent: #BF3E05;
+  --mm-accent-fg: #F5F0E7;
+  --mm-accent-warm: #BF3E05;
+  --mm-danger: #D02023;
+  --mm-success: #637200;
+  --mm-warning: #896305;
+  --mm-glass-panel: rgba(249, 245, 239, 0.72);
+  --mm-glass-card: rgba(252, 251, 248, 0.62);
+  --mm-glass-border: rgba(67, 71, 78, 0.1);
+  --mm-hero-from: #016FAE;
+  --mm-hero-to: #43474E;
+  --mm-scrollbar: rgba(90, 95, 102, 0.35);
+  --mm-scrollbar-hover: rgba(90, 95, 102, 0.55);
+  --mm-glow: 0 2px 16px rgba(1, 111, 174, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(67, 71, 78, 0.12);
+  --mm-focus: #016FAE;
+}
+
+/* Horizon Light — Michaël Ball (http://github.com/michael-ball/).
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 40% along base05→base03; accent lifted 15% along its own ramp; danger lifted 45% along its own ramp; success lifted 55.00000000000001% along its own ramp; warning lifted 60% along its own ramp. */
+:root[data-theme="horizon-light"] {
+  color-scheme: light;
+  --mm-bg: #FDF0ED;
+  --mm-surface: #FEF5F3;
+  --mm-elevated: #FEFBFA;
+  --mm-fg: #403C3D;
+  --mm-muted: #726C6B;
+  --mm-border: rgba(64, 60, 61, 0.18);
+  --mm-contrast-bg: #201C1D;
+  --mm-contrast-fg: #FDF0ED;
+  --mm-contrast-border: rgba(253, 240, 237, 0.16);
+  --mm-primary: #DA103F;
+  --mm-primary-hover: #BB193F;
+  --mm-primary-fg: #FDF0ED;
+  --mm-primary-tint: #A21435;
+  --mm-accent: #1D7980;
+  --mm-accent-fg: #FDF0ED;
+  --mm-accent-warm: #F6661E;
+  --mm-danger: #965D62;
+  --mm-success: #54755F;
+  --mm-warning: #786A68;
+  --mm-glass-panel: rgba(254, 245, 243, 0.72);
+  --mm-glass-card: rgba(254, 251, 250, 0.62);
+  --mm-glass-border: rgba(64, 60, 61, 0.1);
+  --mm-hero-from: #DA103F;
+  --mm-hero-to: #403C3D;
+  --mm-scrollbar: rgba(114, 108, 107, 0.35);
+  --mm-scrollbar-hover: rgba(114, 108, 107, 0.55);
+  --mm-glow: 0 2px 16px rgba(218, 16, 63, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(64, 60, 61, 0.12);
+  --mm-focus: #DA103F;
+}
+
+/* Sakura — Misterio77 (http://github.com/Misterio77).
+ * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 100% along base05→base03; danger lifted 10% along its own ramp; success lifted 25% along its own ramp; warning lifted 45% along its own ramp. */
+:root[data-theme="sakura"] {
+  color-scheme: light;
+  --mm-bg: #FEEDF3;
+  --mm-surface: #FEF3F7;
+  --mm-elevated: #FFFAFC;
+  --mm-fg: #564448;
+  --mm-muted: #755F64;
+  --mm-border: rgba(86, 68, 72, 0.18);
+  --mm-contrast-bg: #33292B;
+  --mm-contrast-fg: #FEEDF3;
+  --mm-contrast-border: rgba(254, 237, 243, 0.16);
+  --mm-primary: #006E93;
+  --mm-primary-hover: #116684;
+  --mm-primary-fg: #FEEDF3;
+  --mm-primary-tint: #0F5974;
+  --mm-accent: #5E2180;
+  --mm-accent-fg: #FEEDF3;
+  --mm-accent-warm: #F6661E;
+  --mm-danger: #CE2D4E;
+  --mm-success: #2F775D;
+  --mm-warning: #826449;
+  --mm-glass-panel: rgba(254, 243, 247, 0.72);
+  --mm-glass-card: rgba(255, 250, 252, 0.62);
+  --mm-glass-border: rgba(86, 68, 72, 0.1);
+  --mm-hero-from: #006E93;
+  --mm-hero-to: #564448;
+  --mm-scrollbar: rgba(117, 95, 100, 0.35);
+  --mm-scrollbar-hover: rgba(117, 95, 100, 0.55);
+  --mm-glow: 0 2px 16px rgba(0, 110, 147, 0.18);
+  --mm-glass-shadow: 0 8px 24px rgba(86, 68, 72, 0.12);
+  --mm-focus: #006E93;
+}
