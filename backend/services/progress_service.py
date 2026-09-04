@@ -441,30 +441,6 @@ class ProgressService:
         ).scalars().all()
         return [self._serialize(r) for r in rows]
 
-    def continue_reading(self, limit: int = 20) -> list[dict[str, Any]]:
-        """Most recent unfinished row per (source_id, series_key)."""
-        self._require_owner()
-        rows = self._db.execute(
-            self._scope(
-                select(ChapterProgress).order_by(
-                    ChapterProgress.last_read_at.desc()
-                )
-            )
-        ).scalars().all()
-        seen: set[tuple[str, str]] = set()
-        out: list[dict[str, Any]] = []
-        for r in rows:
-            key = (r.source_id, r.series_key)
-            if key in seen:
-                continue
-            seen.add(key)
-            if r.is_completed:
-                continue
-            out.append(self._serialize(r))
-            if len(out) >= limit:
-                break
-        return out
-
     def reading_history(
         self, *, limit: int = 50, offset: int = 0
     ) -> list[dict[str, Any]]:
