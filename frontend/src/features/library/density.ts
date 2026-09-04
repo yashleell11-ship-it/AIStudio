@@ -4,6 +4,11 @@ import {
   subscribeStorageScope,
   writeScopedString,
 } from "@/lib/scoped-storage";
+import { DESIGN_PRESET_META } from "@/features/preferences/presets";
+import {
+  activeDesignPreset,
+  subscribeDesignPreset,
+} from "@/features/preferences/preset-store";
 
 /**
  * How tightly the library grid packs covers.
@@ -17,6 +22,16 @@ import {
  * stores and must not come back in a fourth.
  *
  * This subsumes the old grid/list toggle: `list` IS a density.
+ *
+ * ### Where the default comes from
+ *
+ * Not from this module. "Poster grid, list, or compact rows" is one of the
+ * things a DESIGN PRESET decides — Compact opens on the dense cover grid,
+ * Editorial on the list, everything else on the poster grid — so an unset
+ * density resolves through the active preset rather than through a constant
+ * here. An explicit choice still wins forever after, exactly as an explicitly
+ * chosen theme wins over the OS preference: the preset seeds, it does not
+ * override.
  */
 
 const STORAGE_BASE = "manhwamaniacs:library-density";
@@ -30,15 +45,27 @@ export type LibraryDensity = (typeof LIBRARY_DENSITIES)[number];
 
 export const DEFAULT_LIBRARY_DENSITY: LibraryDensity = "comfortable";
 
-export function parseLibraryDensity(raw: string | null): LibraryDensity {
+export function parseLibraryDensity(
+  raw: string | null,
+  fallback: LibraryDensity = DEFAULT_LIBRARY_DENSITY,
+): LibraryDensity {
   return raw !== null && (LIBRARY_DENSITIES as readonly string[]).includes(raw)
     ? (raw as LibraryDensity)
-    : DEFAULT_LIBRARY_DENSITY;
+    : fallback;
 }
 
-/** The default with no active profile — there is no unscoped value to fall back to. */
+/** The layout the active design preset opens the library on. */
+export function presetLibraryDensity(): LibraryDensity {
+  return DESIGN_PRESET_META[activeDesignPreset()].density;
+}
+
+/**
+ * The active profile's density, or the preset's opening layout when it has
+ * never chosen one. With no active profile there is no stored value to read,
+ * which lands on the preset's default too.
+ */
 export function readLibraryDensity(): LibraryDensity {
-  return parseLibraryDensity(readScopedString(STORAGE_BASE));
+  return parseLibraryDensity(readScopedString(STORAGE_BASE), presetLibraryDensity());
 }
 
 export function writeLibraryDensity(density: LibraryDensity): void {
@@ -51,18 +78,31 @@ export function writeLibraryDensity(density: LibraryDensity): void {
 
 // `useSyncExternalStore` compares snapshots by reference. A density is a string
 // so the reference is stable for free, but the read still has to be cached by
-// scoped key + raw value or a profile switch would go unnoticed.
-let snapshot: { key: string | null; raw: string | null; value: LibraryDensity } = {
+// scoped key + raw value or a profile switch would go unnoticed — and by the
+// active preset, since that is what an unset value resolves through.
+let snapshot: {
+  key: string | null;
+  raw: string | null;
+  preset: string | null;
+  value: LibraryDensity;
+} = {
   key: null,
   raw: null,
+  preset: null,
   value: DEFAULT_LIBRARY_DENSITY,
 };
 
 export function getLibraryDensitySnapshot(): LibraryDensity {
   const key = activeStorageKey(STORAGE_BASE);
   const raw = readScopedString(STORAGE_BASE);
-  if (snapshot.key !== key || snapshot.raw !== raw) {
-    snapshot = { key, raw, value: parseLibraryDensity(raw) };
+  const preset = activeDesignPreset();
+  if (snapshot.key !== key || snapshot.raw !== raw || snapshot.preset !== preset) {
+    snapshot = {
+      key,
+      raw,
+      preset,
+      value: parseLibraryDensity(raw, DESIGN_PRESET_META[preset].density),
+    };
   }
   return snapshot.value;
 }
@@ -81,10 +121,14 @@ export function subscribeLibraryDensity(onStoreChange: () => void): () => void {
   // A profile switch changes which key this reads without touching localStorage,
   // so no DOM event announces it.
   const unsubscribeScope = subscribeStorageScope(handler);
+  // And a preset change moves the default this resolves to, which is the whole
+  // of how "changing the design relays out the library" works without a reload.
+  const unsubscribePreset = subscribeDesignPreset(handler);
   return () => {
     window.removeEventListener(DENSITY_EVENT, handler);
     window.removeEventListener("storage", handler);
     unsubscribeScope();
+    unsubscribePreset();
   };
 }
 

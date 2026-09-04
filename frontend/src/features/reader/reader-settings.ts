@@ -4,6 +4,11 @@ import {
   subscribeStorageScope,
   writeScopedString,
 } from "@/lib/scoped-storage";
+import { DESIGN_PRESET_META } from "@/features/preferences/presets";
+import {
+  activeDesignPreset,
+  subscribeDesignPreset,
+} from "@/features/preferences/preset-store";
 import { type TapZone, type TapZoneConfig } from "./keymap";
 import { clampDimmer, clampWarmth } from "./overlay";
 
@@ -15,7 +20,11 @@ import { clampDimmer, clampWarmth } from "./overlay";
  * - `pageGap` — restore a thin separator between pages in the continuous strip.
  *   Default `false`: a webtoon must read as one seamless image.
  * - `cinema` — auto-hide ALL reader chrome after a few seconds of no activity,
- *   revealing it again on any tap / pointer-move / scroll-pause. Default `false`.
+ *   revealing it again on any tap / pointer-move / scroll-pause. Defaults to
+ *   whatever the active DESIGN PRESET says: "how much furniture the reader
+ *   shows" is one of the things a preset decides, and the Cinema preset exists
+ *   to say "none of it". Only a default — the reader's own toggle wins for good
+ *   the first time it is used.
  * - `dimmer` — night-reading darkening overlay, 0 (off) to `MAX_DIMMER`.
  * - `warmth` — night-reading amber tint overlay, 0 (off) to `MAX_WARMTH`.
  * - `pageTransition` — a subtle fade between paged-mode pages. Default
@@ -61,6 +70,16 @@ export const DEFAULT_READER_SETTINGS: ReaderSettings = {
   tapZones: null,
 };
 
+/** Whether the active design preset opens the reader with its chrome hidden. */
+export function presetReaderCinema(): boolean {
+  return DESIGN_PRESET_META[activeDesignPreset()].readerCinema;
+}
+
+/** The settings a profile that has never touched the reader starts from. */
+export function presetReaderSettings(): ReaderSettings {
+  return { ...DEFAULT_READER_SETTINGS, cinema: presetReaderCinema() };
+}
+
 const TAP_ZONE_ACTIONS: TapZone[] = ["advance", "retreat", "toggle"];
 
 function isTapZone(value: unknown): value is TapZone {
@@ -75,19 +94,23 @@ function parseTapZones(value: unknown): TapZoneConfig | null {
 }
 
 export function parseReaderSettings(raw: string | null): ReaderSettings {
-  if (!raw) return { ...DEFAULT_READER_SETTINGS };
+  const defaults = presetReaderSettings();
+  if (!raw) return defaults;
   try {
     const parsed = JSON.parse(raw) as Partial<Record<keyof ReaderSettings, unknown>>;
     return {
       pageGap: parsed.pageGap === true,
-      cinema: parsed.cinema === true,
+      // Absent, not false: a stored blob always carries every key (see
+      // `writeReaderSettings`), so `undefined` means this profile has never
+      // expressed an opinion and the preset's default still applies.
+      cinema: parsed.cinema === undefined ? defaults.cinema : parsed.cinema === true,
       dimmer: typeof parsed.dimmer === "number" ? clampDimmer(parsed.dimmer) : 0,
       warmth: typeof parsed.warmth === "number" ? clampWarmth(parsed.warmth) : 0,
       pageTransition: parsed.pageTransition === true,
       tapZones: parseTapZones(parsed.tapZones),
     };
   } catch {
-    return { ...DEFAULT_READER_SETTINGS };
+    return defaults;
   }
 }
 
@@ -108,17 +131,27 @@ export function writeReaderSettings(patch: Partial<ReaderSettings>): void {
 // `useSyncExternalStore` compares snapshots by reference, so the parsed value is
 // cached against the scoped key + raw string — a profile switch changes the key
 // without touching localStorage and must still be noticed.
-let snapshot: { key: string | null; raw: string | null; value: ReaderSettings } = {
+let snapshot: {
+  key: string | null;
+  raw: string | null;
+  preset: string | null;
+  value: ReaderSettings;
+} = {
   key: null,
   raw: null,
+  preset: null,
   value: DEFAULT_READER_SETTINGS,
 };
 
 export function getReaderSettingsSnapshot(): ReaderSettings {
   const key = activeStorageKey(STORAGE_BASE);
   const raw = readScopedString(STORAGE_BASE);
-  if (snapshot.key !== key || snapshot.raw !== raw) {
-    snapshot = { key, raw, value: parseReaderSettings(raw) };
+  // Part of the cache key: the preset supplies the cinema default, so a preset
+  // change has to produce a new snapshot or the reader would keep its old
+  // chrome until something else invalidated this.
+  const preset = activeDesignPreset();
+  if (snapshot.key !== key || snapshot.raw !== raw || snapshot.preset !== preset) {
+    snapshot = { key, raw, preset, value: parseReaderSettings(raw) };
   }
   return snapshot.value;
 }
@@ -133,9 +166,11 @@ export function subscribeReaderSettings(onStoreChange: () => void): () => void {
   window.addEventListener(SETTINGS_EVENT, handler);
   window.addEventListener("storage", handler);
   const unsubscribeScope = subscribeStorageScope(handler);
+  const unsubscribePreset = subscribeDesignPreset(handler);
   return () => {
     window.removeEventListener(SETTINGS_EVENT, handler);
     window.removeEventListener("storage", handler);
     unsubscribeScope();
+    unsubscribePreset();
   };
 }
