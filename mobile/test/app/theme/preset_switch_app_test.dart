@@ -5,6 +5,7 @@ import 'package:manhwamaniacs/app/app.dart';
 import 'package:manhwamaniacs/app/theme/app_metrics.dart';
 import 'package:manhwamaniacs/app/theme/app_palette.dart';
 import 'package:manhwamaniacs/app/theme/app_palettes.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.generated.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/app/theme/preset_controller.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
@@ -88,9 +89,9 @@ void main() {
     await container.read(themeControllerProvider.notifier).setTheme('nord');
     await tester.pumpAndSettle();
     // Colour changed; the preset survived it.
-    expect(appTheme(tester).extension<AppPalette>(), same(AppPalettes.nord));
+    expect(appTheme(tester).extension<AppPalette>(), same(Base16Palettes.nord));
     expect(appTheme(tester).extension<AppMetrics>(), same(AppPresets.editorial));
-    expect(appTheme(tester).scaffoldBackgroundColor, AppPalettes.nord.bg);
+    expect(appTheme(tester).scaffoldBackgroundColor, Base16Palettes.nord.bg);
 
     final prefs = container.read(sharedPrefsProvider);
     expect(prefs.getString('mm.theme.u1p1'), 'nord');

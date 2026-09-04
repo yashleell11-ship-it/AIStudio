@@ -16,6 +16,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   const AppPalette({
     required this.id,
     required this.name,
+    this.description = '',
+    this.author = '',
     required this.brightness,
     required this.bg,
     required this.surface,
@@ -40,6 +42,16 @@ class AppPalette extends ThemeExtension<AppPalette> {
 
   /// Human-readable name shown in the theme gallery.
   final String name;
+
+  /// One line under the name in the gallery — what the palette looks like,
+  /// not where it came from. Empty for the house palettes, which need no
+  /// introduction on a picker the owner opens every day.
+  final String description;
+
+  /// Who made the scheme. Forty of these are community work lifted from
+  /// `tinted-theming/schemes`; a picker that shows their colours and not
+  /// their names is helping itself to them.
+  final String author;
 
   /// Drives Material defaults and system status/nav-bar icon brightness.
   final Brightness brightness;
@@ -106,6 +118,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
   AppPalette copyWith({
     String? id,
     String? name,
+    String? description,
+    String? author,
     Brightness? brightness,
     Color? bg,
     Color? surface,
@@ -127,6 +141,8 @@ class AppPalette extends ThemeExtension<AppPalette> {
     return AppPalette(
       id: id ?? this.id,
       name: name ?? this.name,
+      description: description ?? this.description,
+      author: author ?? this.author,
       brightness: brightness ?? this.brightness,
       bg: bg ?? this.bg,
       surface: surface ?? this.surface,
@@ -150,13 +166,15 @@ class AppPalette extends ThemeExtension<AppPalette> {
   @override
   AppPalette lerp(ThemeExtension<AppPalette>? other, double t) {
     if (other is! AppPalette) return this;
-    // Identity (id/name/brightness) snaps at the midpoint — only colours fade,
-    // which is what AnimatedTheme animates during a switch.
+    // Identity (id/name/credit/brightness) snaps at the midpoint — only
+    // colours fade, which is what AnimatedTheme animates during a switch.
     final target = t < 0.5 ? this : other;
     Color l(Color a, Color b) => Color.lerp(a, b, t)!;
     return AppPalette(
       id: target.id,
       name: target.name,
+      description: target.description,
+      author: target.author,
       brightness: target.brightness,
       bg: l(bg, other.bg),
       surface: l(surface, other.surface),

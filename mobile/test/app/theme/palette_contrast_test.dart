@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/app/theme/app_palette.dart';
 import 'package:manhwamaniacs/app/theme/app_palettes.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.generated.dart';
 
 import '../../support/wcag_contrast.dart';
 
@@ -96,10 +97,56 @@ void main() {
       expect(AppPalettes.all.first, same(AppPalettes.eclipse));
     });
 
-    test('offers both dark and light groups within the 10–20 brief', () {
-      expect(AppPalettes.all.length, inInclusiveRange(10, 20));
+    test('ships the house palettes and the whole base16 set', () {
+      // The brief was ten-to-twenty hand-written palettes; it is now the
+      // curated base16 corpus on top of them, which is why the picker grew a
+      // search field. The floor is what matters — a generated palette that
+      // silently stopped being registered would leave the gallery smaller
+      // than the web's and nobody would notice.
+      expect(AppPalettes.all.length, greaterThanOrEqualTo(40));
       expect(AppPalettes.darkPalettes, isNotEmpty);
       expect(AppPalettes.lightPalettes, isNotEmpty);
+      for (final generated in [...Base16Palettes.dark, ...Base16Palettes.light]) {
+        expect(AppPalettes.all, contains(generated), reason: generated.id);
+      }
+      for (final own in AppPalettes.house) {
+        expect(AppPalettes.all, contains(own), reason: own.id);
+      }
+    });
+
+    test('every palette id that has ever shipped still resolves', () {
+      // A palette id is persisted per profile. Dropping or renaming one does
+      // not error — `byId` falls back to Eclipse — so the only thing standing
+      // between a rename and somebody's theme silently reverting is this list.
+      // The first eight were hand-written palettes that the generated base16
+      // twins replaced; they kept their ids on purpose.
+      const shipped = [
+        'nord',
+        'dracula',
+        'mocha',
+        'gruvbox',
+        'rose_pine',
+        'everforest',
+        'latte',
+        'dawn',
+        'eclipse',
+        'amoled',
+        'tokyo_night',
+        'solarized_dark',
+        'solarized_light',
+        'daylight',
+        'paper',
+      ];
+      for (final id in shipped) {
+        expect(AppPalettes.byId(id).id, id, reason: id);
+      }
+    });
+
+    test('no two palettes share a name', () {
+      // Forty-five tiles in one gallery: two called "Nord" would be a bug
+      // nobody could act on.
+      final names = AppPalettes.all.map((p) => p.name).toList();
+      expect(names.toSet().length, names.length, reason: names.toString());
     });
 
     test('the Eclipse default still wears the shipped hex values', () {
