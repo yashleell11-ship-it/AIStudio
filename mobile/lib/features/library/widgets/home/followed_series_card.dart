@@ -38,29 +38,38 @@ class FollowedSeriesMeta {
   static const FollowedSeriesMeta none =
       FollowedSeriesMeta(unreadCount: 0, latestChapterLabel: null);
 
-  /// Derives the meta for [series] from the loaded [notifications].
-  static FollowedSeriesMeta forSeries({
-    required FollowedSeries series,
-    required List<UpdateNotification> notifications,
-  }) {
-    var unread = 0;
-    UpdateNotification? latest;
+  /// `followedSeriesId -> meta` for every series [notifications] mentions.
+  ///
+  /// Built once per notification list rather than per card. The grid's item
+  /// builder runs for every tile entering the cache extent during a scroll, so
+  /// deriving one card's meta by scanning the whole list there makes that
+  /// builder O(notifications) — and `updatesProvider` fetches an unpaginated
+  /// list. Series with no notification are simply absent; the card falls back
+  /// to [none].
+  static Map<int, FollowedSeriesMeta> indexBySeries(
+    List<UpdateNotification> notifications,
+  ) {
+    final unread = <int, int>{};
+    final latest = <int, UpdateNotification>{};
     for (final notification in notifications) {
-      if (notification.followedSeriesId != series.id) continue;
-      if (!notification.isRead) unread++;
-      if (latest == null || _isNewer(notification, latest)) {
-        latest = notification;
+      final seriesId = notification.followedSeriesId;
+      if (seriesId == null) continue;
+      if (!notification.isRead) unread[seriesId] = (unread[seriesId] ?? 0) + 1;
+      final current = latest[seriesId];
+      if (current == null || _isNewer(notification, current)) {
+        latest[seriesId] = notification;
       }
     }
-    return FollowedSeriesMeta(
-      unreadCount: unread,
-      latestChapterLabel: latest == null
-          ? null
-          : chapterLabel(
-              number: latest.chapterNumber,
-              title: latest.chapterTitle,
-            ).primary,
-    );
+    return {
+      for (final entry in latest.entries)
+        entry.key: FollowedSeriesMeta(
+          unreadCount: unread[entry.key] ?? 0,
+          latestChapterLabel: chapterLabel(
+            number: entry.value.chapterNumber,
+            title: entry.value.chapterTitle,
+          ).primary,
+        ),
+    };
   }
 
   /// Newest-first ordering: chapter number when both sides have one, else the

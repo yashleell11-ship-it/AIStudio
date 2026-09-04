@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/downloaded_series_group.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
@@ -42,3 +43,60 @@ final downloadedSeriesProvider =
       ),
   ];
 });
+
+/// [downloadedSeriesProvider] as the Downloads screen renders it: rows of the
+/// active content mode, largest series first.
+///
+/// Derived here rather than in the screen's `build`, because neither step is
+/// free — the mode filter allocates a fresh group per series and the ordering
+/// sorts the whole list — and the screen rebuilds for reasons that change
+/// neither (a tab swipe, expanding the queue, a theme change). As a provider
+/// the work runs once per change to the downloads themselves or to the mode.
+final downloadedShelfProvider =
+    Provider.autoDispose<AsyncValue<List<DownloadedSeriesGroup>>>((ref) {
+  final scope = ref.watch(contentModeScopeProvider);
+  return ref.watch(downloadedSeriesProvider).whenData(
+        (groups) => [...groupsInMode(groups, scope)]
+          // Largest series first — this list doubles as the answer to "what is
+          // taking up my space", and the per-series breakdown on the Storage
+          // tab uses the same ordering for the same reason.
+          ..sort((a, b) => b.totalBytes.compareTo(a.totalBytes)),
+      );
+});
+
+/// [rows] of the active mode.
+///
+/// Filtered on each ROW's own `kind`, not through the source-mode index: the
+/// Downloads screen is the one screen that must be right with no network, and
+/// the index is built from a `/sources` call that a phone in airplane mode
+/// never made.
+List<SavedChapter> chaptersInMode(
+  List<SavedChapter> rows,
+  ContentModeScope scope,
+) {
+  if (!scope.novelsEnabled) return rows;
+  return rows.where((c) => c.kind.isNovel == scope.isNovel).toList();
+}
+
+/// [groups] reduced to the chapters of the active mode, dropping any series
+/// left with none.
+List<DownloadedSeriesGroup> groupsInMode(
+  List<DownloadedSeriesGroup> groups,
+  ContentModeScope scope,
+) {
+  if (!scope.novelsEnabled) return groups;
+  final out = <DownloadedSeriesGroup>[];
+  for (final group in groups) {
+    final chapters = chaptersInMode(group.chapters, scope);
+    if (chapters.isEmpty) continue;
+    out.add(
+      DownloadedSeriesGroup(
+        sourceId: group.sourceId,
+        seriesKey: group.seriesKey,
+        seriesTitle: group.seriesTitle,
+        chapters: chapters,
+      ),
+    );
+  }
+  return out;
+}

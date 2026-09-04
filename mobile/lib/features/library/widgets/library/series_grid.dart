@@ -406,11 +406,21 @@ class _ProgressLabel extends StatelessWidget {
   }
 }
 
+/// The library shelf — a SLIVER, in both view modes.
+///
+/// Never a shrink-wrapped box grid. Under a `SliverToBoxAdapter` the main-axis
+/// constraint is unbounded, so a shrink-wrapping viewport has to lay out every
+/// child to find its own extent: every followed series was inflated, measured
+/// and had its cover fetched and decoded the moment the tab opened, however
+/// far down the shelf it sat. As a real sliver the viewport builds a screenful
+/// plus the cache extent, and each child gets the repaint boundary a Column
+/// never gave it.
 class SeriesGrid extends ConsumerWidget {
   const SeriesGrid({
     super.key,
     required this.items,
     required this.viewMode,
+    required this.contentWidth,
     required this.onSeriesTap,
     required this.onToggleFavorite,
     this.onRemoveSeries,
@@ -422,6 +432,12 @@ class SeriesGrid extends ConsumerWidget {
 
   final List<FollowedSeries> items;
   final LibraryViewMode viewMode;
+
+  /// Logical width the shelf spans — the screen's content column, stated by
+  /// the screen that owns the padding rather than measured here. A tile's
+  /// width becomes part of its cover URL, which is the disk cache's key, so it
+  /// has to be constant for a device and orientation.
+  final double contentWidth;
   final ValueChanged<FollowedSeries> onSeriesTap;
   final ValueChanged<int> onToggleFavorite;
   final ValueChanged<int>? onRemoveSeries;
@@ -438,28 +454,33 @@ class SeriesGrid extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (viewMode == LibraryViewMode.list) {
-      return Column(
-        children: [
-          for (var i = 0; i < items.length; i++) ...[
-            ScrollReveal(
-              index: i,
+      return SliverList.builder(
+        // Nothing under a card dispatches a KeepAliveNotification, so the
+        // AutomaticKeepAlive wrapper is one extra element per row for nothing.
+        addAutomaticKeepAlives: false,
+        itemCount: items.length,
+        itemBuilder: (context, index) {
+          final series = items[index];
+          return Padding(
+            padding: EdgeInsets.only(bottom: context.space.md),
+            child: ScrollReveal(
+              index: index,
               child: SeriesListTile(
-                series: items[i],
-                onTap: () => onSeriesTap(items[i]),
-                onToggleFavorite: () => onToggleFavorite(items[i].id),
+                series: series,
+                onTap: () => onSeriesTap(series),
+                onToggleFavorite: () => onToggleFavorite(series.id),
                 onLongPress: onSeriesLongPress == null
                     ? null
-                    : () => onSeriesLongPress!(items[i]),
+                    : () => onSeriesLongPress!(series),
                 onRemove: onRemoveSeries == null
                     ? null
-                    : () => onRemoveSeries!(items[i].id),
+                    : () => onRemoveSeries!(series.id),
                 selectionMode: selectionMode,
-                selected: selectedIds.contains(items[i].id),
+                selected: selectedIds.contains(series.id),
               ),
             ),
-            SizedBox(height: context.space.md),
-          ],
-        ],
+          );
+        },
       );
     }
 
@@ -470,48 +491,38 @@ class SeriesGrid extends ConsumerWidget {
     final base = context.seriesGridColumns;
     final columns = layout.columnsFor((base / coverScale).round());
     final spacing = context.space.md;
+    final coverWidth = gridTileWidth(
+      available: contentWidth,
+      columns: columns,
+      spacing: spacing,
+    );
 
-    // Measured at the grid, not at the card: the grid's constraints are stable
-    // for a given viewport, while a card is inside a Hero that resizes on every
-    // frame of a flight — and the tile width becomes part of the cover's URL,
-    // which is the disk cache's key.
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final coverWidth = gridTileWidth(
-          available: constraints.maxWidth,
-          columns: columns,
-          spacing: spacing,
-        );
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: spacing,
-            mainAxisSpacing: context.space.xl,
-            childAspectRatio: layout.gridAspectRatio,
+    return SliverGrid.builder(
+      addAutomaticKeepAlives: false,
+      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+        crossAxisCount: columns,
+        crossAxisSpacing: spacing,
+        mainAxisSpacing: context.space.xl,
+        childAspectRatio: layout.gridAspectRatio,
+      ),
+      itemCount: items.length,
+      itemBuilder: (context, index) {
+        final series = items[index];
+        return ScrollReveal(
+          index: index,
+          child: SeriesCard(
+            series: series,
+            coverWidth: coverWidth,
+            onTap: () => onSeriesTap(series),
+            onToggleFavorite: () => onToggleFavorite(series.id),
+            onLongPress: onSeriesLongPress == null
+                ? null
+                : () => onSeriesLongPress!(series),
+            onRemove:
+                onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
+            selectionMode: selectionMode,
+            selected: selectedIds.contains(series.id),
           ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            final series = items[index];
-            return ScrollReveal(
-              index: index,
-              child: SeriesCard(
-                series: series,
-                coverWidth: coverWidth,
-                onTap: () => onSeriesTap(series),
-                onToggleFavorite: () => onToggleFavorite(series.id),
-                onLongPress: onSeriesLongPress == null
-                    ? null
-                    : () => onSeriesLongPress!(series),
-                onRemove:
-                    onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
-                selectionMode: selectionMode,
-                selected: selectedIds.contains(series.id),
-              ),
-            );
-          },
         );
       },
     );

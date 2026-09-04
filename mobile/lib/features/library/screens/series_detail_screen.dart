@@ -113,6 +113,13 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
 
   SeriesChapterSortOrder _sortOrder = SeriesChapterSortOrder.newest;
 
+  /// The chapter list the two orderings below were built from — the memo key,
+  /// compared by identity because [SeriesDetail] hands out the same list until
+  /// the payload itself is replaced.
+  List<KnownChapter> _sortedFrom = const [];
+  List<KnownChapter> _newestFirst = const [];
+  List<KnownChapter> _oldestFirst = const [];
+
   /// Multi-select state for this visit to this page (spec R4). Owned here,
   /// disposed here — leaving the series must forget the selection.
   final _selection = ChapterSelectionController();
@@ -136,6 +143,29 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
 
   void _onSelectionChanged() {
     if (mounted) setState(() {});
+  }
+
+  /// Rebuilds both chapter orderings, but only when the chapters changed.
+  ///
+  /// One build needs newest-first (the header's "Latest:" line), oldest-first
+  /// (Continue, and the order the multi-select ranges are defined against) and
+  /// whichever of the two the sort toggle is showing. Deriving those in `build`
+  /// meant four allocate-index-sort-rebuild passes over the whole chapter list
+  /// — on every selection tap, every sort toggle, and every page of every
+  /// download, since the live progress provider ticks once per page fetched.
+  void _ensureSorted() {
+    if (identical(_sortedFrom, _series.chapters)) return;
+    _sortedFrom = _series.chapters;
+    _newestFirst = sortSeriesChapters(
+      _sortedFrom,
+      numberOf: (chapter) => chapter.number,
+      order: SeriesChapterSortOrder.newest,
+    );
+    _oldestFirst = sortSeriesChapters(
+      _sortedFrom,
+      numberOf: (chapter) => chapter.number,
+      order: SeriesChapterSortOrder.oldest,
+    );
   }
 
   @override
@@ -198,11 +228,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
   /// Newest chapter for the header meta line — the highest-numbered row in the
   /// list the page is about to render, so the line and the list agree.
   String? _latestChapterLabel() {
-    final newest = sortSeriesChapters(
-      _series.chapters,
-      numberOf: (chapter) => chapter.number,
-      order: SeriesChapterSortOrder.newest,
-    ).firstOrNull;
+    final newest = _newestFirst.firstOrNull;
     if (newest == null) return null;
     return chapterLabel(number: newest.number, title: newest.title).primary;
   }
@@ -211,17 +237,12 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
   /// chapter with unfinished progress, or the first chapter when nothing has
   /// been read yet.
   KnownChapter? _continueChapter() {
-    final oldestFirst = sortSeriesChapters(
-      _series.chapters,
-      numberOf: (chapter) => chapter.number,
-      order: SeriesChapterSortOrder.oldest,
-    );
     KnownChapter? inProgress;
-    for (final chapter in oldestFirst) {
+    for (final chapter in _oldestFirst) {
       final entry = _series.progress[chapter.key];
       if (entry != null && !entry.isCompleted) inProgress = chapter;
     }
-    return inProgress ?? oldestFirst.firstOrNull;
+    return inProgress ?? _oldestFirst.firstOrNull;
   }
 
   /// This series' domain identity — the key every downloads provider is
@@ -231,16 +252,15 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
 
   @override
   Widget build(BuildContext context) {
+    _ensureSorted();
     final baseUrl = ref.watch(apiBaseUrlProvider);
     final continueChapter = _continueChapter();
     final continueProgress =
         continueChapter == null ? null : _series.progress[continueChapter.key];
 
-    final sortedChapters = sortSeriesChapters(
-      _series.chapters,
-      numberOf: (chapter) => chapter.number,
-      order: _sortOrder,
-    );
+    final sortedChapters = _sortOrder == SeriesChapterSortOrder.newest
+        ? _newestFirst
+        : _oldestFirst;
 
     // Watched once for the whole page rather than per row: one store query
     // and one queue subscription drive every chapter's download state.
@@ -410,11 +430,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
     Map<String, ChapterDownloadStatus>? downloadStatuses,
   ) {
     return [
-      for (final chapter in sortSeriesChapters(
-        _series.chapters,
-        numberOf: (chapter) => chapter.number,
-        order: SeriesChapterSortOrder.oldest,
-      ))
+      for (final chapter in _oldestFirst)
         (
           key: chapter.key,
           number: chapter.number,

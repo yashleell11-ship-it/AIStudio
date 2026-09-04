@@ -32,7 +32,18 @@ class SourceBrowserScreen extends ConsumerStatefulWidget {
 class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
   final _searchController = TextEditingController();
   final _scrollController = ScrollController();
-  bool _showBackToTop = false;
+
+  /// Drives the back-to-top pill and nothing else. A `setState` from the
+  /// scroll callback would rebuild the whole screen — grid delegate, chips,
+  /// AnimatedSwitcher — and the threshold is exactly where a slow drag hovers.
+  final _showBackToTop = ValueNotifier<bool>(false);
+
+  /// Whether there is another page to ask for, refreshed from [build] — which
+  /// runs on every state change, so it is never stale. Keeps the family
+  /// provider lookup (which hashes its argument) off the per-frame path: the
+  /// trigger band is where a fling ends, so the read used to happen on every
+  /// frame spent there, only to be thrown away by `loadMore`'s own guard.
+  bool _canLoadMore = false;
 
   @override
   void initState() {
@@ -44,19 +55,18 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
   void dispose() {
     _searchController.dispose();
     _scrollController.dispose();
+    _showBackToTop.dispose();
     super.dispose();
   }
 
   void _onScroll() {
-    final show = _scrollController.offset > 400;
-    if (show != _showBackToTop) {
-      setState(() => _showBackToTop = show);
-    }
     if (!_scrollController.hasClients) return;
     final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 600) {
-      ref.read(sourceBrowseProvider(widget.sourceId).notifier).loadMore();
-    }
+    _showBackToTop.value = position.pixels > 400;
+    if (!_canLoadMore) return;
+    if (position.pixels < position.maxScrollExtent - 600) return;
+    _canLoadMore = false;
+    ref.read(sourceBrowseProvider(widget.sourceId).notifier).loadMore();
   }
 
   void _submitSearch() {
@@ -75,6 +85,8 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
   Widget build(BuildContext context) {
     final query = ref.watch(sourceBrowseQueryProvider(widget.sourceId));
     final browseAsync = ref.watch(sourceBrowseProvider(widget.sourceId));
+    final browse = browseAsync.valueOrNull;
+    _canLoadMore = browse != null && browse.hasNext && !browse.isLoadingMore;
     final modesAsync = ref.watch(sourceBrowseModesProvider(widget.sourceId));
     final source = ref
         .watch(sourcesListProvider)
@@ -364,10 +376,13 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
           ),
 
           // Floating back-to-top button (always on top of grid)
-          if (_showBackToTop)
-            Positioned(
-              bottom: MediaQuery.paddingOf(context).bottom + context.space.xl7 + context.space.sm,
-              right: context.space.lg,
+          Positioned(
+            bottom: MediaQuery.paddingOf(context).bottom + context.space.xl7 + context.space.sm,
+            right: context.space.lg,
+            child: ValueListenableBuilder<bool>(
+              valueListenable: _showBackToTop,
+              builder: (context, show, child) =>
+                  show ? child! : const SizedBox.shrink(),
               child: _NavPill(
                 icon: Icons.keyboard_arrow_up,
                 label: 'Top',
@@ -379,6 +394,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                 ),
               ),
             ),
+          ),
         ],
       ),
     );

@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
@@ -32,6 +33,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   final _scrollController = ScrollController();
   Timer? _searchDebounce;
 
+  /// Whether there is another page to ask for, refreshed from [build] — which
+  /// runs on every state change, so it is never stale.
+  ///
+  /// [_onScroll] fires on every position change, i.e. at least once per frame
+  /// for the whole of a fling, and the trigger band is where a fling ends. Two
+  /// of the three answers ("already loading", "nothing left") are knowable
+  /// without touching the container, so the reads happen only on the frame
+  /// that actually starts a page.
+  bool _canLoadMore = false;
+
   @override
   void initState() {
     super.initState();
@@ -48,11 +59,11 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   }
 
   void _onScroll() {
-    if (!_scrollController.hasClients) return;
+    if (!_canLoadMore || !_scrollController.hasClients) return;
     final position = _scrollController.position;
-    if (position.pixels >= position.maxScrollExtent - 320) {
-      ref.read(libraryListProvider.notifier).loadMore();
-    }
+    if (position.pixels < position.maxScrollExtent - 320) return;
+    _canLoadMore = false;
+    ref.read(libraryListProvider.notifier).loadMore();
   }
 
   void _updateQuery(LibraryQuery Function(LibraryQuery current) update) {
@@ -198,6 +209,8 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   Widget build(BuildContext context) {
     final query = ref.watch(libraryQueryProvider);
     final listAsync = ref.watch(libraryListProvider);
+    final list = listAsync.valueOrNull;
+    _canLoadMore = list != null && list.hasNext && !list.isLoadingMore;
     final coverScale = ref.watch(libraryCoverScaleProvider);
     final selection = ref.watch(librarySelectionProvider);
     final selectionController = ref.read(librarySelectionProvider.notifier);
@@ -247,31 +260,35 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         loading: () => _LibraryScrollView(
           scrollController: _scrollController,
           onRefresh: () => ref.read(libraryListProvider.notifier).refresh(),
-          child: Padding(
-            padding: EdgeInsets.all(context.space.xl2),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const FadeIn(child: HeroHeading(text: 'Library')),
-                SizedBox(height: context.space.xl2),
-                LibraryToolbar(
-                  query: query,
-                  seriesCount: 0,
-                  coverScale: coverScale,
-                  onCoverScaleChanged: onCoverScaleChanged,
-                  onSearchChanged: _onSearchChanged,
-                  onSortChanged: (sort) =>
-                      _updateQuery((q) => q.copyWith(sort: sort)),
-                  onFilterChanged: (filter) =>
-                      _updateQuery((q) => q.copyWith(filter: filter)),
-                  onViewModeChanged: (viewMode) =>
-                      _updateQuery((q) => q.copyWith(viewMode: viewMode)),
+          slivers: [
+            SliverPadding(
+              padding: EdgeInsets.all(context.space.xl2),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const FadeIn(child: HeroHeading(text: 'Library')),
+                    SizedBox(height: context.space.xl2),
+                    LibraryToolbar(
+                      query: query,
+                      seriesCount: 0,
+                      coverScale: coverScale,
+                      onCoverScaleChanged: onCoverScaleChanged,
+                      onSearchChanged: _onSearchChanged,
+                      onSortChanged: (sort) =>
+                          _updateQuery((q) => q.copyWith(sort: sort)),
+                      onFilterChanged: (filter) =>
+                          _updateQuery((q) => q.copyWith(filter: filter)),
+                      onViewModeChanged: (viewMode) =>
+                          _updateQuery((q) => q.copyWith(viewMode: viewMode)),
+                    ),
+                    SizedBox(height: context.space.xl2),
+                    LibrarySkeleton(viewMode: query.viewMode),
+                  ],
                 ),
-                SizedBox(height: context.space.xl2),
-                LibrarySkeleton(viewMode: query.viewMode),
-              ],
+              ),
             ),
-          ),
+          ],
         ),
         error: (error, _) => _LibraryError(
           error: error is AppError
@@ -409,64 +426,81 @@ class _LibraryBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final visible = scope.filter(state.items, (series) => series.sourceId);
+    final gutter = context.space.xl2;
     return _LibraryScrollView(
       scrollController: scrollController,
       onRefresh: onRefresh,
-      child: Padding(
-        padding: EdgeInsets.all(context.space.xl2),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const FadeIn(child: HeroHeading(text: 'Library')),
-            SizedBox(height: context.space.xl2),
-            LibraryToolbar(
-              query: query,
-              seriesCount: visible.length == state.items.length
-                  ? state.total
-                  : visible.length,
-              coverScale: coverScale,
-              onCoverScaleChanged: onCoverScaleChanged,
-              onSearchChanged: onSearchChanged,
-              onSortChanged: onSortChanged,
-              onFilterChanged: onFilterChanged,
-              onViewModeChanged: onViewModeChanged,
+      slivers: [
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(gutter, gutter, gutter, 0),
+          sliver: SliverToBoxAdapter(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const FadeIn(child: HeroHeading(text: 'Library')),
+                SizedBox(height: context.space.xl2),
+                LibraryToolbar(
+                  query: query,
+                  seriesCount: visible.length == state.items.length
+                      ? state.total
+                      : visible.length,
+                  coverScale: coverScale,
+                  onCoverScaleChanged: onCoverScaleChanged,
+                  onSearchChanged: onSearchChanged,
+                  onSortChanged: onSortChanged,
+                  onFilterChanged: onFilterChanged,
+                  onViewModeChanged: onViewModeChanged,
+                ),
+                if (state.error != null) ...[
+                  SizedBox(height: context.space.lg),
+                  _InlineError(message: state.error!.userMessage),
+                ],
+                SizedBox(height: context.space.xl2),
+              ],
             ),
-            if (state.error != null) ...[
-              SizedBox(height: context.space.lg),
-              _InlineError(message: state.error!.userMessage),
-            ],
-            SizedBox(height: context.space.xl2),
-            if (visible.isEmpty)
-              LibraryEmptyPanel(emptyState: query.emptyState)
-            else
-              SeriesGrid(
-                items: visible,
-                viewMode: query.viewMode,
-                coverScale: coverScale,
-                onSeriesTap: onSeriesTap,
-                onSeriesLongPress: onSeriesLongPress,
-                onToggleFavorite: onToggleFavorite,
-                selectionMode: selectionMode,
-                selectedIds: selectedIds,
-              ),
-            if (state.isLoadingMore) ...[
-              SizedBox(height: context.space.xl2),
-              Center(
-                child: Padding(
+          ),
+        ),
+        SliverPadding(
+          padding: EdgeInsets.symmetric(horizontal: gutter),
+          sliver: visible.isEmpty
+              ? SliverToBoxAdapter(
+                  child: LibraryEmptyPanel(emptyState: query.emptyState),
+                )
+              : SeriesGrid(
+                  items: visible,
+                  viewMode: query.viewMode,
+                  // The shelf spans the viewport inside this screen's own
+                  // gutters, so its width is arithmetic rather than a
+                  // measurement — see [SeriesGrid.contentWidth].
+                  contentWidth: context.screenWidth - gutter * 2,
+                  coverScale: coverScale,
+                  onSeriesTap: onSeriesTap,
+                  onSeriesLongPress: onSeriesLongPress,
+                  onToggleFavorite: onToggleFavorite,
+                  selectionMode: selectionMode,
+                  selectedIds: selectedIds,
+                ),
+        ),
+        SliverToBoxAdapter(
+          child: Column(
+            children: [
+              if (state.isLoadingMore) ...[
+                SizedBox(height: context.space.xl2),
+                Padding(
                   padding: EdgeInsets.all(context.space.lg),
                   child: const CircularProgressIndicator(strokeWidth: 2),
                 ),
+              ],
+              // Clear the floating nav bar and the home indicator under it. The
+              // flat xl7 that used to be here only happened to be tall enough on
+              // Android's ~24pt gesture inset; iOS's 34pt eats into it.
+              SizedBox(
+                height: context.space.xl7 + MediaQuery.paddingOf(context).bottom,
               ),
             ],
-            // Clear the floating nav bar and the home indicator under it. The
-            // flat xl7 that used to be here only happened to be tall enough on
-            // Android's ~24pt gesture inset; iOS's 34pt eats into it.
-            SizedBox(
-              height: context.space.xl7 + MediaQuery.paddingOf(context).bottom,
-            ),
-          ],
+          ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -475,12 +509,16 @@ class _LibraryScrollView extends StatelessWidget {
   const _LibraryScrollView({
     required this.scrollController,
     required this.onRefresh,
-    required this.child,
+    required this.slivers,
   });
 
   final ScrollController scrollController;
   final Future<void> Function() onRefresh;
-  final Widget child;
+
+  /// Slivers, not one boxed child: the shelf is the whole point of this
+  /// screen and it has to stay lazy, which a `SliverToBoxAdapter` wrapping
+  /// everything cannot do.
+  final List<Widget> slivers;
 
   @override
   Widget build(BuildContext context) {
@@ -490,9 +528,7 @@ class _LibraryScrollView extends StatelessWidget {
       child: CustomScrollView(
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
-        slivers: [
-          SliverToBoxAdapter(child: child),
-        ],
+        slivers: slivers,
       ),
     );
   }

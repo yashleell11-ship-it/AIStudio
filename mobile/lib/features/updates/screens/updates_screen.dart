@@ -11,9 +11,9 @@ import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
+import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/ghost_pill_button.dart';
-import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
@@ -73,93 +73,138 @@ class UpdatesScreen extends ConsumerWidget {
               scope.filter(state.notifications, (n) => n.sourceId);
           final followed = scope.filter(state.followed, (f) => f.sourceId);
           final unread = notifications.where((n) => !n.isRead).length;
+          final gutter = context.space.xl2;
           return RefreshIndicator(
-          color: context.colors.primary,
-          onRefresh: notifier.refresh,
-          child: ListView(
-            padding: EdgeInsets.all(context.space.xl2),
-            children: [
-              FadeIn(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const HeroHeading(text: 'Updates', fontSize: 40),
-                    SizedBox(height: context.space.xs),
-                    Text(
-                      '$unread unread · ${followed.length} followed '
-                      '${scope.isNovel ? 'books' : 'series'}',
-                      style: context.text.body.copyWith(color: context.colors.muted),
-                    ),
-                    SizedBox(height: context.space.xl2),
-                    Wrap(
-                      spacing: context.space.sm,
-                      runSpacing: context.space.sm,
-                      children: [
-                        PrimaryPillButton(
-                          label: 'Check all now',
-                          icon: Icons.sync,
-                          onPressed: () =>
-                              _run(context, notifier.triggerCheck()),
-                        ),
-                        if (unread > 0)
-                          GhostPillButton(
-                            label: 'Mark all read',
-                            icon: Icons.done_all,
-                            onPressed: () =>
-                                _run(context, notifier.markAllRead()),
+            color: context.colors.primary,
+            onRefresh: notifier.refresh,
+            // Slivers rather than one ListView of everything: both sections
+            // are as long as the server says, and a `ListView(children: [...])`
+            // builds every row of both before the first frame.
+            child: CustomScrollView(
+              slivers: [
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(gutter, gutter, gutter, 0),
+                  sliver: SliverToBoxAdapter(
+                    child: FadeIn(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const HeroHeading(text: 'Updates', fontSize: 40),
+                          SizedBox(height: context.space.xs),
+                          Text(
+                            '$unread unread · ${followed.length} followed '
+                            '${scope.isNovel ? 'books' : 'series'}',
+                            style: context.text.body
+                                .copyWith(color: context.colors.muted),
                           ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: context.space.xl2),
-              const _SectionHeader(title: 'Notifications'),
-              SizedBox(height: context.space.md),
-              if (notifications.isEmpty)
-                const EmptyState(
-                  icon: Icons.notifications_none,
-                  message: 'No update notifications',
-                  subtitle: 'Follow series to get notified of new chapters.',
-                )
-              else
-                ...notifications.map(
-                  (notification) => Padding(
-                    padding: EdgeInsets.only(bottom: context.space.md),
-                    child: _NotificationCard(
-                      notification: notification,
-                      onMarkRead: notification.isRead
-                          ? null
-                          : () => _run(
-                              context,
-                              notifier.markRead(notification.id),
-                            ),
+                          SizedBox(height: context.space.xl2),
+                          Wrap(
+                            spacing: context.space.sm,
+                            runSpacing: context.space.sm,
+                            children: [
+                              PrimaryPillButton(
+                                label: 'Check all now',
+                                icon: Icons.sync,
+                                onPressed: () =>
+                                    _run(context, notifier.triggerCheck()),
+                              ),
+                              if (unread > 0)
+                                GhostPillButton(
+                                  label: 'Mark all read',
+                                  icon: Icons.done_all,
+                                  onPressed: () =>
+                                      _run(context, notifier.markAllRead()),
+                                ),
+                            ],
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              SizedBox(height: context.space.xl2),
-              const _SectionHeader(title: 'Followed series'),
-              SizedBox(height: context.space.md),
-              if (followed.isEmpty)
-                const EmptyState(
-                  icon: Icons.rss_feed,
-                  message: 'No followed series',
-                  subtitle: 'Follow series from sources to monitor new chapters.',
-                )
-              else
-                ...followed.map(
-                  (series) => Padding(
-                    padding: EdgeInsets.only(bottom: context.space.md),
-                    child: _FollowedSeriesCard(
-                      series: series,
-                      actionPending: state.actionPending,
-                      onRemove: () =>
-                          _run(context, notifier.unfollow(series.id)),
-                    ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    gutter,
+                    gutter,
+                    gutter,
+                    context.space.md,
+                  ),
+                  sliver: const SliverToBoxAdapter(
+                    child: _SectionHeader(title: 'Notifications'),
                   ),
                 ),
-            ],
-          ),
+                SliverPadding(
+                  padding: EdgeInsets.symmetric(horizontal: gutter),
+                  sliver: notifications.isEmpty
+                      ? const SliverToBoxAdapter(
+                          child: EmptyState(
+                            icon: Icons.notifications_none,
+                            message: 'No update notifications',
+                            subtitle:
+                                'Follow series to get notified of new chapters.',
+                          ),
+                        )
+                      : SliverList.builder(
+                          itemCount: notifications.length,
+                          itemBuilder: (context, index) {
+                            final notification = notifications[index];
+                            return Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: context.space.md),
+                              child: _NotificationCard(
+                                notification: notification,
+                                onMarkRead: notification.isRead
+                                    ? null
+                                    : () => _run(
+                                          context,
+                                          notifier.markRead(notification.id),
+                                        ),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(
+                    gutter,
+                    gutter,
+                    gutter,
+                    context.space.md,
+                  ),
+                  sliver: const SliverToBoxAdapter(
+                    child: _SectionHeader(title: 'Followed series'),
+                  ),
+                ),
+                SliverPadding(
+                  padding: EdgeInsets.fromLTRB(gutter, 0, gutter, gutter),
+                  sliver: followed.isEmpty
+                      ? const SliverToBoxAdapter(
+                          child: EmptyState(
+                            icon: Icons.rss_feed,
+                            message: 'No followed series',
+                            subtitle:
+                                'Follow series from sources to monitor new chapters.',
+                          ),
+                        )
+                      : SliverList.builder(
+                          itemCount: followed.length,
+                          itemBuilder: (context, index) {
+                            final series = followed[index];
+                            return Padding(
+                              padding:
+                                  EdgeInsets.only(bottom: context.space.md),
+                              child: _FollowedSeriesCard(
+                                series: series,
+                                actionPending: state.actionPending,
+                                onRemove: () =>
+                                    _run(context, notifier.unfollow(series.id)),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+              ],
+            ),
           );
         },
       ),
@@ -197,16 +242,24 @@ class _NotificationCard extends StatelessWidget {
     this.onMarkRead,
   });
 
+  /// One formatter for the whole list. Constructing a [DateFormat] parses the
+  /// locale's pattern data, which is not a per-row cost worth paying.
+  static final DateFormat _stamp = DateFormat.yMMMd().add_jm();
+
   final UpdateNotification notification;
   final VoidCallback? onMarkRead;
 
   @override
   Widget build(BuildContext context) {
     final date = notification.createdAt != null
-        ? DateFormat.yMMMd().add_jm().format(notification.createdAt!.toLocal())
+        ? _stamp.format(notification.createdAt!.toLocal())
         : null;
 
-    return GlassPanel(
+    // GlassCard, not GlassPanel: a panel puts a real BackdropFilter behind
+    // itself under the glass presets, and a repeating list row would make that
+    // one backdrop readback and blur per visible card, per frame. Panels are
+    // for the one-per-screen surfaces.
+    return GlassCard(
       padding: EdgeInsets.all(context.space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -285,7 +338,7 @@ class _FollowedSeriesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GlassPanel(
+    return GlassCard(
       padding: EdgeInsets.all(context.space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
