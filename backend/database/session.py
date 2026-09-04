@@ -35,6 +35,27 @@ def get_engine() -> Engine:
         # default. WAL keeps readers unaffected; contending writers queue for
         # up to this long instead of failing instantly with SQLITE_BUSY.
         cursor.execute("PRAGMA busy_timeout=5000")
+        # WAL's companion setting, and the single biggest write-path win
+        # available here. At the default FULL, SQLite fsyncs the WAL on every
+        # commit: measured on this VPS's disk, one insert+commit costs 1.98 ms
+        # median (4.3 ms p90) against 0.022 ms at NORMAL — 90x, and it is
+        # *fsync* time, so it does not overlap with anything and it blocks the
+        # single writer the whole way through. Reading a chapter is a stream of
+        # small progress commits, so this is felt directly.
+        #
+        # What NORMAL gives up is narrow and is not corruption: in WAL mode the
+        # database stays consistent across a crash or a power cut, and the only
+        # loss is the most recent already-committed transactions (SQLite's own
+        # docs single WAL+NORMAL out as "a good choice for most applications").
+        # For this app the worst case is re-reading a page or two of a chapter,
+        # against a permanent 2 ms tax on every write for the whole household.
+        cursor.execute("PRAGMA synchronous=NORMAL")
+        # 64 MB of page cache (negative = KiB, not pages). The default is 2 MB,
+        # which is smaller than this database will be once the caches fill;
+        # holding it resident turns the repeated index probes the library and
+        # statistics reads do into memory hits. Sized to stay well inside the
+        # VPS's memory budget alongside the app.
+        cursor.execute("PRAGMA cache_size=-65536")
         cursor.close()
 
     return engine

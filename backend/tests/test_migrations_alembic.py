@@ -9,6 +9,7 @@ matches the ORM models exactly, and is idempotent.
 
 from __future__ import annotations
 
+import json
 import logging
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from database.models import Base
 from database.session import run_alembic_migrations
 
 _BASELINE = "0001_source_native"
-_HEAD = "0007_novel_chapter_cache"
+_HEAD = "0008_followed_series_chapter_count"
 
 # Every revision, oldest first. A new migration is added here deliberately —
 # the point of the guard is that revisions arrive on purpose, not that there is
@@ -34,6 +35,7 @@ _REVISIONS = [
     "0005_single_admin_guard.py",
     "0006_reading_session_stats_index.py",
     "0007_novel_chapter_cache.py",
+    "0008_followed_series_chapter_count.py",
 ]
 
 # Every ORM-mapped table the baseline must create (spec §3).
@@ -379,3 +381,130 @@ def test_tags_migration_splits_a_shared_tag_per_profile(tmp_path):
             r[1] for r in conn.execute(text("PRAGMA table_info(tags)"))
         }
         assert {"user_id", "profile_id"} <= cols
+
+
+# --- 0008_followed_series_chapter_count -----------------------------------
+
+
+def _seed_pre_0008_follows(engine) -> None:
+    """Follows written before ``chapter_count`` existed, with varied blobs."""
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                "INSERT INTO users (id, username, password_hash, is_admin,"
+                " is_active, created_at, updated_at) VALUES"
+                " (1, 'owner', 'x', 1, 1, '2026-01-01', '2026-01-01')"
+            )
+        )
+        conn.execute(
+            text(
+                "INSERT INTO reading_profiles (id, user_id, name, avatar_key,"
+                " mood, mature_content_enabled, sort_order, created_at)"
+                " VALUES (10, 1, 'A', 'a', 'calm', 0, 0, '2026-01-01')"
+            )
+        )
+        blobs = {
+            1: json.dumps([{"key": f"c{n}", "number": float(n)} for n in range(219)]),
+            2: json.dumps([{"key": "c1", "number": 1.0, "title": 'a "key": trap'}]),
+            3: "[]",
+            4: "this is not json",
+        }
+        for fid, blob in blobs.items():
+            conn.execute(
+                text(
+                    "INSERT INTO followed_series (id, user_id, profile_id,"
+                    " source_id, series_key, title, is_favorite,"
+                    " reading_status, notify, sort_order, known_chapters,"
+                    " created_at, updated_at) VALUES (:i, 1, 10, 'mangadex',"
+                    " :k, 't', 0, 'reading', 1, 0, :b, '2026-01-01',"
+                    " '2026-01-01')"
+                ),
+                {"i": fid, "k": f"s-{fid}", "b": blob},
+            )
+
+
+def test_chapter_count_backfill_matches_the_parsed_array(tmp_path):
+    """0008 backfills the exact ``len(known_chapters)``, corrupt rows included.
+
+    The counts must equal what the read path's ``json.loads`` would produce —
+    including for a title that embeds an escaped ``"key":``, which any
+    substring-counting shortcut would miscount, and for a blob that is not
+    JSON at all (0, matching the readers' ``_loads(...) or []`` fallback).
+    """
+    engine = create_engine(f"sqlite:///{tmp_path / 'count.db'}")
+    _upgrade_to(engine, "0007_novel_chapter_cache")
+    _seed_pre_0008_follows(engine)
+    _upgrade_to(engine, "0008_followed_series_chapter_count")
+
+    with engine.connect() as conn:
+        rows = dict(
+            conn.execute(
+                text("SELECT id, chapter_count FROM followed_series")
+            ).all()
+        )
+    assert rows == {1: 219, 2: 1, 3: 0, 4: 0}
+
+
+def test_chapter_count_cannot_drift_from_known_chapters(tmp_path):
+    """Every way of writing the array updates the count with it.
+
+    The column is denormalized, so the guarantee that makes it safe is that no
+    call site can write one without the other — the attribute listener in
+    ``database.models`` fires for the declarative constructor's keyword and for
+    plain assignment alike. If that listener is ever removed, this fails.
+    """
+    from sqlalchemy.orm import Session
+
+    from database.models import FollowedSeries
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        _seed_pre_0008_follows_accounts(conn)
+    with Session(engine) as session:
+        row = FollowedSeries(
+            user_id=1,
+            profile_id=10,
+            source_id="mangadex",
+            series_key="s-new",
+            title="t",
+            known_chapters=json.dumps([{"key": f"c{n}"} for n in range(7)]),
+        )
+        session.add(row)
+        session.commit()
+        assert row.chapter_count == 7, "constructor keyword did not set the count"
+
+        row.known_chapters = json.dumps([{"key": "c1"}, {"key": "c2"}])
+        session.commit()
+        assert row.chapter_count == 2, "assignment did not update the count"
+
+        row.known_chapters = "not json"
+        session.commit()
+        assert row.chapter_count == 0, "corrupt blob should count as no chapters"
+
+        bare = FollowedSeries(
+            user_id=1,
+            profile_id=10,
+            source_id="mangadex",
+            series_key="s-bare",
+            title="t",
+        )
+        session.add(bare)
+        session.commit()
+        assert bare.chapter_count == 0, "default row should count as no chapters"
+
+
+def _seed_pre_0008_follows_accounts(conn) -> None:
+    conn.execute(
+        text(
+            "INSERT INTO users (id, username, password_hash, is_admin,"
+            " is_active, created_at, updated_at) VALUES"
+            " (1, 'owner', 'x', 1, 1, '2026-01-01', '2026-01-01')"
+        )
+    )
+    conn.execute(
+        text(
+            "INSERT INTO reading_profiles (id, user_id, name, avatar_key,"
+            " mood, mature_content_enabled, sort_order, created_at)"
+            " VALUES (10, 1, 'A', 'a', 'calm', 0, 0, '2026-01-01')"
+        )
+    )

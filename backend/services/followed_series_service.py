@@ -845,11 +845,12 @@ class FollowedSeriesService:
         defaults it to ``const []`` when absent). The detail endpoint, follow
         and patch still send it, so nothing that had the data loses it.
 
-        ``known_chapters`` is parsed once either way: this used to call
-        ``json.loads`` on the blob twice per row — once for the array, once to
-        measure it for ``chapter_count``.
+        ``chapter_count`` comes from its own column, so a list page never
+        loads or parses the blob at all — see ``FollowedSeries.chapter_count``
+        for how the two are kept in step. (This method used to run
+        ``json.loads`` over the array *twice* per row: once for the payload,
+        once to measure it.)
         """
-        chapters = _loads(row.known_chapters) or []
         payload: dict[str, Any] = {
             "id": row.id,
             "source_id": row.source_id,
@@ -864,7 +865,7 @@ class FollowedSeriesService:
             "content_rating": row.content_rating,
             "rating": self._rating(row),
             "mature_override": row.mature_override,
-            "chapter_count": len(chapters),
+            "chapter_count": row.chapter_count,
             "last_checked_at": row.last_checked_at.isoformat()
             if row.last_checked_at
             else None,
@@ -872,7 +873,7 @@ class FollowedSeriesService:
             "updated_at": row.updated_at.isoformat() if row.updated_at else None,
         }
         if include_chapters:
-            payload["known_chapters"] = chapters
+            payload["known_chapters"] = _loads(row.known_chapters) or []
         return payload
 
 
