@@ -130,6 +130,27 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.11.0",
+        build=25,
+        date="September 2026",
+        highlights=[
+            "Downloads is its own tab now, with a badge when something is "
+            "downloading — no more hunting for it under More",
+            "You can watch a download happen: which chapter, which page, and "
+            "how far through the series, with pause, resume, cancel and retry",
+            "When the queue stops it tells you why — storage cap reached, disk "
+            "nearly full, or the app was sent to the background (a sideloaded "
+            "app cannot download while it is not on screen)",
+            "Storage size, retention and Free up space now sit with the "
+            "downloads instead of being buried in Settings, and saved series "
+            "are listed largest first so it doubles as what is using my space",
+            "Export a downloaded chapter as real files — a CBZ or a numbered "
+            "folder of pages — into ManhwaManiacs/Exports, readable in the "
+            "Files app. The store itself stays content-addressed, so exporting "
+            "never disturbs what is downloaded",
+        ],
+    ),
+    ChangelogEntry(
         version="1.10.0",
         build=24,
         date="September 2026",
