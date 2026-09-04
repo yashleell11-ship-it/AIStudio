@@ -117,6 +117,37 @@ def test_get_chapters_and_pages(freeadultcomix_connector: FreeAdultComixConnecto
     assert freeadultcomix_connector.find_page(pages[0].id) == pages[0]
 
 
+def test_pages_parse_from_fancybox_theme_gallery(
+    freeadultcomix_connector: FreeAdultComixConnector,
+):
+    """Regression: the site dropped the dgwt-jg gallery plugin.
+
+    ``gallery_detail_fancybox.html`` is a live capture of the replacement
+    theme, which wraps each page in ``<div class="foto"><a class="fancybox">``
+    and emits no ``<figure>`` at all. The old pattern matched nothing, so the
+    series reported a chapter with zero pages while browse and detail still
+    passed. Site chrome (logo, favicons, theme art) lives under the same
+    /wp-content/uploads/ prefix and must not be picked up as pages.
+    """
+    html = (FIXTURES / "gallery_detail_fancybox.html").read_text(encoding="utf-8")
+    assert "dgwt-jg-item" not in html
+    assert "<figure" not in html
+    assert 'class="fancybox"' in html
+
+    pages = parse_chapter_pages(html, "drawn-together-toon-sluts-by-deavalin")
+    chapters = parse_chapters(html, "drawn-together-toon-sluts-by-deavalin")
+
+    assert len(pages) >= 10
+    assert chapters[0].page_count == len(pages)
+    assert [p.number for p in pages] == list(range(1, len(pages) + 1))
+    assert all("/wp-content/uploads/" in (p.remote_url or "") for p in pages)
+    # chrome that shares the uploads prefix must stay out
+    joined = " ".join(p.remote_url or "" for p in pages)
+    assert "logomarca" not in joined
+    assert "cropped-" not in joined
+    assert "/themes/" not in joined
+
+
 def test_connector_metadata(freeadultcomix_connector: FreeAdultComixConnector):
     assert freeadultcomix_connector.source_type == "freeadultcomix"
     assert freeadultcomix_connector.display_name == "FreeAdultComix"

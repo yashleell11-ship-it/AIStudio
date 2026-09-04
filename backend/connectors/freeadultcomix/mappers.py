@@ -63,7 +63,29 @@ GALLERY_HREF_RE = re.compile(
     r"<a\s+href=['\"](https?://[^'\"]+)['\"]",
     re.I,
 )
+# The theme replaced the dgwt-jg justified-gallery plugin with its own
+# ``<div class="foto"><a rel="gallery" class="fancybox" href="...">`` markup.
+# Both forms are matched: only the wrapper changed, the full-size href that
+# every page image resolves to is still there. Attribute order varies, so this
+# matches any anchor tag carrying the marker and pulls its href separately.
+FANCYBOX_ANCHOR_RE = re.compile(
+    r"<a\b[^>]*(?:class=['\"][^'\"]*\bfancybox\b|rel=['\"]gallery['\"])[^>]*>",
+    re.I,
+)
+ANCHOR_HREF_RE = re.compile(r"href=['\"]([^'\"]+)['\"]", re.I)
 PAGE_LINK_RE = re.compile(r"/page/(\d+)/?", re.I)
+
+
+def _gallery_hrefs(html_text: str) -> list[str]:
+    """Full-size page hrefs, from either gallery markup the site has used."""
+    hrefs = list(GALLERY_HREF_RE.findall(html_text))
+    for anchor in FANCYBOX_ANCHOR_RE.findall(html_text):
+        match = ANCHOR_HREF_RE.search(anchor)
+        if match:
+            hrefs.append(match.group(1))
+    return hrefs
+
+
 TAG_STRIP_RE = re.compile(r"<[^>]+>")
 
 
@@ -188,7 +210,7 @@ def parse_series_detail(html_text: str, series_id: str) -> Series | None:
 def parse_gallery_image_urls(html_text: str) -> list[str]:
     urls: list[str] = []
     seen: set[str] = set()
-    for href in GALLERY_HREF_RE.findall(html_text):
+    for href in _gallery_hrefs(html_text):
         url = href.strip()
         if not url.startswith("http"):
             url = urljoin(SITE_BASE + "/", url)
