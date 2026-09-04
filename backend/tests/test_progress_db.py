@@ -159,3 +159,93 @@ def test_numberless_push_is_persisted_over_a_numbered_row(svc):
 
     stored = svc.get_series_progress("mangadex", "s1")
     assert [r["last_page"] for r in stored] == [20]
+
+
+# ---------------------------------------------------------------------------
+# Reading sessions
+#
+# `record_session` existed from the start but nothing in production ever called
+# it — only a test did — so `reading_sessions` stayed empty on the live server
+# while `chapter_progress` filled up. Every statistic built on that table read
+# as "no reading history" no matter how much the owner read.
+# ---------------------------------------------------------------------------
+
+
+def _sessions(db_session):
+    from database.models import ReadingSession
+
+    return db_session.query(ReadingSession).order_by(ReadingSession.id).all()
+
+
+def test_saving_progress_records_a_reading_session(svc, db_session):
+    svc.save_one(
+        ProgressInput(
+            source_id="asurascans",
+            series_key="a/b",
+            chapter_key="a/b/c-1",
+            chapter_number=1.0,
+            last_page=15,
+            page_count=20,
+            last_read_at=T0,
+        )
+    )
+
+    rows = _sessions(db_session)
+    assert len(rows) == 1
+    # A first push has no earlier position, so the stint starts at page 1.
+    assert (rows[0].start_page, rows[0].end_page, rows[0].pages_read) == (1, 15, 15)
+
+
+def test_a_resumed_chapter_counts_only_the_newly_read_pages(svc, db_session):
+    common = {
+        "source_id": "asurascans",
+        "series_key": "a/b",
+        "chapter_key": "a/b/c-1",
+        "chapter_number": 1.0,
+        "page_count": 20,
+    }
+    svc.save_one(ProgressInput(**common, last_page=5, last_read_at=T0))
+    svc.save_one(
+        ProgressInput(**common, last_page=8, last_read_at=T0 + timedelta(minutes=3))
+    )
+
+    rows = _sessions(db_session)
+    assert len(rows) == 2
+    # Resuming at 5 and reaching 8 is three pages — 6, 7 and 8 — not four.
+    assert (rows[1].start_page, rows[1].end_page, rows[1].pages_read) == (6, 8, 3)
+
+
+def test_a_push_that_does_not_advance_records_no_session(svc, db_session):
+    common = {
+        "source_id": "asurascans",
+        "series_key": "a/b",
+        "chapter_key": "a/b/c-1",
+        "chapter_number": 1.0,
+        "page_count": 20,
+    }
+    svc.save_one(ProgressInput(**common, last_page=9, last_read_at=T0))
+    # Clients re-push the same position constantly (autosave, scroll settle).
+    # One row per ping would bury the real history and inflate every statistic.
+    svc.save_one(ProgressInput(**common, last_page=9, last_read_at=T0))
+    svc.save_one(ProgressInput(**common, last_page=4, last_read_at=T0))
+
+    assert len(_sessions(db_session)) == 1
+
+
+def test_batch_progress_records_sessions_in_one_transaction(svc, db_session):
+    svc.save_batch(
+        [
+            ProgressInput(
+                source_id="asurascans",
+                series_key="a/b",
+                chapter_key=f"a/b/c-{n}",
+                chapter_number=float(n),
+                last_page=10,
+                page_count=10,
+                last_read_at=T0,
+            )
+            for n in (1, 2, 3)
+        ]
+    )
+
+    assert len(_sessions(db_session)) == 3
