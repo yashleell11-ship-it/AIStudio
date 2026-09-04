@@ -6,11 +6,13 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/chapter_download_action.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/download_series_button.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/series_download_progress.dart';
 import 'package:manhwamaniacs/features/library/models/known_chapter.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
@@ -162,6 +164,11 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
     return inProgress ?? oldestFirst.firstOrNull;
   }
 
+  /// This series' domain identity — the key every downloads provider is
+  /// keyed by, and never the follow row's [SeriesDetail.id].
+  SeriesIdentity get _identity =>
+      (sourceId: _series.sourceId, seriesKey: _series.seriesKey);
+
   @override
   Widget build(BuildContext context) {
     final baseUrl = ref.watch(apiBaseUrlProvider);
@@ -174,6 +181,15 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       numberOf: (chapter) => chapter.number,
       order: _sortOrder,
     );
+
+    // Watched once for the whole page rather than per row: one store query
+    // and one queue subscription drive every chapter's download state.
+    final downloadStatuses = ref
+        .watch(seriesChapterDownloadStatusProvider(_identity))
+        .valueOrNull;
+    final activeProgress =
+        ref.watch(seriesActiveChapterProgressProvider(_identity));
+    final hasScope = ref.watch(activeDownloadsScopeIdProvider) != null;
 
     final statusChips = <SeriesDetailChip>[
       if (_series.readingStatus.isNotEmpty)
@@ -265,6 +281,11 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       ],
       details: [
         if (statusChips.isNotEmpty) SeriesDetailChipRow(chips: statusChips),
+        if (hasScope)
+          SeriesDownloadProgress(
+            identity: _identity,
+            totalChapters: _series.chapters.length,
+          ),
       ],
       sortOrder: _sortOrder,
       onSortOrderChanged: (order) => setState(() => _sortOrder = order),
@@ -274,23 +295,28 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
         subtitle: "This source hasn't listed any chapters for this series yet.",
       ),
       chapterTiles: [
-        for (final chapter in sortedChapters) _buildChapterTile(chapter),
+        for (final chapter in sortedChapters)
+          _buildChapterTile(
+            chapter,
+            hasScope: hasScope,
+            status: downloadStatuses?[chapter.key],
+            progress: activeProgress?.chapterKey == chapter.key
+                ? activeProgress?.progress
+                : null,
+          ),
       ],
     );
   }
 
-  Widget _buildChapterTile(KnownChapter chapter) {
+  Widget _buildChapterTile(
+    KnownChapter chapter, {
+    required bool hasScope,
+    required ChapterDownloadStatus? status,
+    required ChapterDownloadProgress? progress,
+  }) {
     final entry = _series.progress[chapter.key];
     final isRead = entry?.isCompleted ?? false;
     final isCurrent = entry != null && !isRead;
-
-    final downloadStatuses = ref
-        .watch(
-          seriesChapterDownloadStatusProvider(
-            (sourceId: _series.sourceId, seriesKey: _series.seriesKey),
-          ),
-        )
-        .valueOrNull;
 
     return SeriesChapterTile(
       key: Key('chapter-${chapter.key}'),
@@ -307,8 +333,9 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       isCurrent: isCurrent,
       onTap: () => _openChapter(chapter),
       download: chapterDownloadAction(
-        hasScope: ref.watch(activeDownloadsScopeIdProvider) != null,
-        status: downloadStatuses?[chapter.key],
+        hasScope: hasScope,
+        status: status,
+        progress: progress,
         buttonKey: Key('download-${chapter.key}'),
         onDownload: () => ref.read(downloadQueueControllerProvider.notifier).enqueueChapter(
               id: (

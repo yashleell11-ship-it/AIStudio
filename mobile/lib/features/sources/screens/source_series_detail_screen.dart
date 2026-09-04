@@ -6,11 +6,13 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/chapter_download_action.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/download_series_button.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/series_download_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
@@ -138,11 +140,24 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     return null;
   }
 
+  /// This series' domain identity — what every downloads provider is keyed
+  /// by. On this screen the route parameters already *are* that identity.
+  SeriesIdentity get _identity =>
+      (sourceId: widget.sourceId, seriesKey: widget.seriesId);
+
   @override
   Widget build(BuildContext context) {
     final series = widget.series;
     final chapters = widget.chapters;
     final progressMap = ref.watch(sourceProgressProvider);
+    // Watched once for the whole page rather than per row: one store query
+    // and one queue subscription drive every chapter's download state.
+    final downloadStatuses = ref
+        .watch(seriesChapterDownloadStatusProvider(_identity))
+        .valueOrNull;
+    final activeProgress =
+        ref.watch(seriesActiveChapterProgressProvider(_identity));
+    final hasScope = ref.watch(activeDownloadsScopeIdProvider) != null;
     final sortedChapters = _sortedChapters(chapters, _sortOrder);
     final latestRead = ref.read(sourceProgressProvider.notifier).latestForSeries(
           sourceId: widget.sourceId,
@@ -196,6 +211,11 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         ),
       ],
       details: [
+        if (hasScope)
+          SeriesDownloadProgress(
+            identity: _identity,
+            totalChapters: chapters.length,
+          ),
         // Status and genres get the same pill treatment the library page gives
         // reading status and tags -- the source page simply had nowhere to put
         // them before.
@@ -225,6 +245,11 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
             chapter: chapter,
             progressMap: progressMap,
             latestRead: latestRead,
+            hasScope: hasScope,
+            status: downloadStatuses?[chapter.id],
+            downloadProgress: activeProgress?.chapterKey == chapter.id
+                ? activeProgress?.progress
+                : null,
           ),
       ],
     );
@@ -234,6 +259,9 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     required SourceChapterSummary chapter,
     required Map<String, SourceChapterProgress> progressMap,
     required LatestSourceRead? latestRead,
+    required bool hasScope,
+    required ChapterDownloadStatus? status,
+    required ChapterDownloadProgress? downloadProgress,
   }) {
     final progress = progressMap[sourceProgressKey(
       sourceId: widget.sourceId,
@@ -245,14 +273,6 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     // reader), falling back to the source-provided count.
     final storedCount = progress?.pageCount ?? 0;
     final effectiveCount = storedCount > 0 ? storedCount : chapter.pageCount;
-
-    final downloadStatuses = ref
-        .watch(
-          seriesChapterDownloadStatusProvider(
-            (sourceId: widget.sourceId, seriesKey: widget.seriesId),
-          ),
-        )
-        .valueOrNull;
 
     return SeriesChapterTile(
       key: Key('chapter-${chapter.id}'),
@@ -271,8 +291,9 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
         RoutePaths.sourceReader(widget.sourceId, widget.seriesId, chapter.id),
       ),
       download: chapterDownloadAction(
-        hasScope: ref.watch(activeDownloadsScopeIdProvider) != null,
-        status: downloadStatuses?[chapter.id],
+        hasScope: hasScope,
+        status: status,
+        progress: downloadProgress,
         buttonKey: Key('download-${chapter.id}'),
         onDownload: () => ref.read(downloadQueueControllerProvider.notifier).enqueueChapter(
               id: (

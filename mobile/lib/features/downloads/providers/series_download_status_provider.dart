@@ -5,9 +5,13 @@ import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart'
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 
 /// One chapter's on-device download state, for driving a
-/// [SeriesChapterDownloadAction] — the enabled/disabled/retryable icon on a
-/// chapter row.
+/// [SeriesChapterDownloadAction] — the badge or button on a chapter row.
 typedef ChapterDownloadStatus = ({DownloadChapterState state, String? error});
+
+/// How far into a chapter the queue has got. `pageTotal` is 0 until the
+/// manifest lands, which is the window where a bar must stay indeterminate
+/// rather than read "page 0 of 0" — a stall is exactly what that looks like.
+typedef ChapterDownloadProgress = ({int pagesDone, int pageTotal});
 
 /// Every chapter of [series] that has a row in the active scope's store,
 /// keyed by chapter key. A chapter with no entry here has never been queued
@@ -33,3 +37,31 @@ final seriesChapterDownloadStatusProvider = FutureProvider.autoDispose
         chapter.chapterKey: (state: chapter.state, error: chapter.error),
   };
 });
+
+/// Which chapter of [series] the queue is fetching right now and how far into
+/// it, or `null` when the loop is elsewhere (another series, or idle).
+///
+/// A second, narrower channel than [seriesChapterDownloadStatusProvider] on
+/// purpose. That one re-queries the store on `queueRevision` — which
+/// deliberately does *not* move page by page, so a forty-page chapter costs
+/// it one query. Page progress therefore has to come straight off the queue
+/// state, and the `select` keeps a series page rebuilding once per page
+/// rather than on every field of that state.
+final seriesActiveChapterProgressProvider = Provider.autoDispose
+    .family<({String chapterKey, ChapterDownloadProgress progress})?, SeriesIdentity>(
+  (ref, series) => ref.watch(
+    downloadQueueControllerProvider.select((state) {
+      final current = state.currentChapter;
+      if (current == null ||
+          current.sourceId != series.sourceId ||
+          current.seriesKey != series.seriesKey) {
+        return null;
+      }
+      return (
+        chapterKey: current.chapterKey,
+        progress: (pagesDone: state.pagesDone, pageTotal: state.pageTotal),
+      );
+    }),
+  ),
+  name: 'seriesActiveChapterProgress',
+);

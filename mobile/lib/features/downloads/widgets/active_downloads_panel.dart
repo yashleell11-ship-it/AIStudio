@@ -7,11 +7,11 @@ import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/downloaded_series_group.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
-import 'package:manhwamaniacs/features/downloads/models/storage_cap.dart';
 import 'package:manhwamaniacs/features/downloads/providers/active_download_queue_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloaded_series_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/storage_settings_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
+import 'package:manhwamaniacs/features/downloads/queue/download_queue_copy.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 
@@ -88,8 +88,7 @@ class ActiveDownloadsPanel extends ConsumerWidget {
           ],
           const SizedBox(height: AppSpacing.sm),
           Text(
-            'Downloads only run while ManhwaManiacs is open — leaving the app '
-            'pauses them, and coming back picks up exactly where they stopped.',
+            kForegroundOnlyDownloadsNote,
             style: AppTypography.caption.copyWith(color: AppColors.muted),
           ),
         ],
@@ -281,23 +280,7 @@ class _PauseReasonNotice extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final cap = ref.watch(storageCapProvider);
-    final message = switch (queue.pauseReason) {
-      DownloadQueuePauseReason.userPaused =>
-        'Paused by you. Nothing was lost — resuming carries on from the page '
-            'it stopped at.',
-      DownloadQueuePauseReason.freeSpaceFloor =>
-        'Paused because this phone is almost full. Downloads stop before the '
-            'last ~1.5 GB so the rest of your phone keeps working — delete '
-            'something on the device to carry on.',
-      DownloadQueuePauseReason.cap => cap == StorageCap.unlimited
-          ? 'Paused at your download limit.'
-          : 'Paused because downloads have filled your ${cap.label} limit. '
-              'Raise the limit or free up space below.',
-      DownloadQueuePauseReason.backgrounded ||
-      DownloadQueuePauseReason.noScope ||
-      DownloadQueuePauseReason.none =>
-        null,
-    };
+    final message = downloadPauseMessage(queue.pauseReason, cap);
     if (message == null) return const SizedBox.shrink();
 
     return Column(
