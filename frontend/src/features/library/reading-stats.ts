@@ -274,15 +274,101 @@ export function chapterLabel(row: {
 // ---------------------------------------------------------------------------
 
 /**
- * Round a maximum up to a value a human reads off an axis: 1, 2 or 5 times a
- * power of ten. Without this the gridlines land on 37 / 74 / 111.
+ * The gap between gridlines is what has to be nice, not just the top of the
+ * axis — round the maximum alone and the labels in between land on fractions.
+ *
+ * Both axes here count whole things (pages, minutes), so the step is never
+ * below 1: a gridline at 0.75 pages is not a quantity, and rounding it for
+ * display puts the label "1" on a line that is not at 1.
+ *
+ * 2.5 earns its place only once the step it makes is in the hundreds (250,
+ * 2500, …). The 2→5 jump is the family's widest and at high magnitudes it
+ * bites hard — 900 pages forced onto a 0–2000 axis fills less than half of it,
+ * where 0–1000 in steps of 250 keeps the shape. Below that the quarter-steps
+ * (2.5 is not a whole page; 25 is, but reads worse than what a neighbouring
+ * tick count offers) would tip `chooseTickCount` toward a coarser 0–75-style
+ * axis over the cleaner five-step one, so they stay out.
  */
-export function niceScaleMax(value: number): number {
-  if (!Number.isFinite(value) || value <= 0) return 1;
-  const magnitude = 10 ** Math.floor(Math.log10(value));
-  const normalized = value / magnitude;
-  const step = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
-  return step * magnitude;
+const NICE_STEP_MULTIPLIERS = [1, 2, 2.5, 5] as const;
+
+/** The smallest whole nice step that is at least `minStep`. */
+function smallestNiceStepAtLeast(minStep: number): number {
+  let magnitude = 10 ** Math.max(0, Math.floor(Math.log10(Math.max(1, minStep))));
+  for (;;) {
+    for (const multiplier of NICE_STEP_MULTIPLIERS) {
+      if (multiplier === 2.5 && magnitude < 100) continue;
+      const step = multiplier * magnitude;
+      if (step >= minStep) return step;
+    }
+    magnitude *= 10;
+  }
+}
+
+/**
+ * The smallest axis of `count` equal nice steps that still covers `peak`.
+ *
+ * Forcing the maximum to be a whole multiple of the step is the point: every
+ * gridline then falls on a round number in the series' own unit, so the label
+ * is the value and not a rounding of it. And with the count fixed by the
+ * caller, smallest-covering is the whole choice — any taller axis only adds
+ * empty plot above the data.
+ */
+export function coverAxis(peak: number, count: number): number {
+  const steps = Math.max(1, Math.trunc(count));
+  if (!Number.isFinite(peak) || peak <= 0) return steps;
+  return smallestNiceStepAtLeast(peak / steps) * steps;
+}
+
+/** How much taller than its peak an axis had to be drawn. 1 is a perfect fit. */
+function axisWaste(peak: number, max: number): number {
+  return peak > 0 ? max / peak : 1;
+}
+
+/** How far either side of the requested gridline count to look for a better fit. */
+const TICK_SEARCH = 2;
+
+/**
+ * How many gridlines to divide the plot into, given both series' peaks.
+ *
+ * The two axes share one set of gridlines — a second set at its own heights
+ * would be a grid of near-misses — so the count is a single compromise, and
+ * the count that flatters one series can waste half the plot on the other. At
+ * 74 pages and 50 minutes, four steps fit pages exactly (0–80) but push time
+ * onto an 80-minute axis it only fills to 62%; five steps cost a little slack
+ * on pages and land time on 0–50m dead on.
+ *
+ * So candidates near the requested count are scored by total wasted height and
+ * the best wins, ties going to the count actually asked for (they are visited
+ * nearest-first and only a strict improvement displaces the incumbent).
+ */
+export function chooseTickCount(
+  peakPages: number,
+  peakMinutes: number,
+  preferred: number,
+): number {
+  const target = Math.max(1, Math.trunc(preferred));
+  // Nothing was read: one step, so the caller's "no data" copy is not framed
+  // by an invented 0–4 scale.
+  if (peakPages <= 0 && peakMinutes <= 0) return 1;
+
+  const candidates: number[] = [target];
+  for (let offset = 1; offset <= TICK_SEARCH; offset += 1) {
+    if (target - offset >= 1) candidates.push(target - offset);
+    candidates.push(target + offset);
+  }
+
+  let best = target;
+  let bestScore = Number.POSITIVE_INFINITY;
+  for (const count of candidates) {
+    const score =
+      axisWaste(peakPages, coverAxis(peakPages, count)) +
+      axisWaste(peakMinutes, coverAxis(peakMinutes, count));
+    if (score < bestScore) {
+      bestScore = score;
+      best = count;
+    }
+  }
+  return best;
 }
 
 export interface ActivityChartOptions {
@@ -333,17 +419,25 @@ export interface ActivityChart {
   width: number;
   height: number;
   plot: { x: number; y: number; width: number; height: number };
+  /** Width of one day's column — the hit target, of which the bar is the visible part. */
+  slot: number;
   bars: ActivityBar[];
   points: ActivityPoint[];
   /** `M…L…` through the time points, or `""` when no time was recorded. */
   linePath: string;
   ticks: ActivityTick[];
   xLabels: Array<{ x: number; date: string }>;
-  /** Nice-rounded axis maxima; both are at least 1 so nothing divides by zero. */
+  /** Axis maxima; both are whole multiples of their gridline step, and at least 1. */
   maxPages: number;
   maxSeconds: number;
   /** False when there is no day with any reading — the caller draws its own copy. */
   hasData: boolean;
+  /**
+   * Whether any time was recorded. Separate from `hasData` because a session
+   * the client never closed has pages but no seconds, and a right-hand axis
+   * scaled for a series that is not drawn invites reading the bars off it.
+   */
+  hasTime: boolean;
 }
 
 /**
@@ -385,9 +479,11 @@ export function buildActivityChart(
 
   const peakPages = days.reduce((max, day) => Math.max(max, day.pages_read), 0);
   const peakSeconds = days.reduce((max, day) => Math.max(max, day.seconds_read), 0);
-  const maxPages = niceScaleMax(peakPages);
   // Time is scaled in whole minutes: a gridline at "7m 13s" is not a gridline.
-  const maxSeconds = niceScaleMax(Math.ceil(peakSeconds / 60)) * 60;
+  const peakMinutes = Math.ceil(peakSeconds / 60);
+  const tickCount = chooseTickCount(peakPages, peakMinutes, ticks);
+  const maxPages = coverAxis(peakPages, tickCount);
+  const maxSeconds = coverAxis(peakMinutes, tickCount) * 60;
   const hasData = peakPages > 0 || peakSeconds > 0;
 
   const slot = days.length > 0 ? plot.width / days.length : plot.width;
@@ -427,7 +523,6 @@ export function buildActivityChart(
     .map((point, index) => `${index === 0 ? "M" : "L"}${round(point.x)} ${round(point.y)}`)
     .join(" ");
 
-  const tickCount = Math.max(1, Math.trunc(ticks));
   const tickRows: ActivityTick[] = [];
   for (let i = 0; i <= tickCount; i += 1) {
     const fraction = i / tickCount;
@@ -442,6 +537,7 @@ export function buildActivityChart(
     width,
     height,
     plot,
+    slot,
     bars,
     points,
     linePath,
@@ -450,6 +546,7 @@ export function buildActivityChart(
     maxPages,
     maxSeconds,
     hasData,
+    hasTime: points.length > 0,
   };
 }
 
