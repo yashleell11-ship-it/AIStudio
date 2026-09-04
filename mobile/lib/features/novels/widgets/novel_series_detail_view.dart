@@ -18,6 +18,7 @@ import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.da
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
 import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/primary_pill_button.dart';
 import 'package:manhwamaniacs/shared/widgets/series_cover_image.dart';
 import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_sort.dart';
 import 'package:manhwamaniacs/shared/widgets/series_detail/series_chapter_tile.dart';
@@ -271,6 +272,14 @@ class _FrontMatter extends ConsumerWidget {
             ),
           ],
           const SizedBox(height: AppSpacing.lg),
+          if (chapters.isNotEmpty) ...[
+            _ReadButton(
+              sourceId: sourceId,
+              seriesId: seriesId,
+              chapters: chapters,
+            ),
+            const SizedBox(height: AppSpacing.sm),
+          ],
           Row(
             children: [
               Expanded(
@@ -356,6 +365,70 @@ class _FrontMatter extends ConsumerWidget {
         ? '1 chapter'
         : '${estimate.sampleSize} chapters';
     return '$words  ·  $time    estimated from $from';
+  }
+}
+
+/// "Start reading" / "Continue" — the one control a book page needs above
+/// everything else.
+///
+/// The resume rule is the manga screen's, unchanged: a finished chapter
+/// advances to the next unread one at the top, an unfinished one reopens at
+/// the stored position. The only difference is what the stored position means
+/// — a paragraph bucket rather than a page — and since both ride `?page=`,
+/// this needs no arithmetic of its own.
+class _ReadButton extends ConsumerWidget {
+  const _ReadButton({
+    required this.sourceId,
+    required this.seriesId,
+    required this.chapters,
+  });
+
+  final String sourceId;
+  final String seriesId;
+  final List<SourceChapterSummary> chapters;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Watched, not read: finishing a chapter in the reader and coming back
+    // must flip this from "Continue" to the next chapter without a refresh.
+    ref.watch(sourceProgressProvider);
+    final resume = ref.read(sourceProgressProvider.notifier).latestForSeries(
+          sourceId: sourceId,
+          seriesId: seriesId,
+        );
+    final ordered = sortSeriesChapters(
+      chapters,
+      numberOf: (chapter) => chapter.number,
+      order: SeriesChapterSortOrder.oldest,
+    );
+
+    String target;
+    if (resume != null) {
+      final index = ordered.indexWhere((c) => c.id == resume.chapterId);
+      final next = resume.progress.completed &&
+              index != -1 &&
+              index + 1 < ordered.length
+          ? ordered[index + 1]
+          : null;
+      if (next != null) {
+        target = RoutePaths.novelReader(sourceId, seriesId, next.id);
+      } else {
+        target = '${RoutePaths.novelReader(sourceId, seriesId, resume.chapterId)}'
+            '?page=${resume.progress.page}';
+      }
+    } else {
+      target = RoutePaths.novelReader(sourceId, seriesId, ordered.first.id);
+    }
+
+    return PrimaryPillButton(
+      key: const Key('read-primary'),
+      expanded: true,
+      onPressed: () => context.push(target),
+      icon: resume != null
+          ? Icons.play_arrow_rounded
+          : Icons.menu_book_outlined,
+      label: resume != null ? 'Continue' : 'Start reading',
+    );
   }
 }
 
