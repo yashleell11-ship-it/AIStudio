@@ -58,11 +58,11 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${syne.variable} ${dmSans.variable} antialiased`}
-      // `ThemeBootScript` stamps `data-theme` on this element before React
-      // exists, so the hydrating tree finds an attribute the server markup did
-      // not contain. That is the whole design, not a bug to be fixed by moving
-      // the theme into the markup — the server cannot know it. This silences
-      // the mismatch warning for this element only.
+      // `AppearanceBootScript` stamps `data-theme` and `data-preset` on this
+      // element before React exists, so the hydrating tree finds attributes the
+      // server markup did not contain. That is the whole design, not a bug to
+      // be fixed by moving the appearance into the markup — the server cannot
+      // know it. This silences the mismatch warning for this element only.
       suppressHydrationWarning
     >
       <head>

@@ -46,7 +46,7 @@ export const DEFAULT_READING_THEME: ReadingTheme = "dark";
  * `scoped-storage` appends the `(user, profile)` namespace.
  *
  * Declared here rather than in `theme-store.ts` because the boot script in
- * `theme-boot.tsx` has to find the same key before any store exists, and a
+ * `appearance-boot.tsx` has to find the same key before any store exists, and a
  * string that two files spell independently is a string that will one day be
  * spelled differently.
  */
