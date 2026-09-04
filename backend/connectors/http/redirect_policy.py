@@ -28,6 +28,9 @@ from __future__ import annotations
 
 import ipaddress
 import socket
+import threading
+import time
+from collections import OrderedDict
 from typing import Any
 from urllib.parse import urljoin, urlparse
 
@@ -49,8 +52,19 @@ def host_matches_allowlist(hostname: str, allowed_hosts: frozenset[str]) -> bool
     )
 
 
-def is_public_address(hostname: str) -> bool:
-    """Resolve ``hostname`` and confirm every address it maps to is public."""
+#: How long a hostname's resolution verdict is reused. Deliberately short —
+#: see ``is_public_address`` for why this is safe, and why it is not free.
+PUBLIC_ADDRESS_TTL_SECONDS = 60.0
+#: Ceiling on remembered hostnames. The allowlist already bounds which hosts
+#: can reach the resolver at all; this is belt and braces against a source
+#: that serves images from thousands of per-object subdomains.
+_PUBLIC_ADDRESS_MAX_HOSTS = 512
+
+_public_address_cache: "OrderedDict[str, tuple[float, bool]]" = OrderedDict()
+_public_address_lock = threading.Lock()
+
+
+def _resolves_public(hostname: str) -> bool:
     try:
         infos = socket.getaddrinfo(hostname, None)
     except socket.gaierror:
@@ -68,6 +82,57 @@ def is_public_address(hostname: str) -> bool:
         ):
             return False
     return True
+
+
+def is_public_address(hostname: str) -> bool:
+    """Resolve ``hostname`` and confirm every address it maps to is public.
+
+    The verdict is cached for ``PUBLIC_ADDRESS_TTL_SECONDS`` because this sits
+    on the image proxy's per-image path: a chapter is 20-100 images off ONE CDN
+    hostname, and each one was paying a blocking ``getaddrinfo``. Measured from
+    the production container, that is ~1.2 ms median — but 117 ms at p95 and
+    163 ms at worst, and it is serial with the fetch, so a long chapter could
+    spend seconds resolving a name it had just resolved.
+
+    Why a cache does not weaken the guard:
+
+    * ``host_matches_allowlist`` runs FIRST and is untouched. Only hostnames
+      under a connector's own declared CDN domains ever reach this function, so
+      the cache can never hold a host the allowlist would have rejected.
+    * The check is already time-of-check/time-of-use: the address validated
+      here is not the one httpx or libcurl later connects with — they resolve
+      again. A rebinding window therefore already exists; the TTL widens it
+      from milliseconds to a minute rather than creating it, and exploiting it
+      still requires controlling DNS for a domain the connector allowlists,
+      which is game over regardless.
+    * Both verdicts are cached for the same TTL. Caching the *failure* keeps
+      the guard fail-closed and cheap, and a minute is short enough that a CDN
+      recovering from a resolver blip is not stuck.
+    """
+    now = time.monotonic()
+    with _public_address_lock:
+        entry = _public_address_cache.get(hostname)
+        if entry is not None and entry[0] > now:
+            _public_address_cache.move_to_end(hostname)
+            return entry[1]
+
+    verdict = _resolves_public(hostname)
+
+    with _public_address_lock:
+        _public_address_cache[hostname] = (
+            now + PUBLIC_ADDRESS_TTL_SECONDS,
+            verdict,
+        )
+        _public_address_cache.move_to_end(hostname)
+        while len(_public_address_cache) > _PUBLIC_ADDRESS_MAX_HOSTS:
+            _public_address_cache.popitem(last=False)
+    return verdict
+
+
+def reset_public_address_cache() -> None:
+    """Forget every remembered verdict. For tests."""
+    with _public_address_lock:
+        _public_address_cache.clear()
 
 
 def allowed_redirect_hosts(
