@@ -23,4 +23,10 @@ EXCLUDED_CONNECTORS: frozenset[str] = frozenset({
     # users a broken source rather than buying us an eventual recovery.
     "coffeemanga",  # coffeemanga.ink 404s every path (/, /manga/, sitemap, wp-json)
     "harimanga",  # harimanga.vip TLS handshake aborts; .com redirects to a lander
+    # Deregistered 2026-09-04 after the speed/health audit. Every request to
+    # the apex read-times-out (91.7s before giving up -- it was the single
+    # slowest thing in the registry, and it only ever produced an error), and
+    # www.cmanhua.com now serves the stock "IIS Windows Server" placeholder,
+    # so there is no origin left to fix a connector against.
+    "cmanhua",
 })
