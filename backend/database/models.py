@@ -9,6 +9,7 @@ from sqlalchemy import (
     ForeignKey,
     Index,
     Integer,
+    LargeBinary,
     String,
     Text,
     UniqueConstraint,
@@ -814,6 +815,67 @@ class SourceBrowseCache(Base):
     page: Mapped[int] = mapped_column(Integer, primary_key=True)
     payload: Mapped[str] = mapped_column(Text, nullable=False)
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+
+class SourceCoverCache(Base):
+    """One DOWNSCALED series cover, ready to serve (GLOBAL, TTL + LRU).
+
+    Why this exists: covers were proxied at source resolution into thumbnail
+    boxes — measured at 1.64 MB average, 6.27 MB max, ~39 MB for one 24-cover
+    grid on a phone. ``GET .../cover?w=`` renders the size the client will
+    actually paint; this table stops it re-rendering the same one twice on a
+    2-vCPU box.
+
+    KEY. ``(source_id, series_key, width, fmt)`` — everything the bytes depend
+    on and nothing else. ``width`` is always one of
+    ``image_resize.COVER_WIDTHS`` (requests snap onto that closed set), so the
+    key space per series is bounded at six widths x two formats rather than
+    "whatever integer a caller typed".
+
+    NOT in the key, on purpose: ``user_id``, ``profile_id``, or the 18+ gate.
+    Rows are GLOBAL, exactly like ``source_browse_cache`` — a cover is a
+    property of the series, not of the reader. What is per-caller is whether
+    the reader may see the SOURCE at all, and that is enforced on every single
+    read by ``BrowseService.ensure_visible`` *before* this table is consulted
+    (``SourceCacheService.get_series_cover``), never assumed at write time.
+    Putting the gate in the key instead would be the same bug in a new place:
+    it would cache a leak rather than prevent one.
+
+    DISK. Purely a cache; any row may be deleted at any time and is rebuilt on
+    the next read. Bounded by TOTAL BYTES (``settings.cover_cache_max_bytes``)
+    with least-recently-used eviction, plus a per-row ceiling
+    (``settings.cover_cache_max_row_bytes``) — a byte budget rather than the
+    row budget the JSON caches use, because these rows are binary and vary in
+    size, so a row count is a poor proxy for the thing actually being bounded.
+    ``_chapter_memo`` in ``source_cache_service`` already bounds by content
+    rather than entries for the same reason.
+
+    This does NOT breach the no-chapter-images-server-side rule. That rule is
+    about storing readable content — a chapter is 20-200 images and a library
+    is multi-GB. These are 96-720 px thumbnails of the public cover art these
+    sites put on their own listing pages, capped in aggregate at a few hundred
+    MB, and a full-resolution cover (no ``?w=``) is still streamed straight
+    through and never written down.
+
+    COLUMN ORDER IS DELIBERATE: ``byte_size`` is declared before ``data`` so
+    the eviction sweep's ``SUM(byte_size)`` can read each record's first page
+    and stop, instead of walking every blob's overflow chain.
+    """
+
+    __tablename__ = "source_cover_cache"
+    __table_args__ = (
+        Index("ix_source_cover_cache_last_used_at", "last_used_at"),
+    )
+
+    source_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    series_key: Mapped[str] = mapped_column(String(512), primary_key=True)
+    width: Mapped[int] = mapped_column(Integer, primary_key=True)
+    fmt: Mapped[str] = mapped_column(String(8), primary_key=True)
+    media_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    byte_size: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    last_used_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
 # ---------------------------------------------------------------------------

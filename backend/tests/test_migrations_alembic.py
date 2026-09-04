@@ -23,7 +23,7 @@ from database.models import Base
 from database.session import run_alembic_migrations
 
 _BASELINE = "0001_source_native"
-_HEAD = "0010_smart_bookmarks"
+_HEAD = "0011_source_cover_cache"
 
 # Every revision, oldest first. A new migration is added here deliberately —
 # the point of the guard is that revisions arrive on purpose, not that there is
@@ -39,6 +39,7 @@ _REVISIONS = [
     "0008_followed_series_chapter_count.py",
     "0009_reading_session_duration.py",
     "0010_smart_bookmarks.py",
+    "0011_source_cover_cache.py",
 ]
 
 # Every ORM-mapped table the baseline must create (spec §3).
@@ -64,6 +65,7 @@ _EXPECTED_TABLES = {
     "source_series_cache",
     "source_browse_cache",
     "novel_chapter_cache",
+    "source_cover_cache",
 }
 
 # Tables that must be gone (spec §3.11).

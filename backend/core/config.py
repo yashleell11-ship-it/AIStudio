@@ -121,6 +121,41 @@ class Settings(BaseModel):
     # cap). Overridable via MM_IMAGE_PROXY_MAX_BYTES.
     image_proxy_max_bytes: int = 25 * 1024 * 1024
 
+    # --- cover downscaling (``GET .../cover?w=``) -------------------------
+    # Covers were proxied at source resolution into thumbnail-sized boxes:
+    # measured in a browser at a 375 px viewport, 13 of 24 covers on one
+    # mangadex page cost 20.79 MB (mean 1.64 MB, max 6.27 MB) for a 153x230
+    # CSS px slot. ``?w=`` renders the size the client actually paints, and
+    # the results are cached in ``source_cover_cache``.
+    #
+    # The kill switch. False makes every ``?w=`` request serve the original,
+    # unresized and uncached, i.e. exactly the pre-feature behaviour — the
+    # revert is an env var, not a deploy. MM_COVER_RESIZE_ENABLED.
+    cover_resize_enabled: bool = True
+    # TTL (minutes) for a rendered cover. Long (30 days) because a cover is
+    # effectively immutable per series key — the same reason the route serves
+    # ``Cache-Control: public, max-age=2592000`` — but not infinite, so a
+    # source that does swap its art is picked up eventually.
+    # MM_COVER_CACHE_TTL_MINUTES.
+    cover_cache_ttl_minutes: int = 30 * 24 * 60
+    # HARD disk ceiling for the whole rendered-cover cache. Least-recently-used
+    # rows are deleted until the total is back under it, so this number is the
+    # worst case, not an estimate: 256 MB of stored bytes against a ~20 GB VPS
+    # budget (measured, the SQLite file runs ~2.5% above the payload once the
+    # PK and last_used_at indexes are counted, so ~264 MB of actual disk).
+    # Measured on the VPS, a cover rendered at the 360 px grid width averages
+    # 44 KB and one at 160 px averages 12 KB, so this budget holds roughly
+    # 6,000 grid-sized covers or 21,000 thumbnails — far more distinct series
+    # than this instance will ever browse.
+    # Bounded by bytes rather than rows (as the JSON caches are) because these
+    # rows are binary and uneven. <=0 disables the ceiling.
+    # MM_COVER_CACHE_MAX_BYTES.
+    cover_cache_max_bytes: int = 256 * 1024 * 1024
+    # Per-row ceiling. A cover rendered at <=720 px that still encodes larger
+    # than this is pathological; it is still SERVED, just never stored, so one
+    # weird source cannot eat the whole budget. MM_COVER_CACHE_MAX_ROW_BYTES.
+    cover_cache_max_row_bytes: int = 512 * 1024
+
     # Automatic update system
     update_workers: int = 1
     update_check_interval_minutes: int = 60
@@ -247,6 +282,9 @@ def get_settings() -> Settings:
         ("MM_READER_BULK_MAX_CHAPTERS", "reader_bulk_max_chapters"),
         ("MM_NOVEL_BULK_MAX_CHAPTERS", "novel_bulk_max_chapters"),
         ("MM_BULK_FETCH_CONCURRENCY", "bulk_fetch_concurrency"),
+        ("MM_COVER_CACHE_TTL_MINUTES", "cover_cache_ttl_minutes"),
+        ("MM_COVER_CACHE_MAX_BYTES", "cover_cache_max_bytes"),
+        ("MM_COVER_CACHE_MAX_ROW_BYTES", "cover_cache_max_row_bytes"),
     ):
         value = os.getenv(env_key)
         if value and value.strip():
@@ -256,6 +294,15 @@ def get_settings() -> Settings:
     novels_override = os.getenv("MM_NOVELS_ENABLED")
     if novels_override is not None:
         data["novels_enabled"] = novels_override.strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
+    # Cover downscaling kill switch: off => originals, exactly as before.
+    cover_resize_override = os.getenv("MM_COVER_RESIZE_ENABLED")
+    if cover_resize_override is not None:
+        data["cover_resize_enabled"] = cover_resize_override.strip().lower() in {
             "1",
             "true",
             "yes",
