@@ -19,6 +19,7 @@ from connectors.mangahere.mappers import (
     drop_last_advert,
     extract_chapterfun_context,
     extract_inline_page_urls,
+    is_age_gated,
     is_removed,
     listing_path,
     make_page_id,
@@ -490,6 +491,81 @@ def test_placeholder_image_url_is_never_served():
     assert "war" in script, "fixture must still be the placeholder reply"
     assert unpack_packed_script(script) is not None
     assert parse_chapterfun_response(script) == []
+
+
+def test_age_gated_series_is_reported_not_silently_emptied(
+    connector: MangaHereConnector,
+):
+    """MangaHere hides some mature series behind its own age interstitial.
+
+    The gated document still carries the title, cover, author and genres, so
+    it parses as a perfectly healthy series that merely has no chapters --
+    exactly the shape a silent failure takes. Chainsaw Man, captured from the
+    VPS, is one.
+    """
+    html = _load("series_age_gated.html")
+
+    assert is_age_gated(html) is True
+    assert is_removed(html) is False
+    # Proof the page is otherwise indistinguishable from a real detail page.
+    assert 'class="detail-info-right-title-font"' in html
+    assert parse_chapters(html, "chainsaw_man") == []
+    assert parse_series_detail(html, "chainsaw_man") is None
+
+    with patch.object(
+        connector._http, "get_text", side_effect=lambda *a, **k: html
+    ):
+        assert connector.get_series("chainsaw_man") is None
+        assert connector.get_chapters("chainsaw_man") == []
+
+
+def test_partial_chapterfun_resolution_serves_nothing(connector: MangaHereConnector):
+    """A chapter with holes must never be served.
+
+    ``chapterfun.ashx`` answers an empty 200 rather than an error when it
+    refuses (measured from the VPS: whole minutes of empty replies). Pages
+    are renumbered from 1, so serving what did resolve would silently shift
+    every page after the hole -- the reader would get the wrong image under
+    the right page number. Returning nothing is the honest answer.
+    """
+    record: list[tuple[str, dict | None]] = []
+    serve = _fixture_http(record)
+
+    def flaky(path: str, *, params: dict | None = None) -> str:
+        if "chapterfun.ashx" in path and int(params["page"]) == 21:
+            record.append((path, params))
+            return ""  # what the endpoint actually returns when refusing
+        return serve(path, params=params)
+
+    with patch.object(connector._http, "get_text", side_effect=flaky):
+        pages = connector.get_chapter_pages(ASHX_CHAPTER)
+
+    assert pages == []
+    # It is retried before giving up, rather than failing on the first blank.
+    blanked = [p for p, params in record if params and int(params["page"]) == 21]
+    assert len(blanked) >= 2, "the missing page must be re-asked for at least once"
+
+
+def test_transient_blank_reply_recovers_on_retry(connector: MangaHereConnector):
+    """One blank reply must not cost the whole chapter."""
+    record: list[tuple[str, dict | None]] = []
+    serve = _fixture_http(record)
+    seen: set[int] = set()
+
+    def flaky(path: str, *, params: dict | None = None) -> str:
+        if "chapterfun.ashx" in path:
+            page = int(params["page"])
+            if page == 21 and page not in seen:
+                seen.add(page)
+                record.append((path, params))
+                return ""
+        return serve(path, params=params)
+
+    with patch.object(connector._http, "get_text", side_effect=flaky):
+        pages = connector.get_chapter_pages(ASHX_CHAPTER)
+
+    assert len(pages) == ASHX_IMAGE_COUNT - 1
+    assert [page.number for page in pages] == list(range(1, ASHX_IMAGE_COUNT))
 
 
 # --- packer -----------------------------------------------------------------

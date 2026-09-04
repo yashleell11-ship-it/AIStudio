@@ -164,6 +164,12 @@ _CHAPTER_NUMBER_RE = re.compile(r"(?:^|/)c(\d+(?:\.\d+)?)$", re.I)
 #: except this string distinguishes it from a readable chapter.
 _REMOVED_MARKER = "removed all content"
 
+#: MangaHere hides individual mature series (Chainsaw Man, for one) behind its
+#: own age interstitial: the detail page still carries the title and genres
+#: but NO chapter list, and asks the reader to click through. Detecting it is
+#: what turns a silent "0 chapters" into an honest, logged refusal.
+_AGE_GATE_MARKER = "Caution to under-aged viewers"
+
 # --- packed page scripts ----------------------------------------------------
 
 #: A JS single-quoted string, honouring backslash escapes. Anchoring on this
@@ -337,6 +343,16 @@ def is_removed(html: str) -> bool:
     return _REMOVED_MARKER in html
 
 
+def is_age_gated(html: str) -> bool:
+    """True when the page is MangaHere's own adult interstitial.
+
+    The gated document still parses as a detail page -- title, cover, author
+    and genres are all there -- so without this check a mature series looks
+    like a perfectly healthy series that simply has no chapters.
+    """
+    return _AGE_GATE_MARKER in html
+
+
 # --- listing parsing --------------------------------------------------------
 
 
@@ -472,7 +488,7 @@ def parse_series_detail(html: str, series_key: str) -> Series | None:
     Returns ``None`` for anything that is not a real detail page -- a
     taken-down series, or the search page the site 302s an unknown slug to.
     """
-    if is_removed(html):
+    if is_removed(html) or is_age_gated(html):
         return None
     title_match = _DETAIL_TITLE_RE.search(html)
     if title_match is None:

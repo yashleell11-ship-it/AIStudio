@@ -26,6 +26,7 @@ Three things drive the shape of this file:
 from __future__ import annotations
 
 import logging
+import time
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import replace
 from typing import Any
@@ -45,6 +46,7 @@ from connectors.mangahere.mappers import (
     drop_last_advert,
     extract_chapterfun_context,
     extract_inline_page_urls,
+    is_age_gated,
     is_removed,
     is_valid_genre,
     listing_path,
@@ -78,6 +80,14 @@ _PAGE_WORKERS = 8
 #: One ``chapterfun.ashx`` reply covers the requested page AND the next one,
 #: so only every other page number has to be asked for.
 _PAGES_PER_CHAPTERFUN = 2
+
+#: How many times the whole chapterfun fan-out is attempted. The endpoint
+#: answers an empty 200 rather than an error when it is refusing, so the
+#: shared client's own retry loop never sees a failure to retry.
+_CHAPTERFUN_ATTEMPTS = 2
+
+#: Backoff before re-asking for the pages a previous attempt did not resolve.
+_CHAPTERFUN_RETRY_DELAY = 0.75
 
 #: MangaHere's CDNs refuse a request that carries no ``Referer`` -- verified
 #: from the VPS: 403 with an HTML body without it, 200 with it, for BOTH the
@@ -314,11 +324,17 @@ class MangaHereConnector(SourceConnector):
         if series is None:
             # Either a copyright takedown notice, or the search page the site
             # 302s an unknown slug onto. Neither is a readable series.
+            if is_removed(html):
+                reason = "removed on copyright claim"
+            elif is_age_gated(html):
+                reason = "behind the site age gate"
+            else:
+                reason = "no detail block"
             self._log(
                 "detail",
                 series_path(series_key),
                 status="unavailable",
-                detail="removed" if is_removed(html) else "no detail block",
+                detail=reason,
             )
             return None
 
@@ -350,12 +366,16 @@ class MangaHereConnector(SourceConnector):
         html = self._series_html(series_key)
         if html is None:
             return []
-        if is_removed(html):
+        if is_removed(html) or is_age_gated(html):
             self._log(
                 "chapters",
                 series_path(series_key),
                 status="unavailable",
-                detail="removed on copyright claim",
+                detail=(
+                    "removed on copyright claim"
+                    if is_removed(html)
+                    else "behind the site age gate"
+                ),
             )
             return []
 
@@ -381,10 +401,19 @@ class MangaHereConnector(SourceConnector):
         """Resolve a classic chapter's images through ``chapterfun.ashx``.
 
         Each call answers with the requested page and the one after it, so
-        only every second page number is asked for. The calls are independent,
-        so they go out on a thread pool rather than one after another --
-        measured on the VPS, a 41-image chapter dropped from 3.6s serial to
-        well under a second.
+        only every second page number is asked for, and the calls -- being
+        independent -- go out on a thread pool rather than one after another.
+
+        The endpoint is NOT dependable from a datacentre IP. Measured from
+        the production VPS it answers correctly for a while and then serves
+        an empty ``200`` for every request for minutes at a time (0/18 over
+        three minutes in one measured window, recovering later). That reply
+        is indistinguishable from success at the HTTP layer, so it is caught
+        here: missing pages are retried once after a backoff, and a chapter
+        that STILL will not resolve completely returns nothing at all. A
+        partial resolve must never be served -- pages are renumbered from 1,
+        so a hole in the middle would silently renumber the rest of the
+        chapter and show the reader the wrong page under the right number.
         """
         path = chapterfun_path(chapter_key)
         wanted = list(range(1, image_count + 1, _PAGES_PER_CHAPTERFUN))
@@ -407,20 +436,37 @@ class MangaHereConnector(SourceConnector):
             return page_number, parse_chapterfun_response(script)
 
         resolved: dict[int, str] = {}
-        workers = min(_PAGE_WORKERS, len(wanted))
-        with ThreadPoolExecutor(max_workers=workers) as pool:
-            for page_number, urls in pool.map(fetch, wanted):
-                for offset, url in enumerate(urls):
-                    resolved.setdefault(page_number + offset, url)
+        outstanding = wanted
+        for attempt in range(_CHAPTERFUN_ATTEMPTS):
+            if attempt:
+                time.sleep(_CHAPTERFUN_RETRY_DELAY * attempt)
+            workers = min(_PAGE_WORKERS, len(outstanding))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                for page_number, urls in pool.map(fetch, outstanding):
+                    for offset, url in enumerate(urls):
+                        resolved.setdefault(page_number + offset, url)
+            outstanding = [
+                number for number in wanted if number not in resolved
+            ]
+            if not outstanding:
+                break
+
+        if len(resolved) != image_count:
+            self._log(
+                "pages",
+                path,
+                status="incomplete",
+                detail=(
+                    f"resolved={len(resolved)} expected={image_count} -- "
+                    "refusing to serve a chapter with holes"
+                ),
+            )
+            return []
 
         ordered = [resolved[number] for number in sorted(resolved)]
         # The site counts its own advert as the final image of every classic
-        # chapter (see mappers.drop_last_advert), and there is no per-image
-        # metadata here to mark it -- but only trim when the whole chapter
-        # actually resolved, so a partial failure never eats a real page.
-        if len(ordered) == image_count:
-            ordered = drop_last_advert(ordered)
-        return ordered
+        # chapter (see mappers.drop_last_advert).
+        return drop_last_advert(ordered)
 
     def _resolve_pages(self, chapter_key: str) -> list[Page]:
         path = chapter_path(chapter_key)
@@ -434,6 +480,11 @@ class MangaHereConnector(SourceConnector):
         if is_removed(html):
             self._log(
                 "pages", path, status="unavailable", detail="removed on copyright claim"
+            )
+            return []
+        if is_age_gated(html):
+            self._log(
+                "pages", path, status="unavailable", detail="behind the site age gate"
             )
             return []
 
