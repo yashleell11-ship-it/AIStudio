@@ -8,8 +8,8 @@
 # actually happened (a new build published, or an error), and cron itself stays
 # silent because all output is captured rather than printed.
 #
-# Install (as root — see ops/manhwamaniacs-ios-sync.cron):
-#   sudo install -m 644 ops/manhwamaniacs-ios-sync.cron \
+# Install (as root — see ops/vps/manhwamaniacs-ios-sync.cron):
+#   sudo install -m 644 ops/vps/manhwamaniacs-ios-sync.cron \
 #        /etc/cron.d/manhwamaniacs-ios-sync
 #
 # Exit code mirrors fetch-ios-build.sh, except "nothing new" (2) is reported as

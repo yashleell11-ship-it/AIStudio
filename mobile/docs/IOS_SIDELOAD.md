@@ -97,12 +97,21 @@ update.
 
 ### Installing the sync timer (one time)
 
-The pull is a root cron job — the publish directory under `/srv/apps` is owned by
-`nas`, and the script chowns the result to the container's uid.
+On the VPS the pull is a systemd timer, installed by the deploy script:
 
 ```bash
-sudo install -m 644 /apps/dev/aistudio/ops/manhwamaniacs-ios-sync.cron /etc/cron.d/manhwamaniacs-ios-sync
+bash ops/vps/deploy.sh install-timers
 ```
+
+That writes `mm-fetch-ios.service` and a 15-minute `mm-fetch-ios.timer`, with
+`SuccessExitStatus=0 2` so the script's "nothing new" exit (2) is not reported
+as a failure every quarter hour.
+
+A `/etc/cron.d` equivalent exists at `ops/vps/manhwamaniacs-ios-sync.cron` for a
+host without systemd. **Install one or the other, never both** — they ran side
+by side on the VPS for a day, each polling GitHub against a shared anonymous
+budget of 60 requests an hour. `fetch-ios-build.sh` now takes an exclusive lock
+and exits 2 rather than racing, but the duplicate polling is still waste.
 
 It needs a GitHub token with **Actions: read** on the repo (the repo is private)
 at `/root/.gh_token`, mode 600. Without it every run fails and logs.
@@ -112,7 +121,7 @@ happened — a "nothing new" poll is silent. To publish immediately instead of
 waiting for the timer:
 
 ```bash
-sudo /apps/dev/aistudio/ops/fetch-ios-build.sh
+sudo /srv/manhwamaniacs/app/ops/fetch-ios-build.sh
 ```
 
 ### Day-to-day development
