@@ -22,6 +22,22 @@ export interface SourceSummary {
    * filter adult sources while the mobile one did.
    */
   mature?: boolean;
+  /**
+   * What this connector serves: `"manga"` (pages) or `"novel"` (prose). The
+   * clients branch on it to open the right reader and to scope the app's
+   * Manga / Novels mode.
+   *
+   * Optional because an older backend does not send it — and treating absence
+   * as `"manga"` is exactly right: novel sources only appear at all when
+   * `MM_NOVELS_ENABLED` is on, and a server that has never heard of the field
+   * has no novel connectors to list.
+   */
+  content_kind?: "manga" | "novel";
+  /**
+   * Content language where the connector declares one (novel connectors say
+   * `"en"`); null/absent for the legacy manga connectors, which never did.
+   */
+  language?: string | null;
   health?: SourceHealth | null;
 }
 
