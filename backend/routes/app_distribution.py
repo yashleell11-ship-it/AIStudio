@@ -130,6 +130,26 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.12.0",
+        build=26,
+        date="September 2026",
+        highlights=[
+            "Downloaded chapters open from the library again. The reader could "
+            "always read them without a signal, but the series page in front of "
+            "it answered a failed fetch with an error, so they were only "
+            "reachable from the Downloads tab",
+            "Offline, a series lists the chapters you actually have, clearly "
+            "marked as the downloaded subset rather than passed off as the "
+            "whole series",
+            "A chapter row now says what its download is doing — waiting, "
+            "downloading with progress, already saved, or failed and "
+            "retryable. All four used to look like the same greyed-out button",
+            "The reader's back button no longer hides under the Dynamic Island. "
+            "Going fullscreen made iOS report no inset for the hidden status "
+            "bar, while the cutout itself stayed exactly where it was",
+        ],
+    ),
+    ChangelogEntry(
         version="1.11.0",
         build=25,
         date="September 2026",
