@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/features/collections/providers/collection_detail_p
 import 'package:manhwamaniacs/features/collections/widgets/add_series_dialog.dart';
 import 'package:manhwamaniacs/features/collections/widgets/collection_widgets.dart';
 import 'package:manhwamaniacs/features/collections/widgets/collections_skeleton.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -46,8 +47,13 @@ class CollectionDetailScreen extends ConsumerWidget {
           onRetry: () => ref.read(collectionDetailProvider(collectionId).notifier).refresh(),
         ),
         data: (collection) {
-          final coverSeriesRef = collection.series.isNotEmpty
-              ? (collection.series.first.sourceId, collection.series.first.seriesKey)
+          // A collection is a container, not a medium: it can hold both, and
+          // the mode decides which of its members this screen is showing.
+          final members = ref
+              .watch(contentModeScopeProvider)
+              .filter(collection.series, (member) => member.sourceId);
+          final coverSeriesRef = members.isNotEmpty
+              ? (members.first.sourceId, members.first.seriesKey)
               : null;
 
           return RefreshIndicator(
@@ -97,7 +103,7 @@ class CollectionDetailScreen extends ConsumerWidget {
                     ],
                   ),
                 ),
-                if (collection.series.isEmpty)
+                if (members.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
                     child: EmptyState(
@@ -120,10 +126,10 @@ class CollectionDetailScreen extends ConsumerWidget {
                       AppSpacing.xl4,
                     ),
                     sliver: SliverList.separated(
-                      itemCount: collection.series.length,
+                      itemCount: members.length,
                       separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
                       itemBuilder: (context, index) {
-                        final member = collection.series[index];
+                        final member = members[index];
                         return _CollectionSeriesTile(
                           sourceId: member.sourceId,
                           seriesKey: member.seriesKey,

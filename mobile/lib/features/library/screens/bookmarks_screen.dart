@@ -7,6 +7,8 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
@@ -21,6 +23,7 @@ class BookmarksScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final bookmarksAsync = ref.watch(bookmarksProvider);
+    final scope = ref.watch(contentModeScopeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -55,7 +58,9 @@ class BookmarksScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (data) => RefreshIndicator(
+        data: (data) {
+          final bookmarks = scope.filter(data.bookmarks, (b) => b.sourceId);
+          return RefreshIndicator(
           color: context.colors.primary,
           onRefresh: () async => ref.read(bookmarksProvider.notifier).refresh(),
           child: ListView(
@@ -68,35 +73,47 @@ class BookmarksScreen extends ConsumerWidget {
                 style: AppTypography.body.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.xl2),
-              if (data.bookmarks.isEmpty)
+              if (bookmarks.isEmpty)
                 const EmptyState(
                   icon: Icons.bookmark_border,
                   message: 'No bookmarks yet',
                   subtitle: 'Tap the bookmark icon in the reader to save your place on a page.',
                 )
               else
-                ...data.bookmarks.map(
+                ...bookmarks.map(
                   (bookmark) => Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: _BookmarkCard(
                       bookmark: bookmark,
                       actionPending: data.actionPending,
+                      isNovel: scope.modeOf(bookmark.sourceId) ==
+                          ContentMode.novel,
                     ),
                   ),
                 ),
             ],
           ),
-        ),
+          );
+        },
       ),
     );
   }
 }
 
 class _BookmarkCard extends ConsumerWidget {
-  const _BookmarkCard({required this.bookmark, required this.actionPending});
+  const _BookmarkCard({
+    required this.bookmark,
+    required this.actionPending,
+    required this.isNovel,
+  });
 
   final Bookmark bookmark;
   final bool actionPending;
+
+  /// Which reader this row opens. A bookmark's `page` is a page number for
+  /// manga and a progress bucket for a novel; both ride the same `?page=`
+  /// parameter, so only the path differs.
+  final bool isNovel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -104,12 +121,20 @@ class _BookmarkCard extends ConsumerWidget {
         ? DateFormat.yMMMd().add_jm().format(bookmark.createdAt!.toLocal())
         : null;
     final label = chapterLabel(number: null, title: bookmark.chapterKey);
+    final readerPath = isNovel
+        ? RoutePaths.novelReader(
+            bookmark.sourceId,
+            bookmark.seriesKey,
+            bookmark.chapterKey,
+          )
+        : RoutePaths.reader(
+            bookmark.sourceId,
+            bookmark.seriesKey,
+            bookmark.chapterKey,
+          );
 
     return GlassCard(
-      onTap: () => context.push(
-        '${RoutePaths.reader(bookmark.sourceId, bookmark.seriesKey, bookmark.chapterKey)}'
-        '?page=${bookmark.page}',
-      ),
+      onTap: () => context.push('$readerPath?page=${bookmark.page}'),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

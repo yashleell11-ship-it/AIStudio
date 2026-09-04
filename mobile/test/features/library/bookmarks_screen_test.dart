@@ -13,6 +13,8 @@ import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
+import '../../support/test_overrides.dart';
+
 /// Fake used only by the Bookmark Manager screen tests. All other methods
 /// throw so a stray call surfaces loudly rather than passing silently with
 /// empty data, matching the convention used by the other screen fakes in
@@ -109,7 +111,12 @@ Future<void> _pumpScreen(
 
   await tester.pumpWidget(
     ProviderScope(
-      overrides: [readerRepositoryProvider.overrideWithValue(repo)],
+      overrides: [
+        readerRepositoryProvider.overrideWithValue(repo),
+        // The screen asks which mode it is listing; pinning it keeps this
+        // test off SharedPreferences.
+        ...contentModeOverrides(),
+      ],
       child: MaterialApp.router(routerConfig: router),
     ),
   );

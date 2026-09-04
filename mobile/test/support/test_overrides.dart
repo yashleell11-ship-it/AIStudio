@@ -4,11 +4,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/retention_maintenance_provider.dart';
 import 'package:manhwamaniacs/features/downloads/services/blob_store.dart';
 import 'package:manhwamaniacs/features/downloads/services/retention_maintenance.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_db.dart';
+import 'package:manhwamaniacs/features/novels/providers/novels_gate_provider.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
@@ -130,3 +133,34 @@ Map<String, Object> testPrefsDefaults([Map<String, Object> extra = const {}]) {
     ...extra,
   };
 }
+
+
+/// Content mode pinned, without SharedPreferences.
+///
+/// Every list in the app now asks which mode it is a list of, and the real
+/// controller answers out of the per-profile preference store. A widget test
+/// that only wants to render a screen should not have to seed that store, so
+/// this pins the answer directly.
+///
+/// The defaults are the shipped deployment with the flag off: manga, no
+/// switch, every filter a pass-through — which is exactly the app a test
+/// written before novels existed expects to see.
+class _FixedContentModeController extends ContentModeController {
+  _FixedContentModeController(this._mode);
+
+  final ContentMode _mode;
+
+  @override
+  ContentMode build() => _mode;
+}
+
+List<Override> contentModeOverrides({
+  ContentMode mode = ContentMode.manga,
+  bool novelsEnabled = false,
+}) =>
+    [
+      novelsGateProvider.overrideWith((ref) async => novelsEnabled),
+      novelsEnabledProvider.overrideWithValue(novelsEnabled),
+      contentModeControllerProvider
+          .overrideWith(() => _FixedContentModeController(mode)),
+    ];

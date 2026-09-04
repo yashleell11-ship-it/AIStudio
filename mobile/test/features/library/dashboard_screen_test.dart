@@ -83,6 +83,10 @@ Future<Widget> _buildTestApp({
       apiBaseUrlOverride('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
       updatesProvider.overrideWith(() => notifier),
+      // Pinned so the screen does not probe /auth/bootstrap-status for the
+      // novels gate — a real request, with a real pending timer, in a test
+      // that never wanted one.
+      ...contentModeOverrides(),
     ],
     child: const MaterialApp(
       home: DashboardScreen(),

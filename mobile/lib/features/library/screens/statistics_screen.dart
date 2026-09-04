@@ -6,6 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/library/widgets/statistics/statistics_sections.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
@@ -28,6 +29,7 @@ class StatisticsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final statsAsync = ref.watch(statisticsProvider);
+    final scope = ref.watch(contentModeScopeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -69,6 +71,22 @@ class StatisticsScreen extends ConsumerWidget {
                     : 'Your library at a glance.',
                 style: AppTypography.body.copyWith(color: context.colors.muted),
               ),
+              // The breakdowns below carry a source id and are scoped to the
+              // active mode. The all-time totals, the streak and the clock are
+              // computed server-side across everything read and cannot be
+              // split here, so the line says so rather than letting a
+              // combined number sit under a "Novels" app.
+              if (scope.novelsEnabled && stats.hasReadingHistory)
+                Padding(
+                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  child: Text(
+                    'Streak, totals and the clock cover everything you read; '
+                    'the breakdowns below are '
+                    '${scope.isNovel ? 'novels' : 'manga'} only.',
+                    style: AppTypography.caption
+                        .copyWith(color: context.colors.muted),
+                  ),
+                ),
               const SizedBox(height: AppSpacing.xl2),
               if (!stats.hasReadingHistory) ...[
                 NoReadingHistoryCard(followedTotal: stats.followedTotal),
@@ -91,16 +109,19 @@ class StatisticsScreen extends ConsumerWidget {
                 ),
                 ReadingTotalsGrid(totals: stats.totals),
                 const SizedBox(height: AppSpacing.xl2),
-                if (stats.bySource.isNotEmpty) ...[
-                  SourceBreakdownCard(sources: stats.bySource),
+                if (scope.filter(stats.bySource, (s) => s.sourceId)
+                    case final bySource when bySource.isNotEmpty) ...[
+                  SourceBreakdownCard(sources: bySource),
                   const SizedBox(height: AppSpacing.xl2),
                 ],
-                if (stats.bySeries.isNotEmpty) ...[
-                  TopSeriesSection(series: stats.bySeries),
+                if (scope.filter(stats.bySeries, (s) => s.sourceId)
+                    case final bySeries when bySeries.isNotEmpty) ...[
+                  TopSeriesSection(series: bySeries),
                   const SizedBox(height: AppSpacing.lg),
                 ],
-                if (stats.recentSessions.isNotEmpty) ...[
-                  RecentSessionsSection(sessions: stats.recentSessions),
+                if (scope.filter(stats.recentSessions, (s) => s.sourceId)
+                    case final sessions when sessions.isNotEmpty) ...[
+                  RecentSessionsSection(sessions: sessions),
                   const SizedBox(height: AppSpacing.xl2),
                 ],
               ],

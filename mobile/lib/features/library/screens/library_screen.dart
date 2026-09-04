@@ -8,6 +8,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
@@ -212,6 +213,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         data: (state) => _LibraryBody(
           query: query,
           state: state,
+          scope: ref.watch(contentModeScopeProvider),
           scrollController: _scrollController,
           coverScale: coverScale,
           onCoverScaleChanged: onCoverScaleChanged,
@@ -294,6 +296,7 @@ class _LibraryBody extends StatelessWidget {
   const _LibraryBody({
     required this.query,
     required this.state,
+    required this.scope,
     required this.scrollController,
     required this.coverScale,
     required this.onCoverScaleChanged,
@@ -311,6 +314,15 @@ class _LibraryBody extends StatelessWidget {
 
   final LibraryQuery query;
   final LibraryListState state;
+
+  /// The active Manga/Novels scope.
+  ///
+  /// Applied to the loaded rows rather than to the query, because `/library`
+  /// has no `kind` parameter — follows carry a source id and the kind lives in
+  /// the sources listing. The count line therefore reports the filtered rows
+  /// whenever the filter actually removed any, rather than the server's total
+  /// for a list it did not scope.
+  final ContentModeScope scope;
   final ScrollController scrollController;
   final double coverScale;
   final ValueChanged<double> onCoverScaleChanged;
@@ -327,6 +339,7 @@ class _LibraryBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final visible = scope.filter(state.items, (series) => series.sourceId);
     return _LibraryScrollView(
       scrollController: scrollController,
       onRefresh: onRefresh,
@@ -339,7 +352,9 @@ class _LibraryBody extends StatelessWidget {
             const SizedBox(height: AppSpacing.xl2),
             LibraryToolbar(
               query: query,
-              seriesCount: state.total,
+              seriesCount: visible.length == state.items.length
+                  ? state.total
+                  : visible.length,
               coverScale: coverScale,
               onCoverScaleChanged: onCoverScaleChanged,
               onSearchChanged: onSearchChanged,
@@ -352,11 +367,11 @@ class _LibraryBody extends StatelessWidget {
               _InlineError(message: state.error!.userMessage),
             ],
             const SizedBox(height: AppSpacing.xl2),
-            if (state.isEmpty)
+            if (visible.isEmpty)
               LibraryEmptyPanel(emptyState: query.emptyState)
             else
               SeriesGrid(
-                items: state.items,
+                items: visible,
                 viewMode: query.viewMode,
                 coverScale: coverScale,
                 onSeriesTap: onSeriesTap,

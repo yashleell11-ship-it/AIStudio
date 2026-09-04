@@ -8,6 +8,8 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/responsive.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_switch.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/widgets/home/followed_series_card.dart';
 import 'package:manhwamaniacs/features/profiles/widgets/profile_switcher_chip.dart';
@@ -51,9 +53,15 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   @override
   Widget build(BuildContext context) {
     final updatesAsync = ref.watch(updatesProvider);
+    final scope = ref.watch(contentModeScopeProvider);
     // Resolved once so the app bar and the body agree on whether the shelf is
     // empty (and therefore on which single Browse affordance is shown).
-    final followed = _followedOf(updatesAsync.valueOrNull);
+    // Scoped to the active mode: the Library tab is a list of what the reader
+    // is currently reading, and in Novels mode that is books.
+    final followed = scope.filter(
+      _followedOf(updatesAsync.valueOrNull),
+      (series) => series.sourceId,
+    );
 
     return Scaffold(
       // Float the active-profile chip (Netflix-style) over the top-right of the
@@ -94,8 +102,12 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             color: context.colors.primary,
             onRefresh: _refresh,
             child: _FollowedGrid(
+              isNovelMode: scope.isNovel,
               followed: followed,
-              notifications: data.notifications,
+              notifications: scope.filter(
+                data.notifications,
+                (notification) => notification.sourceId,
+              ),
               onOpenSeries: (series) => _openSeries(context, series),
             ),
           );
@@ -120,15 +132,25 @@ class _FollowedGrid extends StatelessWidget {
     required this.followed,
     required this.notifications,
     required this.onOpenSeries,
+    required this.isNovelMode,
   });
 
   final List<FollowedSeries> followed;
   final List<UpdateNotification> notifications;
   final void Function(FollowedSeries) onOpenSeries;
 
+  /// Only the count line changes wording: the grid itself is the same grid,
+  /// because a followed novel still has a cover and a title and the shelf
+  /// inversion belongs to browsing, not to the reader's own library.
+  final bool isNovelMode;
+
   @override
   Widget build(BuildContext context) {
     final bottomPad = MediaQuery.paddingOf(context).bottom;
+    // "series" is already its own plural; "book" is not.
+    final noun = isNovelMode
+        ? (followed.length == 1 ? 'book' : 'books')
+        : 'series';
 
     return CustomScrollView(
       // Always scrollable so pull-to-refresh still works with a single follow
@@ -150,11 +172,15 @@ class _FollowedGrid extends StatelessWidget {
                   const HeroHeading(text: 'Library', fontSize: 40),
                   const SizedBox(height: AppSpacing.xs),
                   Text(
-                    followed.length == 1
-                        ? '1 series followed'
-                        : '${followed.length} series followed',
+                    '${followed.length} $noun followed',
                     style:
                         AppTypography.caption.copyWith(color: context.colors.muted),
+                  ),
+                  // The app-wide Manga/Novels switch. Nothing renders here
+                  // when the novels gate is shut.
+                  const Padding(
+                    padding: EdgeInsets.only(top: AppSpacing.md),
+                    child: ContentModeSwitch(),
                   ),
                 ],
               ),
