@@ -8,6 +8,7 @@ class LibraryListState {
     this.page = 1,
     this.hasNext = false,
     this.isLoadingMore = false,
+    this.isOffline = false,
     this.error,
   });
 
@@ -16,6 +17,13 @@ class LibraryListState {
   final int page;
   final bool hasNext;
   final bool isLoadingMore;
+
+  /// This list came from the offline cache because the server could not be
+  /// reached — the last library this profile synced, not a live answer. The
+  /// screen must say so: silently serving a stale shelf as a live one is how
+  /// a user ends up believing a series they followed on another device has
+  /// vanished.
+  final bool isOffline;
   final AppError? error;
 
   bool get isEmpty => items.isEmpty;
@@ -26,6 +34,7 @@ class LibraryListState {
     int? page,
     bool? hasNext,
     bool? isLoadingMore,
+    bool? isOffline,
     AppError? error,
     bool clearError = false,
   }) {
@@ -35,6 +44,7 @@ class LibraryListState {
       page: page ?? this.page,
       hasNext: hasNext ?? this.hasNext,
       isLoadingMore: isLoadingMore ?? this.isLoadingMore,
+      isOffline: isOffline ?? this.isOffline,
       error: clearError ? null : (error ?? this.error),
     );
   }

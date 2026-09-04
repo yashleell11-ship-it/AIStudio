@@ -54,7 +54,7 @@ class SeriesDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final seriesAsync = ref.watch(seriesDetailProvider(seriesId));
     // Name the screen after the series, matching the source page.
-    final title = seriesAsync.valueOrNull?.title;
+    final title = seriesAsync.valueOrNull?.series.title;
 
     return Scaffold(
       appBar: AppBar(
@@ -78,16 +78,24 @@ class SeriesDetailScreen extends ConsumerWidget {
               : UnknownError(message: error.toString(), cause: error),
           onRetry: () => ref.invalidate(seriesDetailProvider(seriesId)),
         ),
-        data: (series) => _SeriesDetailContent(series: series),
+        data: (view) => _SeriesDetailContent(
+          series: view.series,
+          isOffline: view.isOffline,
+        ),
       ),
     );
   }
 }
 
 class _SeriesDetailContent extends ConsumerStatefulWidget {
-  const _SeriesDetailContent({required this.series});
+  const _SeriesDetailContent({required this.series, required this.isOffline});
 
   final SeriesDetail series;
+
+  /// Rebuilt from the device because the server could not be reached, so
+  /// [SeriesDetail.chapters] is what has been downloaded rather than what
+  /// exists. The page has to say so.
+  final bool isOffline;
 
   @override
   ConsumerState<_SeriesDetailContent> createState() =>
