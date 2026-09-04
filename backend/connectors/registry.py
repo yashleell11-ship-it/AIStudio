@@ -202,6 +202,27 @@ def register_connector(source_type: str, connector_cls: type[SourceConnector]) -
     _REGISTRY[source_type] = connector_cls
 
 
+# Connectors that exist under connectors/ but are deliberately NOT registered,
+# because each one reaches a backend an already-registered source already
+# reaches. Verified from the production container by asking both connectors
+# for the same catalog and comparing what came back -- not by comparing
+# domain names, which is exactly what makes these look like distinct sites.
+#
+#   flamecomics -> flamescans   Both read flamecomics.xyz. Identical catalog
+#                               (total=153), identical series ids and identical
+#                               chapter/page counts on every series sampled.
+#   toonilyme   -> beehentai    Both read api.toontop.io with the same routes
+#                               (/titles/search, /titles/by-slug/...). Identical
+#                               catalog (total=8706) and identical ids.
+#   mangapanda  -> mangahub     Same mghcdn.com image store and the same slug
+#                               space (mangahub ids resolve on mangapanda), but
+#                               mangapanda serves a 6-page preview of EVERY
+#                               chapter where mangahub serves all 54.
+#
+# Their code and tests stay in the tree -- the tests are offline and green, and
+# they are the ready-made replacement if one of the kept sources dies. Wiring
+# one in means removing the source it collides with in the same commit.
+
 def _register_builtin_connectors() -> None:
     """Register all built-in connectors. Fail loudly on any error."""
     builtins: tuple[tuple[str, type[SourceConnector]], ...] = (

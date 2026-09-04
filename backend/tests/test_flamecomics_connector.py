@@ -103,7 +103,12 @@ def test_registry_lists_flamecomics_once_wired():
 
     browsable = [item.source_type for item in list_installed_connectors(browsable_only=True)]
     if "flamecomics" not in browsable:
-        pytest.skip("flamecomics not yet wired into registry.py (owned by the integrator)")
+        pytest.skip(
+            "flamecomics is deliberately unregistered: it reads the same\n"
+            "flamecomics.xyz backend as the registered `flamescans` source\n"
+            "(identical catalog, ids and chapter counts). See the duplicate\n"
+            "note in connectors/registry.py."
+        )
     assert "flamecomics" in browsable
 
 
