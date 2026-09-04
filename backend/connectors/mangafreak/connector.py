@@ -11,6 +11,7 @@ from connectors.http.cache import TTLCache
 from connectors.http.client import ConnectorHttpError, SyncConnectorHttpClient
 from connectors.ids import fully_unquote
 from connectors.mangafreak.mappers import (
+    SEARCH_PAGE_SIZE,
     SITE_BASE,
     chapter_path,
     page_id_chapter_key,
@@ -204,22 +205,26 @@ class MangaFreakConnector(SourceConnector):
         normalized = query.strip()
         if not normalized:
             return self.get_series_list(page, sort=sort)
-        # The site lowercases the query in its own search form, and paginates
-        # search with a `?page=` QUERY PARAM -- NOT a `/N` path segment.
-        # `/Find/<q>/2` answers HTTP 200 with an empty result set, so building
-        # the path form here would silently return "no results" for every
-        # page past the first.
+        # MangaFreak search is single-page upstream: the server ignores every
+        # pagination parameter its own paginator emits and replays the first
+        # page (see parse_search_results). Answering page 2+ from here without
+        # a request is both honest and free -- fetching would return the SAME
+        # 25 series again, which the app would show as new results.
+        if page > 1:
+            return PaginatedSeriesList(
+                items=[], page=page, page_size=SEARCH_PAGE_SIZE, total=0
+            )
         slug = quote(normalized.lower(), safe="")
         path = f"/Find/{slug}"
-        if page > 1:
-            path = f"{path}?page={page}"
         try:
             return self._listing(
                 path, parse_search_results, page=page, operation="search"
             )
         except ConnectorHttpError as exc:
             if _is_not_found(exc):
-                return PaginatedSeriesList(items=[], page=page, page_size=25, total=0)
+                return PaginatedSeriesList(
+                    items=[], page=page, page_size=SEARCH_PAGE_SIZE, total=0
+                )
             raise
 
     # -- detail / chapters ------------------------------------------------

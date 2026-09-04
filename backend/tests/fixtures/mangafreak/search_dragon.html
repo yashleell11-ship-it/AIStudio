@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Search Query for dragon - MangaFreak</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/style.css?v84" type="text/css">
+	<link rel="shortcut icon" href="/misc/MF.ico?1">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+	<script src="/misc/advanced_search.js?1" defer></script>
+	<script defer>
+		function togglemobile() {
+			document.getElementsByClassName("navigation")[0].classList.toggle("responsive");
+		}
+		function show_description(element) {
+			var desc;
+			var info = document.getElementsByClassName('genre_info')[0];
+			desc = element.getAttribute('datagenre');
+			info.innerHTML = '<strong>' + element.innerHTML + '</strong>' + desc;
+		}
+		function hide_description(element) {
+			var info = document.getElementsByClassName('genre_info')[0];
+			info.innerHTML = '<strong>Click To Include Genre<br>Double Click To Exclude Genre</strong>';
+		}
+	</script>
+<META NAME="ROBOTS" CONTENT="NOINDEX, FOLLOW">
+</head>
+<body>
+	<div id="tooltip">
+	</div>
+	<div class="god_box">
+		<script src="/misc/search.js"></script>
+ 		<div class="header">
+			<div class="header_section">
+				<ul class="navigation">
+					<li><a href="/">Home</a></li>
+					<li><a href="/Mangalist">Manga List</a></li>
+					<li><a href="/Latest_Releases">New Release</a></li>
+					<li><a href="/Genre">Genre</a></li>
+					<li><a href="/History">History</a></li>
+					<li><a href="/Bookmark">Bookmark</a></li>					
+					<li><a href="/Random">Random</a></li>
+					<li>
+						<form class="search_bar" onsubmit="return dosearch(this);">
+							<input type="submit" value='' aria-label="Search">
+							<input name="search" class="search" type="text" placeholder="Search" required>
+						</form>
+					</li>
+					<li><a href="/Find">Search More</a></li>
+					<li class="icon">
+						<div href="javascript:void(0);" onclick="togglemobile()">&#9776;</div>
+					</li>
+				</ul>
+			</div>
+		</div>		<div class="main">
+			<div class="main_section">
+				<div class="search_main">
+					<div class="search_box">
+						<input id="search_both" name="search" type="text" placeholder="You can search both manga and mangaka here" value="dragon">
+						<input type="submit" value="" class="submit_button" onsubmit="return false">
+					</div>
+					<div class="select_genre">
+						<div class="genre_table">
+							<div class="genre_info">
+							<strong>Click To Include Genre<br>Double Click To Exclude Genre</strong>
+							</div>
+							<div id="genrebox">
+								<!-- <div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="One or more heroes is thrust into a series of challenges that require physical feats, extended fights and frenetic chases.">Action</div>-->
+								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="One or more heroes is thrust into a series of challenges that require physical feats, extended fights and frenetic chases.">Act</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Actions</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Add</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Adult</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Adventure</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Animated</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Comedy</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Demons</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Drama</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Ecchi</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Fantasy</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Full Color</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Gender Bender</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Harem</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Historica</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Ancients</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Horror</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Isekai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Josei</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Lolicon</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Magic</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Manhwa</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Martial Arts</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Mature</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Mecha</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Military</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Mystery</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">One Shot</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Psychological</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Reincarnation</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Romance</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">School</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">School Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">School Of Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Sci Fi</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Seinen</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shotacon</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shoujo</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shoujo Ai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shoujoai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shounen</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shounen Ai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shounenai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Slice Of Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Smut</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Sports</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Super Power</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Superhero</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Supernatural</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Tragedy</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Vampire</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Villainess</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Web Comic</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Webtoon</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Yaoi</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Yuri</div>															</div>
+						</div>
+						<div class="options_table">
+							<div>
+								<span>Manga Type:</span>
+								<select id="type" name="type">
+									<option value="0" selected="selected">Both (Manga And Manhwa)</option>
+									<option value="1">Manga</option>
+									<option value="2">Manhwa</option>
+								</select>
+							</div>
+							<div>
+								<span>Manga Status:</span>
+								<select id="status" name="status">
+									<option value="0" selected="selected">Both (Completed And Ongoing)</option>
+									<option value="1">Completed</option>
+									<option value="2">Ongoing</option>
+								</select>
+							</div>
+							<div>
+								<span></span>
+								<span>
+									<input type="hidden" name="genre" id="genre"/>
+									<input type="hidden" class="firsturl" value="/Find/" name="firsturl"/>
+									<input type="hidden" class="secondurl" value="/Genre/" name="secondurl"/>
+									<input type="hidden" class="thirdurl" value="/Status/" name="thirdurl"/>
+									<input type="hidden" class="fourthurl" value="/Type/" name="fourthurl"/>
+									<input type="hidden" class="fifthurl" value="https://ww3.mangafreak.me" name="fifthurl"/>
+									<input type="submit" value="" class="submit_button" onsubmit="return false">
+									<input type="button" value="" class="reset_button">
+								</span>
+							</div>
+						</div>
+					</div>
+					<div class="search_result_box">
+					
+						<div class="pagination">
+						<a class="n_p active" href="/Find/dragon?page=1">1</a><a class="n_p" href="/Find/dragon?page=2">2</a><a class="n_p" href="/Find/dragon?page=3">3</a><a class="next_p" href="/Find/dragon?page=2">›</a><a class="last_p" href="/Find/dragon?page=3">»</a>						</div>
+					
+						<div class="search_result">
+							<div class="manga_result">
+						<h3>Manga/Manhwa Result</h3>								<div class="manga_search_item">
+									<h6>1.</h6>
+									<span>
+										<a href="/Manga/7th_Dragon"><img src="https://images.mangafreak.me/manga_images/7th_dragon.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/7th_Dragon">7th Dragon</a>
+										</h3>
+										<div>
+											2 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>2.</h6>
+									<span>
+										<a href="/Manga/Action_Idols_Age_Of_Young_Dragons"><img src="https://images.mangafreak.me/manga_images/action_idols_age_of_young_dragons.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Action_Idols_Age_Of_Young_Dragons">Action Idols - Age of Young Dragons</a>
+										</h3>
+										<div>
+											25 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manhwa (Read Left to Right)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Drama">Drama</a>, <a href="/Genre/Martial_Arts">Martial Arts</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>3.</h6>
+									<span>
+										<a href="/Manga/An_Evil_Dragon_That_Was_Sealed_Away_For_300_Years_Became_My_Friend"><img src="https://images.mangafreak.me/manga_images/an_evil_dragon_that_was_sealed_away_for_300_years_became_my_friend.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/An_Evil_Dragon_That_Was_Sealed_Away_For_300_Years_Became_My_Friend">An Evil Dragon That Was Sealed Away for 300 Years Became My Friend</a>
+										</h3>
+										<div>
+											30 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen </a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>4.</h6>
+									<span>
+										<a href="/Manga/Appearance_Of_The_Yellow_Dragon"><img src="https://images.mangafreak.me/manga_images/appearance_of_the_yellow_dragon.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Appearance_Of_The_Yellow_Dragon">Appearance of the Yellow Dragon</a>
+										</h3>
+										<div>
+											12 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Ecchi">Ecchi</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen</a>, <a href="/Genre/Supernatural">Supernatural</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>5.</h6>
+									<span>
+										<a href="/Manga/Blue_Dragon_Ral_Grado"><img src="https://images.mangafreak.me/manga_images/blue_dragon_ral_grado.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Blue_Dragon_Ral_Grado">Blue Dragon Ral Grado</a>
+										</h3>
+										<div>
+											29 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Ecchi">Ecchi</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>6.</h6>
+									<span>
+										<a href="/Manga/Crystal_Dragon"><img src="https://images.mangafreak.me/manga_images/crystal_dragon.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Crystal_Dragon">Crystal Dragon</a>
+										</h3>
+										<div>
+											53 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Drama">Drama</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shoujo">Shoujo</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>7.</h6>
+									<span>
+										<a href="/Manga/Douluo_Dalu_3_The_Legend_Of_The_Dragon_King"><img src="https://images.mangafreak.me/manga_images/douluo_dalu_3_the_legend_of_the_dragon_king.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Douluo_Dalu_3_The_Legend_Of_The_Dragon_King">Douluo Dalu 3: The Legend of the Dragon King</a>
+										</h3>
+										<div>
+											578 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+																					</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>8.</h6>
+									<span>
+										<a href="/Manga/Dragon_And_The_Phoenix"><img src="https://images.mangafreak.me/manga_images/dragon_and_the_phoenix.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_And_The_Phoenix">Dragon and the Phoenix</a>
+										</h3>
+										<div>
+											7 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manhwa (Read Left to Right)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/Shoujo">Shoujo</a>, <a href="/Genre/Supernatural">Supernatural</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>9.</h6>
+									<span>
+										<a href="/Manga/Dragon_Ball"><img src="https://images.mangafreak.me/manga_images/dragon_ball.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Ball">Dragon Ball</a>
+										</h3>
+										<div>
+											520 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Animated">Animated</a>, <a href="/Genre/Comedy"> Comedy</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Historical">Historical</a>, <a href="/Genre/Martial_Arts">Martial Arts</a>, <a href="/Genre/Shounen">Shounen</a>, <a href="/Genre/Supernatural">Supernatural</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>10.</h6>
+									<span>
+										<a href="/Manga/Dragon_Ball_Sd"><img src="https://images.mangafreak.me/manga_images/dragon_ball_sd.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Ball_Sd">Dragon Ball SD</a>
+										</h3>
+										<div>
+											44 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Martial_Arts">Martial Arts</a>, <a href="/Genre/Sci_Fi">Sci-Fi</a>, <a href="/Genre/Shounen">Shounen</a>, <a href="/Genre/Supernatural">Supernatural</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>11.</h6>
+									<span>
+										<a href="/Manga/Dragon_Ball_Super"><img src="https://images.mangafreak.me/manga_images/dragon_ball_super.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Ball_Super">Dragon Ball Super</a>
+										</h3>
+										<div>
+											104 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Animated">Animated</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>12.</h6>
+									<span>
+										<a href="/Manga/Dragon_Ball_Z_Rebirth_Of_F"><img src="https://images.mangafreak.me/manga_images/dragon_ball_z_rebirth_of_f.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Ball_Z_Rebirth_Of_F">Dragon Ball Z - Rebirth of F</a>
+										</h3>
+										<div>
+											3 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Animated">Animated</a>, <a href="/Genre/Comedy"> Comedy</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Sci_Fi">Sci-Fi</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>13.</h6>
+									<span>
+										<a href="/Manga/Dragon_Ball_Episode_Of_Bardock"><img src="https://images.mangafreak.me/manga_images/dragon_ball_episode_of_bardock.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Ball_Episode_Of_Bardock">Dragon Ball: Episode of Bardock</a>
+										</h3>
+										<div>
+											3 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Sci_Fi">Sci-Fi</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>14.</h6>
+									<span>
+										<a href="/Manga/Dragon_Collection"><img src="https://images.mangafreak.me/manga_images/dragon_collection.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Collection">Dragon Collection</a>
+										</h3>
+										<div>
+											30 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>15.</h6>
+									<span>
+										<a href="/Manga/Dragon_Half"><img src="https://images.mangafreak.me/manga_images/dragon_half.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Half">Dragon Half</a>
+										</h3>
+										<div>
+											66 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Ecchi">Ecchi</a>, <a href="/Genre/Fantasy">Fantasy</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>16.</h6>
+									<span>
+										<a href="/Manga/Dragon_Knight"><img src="https://images.mangafreak.me/manga_images/dragon_knight.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Knight">Dragon Knight</a>
+										</h3>
+										<div>
+											7 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Drama">Drama</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/Shoujo">Shoujo</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>17.</h6>
+									<span>
+										<a href="/Manga/Dragon_No_I_De_Oyasumi"><img src="https://images.mangafreak.me/manga_images/dragon_no_i_de_oyasumi.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_No_I_De_Oyasumi">Dragon no I de Oyasumi</a>
+										</h3>
+										<div>
+											23 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+																					</strong>
+										<div>
+											<a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Seinen">Seinen</a>, <a href="/Genre/Slice_Of_Life">Slice Of Life</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>18.</h6>
+									<span>
+										<a href="/Manga/Dragon_Quest_Dai_No_Daiboken"><img src="https://images.mangafreak.me/manga_images/dragon_quest_dai_no_daiboken.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Quest_Dai_No_Daiboken">Dragon Quest Dai No Daiboken</a>
+										</h3>
+										<div>
+											349 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Fantasy">Fantasy</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>19.</h6>
+									<span>
+										<a href="/Manga/Dragon_Quest_Dai_No_Daibouken_Yuusha_Avan_To_Gokuen_No_Maou"><img src="https://images.mangafreak.me/manga_images/dragon_quest_dai_no_daibouken_yuusha_avan_to_gokuen_no_maou.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Quest_Dai_No_Daibouken_Yuusha_Avan_To_Gokuen_No_Maou">Dragon Quest: Dai no Daibouken - Yuusha Avan to Gokuen no Maou</a>
+										</h3>
+										<div>
+											58 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+																					</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Drama">Drama</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>20.</h6>
+									<span>
+										<a href="/Manga/Dragon_Recipe"><img src="https://images.mangafreak.me/manga_images/dragon_recipe.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Recipe">Dragon Recipe</a>
+										</h3>
+										<div>
+											30 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>21.</h6>
+									<span>
+										<a href="/Manga/Dragon_Who"><img src="https://images.mangafreak.me/manga_images/dragon_who.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Who">Dragon Who</a>
+										</h3>
+										<div>
+											34 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manhwa (Read Left to Right)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Drama">Drama</a>, <a href="/Genre/Ecchi">Ecchi</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Sci_Fi">Sci-Fi</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>22.</h6>
+									<span>
+										<a href="/Manga/Dragon_Zakura"><img src="https://images.mangafreak.me/manga_images/dragon_zakura.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Zakura">Dragon Zakura</a>
+										</h3>
+										<div>
+											70 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Drama">Drama</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Seinen">Seinen</a>, <a href="/Genre/Slice_Of_Life">Slice Of Life</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>23.</h6>
+									<span>
+										<a href="/Manga/Dragon_Zakura_2"><img src="https://images.mangafreak.me/manga_images/dragon_zakura_2.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Zakura_2">DRAGON ZAKURA 2</a>
+										</h3>
+										<div>
+											2 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Drama">Drama</a>, <a href="/Genre/Psychological">Psychological</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Seinen">Seinen</a>, <a href="/Genre/Slice_Of_Life">Slice Of Life</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>24.</h6>
+									<span>
+										<a href="/Manga/Dragons_Son_Changsik"><img src="https://images.mangafreak.me/manga_images/dragons_son_changsik.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragons_Son_Changsik">Dragon's Son Changsik</a>
+										</h3>
+										<div>
+											40 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manhwa (Read Left to Right)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Harem">Harem</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/Shounen">Shounen</a>, <a href="/Genre/Supernatural">Supernatural</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>25.</h6>
+									<span>
+										<a href="/Manga/Dragon_Devouring_Mage"><img src="https://images.mangafreak.me/manga_images/dragon_devouring_mage.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Dragon_Devouring_Mage">Dragon-Devouring Mage</a>
+										</h3>
+										<div>
+											138 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+																					</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Drama">Drama</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Harem">Harem</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+													</div>
+							<div class="mangaka_result">
+								<h3>Author Result(No results found)</h3>								<h3>Artist Result</h3>								<div class="mangaka_search_item">
+									<h6>1. Barnicle Nakhasan</h6>
+									<div class="mangaka_manga_list">
+																			<div class="mangaka_manga_item">
+											<span>
+												<img src="https://images.mangafreak.me/manga_images/the_archmage_returns_after_4000_years.jpg">
+											</span>
+											<span class="mangaka_manga_info">
+												<h5>
+													<a href="/Manga/The_Archmage_Returns_After_4000_Years">The Archmage Returns After 4000 Years</a>
+												</h5>
+												<div>
+													<a href="/Genre/Action">Action</a>, <a href="/Genre/Adventure">Adventure</a>, <a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Shounen">Shounen</a>												</div>
+											</span>
+										</div>
+																		</div>
+								</div>
+															</div>
+						</div>
+					
+						<div class="pagination">
+						<a class="n_p active" href="/Find/dragon?page=1">1</a><a class="n_p" href="/Find/dragon?page=2">2</a><a class="n_p" href="/Find/dragon?page=3">3</a><a class="next_p" href="/Find/dragon?page=2">›</a><a class="last_p" href="/Find/dragon?page=3">»</a>						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<button id="back-to-top" onclick="scrollToTop()">↑</button>
+		<div class="footer">
+			<div class="footer_section">
+				<div class="title">
+					&nbsp
+				</div>
+				<div class="box">
+					<div class="footer_box">
+						<div>
+							<span>
+								<div>
+									<iframe width="300" height="250" frameborder="0" scrolling="no" src="/ads/300.html"></iframe>
+								</div>
+							</span>
+						</div>
+						<div>
+							<span>
+
+							</span>
+						</div>
+						<div>
+							<span>
+								<div>
+									<iframe width="300" height="250" frameborder="0" scrolling="no" src="/ads/300.html"></iframe>
+								</div>					 
+							</span>
+						</div>
+					</div>
+				</div>
+				<div class="title">
+					[MANGAFREAK]
+				</div>
+				<div class="box footer_info">
+					<div>Mangafreak&copy; Copyright 2026 | <a href="/About-Us">About Us</a> | <a href="/Contact">Contact Us</a> | <a href="/Privacy-Policy">Privacy Policy</a> | <a href="/Term-Of-Use">Term of Use</a></div>
+					Be reminded that we don't take any credit for any of the manga. We are just sharing the manga to promote the creator's work.
+					<div class="social_sharing">
+						<a href="https://www.facebook.com/mangafreakme" class="facebook" target="_blank" rel="noreferrer"><img src="/share/fb2.webp" id="fb" alt="Mangafreak Facebook" width="32" height="32"></a>
+						<a href="https://mastodon.social/@euko" class="mastodon" target="_blank" rel="noreferrer"><img src="/share/mastodon.webp" id="tm" alt="Mangafreak Mastodon" width="32" height="32"></a>
+						<a href="https://www.pinterest.com/mfana876/mangafreak/" class="pinterest" target="_blank" rel="noreferrer"><img src="/share/pin2.webp" id="pn" alt="Mangafreak Pinterest" width="32" height="32"></a>
+						<a href="https://bsky.app/profile/mangafreakme.bsky.social" class="bluesky" target="_blank" rel="noreferrer"><img src="/share/bluesky.webp" id="pn" alt="Mangafreak Bluesky" width="32" height="32"></a>
+						<a href="https://www.instagram.com/mangafreakme/" class="instagram" target="_blank" rel="noreferrer"><img src="/share/instagram.webp" id="pn" alt="Mangafreak Instagram" width="32" height="32"></a>
+						<a href="https://www.threads.com/@mangafreakme" class="threads" target="_blank" rel="noreferrer"><img src="/share/threads.webp" id="pn" alt="Mangafreak Threads" width="32" height="32"></a>
+					</div>
+					<div class="backlinks">
+					</div>
+				</div>
+			</div>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-N7EZS9JGMJ"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date);gtag("config","G-N7EZS9JGMJ");</script>
+<script src="https://revolthem.com/e3/9a/03/e39a031e465ffdf8606dddfc92bde99d.js"></script>
+<script src="https://revolthem.com/46/b3/a0/46b3a0fb66fcc2b8d936b69218ffcd40.js"></script>
+<script src="/misc/top.js"></script>	</div>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"d32fe7e1525d404ba057f642998e9d53","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
