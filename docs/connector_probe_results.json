@@ -1,5 +1,5 @@
 {
-  "probed_at": "2026-09-04T16:59:16.350934+00:00",
+  "probed_at": "2026-09-04T17:21:33.099998+00:00",
   "probed_from": "vps",
   "total": 53,
   "live": 50,
@@ -25,15 +25,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.78,
-        "search": 0.96,
-        "detail": 0.21,
-        "chapters": 0.25,
-        "pages": 0.18,
-        "images": 0.84,
+        "browse": 1.46,
+        "search": 0.68,
+        "detail": 0.34,
+        "chapters": 0.23,
+        "pages": 0.19,
+        "images": 1.05,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.3
+        "total": 4.0
       },
       "requests": {
         "browse": 1,
@@ -60,7 +60,7 @@
       "items": 30,
       "mature": true,
       "detail": "",
-      "sample_title": "[kumahachi] Short Collection",
+      "sample_title": "[Andou Hiroyuki] Daniku Triangle Fight! Chapter ",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -71,15 +71,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.11,
-        "search": 0.44,
-        "detail": 0.51,
-        "chapters": 0.5,
+        "browse": 0.13,
+        "search": 0.42,
+        "detail": 0.52,
+        "chapters": 0.49,
         "pages": 0.5,
-        "images": 0.15,
+        "images": 10.78,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.2
+        "total": 12.9
       },
       "requests": {
         "browse": 1,
@@ -91,9 +91,9 @@
         "text": 0,
         "total": 8
       },
-      "search_hits": 17,
+      "search_hits": 25,
       "n_chapters": 1,
-      "n_pages": 12,
+      "n_pages": 21,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -117,15 +117,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.62,
+        "browse": 0.57,
         "search": 0.12,
         "detail": 0.0,
-        "chapters": 0.28,
+        "chapters": 0.3,
         "pages": 0.12,
-        "images": 0.12,
+        "images": 0.09,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.3
+        "total": 1.2
       },
       "requests": {
         "browse": 2,
@@ -152,7 +152,7 @@
       "items": 60,
       "mature": true,
       "detail": "",
-      "sample_title": "[Royal Bitch (haruhisky)] Saber-san, Taworu Ichi",
+      "sample_title": "[Lolisin]Yuutousei Imouto ga Oshikko Haishinsha ",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -163,15 +163,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.52,
-        "search": 0.48,
-        "detail": 0.48,
-        "chapters": 0.54,
-        "pages": 1.16,
-        "images": 0.6,
+        "browse": 3.55,
+        "search": 3.15,
+        "detail": 3.0,
+        "chapters": 2.84,
+        "pages": 6.4,
+        "images": 2.25,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.8
+        "total": 21.2
       },
       "requests": {
         "browse": 1,
@@ -183,9 +183,9 @@
         "text": 0,
         "total": 9
       },
-      "search_hits": 60,
+      "search_hits": 33,
       "n_chapters": 1,
-      "n_pages": 50,
+      "n_pages": 20,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -209,15 +209,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.08,
-        "search": 0.69,
-        "detail": 0.05,
+        "browse": 0.06,
+        "search": 0.71,
+        "detail": 0.03,
         "chapters": 0.0,
         "pages": 0.21,
-        "images": 0.1,
+        "images": 0.09,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.2
+        "total": 1.1
       },
       "requests": {
         "browse": 1,
@@ -255,12 +255,12 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.75,
-        "search": 0.53,
+        "browse": 0.76,
+        "search": 0.46,
         "detail": 0.53,
         "chapters": 0.0,
-        "pages": 0.3,
-        "images": 0.95,
+        "pages": 0.32,
+        "images": 1.03,
         "text": 0.0,
         "find_page": 0.0,
         "total": 4.0
@@ -301,15 +301,15 @@
         "text": "PASS"
       },
       "timings_secs": {
-        "browse": 0.57,
-        "search": 0.48,
-        "detail": 4.15,
+        "browse": 0.45,
+        "search": 0.29,
+        "detail": 2.46,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
         "text": 0.02,
         "find_page": 0.0,
-        "total": 5.2
+        "total": 3.2
       },
       "requests": {
         "browse": 1,
@@ -347,15 +347,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.49,
-        "search": 1.59,
-        "detail": 0.15,
+        "browse": 0.23,
+        "search": 0.43,
+        "detail": 0.5,
         "chapters": 0.5,
         "pages": 0.5,
-        "images": 0.2,
+        "images": 0.18,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.5
+        "total": 2.3
       },
       "requests": {
         "browse": 1,
@@ -393,12 +393,12 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.2,
-        "search": 0.14,
-        "detail": 0.42,
+        "browse": 0.17,
+        "search": 0.17,
+        "detail": 0.31,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.23,
+        "pages": 0.32,
+        "images": 0.2,
         "text": 0.0,
         "find_page": 0.0,
         "total": 1.2
@@ -428,7 +428,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "The Jinx's Strategy for Domination",
+      "sample_title": "I've Ushered in The Era of Mythical Pet Beasts",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -439,15 +439,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.6,
-        "search": 0.3,
-        "detail": 0.28,
+        "browse": 0.54,
+        "search": 0.29,
+        "detail": 0.27,
         "chapters": 0.29,
-        "pages": 0.29,
-        "images": 0.18,
+        "pages": 0.28,
+        "images": 3.12,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.9
+        "total": 4.8
       },
       "requests": {
         "browse": 1,
@@ -459,9 +459,9 @@
         "text": 0,
         "total": 8
       },
-      "search_hits": 6,
-      "n_chapters": 19,
-      "n_pages": 23,
+      "search_hits": 18,
+      "n_chapters": 42,
+      "n_pages": 8,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -485,15 +485,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.97,
-        "search": 0.48,
-        "detail": 0.95,
+        "browse": 1.0,
+        "search": 0.53,
+        "detail": 0.99,
         "chapters": 0.0,
-        "pages": 1.47,
-        "images": 1.12,
+        "pages": 1.36,
+        "images": 0.19,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 5.0
+        "total": 4.1
       },
       "requests": {
         "browse": 1,
@@ -531,15 +531,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.29,
-        "search": 0.29,
-        "detail": 0.16,
-        "chapters": 0.43,
-        "pages": 0.17,
-        "images": 0.28,
+        "browse": 0.42,
+        "search": 0.3,
+        "detail": 0.15,
+        "chapters": 0.07,
+        "pages": 0.34,
+        "images": 0.24,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.6
+        "total": 1.5
       },
       "requests": {
         "browse": 1,
@@ -577,15 +577,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.41,
-        "search": 0.93,
-        "detail": 0.64,
+        "browse": 0.46,
+        "search": 1.13,
+        "detail": 0.75,
         "chapters": 0.0,
-        "pages": 0.14,
-        "images": 0.12,
+        "pages": 0.19,
+        "images": 0.09,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.2
+        "total": 2.6
       },
       "requests": {
         "browse": 1,
@@ -612,7 +612,7 @@
       "items": 15,
       "mature": true,
       "detail": "",
-      "sample_title": "The Unlimited Bacteriomancer",
+      "sample_title": "The Husband Hid the Child.",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -624,14 +624,14 @@
       },
       "timings_secs": {
         "browse": 0.4,
-        "search": 0.61,
-        "detail": 0.33,
+        "search": 0.04,
+        "detail": 0.32,
         "chapters": 0.0,
-        "pages": 0.31,
-        "images": 0.13,
+        "pages": 0.28,
+        "images": 0.07,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.8
+        "total": 2.4
       },
       "requests": {
         "browse": 1,
@@ -644,8 +644,8 @@
         "total": 7
       },
       "search_hits": 15,
-      "n_chapters": 4,
-      "n_pages": 43,
+      "n_chapters": 5,
+      "n_pages": 11,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -669,15 +669,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.2,
-        "search": 0.11,
-        "detail": 0.2,
+        "browse": 0.17,
+        "search": 0.15,
+        "detail": 0.12,
         "chapters": 0.0,
-        "pages": 0.14,
-        "images": 0.29,
+        "pages": 0.21,
+        "images": 0.15,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.0
+        "total": 0.8
       },
       "requests": {
         "browse": 1,
@@ -715,15 +715,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.6,
+        "browse": 0.36,
         "search": 0.31,
-        "detail": 1.02,
+        "detail": 0.85,
         "chapters": 0.0,
-        "pages": 0.07,
-        "images": 0.58,
+        "pages": 0.05,
+        "images": 0.6,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.6
+        "total": 2.2
       },
       "requests": {
         "browse": 1,
@@ -750,7 +750,7 @@
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "Blue Paradox",
+      "sample_title": "The Foul",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -761,15 +761,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.36,
-        "search": 0.5,
-        "detail": 0.63,
+        "browse": 0.59,
+        "search": 0.34,
+        "detail": 0.71,
         "chapters": 0.0,
-        "pages": 0.16,
-        "images": 5.2,
+        "pages": 0.34,
+        "images": 2.05,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 6.9
+        "total": 4.0
       },
       "requests": {
         "browse": 1,
@@ -781,9 +781,9 @@
         "text": 0,
         "total": 9
       },
-      "search_hits": 10,
-      "n_chapters": 6,
-      "n_pages": 33,
+      "search_hits": 3,
+      "n_chapters": 172,
+      "n_pages": 19,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -807,15 +807,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.48,
-        "search": 0.1,
-        "detail": 0.32,
+        "browse": 0.41,
+        "search": 0.13,
+        "detail": 0.33,
         "chapters": 0.0,
-        "pages": 0.47,
-        "images": 0.25,
+        "pages": 0.25,
+        "images": 0.19,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.6
+        "total": 1.3
       },
       "requests": {
         "browse": 1,
@@ -853,15 +853,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 2.8,
-        "search": 0.98,
-        "detail": 0.11,
-        "chapters": 0.36,
-        "pages": 0.35,
-        "images": 0.27,
+        "browse": 0.7,
+        "search": 0.57,
+        "detail": 0.14,
+        "chapters": 0.14,
+        "pages": 0.37,
+        "images": 0.29,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 4.9
+        "total": 2.2
       },
       "requests": {
         "browse": 8,
@@ -888,7 +888,7 @@
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "[Spicymancer] Quiver - Vigilante Archer (OC)",
+      "sample_title": "Zenia Aria Kisaki - 2.5 Dimensional Seduction [A",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -899,29 +899,29 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.15,
+        "browse": 0.16,
         "search": 0.32,
-        "detail": 0.34,
+        "detail": 0.33,
         "chapters": 0.0,
-        "pages": 1.96,
-        "images": 3.63,
+        "pages": 10.91,
+        "images": 5.31,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 6.4
+        "total": 17.0
       },
       "requests": {
         "browse": 1,
         "search": 1,
         "detail": 1,
         "chapters": 0,
-        "pages": 5,
+        "pages": 30,
         "images": 6,
         "text": 0,
-        "total": 14
+        "total": 39
       },
-      "search_hits": 20,
+      "search_hits": 22,
       "n_chapters": 1,
-      "n_pages": 106,
+      "n_pages": 608,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -934,7 +934,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "After Severing Our Ties, All My Summons Became D",
+      "sample_title": "The Supreme Prodigy",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -945,15 +945,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.64,
-        "search": 2.1,
+        "browse": 0.62,
+        "search": 2.06,
         "detail": 0.48,
         "chapters": 0.0,
-        "pages": 0.33,
-        "images": 0.14,
+        "pages": 12.17,
+        "images": 0.15,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 14.3
+        "total": 15.5
       },
       "requests": {
         "browse": 1,
@@ -966,8 +966,8 @@
         "total": 7
       },
       "search_hits": 10,
-      "n_chapters": 12,
-      "n_pages": 11,
+      "n_chapters": 11,
+      "n_pages": 10,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -991,15 +991,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.22,
+        "browse": 0.18,
         "search": 0.0,
-        "detail": 0.19,
+        "detail": 0.23,
         "chapters": 0.0,
-        "pages": 0.13,
-        "images": 1.49,
+        "pages": 0.2,
+        "images": 0.16,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.0
+        "total": 0.8
       },
       "requests": {
         "browse": 1,
@@ -1037,15 +1037,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.45,
-        "search": 1.04,
-        "detail": 0.25,
+        "browse": 0.43,
+        "search": 0.96,
+        "detail": 0.21,
         "chapters": 0.0,
         "pages": 0.0,
-        "images": 0.86,
+        "images": 0.88,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.7
+        "total": 2.5
       },
       "requests": {
         "browse": 1,
@@ -1072,7 +1072,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "Reverend Insanity: Dream Gu",
+      "sample_title": "Harry Potter: Most Annoying System Ever",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1083,13 +1083,13 @@
         "text": "PASS"
       },
       "timings_secs": {
-        "browse": 0.2,
-        "search": 0.16,
-        "detail": 0.26,
+        "browse": 0.23,
+        "search": 0.18,
+        "detail": 0.24,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
-        "text": 0.27,
+        "text": 0.26,
         "find_page": 0.0,
         "total": 0.9
       },
@@ -1103,13 +1103,13 @@
         "text": 1,
         "total": 4
       },
-      "search_hits": 6,
-      "n_chapters": 212,
+      "search_hits": 20,
+      "n_chapters": 273,
       "n_pages": 0,
       "n_images_ok": 0,
       "n_images_tried": 0,
-      "n_paragraphs": 39,
-      "n_words": 1005
+      "n_paragraphs": 86,
+      "n_words": 2249
     },
     {
       "source_id": "galaxymanga",
@@ -1129,15 +1129,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.09,
-        "search": 1.23,
-        "detail": 1.08,
+        "browse": 1.48,
+        "search": 1.22,
+        "detail": 1.11,
         "chapters": 0.0,
-        "pages": 1.1,
-        "images": 0.3,
+        "pages": 1.05,
+        "images": 0.24,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 4.8
+        "total": 5.1
       },
       "requests": {
         "browse": 1,
@@ -1164,7 +1164,7 @@
       "items": 30,
       "mature": true,
       "detail": "",
-      "sample_title": "Relationship Reversal",
+      "sample_title": "Magical Girl Wife",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1175,15 +1175,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.09,
-        "search": 1.04,
+        "browse": 1.48,
+        "search": 0.8,
         "detail": 0.17,
         "chapters": 0.0,
-        "pages": 0.58,
-        "images": 0.63,
+        "pages": 0.18,
+        "images": 0.64,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.5
+        "total": 3.3
       },
       "requests": {
         "browse": 1,
@@ -1195,9 +1195,9 @@
         "text": 0,
         "total": 7
       },
-      "search_hits": 20,
-      "n_chapters": 125,
-      "n_pages": 10,
+      "search_hits": 6,
+      "n_chapters": 24,
+      "n_pages": 16,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -1222,14 +1222,14 @@
       },
       "timings_secs": {
         "browse": 0.24,
-        "search": 0.45,
+        "search": 0.46,
         "detail": 0.17,
         "chapters": 0.0,
-        "pages": 0.34,
-        "images": 0.44,
+        "pages": 0.33,
+        "images": 0.18,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.7
+        "total": 1.4
       },
       "requests": {
         "browse": 1,
@@ -1256,7 +1256,7 @@
       "items": 20,
       "mature": true,
       "detail": "",
-      "sample_title": "Daniku Triangle Fight! Chapter 6",
+      "sample_title": "A kind dorm mother gives a reward to a hardworki",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1267,15 +1267,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.26,
-        "search": 0.25,
-        "detail": 0.38,
+        "browse": 0.29,
+        "search": 0.29,
+        "detail": 0.29,
         "chapters": 0.0,
-        "pages": 0.32,
-        "images": 0.17,
+        "pages": 0.35,
+        "images": 0.29,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.4
+        "total": 1.5
       },
       "requests": {
         "browse": 1,
@@ -1287,9 +1287,9 @@
         "text": 0,
         "total": 7
       },
-      "search_hits": 14,
+      "search_hits": 20,
       "n_chapters": 1,
-      "n_pages": 21,
+      "n_pages": 5,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -1313,25 +1313,25 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.55,
-        "search": 1.03,
-        "detail": 0.68,
+        "browse": 0.45,
+        "search": 0.34,
+        "detail": 0.62,
         "chapters": 0.0,
-        "pages": 0.18,
-        "images": 0.11,
+        "pages": 0.15,
+        "images": 0.1,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.6
+        "total": 1.7
       },
       "requests": {
-        "browse": 2,
-        "search": 2,
+        "browse": 1,
+        "search": 1,
         "detail": 3,
         "chapters": 0,
         "pages": 1,
         "images": 3,
         "text": 0,
-        "total": 11
+        "total": 9
       },
       "search_hits": 13,
       "n_chapters": 13,
@@ -1359,15 +1359,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.93,
-        "search": 0.6,
-        "detail": 0.58,
+        "browse": 0.46,
+        "search": 0.69,
+        "detail": 0.31,
         "chapters": 0.0,
-        "pages": 0.62,
-        "images": 0.15,
+        "pages": 0.29,
+        "images": 0.18,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.9
+        "total": 1.9
       },
       "requests": {
         "browse": 1,
@@ -1405,15 +1405,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.92,
-        "search": 0.37,
-        "detail": 0.59,
+        "browse": 0.3,
+        "search": 0.01,
+        "detail": 0.72,
         "chapters": 0.0,
-        "pages": 0.33,
-        "images": 0.29,
+        "pages": 0.35,
+        "images": 0.32,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.5
+        "total": 1.7
       },
       "requests": {
         "browse": 1,
@@ -1451,15 +1451,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.19,
-        "search": 0.66,
+        "browse": 1.6,
+        "search": 0.65,
         "detail": 0.17,
         "chapters": 0.0,
         "pages": 0.21,
-        "images": 1.63,
+        "images": 1.76,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.9
+        "total": 4.4
       },
       "requests": {
         "browse": 1,
@@ -1486,7 +1486,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "My Older Sister's Friend Is Annoying",
+      "sample_title": "Vigilante Part 2",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1497,15 +1497,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 2.19,
-        "search": 0.34,
+        "browse": 1.17,
+        "search": 0.32,
         "detail": 0.17,
         "chapters": 0.0,
         "pages": 0.2,
-        "images": 9.51,
+        "images": 10.35,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 12.4
+        "total": 12.2
       },
       "requests": {
         "browse": 1,
@@ -1517,9 +1517,9 @@
         "text": 0,
         "total": 7
       },
-      "search_hits": 20,
-      "n_chapters": 29,
-      "n_pages": 20,
+      "search_hits": 5,
+      "n_chapters": 99,
+      "n_pages": 41,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -1543,15 +1543,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.43,
-        "search": 0.9,
-        "detail": 0.29,
+        "browse": 0.42,
+        "search": 0.95,
+        "detail": 0.26,
         "chapters": 0.0,
-        "pages": 0.3,
-        "images": 0.45,
+        "pages": 0.27,
+        "images": 0.19,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.4
+        "total": 2.1
       },
       "requests": {
         "browse": 2,
@@ -1589,15 +1589,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.76,
-        "search": 0.59,
-        "detail": 0.64,
+        "browse": 0.9,
+        "search": 0.89,
+        "detail": 1.85,
         "chapters": 0.0,
-        "pages": 0.65,
+        "pages": 1.77,
         "images": 0.12,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.8
+        "total": 5.6
       },
       "requests": {
         "browse": 1,
@@ -1635,15 +1635,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.11,
-        "search": 0.65,
-        "detail": 0.72,
+        "browse": 1.15,
+        "search": 0.71,
+        "detail": 0.75,
         "chapters": 0.0,
-        "pages": 1.24,
+        "pages": 1.31,
         "images": 0.14,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.9
+        "total": 4.1
       },
       "requests": {
         "browse": 2,
@@ -1681,15 +1681,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.57,
+        "browse": 0.76,
         "search": 0.36,
-        "detail": 0.38,
+        "detail": 0.39,
         "chapters": 0.0,
-        "pages": 0.34,
-        "images": 0.29,
+        "pages": 0.36,
+        "images": 0.48,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.9
+        "total": 2.4
       },
       "requests": {
         "browse": 1,
@@ -1727,15 +1727,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.52,
-        "search": 0.61,
-        "detail": 0.43,
+        "browse": 0.53,
+        "search": 0.64,
+        "detail": 0.21,
         "chapters": 0.0,
-        "pages": 0.44,
-        "images": 0.24,
+        "pages": 0.2,
+        "images": 0.19,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.2
+        "total": 1.8
       },
       "requests": {
         "browse": 1,
@@ -1762,7 +1762,7 @@
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "MILF Exchange Plan",
+      "sample_title": "I Love You Very Much",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1773,29 +1773,29 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.49,
-        "search": 0.17,
-        "detail": 0.19,
+        "browse": 0.6,
+        "search": 0.19,
+        "detail": 0.38,
         "chapters": 0.0,
-        "pages": 0.2,
-        "images": 0.08,
+        "pages": 0.21,
+        "images": 0.16,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.1
+        "total": 1.6
       },
       "requests": {
         "browse": 1,
         "search": 1,
-        "detail": 1,
+        "detail": 2,
         "chapters": 0,
         "pages": 1,
         "images": 3,
         "text": 0,
-        "total": 7
+        "total": 8
       },
-      "search_hits": 13,
-      "n_chapters": 2,
-      "n_pages": 6,
+      "search_hits": 20,
+      "n_chapters": 8,
+      "n_pages": 25,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -1819,15 +1819,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.41,
-        "search": 0.63,
-        "detail": 0.79,
+        "browse": 1.42,
+        "search": 0.69,
+        "detail": 0.83,
         "chapters": 0.0,
-        "pages": 0.78,
-        "images": 0.26,
+        "pages": 0.82,
+        "images": 0.21,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.9
+        "total": 4.0
       },
       "requests": {
         "browse": 2,
@@ -1854,7 +1854,7 @@
       "items": 16,
       "mature": true,
       "detail": "",
-      "sample_title": "Undead Catastrophe: A Sea of Bones at My Command",
+      "sample_title": "I Ushered in the Age of Mythical Pet Beasts",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1866,14 +1866,14 @@
       },
       "timings_secs": {
         "browse": 0.57,
-        "search": 0.6,
-        "detail": 0.24,
+        "search": 0.66,
+        "detail": 0.56,
         "chapters": 0.0,
-        "pages": 0.23,
-        "images": 0.27,
+        "pages": 0.49,
+        "images": 0.31,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 1.9
+        "total": 2.6
       },
       "requests": {
         "browse": 1,
@@ -1885,9 +1885,9 @@
         "text": 0,
         "total": 7
       },
-      "search_hits": 16,
+      "search_hits": 5,
       "n_chapters": 2,
-      "n_pages": 40,
+      "n_pages": 45,
       "n_images_ok": 3,
       "n_images_tried": 3,
       "n_paragraphs": 0,
@@ -1911,15 +1911,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.35,
-        "search": 1.5,
-        "detail": 0.87,
+        "browse": 0.34,
+        "search": 0.16,
+        "detail": 1.12,
         "chapters": 0.0,
-        "pages": 0.26,
-        "images": 0.25,
+        "pages": 0.15,
+        "images": 0.15,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.2
+        "total": 1.9
       },
       "requests": {
         "browse": 1,
@@ -1957,12 +1957,12 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.52,
-        "search": 1.15,
-        "detail": 1.2,
+        "browse": 1.5,
+        "search": 1.18,
+        "detail": 1.22,
         "chapters": 0.0,
         "pages": 0.0,
-        "images": 1.02,
+        "images": 1.01,
         "text": 0.0,
         "find_page": 0.0,
         "total": 4.9
@@ -2003,15 +2003,15 @@
         "text": "PASS"
       },
       "timings_secs": {
-        "browse": 0.8,
-        "search": 0.44,
-        "detail": 0.83,
+        "browse": 0.79,
+        "search": 0.84,
+        "detail": 0.81,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
-        "text": 0.79,
+        "text": 0.94,
         "find_page": 0.0,
-        "total": 2.9
+        "total": 3.4
       },
       "requests": {
         "browse": 1,
@@ -2049,9 +2049,9 @@
         "text": "PASS"
       },
       "timings_secs": {
-        "browse": 0.54,
+        "browse": 0.52,
         "search": 0.22,
-        "detail": 0.58,
+        "detail": 0.61,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
@@ -2095,9 +2095,9 @@
         "text": "PASS"
       },
       "timings_secs": {
-        "browse": 0.35,
-        "search": 0.34,
-        "detail": 0.22,
+        "browse": 0.37,
+        "search": 0.21,
+        "detail": 0.23,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
@@ -2141,15 +2141,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.57,
-        "search": 0.84,
-        "detail": 0.3,
+        "browse": 0.51,
+        "search": 1.84,
+        "detail": 0.33,
         "chapters": 0.0,
-        "pages": 0.37,
-        "images": 0.12,
+        "pages": 0.39,
+        "images": 0.54,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 2.2
+        "total": 3.6
       },
       "requests": {
         "browse": 1,
@@ -2187,15 +2187,15 @@
         "text": "PASS"
       },
       "timings_secs": {
-        "browse": 0.16,
-        "search": 0.08,
+        "browse": 0.21,
+        "search": 0.02,
         "detail": 0.41,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
-        "text": 0.3,
+        "text": 0.28,
         "find_page": 0.0,
-        "total": 1.0
+        "total": 0.9
       },
       "requests": {
         "browse": 1,
@@ -2235,13 +2235,13 @@
       "timings_secs": {
         "browse": 0.16,
         "search": 0.48,
-        "detail": 0.96,
-        "chapters": 0.62,
-        "pages": 0.32,
-        "images": 0.52,
+        "detail": 1.04,
+        "chapters": 0.4,
+        "pages": 0.34,
+        "images": 0.51,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 3.1
+        "total": 2.9
       },
       "requests": {
         "browse": 1,
@@ -2279,15 +2279,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 1.13,
-        "search": 0.67,
-        "detail": 0.7,
-        "chapters": 2.28,
+        "browse": 1.24,
+        "search": 0.69,
+        "detail": 0.67,
+        "chapters": 2.24,
         "pages": 1.66,
-        "images": 0.56,
+        "images": 0.63,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 7.0
+        "total": 7.2
       },
       "requests": {
         "browse": 1,
@@ -2325,15 +2325,15 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.53,
-        "search": 0.33,
-        "detail": 0.32,
+        "browse": 0.66,
+        "search": 0.3,
+        "detail": 0.31,
         "chapters": 0.0,
         "pages": 0.21,
-        "images": 0.1,
+        "images": 0.12,
         "text": 0.0,
         "find_page": 0.0,
-        "total": 4.1
+        "total": 4.3
       },
       "requests": {
         "browse": 1,
@@ -2371,7 +2371,7 @@
         "text": "-"
       },
       "timings_secs": {
-        "browse": 0.08,
+        "browse": 0.09,
         "search": 0.0,
         "detail": 0.0,
         "chapters": 0.0,
