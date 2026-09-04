@@ -107,6 +107,18 @@ def sources_limit() -> str:
     return get_settings().rate_limit_sources
 
 
+def bulk_limit() -> str:
+    """Limit for the bulk *window* endpoints (POST /reader/chapters/manifest,
+    POST /novels/chapters).
+
+    Deliberately its own, much tighter bucket rather than reusing ``sources``:
+    one request there fans out to as many as ``*_bulk_max_chapters`` upstream
+    scrapes on the sync threadpool, so charging it the same as a single manifest
+    would multiply the effective outbound rate by twenty. Sized in
+    ``Settings.rate_limit_bulk`` (MM_RATE_LIMIT_BULK)."""
+    return get_settings().rate_limit_bulk
+
+
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
     """Render a 429 in the app's standard ``{code, message, details}`` envelope,
     preserving slowapi's Retry-After / X-RateLimit-* headers."""
