@@ -42,10 +42,15 @@ PAGE_SIZE = 24
 
 DEFAULT_SORT = "latest"
 
-#: Browse modes -> the site's own sort ids (lifted from its search chunk).
-#: ``alphabetical`` and ``best_match`` are deliberately absent: verified from
-#: the VPS, ``sort=alphabetical`` answers 200 with zero items (broken
-#: upstream), and ``best_match`` is only meaningful alongside a query.
+#: Browse modes -> the site's own sort ids. All eight are in the set the API
+#: names in its own 400 ("Sort field must be one of: newest, rating, views,
+#: popular, bookmarks, chapters, comments, latest, added_date, views_today,
+#: views_7days, views_30days").
+#:
+#: ``alphabetical`` and ``best_match`` are deliberately absent -- neither is a
+#: real API sort. The site's own UI offers both, but ``best_match`` is how it
+#: spells "send no sort at all" (see ``search_params``) and ``alphabetical``
+#: answers 400; its front end swallows that into an empty grid.
 BROWSE_MODES: tuple[tuple[str, str], ...] = (
     ("default", "Latest Updates"),
     ("popular", "Most Followed"),
@@ -151,12 +156,17 @@ def list_genres() -> list[BrowseMode]:
     return [BrowseMode(id=slug, label=label) for slug, label in GENRES]
 
 
-def normalize_sort(sort: str | None) -> str:
-    """Map a browse-mode id onto the site's own sort id."""
+def explicit_sort(sort: str | None) -> str | None:
+    """The caller's chosen sort, or None when they did not choose one."""
     cleaned = (sort or "").strip()
     if not cleaned or cleaned == "default":
-        return DEFAULT_SORT
-    return cleaned if cleaned in _VALID_SORTS else DEFAULT_SORT
+        return None
+    return cleaned if cleaned in _VALID_SORTS else None
+
+
+def normalize_sort(sort: str | None) -> str:
+    """Map a browse-mode id onto the site's own sort id (for browse/logging)."""
+    return explicit_sort(sort) or DEFAULT_SORT
 
 
 def normalize_genre(genre: str | None) -> str | None:
@@ -231,14 +241,21 @@ def search_params(
     genre: str | None = None,
     page_size: int = PAGE_SIZE,
 ) -> dict[str, Any]:
-    params: dict[str, Any] = {
-        "page": max(1, page),
-        "limit": page_size,
-        "sort": normalize_sort(sort),
-    }
+    params: dict[str, Any] = {"page": max(1, page), "limit": page_size}
     cleaned_query = (query or "").strip()
+    chosen = explicit_sort(sort)
     if cleaned_query:
         params["q"] = cleaned_query
+        # Relevance ranking is what you get by sending NO sort at all. The
+        # site's "Best Match" option is exactly that -- ``sort=best_match``
+        # answers 400. Sending the browse default here instead would rank a
+        # title search by last-updated, which buries the obvious hit: verified
+        # live, "solo leveling" returns "Leveling Up With Skills" first under
+        # sort=latest and "Solo Leveling" first with the sort omitted.
+        if chosen is not None:
+            params["sort"] = chosen
+    else:
+        params["sort"] = chosen or DEFAULT_SORT
     normalized_genre = normalize_genre(genre)
     if normalized_genre:
         params["genres"] = normalized_genre
