@@ -1,10 +1,10 @@
 {
-  "probed_at": "2026-09-04T11:18:16.935944+00:00",
+  "probed_at": "2026-09-04T12:14:05.935824+00:00",
   "probed_from": "vps",
-  "total": 48,
+  "total": 47,
   "live": 44,
   "partial": 1,
-  "dead": 3,
+  "dead": 2,
   "error": 0,
   "results": [
     {
@@ -23,14 +23,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.44,
-        "search": 0.88,
-        "detail": 0.22,
-        "chapters": 0.28,
-        "pages": 0.22,
-        "images": 0.23,
+        "browse": 0.49,
+        "search": 0.44,
+        "detail": 0.26,
+        "chapters": 0.44,
+        "pages": 0.97,
+        "images": 0.14,
         "find_page": 0.0,
-        "total": 2.4
+        "total": 2.9
       },
       "search_hits": 20,
       "n_chapters": 1,
@@ -54,14 +54,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.14,
-        "search": 0.41,
-        "detail": 0.5,
-        "chapters": 0.52,
-        "pages": 0.49,
-        "images": 0.22,
+        "browse": 0.11,
+        "search": 0.43,
+        "detail": 0.51,
+        "chapters": 0.5,
+        "pages": 0.5,
+        "images": 0.09,
         "find_page": 0.0,
-        "total": 2.4
+        "total": 2.3
       },
       "search_hits": 25,
       "n_chapters": 1,
@@ -85,12 +85,12 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.54,
-        "search": 0.29,
+        "browse": 0.57,
+        "search": 0.11,
         "detail": 0.0,
-        "chapters": 0.2,
-        "pages": 0.14,
-        "images": 0.89,
+        "chapters": 0.31,
+        "pages": 0.12,
+        "images": 0.99,
         "find_page": 0.0,
         "total": 2.1
       },
@@ -106,7 +106,7 @@
       "items": 60,
       "mature": true,
       "detail": "",
-      "sample_title": "（geulimykun）",
+      "sample_title": "Longing for my aunt chapter 6",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -116,18 +116,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.59,
-        "search": 0.48,
-        "detail": 0.56,
-        "chapters": 0.43,
-        "pages": 1.03,
-        "images": 2.42,
+        "browse": 0.56,
+        "search": 0.57,
+        "detail": 0.46,
+        "chapters": 0.49,
+        "pages": 1.04,
+        "images": 0.58,
         "find_page": 0.0,
-        "total": 5.5
+        "total": 3.7
       },
-      "search_hits": 60,
+      "search_hits": 55,
       "n_chapters": 1,
-      "n_pages": 109,
+      "n_pages": 179,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -147,14 +147,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.05,
-        "search": 0.8,
-        "detail": 0.02,
+        "browse": 0.07,
+        "search": 1.09,
+        "detail": 0.04,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.83,
+        "pages": 0.2,
+        "images": 0.54,
         "find_page": 0.0,
-        "total": 2.0
+        "total": 2.1
       },
       "search_hits": 2,
       "n_chapters": 1,
@@ -178,14 +178,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.74,
-        "search": 0.46,
-        "detail": 0.57,
+        "browse": 0.77,
+        "search": 0.47,
+        "detail": 0.56,
         "chapters": 0.0,
-        "pages": 0.31,
-        "images": 2.09,
+        "pages": 0.3,
+        "images": 1.03,
         "find_page": 0.0,
-        "total": 5.4
+        "total": 4.2
       },
       "search_hits": 24,
       "n_chapters": 1,
@@ -199,7 +199,7 @@
       "items": 20,
       "mature": true,
       "detail": "",
-      "sample_title": "(C108) [squeezecandyheaven (Ichihaya)] Anoko wa ",
+      "sample_title": "[Syumai Bento (Umai)] Onii-chan no nioi ga suki",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -209,18 +209,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.21,
-        "search": 0.45,
+        "browse": 0.25,
+        "search": 0.41,
         "detail": 0.49,
         "chapters": 0.5,
         "pages": 0.5,
-        "images": 0.57,
+        "images": 0.15,
         "find_page": 0.0,
-        "total": 2.7
+        "total": 2.3
       },
-      "search_hits": 1,
+      "search_hits": 2,
       "n_chapters": 1,
-      "n_pages": 26,
+      "n_pages": 24,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -230,7 +230,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "The Extra’s Academy Survival Guide",
+      "sample_title": "The Ruler Of Darkness",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -241,17 +241,17 @@
       },
       "timings_secs": {
         "browse": 0.15,
-        "search": 0.2,
-        "detail": 0.41,
+        "search": 0.18,
+        "detail": 0.31,
         "chapters": 0.0,
         "pages": 0.21,
-        "images": 0.18,
+        "images": 0.08,
         "find_page": 0.0,
-        "total": 1.2
+        "total": 1.0
       },
-      "search_hits": 8,
-      "n_chapters": 123,
-      "n_pages": 16,
+      "search_hits": 3,
+      "n_chapters": 29,
+      "n_pages": 25,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -271,14 +271,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.59,
-        "search": 0.31,
-        "detail": 0.29,
+        "browse": 0.58,
+        "search": 0.28,
+        "detail": 0.28,
         "chapters": 0.29,
-        "pages": 0.3,
-        "images": 0.24,
+        "pages": 0.29,
+        "images": 0.15,
         "find_page": 0.0,
-        "total": 2.0
+        "total": 1.9
       },
       "search_hits": 6,
       "n_chapters": 19,
@@ -302,14 +302,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.96,
-        "search": 0.48,
-        "detail": 1.05,
+        "browse": 1.0,
+        "search": 0.51,
+        "detail": 1.06,
         "chapters": 0.0,
-        "pages": 1.54,
-        "images": 1.49,
+        "pages": 1.42,
+        "images": 0.18,
         "find_page": 0.0,
-        "total": 5.5
+        "total": 4.2
       },
       "search_hits": 86,
       "n_chapters": 3874,
@@ -333,14 +333,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.39,
-        "search": 1.01,
+        "browse": 1.07,
+        "search": 0.29,
         "detail": 0.14,
-        "chapters": 0.13,
-        "pages": 0.29,
-        "images": 0.39,
+        "chapters": 0.11,
+        "pages": 0.3,
+        "images": 0.22,
         "find_page": 0.0,
-        "total": 2.4
+        "total": 2.2
       },
       "search_hits": 24,
       "n_chapters": 14,
@@ -365,13 +365,13 @@
       },
       "timings_secs": {
         "browse": 0.27,
-        "search": 0.89,
-        "detail": 2.69,
+        "search": 1.16,
+        "detail": 2.63,
         "chapters": 0.0,
-        "pages": 0.48,
-        "images": 0.2,
+        "pages": 0.24,
+        "images": 0.1,
         "find_page": 0.0,
-        "total": 4.5
+        "total": 4.4
       },
       "search_hits": 12,
       "n_chapters": 189,
@@ -385,7 +385,7 @@
       "items": 15,
       "mature": true,
       "detail": "",
-      "sample_title": "Megami to Kekkon Shite Isekai de Shinkon Seikats",
+      "sample_title": "Olivia Jou wa Aisareru to Shinu: Danna-sama, Cho",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -395,18 +395,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.48,
-        "search": 0.44,
-        "detail": 0.37,
+        "browse": 0.43,
+        "search": 0.03,
+        "detail": 0.22,
         "chapters": 0.0,
-        "pages": 0.48,
-        "images": 0.14,
+        "pages": 0.2,
+        "images": 0.11,
         "find_page": 0.0,
-        "total": 3.3
+        "total": 1.0
       },
-      "search_hits": 15,
-      "n_chapters": 19,
-      "n_pages": 51,
+      "search_hits": 3,
+      "n_chapters": 3,
+      "n_pages": 105,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -426,14 +426,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.19,
-        "search": 0.11,
-        "detail": 0.25,
+        "browse": 0.07,
+        "search": 0.23,
+        "detail": 0.14,
         "chapters": 0.0,
-        "pages": 0.17,
-        "images": 0.46,
+        "pages": 0.21,
+        "images": 0.42,
         "find_page": 0.0,
-        "total": 1.2
+        "total": 1.1
       },
       "search_hits": 3,
       "n_chapters": 160,
@@ -457,14 +457,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.35,
-        "search": 2.57,
-        "detail": 0.85,
+        "browse": 0.36,
+        "search": 0.33,
+        "detail": 0.84,
         "chapters": 0.0,
-        "pages": 0.06,
-        "images": 0.59,
+        "pages": 0.04,
+        "images": 0.62,
         "find_page": 0.0,
-        "total": 4.4
+        "total": 2.2
       },
       "search_hits": 24,
       "n_chapters": 18,
@@ -488,14 +488,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.08,
-        "search": 0.5,
-        "detail": 0.15,
+        "browse": 0.64,
+        "search": 0.3,
+        "detail": 0.14,
         "chapters": 0.0,
-        "pages": 0.2,
-        "images": 0.07,
+        "pages": 0.21,
+        "images": 0.05,
         "find_page": 0.0,
-        "total": 2.0
+        "total": 1.4
       },
       "search_hits": 2,
       "n_chapters": 2,
@@ -509,28 +509,28 @@
       "items": 40,
       "mature": false,
       "detail": "",
-      "sample_title": "My Disciples Are All Big Villains",
+      "sample_title": "Defense Breaker",
       "stages": {
         "browse": "PASS",
-        "search": "FAIL",
+        "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.45,
-        "search": 0.12,
-        "detail": 0.44,
+        "browse": 0.51,
+        "search": 0.11,
+        "detail": 0.31,
         "chapters": 0.0,
-        "pages": 0.2,
-        "images": 0.29,
+        "pages": 0.21,
+        "images": 0.24,
         "find_page": 0.0,
-        "total": 1.5
+        "total": 1.4
       },
-      "search_hits": 0,
-      "n_chapters": 550,
-      "n_pages": 4,
+      "search_hits": 6,
+      "n_chapters": 57,
+      "n_pages": 47,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -550,14 +550,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 2.78,
-        "search": 1.09,
-        "detail": 0.14,
+        "browse": 2.72,
+        "search": 1.05,
+        "detail": 0.13,
         "chapters": 0.34,
-        "pages": 0.31,
-        "images": 0.75,
+        "pages": 0.35,
+        "images": 0.27,
         "find_page": 0.0,
-        "total": 5.4
+        "total": 4.9
       },
       "search_hits": 2,
       "n_chapters": 1,
@@ -571,7 +571,7 @@
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "[DittoHunter] Asuka Langley (Neon Genesis Evange",
+      "sample_title": "(cartmanyang)家畜小君续集bad end+good end+番外（9video）[A",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -581,14 +581,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.18,
-        "search": 0.3,
-        "detail": 0.33,
-        "chapters": 0.35,
-        "pages": 0.71,
-        "images": 3.5,
+        "browse": 0.17,
+        "search": 0.34,
+        "detail": 0.3,
+        "chapters": 0.0,
+        "pages": 0.39,
+        "images": 3.53,
         "find_page": 0.0,
-        "total": 5.4
+        "total": 4.7
       },
       "search_hits": 25,
       "n_chapters": 1,
@@ -612,14 +612,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 3.66,
-        "search": 1.92,
-        "detail": 0.69,
+        "browse": 0.81,
+        "search": 6.15,
+        "detail": 3.63,
         "chapters": 0.0,
-        "pages": 0.33,
-        "images": 0.24,
+        "pages": 0.45,
+        "images": 0.12,
         "find_page": 0.0,
-        "total": 6.9
+        "total": 11.2
       },
       "search_hits": 10,
       "n_chapters": 12,
@@ -645,12 +645,12 @@
       "timings_secs": {
         "browse": 0.27,
         "search": 0.0,
-        "detail": 0.2,
+        "detail": 0.19,
         "chapters": 0.0,
-        "pages": 0.12,
-        "images": 2.33,
+        "pages": 0.13,
+        "images": 0.15,
         "find_page": 0.0,
-        "total": 2.9
+        "total": 0.8
       },
       "search_hits": 1,
       "n_chapters": 52,
@@ -674,9 +674,9 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.42,
-        "search": 0.95,
-        "detail": 0.23,
+        "browse": 0.4,
+        "search": 0.92,
+        "detail": 0.22,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.84,
@@ -705,14 +705,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.17,
-        "search": 1.23,
-        "detail": 2.18,
+        "browse": 1.41,
+        "search": 1.26,
+        "detail": 1.07,
         "chapters": 0.0,
-        "pages": 1.04,
-        "images": 0.43,
+        "pages": 1.06,
+        "images": 0.2,
         "find_page": 0.0,
-        "total": 6.1
+        "total": 5.0
       },
       "search_hits": 10,
       "n_chapters": 68,
@@ -726,7 +726,7 @@
       "items": 30,
       "mature": true,
       "detail": "",
-      "sample_title": "Ero: The Princess Submits",
+      "sample_title": "Relationship Reversal",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -736,18 +736,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.06,
-        "search": 1.01,
-        "detail": 0.23,
+        "browse": 0.91,
+        "search": 0.86,
+        "detail": 0.04,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.62,
+        "pages": 0.2,
+        "images": 0.5,
         "find_page": 0.0,
-        "total": 3.2
+        "total": 2.5
       },
-      "search_hits": 5,
-      "n_chapters": 33,
-      "n_pages": 7,
+      "search_hits": 20,
+      "n_chapters": 124,
+      "n_pages": 10,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -757,7 +757,7 @@
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "[Hamachi] Not Boy Meets Girl 3",
+      "sample_title": "[ロックハート] 中野四葉NTR漫画 (五等分の花嫁)",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -767,18 +767,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.22,
-        "search": 0.38,
-        "detail": 0.26,
+        "browse": 0.19,
+        "search": 0.4,
+        "detail": 0.27,
         "chapters": 0.0,
-        "pages": 0.34,
-        "images": 0.47,
+        "pages": 0.33,
+        "images": 0.12,
         "find_page": 0.0,
-        "total": 1.7
+        "total": 1.3
       },
       "search_hits": 20,
       "n_chapters": 1,
-      "n_pages": 30,
+      "n_pages": 8,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -798,14 +798,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.21,
-        "search": 0.33,
+        "browse": 0.24,
+        "search": 0.31,
         "detail": 0.32,
         "chapters": 0.0,
         "pages": 0.34,
-        "images": 0.28,
+        "images": 0.12,
         "find_page": 0.0,
-        "total": 1.5
+        "total": 1.3
       },
       "search_hits": 20,
       "n_chapters": 1,
@@ -829,14 +829,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.48,
-        "search": 0.43,
-        "detail": 2.92,
+        "browse": 0.49,
+        "search": 0.37,
+        "detail": 2.66,
         "chapters": 0.0,
-        "pages": 0.17,
-        "images": 1.1,
+        "pages": 0.18,
+        "images": 0.14,
         "find_page": 0.0,
-        "total": 5.1
+        "total": 3.8
       },
       "search_hits": 13,
       "n_chapters": 200,
@@ -860,14 +860,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.49,
-        "search": 0.75,
-        "detail": 0.29,
+        "browse": 0.37,
+        "search": 0.66,
+        "detail": 0.26,
         "chapters": 0.0,
         "pages": 0.28,
-        "images": 0.22,
+        "images": 0.12,
         "find_page": 0.0,
-        "total": 2.0
+        "total": 1.7
       },
       "search_hits": 15,
       "n_chapters": 2,
@@ -881,7 +881,7 @@
       "items": 24,
       "mature": false,
       "detail": "",
-      "sample_title": "Vampire Knight",
+      "sample_title": "Jitsu wa Imouto deshita. ~Saikin Dekita Giri no ",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -891,18 +891,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.77,
-        "search": 0.47,
-        "detail": 0.64,
+        "browse": 0.28,
+        "search": 0.03,
+        "detail": 0.56,
         "chapters": 0.0,
-        "pages": 0.34,
-        "images": 2.79,
+        "pages": 0.32,
+        "images": 0.22,
         "find_page": 0.0,
-        "total": 5.0
+        "total": 3.5
       },
-      "search_hits": 24,
-      "n_chapters": 104,
-      "n_pages": 54,
+      "search_hits": 5,
+      "n_chapters": 42,
+      "n_pages": 41,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -922,14 +922,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.13,
-        "search": 0.61,
-        "detail": 0.15,
+        "browse": 1.62,
+        "search": 0.68,
+        "detail": 0.17,
         "chapters": 0.0,
         "pages": 0.21,
-        "images": 3.28,
+        "images": 1.64,
         "find_page": 0.0,
-        "total": 5.4
+        "total": 4.3
       },
       "search_hits": 8,
       "n_chapters": 24,
@@ -943,7 +943,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "Dai Kyochuu Rettou",
+      "sample_title": "Kusunoki-san Failed to Debut in High School",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -953,18 +953,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.01,
-        "search": 0.49,
-        "detail": 0.4,
+        "browse": 0.79,
+        "search": 0.37,
+        "detail": 0.18,
         "chapters": 0.0,
-        "pages": 0.18,
-        "images": 17.53,
+        "pages": 0.2,
+        "images": 13.44,
         "find_page": 0.0,
-        "total": 19.6
+        "total": 15.0
       },
-      "search_hits": 20,
-      "n_chapters": 63,
-      "n_pages": 23,
+      "search_hits": 4,
+      "n_chapters": 66,
+      "n_pages": 34,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -984,17 +984,17 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.37,
-        "search": 0.98,
-        "detail": 0.32,
+        "browse": 0.2,
+        "search": 0.93,
+        "detail": 0.06,
         "chapters": 0.0,
-        "pages": 0.29,
-        "images": 0.18,
+        "pages": 0.45,
+        "images": 0.08,
         "find_page": 0.0,
-        "total": 2.1
+        "total": 1.7
       },
       "search_hits": 12,
-      "n_chapters": 57,
+      "n_chapters": 60,
       "n_pages": 28,
       "n_images_ok": 3,
       "n_images_tried": 3
@@ -1015,14 +1015,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.8,
-        "search": 0.64,
-        "detail": 0.62,
+        "browse": 0.76,
+        "search": 0.6,
+        "detail": 1.35,
         "chapters": 0.0,
-        "pages": 0.61,
-        "images": 0.09,
+        "pages": 0.66,
+        "images": 0.11,
         "find_page": 0.0,
-        "total": 2.8
+        "total": 3.5
       },
       "search_hits": 10,
       "n_chapters": 49,
@@ -1046,14 +1046,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.25,
-        "search": 0.64,
-        "detail": 0.77,
+        "browse": 1.08,
+        "search": 0.74,
+        "detail": 0.7,
         "chapters": 0.0,
-        "pages": 1.36,
-        "images": 0.14,
+        "pages": 1.2,
+        "images": 0.13,
         "find_page": 0.0,
-        "total": 4.2
+        "total": 3.9
       },
       "search_hits": 2,
       "n_chapters": 2,
@@ -1067,7 +1067,7 @@
       "items": 16,
       "mature": true,
       "detail": "",
-      "sample_title": "Rebirth of the Water Margin World: The Strongest",
+      "sample_title": "Reborn in Journey to the West: The Strongest Whi",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1077,20 +1077,20 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.5,
+        "browse": 0.55,
         "search": 0.3,
-        "detail": 3.14,
+        "detail": 0.3,
         "chapters": 0.0,
-        "pages": 0.32,
-        "images": 0.85,
+        "pages": 0.35,
+        "images": 0.1,
         "find_page": 0.0,
-        "total": 5.1
+        "total": 1.6
       },
-      "search_hits": 1,
-      "n_chapters": 86,
-      "n_pages": 2,
-      "n_images_ok": 2,
-      "n_images_tried": 2
+      "search_hits": 4,
+      "n_chapters": 2,
+      "n_pages": 9,
+      "n_images_ok": 3,
+      "n_images_tried": 3
     },
     {
       "source_id": "manhuaplus",
@@ -1108,14 +1108,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.5,
-        "search": 0.63,
-        "detail": 0.43,
+        "browse": 0.47,
+        "search": 0.62,
+        "detail": 1.17,
         "chapters": 0.0,
-        "pages": 0.42,
-        "images": 0.3,
+        "pages": 0.43,
+        "images": 0.23,
         "find_page": 0.0,
-        "total": 2.3
+        "total": 2.9
       },
       "search_hits": 3,
       "n_chapters": 61,
@@ -1129,7 +1129,7 @@
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "I Became an Apartment Security Manager",
+      "sample_title": "Relationship Reversal",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1139,18 +1139,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.52,
+        "browse": 0.55,
         "search": 0.19,
-        "detail": 0.6,
+        "detail": 0.39,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.24,
+        "pages": 0.22,
+        "images": 2.19,
         "find_page": 0.0,
-        "total": 1.8
+        "total": 3.5
       },
-      "search_hits": 11,
-      "n_chapters": 99,
-      "n_pages": 15,
+      "search_hits": 10,
+      "n_chapters": 166,
+      "n_pages": 23,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -1170,14 +1170,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.48,
-        "search": 0.66,
-        "detail": 0.84,
+        "browse": 1.45,
+        "search": 0.68,
+        "detail": 0.76,
         "chapters": 0.0,
-        "pages": 0.81,
-        "images": 0.31,
+        "pages": 0.82,
+        "images": 0.2,
         "find_page": 0.0,
-        "total": 4.1
+        "total": 3.9
       },
       "search_hits": 10,
       "n_chapters": 1,
@@ -1201,14 +1201,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.58,
-        "search": 0.55,
-        "detail": 0.26,
+        "browse": 0.44,
+        "search": 0.54,
+        "detail": 0.13,
         "chapters": 0.0,
-        "pages": 0.23,
-        "images": 0.42,
+        "pages": 0.2,
+        "images": 0.28,
         "find_page": 0.0,
-        "total": 2.1
+        "total": 1.6
       },
       "search_hits": 16,
       "n_chapters": 2,
@@ -1232,14 +1232,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.05,
-        "search": 1.37,
-        "detail": 3.19,
+        "browse": 0.36,
+        "search": 1.59,
+        "detail": 2.99,
         "chapters": 0.0,
         "pages": 0.26,
-        "images": 0.39,
+        "images": 0.26,
         "find_page": 0.0,
-        "total": 6.3
+        "total": 5.5
       },
       "search_hits": 12,
       "n_chapters": 91,
@@ -1253,7 +1253,7 @@
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "アリスと娘ちゃん 復習+グレスケ+無毛差分+メイキング",
+      "sample_title": "[Samuwo] Migawarari no Ayano Sensei | Ayano-sens",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1263,18 +1263,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.36,
-        "search": 1.32,
-        "detail": 1.22,
+        "browse": 1.5,
+        "search": 1.12,
+        "detail": 1.33,
         "chapters": 0.0,
         "pages": 0.0,
-        "images": 2.04,
+        "images": 1.16,
         "find_page": 0.0,
-        "total": 5.9
+        "total": 5.1
       },
-      "search_hits": 25,
+      "search_hits": 22,
       "n_chapters": 1,
-      "n_pages": 56,
+      "n_pages": 127,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -1284,7 +1284,7 @@
       "items": 12,
       "mature": false,
       "detail": "",
-      "sample_title": "How a Villainess Survives as a Saint",
+      "sample_title": "Reverse Tower Dungeon",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
@@ -1294,18 +1294,18 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.39,
-        "search": 0.94,
-        "detail": 0.3,
+        "browse": 1.54,
+        "search": 1.39,
+        "detail": 0.27,
         "chapters": 0.0,
-        "pages": 0.67,
-        "images": 0.64,
+        "pages": 0.71,
+        "images": 0.67,
         "find_page": 0.0,
-        "total": 3.9
+        "total": 4.6
       },
       "search_hits": 12,
-      "n_chapters": 20,
-      "n_pages": 11,
+      "n_chapters": 96,
+      "n_pages": 15,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -1325,14 +1325,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 0.32,
-        "search": 1.89,
-        "detail": 0.62,
-        "chapters": 0.42,
-        "pages": 0.28,
-        "images": 0.78,
+        "browse": 0.21,
+        "search": 1.7,
+        "detail": 0.71,
+        "chapters": 0.4,
+        "pages": 0.23,
+        "images": 0.46,
         "find_page": 0.0,
-        "total": 4.3
+        "total": 3.7
       },
       "search_hits": 10,
       "n_chapters": 21,
@@ -1356,14 +1356,14 @@
         "images": "PASS"
       },
       "timings_secs": {
-        "browse": 1.23,
-        "search": 0.64,
-        "detail": 0.71,
-        "chapters": 8.71,
-        "pages": 1.54,
-        "images": 1.29,
+        "browse": 1.16,
+        "search": 0.69,
+        "detail": 0.66,
+        "chapters": 3.68,
+        "pages": 1.64,
+        "images": 0.58,
         "find_page": 0.0,
-        "total": 14.1
+        "total": 8.4
       },
       "search_hits": 24,
       "n_chapters": 114,
@@ -1388,13 +1388,13 @@
       },
       "timings_secs": {
         "browse": 0.52,
-        "search": 0.33,
-        "detail": 0.34,
+        "search": 0.3,
+        "detail": 0.33,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.12,
+        "pages": 0.19,
+        "images": 0.11,
         "find_page": 0.0,
-        "total": 4.1
+        "total": 4.0
       },
       "search_hits": 32,
       "n_chapters": 155,
@@ -1418,45 +1418,14 @@
         "images": "-"
       },
       "timings_secs": {
-        "browse": 1.66,
+        "browse": 1.62,
         "search": 0.0,
         "detail": 0.0,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
         "find_page": 0.0,
-        "total": 1.7
-      },
-      "search_hits": 0,
-      "n_chapters": 0,
-      "n_pages": 0,
-      "n_images_ok": 0,
-      "n_images_tried": 0
-    },
-    {
-      "source_id": "cmanhua",
-      "status": "DEAD",
-      "items": 0,
-      "mature": true,
-      "detail": "browse: ConnectorHttpError: The read operation timed out",
-      "sample_title": "",
-      "stages": {
-        "browse": "FAIL",
-        "search": "-",
-        "detail": "-",
-        "chapters": "-",
-        "pages": "-",
-        "images": "-"
-      },
-      "timings_secs": {
-        "browse": 91.69,
-        "search": 0.0,
-        "detail": 0.0,
-        "chapters": 0.0,
-        "pages": 0.0,
-        "images": 0.0,
-        "find_page": 0.0,
-        "total": 91.7
+        "total": 1.6
       },
       "search_hits": 0,
       "n_chapters": 0,
@@ -1480,7 +1449,7 @@
         "images": "-"
       },
       "timings_secs": {
-        "browse": 1.6,
+        "browse": 1.55,
         "search": 0.0,
         "detail": 0.0,
         "chapters": 0.0,
