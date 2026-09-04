@@ -212,8 +212,11 @@
   --color-cyan-400: var(--mm-primary-tint);
   --color-cyan-500: var(--mm-accent);
 
-  --shadow-glow: var(--mm-glow);
-  --shadow-glass: var(--mm-glass-shadow);
+  /* Via the shape roles, which default to these theme values: the COLOUR of
+     the glow is the theme's, whether there is a glow at all is the preset's
+     (Flat and Cinema switch both to `none`). */
+  --shadow-glow: var(--shape-glow);
+  --shadow-glass: var(--shape-panel-shadow);
 
   /*
    * NOT themed, on purpose: `--color-void` / `--color-panel` are used almost
@@ -380,6 +383,75 @@
   }
 }
 
+/* ==========================================================================
+   SHAPE ROLES
+   ==========================================================================
+
+   The other half of the design system. A theme answers "what colour is it";
+   these answer "what shape is it" — density, surface treatment, radius, type
+   scale, motion. They are the vocabulary a design preset speaks
+   (`presets.css`), exactly as `--mm-*` is the vocabulary a theme speaks.
+
+   The split is load-bearing, and it is enforced rather than remembered
+   (`shape-tokens.test.ts`):
+
+     - a `--shape-*` value is a LENGTH, a NUMBER, a KEYWORD, or a `var()`
+       pointing at a theme role. Never a colour literal. `--shape-panel-fill`
+       does not say "dark grey at 70%", it says "paint this from whichever
+       role the active theme designates as glass" — so Nord + Compact and Nord
+       + Editorial are both coherent, and adding a theme never touches this
+       file.
+     - a `:root[data-theme=…]` block never declares a `--shape-*`. A palette
+       has no opinion about padding.
+
+   These literals ARE the current app, restated once. Nothing below changed
+   value when the roles were introduced; the rules that used to hard-code
+   `blur(20px)` and `padding: 1.5rem` now read them from here, which is the
+   whole of what made presets possible.
+
+   A separate `:root` block from the colour roles on purpose: it keeps the two
+   vocabularies visually apart, and the theme test suite reads the FIRST
+   `:root {` in this file as the palette base.
+*/
+:root {
+  /* ---- Surface treatment: the most visible axis a preset moves ---- */
+  /* Which theme role a panel paints from, and how much glass sits in front. */
+  --shape-panel-fill: var(--mm-glass-panel);
+  --shape-panel-edge: var(--mm-glass-border);
+  --shape-panel-blur: 20px;
+  --shape-card-fill: var(--mm-glass-card);
+  --shape-card-edge: var(--mm-glass-border);
+  --shape-card-blur: 12px;
+  /* Border weight for the app's own surfaces — hairline today. */
+  --shape-edge-width: 1px;
+  /* The two ambient effects, routed through here so a preset can drop them
+     without knowing what colour they are. */
+  --shape-glow: var(--mm-glow);
+  --shape-panel-shadow: var(--mm-glass-shadow);
+
+  /* ---- Page rhythm ---- */
+  --shape-page-pad: 1.5rem;
+  --shape-page-pad-wide: 2.5rem;
+  /* The measure: how wide content is allowed to run before it stops. */
+  --shape-page-measure: 80rem;
+  --shape-empty-pad: 3rem;
+
+  /* ---- Typography ---- */
+  /* The heading face as a ROLE, so a preset can set headings in the book
+     serif without every call site learning about fonts. */
+  --shape-heading-font: var(--font-display);
+  --shape-title-size: 2.25rem;
+  --shape-title-leading: 1;
+  --shape-title-tracking: 0.025em;
+  --shape-subtitle-size: 0.875rem;
+
+  /* ---- Motion ----
+     A multiplier on the app's own durations, 0 (instant) to 1 (as designed).
+     `presets.ts` carries the same number for the JS-driven motion primitives,
+     which cannot read CSS variables; `preset.test.ts` asserts the two agree. */
+  --shape-motion: 1;
+}
+
 html {
   color-scheme: dark;
 }
@@ -420,19 +492,26 @@ main {
 }
 
 .font-display {
-  font-family: var(--font-display);
+  font-family: var(--shape-heading-font);
 }
 
+/*
+ * The two app surfaces. Everything about them that a preset owns — the fill's
+ * SOURCE, the blur, the edge weight — reads from `--shape-*`; the colour comes
+ * from whichever theme role the shape role points at. `Flat` swaps the fill
+ * from the glass roles to the opaque ones and drops the blur to zero without
+ * naming a single colour.
+ */
 .glass-panel {
-  background: var(--mm-glass-panel);
-  backdrop-filter: blur(20px);
-  border: 1px solid var(--mm-glass-border);
+  background: var(--shape-panel-fill);
+  backdrop-filter: blur(var(--shape-panel-blur));
+  border: var(--shape-edge-width) solid var(--shape-panel-edge);
 }
 
 .glass-card {
-  background: var(--mm-glass-card);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--mm-glass-border);
+  background: var(--shape-card-fill);
+  backdrop-filter: blur(var(--shape-card-blur));
+  border: var(--shape-edge-width) solid var(--shape-card-edge);
 }
 
 .text-glow {
@@ -450,41 +529,42 @@ main {
 .page-shell {
   min-height: 100%;
   background-color: var(--color-bg);
-  padding: 1.5rem;
+  padding: var(--shape-page-pad);
 }
 
 @media (min-width: 768px) {
   .page-shell {
-    padding: 1.5rem 2.5rem;
+    padding: var(--shape-page-pad) var(--shape-page-pad-wide);
   }
 }
 
 .page-container {
   margin-inline: auto;
   width: 100%;
-  max-width: 80rem;
+  max-width: var(--shape-page-measure);
 }
 
 .page-title {
-  font-family: var(--font-display);
-  font-size: 2.25rem;
-  line-height: 1;
-  letter-spacing: 0.025em;
+  font-family: var(--shape-heading-font);
+  font-size: var(--shape-title-size);
+  line-height: var(--shape-title-leading);
+  letter-spacing: var(--shape-title-tracking);
   color: var(--color-fg);
 }
 
 .page-subtitle {
   margin-top: 0.25rem;
-  font-size: 0.875rem;
+  font-size: var(--shape-subtitle-size);
   color: var(--color-muted);
 }
 
 .empty-state {
-  border-radius: 1rem;
-  border: 1px dashed color-mix(in srgb, var(--color-border) 50%, transparent);
-  background: var(--mm-glass-panel);
-  backdrop-filter: blur(20px);
-  padding: 3rem;
+  border-radius: var(--radius-2xl);
+  border: var(--shape-edge-width) dashed
+    color-mix(in srgb, var(--color-border) 50%, transparent);
+  background: var(--shape-panel-fill);
+  backdrop-filter: blur(var(--shape-panel-blur));
+  padding: var(--shape-empty-pad);
   text-align: center;
 }
 
@@ -575,7 +655,8 @@ main {
 }
 
 .reader-end-card-enter {
-  animation: reader-end-card-in 300ms cubic-bezier(0.25, 0.1, 0.25, 1) both;
+  animation: reader-end-card-in calc(300ms * var(--shape-motion))
+    cubic-bezier(0.25, 0.1, 0.25, 1) both;
 }
 
 /*
@@ -594,5 +675,5 @@ main {
 }
 
 .reader-page-transition-enter {
-  animation: reader-page-transition-in 220ms ease-out both;
+  animation: reader-page-transition-in calc(220ms * var(--shape-motion)) ease-out both;
 }
