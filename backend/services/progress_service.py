@@ -1,7 +1,9 @@
 """Source-native reading-position service (spec §3.3, §4.1).
 
-Owns ``chapter_progress`` (per-profile reading position), plus ``bookmarks``
-and ``reading_sessions`` writes.
+Owns ``chapter_progress`` (per-profile reading position) and
+``reading_sessions`` writes. Bookmarks live in ``services.bookmark_service``
+(they are objects with tombstones, not a furthest-wins scalar); the three
+bookmark methods below are delegating shims for existing callers.
 
 The one rule that matters: **furthest-wins merge**. When a client pushes
 progress for a chapter it already has a row for, the row moves *forward* only.
@@ -13,7 +15,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta
-from typing import Annotated, Any
+from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends
 from sqlalchemy import select, tuple_
@@ -23,8 +25,11 @@ from connectors.ids import fully_unquote
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
 from core.time_utils import utcnow
-from database.models import Bookmark, ChapterProgress, ReadingSession
+from database.models import ChapterProgress, ReadingSession
 from database.session import get_db
+
+if TYPE_CHECKING:  # pragma: no cover - typing only
+    from services.bookmark_service import BookmarkService
 
 #: Row-value ``IN`` chunk size for the batch prefetch. Matches the library's
 #: (``followed_series_service._IN_CHUNK``): three bound parameters per key, so
@@ -234,8 +239,7 @@ class ProgressService:
     def _require_profile(self) -> tuple[int, int]:
         """Owner + active profile, for the write paths.
 
-        ``profile_id`` is NOT NULL on chapter_progress / bookmarks /
-        reading_sessions, so a write from the unscoped bucket (an account that
+        ``profile_id`` is NOT NULL on chapter_progress / reading_sessions, so a write from the unscoped bucket (an account that
         owns no profiles, which ``require_profile_context`` lets through) is an
         IntegrityError 500. Return the documented 400 the clients already
         handle instead.
@@ -456,80 +460,41 @@ class ProgressService:
         return [self._serialize(r) for r in rows]
 
     # --- bookmarks -------------------------------------------------------
+    #
+    # Bookmarks moved to ``services.bookmark_service`` when they gained exact
+    # positions and object-sync semantics (design 2026-09-05-smart-bookmarks).
+    # They are NOT progress: progress is an automatic furthest-wins scalar,
+    # a bookmark is a deliberate user-created object with a client id and a
+    # tombstone, and the two merges are opposites. These three delegating
+    # methods remain so existing callers keep working; new code should take a
+    # ``BookmarkService`` directly.
 
-    def add_bookmark(
-        self,
-        *,
-        source_id: str,
-        series_key: str,
-        chapter_key: str,
-        page: int,
-        note: str | None = None,
-    ) -> dict[str, Any]:
-        user_id, profile_id = self._require_profile()
-        row = Bookmark(
-            user_id=user_id,
-            profile_id=profile_id,
-            source_id=source_id,
-            series_key=fully_unquote(series_key),
-            chapter_key=fully_unquote(chapter_key),
-            page=max(1, page),
-            note=note or None,
-        )
-        self._db.add(row)
-        self._db.commit()
-        self._db.refresh(row)
-        return {
-            "id": row.id,
-            "source_id": row.source_id,
-            "series_key": row.series_key,
-            "chapter_key": row.chapter_key,
-            "page": row.page,
-            "note": row.note,
-            "created_at": _iso(row.created_at),
-        }
+    def _bookmarks(self) -> "BookmarkService":
+        from services.bookmark_service import BookmarkService
 
-    def list_bookmarks(
-        self, *, source_id: str | None = None, series_key: str | None = None
-    ) -> list[dict[str, Any]]:
-        user_id, profile_id = self._require_owner()
-        stmt = select(Bookmark).where(Bookmark.user_id == user_id)
-        stmt = (
-            stmt.where(Bookmark.profile_id.is_(None))
-            if profile_id is None
-            else stmt.where(Bookmark.profile_id == profile_id)
+        return BookmarkService(
+            self._db, user_id=self._user_id, profile_id=self._profile_id
         )
-        if source_id:
-            stmt = stmt.where(Bookmark.source_id == source_id)
-        if series_key:
-            stmt = stmt.where(Bookmark.series_key == fully_unquote(series_key))
-        stmt = stmt.order_by(Bookmark.created_at.desc())
-        rows = self._db.execute(stmt).scalars().all()
-        return [
-            {
-                "id": r.id,
-                "source_id": r.source_id,
-                "series_key": r.series_key,
-                "chapter_key": r.chapter_key,
-                "page": r.page,
-                "note": r.note,
-                "created_at": _iso(r.created_at),
-            }
-            for r in rows
-        ]
+
+    def add_bookmark(self, **kwargs: Any) -> dict[str, Any]:
+        """``page=`` is translated, not dropped.
+
+        The pre-design signature took a 1-based ``page``; that column is now
+        ``anchor_index`` (still 1-based, still the page for manga), so a
+        legacy caller keeps working and lands at offset 0.0 of the page it
+        named — the same back-compat rule the migration applies to stored
+        rows.
+        """
+        page = kwargs.pop("page", None)
+        if page is not None:
+            kwargs.setdefault("anchor_index", int(page))
+        return self._bookmarks().add_bookmark(**kwargs)
+
+    def list_bookmarks(self, **kwargs: Any) -> list[dict[str, Any]]:
+        return self._bookmarks().list_bookmarks(**kwargs)
 
     def delete_bookmark(self, bookmark_id: int) -> None:
-        """Delete one of *this profile's* bookmarks, or 404.
-
-        ``list_bookmarks`` is profile-scoped, so a ``user_id``-only check here
-        let a profile delete a bookmark it could not see by guessing its id.
-        """
-        user_id, profile_id = self._require_owner()
-        row = self._db.get(Bookmark, bookmark_id)
-        if row is None or row.user_id != user_id or row.profile_id != profile_id:
-            raise AppError("Bookmark not found.", code="not_found", status_code=404)
-        self._db.delete(row)
-        self._db.commit()
+        self._bookmarks().delete_bookmark(bookmark_id)
 
     # --- reading sessions ------------------------------------------------
 

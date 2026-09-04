@@ -406,6 +406,14 @@ def seed_session(db_session: Session) -> Callable[..., ReadingSession]:
 
 @pytest.fixture
 def seed_bookmark(db_session: Session) -> Callable[..., Bookmark]:
+    """Insert one ``bookmarks`` row directly.
+
+    ``page`` is accepted as the alias it is everywhere else — it lands in
+    ``anchor_index``, which is the page number for manga and the paragraph
+    index for novels (1-based either way).
+    """
+    counter = {"n": 0}
+
     def _make(
         user_id: int,
         profile_id: int,
@@ -413,17 +421,31 @@ def seed_bookmark(db_session: Session) -> Callable[..., Bookmark]:
         source_id: str = "mangadex",
         series_key: str = "series-1",
         chapter_key: str = "ch-1",
-        page: int = 3,
+        page: int | None = None,
+        media_type: str = "manga",
+        anchor_index: int = 3,
+        anchor_fraction: float = 0.0,
+        anchor_total: int = 0,
+        chapter_number: float | None = None,
+        client_id: str | None = None,
         note: str | None = None,
+        **extra: Any,
     ) -> Bookmark:
+        counter["n"] += 1
         row = Bookmark(
             user_id=user_id,
             profile_id=profile_id,
+            client_id=client_id or f"seed-{counter['n']}",
             source_id=source_id,
             series_key=series_key,
             chapter_key=chapter_key,
-            page=page,
+            chapter_number=chapter_number,
+            media_type=media_type,
+            anchor_index=page if page is not None else anchor_index,
+            anchor_fraction=anchor_fraction,
+            anchor_total=anchor_total,
             note=note,
+            **extra,
         )
         db_session.add(row)
         db_session.commit()

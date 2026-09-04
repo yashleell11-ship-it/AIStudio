@@ -357,9 +357,70 @@ class ChapterProgress(Base):
     time_spent_seconds: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
 
+#: ``Bookmark.media_type`` values. The discriminator names what
+#: ``anchor_index`` counts; it is stored rather than derived because deriving
+#: it would mean a connector-registry lookup per row on every listing, and
+#: because the reader that created the bookmark is the only thing that knows
+#: for certain which surface the position came off.
+BOOKMARK_MEDIA_MANGA = "manga"
+BOOKMARK_MEDIA_NOVEL = "novel"
+BOOKMARK_MEDIA_TYPES = frozenset({BOOKMARK_MEDIA_MANGA, BOOKMARK_MEDIA_NOVEL})
+
+
 class Bookmark(Base):
+    """A deliberate, user-created marker at an EXACT position in a chapter.
+
+    Not to be confused with ``ChapterProgress``, which is an automatic,
+    furthest-wins scalar. These two are merged by completely different rules
+    and conflating them is the bug this table's shape exists to prevent
+    (design 2026-09-05-smart-bookmarks §4, §5).
+
+    **Position — one generic anchor, one discriminator.** Manga wants
+    ``page`` + a fraction of that page's height; novels want
+    ``paragraph_index`` + a fraction within that paragraph. Those are
+    different *nouns* but structurally the identical triple: an integer index
+    into an ordered sequence of units, a 0.0–1.0 fraction within the indexed
+    unit, and the number of units the chapter had when the position was
+    captured. Every operation over them — the fraction-of-chapter maths, the
+    clamp-to-nearest-valid degradation, the sync merge, the serializer — is
+    byte-identical between the two media, so two parallel nullable column sets
+    would mean writing each of those four things twice behind an ``if``.
+    ``media_type`` says which noun ``anchor_index`` denotes; the columns stay
+    one set.
+
+    ``anchor_index`` is **1-based for both media** (page 1 is the first page,
+    paragraph 1 is ``paragraphs[0]``). One base for one column: the legacy
+    ``page`` column it replaces was 1-based, so the migration is a straight
+    copy and an old page-only row keeps meaning exactly what it meant.
+
+    ``anchor_total`` is the unit count *at capture time* (0 = the client did
+    not know). It is what turns a position into the "62% of chapter 14" the
+    Bookmarks screen shows without a second round trip — and it is a snapshot,
+    never authoritative: if the chapter has since changed, readers clamp.
+
+    ``chapter_number`` is carried so a bookmark still means something after a
+    source re-keys its chapters and ``chapter_key`` stops resolving.
+
+    **Sync — client id + tombstone.** ``client_id`` is a client-generated
+    opaque string (uuid4 by convention; the server never parses it) and is the
+    sync identity, unique per ``(user_id, profile_id)``. A delete does not
+    remove the row, it stamps ``deleted_at``: without a tombstone a stale
+    device replaying its create outbox resurrects a bookmark the owner
+    deleted. Tombstones are retained (this table is tiny — a few hundred rows
+    per profile at most) so a device that has been offline for months still
+    learns about the delete on its next ``?since=`` pull.
+    """
+
     __tablename__ = "bookmarks"
     __table_args__ = (
+        # The sync identity. Scoped to the profile, not global: a client id is
+        # the profile's own namespace, so two profiles colliding on one is
+        # harmless, and scoping it means the "does this id already exist?"
+        # lookup that drives the whole merge is structurally incapable of
+        # seeing another profile's row.
+        UniqueConstraint(
+            "user_id", "profile_id", "client_id", name="uq_bookmarks_client_id"
+        ),
         Index("ix_bookmarks_user_id", "user_id"),
         Index("ix_bookmarks_profile_id", "profile_id"),
         Index(
@@ -369,6 +430,14 @@ class Bookmark(Base):
             "source_id",
             "series_key",
         ),
+        # The delta-pull index: ``?since=`` walks this, and the Bookmarks
+        # screen's default listing sorts on it.
+        Index(
+            "ix_bookmarks_updated_at",
+            "user_id",
+            "profile_id",
+            "updated_at",
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -376,12 +445,41 @@ class Bookmark(Base):
     profile_id: Mapped[int] = mapped_column(
         ForeignKey("reading_profiles.id", ondelete="CASCADE"), nullable=False
     )
+    #: Client-generated, opaque, never parsed server-side. See the class docstring.
+    client_id: Mapped[str] = mapped_column(String(64), nullable=False)
     source_id: Mapped[str] = mapped_column(String(64), nullable=False)
     series_key: Mapped[str] = mapped_column(String(512), nullable=False)
     chapter_key: Mapped[str] = mapped_column(String(512), nullable=False)
-    page: Mapped[int] = mapped_column(Integer, nullable=False)
+    chapter_number: Mapped[float | None] = mapped_column(Float)
+    media_type: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        default=BOOKMARK_MEDIA_MANGA,
+        server_default=BOOKMARK_MEDIA_MANGA,
+    )
+    #: 1-based page (manga) or paragraph (novel) index.
+    anchor_index: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=1, server_default="1"
+    )
+    #: 0.0–1.0 position WITHIN the indexed unit. A fraction, not pixels: the
+    #: same chapter renders at different widths on phone and web, so
+    #: ``scroll_offset_px``' device-dependence must not be repeated here.
+    anchor_fraction: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.0, server_default="0"
+    )
+    #: Units in the chapter at capture time; 0 means the client did not know.
+    anchor_total: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
     note: Mapped[str | None] = mapped_column(Text)
+    #: Tombstone. NULL = live. Set (never unset) by a delete.
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    #: Last mutation. The last-write-wins clock for the note/position, and the
+    #: cursor a client's ``?since=`` delta pull walks.
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utcnow, onupdate=utcnow
+    )
 
 
 class ReadingSession(Base):
