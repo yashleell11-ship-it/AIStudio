@@ -58,8 +58,16 @@ const ESTIMATE_DRIFT_RATIO = 0.12;
  */
 const DIVIDER_HEIGHT_PX = 92;
 
-/** How far below the viewport top a row must start to count as "being read". */
-const READING_LINE_PX = 80;
+/**
+ * How far below the viewport top a row must start to count as "being read".
+ *
+ * Exported because a bookmark's position has to be measured against the same
+ * line the page number is chosen by: capture the fraction at the viewport top
+ * while `visiblePage` is chosen 80px down, and a bookmark taken just after a
+ * page boundary records "0% of page 9" while the reader is looking at the
+ * bottom of page 8.
+ */
+export const READING_LINE_PX = 80;
 
 /** Page URLs remembered as already warmed, before the set is simply dropped. */
 const PREFETCH_MEMORY_LIMIT = 2000;
@@ -76,6 +84,15 @@ export interface StripHandle {
   scrollToPosition(chapterKey: string, pageNumber: number, offset?: number): void;
   /** Where a page begins, in strip coordinates. */
   pageStart(chapterKey: string, pageNumber: number): number | null;
+  /**
+   * Where a page begins AND ends, in strip coordinates.
+   *
+   * `pageStart` alone cannot answer "how far into this page am I", and a
+   * caller cannot derive the height from the next page's start: the next row
+   * is a divider at a chapter boundary, and there is no next row at all at the
+   * end of the strip. The virtualizer has measured both edges, so it says so.
+   */
+  pageExtent(chapterKey: string, pageNumber: number): { start: number; end: number } | null;
   /** Where a chapter starts and ends in strip coordinates, for its progress. */
   chapterRange(chapterKey: string): { start: number; end: number } | null;
 }
@@ -393,6 +410,17 @@ export function ContinuousStrip({
       pageStart: (chapterKey, pageNumber) => {
         const index = findStripRow(rowsRef.current, chapterKey, pageNumber);
         return index < 0 ? null : rowStart(index);
+      },
+      pageExtent: (chapterKey, pageNumber) => {
+        const index = findStripRow(rowsRef.current, chapterKey, pageNumber);
+        if (index < 0) return null;
+        // Through `rowStart` so the measurement pass runs before the cache is
+        // read; a strip that just changed would otherwise answer with the
+        // previous row list's geometry.
+        const start = rowStart(index);
+        if (start == null) return null;
+        const measured = virtualizer.measurementsCache[index];
+        return { start, end: measured ? measured.end : start };
       },
       chapterRange: (chapterKey) => {
         const strip = rowsRef.current;

@@ -3,16 +3,6 @@ import { http, sourceChapterQuery } from "@/services/http";
 import type { ChapterId, SeriesId } from "@/types/api";
 import type { ReaderChapterContent, ReaderPage } from "./types";
 
-export interface Bookmark {
-  id: number;
-  source_id: string;
-  series_key: string;
-  chapter_key: string;
-  page: number;
-  note: string | null;
-  created_at: string | null;
-}
-
 /** `GET /reader/chapter/manifest` (backend `ReaderService.manifest`). */
 export interface ChapterManifest {
   source_id: string;
@@ -161,21 +151,4 @@ export const readerApi = {
     http.get<ReadingProgress[]>("/reader/progress/series", {
       query: sourceChapterQuery(ref),
     }),
-
-  addBookmark: (ref: ChapterId, page: number, note?: string) =>
-    http.post<Bookmark>("/reader/bookmark", {
-      source_id: ref.sourceId,
-      series_key: ref.seriesKey,
-      chapter_key: ref.chapterKey,
-      page,
-      note,
-    }),
-
-  listBookmarks: (ref?: Partial<SeriesId>) =>
-    http.get<Bookmark[]>("/reader/bookmarks", {
-      query: { source: ref?.sourceId, series: ref?.seriesKey },
-    }),
-
-  deleteBookmark: (bookmarkId: number) =>
-    http.delete<void>(`/reader/bookmarks/${bookmarkId}`),
 };

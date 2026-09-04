@@ -8,6 +8,12 @@ import { useUiStore } from "@/stores/ui-store";
 import { cn } from "@/lib/cn";
 import { moodReaderMargin, useActiveProfileStore } from "@/features/profiles";
 import { DownloadChapterControl } from "@/features/offline";
+import {
+  BookmarkNotice,
+  fractionWithin,
+  pointWithin,
+  resolveAnchor,
+} from "@/features/bookmarks";
 import { autoScrollPxPerSecond } from "../auto-scroll";
 import { readerDebug } from "../debug";
 import { effectiveFitMode, wheelZoomSteps, zoomBy } from "../fit";
@@ -19,7 +25,11 @@ import {
   type PageTurn,
   type TapZone,
 } from "../keymap";
-import { estimateScrollOffsetToPage, resolveContainerWidth } from "../page-layout";
+import {
+  estimatePageHeight,
+  estimateScrollOffsetToPage,
+  resolveContainerWidth,
+} from "../page-layout";
 import { readerChapterHref } from "../reader-link";
 import {
   clearChapterScrollPreparation,
@@ -52,7 +62,11 @@ import { useReaderSettings } from "../use-reader-settings";
 import { useReaderShortcuts } from "../use-reader-shortcuts";
 import type { StripEdge } from "../use-chapter-strip";
 import type { ReadingMode } from "../types";
-import { ContinuousStrip, type StripHandle } from "./ContinuousStrip";
+import {
+  ContinuousStrip,
+  READING_LINE_PX,
+  type StripHandle,
+} from "./ContinuousStrip";
 import { PagedView } from "./PagedView";
 import { ReaderControls, StripHead, StripTail } from "./ReaderControls";
 
@@ -91,7 +105,20 @@ interface ChapterReaderProps {
   chapterPosition?: string | null;
   /** Fires on every scroll frame with the chapter and page being read. */
   onPosition?: (position: StripPosition) => void;
-  onBookmark?: (page: number) => void;
+  /**
+   * Capture the exact spot being read — a page AND how far down it — in one
+   * action (design §5). A page number alone is thousands of pixels of webtoon
+   * strip, which is why this is not `(page: number)`.
+   */
+  onBookmark?: (anchor: CapturedAnchor) => void;
+  /**
+   * Open at an exact position rather than at `initialPage`'s top: the fraction
+   * of that page a bookmark recorded, off the route's `?at=`.
+   */
+  initialAnchorFraction?: number | null;
+  /** A capture just succeeded / just failed — drives the transient pill. */
+  bookmarkSaved?: boolean;
+  bookmarkFailed?: boolean;
   /** Pull the chapter BEFORE the strip's first onto its head. */
   onLoadPrevious?: () => void;
   loadingPrevious?: boolean;
@@ -102,6 +129,19 @@ interface ChapterReaderProps {
   preloadNextChapter?: () => Promise<ReadonlyArray<{ imageUrl: string }>>;
   bookmarkPending?: boolean;
   showBookmark?: boolean;
+}
+
+/** How long the "opened at the nearest page" explanation stays up. */
+const MOVED_NOTICE_MS = 5200;
+
+/** The exact spot a bookmark records: a page, how far into it, and of how many. */
+export interface CapturedAnchor {
+  /** 1-based page in the ACTIVE chapter. */
+  index: number;
+  /** 0.0–1.0 down that page. */
+  fraction: number;
+  /** Pages in that chapter right now — what turns the pair into a percentage. */
+  total: number;
 }
 
 const SCROLL_EDGE_THRESHOLD = 48;
@@ -136,6 +176,9 @@ export function ChapterReader({
   chapterPosition,
   onPosition,
   onBookmark,
+  initialAnchorFraction = null,
+  bookmarkSaved = false,
+  bookmarkFailed = false,
   onLoadPrevious,
   loadingPrevious = false,
   nextError = null,
@@ -302,16 +345,40 @@ export function ChapterReader({
   const entryPages = useMemo(() => entryChapter?.pages ?? [], [entryChapter]);
 
   /**
+   * The bookmark this reader was opened from, resolved against what the entry
+   * chapter actually holds (design §3).
+   *
+   * `null` unless the route carried a `?at=`, which only a bookmark link
+   * produces — a plain `?page=` link keeps the existing "top of that page"
+   * behaviour. `stale` means the source has since re-listed the chapter with
+   * fewer pages than the bookmark recorded, in which case the nearest valid
+   * page is used and the reader is told so, quietly, rather than being dropped
+   * at the top of the chapter with no explanation.
+   */
+  const bookmarkTarget = useMemo(() => {
+    if (initialAnchorFraction == null) return null;
+    const resolved = resolveAnchor(
+      { index: initialPage, fraction: initialAnchorFraction },
+      entryPages.length,
+    );
+    return resolved;
+  }, [entryPages.length, initialAnchorFraction, initialPage]);
+
+  /**
    * Where the reader left the ENTRY chapter: a page, and how far into it.
    *
    * The route's own `?page=` wins when it names one — a link that says where to
-   * go must go there — and otherwise the saved position stands.
+   * go must go there — and otherwise the saved position stands. A bookmark
+   * target outranks both: it names a page AND a fraction of it, and the pixel
+   * offset that fraction works out to cannot be known until the page has been
+   * measured, so it is carried separately and applied by the restore below.
    */
   const savedPosition = useMemo((): ReaderPosition | null => {
     if (!entryChapter) return null;
+    if (bookmarkTarget) return { page: bookmarkTarget.index, offset: 0 };
     if (initialPage > 1) return { page: initialPage, offset: 0 };
     return readReaderPosition(chapterScrollKey(entryChapter));
-  }, [entryChapter, initialPage]);
+  }, [bookmarkTarget, entryChapter, initialPage]);
 
   /**
    * Where the strip lands on its first paint, before anything is measured.
@@ -328,8 +395,17 @@ export function ChapterReader({
 
     const containerWidth = resolveContainerWidth(scrollElement);
     const targetPage = Math.max(1, Math.min(savedPosition?.page ?? 1, entryPages.length));
+    // A bookmark's offset is a FRACTION of the target page, which only becomes
+    // a pixel count once something knows that page's height. Nothing has been
+    // measured yet, so the estimate uses the estimated height — close enough
+    // that the reader does not watch the top of the page on the way down to
+    // where they were, and corrected exactly by the restore below.
+    const within = bookmarkTarget
+      ? bookmarkTarget.fraction *
+        estimatePageHeight(entryPages[targetPage - 1], containerWidth, zoom)
+      : (savedPosition?.offset ?? 0);
     return estimateResumeOffset({
-      position: savedPosition && { page: targetPage, offset: savedPosition.offset },
+      position: savedPosition && { page: targetPage, offset: within },
       pageCount: entryPages.length,
       estimatedOffsetToPage: estimateScrollOffsetToPage(
         entryPages,
@@ -338,7 +414,7 @@ export function ChapterReader({
         zoom,
       ),
     });
-  }, [entryPages, savedPosition, scrollElement, zoom]);
+  }, [bookmarkTarget, entryPages, savedPosition, scrollElement, zoom]);
 
   const stripScrollKey = entryChapter ? chapterScrollKey(entryChapter) : entryChapterKey;
 
@@ -348,6 +424,11 @@ export function ChapterReader({
   useEffect(() => {
     savedPositionRef.current = savedPosition;
   }, [savedPosition]);
+
+  const bookmarkTargetRef = useRef(bookmarkTarget);
+  useEffect(() => {
+    bookmarkTargetRef.current = bookmarkTarget;
+  }, [bookmarkTarget]);
 
   /**
    * Where to resume the chapter being read, resolved at the moment the reader
@@ -463,6 +544,27 @@ export function ChapterReader({
       // strip: it is the only thing that knows where a page really begins.
       if (restoreDoneRef.current) return;
       restoreDoneRef.current = true;
+
+      // A bookmark lands on the exact position, not the chapter start and not
+      // the top of the bookmarked page: the fraction is turned into pixels
+      // against the page's MEASURED extent, and the reading line is put back
+      // where it was — the exact inverse of `captureAnchor` below, so a
+      // capture and a restore with nothing changed in between agree to the
+      // pixel.
+      const target = bookmarkTargetRef.current;
+      if (target) {
+        const extent = handle.pageExtent(entryChapterKey, target.index);
+        const offset = extent
+          ? Math.round(
+              pointWithin(target.fraction, extent.start, extent.end) -
+                extent.start -
+                READING_LINE_PX,
+            )
+          : 0;
+        handle.scrollToPosition(entryChapterKey, target.index, Math.max(0, offset));
+        return;
+      }
+
       const saved = savedPositionRef.current;
       if (!saved || (saved.page <= 1 && saved.offset <= 0)) return;
       handle.scrollToPosition(entryChapterKey, saved.page, saved.offset);
@@ -680,10 +782,66 @@ export function ChapterReader({
     [autoScroll, cinemaCtl, toggleControls, turnPage],
   );
 
+  /**
+   * The exact spot being read, in one action (design §5).
+   *
+   * The fraction is measured at the SAME reading line that chose
+   * `visiblePage`, against that page's measured extent — so the pair is always
+   * self-consistent, and restoring it is `pointWithin` run backwards.
+   *
+   * A paged mode reports 0.0 and means it: the stage shows one page fitted to
+   * the viewport with no scroll of its own, so "how far down the page" has
+   * exactly one honest answer there. That is also why the strip is the only
+   * thing asked — it is the only view with a scroll position inside a page.
+   */
+  const captureAnchor = useCallback((): CapturedAnchor => {
+    const total = pages.length;
+    if (!continuous || !scrollElement || !chapter) {
+      return { index: visiblePage, fraction: 0, total };
+    }
+    const extent = stripHandleRef.current?.pageExtent(chapter.chapterKey, visiblePage);
+    const fraction = extent
+      ? fractionWithin(scrollElement.scrollTop + READING_LINE_PX, extent.start, extent.end)
+      : 0;
+    return { index: visiblePage, fraction, total };
+  }, [chapter, continuous, pages.length, scrollElement, visiblePage]);
+
   const handleBookmark = useCallback(() => {
     if (!showBookmark || !onBookmark) return;
-    onBookmark(visiblePage);
-  }, [onBookmark, showBookmark, visiblePage]);
+    onBookmark(captureAnchor());
+  }, [captureAnchor, onBookmark, showBookmark]);
+
+  /**
+   * "Say so quietly" (design §3): the chapter lost pages since this bookmark
+   * was made, so it opened at the nearest page that still exists. Timed rather
+   * than dismissible — it is an explanation for where the reader landed, and
+   * it stops being useful the moment they start reading.
+   */
+  const anchorMoved = bookmarkTarget?.stale ?? false;
+  const [movedNoticeVisible, setMovedNoticeVisible] = useState(false);
+  useEffect(() => {
+    if (!anchorMoved) {
+      setMovedNoticeVisible(false);
+      return;
+    }
+    setMovedNoticeVisible(true);
+    const timer = window.setTimeout(
+      () => setMovedNoticeVisible(false),
+      MOVED_NOTICE_MS,
+    );
+    return () => window.clearTimeout(timer);
+  }, [anchorMoved]);
+
+  const bookmarkNotice = bookmarkFailed
+    ? { tone: "failed" as const, text: "Couldn't save that spot." }
+    : bookmarkSaved
+      ? { tone: "saved" as const, text: "Saved this spot." }
+      : movedNoticeVisible
+        ? {
+            tone: "moved" as const,
+            text: "That page is gone from this chapter — opened at the nearest one.",
+          }
+        : null;
 
   const zoomIn = useCallback(
     () => updatePreferences({ zoom: zoomBy(zoom, 1) }),
@@ -1083,6 +1241,10 @@ export function ChapterReader({
           visible={chromeVisible}
         />
       </div>
+
+      {bookmarkNotice ? (
+        <BookmarkNotice tone={bookmarkNotice.tone}>{bookmarkNotice.text}</BookmarkNotice>
+      ) : null}
     </div>
   );
 }

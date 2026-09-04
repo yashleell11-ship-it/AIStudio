@@ -2,20 +2,26 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ensureChapterPages, useAddBookmark } from "../hooks";
+import {
+  BOOKMARK_MEDIA_MANGA,
+  useBookmarkCapture,
+} from "@/features/bookmarks";
+import { ensureChapterPages } from "../hooks";
 import { readerChapterHref, seriesPageHref } from "../reader-link";
 import { readerSeriesKey } from "../preferences";
 import { chapterIndexOf, READER_STRIP_WINDOW } from "../strip";
 import { linkedChapterSource } from "../strip-source";
 import { useChapterStrip } from "../use-chapter-strip";
 import { useStripProgress } from "../use-strip-progress";
-import { ChapterReader } from "./ChapterReader";
+import { ChapterReader, type CapturedAnchor } from "./ChapterReader";
 
 interface SourceReaderProps {
   sourceId: string;
   seriesKey: string;
   chapterKey: string;
   initialPage?: number;
+  /** `?at=` — the fraction of `initialPage` a bookmark link is opening at. */
+  initialAnchorFraction?: number | null;
 }
 
 /**
@@ -39,6 +45,7 @@ export function SourceReader({
   seriesKey,
   chapterKey,
   initialPage = 1,
+  initialAnchorFraction = null,
 }: SourceReaderProps) {
   const queryClient = useQueryClient();
 
@@ -49,9 +56,17 @@ export function SourceReader({
   // A real navigation (route change, refresh, deep link) normally remounts via
   // the page's `key`, but follow the props during render anyway if they change
   // under us — the accepted "reset state on prop change" pattern.
-  const [routed, setRouted] = useState({ chapterKey, initialPage });
-  if (routed.chapterKey !== chapterKey || routed.initialPage !== initialPage) {
-    setRouted({ chapterKey, initialPage });
+  const [routed, setRouted] = useState({
+    chapterKey,
+    initialPage,
+    initialAnchorFraction,
+  });
+  if (
+    routed.chapterKey !== chapterKey ||
+    routed.initialPage !== initialPage ||
+    routed.initialAnchorFraction !== initialAnchorFraction
+  ) {
+    setRouted({ chapterKey, initialPage, initialAnchorFraction });
     setActiveChapterKey(chapterKey);
   }
 
@@ -66,7 +81,7 @@ export function SourceReader({
     window: READER_STRIP_WINDOW,
   });
 
-  const addBookmark = useAddBookmark();
+  const bookmark = useBookmarkCapture();
 
   const chapters = strip.chapters;
   const activeChapter = chapters[chapterIndexOf(chapters, activeChapterKey)];
@@ -105,14 +120,29 @@ export function SourceReader({
     onChapterChange: handleChapterChange,
   });
 
+  /**
+   * One deliberate marker at the exact spot being read.
+   *
+   * The anchor arrives already resolved against the ACTIVE chapter — the strip
+   * moves that without a navigation — so the chapter identity here is
+   * `activeChapterKey`, never the key the route opened on. `chapter_number`
+   * rides along so the bookmark still means something if the source re-keys
+   * its chapters (design §3).
+   */
   const handleBookmark = useCallback(
-    (page: number) => {
-      addBookmark.mutate({
-        ref: { sourceId, seriesKey, chapterKey: activeChapterKey },
-        page,
+    (anchor: CapturedAnchor) => {
+      bookmark.capture({
+        source_id: sourceId,
+        series_key: seriesKey,
+        chapter_key: activeChapterKey,
+        chapter_number: activeChapter?.chapterNumber ?? null,
+        media_type: BOOKMARK_MEDIA_MANGA,
+        anchor_index: anchor.index,
+        anchor_fraction: anchor.fraction,
+        anchor_total: anchor.total,
       });
     },
-    [activeChapterKey, addBookmark, seriesKey, sourceId],
+    [activeChapter?.chapterNumber, activeChapterKey, bookmark, seriesKey, sourceId],
   );
 
   return (
@@ -129,12 +159,15 @@ export function SourceReader({
       tail={strip.tail}
       onPosition={handlePosition}
       onBookmark={handleBookmark}
+      initialAnchorFraction={routed.initialAnchorFraction}
+      bookmarkSaved={bookmark.justSaved}
+      bookmarkFailed={bookmark.failed}
       onLoadPrevious={strip.loadPrevious}
       loadingPrevious={strip.loadingPrevious}
       nextError={strip.nextError}
       onRetryNext={strip.retryNext}
       preloadNextChapter={preloadNextChapter}
-      bookmarkPending={addBookmark.isPending}
+      bookmarkPending={bookmark.pending}
       showBookmark
     />
   );

@@ -2,7 +2,6 @@ import { env } from "@/config/env";
 import { http } from "@/services/http";
 import type { SeriesId } from "@/types/api";
 import type {
-  Bookmark,
   Collection,
   CollectionDetail,
   ContinueReadingItem,
@@ -115,18 +114,6 @@ export const libraryApi = {
     http.get<import("./types").ReadingHistoryItem[]>("/reader/history", {
       query: { limit, offset },
     }),
-
-  // --- Bookmarks (progress service) ---
-  listBookmarks: (ref?: Partial<SeriesId>) =>
-    http.get<Bookmark[]>("/reader/bookmarks", {
-      query: {
-        source: ref?.sourceId,
-        series: ref?.seriesKey,
-      },
-    }),
-
-  deleteBookmark: (bookmarkId: number) =>
-    http.delete<void>(`/reader/bookmarks/${bookmarkId}`),
 
   // --- Collections ---
   listCollections: () => http.get<Collection[]>("/library/collections"),
