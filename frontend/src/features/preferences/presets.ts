@@ -49,7 +49,7 @@ export const DEFAULT_DESIGN_PRESET: DesignPreset = "signature";
  * `scoped-storage` appends the `(user, profile)` namespace.
  *
  * Declared here rather than in `preset-store.ts` for the same reason the theme
- * key is: the boot script in `preset-boot.tsx` has to find this key before any
+ * key is: the boot script in `appearance-boot.tsx` has to find this key before any
  * store exists, and a string two files spell independently is a string that
  * will one day be spelled differently.
  */

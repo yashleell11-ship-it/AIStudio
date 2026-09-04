@@ -136,7 +136,7 @@ export function useReadingTheme(): ReadingThemeState {
  * per (user, profile) and the scope only exists once the session and the
  * profile selection have resolved on the client, so there is nothing the server
  * could have serialised. What covers the gap before hydration is the inline
- * boot script (`theme-boot.tsx`), which sets the same attribute from the same
+ * boot script (`appearance-boot.tsx`), which sets the same attribute from the same
  * key before the first paint; this effect then owns it for the rest of the
  * session — profile switches, changes made in another tab, and the picker.
  *
