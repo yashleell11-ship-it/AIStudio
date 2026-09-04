@@ -397,6 +397,9 @@ def test_get_chapters_reuses_a_series_id_learned_from_browsing(connector: OmegaS
     assert len(chapters) == 156
     assert recorder.paths == ["/query", "/chapter/query"]
     assert not any(p.startswith("/series/") for p in recorder.paths)
+    # ...and the id it reused is the real one from the listing, not a
+    # placeholder that would silently query the wrong series.
+    assert recorder.calls[-1][1]["series_id"] == 7
 
 
 def test_chapter_list_is_cached(connector: OmegaScansConnector):
@@ -457,6 +460,22 @@ def test_parse_chapter_pages_from_fixture():
     assert len({p.remote_url for p in pages}) == 11
 
 
+def test_parse_chapter_pages_refuses_a_paywalled_payload():
+    """Defense in depth, exercised directly.
+
+    The real paywalled response also omits ``chapter_data`` entirely, so it
+    would parse to [] even without the flag check -- which means only a
+    payload carrying BOTH the flag and images proves the guard is live. If
+    the API ever starts returning teaser images alongside ``paywall: true``,
+    this is what stops them reaching the reader.
+    """
+    teaser = json.loads(json.dumps(_load("chapter_pages")))
+    teaser["paywall"] = True
+    assert teaser["chapter"]["chapter_data"]["images"], "fixture must carry images"
+
+    assert parse_chapter_pages(teaser, "sex-stopwatch/chapter-1") == []
+
+
 def test_page_images_cost_exactly_one_request(connector: OmegaScansConnector):
     """13 images, one round trip -- there is no per-page resolution step."""
     recorder = Recorder({"/chapter/": _load("chapter_pages_last")})
@@ -513,6 +532,20 @@ def test_page_id_round_trips_through_a_slash_bearing_chapter_key():
     chapter_key = "sex-stopwatch/chapter-155"
     page_id = make_page_id(chapter_key, 7)
     assert page_id == "sex-stopwatch/chapter-155:7"
+    assert page_id_chapter_id(page_id) == chapter_key
+
+
+def test_page_id_splits_on_the_last_colon_not_the_first():
+    """Chapter keys are OPAQUE and may themselves contain a colon.
+
+    Only the final colon is the separator this module wrote, so splitting on
+    the first one would hand back a truncated chapter key and every image in
+    such a chapter would 404. One colon cannot tell the two apart -- this
+    needs a key that carries its own.
+    """
+    chapter_key = "odd-series/chapter-3:extra"
+    page_id = make_page_id(chapter_key, 12)
+    assert page_id == "odd-series/chapter-3:extra:12"
     assert page_id_chapter_id(page_id) == chapter_key
 
 
