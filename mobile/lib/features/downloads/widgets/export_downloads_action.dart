@@ -3,8 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
@@ -67,17 +66,17 @@ Future<void> showDownloadExportSheet(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(
-              AppSpacing.xl2,
-              AppSpacing.xl2,
-              AppSpacing.xl2,
-              AppSpacing.sm,
+            padding: EdgeInsets.fromLTRB(
+              context.space.xl2,
+              context.space.xl2,
+              context.space.xl2,
+              context.space.sm,
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Save to Files', style: AppTypography.h4),
-                const SizedBox(height: AppSpacing.xs),
+                Text('Save to Files', style: context.text.h4),
+                SizedBox(height: context.space.xs),
                 Text(
                   ready.length == 1
                       ? 'Writes a readable copy of this chapter you can open '
@@ -85,7 +84,7 @@ Future<void> showDownloadExportSheet(
                       : 'Writes readable copies of ${ready.length} downloaded '
                           'chapters you can open from the Files app. Your '
                           'downloads stay where they are.',
-                  style: AppTypography.bodySm
+                  style: context.text.bodySm
                       .copyWith(color: context.colors.muted, height: 1.4),
                 ),
               ],
@@ -97,10 +96,10 @@ Future<void> showDownloadExportSheet(
               Icons.photo_library_outlined,
               color: context.colors.primary,
             ),
-            title: Text('Page images', style: AppTypography.labelLg),
+            title: Text('Page images', style: context.text.labelLg),
             subtitle: Text(
               'A numbered folder per chapter. Tap any page to view it.',
-              style: AppTypography.caption.copyWith(color: context.colors.muted),
+              style: context.text.caption.copyWith(color: context.colors.muted),
             ),
             onTap: () =>
                 Navigator.of(sheetContext).pop(ChapterExportFormat.images),
@@ -111,14 +110,14 @@ Future<void> showDownloadExportSheet(
               Icons.folder_zip_outlined,
               color: context.colors.primary,
             ),
-            title: Text('CBZ file', style: AppTypography.labelLg),
+            title: Text('CBZ file', style: context.text.labelLg),
             subtitle: Text(
               'One file per chapter, for comic reader apps.',
-              style: AppTypography.caption.copyWith(color: context.colors.muted),
+              style: context.text.caption.copyWith(color: context.colors.muted),
             ),
             onTap: () => Navigator.of(sheetContext).pop(ChapterExportFormat.cbz),
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
         ],
       ),
     ),
@@ -190,9 +189,9 @@ class _ExportProgressDialog extends StatelessWidget {
             height: 20,
             child: CircularProgressIndicator(strokeWidth: 2),
           ),
-          const SizedBox(width: AppSpacing.lg),
+          SizedBox(width: context.space.lg),
           Expanded(
-            child: Text('Saving to Files…', style: AppTypography.body),
+            child: Text('Saving to Files…', style: context.text.body),
           ),
         ],
       ),
@@ -212,7 +211,7 @@ class _ExportResultDialog extends StatelessWidget {
       backgroundColor: context.colors.surfaceElevated,
       title: Text(
         result.isEmpty ? 'Nothing to save' : 'Saved to Files',
-        style: AppTypography.h4,
+        style: context.text.h4,
       ),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -221,7 +220,7 @@ class _ExportResultDialog extends StatelessWidget {
           if (result.isEmpty)
             Text(
               'None of those chapters are fully on this phone yet.',
-              style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+              style: context.text.bodySm.copyWith(color: context.colors.muted),
             )
           else ...[
             Text(
@@ -229,26 +228,26 @@ class _ExportResultDialog extends StatelessWidget {
                   ? '1 chapter · ${result.pageCount} pages'
                   : '${result.chapterCount} chapters · '
                       '${result.pageCount} pages',
-              style: AppTypography.body,
+              style: context.text.body,
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             SelectableText(
               exportLocationDescription(result, platform),
               key: const Key('export-location'),
-              style: AppTypography.bodySm.copyWith(
+              style: context.text.bodySm.copyWith(
                 color: context.colors.primary,
                 height: 1.4,
               ),
             ),
           ],
           if (result.skippedCount > 0) ...[
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             Text(
               result.skippedCount == 1
                   ? '1 chapter was skipped — it is not fully downloaded.'
                   : '${result.skippedCount} chapters were skipped — they are '
                       'not fully downloaded.',
-              style: AppTypography.caption.copyWith(color: context.colors.muted),
+              style: context.text.caption.copyWith(color: context.colors.muted),
             ),
           ],
         ],

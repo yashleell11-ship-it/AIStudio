@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
@@ -48,7 +47,7 @@ class UpdatesScreen extends ConsumerWidget {
           onPressed: () =>
               context.canPop() ? context.pop() : context.go(Routes.more),
         ),
-        title: Text('Updates', style: AppTypography.h3),
+        title: Text('Updates', style: context.text.h3),
         actions: [
           IconButton(
             tooltip: 'Check now',
@@ -78,23 +77,23 @@ class UpdatesScreen extends ConsumerWidget {
           color: context.colors.primary,
           onRefresh: notifier.refresh,
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             children: [
               FadeIn(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const HeroHeading(text: 'Updates', fontSize: 40),
-                    const SizedBox(height: AppSpacing.xs),
+                    SizedBox(height: context.space.xs),
                     Text(
                       '$unread unread · ${followed.length} followed '
                       '${scope.isNovel ? 'books' : 'series'}',
-                      style: AppTypography.body.copyWith(color: context.colors.muted),
+                      style: context.text.body.copyWith(color: context.colors.muted),
                     ),
-                    const SizedBox(height: AppSpacing.xl2),
+                    SizedBox(height: context.space.xl2),
                     Wrap(
-                      spacing: AppSpacing.sm,
-                      runSpacing: AppSpacing.sm,
+                      spacing: context.space.sm,
+                      runSpacing: context.space.sm,
                       children: [
                         PrimaryPillButton(
                           label: 'Check all now',
@@ -114,9 +113,9 @@ class UpdatesScreen extends ConsumerWidget {
                   ],
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               const _SectionHeader(title: 'Notifications'),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: context.space.md),
               if (notifications.isEmpty)
                 const EmptyState(
                   icon: Icons.notifications_none,
@@ -126,7 +125,7 @@ class UpdatesScreen extends ConsumerWidget {
               else
                 ...notifications.map(
                   (notification) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    padding: EdgeInsets.only(bottom: context.space.md),
                     child: _NotificationCard(
                       notification: notification,
                       onMarkRead: notification.isRead
@@ -138,9 +137,9 @@ class UpdatesScreen extends ConsumerWidget {
                     ),
                   ),
                 ),
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               const _SectionHeader(title: 'Followed series'),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: context.space.md),
               if (followed.isEmpty)
                 const EmptyState(
                   icon: Icons.rss_feed,
@@ -150,7 +149,7 @@ class UpdatesScreen extends ConsumerWidget {
               else
                 ...followed.map(
                   (series) => Padding(
-                    padding: const EdgeInsets.only(bottom: AppSpacing.md),
+                    padding: EdgeInsets.only(bottom: context.space.md),
                     child: _FollowedSeriesCard(
                       series: series,
                       actionPending: state.actionPending,
@@ -182,11 +181,11 @@ class _SectionHeader extends StatelessWidget {
           height: 18,
           decoration: BoxDecoration(
             color: context.colors.primary,
-            borderRadius: BorderRadius.circular(AppRadius.full),
+            borderRadius: BorderRadius.circular(context.radii.full),
           ),
         ),
-        const SizedBox(width: AppSpacing.sm),
-        Text(title, style: AppTypography.h3),
+        SizedBox(width: context.space.sm),
+        Text(title, style: context.text.h3),
       ],
     );
   }
@@ -208,7 +207,7 @@ class _NotificationCard extends StatelessWidget {
         : null;
 
     return GlassPanel(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -217,23 +216,23 @@ class _NotificationCard extends StatelessWidget {
               Expanded(
                 child: Text(
                   notification.chapterTitle,
-                  style: AppTypography.labelLg,
+                  style: context.text.labelLg,
                 ),
               ),
               if (!notification.isRead) const _NewBadge(),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             notification.sourceId,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
           if (date != null) ...[
-            const SizedBox(height: AppSpacing.xs),
-            Text(date, style: AppTypography.caption.copyWith(color: context.colors.muted)),
+            SizedBox(height: context.space.xs),
+            Text(date, style: context.text.caption.copyWith(color: context.colors.muted)),
           ],
           if (onMarkRead != null) ...[
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -258,12 +257,12 @@ class _NewBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
         color: context.colors.primary.withValues(alpha: 0.20),
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         border: Border.all(color: context.colors.primary.withValues(alpha: 0.45)),
       ),
       child: Text(
         'NEW',
-        style: AppTypography.caption.copyWith(
+        style: context.text.caption.copyWith(
           color: context.colors.primary,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.6,
@@ -287,17 +286,17 @@ class _FollowedSeriesCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassPanel(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text(series.title, style: AppTypography.labelLg)),
+              Expanded(child: Text(series.title, style: context.text.labelLg)),
               _KindBadge(label: series.sourceId),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             // chapterCount is 0 until the first successful update check --
             // follow() creates the row without it -- so a freshly followed
@@ -306,7 +305,7 @@ class _FollowedSeriesCard extends StatelessWidget {
             series.chapterCount > 0
                 ? '${series.chapterCount} chapters'
                 : 'Not checked yet',
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
           Row(
             mainAxisAlignment: MainAxisAlignment.end,
@@ -335,12 +334,12 @@ class _KindBadge extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
         color: context.colors.fg.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         border: Border.all(color: context.colors.border),
       ),
       child: Text(
         label,
-        style: AppTypography.caption.copyWith(color: context.colors.muted),
+        style: context.text.caption.copyWith(color: context.colors.muted),
       ),
     );
   }
@@ -352,13 +351,13 @@ class _UpdatesSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
-      children: const [
-        SkeletonBox(width: 200, height: 44),
-        SizedBox(height: AppSpacing.xl2),
-        SkeletonBox(width: double.infinity, height: 100),
-        SizedBox(height: AppSpacing.md),
-        SkeletonBox(width: double.infinity, height: 100),
+      padding: EdgeInsets.all(context.space.xl2),
+      children: [
+        const SkeletonBox(width: 200, height: 44),
+        SizedBox(height: context.space.xl2),
+        const SkeletonBox(width: double.infinity, height: 100),
+        SizedBox(height: context.space.md),
+        const SkeletonBox(width: double.infinity, height: 100),
       ],
     );
   }
@@ -374,18 +373,18 @@ class _UpdatesError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl3),
+        padding: EdgeInsets.all(context.space.xl3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, color: context.colors.danger, size: 48),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             PrimaryPillButton(
               label: 'Retry',
               icon: Icons.refresh,

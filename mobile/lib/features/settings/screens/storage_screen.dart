@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/downloads_storage_card.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -42,13 +41,13 @@ class StorageScreen extends ConsumerWidget {
         title: const Text('Storage'),
       ),
       body: ListView(
-        padding: const EdgeInsets.all(AppSpacing.xl2),
-        children: const [
-          DownloadsStorageCard(),
-          SizedBox(height: AppSpacing.xl2),
-          _ImageCacheCard(),
-          SizedBox(height: AppSpacing.xl2),
-          _MetadataCacheCard(),
+        padding: EdgeInsets.all(context.space.xl2),
+        children: [
+          const DownloadsStorageCard(),
+          SizedBox(height: context.space.xl2),
+          const _ImageCacheCard(),
+          SizedBox(height: context.space.xl2),
+          const _MetadataCacheCard(),
         ],
       ),
     );
@@ -63,36 +62,36 @@ class _ImageCacheCard extends ConsumerWidget {
     final usageAsync = ref.watch(cacheUsageProvider);
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(Icons.image_outlined, color: context.colors.primary, size: 20),
-              const SizedBox(width: AppSpacing.sm),
-              Text('Image cache', style: AppTypography.h4),
+              SizedBox(width: context.space.sm),
+              Text('Image cache', style: context.text.h4),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             'Thumbnails and pages cached for smooth scrolling. Safe to clear '
             'any time — it rebuilds automatically as you browse.',
-            style: AppTypography.bodySm.copyWith(color: context.colors.muted, height: 1.5),
+            style: context.text.bodySm.copyWith(color: context.colors.muted, height: 1.5),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           usageAsync.when(
             loading: () => const SkeletonBox(width: 100, height: 20),
             error: (_, __) => Text(
               'Unable to read cache size',
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
             ),
             data: (bytes) => Text(
               formatStorageBytes(bytes),
-              style: AppTypography.h3,
+              style: context.text.h3,
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           OutlinedButton(
             onPressed: () async {
               await ref.read(settingsActionsProvider).clearImageCache();
@@ -116,24 +115,24 @@ class _MetadataCacheCard extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(Icons.refresh_outlined, color: context.colors.accent, size: 20),
-              const SizedBox(width: AppSpacing.sm),
-              Text('Metadata cache', style: AppTypography.h4),
+              SizedBox(width: context.space.sm),
+              Text('Metadata cache', style: context.text.h4),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             'Library, search and reading-progress data held in memory. '
             'Clearing it forces a fresh fetch from your server on next use.',
-            style: AppTypography.bodySm.copyWith(color: context.colors.muted, height: 1.5),
+            style: context.text.bodySm.copyWith(color: context.colors.muted, height: 1.5),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           OutlinedButton(
             onPressed: () {
               ref.read(settingsActionsProvider).clearMetadataCache();

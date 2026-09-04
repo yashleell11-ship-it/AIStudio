@@ -3,9 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
@@ -75,28 +75,28 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
           child: CustomScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             slivers: [
-              const SliverPadding(
+              SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.lg,
-                  AppSpacing.md,
+                  context.space.lg,
+                  context.space.lg,
+                  context.space.lg,
+                  context.space.md,
                 ),
-                sliver: SliverToBoxAdapter(
+                sliver: const SliverToBoxAdapter(
                   child: HeroHeading(text: 'Sources', fontSize: 40),
                 ),
               ),
               // Above the filter bar, below the heading — the phone's answer
               // to the web's sidebar switch. Renders nothing when the novels
               // gate is shut.
-              const SliverPadding(
+              SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  AppSpacing.lg,
+                  context.space.lg,
                   0,
-                  AppSpacing.lg,
-                  AppSpacing.md,
+                  context.space.lg,
+                  context.space.md,
                 ),
-                sliver: SliverToBoxAdapter(child: ContentModeSwitch()),
+                sliver: const SliverToBoxAdapter(child: ContentModeSwitch()),
               ),
               SliverPersistentHeader(
                 pinned: true,
@@ -138,7 +138,7 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
               ),
               SliverToBoxAdapter(
                 child: SizedBox(
-                  height: AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+                  height: context.space.xl7 + MediaQuery.paddingOf(context).bottom,
                 ),
               ),
             ],
@@ -294,10 +294,10 @@ class _SourcesListScreenState extends ConsumerState<SourcesListScreen> {
     required Widget Function(int index) builder,
   }) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: context.space.lg),
       sliver: SliverList.separated(
         itemCount: count,
-        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+        separatorBuilder: (_, __) => SizedBox(height: context.space.sm),
         itemBuilder: (context, index) {
           // Stagger only the first screenful. The old `(index % 12) * 35`
           // restarted the ramp four times on the way down a 50-item list, so
@@ -353,10 +353,10 @@ class _SourcesFilterBar extends SliverPersistentHeaderDelegate {
     return Container(
       height: _extent,
       color: context.colors.bg,
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
+      padding: EdgeInsets.fromLTRB(
+        context.space.lg,
         _topPad,
-        AppSpacing.lg,
+        context.space.lg,
         _bottomPad,
       ),
       child: Column(
@@ -368,7 +368,7 @@ class _SourcesFilterBar extends SliverPersistentHeaderDelegate {
               controller: controller,
               onChanged: onQueryChanged,
               textInputAction: TextInputAction.search,
-              style: AppTypography.body,
+              style: context.text.body,
               decoration: InputDecoration(
                 isDense: true,
                 prefixIcon: Icon(Icons.search, color: context.colors.muted),
@@ -388,20 +388,20 @@ class _SourcesFilterBar extends SliverPersistentHeaderDelegate {
                 filled: true,
                 fillColor: context.colors.fg.withAlpha(8),
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  borderRadius: BorderRadius.circular(context.radii.xl),
                   borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
                 ),
                 enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  borderRadius: BorderRadius.circular(context.radii.xl),
                   borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
                 ),
                 focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.xl),
+                  borderRadius: BorderRadius.circular(context.radii.xl),
                   borderSide: BorderSide(color: context.colors.primary.withAlpha(77)),
                 ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: AppSpacing.md,
-                  vertical: AppSpacing.md,
+                contentPadding: EdgeInsets.symmetric(
+                  horizontal: context.space.md,
+                  vertical: context.space.md,
                 ),
               ),
             ),
@@ -417,14 +417,14 @@ class _SourcesFilterBar extends SliverPersistentHeaderDelegate {
                   selected: filter == SourcesFilter.all,
                   onTap: () => onFilterChanged(SourcesFilter.all),
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
                 FilterPill(
                   label: 'Pinned',
                   count: pinnedCount,
                   selected: filter == SourcesFilter.pinned,
                   onTap: () => onFilterChanged(SourcesFilter.pinned),
                 ),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
                 FilterPill(
                   label: '18+',
                   selected: filter == SourcesFilter.mature,
@@ -455,10 +455,10 @@ class _SectionHeaderSliver extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(
-        AppSpacing.lg,
-        AppSpacing.sm,
-        AppSpacing.lg,
+      padding: EdgeInsets.fromLTRB(
+        context.space.lg,
+        context.space.sm,
+        context.space.lg,
         0,
       ),
       sliver: SliverToBoxAdapter(
@@ -474,10 +474,10 @@ class _SourcesSkeletonSliver extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.lg),
+      padding: EdgeInsets.symmetric(horizontal: context.space.lg),
       sliver: SliverList.separated(
         itemCount: 8,
-        separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+        separatorBuilder: (_, __) => SizedBox(height: context.space.sm),
         itemBuilder: (_, __) => const SourceRowSkeleton(),
       ),
     );
@@ -496,16 +496,16 @@ class _SourcesErrorSliver extends StatelessWidget {
       hasScrollBody: false,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
+          padding: EdgeInsets.all(context.space.xl2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 message,
                 textAlign: TextAlign.center,
-                style: AppTypography.body.copyWith(color: context.colors.danger),
+                style: context.text.body.copyWith(color: context.colors.danger),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: context.space.lg),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),
             ],
           ),

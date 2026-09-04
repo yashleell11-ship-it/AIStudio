@@ -4,8 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
@@ -112,9 +111,9 @@ class DashboardHero extends StatelessWidget {
 
           // Content
           Positioned(
-            left: AppSpacing.xl2,
-            right: AppSpacing.xl2,
-            bottom: AppSpacing.xl3,
+            left: context.space.xl2,
+            right: context.space.xl2,
+            bottom: context.space.xl3,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
@@ -122,24 +121,24 @@ class DashboardHero extends StatelessWidget {
                 // Brand wordmark
                 Text(
                   'MANHWAMANIACS',
-                  style: AppTypography.displayMd.copyWith(
+                  style: context.text.displayMd.copyWith(
                     fontSize: 13,
                     letterSpacing: 4,
                     color: context.colors.cyan400.withAlpha(180),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: context.space.sm),
                 Text(
                   'Your manga\ncollection.',
-                  style: AppTypography.displayLg.copyWith(
+                  style: context.text.displayLg.copyWith(
                     fontSize: 40,
                     height: 1.0,
                     letterSpacing: 0.5,
                     color: context.colors.fg,
                   ),
                 ),
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
                 Row(
                   children: [
                     FilledButton.icon(
@@ -148,7 +147,7 @@ class DashboardHero extends StatelessWidget {
                       label: const Text('Browse'),
                     ),
                     if (firstContinueItem != null) ...[
-                      const SizedBox(width: AppSpacing.md),
+                      SizedBox(width: context.space.md),
                       OutlinedButton.icon(
                         onPressed: onContinueReading,
                         icon: const Icon(Icons.play_arrow_rounded, size: 16),
@@ -195,21 +194,21 @@ class QuickActionsRow extends StatelessWidget {
           onTap: onSearch,
           accentColor: context.colors.cyan400,
         ),
-        const SizedBox(width: AppSpacing.md),
+        SizedBox(width: context.space.md),
         _QuickActionButton(
           icon: Icons.download_rounded,
           label: 'Downloads',
           onTap: onDownloads,
           accentColor: context.colors.emerald400,
         ),
-        const SizedBox(width: AppSpacing.md),
+        SizedBox(width: context.space.md),
         _QuickActionButton(
           icon: Icons.notifications_rounded,
           label: 'Updates',
           onTap: onUpdates,
           accentColor: context.colors.amber400,
         ),
-        const SizedBox(width: AppSpacing.md),
+        SizedBox(width: context.space.md),
         _QuickActionButton(
           icon: Icons.settings_rounded,
           label: 'Settings',
@@ -240,9 +239,9 @@ class _QuickActionButton extends StatelessWidget {
       child: GlassCard(
         onTap: onTap,
         glowColor: accentColor,
-        padding: const EdgeInsets.symmetric(
-          vertical: AppSpacing.xl,
-          horizontal: AppSpacing.sm,
+        padding: EdgeInsets.symmetric(
+          vertical: context.space.xl,
+          horizontal: context.space.sm,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -262,10 +261,10 @@ class _QuickActionButton extends StatelessWidget {
               ),
               child: Icon(icon, color: accentColor, size: 20),
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Text(
               label,
-              style: AppTypography.labelSm.copyWith(
+              style: context.text.labelSm.copyWith(
                 color: context.colors.muted,
                 fontWeight: FontWeight.w600,
               ),
@@ -305,9 +304,9 @@ class RecentlyUpdatedCarousel extends ConsumerWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            padding: EdgeInsets.only(bottom: context.space.xs),
             itemCount: series.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.lg),
+            separatorBuilder: (_, __) => SizedBox(width: context.space.lg),
             itemBuilder: (context, index) {
               final item = series[index];
               return _TrendingCoverCard(
@@ -341,7 +340,7 @@ class _TrendingCoverCard extends StatelessWidget {
       child: SizedBox(
         width: 148,
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.xl),
+          borderRadius: BorderRadius.circular(context.radii.xl),
           child: Stack(
             fit: StackFit.expand,
             children: [
@@ -349,7 +348,7 @@ class _TrendingCoverCard extends StatelessWidget {
                 url: coverUrl,
                 width: 148,
                 height: 220,
-                borderRadius: AppRadius.xl,
+                borderRadius: context.radii.xl,
               ),
               // Gradient overlay
               DecoratedBox(
@@ -366,14 +365,14 @@ class _TrendingCoverCard extends StatelessWidget {
                 ),
               ),
               Positioned(
-                left: AppSpacing.md,
-                right: AppSpacing.md,
-                bottom: AppSpacing.md,
+                left: context.space.md,
+                right: context.space.md,
+                bottom: context.space.md,
                 child: Text(
                   title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.labelSm.copyWith(
+                  style: context.text.labelSm.copyWith(
                     color: Colors.white,
                     height: 1.3,
                     fontWeight: FontWeight.w600,
@@ -417,9 +416,9 @@ class ContinueReadingSection extends ConsumerWidget {
           child: ListView.separated(
             scrollDirection: Axis.horizontal,
             clipBehavior: Clip.none,
-            padding: const EdgeInsets.only(bottom: AppSpacing.xs),
+            padding: EdgeInsets.only(bottom: context.space.xs),
             itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(width: AppSpacing.md),
+            separatorBuilder: (_, __) => SizedBox(width: context.space.md),
             itemBuilder: (context, index) {
               final item = items[index];
               return _ContinueReadingCard(
@@ -456,18 +455,18 @@ class _ContinueReadingCard extends StatelessWidget {
       child: GlassCard(
         onTap: onTap,
         glowColor: context.colors.primary,
-        padding: const EdgeInsets.all(AppSpacing.lg),
+        padding: EdgeInsets.all(context.space.lg),
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.md),
+              borderRadius: BorderRadius.circular(context.radii.md),
               child: SeriesCoverImage(
                 url: coverUrl,
                 width: 64,
                 height: 88,
               ),
             ),
-            const SizedBox(width: AppSpacing.lg),
+            SizedBox(width: context.space.lg),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -477,18 +476,18 @@ class _ContinueReadingCard extends StatelessWidget {
                     label.primary,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.labelLg.copyWith(fontWeight: FontWeight.w600),
+                    style: context.text.labelLg.copyWith(fontWeight: FontWeight.w600),
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
+                  SizedBox(height: context.space.xxs),
                   Text(
                     item.sourceId,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption.copyWith(color: context.colors.muted),
+                    style: context.text.caption.copyWith(color: context.colors.muted),
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: context.space.md),
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.full),
+                    borderRadius: BorderRadius.circular(context.radii.full),
                     child: LinearProgressIndicator(
                       value: item.progressPct,
                       minHeight: 3,
@@ -496,17 +495,17 @@ class _ContinueReadingCard extends StatelessWidget {
                       color: context.colors.primary,
                     ),
                   ),
-                  const SizedBox(height: AppSpacing.xs),
+                  SizedBox(height: context.space.xs),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
                         'Page ${item.lastPage}',
-                        style: AppTypography.caption.copyWith(color: context.colors.muted, fontSize: 10),
+                        style: context.text.caption.copyWith(color: context.colors.muted, fontSize: 10),
                       ),
                       Text(
                         '${(item.progressPct * 100).round()}%',
-                        style: AppTypography.caption.copyWith(
+                        style: context.text.caption.copyWith(
                           fontSize: 10,
                           color: context.colors.primary,
                           fontWeight: FontWeight.w600,
@@ -537,8 +536,8 @@ class StatsGrid extends StatelessWidget {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.lg,
-      crossAxisSpacing: AppSpacing.lg,
+      mainAxisSpacing: context.space.lg,
+      crossAxisSpacing: context.space.lg,
       childAspectRatio: 1.05,
       children: [
         StatCard(
@@ -576,56 +575,56 @@ class DashboardSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView(
-      padding: const EdgeInsets.only(bottom: AppSpacing.xl3),
-      children: const [
-        SizedBox(height: 240),
+      padding: EdgeInsets.only(bottom: context.space.xl3),
+      children: [
+        const SizedBox(height: 240),
         Padding(
-          padding: EdgeInsets.symmetric(horizontal: AppSpacing.xl2),
+          padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              SkeletonBox(width: double.infinity, height: 80),
-              SizedBox(height: AppSpacing.xl3),
-              SkeletonBox(width: 160, height: 16),
-              SizedBox(height: AppSpacing.lg),
+              const SkeletonBox(width: double.infinity, height: 80),
+              SizedBox(height: context.space.xl3),
+              const SkeletonBox(width: 160, height: 16),
+              SizedBox(height: context.space.lg),
               SizedBox(
                 height: 220,
                 child: Row(
                   children: [
-                    SkeletonBox(width: 148, height: 220, borderRadius: 20),
-                    SizedBox(width: AppSpacing.lg),
-                    SkeletonBox(width: 148, height: 220, borderRadius: 20),
-                    SizedBox(width: AppSpacing.lg),
-                    SkeletonBox(width: 148, height: 220, borderRadius: 20),
+                    const SkeletonBox(width: 148, height: 220, borderRadius: 20),
+                    SizedBox(width: context.space.lg),
+                    const SkeletonBox(width: 148, height: 220, borderRadius: 20),
+                    SizedBox(width: context.space.lg),
+                    const SkeletonBox(width: 148, height: 220, borderRadius: 20),
                   ],
                 ),
               ),
-              SizedBox(height: AppSpacing.xl3),
+              SizedBox(height: context.space.xl3),
               Row(
                 children: [
-                  Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
-                  SizedBox(width: AppSpacing.lg),
-                  Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
+                  const Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
+                  SizedBox(width: context.space.lg),
+                  const Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
                 ],
               ),
-              SizedBox(height: AppSpacing.lg),
+              SizedBox(height: context.space.lg),
               Row(
                 children: [
-                  Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
-                  SizedBox(width: AppSpacing.lg),
-                  Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
+                  const Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
+                  SizedBox(width: context.space.lg),
+                  const Expanded(child: SkeletonBox(width: double.infinity, height: 130)),
                 ],
               ),
-              SizedBox(height: AppSpacing.xl3),
-              SkeletonBox(width: 180, height: 16),
-              SizedBox(height: AppSpacing.lg),
-              SkeletonBox(width: double.infinity, height: 120),
-              SizedBox(height: AppSpacing.xl3),
-              SkeletonBox(width: 180, height: 16),
-              SizedBox(height: AppSpacing.lg),
-              SkeletonBox(width: double.infinity, height: 64),
-              SizedBox(height: AppSpacing.sm),
-              SkeletonBox(width: double.infinity, height: 64),
+              SizedBox(height: context.space.xl3),
+              const SkeletonBox(width: 180, height: 16),
+              SizedBox(height: context.space.lg),
+              const SkeletonBox(width: double.infinity, height: 120),
+              SizedBox(height: context.space.xl3),
+              const SkeletonBox(width: 180, height: 16),
+              SizedBox(height: context.space.lg),
+              const SkeletonBox(width: double.infinity, height: 64),
+              SizedBox(height: context.space.sm),
+              const SkeletonBox(width: double.infinity, height: 64),
             ],
           ),
         ),

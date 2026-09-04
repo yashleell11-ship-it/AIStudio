@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 
 /// Warm brand mark + gradient hero title + subtitle shown at the top of the
@@ -29,7 +27,7 @@ class AuthHeader extends StatelessWidget {
               end: Alignment.bottomRight,
               colors: [context.colors.primary, context.colors.accent],
             ),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+            borderRadius: BorderRadius.circular(context.radii.lg),
             boxShadow: [
               BoxShadow(
                 color: context.colors.primary.withValues(alpha: 0.28),
@@ -41,16 +39,16 @@ class AuthHeader extends StatelessWidget {
           child: Center(
             child: Text(
               'M',
-              style: AppTypography.h1.copyWith(color: Colors.white),
+              style: context.text.h1.copyWith(color: Colors.white),
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         HeroHeading(text: title, fontSize: 38),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         Text(
           subtitle,
-          style: AppTypography.body.copyWith(color: context.colors.muted),
+          style: context.text.body.copyWith(color: context.colors.muted),
         ),
       ],
     );

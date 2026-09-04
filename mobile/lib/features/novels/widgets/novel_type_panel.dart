@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/novels/models/novel_palette.dart';
 import 'package:manhwamaniacs/features/novels/models/novel_typography.dart';
 import 'package:manhwamaniacs/features/novels/providers/novel_preferences_provider.dart';
@@ -39,8 +38,8 @@ class NovelTypePanel extends ConsumerWidget {
       backgroundColor: surface.bg,
       barrierColor: Colors.black.withValues(alpha: 0.4),
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(context.radii.xl)),
       ),
       builder: (context) => NovelTypePanel(
         seriesPrefsKey: seriesPrefsKey,
@@ -63,11 +62,11 @@ class NovelTypePanel extends ConsumerWidget {
     return SafeArea(
       top: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.md,
-          AppSpacing.lg,
-          AppSpacing.lg,
+        padding: EdgeInsets.fromLTRB(
+          context.space.lg,
+          context.space.md,
+          context.space.lg,
+          context.space.lg,
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -83,13 +82,13 @@ class NovelTypePanel extends ConsumerWidget {
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             _FaceToggle(
               value: prefs.fontFamily,
               surface: surface,
               onChanged: controller.setFontFamily,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             _Stepper(
               label: 'Text size',
               value: '${prefs.fontSize.round()}',
@@ -135,9 +134,9 @@ class NovelTypePanel extends ConsumerWidget {
                       )
                   : null,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             _SectionLabel('Page', surface: surface),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             _PaletteGrid(
               choice: choice,
               surface: surface,
@@ -188,18 +187,18 @@ class _FaceToggle extends StatelessWidget {
           Expanded(
             child: Padding(
               padding: EdgeInsets.only(
-                right: family == NovelFontFamily.serif ? AppSpacing.sm : 0,
+                right: family == NovelFontFamily.serif ? context.space.sm : 0,
               ),
               child: InkWell(
                 onTap: () => onChanged(family),
-                borderRadius: BorderRadius.circular(AppRadius.md),
+                borderRadius: BorderRadius.circular(context.radii.md),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(vertical: AppSpacing.md),
+                  padding: EdgeInsets.symmetric(vertical: context.space.md),
                   decoration: BoxDecoration(
                     color: value == family
                         ? surface.ink.withValues(alpha: 0.10)
                         : Colors.transparent,
-                    borderRadius: BorderRadius.circular(AppRadius.md),
+                    borderRadius: BorderRadius.circular(context.radii.md),
                     border: Border.all(
                       color: value == family ? surface.ink : surface.rule,
                     ),
@@ -243,7 +242,7 @@ class _Stepper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+      padding: EdgeInsets.symmetric(vertical: context.space.xs),
       child: Row(
         children: [
           Expanded(
@@ -260,9 +259,9 @@ class _Stepper extends StatelessWidget {
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
           ),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
           _RoundButton(icon: Icons.remove, surface: surface, onTap: onLess),
-          const SizedBox(width: AppSpacing.xs),
+          SizedBox(width: context.space.xs),
           _RoundButton(icon: Icons.add, surface: surface, onTap: onMore),
         ],
       ),
@@ -320,8 +319,8 @@ class _PaletteGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
+      spacing: context.space.sm,
+      runSpacing: context.space.sm,
       children: [
         for (final palette in NovelPalettes.all)
           _Swatch(
@@ -374,15 +373,15 @@ class _Swatch extends StatelessWidget {
       label: label,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.space.md,
+            vertical: context.space.sm,
           ),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(context.radii.md),
             border: Border.all(
               color: selected ? selectedOutline : outline,
               width: selected ? 2 : 1,

@@ -1,11 +1,7 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_scrub.dart';
@@ -13,6 +9,7 @@ import 'package:manhwamaniacs/features/reader/widgets/immersive_safe_area.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
 
 // Speed label for auto-scroll
 String _autoScrollLabel(double speed) {
@@ -25,12 +22,13 @@ const _controlsAnimMs = 220;
 
 // ── Shared glass surface ──────────────────────────────────────────────────────
 
-/// Blurred, translucent panel used by the reader's top and bottom bars so the
-/// overlay stays "almost invisible" over the page while remaining legible.
+/// The reader's top and bottom bars, so the overlay stays "almost invisible"
+/// over the page while remaining legible.
 ///
-/// Eclipse Warm frosted glass — mirrors the app's bottom nav (blur 18, near-
-/// black surface, subtle border) plus a soft warm-amber glow so the reader
-/// chrome reads as part of the same warm system.
+/// Mirrors the app's bottom nav — same chrome blur, same border, plus a soft
+/// accent glow — but at the preset's reader opacity, which is lower than the
+/// nav's on every preset because this one sits directly on the page being
+/// read. Under a solid preset the blur and the glow both leave the tree.
 class _GlassSurface extends StatelessWidget {
   const _GlassSurface({required this.child, this.padding});
 
@@ -39,7 +37,7 @@ class _GlassSurface extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final br = BorderRadius.circular(AppRadius.xl);
+    final br = BorderRadius.circular(context.radii.xl);
     return DecoratedBox(
       decoration: BoxDecoration(
         borderRadius: br,
@@ -49,26 +47,31 @@ class _GlassSurface extends StatelessWidget {
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
-          // Warm amber halo — the Eclipse Warm accent.
-          BoxShadow(
-            color: context.colors.primary.withAlpha(20),
-            blurRadius: 24,
-            spreadRadius: -6,
-          ),
+          // Warm halo in the palette's accent — decoration, so the presets
+          // that drop glows elsewhere drop it here too.
+          if (context.surfaces.glowAlpha > 0)
+            BoxShadow(
+              color: context.colors.primary.withAlpha(20),
+              blurRadius: 24,
+              spreadRadius: -6,
+            ),
         ],
       ),
       child: ClipRRect(
         borderRadius: br,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: ChromeBlur(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: context.colors.surface.withAlpha(184),
+              color: context.colors.surface
+                  .withValues(alpha: context.readerChrome.surfaceOpacity),
               borderRadius: br,
-              border: Border.all(color: context.colors.border),
+              border: Border.all(
+                color: context.colors.border,
+                width: context.strokes.border,
+              ),
             ),
             child: Padding(
-              padding: padding ?? const EdgeInsets.all(AppSpacing.xs),
+              padding: padding ?? EdgeInsets.all(context.space.xs),
               child: child,
             ),
           ),
@@ -146,14 +149,14 @@ class ReaderTopBar extends StatelessWidget {
       child: ImmersiveSafeArea(
         bottom: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.md,
+          padding: EdgeInsets.fromLTRB(
+            context.space.md,
+            context.space.sm,
+            context.space.md,
             0,
           ),
           child: _GlassSurface(
-            padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xs),
+            padding: EdgeInsets.symmetric(horizontal: context.space.xs),
             child: Row(
               children: [
                 IconButton(
@@ -178,11 +181,11 @@ class ReaderTopBar extends StatelessWidget {
                       type: MaterialType.transparency,
                       child: InkWell(
                         onTap: onOpenSeries,
-                        borderRadius: BorderRadius.circular(AppRadius.md),
+                        borderRadius: BorderRadius.circular(context.radii.md),
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppSpacing.sm,
-                            vertical: AppSpacing.sm,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: context.space.sm,
+                            vertical: context.space.sm,
                           ),
                           child: Row(
                             children: [
@@ -191,12 +194,12 @@ class ReaderTopBar extends StatelessWidget {
                                   chapterTitle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: AppTypography.labelLg.copyWith(
+                                  style: context.text.labelLg.copyWith(
                                     fontWeight: FontWeight.w600,
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: AppSpacing.xs),
+                              SizedBox(width: context.space.xs),
                               Icon(
                                 Icons.chevron_right_rounded,
                                 size: 18,
@@ -294,16 +297,16 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
       child: ImmersiveSafeArea(
         top: false,
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
+          padding: EdgeInsets.fromLTRB(
+            context.space.md,
             0,
-            AppSpacing.md,
-            AppSpacing.sm,
+            context.space.md,
+            context.space.sm,
           ),
           child: _GlassSurface(
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xs,
-              vertical: AppSpacing.xs,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.space.xs,
+              vertical: context.space.xs,
             ),
             child: Row(
               children: [
@@ -321,7 +324,7 @@ class _ReaderBottomBarState extends State<ReaderBottomBar> {
                       Text(
                         'Page ${readerScrubValue(page, pageCount).round()}'
                         ' / $pageCount',
-                        style: AppTypography.labelSm.copyWith(
+                        style: context.text.labelSm.copyWith(
                           color: context.colors.muted,
                         ),
                       ),
@@ -414,27 +417,27 @@ class ChapterEdgePrompt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.lg,
-        vertical: AppSpacing.xl2,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.space.lg,
+        vertical: context.space.xl2,
       ),
       child: Center(
         child: GlassCard(
           onTap: onTap,
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.xl2,
-            vertical: AppSpacing.md,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.space.xl2,
+            vertical: context.space.md,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               if (direction == EdgeDirection.previous) ...[
                 Icon(Icons.chevron_left, color: context.colors.primary, size: 18),
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
               ],
-              Text(label, style: AppTypography.labelLg),
+              Text(label, style: context.text.labelLg),
               if (direction == EdgeDirection.next) ...[
-                const SizedBox(width: AppSpacing.sm),
+                SizedBox(width: context.space.sm),
                 Icon(Icons.chevron_right, color: context.colors.primary, size: 18),
               ],
             ],
@@ -487,11 +490,11 @@ class ReaderMoreSheet extends ConsumerWidget {
 
     return SafeArea(
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.xl2,
-          AppSpacing.lg,
-          AppSpacing.xl2,
-          AppSpacing.xl2,
+        padding: EdgeInsets.fromLTRB(
+          context.space.xl2,
+          context.space.lg,
+          context.space.xl2,
+          context.space.xl2,
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -516,7 +519,7 @@ class ReaderMoreSheet extends ConsumerWidget {
                           },
                   ),
                 ),
-                const SizedBox(width: AppSpacing.md),
+                SizedBox(width: context.space.md),
                 Expanded(
                   child: _SheetNavButton(
                     label: 'Next',
@@ -539,7 +542,7 @@ class ReaderMoreSheet extends ConsumerWidget {
             // where this reader already keeps everything else it can do, and it
             // stays put until dismissed.
             if (onOpenSeries != null) ...[
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: context.space.md),
               SizedBox(
                 width: double.infinity,
                 child: _SheetNavButton(
@@ -553,12 +556,12 @@ class ReaderMoreSheet extends ConsumerWidget {
                 ),
               ),
             ],
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             const Divider(height: 1),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             // Reader settings — direction
-            Text('Reading direction', style: AppTypography.labelLg),
-            const SizedBox(height: AppSpacing.xs),
+            Text('Reading direction', style: context.text.labelLg),
+            SizedBox(height: context.space.xs),
             SegmentedButton<ReadingDirection>(
               segments: ReadingDirection.values
                   .map((d) => ButtonSegment(value: d, label: Text(d.label)))
@@ -567,9 +570,9 @@ class ReaderMoreSheet extends ConsumerWidget {
               showSelectedIcon: false,
               onSelectionChanged: (s) => settings.setDirection(s.first),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Fit mode', style: AppTypography.labelLg),
-            const SizedBox(height: AppSpacing.xs),
+            SizedBox(height: context.space.lg),
+            Text('Fit mode', style: context.text.labelLg),
+            SizedBox(height: context.space.xs),
             SegmentedButton<ReaderFitMode>(
               segments: ReaderFitMode.values
                   .map((f) => ButtonSegment(value: f, label: Text(f.label)))
@@ -578,12 +581,12 @@ class ReaderMoreSheet extends ConsumerWidget {
               showSelectedIcon: false,
               onSelectionChanged: (s) => settings.setFitMode(s.first),
             ),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Refresh rate', style: AppTypography.labelLg),
-            const SizedBox(height: AppSpacing.xs),
+            SizedBox(height: context.space.lg),
+            Text('Refresh rate', style: context.text.labelLg),
+            SizedBox(height: context.space.xs),
             Wrap(
-              spacing: AppSpacing.sm,
-              runSpacing: AppSpacing.xs,
+              spacing: context.space.sm,
+              runSpacing: context.space.xs,
               children: ReaderRefreshRate.values.map((rate) {
                 return ChoiceChip(
                   label: Text(rate.label),
@@ -592,11 +595,11 @@ class ReaderMoreSheet extends ConsumerWidget {
                 );
               }).toList(),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             const Divider(height: 1),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             // Display — brightness, warmth, page backdrop
-            Text('Brightness', style: AppTypography.labelLg),
+            Text('Brightness', style: context.text.labelLg),
             Row(
               children: [
                 Icon(Icons.brightness_low, size: 18, color: context.colors.muted),
@@ -610,7 +613,7 @@ class ReaderMoreSheet extends ConsumerWidget {
                 Icon(Icons.brightness_high, size: 18, color: context.colors.muted),
               ],
             ),
-            Text('Warmth', style: AppTypography.labelLg),
+            Text('Warmth', style: context.text.labelLg),
             Row(
               children: [
                 Icon(Icons.nightlight_round, size: 16, color: context.colors.muted),
@@ -623,11 +626,11 @@ class ReaderMoreSheet extends ConsumerWidget {
                 Icon(Icons.wb_sunny_outlined, size: 16, color: context.colors.muted),
               ],
             ),
-            const SizedBox(height: AppSpacing.xs),
-            Text('Page background', style: AppTypography.labelLg),
-            const SizedBox(height: AppSpacing.xs),
+            SizedBox(height: context.space.xs),
+            Text('Page background', style: context.text.labelLg),
+            SizedBox(height: context.space.xs),
             Wrap(
-              spacing: AppSpacing.sm,
+              spacing: context.space.sm,
               children: ReaderBackground.values.map((bg) {
                 return ChoiceChip(
                   label: Text(bg.label),
@@ -636,11 +639,11 @@ class ReaderMoreSheet extends ConsumerWidget {
                 );
               }).toList(),
             ),
-            const SizedBox(height: AppSpacing.sm),
-            Text('Color mode', style: AppTypography.labelLg),
-            const SizedBox(height: AppSpacing.xs),
+            SizedBox(height: context.space.sm),
+            Text('Color mode', style: context.text.labelLg),
+            SizedBox(height: context.space.xs),
             Wrap(
-              spacing: AppSpacing.sm,
+              spacing: context.space.sm,
               children: ReaderColorMode.values.map((mode) {
                 return ChoiceChip(
                   label: Text(mode.label),
@@ -649,9 +652,9 @@ class ReaderMoreSheet extends ConsumerWidget {
                 );
               }).toList(),
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             const Divider(height: 1),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             // Zoom controls
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -674,14 +677,14 @@ class ReaderMoreSheet extends ConsumerWidget {
               ],
             ),
             // Auto-scroll
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             const Divider(height: 1),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Row(
               children: [
                 Icon(Icons.play_circle_outline, size: 18, color: context.colors.muted),
-                const SizedBox(width: AppSpacing.sm),
-                Text('Auto-scroll', style: AppTypography.labelLg),
+                SizedBox(width: context.space.sm),
+                Text('Auto-scroll', style: context.text.labelLg),
                 const Spacer(),
                 Switch(
                   value: ui.autoScrollEnabled,
@@ -691,12 +694,12 @@ class ReaderMoreSheet extends ConsumerWidget {
               ],
             ),
             if (ui.autoScrollEnabled) ...[
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: context.space.xs),
               Row(
                 children: [
                   Text(
                     'Speed: ${_autoScrollLabel(ui.autoScrollSpeed)}',
-                    style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                    style: context.text.bodySm.copyWith(color: context.colors.muted),
                   ),
                   Expanded(
                     child: Slider(
@@ -712,7 +715,7 @@ class ReaderMoreSheet extends ConsumerWidget {
             ],
             // Bookmark
             if (showBookmark && onBookmark != null) ...[
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: context.space.sm),
               TextButton.icon(
                 onPressed: () {
                   Navigator.pop(context);
@@ -751,9 +754,9 @@ class _SheetNavButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (!iconTrailing) Icon(icon, size: 18),
-        if (!iconTrailing) const SizedBox(width: AppSpacing.xs),
+        if (!iconTrailing) SizedBox(width: context.space.xs),
         Text(label),
-        if (iconTrailing) const SizedBox(width: AppSpacing.xs),
+        if (iconTrailing) SizedBox(width: context.space.xs),
         if (iconTrailing) Icon(icon, size: 18),
       ],
     );

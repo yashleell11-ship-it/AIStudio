@@ -1,8 +1,8 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_metrics.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
@@ -50,7 +50,7 @@ class SeriesCard extends ConsumerWidget {
           AspectRatio(
             aspectRatio: 2 / 3,
             child: ClipRRect(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               child: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -58,7 +58,7 @@ class SeriesCard extends ConsumerWidget {
                     tag: seriesCoverHeroTag(series.id),
                     child: SeriesCoverImage(
                       url: followedSeriesCoverUrl(baseUrl, series) ?? '',
-                      borderRadius: AppRadius.xl,
+                      borderRadius: context.radii.xl,
                     ),
                   ),
                   if (selected)
@@ -66,7 +66,7 @@ class SeriesCard extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: context.colors.primary.withAlpha(60),
                         border: Border.all(color: context.colors.primary, width: 3),
-                        borderRadius: BorderRadius.circular(AppRadius.xl),
+                        borderRadius: BorderRadius.circular(context.radii.xl),
                       ),
                     ),
                   // Bottom gradient for text legibility
@@ -90,21 +90,21 @@ class SeriesCard extends ConsumerWidget {
                   ),
                   if (series.readingStatus.isNotEmpty)
                     Positioned(
-                      left: AppSpacing.sm,
-                      top: AppSpacing.sm,
+                      left: context.space.sm,
+                      top: context.space.sm,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
-                          vertical: AppSpacing.xxs,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.space.sm,
+                          vertical: context.space.xxs,
                         ),
                         decoration: BoxDecoration(
                           color: readingStatusColor(context, series.readingStatus)
                               .withAlpha(220),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          borderRadius: BorderRadius.circular(context.radii.sm),
                         ),
                         child: Text(
                           readingStatusLabel(series.readingStatus).toUpperCase(),
-                          style: AppTypography.caption.copyWith(
+                          style: context.text.caption.copyWith(
                             fontSize: 9,
                             fontWeight: FontWeight.w700,
                             color: Colors.white,
@@ -115,14 +115,14 @@ class SeriesCard extends ConsumerWidget {
                     ),
                   if (selectionMode)
                     Positioned(
-                      right: AppSpacing.xs,
-                      top: AppSpacing.xs,
+                      right: context.space.xs,
+                      top: context.space.xs,
                       child: _SelectionCheckbox(selected: selected),
                     )
                   else ...[
                     Positioned(
-                      right: AppSpacing.xs,
-                      top: AppSpacing.xs,
+                      right: context.space.xs,
+                      top: context.space.xs,
                       child: _FavoriteButton(
                         isFavorite: series.isFavorite,
                         onPressed: onToggleFavorite,
@@ -130,15 +130,15 @@ class SeriesCard extends ConsumerWidget {
                     ),
                     if (onRemove != null)
                       Positioned(
-                        left: AppSpacing.xs,
-                        top: AppSpacing.xs,
+                        left: context.space.xs,
+                        top: context.space.xs,
                         child: _RemoveButton(onPressed: onRemove!),
                       ),
                   ],
                   Positioned(
-                    left: AppSpacing.md,
-                    right: AppSpacing.md,
-                    bottom: AppSpacing.md,
+                    left: context.space.md,
+                    right: context.space.md,
+                    bottom: context.space.md,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -146,20 +146,26 @@ class SeriesCard extends ConsumerWidget {
                           series.title,
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
-                          style: AppTypography.label.copyWith(
+                          style: context.text.label.copyWith(
                             color: Colors.white,
                             height: 1.2,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        const SizedBox(height: AppSpacing.xxs),
-                        Text(
-                          '${series.chapterCount} ch',
-                          style: AppTypography.caption.copyWith(
-                            color: Colors.white.withAlpha(160),
-                            fontSize: 10,
+                        // The chapter count is the line a minimal preset
+                        // drops: it duplicates what the progress label under
+                        // the cover already says, and on a smaller card the
+                        // title needs the room more.
+                        if (context.layout.cardDetail != CardDetail.minimal) ...[
+                          SizedBox(height: context.space.xxs),
+                          Text(
+                            '${series.chapterCount} ch',
+                            style: context.text.caption.copyWith(
+                              color: Colors.white.withAlpha(160),
+                              fontSize: 10,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -167,7 +173,7 @@ class SeriesCard extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           _ProgressLabel(series: series),
         ],
       ),
@@ -203,7 +209,7 @@ class SeriesListTile extends ConsumerWidget {
       onLongPress: onLongPress,
       child: GlassCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(context.space.md),
       child: Row(
         children: [
           Hero(
@@ -214,35 +220,35 @@ class SeriesListTile extends ConsumerWidget {
               height: 64,
             ),
           ),
-          const SizedBox(width: AppSpacing.lg),
+          SizedBox(width: context.space.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Wrap(
-                  spacing: AppSpacing.sm,
+                  spacing: context.space.sm,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
                     Text(
                       series.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.labelLg,
+                      style: context.text.labelLg,
                     ),
                     if (series.readingStatus.isNotEmpty)
                       Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: AppSpacing.sm,
+                        padding: EdgeInsets.symmetric(
+                          horizontal: context.space.sm,
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
                           color: readingStatusColor(context, series.readingStatus)
                               .withAlpha(204),
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                          borderRadius: BorderRadius.circular(context.radii.sm),
                         ),
                         child: Text(
                           readingStatusLabel(series.readingStatus).toUpperCase(),
-                          style: AppTypography.caption.copyWith(
+                          style: context.text.caption.copyWith(
                             fontSize: 10,
                             fontWeight: FontWeight.w600,
                             color: Colors.white,
@@ -254,7 +260,7 @@ class SeriesListTile extends ConsumerWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${series.chapterCount} chapters',
-                  style: AppTypography.caption.copyWith(color: context.colors.muted),
+                  style: context.text.caption.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -268,7 +274,7 @@ class SeriesListTile extends ConsumerWidget {
               compact: true,
             ),
             if (onRemove != null) ...[
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: context.space.sm),
               _RemoveButton(onPressed: onRemove!),
             ],
           ],
@@ -380,7 +386,7 @@ class _ProgressLabel extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             'Favorite',
-            style: AppTypography.caption.copyWith(color: context.colors.warning),
+            style: context.text.caption.copyWith(color: context.colors.warning),
           ),
         ],
       );
@@ -388,7 +394,7 @@ class _ProgressLabel extends StatelessWidget {
 
     return Text(
       readingStatusLabel(series.readingStatus),
-      style: AppTypography.caption.copyWith(color: context.colors.muted),
+      style: context.text.caption.copyWith(color: context.colors.muted),
     );
   }
 }
@@ -444,24 +450,27 @@ class SeriesGrid extends ConsumerWidget {
                 selected: selectedIds.contains(items[i].id),
               ),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
           ],
         ],
       );
     }
 
-    // Fewer columns as covers scale up; clamp to a sensible range.
+    // Fewer columns as covers scale up; clamp to a sensible range. The design
+    // preset then biases that: a density-first preset fits one more column in,
+    // a content-maximal one takes one out to make the covers bigger.
+    final layout = context.layout;
     final base = context.seriesGridColumns;
-    final columns = (base / coverScale).round().clamp(2, 6);
+    final columns = layout.columnsFor((base / coverScale).round());
 
     return GridView.builder(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: columns,
-        crossAxisSpacing: AppSpacing.md,
-        mainAxisSpacing: AppSpacing.xl,
-        childAspectRatio: 0.52,
+        crossAxisSpacing: context.space.md,
+        mainAxisSpacing: context.space.xl,
+        childAspectRatio: layout.gridAspectRatio,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/utils/register_error_message.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_error.dart';
@@ -142,11 +142,11 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: GlassPanel(
-                padding: const EdgeInsets.all(AppSpacing.xl2),
+                padding: EdgeInsets.all(context.space.xl2),
                 child: registrationClosed
                     ? _buildClosed(context)
                     : _buildForm(
@@ -171,7 +171,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           subtitle: 'This server is not accepting new accounts right now. Ask '
               'an administrator for access.',
         ),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         PrimaryPillButton(
           label: 'Back to sign in',
           expanded: true,
@@ -198,7 +198,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   'becomes the administrator.'
               : 'Create your ManhwaManiacs account to get started.',
         ),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         TextField(
           controller: _usernameController,
           decoration: const InputDecoration(
@@ -210,7 +210,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           enableSuggestions: false,
           enabled: !_pending,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         TextField(
           controller: _passwordController,
           decoration: InputDecoration(
@@ -234,7 +234,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           enableSuggestions: false,
           enabled: !_pending,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         TextField(
           controller: _confirmPasswordController,
           decoration: InputDecoration(
@@ -266,7 +266,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
         // account on a fresh server never needs one — and otherwise only when
         // the server's bootstrap-status probe says it requires one.
         if (inviteCodeRequired) ...[
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           TextField(
             controller: _inviteCodeController,
             decoration: const InputDecoration(
@@ -280,7 +280,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             onSubmitted: (_) => _submit(),
           ),
         ],
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         TextField(
           controller: _displayNameController,
           decoration: const InputDecoration(
@@ -290,7 +290,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           textInputAction: TextInputAction.next,
           enabled: !_pending,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         TextField(
           controller: _emailController,
           decoration: const InputDecoration(
@@ -304,10 +304,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           onSubmitted: (_) => _submit(),
         ),
         if (errorMessage != null) ...[
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           AuthError(message: errorMessage),
         ],
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         // Warm CTA pill. `_submit` already no-ops while pending; the
         // IgnorePointer + dimming just makes that visually clear.
         IgnorePointer(
@@ -325,7 +325,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             ),
           ),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         TextButton(
           onPressed: _pending ? null : () => context.go(Routes.login),
           child: const Text('I already have an account'),

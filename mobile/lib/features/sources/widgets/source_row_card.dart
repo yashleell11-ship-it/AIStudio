@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/sources/models/source.dart';
 import 'package:manhwamaniacs/features/sources/utils/source_branding.dart';
 import 'package:manhwamaniacs/features/sources/widgets/source_pin_button.dart';
@@ -44,15 +42,15 @@ class SourceRowCard extends StatelessWidget {
       child: DecoratedBox(
         decoration: BoxDecoration(
           color: context.colors.surface,
-          borderRadius: BorderRadius.circular(AppRadius.lg),
+          borderRadius: BorderRadius.circular(context.radii.lg),
           border: Border.all(color: context.colors.border),
         ),
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(
-            AppSpacing.md,
-            AppSpacing.sm,
-            AppSpacing.xs,
-            AppSpacing.sm,
+          padding: EdgeInsets.fromLTRB(
+            context.space.md,
+            context.space.sm,
+            context.space.xs,
+            context.space.sm,
           ),
           child: Row(
             children: [
@@ -66,7 +64,7 @@ class SourceRowCard extends StatelessWidget {
                   iconUrl: source.iconUrl,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: context.space.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -79,7 +77,7 @@ class SourceRowCard extends StatelessWidget {
                             source.name,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: AppTypography.bodyLg.copyWith(
+                            style: context.text.bodyLg.copyWith(
                               fontWeight: FontWeight.w600,
                               color: unavailable
                                   ? context.colors.muted
@@ -88,7 +86,7 @@ class SourceRowCard extends StatelessWidget {
                           ),
                         ),
                         if (source.mature) ...[
-                          const SizedBox(width: AppSpacing.sm),
+                          SizedBox(width: context.space.sm),
                           const _MatureBadge(),
                         ],
                       ],
@@ -99,7 +97,7 @@ class SourceRowCard extends StatelessWidget {
                         subtitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: AppTypography.bodySm.copyWith(
+                        style: context.text.bodySm.copyWith(
                           color: context.colors.muted,
                         ),
                       ),
@@ -107,7 +105,7 @@ class SourceRowCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: context.space.sm),
               SourcePinButton(
                 sourceId: source.id,
                 sourceName: source.name,
@@ -128,15 +126,15 @@ class _MatureBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm, vertical: 1),
+      padding: EdgeInsets.symmetric(horizontal: context.space.sm, vertical: 1),
       decoration: BoxDecoration(
         color: context.colors.danger.withAlpha(28),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(context.radii.sm),
         border: Border.all(color: context.colors.danger.withAlpha(90)),
       ),
       child: Text(
         '18+',
-        style: AppTypography.labelSm.copyWith(
+        style: context.text.labelSm.copyWith(
           color: context.colors.danger,
           fontWeight: FontWeight.w700,
         ),
@@ -154,28 +152,28 @@ class SourceRowSkeleton extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: context.colors.surface,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(context.radii.lg),
         border: Border.all(color: context.colors.border),
       ),
-      child: const Padding(
+      child: Padding(
         padding: EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.md,
+          horizontal: context.space.md,
+          vertical: context.space.md,
         ),
         child: Row(
           children: [
-            SkeletonBox(
+            const SkeletonBox(
               width: SourceRowCard.logoSize,
               height: SourceRowCard.logoSize,
             ),
-            SizedBox(width: AppSpacing.md),
+            SizedBox(width: context.space.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  SkeletonBox(width: 140, height: 14),
-                  SizedBox(height: AppSpacing.sm),
-                  SkeletonBox(width: 90, height: 10),
+                  const SkeletonBox(width: 140, height: 14),
+                  SizedBox(height: context.space.sm),
+                  const SkeletonBox(width: 90, height: 10),
                 ],
               ),
             ),

@@ -5,9 +5,19 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 const libraryQueryPrefsKey = 'manhwamaniacs:library-query';
 
-LibraryQuery readLibraryQuery(SharedPreferences prefs) {
+/// Reads the persisted library query.
+///
+/// [defaultViewMode] is the active design preset's layout: a preset supplies
+/// the *default* a reader has never overridden, and nothing more. Once someone
+/// taps grid or list that choice is written here and wins over every preset
+/// from then on — changing the design must not silently undo a decision the
+/// reader already made.
+LibraryQuery readLibraryQuery(
+  SharedPreferences prefs, {
+  LibraryViewMode defaultViewMode = LibraryViewMode.grid,
+}) {
   final raw = prefs.getString(libraryQueryPrefsKey);
-  if (raw == null || raw.isEmpty) return const LibraryQuery();
+  if (raw == null || raw.isEmpty) return LibraryQuery(viewMode: defaultViewMode);
 
   try {
     final parsed = jsonDecode(raw);
@@ -29,11 +39,11 @@ LibraryQuery readLibraryQuery(SharedPreferences prefs) {
       viewMode: _parseEnum(
         LibraryViewMode.values,
         viewModeName,
-        LibraryViewMode.grid,
+        defaultViewMode,
       ),
     );
   } catch (_) {
-    return const LibraryQuery();
+    return LibraryQuery(viewMode: defaultViewMode);
   }
 }
 

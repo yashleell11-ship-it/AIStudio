@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Primary call-to-action pill using the warm "cta-gradient".
 ///
@@ -40,7 +39,7 @@ class PrimaryPillButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final radius = BorderRadius.circular(AppRadius.pill);
+    final radius = BorderRadius.circular(context.radii.pill);
 
     final content = Row(
       mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
@@ -48,7 +47,7 @@ class PrimaryPillButton extends StatelessWidget {
       children: [
         if (icon != null) ...[
           Icon(icon, size: 18, color: Colors.white),
-          const SizedBox(width: AppSpacing.sm),
+          SizedBox(width: context.space.sm),
         ],
         Flexible(
           child: Text(
@@ -56,7 +55,7 @@ class PrimaryPillButton extends StatelessWidget {
             textAlign: TextAlign.center,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: AppTypography.labelLg.copyWith(
+            style: context.text.labelLg.copyWith(
               color: Colors.white,
               fontWeight: FontWeight.w500,
               letterSpacing: 1.2,
@@ -97,9 +96,9 @@ class PrimaryPillButton extends StatelessWidget {
               // 2px white outline sitting inside the pill (outline-offset:-3).
               border: Border.all(color: Colors.white, width: 2),
             ),
-            padding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl2,
-              vertical: AppSpacing.md + 2,
+            padding: EdgeInsets.symmetric(
+              horizontal: context.space.xl2,
+              vertical: context.space.md + 2,
             ),
             child: content,
           ),

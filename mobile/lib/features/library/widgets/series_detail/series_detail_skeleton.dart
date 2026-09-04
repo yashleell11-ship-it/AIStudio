@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
 /// Loading placeholder for the series page.
@@ -13,12 +13,12 @@ class SeriesDetailSkeleton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(
-      padding: EdgeInsets.all(AppSpacing.xl2),
+    return SingleChildScrollView(
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AspectRatio(
+          const AspectRatio(
             aspectRatio: 2 / 3,
             child: SkeletonBox(
               width: double.infinity,
@@ -26,20 +26,20 @@ class SeriesDetailSkeleton extends StatelessWidget {
               borderRadius: 12,
             ),
           ),
-          SizedBox(height: AppSpacing.xl2),
-          SkeletonBox(width: 220, height: 32),
-          SizedBox(height: AppSpacing.md),
-          SkeletonBox(width: 140, height: 16),
-          SizedBox(height: AppSpacing.sm),
-          SkeletonBox(width: 200, height: 14),
-          SizedBox(height: AppSpacing.lg),
-          SkeletonBox(width: double.infinity, height: 72),
-          SizedBox(height: AppSpacing.xl2),
-          SkeletonBox(width: double.infinity, height: 48, borderRadius: 999),
-          SizedBox(height: AppSpacing.xl3),
-          SkeletonBox(width: 120, height: 20),
-          SizedBox(height: AppSpacing.lg),
-          ChapterListSkeleton(),
+          SizedBox(height: context.space.xl2),
+          const SkeletonBox(width: 220, height: 32),
+          SizedBox(height: context.space.md),
+          const SkeletonBox(width: 140, height: 16),
+          SizedBox(height: context.space.sm),
+          const SkeletonBox(width: 200, height: 14),
+          SizedBox(height: context.space.lg),
+          const SkeletonBox(width: double.infinity, height: 72),
+          SizedBox(height: context.space.xl2),
+          const SkeletonBox(width: double.infinity, height: 48, borderRadius: 999),
+          SizedBox(height: context.space.xl3),
+          const SkeletonBox(width: 120, height: 20),
+          SizedBox(height: context.space.lg),
+          const ChapterListSkeleton(),
         ],
       ),
     );
@@ -54,9 +54,9 @@ class ChapterListSkeleton extends StatelessWidget {
     return Column(
       children: List.generate(
         6,
-        (_) => const Padding(
-          padding: EdgeInsets.only(bottom: AppSpacing.sm),
-          child: SkeletonBox(width: double.infinity, height: 64),
+        (_) => Padding(
+          padding: EdgeInsets.only(bottom: context.space.sm),
+          child: const SkeletonBox(width: double.infinity, height: 64),
         ),
       ),
     );

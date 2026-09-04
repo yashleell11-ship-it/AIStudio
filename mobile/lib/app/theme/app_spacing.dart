@@ -1,4 +1,17 @@
-/// Spacing constants matching Tailwind's default scale (4px base unit).
+/// The base spacing scale — Tailwind's default steps (4px base unit).
+///
+/// Widgets do **not** read this directly any more: they read
+/// `context.space.<step>`, which resolves through the active design preset
+/// so density follows the preset the way colour follows the theme. What
+/// lives here is the *shipped* rhythm, and `AppPresets.signature` is built
+/// from these very constants so the default preset and this scale cannot
+/// drift apart.
+///
+/// Two kinds of call site still read it directly, both deliberately: layout
+/// math that has to be known outside a build (a `SliverPersistentHeader`
+/// extent) and the reader's scroll geometry, where the padding constant and
+/// the offset arithmetic must agree exactly or every page lands in the
+/// wrong place.
 abstract final class AppSpacing {
   static const double xxs = 2;
   static const double xs = 4;
@@ -14,7 +27,11 @@ abstract final class AppSpacing {
   static const double xl7 = 80;
 }
 
-/// Border radius constants — Eclipse Warm uses pills + large soft cards.
+/// The base corner-radius scale — pills plus large soft cards.
+///
+/// As with [AppSpacing], widgets read `context.radii.<step>` so corners
+/// follow the active preset; these constants are the shipped values that
+/// `AppPresets.signature` is built from.
 abstract final class AppRadius {
   static const double xs = 4;
   static const double sm = 6;

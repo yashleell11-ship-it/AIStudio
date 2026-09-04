@@ -1,8 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Maps known source IDs to their site favicon URLs for branding. Shared by the
 /// sources list and the source browser so the mapping lives in exactly one
@@ -57,7 +56,7 @@ class SourceLogo extends StatelessWidget {
       height: size,
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         color: context.colors.surface2,
         border: Border.all(color: context.colors.glassEdge),
       ),
@@ -95,7 +94,7 @@ class _LetterAvatar extends StatelessWidget {
       child: Center(
         child: Text(
           initial,
-          style: (size >= 40 ? AppTypography.h4 : AppTypography.labelLg)
+          style: (size >= 40 ? context.text.h4 : context.text.labelLg)
               .copyWith(color: context.colors.violet400),
         ),
       ),

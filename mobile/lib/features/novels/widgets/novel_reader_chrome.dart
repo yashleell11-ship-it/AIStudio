@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_chapter_view.dart';
 import 'package:manhwamaniacs/features/reader/widgets/immersive_safe_area.dart';
 
@@ -77,7 +77,7 @@ class NovelReaderChrome extends StatelessWidget {
                   ),
                   if (isOffline)
                     Padding(
-                      padding: const EdgeInsets.only(right: AppSpacing.xs),
+                      padding: EdgeInsets.only(right: context.space.xs),
                       child: Icon(
                         Icons.cloud_off_rounded,
                         size: 18,

@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/collections/providers/collection_sort_provider.dart';
 import 'package:manhwamaniacs/features/collections/providers/collections_provider.dart';
@@ -89,22 +88,22 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
               slivers: [
                 SliverToBoxAdapter(
                   child: Padding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl2,
-                      AppSpacing.xl2,
-                      AppSpacing.xl2,
-                      AppSpacing.lg,
+                    padding: EdgeInsets.fromLTRB(
+                      context.space.xl2,
+                      context.space.xl2,
+                      context.space.xl2,
+                      context.space.lg,
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const HeroHeading(text: 'Collections'),
-                        const SizedBox(height: AppSpacing.xs),
+                        SizedBox(height: context.space.xs),
                         Text(
                           collections.isEmpty
                               ? 'Organize your library into custom collections.'
                               : '${collections.length} collection${collections.length == 1 ? '' : 's'}',
-                          style: AppTypography.body.copyWith(color: context.colors.muted),
+                          style: context.text.body.copyWith(color: context.colors.muted),
                         ),
                       ],
                     ),
@@ -113,7 +112,7 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
                 if (collections.isNotEmpty)
                   SliverToBoxAdapter(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.xl2),
+                      padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
                       child: Column(
                         children: [
                           TextField(
@@ -125,7 +124,7 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
                             onChanged: (value) =>
                                 ref.read(collectionSearchProvider.notifier).state = value,
                           ),
-                          const SizedBox(height: AppSpacing.md),
+                          SizedBox(height: context.space.md),
                           Align(
                             alignment: Alignment.centerLeft,
                             child: PopupMenuButton<CollectionSort>(
@@ -146,7 +145,7 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: AppSpacing.xl2),
+                          SizedBox(height: context.space.xl2),
                         ],
                       ),
                     ),
@@ -177,15 +176,15 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl2,
+                    padding: EdgeInsets.fromLTRB(
+                      context.space.xl2,
                       0,
-                      AppSpacing.xl2,
-                      AppSpacing.xl4,
+                      context.space.xl2,
+                      context.space.xl4,
                     ),
                     sliver: SliverList.separated(
                       itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.lg),
+                      separatorBuilder: (_, __) => SizedBox(height: context.space.lg),
                       itemBuilder: (context, index) {
                         final collection = filtered[index];
                         return CollectionBannerCard(
@@ -222,16 +221,16 @@ class _CollectionsError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl2),
+        padding: EdgeInsets.all(context.space.xl2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: context.colors.danger),
+              style: context.text.body.copyWith(color: context.colors.danger),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),
           ],
         ),

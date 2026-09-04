@@ -1,7 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 
 /// Maps [AsyncValue] to loading / error / data widgets.
@@ -65,7 +65,7 @@ class _DefaultError extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               error.userMessage,
-              style: AppTypography.body,
+              style: context.text.body,
               textAlign: TextAlign.center,
             ),
           ],

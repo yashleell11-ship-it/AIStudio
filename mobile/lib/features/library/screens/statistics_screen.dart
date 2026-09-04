@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
@@ -47,9 +46,9 @@ class StatisticsScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load statistics.',
-                style: AppTypography.body.copyWith(color: context.colors.danger),
+                style: context.text.body.copyWith(color: context.colors.danger),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: context.space.lg),
               FilledButton(
                 onPressed: () => ref.invalidate(statisticsProvider),
                 child: const Text('Retry'),
@@ -61,15 +60,15 @@ class StatisticsScreen extends ConsumerWidget {
           color: context.colors.primary,
           onRefresh: () async => ref.invalidate(statisticsProvider),
           child: ListView(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             children: [
               const HeroHeading(text: 'Reading Statistics'),
-              const SizedBox(height: AppSpacing.xs),
+              SizedBox(height: context.space.xs),
               Text(
                 stats.hasReadingHistory
                     ? 'Built from every chapter you read in the app.'
                     : 'Your library at a glance.',
-                style: AppTypography.body.copyWith(color: context.colors.muted),
+                style: context.text.body.copyWith(color: context.colors.muted),
               ),
               // The breakdowns below carry a source id and are scoped to the
               // active mode. The all-time totals, the streak and the clock are
@@ -78,51 +77,51 @@ class StatisticsScreen extends ConsumerWidget {
               // combined number sit under a "Novels" app.
               if (scope.novelsEnabled && stats.hasReadingHistory)
                 Padding(
-                  padding: const EdgeInsets.only(top: AppSpacing.xs),
+                  padding: EdgeInsets.only(top: context.space.xs),
                   child: Text(
                     'Streak, totals and the clock cover everything you read; '
                     'the breakdowns below are '
                     '${scope.isNovel ? 'novels' : 'manga'} only.',
-                    style: AppTypography.caption
+                    style: context.text.caption
                         .copyWith(color: context.colors.muted),
                   ),
                 ),
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               if (!stats.hasReadingHistory) ...[
                 NoReadingHistoryCard(followedTotal: stats.followedTotal),
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
               ] else ...[
                 StreakCard(stats: stats),
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: context.space.md),
                 ActivityCard(stats: stats),
                 // The clock plots the same window as the activity chart, so
                 // it follows it directly and shares its emptiness: a window
                 // with nothing read would draw 24 floor ticks and no insight.
                 if (stats.hasWindowActivity) ...[
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: context.space.md),
                   ReadingClockCard(byHour: stats.byHour),
                 ],
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
                 const SectionHeader(
                   icon: Icons.query_stats_outlined,
                   title: 'All-Time Reading',
                 ),
                 ReadingTotalsGrid(totals: stats.totals),
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
                 if (scope.filter(stats.bySource, (s) => s.sourceId)
                     case final bySource when bySource.isNotEmpty) ...[
                   SourceBreakdownCard(sources: bySource),
-                  const SizedBox(height: AppSpacing.xl2),
+                  SizedBox(height: context.space.xl2),
                 ],
                 if (scope.filter(stats.bySeries, (s) => s.sourceId)
                     case final bySeries when bySeries.isNotEmpty) ...[
                   TopSeriesSection(series: bySeries),
-                  const SizedBox(height: AppSpacing.lg),
+                  SizedBox(height: context.space.lg),
                 ],
                 if (scope.filter(stats.recentSessions, (s) => s.sourceId)
                     case final sessions when sessions.isNotEmpty) ...[
                   RecentSessionsSection(sessions: sessions),
-                  const SizedBox(height: AppSpacing.xl2),
+                  SizedBox(height: context.space.xl2),
                 ],
               ],
               const SectionHeader(
@@ -131,10 +130,10 @@ class StatisticsScreen extends ConsumerWidget {
               ),
               LibraryShapeGrid(stats: stats),
               if (stats.byReadingStatus.isNotEmpty) ...[
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: context.space.md),
                 ReadingStatusCard(byReadingStatus: stats.byReadingStatus),
               ],
-              const SizedBox(height: AppSpacing.xl3),
+              SizedBox(height: context.space.xl3),
             ],
           ),
         ),
@@ -152,25 +151,25 @@ class _StatisticsSkeleton extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListView(
       physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       children: [
         const SkeletonBox(width: 220, height: 30),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: context.space.md),
         const SkeletonBox(width: 160, height: 14),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         const SkeletonBox(width: double.infinity, height: 140),
-        const SizedBox(height: AppSpacing.md),
+        SizedBox(height: context.space.md),
         const SkeletonBox(width: double.infinity, height: 220),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         for (var row = 0; row < 2; row++) ...[
-          const Row(
+          Row(
             children: [
-              Expanded(child: SkeletonBox(width: double.infinity, height: 90)),
-              SizedBox(width: AppSpacing.md),
-              Expanded(child: SkeletonBox(width: double.infinity, height: 90)),
+              const Expanded(child: SkeletonBox(width: double.infinity, height: 90)),
+              SizedBox(width: context.space.md),
+              const Expanded(child: SkeletonBox(width: double.infinity, height: 90)),
             ],
           ),
-          if (row == 0) const SizedBox(height: AppSpacing.md),
+          if (row == 0) SizedBox(height: context.space.md),
         ],
       ],
     );

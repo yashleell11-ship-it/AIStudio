@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart' show ScrollCacheExtent;
 import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/core/platform/native_bridge.dart';
 import 'package:manhwamaniacs/core/platform/system_ui.dart';
@@ -34,7 +34,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _scrollSaveMs = 250;
 const _progressSaveMs = 500;
 const _autoNextChapterMs = 900;
-const _controlsAutoHideMs = 3000;
 
 /// Minimum milliseconds after a scroll event before a tap is treated as intentional.
 const _postScrollCooldownMs = 300;
@@ -675,8 +674,11 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
   void _scheduleHideControls() {
     _hideControlsTimer?.cancel();
+    // How long the bars stay up is the design preset's call: Cinema retires
+    // them in 1.2s so the page owns the screen, everything else keeps the 3s
+    // the reader has always used.
     _hideControlsTimer = Timer(
-      const Duration(milliseconds: _controlsAutoHideMs),
+      context.readerChrome.autoHideAfter,
       () {
         if (mounted) {
           ref.read(readerUiProvider.notifier).setControlsVisible(false);
@@ -860,8 +862,8 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       // Swipe-down-to-dismiss with a visible grab handle (system back alone was
       // not discoverable). enableDrag defaults to true.
       showDragHandle: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(context.radii.xl)),
       ),
       builder: (_) => ReaderMoreSheet(
         onPreviousChapter: widget.onPreviousChapter,

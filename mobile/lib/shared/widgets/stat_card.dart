@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 
 enum StatAccent { violet, cyan, emerald, amber }
@@ -31,7 +30,7 @@ class StatCard extends StatelessWidget {
 
     return GlassCard(
       glowColor: glowColor,
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
@@ -43,7 +42,7 @@ class StatCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(context.radii.md),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -67,24 +66,24 @@ class StatCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.xl),
+          SizedBox(height: context.space.xl),
           Text(
             value,
-            style: AppTypography.h1.copyWith(
+            style: context.text.h1.copyWith(
               fontFeatures: const [FontFeature.tabularFigures()],
               color: context.colors.fg,
             ),
           ),
-          const SizedBox(height: AppSpacing.xxs),
+          SizedBox(height: context.space.xxs),
           Text(
             label,
-            style: AppTypography.caption.copyWith(
+            style: context.text.caption.copyWith(
               color: context.colors.muted,
               fontWeight: FontWeight.w500,
               letterSpacing: 0.4,
             ),
           ),
-          const SizedBox(height: AppSpacing.md),
+          SizedBox(height: context.space.md),
           // Colored accent bar at bottom
           Container(
             height: 2,
@@ -92,7 +91,7 @@ class StatCard extends StatelessWidget {
               gradient: LinearGradient(
                 colors: [accentColor, accentColor.withAlpha(0)],
               ),
-              borderRadius: BorderRadius.circular(AppRadius.full),
+              borderRadius: BorderRadius.circular(context.radii.full),
             ),
           ),
         ],

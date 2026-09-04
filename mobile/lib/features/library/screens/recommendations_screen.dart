@@ -3,9 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
@@ -35,11 +33,11 @@ class RecommendationsScreen extends ConsumerWidget {
       ),
       body: recommendationsAsync.when(
         loading: () => ListView(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
-          children: const [
-            SkeletonBox(width: double.infinity, height: 44),
-            SizedBox(height: AppSpacing.md),
-            SkeletonBox(width: double.infinity, height: 44),
+          padding: EdgeInsets.all(context.space.xl2),
+          children: [
+            const SkeletonBox(width: double.infinity, height: 44),
+            SizedBox(height: context.space.md),
+            const SkeletonBox(width: double.infinity, height: 44),
           ],
         ),
         error: (error, _) => Center(
@@ -48,9 +46,9 @@ class RecommendationsScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load recommendations.',
-                style: AppTypography.body.copyWith(color: context.colors.danger),
+                style: context.text.body.copyWith(color: context.colors.danger),
               ),
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: context.space.lg),
               FilledButton(
                 onPressed: () => ref.invalidate(recommendationsProvider),
                 child: const Text('Retry'),
@@ -75,18 +73,18 @@ class RecommendationsScreen extends ConsumerWidget {
             color: context.colors.primary,
             onRefresh: () async => ref.invalidate(recommendationsProvider),
             child: ListView(
-              padding: const EdgeInsets.all(AppSpacing.xl2),
+              padding: EdgeInsets.all(context.space.xl2),
               children: [
                 const HeroHeading(text: 'Recommendations'),
-                const SizedBox(height: AppSpacing.xs),
+                SizedBox(height: context.space.xs),
                 Text(
                   'The genres you follow most — tap one to search for more.',
-                  style: AppTypography.body.copyWith(color: context.colors.muted),
+                  style: context.text.body.copyWith(color: context.colors.muted),
                 ),
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
                 Wrap(
-                  spacing: AppSpacing.sm,
-                  runSpacing: AppSpacing.sm,
+                  spacing: context.space.sm,
+                  runSpacing: context.space.sm,
                   children: [
                     for (final genre in genres)
                       _GenreChip(
@@ -119,23 +117,23 @@ class _GenreChip extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: context.colors.panel,
-      borderRadius: BorderRadius.circular(AppRadius.full),
+      borderRadius: BorderRadius.circular(context.radii.full),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.lg,
-            vertical: AppSpacing.sm,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.space.lg,
+            vertical: context.space.sm,
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(genre, style: AppTypography.labelLg),
-              const SizedBox(width: AppSpacing.xs),
+              Text(genre, style: context.text.labelLg),
+              SizedBox(width: context.space.xs),
               Text(
                 '$weight',
-                style: AppTypography.caption.copyWith(color: context.colors.muted),
+                style: context.text.caption.copyWith(color: context.colors.muted),
               ),
             ],
           ),

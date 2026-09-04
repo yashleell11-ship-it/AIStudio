@@ -6,8 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/library/models/library_statistics.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/reading_time_format.dart';
@@ -45,7 +44,7 @@ class NoReadingHistoryCard extends StatelessWidget {
 
     return GlassCard(
       glowColor: context.colors.primary,
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -55,7 +54,7 @@ class NoReadingHistoryCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
+                  borderRadius: BorderRadius.circular(context.radii.md),
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -72,23 +71,23 @@ class NoReadingHistoryCard extends StatelessWidget {
                   color: context.colors.violet400,
                 ),
               ),
-              const SizedBox(width: AppSpacing.lg),
+              SizedBox(width: context.space.lg),
               Expanded(
-                child: Text('No reading recorded yet', style: AppTypography.h3),
+                child: Text('No reading recorded yet', style: context.text.h3),
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           Text(
             'Streaks, daily activity and time spent are built from chapters you '
             'read in the app. Open one and the first day fills in as soon as you '
             'turn a page — nothing is counted retroactively.',
-            style: AppTypography.body.copyWith(
+            style: context.text.body.copyWith(
               color: context.colors.muted,
               height: 1.6,
             ),
           ),
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           PrimaryPillButton(
             label: hasLibrary ? 'Continue Reading' : 'Browse Sources',
             expanded: true,
@@ -119,7 +118,7 @@ class StreakCard extends StatelessWidget {
 
     return GlassCard(
       glowColor: alive ? context.colors.primary : null,
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -139,29 +138,29 @@ class StreakCard extends StatelessWidget {
                           size: 22,
                           color: alive ? context.colors.primary : context.colors.muted,
                         ),
-                        const SizedBox(width: AppSpacing.sm),
+                        SizedBox(width: context.space.sm),
                         Text(
                           '${streak.currentDays}',
-                          style: AppTypography.h1.copyWith(
+                          style: context.text.h1.copyWith(
                             fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
-                        const SizedBox(width: AppSpacing.xs),
+                        SizedBox(width: context.space.xs),
                         Padding(
-                          padding: const EdgeInsets.only(top: AppSpacing.sm),
+                          padding: EdgeInsets.only(top: context.space.sm),
                           child: Text(
                             streak.currentDays == 1 ? 'day' : 'days',
-                            style: AppTypography.body.copyWith(color: context.colors.muted),
+                            style: context.text.body.copyWith(color: context.colors.muted),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: AppSpacing.xxs),
+                    SizedBox(height: context.space.xxs),
                     Text(
                       alive
                           ? 'Current streak'
                           : 'Read today to start a new streak',
-                      style: AppTypography.caption.copyWith(color: context.colors.muted),
+                      style: context.text.caption.copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
@@ -171,18 +170,18 @@ class StreakCard extends StatelessWidget {
                 children: [
                   Text(
                     '${streak.longestDays}',
-                    style: AppTypography.h3.copyWith(
+                    style: context.text.h3.copyWith(
                       fontFeatures: const [FontFeature.tabularFigures()],
                       color: context.colors.violet400,
                     ),
                   ),
-                  Text('Longest', style: AppTypography.caption.copyWith(color: context.colors.muted)),
+                  Text('Longest', style: context.text.caption.copyWith(color: context.colors.muted)),
                 ],
               ),
             ],
           ),
           if (week.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: context.space.xl),
             Row(
               children: [
                 for (final day in week)
@@ -220,10 +219,10 @@ class _StreakDay extends StatelessWidget {
               ? Icon(Icons.check, size: 14, color: context.colors.violet400)
               : null,
         ),
-        const SizedBox(height: AppSpacing.xs),
+        SizedBox(height: context.space.xs),
         Text(
           DateFormat.E().format(day.date).substring(0, 1),
-          style: AppTypography.caption.copyWith(
+          style: context.text.caption.copyWith(
             color: read ? context.colors.fg : context.colors.muted,
           ),
         ),
@@ -260,17 +259,17 @@ class _ActivityCardState extends State<ActivityCard> {
         (_selected != null && _selected! < days.length) ? _selected : null;
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(child: Text('Activity', style: AppTypography.h4)),
+              Expanded(child: Text('Activity', style: context.text.h4)),
               _RangePill(label: 'Last ${widget.stats.rangeDays} days'),
             ],
           ),
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             selected != null
                 ? _dayReadout(days[selected], usePages)
@@ -278,11 +277,11 @@ class _ActivityCardState extends State<ActivityCard> {
                     ? '${usePages ? formatPages(total) : '$total sessions'} in the '
                         'last ${widget.stats.rangeDays} days'
                     : 'Nothing read in the last ${widget.stats.rangeDays} days',
-            style: AppTypography.body.copyWith(
+            style: context.text.body.copyWith(
               color: selected != null ? context.colors.fg : context.colors.muted,
             ),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          SizedBox(height: context.space.xl),
           ActivityBars(
             values: values,
             height: 96,
@@ -294,18 +293,18 @@ class _ActivityCardState extends State<ActivityCard> {
                     '${widget.stats.rangeDays} days',
           ),
           if (days.isNotEmpty) ...[
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Text(formatShortDay(days.first.date), style: AppTypography.caption.copyWith(color: context.colors.muted)),
-                Text(formatShortDay(days.last.date), style: AppTypography.caption.copyWith(color: context.colors.muted)),
+                Text(formatShortDay(days.first.date), style: context.text.caption.copyWith(color: context.colors.muted)),
+                Text(formatShortDay(days.last.date), style: context.text.caption.copyWith(color: context.colors.muted)),
               ],
             ),
           ],
           if (total > 0) ...[
-            const SizedBox(height: AppSpacing.lg),
-            Text('Tap a bar for that day.', style: AppTypography.caption.copyWith(color: context.colors.muted)),
+            SizedBox(height: context.space.lg),
+            Text('Tap a bar for that day.', style: context.text.caption.copyWith(color: context.colors.muted)),
           ],
         ],
       ),
@@ -336,30 +335,30 @@ class ReadingClockCard extends StatelessWidget {
     final peak = _peakHour();
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Reading Clock', style: AppTypography.h4),
-          const SizedBox(height: AppSpacing.xs),
+          Text('Reading Clock', style: context.text.h4),
+          SizedBox(height: context.space.xs),
           Text(
             peak != null
                 ? 'You read most around ${formatHourOfDay(peak)}.'
                 : 'When you read, hour by hour.',
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
-          const SizedBox(height: AppSpacing.xl),
+          SizedBox(height: context.space.xl),
           ActivityBars(
             values: values,
             height: 72,
             semanticsLabel: 'Reading by hour of the day',
           ),
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           Row(
             children: [
               for (final hour in const [0, 6, 12, 18])
                 Expanded(
-                  child: Text(formatHourOfDay(hour), style: AppTypography.caption.copyWith(color: context.colors.muted)),
+                  child: Text(formatHourOfDay(hour), style: context.text.caption.copyWith(color: context.colors.muted)),
                 ),
             ],
           ),
@@ -391,16 +390,16 @@ class SourceBreakdownCard extends StatelessWidget {
     final max = sources.fold<int>(0, (m, s) => math.max(m, weight(s)));
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('Sources', style: AppTypography.h4),
-          const SizedBox(height: AppSpacing.lg),
+          Text('Sources', style: context.text.h4),
+          SizedBox(height: context.space.lg),
           for (var i = 0; i < sources.length; i++)
             Padding(
               padding: EdgeInsets.only(
-                bottom: i == sources.length - 1 ? 0 : AppSpacing.lg,
+                bottom: i == sources.length - 1 ? 0 : context.space.lg,
               ),
               child: _SourceRow(
                 source: sources[i],
@@ -446,19 +445,19 @@ class _SourceRow extends StatelessWidget {
               height: 8,
               decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             ),
-            const SizedBox(width: AppSpacing.sm),
+            SizedBox(width: context.space.sm),
             Expanded(
               child: Text(
                 source.name,
-                style: AppTypography.labelLg,
+                style: context.text.labelLg,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            Text(label, style: AppTypography.caption.copyWith(color: context.colors.muted)),
+            Text(label, style: context.text.caption.copyWith(color: context.colors.muted)),
           ],
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         _ProportionBar(fraction: fraction, color: color),
       ],
     );
@@ -476,7 +475,7 @@ class _ProportionBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.full),
+      borderRadius: BorderRadius.circular(context.radii.full),
       child: Container(
         height: 6,
         color: context.colors.fg.withAlpha(16),
@@ -507,7 +506,7 @@ class TopSeriesSection extends ConsumerWidget {
         const SectionHeader(icon: Icons.workspace_premium_outlined, title: 'Most Read'),
         for (final item in series)
           Padding(
-            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            padding: EdgeInsets.only(bottom: context.space.md),
             child: _SeriesRow(
               series: item,
               coverUrl: sourceSeriesCoverUrl(baseUrl, item.sourceId, item.seriesKey),
@@ -539,11 +538,11 @@ class _SeriesRow extends StatelessWidget {
       onTap: () => context.push(
         RoutePaths.sourceSeriesDetail(series.sourceId, series.seriesKey),
       ),
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       child: Row(
         children: [
           SeriesCoverImage(url: coverUrl, width: 44, height: 60),
-          const SizedBox(width: AppSpacing.lg),
+          SizedBox(width: context.space.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -552,17 +551,17 @@ class _SeriesRow extends StatelessWidget {
                   // A series unfollowed since it was read keeps its history but
                   // loses its title; the source is the only honest label left.
                   (series.title?.isNotEmpty ?? false) ? series.title! : series.sourceId,
-                  style: AppTypography.labelLg,
+                  style: context.text.labelLg,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(height: AppSpacing.xxs),
-                Text(subtitle, style: AppTypography.caption.copyWith(color: context.colors.muted)),
+                SizedBox(height: context.space.xxs),
+                Text(subtitle, style: context.text.caption.copyWith(color: context.colors.muted)),
                 if (series.lastReadAt != null) ...[
-                  const SizedBox(height: AppSpacing.xxs),
+                  SizedBox(height: context.space.xxs),
                   Text(
                     formatTimeAgo(series.lastReadAt!),
-                    style: AppTypography.caption.copyWith(color: context.colors.muted),
+                    style: context.text.caption.copyWith(color: context.colors.muted),
                   ),
                 ],
               ],
@@ -589,7 +588,7 @@ class RecentSessionsSection extends StatelessWidget {
       children: [
         const SectionHeader(icon: Icons.history, title: 'Recent Sessions'),
         GlassCard(
-          padding: const EdgeInsets.symmetric(vertical: AppSpacing.xs),
+          padding: EdgeInsets.symmetric(vertical: context.space.xs),
           child: Column(
             children: [
               for (var i = 0; i < sessions.length; i++) ...[
@@ -624,9 +623,9 @@ class _SessionRow extends StatelessWidget {
         RoutePaths.reader(session.sourceId, session.seriesKey, session.chapterKey),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.lg,
-          vertical: AppSpacing.md,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.space.lg,
+          vertical: context.space.md,
         ),
         child: Row(
           children: [
@@ -636,14 +635,14 @@ class _SessionRow extends StatelessWidget {
                 children: [
                   Text(
                     label.secondary ?? label.primary,
-                    style: AppTypography.labelLg,
+                    style: context.text.labelLg,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(height: AppSpacing.xxs),
+                  SizedBox(height: context.space.xxs),
                   Text(
                     label.secondary != null ? '${label.primary}  ·  $meta' : meta,
-                    style: AppTypography.caption.copyWith(color: context.colors.muted),
+                    style: context.text.caption.copyWith(color: context.colors.muted),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -673,8 +672,8 @@ class LibraryShapeGrid extends StatelessWidget {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
+      mainAxisSpacing: context.space.md,
+      crossAxisSpacing: context.space.md,
       childAspectRatio: 1.45,
       children: [
         StatCard(
@@ -728,8 +727,8 @@ class ReadingTotalsGrid extends StatelessWidget {
       crossAxisCount: 2,
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
-      mainAxisSpacing: AppSpacing.md,
-      crossAxisSpacing: AppSpacing.md,
+      mainAxisSpacing: context.space.md,
+      crossAxisSpacing: context.space.md,
       childAspectRatio: 1.45,
       children: [
         StatCard(
@@ -782,16 +781,16 @@ class ReadingStatusCard extends StatelessWidget {
     final total = entries.fold<int>(0, (sum, e) => sum + e.value);
 
     return GlassCard(
-      padding: const EdgeInsets.all(AppSpacing.xl2),
+      padding: EdgeInsets.all(context.space.xl2),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('By Reading Status', style: AppTypography.h4),
-          const SizedBox(height: AppSpacing.lg),
+          Text('By Reading Status', style: context.text.h4),
+          SizedBox(height: context.space.lg),
           for (var i = 0; i < entries.length; i++)
             Padding(
               padding: EdgeInsets.only(
-                bottom: i == entries.length - 1 ? 0 : AppSpacing.lg,
+                bottom: i == entries.length - 1 ? 0 : context.space.lg,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -801,13 +800,13 @@ class ReadingStatusCard extends StatelessWidget {
                       Expanded(
                         child: Text(
                           _statusLabel(entries[i].key),
-                          style: AppTypography.labelLg,
+                          style: context.text.labelLg,
                         ),
                       ),
-                      Text('${entries[i].value}', style: AppTypography.caption.copyWith(color: context.colors.muted)),
+                      Text('${entries[i].value}', style: context.text.caption.copyWith(color: context.colors.muted)),
                     ],
                   ),
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(height: context.space.sm),
                   _ProportionBar(
                     fraction: total > 0 ? entries[i].value / total : 0,
                     color: readingStatusColor(context, entries[i].key),
@@ -836,18 +835,18 @@ class _RangePill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppSpacing.md,
-        vertical: AppSpacing.xs,
+      padding: EdgeInsets.symmetric(
+        horizontal: context.space.md,
+        vertical: context.space.xs,
       ),
       decoration: BoxDecoration(
         color: context.colors.fg.withAlpha(10),
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         border: Border.all(color: context.colors.border),
       ),
       child: Text(
         label.toUpperCase(),
-        style: AppTypography.caption.copyWith(
+        style: context.text.caption.copyWith(
           color: context.colors.muted,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.8,

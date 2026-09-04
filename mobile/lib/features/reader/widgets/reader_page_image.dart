@@ -3,9 +3,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/features/reader/theme/reader_colors.dart';
@@ -252,18 +250,18 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
           color: widget.backgroundColor,
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(AppSpacing.lg),
+              padding: EdgeInsets.all(context.space.lg),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Icon(Icons.broken_image_outlined, color: ReaderColors.muted),
-                  const SizedBox(height: AppSpacing.sm),
+                  SizedBox(height: context.space.sm),
                   Text(
                     'Failed to load page',
-                    style: AppTypography.bodySm.copyWith(color: ReaderColors.muted),
+                    style: context.text.bodySm.copyWith(color: ReaderColors.muted),
                     textAlign: TextAlign.center,
                   ),
-                  const SizedBox(height: AppSpacing.md),
+                  SizedBox(height: context.space.md),
                   OutlinedButton(onPressed: _retry, child: const Text('Retry')),
                 ],
               ),
@@ -354,7 +352,7 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
     // as a dark seam. Only the paged horizontal reader keeps the card look.
     final seamless = widget.layoutAxis == Axis.vertical;
     final borderRadius =
-        seamless ? BorderRadius.zero : BorderRadius.circular(AppRadius.sm);
+        seamless ? BorderRadius.zero : BorderRadius.circular(context.radii.sm);
 
     // On-device store first, network second (spec §3) — and the reader does
     // not know or care which it got beyond this one branch.

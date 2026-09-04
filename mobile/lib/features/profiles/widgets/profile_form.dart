@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_error.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
@@ -157,10 +155,10 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
           top: false,
           child: ListView(
             padding: EdgeInsets.fromLTRB(
-              AppSpacing.xl2,
-              AppSpacing.lg,
-              AppSpacing.xl2,
-              MediaQuery.paddingOf(context).bottom + AppSpacing.xl3,
+              context.space.xl2,
+              context.space.lg,
+              context.space.xl2,
+              MediaQuery.paddingOf(context).bottom + context.space.xl3,
             ),
             children: [
               Center(
@@ -169,9 +167,9 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
                   ringColor: context.colors.accentAmber.withValues(alpha: 0.3),
                 ),
               ),
-              const SizedBox(height: AppSpacing.xl2),
-              Text('Name', style: AppTypography.labelLg),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: context.space.xl2),
+              Text('Name', style: context.text.labelLg),
+              SizedBox(height: context.space.sm),
               TextField(
                 controller: _nameController,
                 maxLength: 255,
@@ -183,29 +181,29 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
                 ),
                 onSubmitted: (_) => _submit(),
               ),
-              const SizedBox(height: AppSpacing.md),
-              Text('Avatar', style: AppTypography.labelLg),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: context.space.md),
+              Text('Avatar', style: context.text.labelLg),
+              SizedBox(height: context.space.sm),
               _AvatarPicker(
                 selectedKey: _avatarKey,
                 onSelected: _pending
                     ? null
                     : (key) => setState(() => _avatarKey = key),
               ),
-              const SizedBox(height: AppSpacing.xl),
-              Text('Mood', style: AppTypography.labelLg),
-              const SizedBox(height: AppSpacing.xxs),
+              SizedBox(height: context.space.xl),
+              Text('Mood', style: context.text.labelLg),
+              SizedBox(height: context.space.xxs),
               Text(
                 'Tints the app while this profile is active.',
-                style: AppTypography.bodySm.copyWith(color: context.colors.muted),
+                style: context.text.bodySm.copyWith(color: context.colors.muted),
               ),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: context.space.sm),
               _MoodPicker(
                 selected: _mood,
                 onSelected:
                     _pending ? null : (mood) => setState(() => _mood = mood),
               ),
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: context.space.xl),
               Material(
                 type: MaterialType.transparency,
                 child: SwitchListTile(
@@ -223,10 +221,10 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
                 ),
               ),
               if (error != null) ...[
-                const SizedBox(height: AppSpacing.lg),
+                SizedBox(height: context.space.lg),
                 AuthError(message: error),
               ],
-              const SizedBox(height: AppSpacing.xl),
+              SizedBox(height: context.space.xl),
               _pending
                   ? const SizedBox(
                       height: 52,
@@ -244,7 +242,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
                       expanded: true,
                     ),
               if (widget.onDelete != null) ...[
-                const SizedBox(height: AppSpacing.sm),
+                SizedBox(height: context.space.sm),
                 TextButton.icon(
                   onPressed: _pending ? null : _delete,
                   icon: const Icon(Icons.delete_outline, size: 18),
@@ -271,8 +269,8 @@ class _AvatarPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: AppSpacing.md,
-      runSpacing: AppSpacing.md,
+      spacing: context.space.md,
+      runSpacing: context.space.md,
       children: [
         for (final preset in kAvatarPresets)
           Semantics(
@@ -303,8 +301,8 @@ class _MoodPicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Wrap(
-      spacing: AppSpacing.sm,
-      runSpacing: AppSpacing.sm,
+      spacing: context.space.sm,
+      runSpacing: context.space.sm,
       children: [
         for (final mood in Mood.values)
           _MoodChip(
@@ -335,17 +333,17 @@ class _MoodChip extends StatelessWidget {
         : context.colors.surface2;
     return Material(
       color: selected ? swatch.withAlpha(220) : context.colors.surface2.withAlpha(120),
-      borderRadius: BorderRadius.circular(AppRadius.full),
+      borderRadius: BorderRadius.circular(context.radii.full),
       child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.full),
+        borderRadius: BorderRadius.circular(context.radii.full),
         onTap: onTap,
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppSpacing.md,
-            vertical: AppSpacing.sm,
+          padding: EdgeInsets.symmetric(
+            horizontal: context.space.md,
+            vertical: context.space.sm,
           ),
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.full),
+            borderRadius: BorderRadius.circular(context.radii.full),
             border: Border.all(
               color: selected ? context.colors.fg.withAlpha(120) : context.colors.border,
             ),
@@ -364,10 +362,10 @@ class _MoodChip extends StatelessWidget {
                   border: Border.all(color: context.colors.fg.withAlpha(40)),
                 ),
               ),
-              const SizedBox(width: AppSpacing.sm),
+              SizedBox(width: context.space.sm),
               Text(
                 mood.label,
-                style: AppTypography.label.copyWith(
+                style: context.text.label.copyWith(
                   color: selected ? context.colors.fg : context.colors.muted,
                 ),
               ),

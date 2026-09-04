@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 
 class LibraryToolbar extends StatefulWidget {
@@ -70,11 +69,11 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Library', style: AppTypography.h1),
-                  const SizedBox(height: AppSpacing.xs),
+                  Text('Library', style: context.text.h1),
+                  SizedBox(height: context.space.xs),
                   Text(
                     '$countLabel ${widget.seriesCount == 1 ? 'series' : 'series'}',
-                    style: AppTypography.body.copyWith(color: context.colors.muted),
+                    style: context.text.body.copyWith(color: context.colors.muted),
                   ),
                 ],
               ),
@@ -85,7 +84,7 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
             ),
           ],
         ),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         TextField(
           controller: _searchController,
           onChanged: widget.onSearchChanged,
@@ -94,14 +93,14 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
             hintText: 'Search by title, author, or tag...',
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: Row(
             children: [
               for (final filter in libraryBrowseFilterOptions)
                 Padding(
-                  padding: const EdgeInsets.only(right: AppSpacing.sm),
+                  padding: EdgeInsets.only(right: context.space.sm),
                   child: _FilterChip(
                     label: filter.label,
                     selected: widget.query.filter == filter,
@@ -111,7 +110,7 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
             ],
           ),
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         DropdownButtonFormField<LibrarySort>(
           initialValue: widget.query.sort,
           decoration: const InputDecoration(
@@ -133,7 +132,7 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
         if (widget.coverScale != null &&
             widget.onCoverScaleChanged != null &&
             widget.query.viewMode == LibraryViewMode.grid) ...[
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           Row(
             children: [
               Icon(
@@ -176,7 +175,7 @@ class _ViewModeToggle extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.fg.withAlpha(13),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         border: Border.all(color: context.colors.border.withAlpha(128)),
       ),
       padding: const EdgeInsets.all(2),
@@ -214,10 +213,10 @@ class _ModeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? context.colors.primary : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
+      borderRadius: BorderRadius.circular(context.radii.sm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(context.radii.sm),
         child: SizedBox(
           width: 32,
           height: 32,
@@ -251,13 +250,13 @@ class _FilterChip extends StatelessWidget {
       onSelected: (_) => onTap(),
       selectedColor: context.colors.primary,
       checkmarkColor: context.colors.primaryFg,
-      labelStyle: AppTypography.label.copyWith(
+      labelStyle: context.text.label.copyWith(
         color: selected ? context.colors.primaryFg : context.colors.muted,
       ),
       backgroundColor: context.colors.fg.withAlpha(13),
       side: BorderSide(color: context.colors.border.withAlpha(128)),
       showCheckmark: false,
-      padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
+      padding: EdgeInsets.symmetric(horizontal: context.space.sm),
     );
   }
 }
