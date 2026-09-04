@@ -20,6 +20,12 @@ export interface ChapterStripInput {
   ready?: boolean;
 }
 
+/** The chapter just outside one end of the strip, and what to call it. */
+export interface StripEdge {
+  chapterKey: string | null;
+  label: string | null;
+}
+
 export interface ChapterStripState {
   /** Loaded chapters in reading order. Never has a hole in it. */
   chapters: readonly StripChapter[];
@@ -29,12 +35,23 @@ export interface ChapterStripState {
   error: string | null;
   /** Why the chapter after the strip's tail did not arrive, if it did not. */
   nextError: string | null;
+  /** What lies just before the strip's head, and just past its tail. */
+  head: StripEdge;
+  tail: StripEdge;
   retryNext: () => void;
   loadPrevious: () => void;
   loadingPrevious: boolean;
   /** Throw the strip away and rebuild it from the entry chapter. */
   reload: () => void;
 }
+
+/** Why the tail stopped growing, and whether time alone will fix it. */
+interface TailFailure {
+  error: string | null;
+  retryAfterMs: number | null;
+}
+
+const NO_FAILURE: TailFailure = { error: null, retryAfterMs: null };
 
 /** Identity of the strip currently loaded: which chapter, which attempt. */
 interface StripIdentity {
@@ -91,7 +108,7 @@ export function useChapterStrip({
 }: ChapterStripInput): ChapterStripState {
   const [chapters, setChapters] = useState<readonly StripChapter[]>([]);
   const [entryError, setEntryError] = useState<string | null>(null);
-  const [nextError, setNextError] = useState<string | null>(null);
+  const [next, setNext] = useState<TailFailure>(NO_FAILURE);
   const [loadingPrevious, setLoadingPrevious] = useState(false);
   const [identity, setIdentity] = useState<StripIdentity>({
     entryChapterKey,
@@ -105,7 +122,7 @@ export function useChapterStrip({
     setIdentity({ entryChapterKey, attempt: 0 });
     setChapters([]);
     setEntryError(null);
-    setNextError(null);
+    setNext(NO_FAILURE);
     setLoadingPrevious(false);
   }
 
@@ -148,7 +165,7 @@ export function useChapterStrip({
    */
   const inFlightRef = useRef("");
   useEffect(() => {
-    if (!ready || chapters.length === 0 || nextError) return;
+    if (!ready || chapters.length === 0 || next.error) return;
     const activeIndex = Math.max(0, chapterIndexOf(chapters, activeChapterKey));
     if (!shouldExtendAhead(activeIndex, chapters.length, stripWindow.ahead)) return;
 
@@ -171,7 +188,9 @@ export function useChapterStrip({
         if (result.chapters.length > 0) {
           setChapters((previous) => appendChapters(previous, result.chapters));
         }
-        if (result.error) setNextError(result.error);
+        if (result.error) {
+          setNext({ error: result.error, retryAfterMs: result.retryAfterMs ?? null });
+        }
       })
       .finally(() => {
         if (inFlightRef.current === token) inFlightRef.current = "";
@@ -179,11 +198,23 @@ export function useChapterStrip({
     return () => {
       cancelled = true;
     };
-  }, [activeChapterKey, chapters, identity, nextError, ready, stripWindow.ahead]);
+  }, [activeChapterKey, chapters, identity, next.error, ready, stripWindow.ahead]);
 
-  const retryNext = useCallback(() => setNextError(null), []);
+  /**
+   * Some failures pass on their own — the bulk window's rate limit above all —
+   * and a reader fifty chapters into a run should not have to press anything to
+   * get going again. Clearing the error re-arms the effect above.
+   */
+  useEffect(() => {
+    if (next.retryAfterMs === null) return;
+    const timer = setTimeout(() => setNext(NO_FAILURE), next.retryAfterMs);
+    return () => clearTimeout(timer);
+  }, [next]);
+
+  const retryNext = useCallback(() => setNext(NO_FAILURE), []);
   const reload = useCallback(() => {
     setEntryError(null);
+    setNext(NO_FAILURE);
     setIdentity((previous) => ({
       entryChapterKey: previous.entryChapterKey,
       attempt: previous.attempt + 1,
@@ -210,11 +241,16 @@ export function useChapterStrip({
       .finally(() => setLoadingPrevious(false));
   }, [loadingPrevious]);
 
+  const tailKey = chapters.length > 0 ? source.keysAfter(chapters, 1)[0] ?? null : null;
+  const headKey = chapters.length > 0 ? source.keyBefore(chapters) : null;
+
   return {
     chapters,
     isLoading: chapters.length === 0 && entryError === null,
     error: entryError,
-    nextError,
+    nextError: next.error,
+    head: { chapterKey: headKey, label: source.edgeLabel(chapters, "previous") },
+    tail: { chapterKey: tailKey, label: source.edgeLabel(chapters, "next") },
     retryNext,
     loadPrevious,
     loadingPrevious,

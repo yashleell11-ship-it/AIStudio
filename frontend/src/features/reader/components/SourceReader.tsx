@@ -1,14 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import type { ChapterId } from "@/types/api";
-import { ensureChapterPages, useAddBookmark, useSaveProgress } from "../hooks";
+import { ensureChapterPages, useAddBookmark } from "../hooks";
 import { readerChapterHref, seriesPageHref } from "../reader-link";
 import { readerSeriesKey } from "../preferences";
-import { chapterIndexOf, READER_STRIP_WINDOW, type StripPosition } from "../strip";
+import { chapterIndexOf, READER_STRIP_WINDOW } from "../strip";
 import { linkedChapterSource } from "../strip-source";
 import { useChapterStrip } from "../use-chapter-strip";
+import { useStripProgress } from "../use-strip-progress";
 import { ChapterReader } from "./ChapterReader";
 
 interface SourceReaderProps {
@@ -17,8 +17,6 @@ interface SourceReaderProps {
   chapterKey: string;
   initialPage?: number;
 }
-
-const PROGRESS_SAVE_MS = 500;
 
 /**
  * The unified source-native reader (spec §3.3). Every chapter streams from the
@@ -68,13 +66,7 @@ export function SourceReader({
     window: READER_STRIP_WINDOW,
   });
 
-  const saveProgress = useSaveProgress();
   const addBookmark = useAddBookmark();
-
-  const progressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /** Furthest page already reported, per chapter — a strip visits several. */
-  const furthestSent = useRef<Map<string, number>>(new Map());
-  const positionRef = useRef<StripPosition | null>(null);
 
   const chapters = strip.chapters;
   const activeChapter = chapters[chapterIndexOf(chapters, activeChapterKey)];
@@ -89,92 +81,29 @@ export function SourceReader({
     });
   }, [activeChapter?.nextChapterKey, queryClient, seriesKey, sourceId]);
 
-  const pushProgress = useCallback(
-    (position: StripPosition, chapterNumber: number | null) => {
-      const ref: ChapterId = {
-        sourceId,
-        seriesKey,
-        chapterKey: position.chapterKey,
-      };
-      saveProgress.mutate({
-        ref,
-        body: {
-          chapter_number: chapterNumber,
-          last_page: position.pageNumber,
-          page_count: position.pageCount,
-          is_completed:
-            position.pageCount > 0 && position.pageNumber >= position.pageCount,
-        },
-      });
-    },
-    [saveProgress, seriesKey, sourceId],
-  );
-
   /**
-   * Mark a chapter the reader has scrolled clear of as finished.
-   *
-   * The debounced tracker never reports a chapter's final page: by the time the
-   * strip settles, the reading line is already in the next chapter. Without
-   * this, every chapter read in one continuous sitting would be left one page
-   * short of complete.
+   * Crossing a seam moves the chapter without a navigation, so the URL is
+   * corrected in place: a refresh, a bookmark or a shared link still names the
+   * chapter actually being read rather than the one the session started on.
    */
-  const completeChapter = useCallback(
-    (chapterKey_: string) => {
-      const chapter = chapters[chapterIndexOf(chapters, chapterKey_)];
-      if (!chapter || chapter.pages.length === 0) return;
-      if (furthestSent.current.get(chapterKey_) === chapter.pages.length) return;
-      furthestSent.current.set(chapterKey_, chapter.pages.length);
-      saveProgress.mutate({
-        ref: { sourceId, seriesKey, chapterKey: chapterKey_ },
-        body: {
-          chapter_number: chapter.chapterNumber,
-          last_page: chapter.pages.length,
-          page_count: chapter.pages.length,
-          is_completed: true,
-        },
-      });
-    },
-    [chapters, saveProgress, seriesKey, sourceId],
-  );
-
-  /**
-   * Everything that follows the reader across a seam.
-   *
-   * Progress is attributed to the chapter the page belongs to, on both sides of
-   * the boundary (spec R1), and never rewound: scrolling back to re-read is not
-   * a claim that the reader is earlier in the chapter than they got to.
-   */
-  const handlePosition = useCallback(
-    (position: StripPosition) => {
-      const previous = positionRef.current;
-      positionRef.current = position;
-
-      if (previous && previous.chapterKey !== position.chapterKey) {
-        if (position.chapterIndex > previous.chapterIndex) {
-          completeChapter(previous.chapterKey);
-        }
-        setActiveChapterKey(position.chapterKey);
-        window.history.replaceState(
-          window.history.state,
-          "",
-          readerChapterHref({ sourceId, seriesKey, chapterKey: position.chapterKey }),
-        );
-      }
-
-      const furthest = furthestSent.current.get(position.chapterKey) ?? 0;
-      if (position.pageNumber <= furthest) return;
-      furthestSent.current.set(position.chapterKey, position.pageNumber);
-
-      const chapterNumber =
-        chapters[chapterIndexOf(chapters, position.chapterKey)]?.chapterNumber ?? null;
-      if (progressTimer.current) clearTimeout(progressTimer.current);
-      progressTimer.current = setTimeout(
-        () => pushProgress(position, chapterNumber),
-        PROGRESS_SAVE_MS,
+  const handleChapterChange = useCallback(
+    (nextChapterKey: string) => {
+      setActiveChapterKey(nextChapterKey);
+      window.history.replaceState(
+        window.history.state,
+        "",
+        readerChapterHref({ sourceId, seriesKey, chapterKey: nextChapterKey }),
       );
     },
-    [chapters, completeChapter, pushProgress, seriesKey, sourceId],
+    [seriesKey, sourceId],
   );
+
+  const handlePosition = useStripProgress({
+    sourceId,
+    seriesKey,
+    chapters,
+    onChapterChange: handleChapterChange,
+  });
 
   const handleBookmark = useCallback(
     (page: number) => {
@@ -186,12 +115,6 @@ export function SourceReader({
     [activeChapterKey, addBookmark, seriesKey, sourceId],
   );
 
-  useEffect(() => {
-    return () => {
-      if (progressTimer.current) clearTimeout(progressTimer.current);
-    };
-  }, []);
-
   return (
     <ChapterReader
       chapters={chapters}
@@ -202,6 +125,8 @@ export function SourceReader({
       seriesKey={readerSeriesKey(sourceId, seriesKey)}
       initialPage={routed.initialPage}
       seriesHref={seriesPageHref({ sourceId, seriesKey })}
+      head={strip.head}
+      tail={strip.tail}
       onPosition={handlePosition}
       onBookmark={handleBookmark}
       onLoadPrevious={strip.loadPrevious}

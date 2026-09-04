@@ -26,6 +26,35 @@ export interface ChapterManifest {
   next: string | null;
 }
 
+/** One chapter's slot in a bulk-manifest window (`POST /reader/chapters/manifest`). */
+export interface BulkManifestItem {
+  chapter_key: string;
+  status: "ok" | "error";
+  /** Byte-identical to what `GET /reader/chapter/manifest` serves, or null. */
+  manifest: ChapterManifest | null;
+  /** Exactly one of `manifest` / `error` is non-null. */
+  error: { code: string; status: number; message: string } | null;
+}
+
+/**
+ * `POST /reader/chapters/manifest` — manifests for a WINDOW of chapters in one
+ * round trip (backend `ReaderService.manifest_batch`).
+ *
+ * `items` is the same length and order as the keys asked for, and degrades per
+ * chapter: an upstream failure on one of them is an `error` item, not a failed
+ * window. `max_chapters` is the server's cap, echoed on every answer so the
+ * client pages by the server's stride instead of hard-coding one.
+ */
+export interface BulkManifestResponse {
+  source_id: string;
+  series_key: string;
+  max_chapters: number;
+  requested: number;
+  ok_count: number;
+  failed_count: number;
+  items: BulkManifestItem[];
+}
+
 /** `POST /reader/progress` push / stored row (progress-service `_serialize`). */
 export interface ReadingProgress {
   id: number;
@@ -104,6 +133,18 @@ export const readerApi = {
   manifest: (ref: ChapterId) =>
     http.get<ChapterManifest>("/reader/chapter/manifest", {
       query: sourceChapterQuery(ref),
+    }),
+
+  /**
+   * A window of chapters' manifests. POST, not GET: the body is a list of
+   * opaque keys that routinely contain slashes, and twenty of them do not
+   * belong in a query string. It is still a read — nothing here mutates.
+   */
+  manifestBatch: (ref: SeriesId, chapterKeys: readonly string[]) =>
+    http.post<BulkManifestResponse>("/reader/chapters/manifest", {
+      source_id: ref.sourceId,
+      series_key: ref.seriesKey,
+      chapter_keys: chapterKeys,
     }),
 
   saveProgress: (ref: ChapterId, body: Omit<ProgressPush, "source_id" | "series_key" | "chapter_key">) =>

@@ -5,7 +5,16 @@
  * profile chip, and to paint the obsidian reader background.
  */
 export function isImmersiveReaderPath(pathname: string): boolean {
-  return /^\/reader\/[^/]+\/.+/.test(pathname);
+  return /^\/reader\/[^/]+\/.+/.test(pathname) || isReadAllPath(pathname);
+}
+
+/**
+ * The Read-all run at `/read-all/<sourceId>/<seriesKey>` — the same immersive
+ * manga reader with the whole series in one scroll, so the shell treats it
+ * exactly as it treats a chapter.
+ */
+export function isReadAllPath(pathname: string): boolean {
+  return /^\/read-all\/[^/]+\/[^/]+/.test(pathname);
 }
 
 /**
