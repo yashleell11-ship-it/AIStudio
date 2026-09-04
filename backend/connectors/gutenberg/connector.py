@@ -2,8 +2,8 @@
 
 Like ``archiveorg``, and unlike every per-chapter-URL source in this repo,
 Gutenberg serves whole books — so this connector is an **EPUB importer
-wearing the connector interface**: the catalogue comes from the gutendex JSON
-API, and a book is fetched exactly once and split along its own OPF spine.
+wearing the connector interface**: the catalogue is Gutenberg's own published
+feed, and a book is fetched exactly once and split along its own OPF spine.
 
 It deliberately reuses ``connectors.archiveorg.epub.parse_epub`` rather than
 growing a second EPUB reader. That module is the house's hardened container
@@ -13,29 +13,40 @@ here is the *same kind of file* archive.org serves (many archive.org items
 literally are Gutenberg EPUBs). Duplicating 450 lines of security-relevant
 parsing to avoid one import would be strictly worse.
 
-What this source adds over reaching Gutenberg through ``archiveorg``:
-
-* the whole catalogue (~62,000 English EPUB titles) rather than the subset
-  archive.org mirrors, with real search, topic browse and popularity order;
-* one fewer indirection, and a smaller download — see ``mappers`` for the
-  ``.epub.noimages`` measurements and the robots verdict for both hosts.
+**Why the gutendex mirror is gone.** This connector used to read its
+catalogue from gutendex.com, a community JSON mirror of Gutenberg's metadata.
+Measured from the VPS on guaranteed-cold queries (2026-09-05), gutendex
+answers in **66-141 seconds** — for browse, for search, with and without
+filters, on every query shape tried. With one retry behind it, a browse page
+cost 194 s and 147 round trips, and detail and chapters never ran at all
+before the probe's budget expired. Gutenberg's own site, over the same TLS
+stack from the same box, answers every path below in **under 0.3 s**. The
+mirror was the entire cost; removing it removes it.
 
 Request budget — the point of the design:
 
-* browse / search: **1 request**, no book is touched.
+* **browse / search / genre: 0 requests** once the catalogue is in hand. The
+  first listing after a cold start (or after the 6-hour TTL) pays 1 request
+  for the 5.6 MB catalogue feed, plus 1 more for the download leaderboard on
+  the popularity ordering. Measured by the e2e probe from the VPS: 2.7 s cold
+  over 2 round trips, ~0 s warm, against 194 s over 147 before.
 * first touch of a book (whichever of ``get_series`` / ``get_chapters`` /
-  ``chapter_text`` arrives first): **1 request** — the EPUB URL is derived
-  from the book id, so unlike archive.org there is no metadata call to find
-  the filename.
+  ``chapter_text`` arrives first): **2 requests** — the bibliographic record,
+  which is what vouches that the book is an English public-domain *text*, and
+  the EPUB itself, whose URL is derived from the id. The probe reports three
+  round trips for it: ``/ebooks/<id>.epub.noimages`` 302s to the generated
+  file under ``/cache/epub/``, and a redirect hop is a round trip.
 * every subsequent chapter of that book while the parse is cached: **0
-  requests**. Reading a 46-chapter novel end to end costs 1 HTTP request,
+  requests**. Reading a 46-chapter novel end to end costs 2 HTTP requests,
   and ``novel_chapter_cache`` then keeps each chapter server-side for every
   other reader too.
 
-The book is never written to disk: it is read into memory, parsed, and the
-compressed bytes dropped — only the extracted paragraphs are retained, under
-the bounded cache below. That keeps the connector inside the VPS's ~20 GB
-budget by construction rather than by cleanup.
+Neither the catalogue nor a book is ever written to disk: both are read into
+memory, parsed, and the compressed bytes dropped — only the extracted rows
+and paragraphs are retained, under the bounded caches below. That keeps the
+connector inside the VPS's ~20 GB budget by construction rather than by
+cleanup. The catalogue's own resident cost was measured in the production
+container at ~25 MB for 61,606 books; see ``CATALOG_TTL_SECONDS``.
 """
 
 from __future__ import annotations
@@ -48,18 +59,25 @@ from dataclasses import dataclass
 from connectors.archiveorg.epub import EpubChapter, parse_epub
 from connectors.base import SourceConnector
 from connectors.gutenberg.mappers import (
-    API_BASE,
-    FILES_BASE,
-    PAGE_SIZE,
-    browse_params,
+    BROWSE_SORTS,
+    CATALOG_PATH,
+    POPULAR_PATH,
+    SITE_BASE,
+    Catalog,
+    CatalogEntry,
     chapters_from_epub,
+    decompress_catalog,
+    detail_path,
     download_path,
+    genre_entries,
     normalize_chapter_key,
     normalize_series_key,
-    parse_book,
-    parse_book_list,
-    series_detail_path,
-    topic_params,
+    paginate,
+    parse_book_page,
+    parse_catalog,
+    parse_popular_ids,
+    popular_entries,
+    search_entries,
 )
 from connectors.http.cache import TTLCache
 from connectors.http.client import ConnectorHttpError, SyncConnectorHttpClient
@@ -80,21 +98,11 @@ BROWSER_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
-#: gutendex is a small community-run service with a very wide latency spread,
-#: measured from the VPS 2026-09-04 on guaranteed-cold queries (distinct deep
-#: page numbers, so no cache entry could already exist):
-#:
-#:     cold  63-112 s   |   warm  ~0.0 s   |   plus intermittent 503s
-#:
-#: The spread is a property of the service, not of the query — browse, search
-#: and topic all behave the same, with and without the ``mime_type`` filter.
-#: An immediately repeated query is served from their cache in milliseconds,
-#: so the pragmatic shape is one generous attempt plus one retry: the first
-#: attempt warms gutendex even if it times out on our side, and the repeat
-#: then lands instantly. Both failure modes are already retryable in the
-#: shared client (503 by status, a timeout as a transport error).
-API_TIMEOUT_SECONDS = 90.0
-API_MAX_RETRIES = 2
+#: Every path this connector touches lives on one host and answered in under
+#: 0.3 s from the VPS, so the client needs no special latency allowance — the
+#: headroom here is for the EPUB, which gutenberg.org sometimes generates on
+#: demand.
+HTTP_TIMEOUT_SECONDS = 60.0
 
 #: Refuse to parse a book larger than this. The ``.epub.noimages`` build is a
 #: few hundred KB for a normal novel (Alice 137 KB, Pride and Prejudice
@@ -102,26 +110,42 @@ API_MAX_RETRIES = 2
 #: illustrated builds this connector does NOT request are the 16-25 MB ones.
 MAX_EPUB_BYTES = 5_000_000
 
+#: How long the catalogue index is held. Gutenberg regenerates the feed once
+#: a day, so a shorter TTL would re-download the same bytes; a longer one
+#: would hold ~25 MB of the VPS's 3.8 GB indefinitely for a source nobody is
+#: reading. Six hours refreshes twice a day and lets an idle source let go.
+CATALOG_TTL_SECONDS = 21_600.0
+CATALOG_KEY = "catalog"
+
+#: The download leaderboard moves daily and is cheap; it is cached only so a
+#: page-2 browse does not re-fetch it.
+POPULAR_TTL_SECONDS = 3600.0
+POPULAR_KEY = "popular"
+
 #: Parsed books held in memory. Bounded on purpose: a parse is roughly a
 #: megabyte of paragraph text and the shared ``TTLCache`` has no size ceiling
-#: of its own, so an unbounded one would let a crawler walk 62,000 titles
+#: of its own, so an unbounded one would let a crawler walk 61,000 titles
 #: straight into the VPS's RAM.
 MAX_CACHED_BOOKS = 4
 BOOK_CACHE_TTL_SECONDS = 900.0
 
-#: Topic browse. gutendex's ``topic`` matches subjects AND bookshelves, so
-#: these are single words chosen to hit both vocabularies.
-GENRE_TOPICS: tuple[tuple[str, str], ...] = (
-    ("adventure", "Adventure"),
-    ("fantasy", "Fantasy"),
-    ("science fiction", "Science Fiction"),
-    ("detective", "Mystery & Detective"),
-    ("horror", "Horror"),
-    ("romance", "Romance"),
-    ("historical fiction", "Historical Fiction"),
-    ("children", "Children's Literature"),
-    ("poetry", "Poetry"),
-    ("humor", "Humour"),
+#: Genre browse. These are Gutenberg's OWN bookshelf labels, matched exactly
+#: against what a listing card displays, with the row count each carried in
+#: the feed on 2026-09-05 — an advertised genre that matches nothing is a
+#: dead end, so every one of these is verified populated.
+GENRE_SHELVES: tuple[tuple[str, str], ...] = (
+    ("Novels", "Novels"),  # 18,500
+    ("Adventure", "Adventure"),  # 7,440
+    ("Children & Young Adult Reading", "Children & Young Adult"),  # 6,346
+    ("Humour", "Humour"),  # 4,028
+    ("Science-Fiction & Fantasy", "Science Fiction & Fantasy"),  # 3,952
+    ("Historical Novels", "Historical Novels"),  # 3,908
+    ("Poetry", "Poetry"),  # 3,687
+    ("Short Stories", "Short Stories"),  # 3,647
+    ("Travel Writing", "Travel Writing"),  # 3,046
+    ("Mythology, Legends & Folklore", "Myths & Folklore"),  # 2,449
+    ("Romance", "Romance"),  # 2,253
+    ("Crime, Thrillers and Mystery", "Crime & Mystery"),  # 1,987
 )
 
 
@@ -204,28 +228,22 @@ class GutenbergConnector(SourceConnector):
     LANGUAGE = "en"
 
     def __init__(self) -> None:
-        # Two hosts, two clients: the catalogue API and the file host are
-        # different origins, and the client's redirect guard is anchored to
-        # its own base URL (an EPUB 302s within gutenberg.org only).
-        self._api = SyncConnectorHttpClient(
-            API_BASE,
-            timeout=API_TIMEOUT_SECONDS,
-            # Retrying a cold query is what actually pays off here (the first
-            # attempt warms gutendex's cache even when we hang up on it), but
-            # each attempt can cost the full timeout, so the count is trimmed
-            # to bound the worst case instead of the default 3.
-            max_retries=API_MAX_RETRIES,
+        # One host, one client: catalogue, leaderboard, book pages and EPUBs
+        # are all gutenberg.org, and an EPUB's 302 lands inside it.
+        self._http = SyncConnectorHttpClient(
+            SITE_BASE,
+            timeout=HTTP_TIMEOUT_SECONDS,
             user_agent=BROWSER_USER_AGENT,
-            headers={"Accept": "application/json"},
+            headers={"Accept": "text/html,application/xhtml+xml,*/*;q=0.8"},
         )
-        self._files = SyncConnectorHttpClient(
-            FILES_BASE,
-            # A whole book on one connection; the default 30s is tight when
-            # gutenberg.org has to generate the file.
-            timeout=60.0,
-            user_agent=BROWSER_USER_AGENT,
-            headers={"Accept": "application/epub+zip,*/*"},
+        self._catalog: TTLCache[Catalog] = TTLCache(ttl_seconds=CATALOG_TTL_SECONDS)
+        self._popular: TTLCache[tuple[str, ...]] = TTLCache(
+            ttl_seconds=POPULAR_TTL_SECONDS
         )
+        # Building the index costs a download and ~1 s of parsing. Without
+        # this, a cold source hit by several readers at once would do that
+        # work — and hold that memory — once per thread.
+        self._index_lock = threading.Lock()
         # One fetch+parse per book feeds get_series, get_chapters AND every
         # chapter_text for that book (see the module docstring's budget).
         self._books = _BookCache(
@@ -250,7 +268,7 @@ class GutenbergConnector(SourceConnector):
         return frozenset({"gutenberg.org"})
 
     def image_fetch_headers(self) -> dict[str, str]:
-        return {"Referer": f"{FILES_BASE}/", "User-Agent": BROWSER_USER_AGENT}
+        return {"Referer": f"{SITE_BASE}/", "User-Agent": BROWSER_USER_AGENT}
 
     def list_browse_modes(self) -> list[BrowseMode]:
         return [
@@ -260,50 +278,88 @@ class GutenbergConnector(SourceConnector):
         ]
 
     def list_genres(self) -> list[BrowseMode]:
-        return [BrowseMode(id=topic, label=label) for topic, label in GENRE_TOPICS]
+        return [BrowseMode(id=shelf, label=label) for shelf, label in GENRE_SHELVES]
 
-    # --- listings (1 request, no book is fetched) --------------------------
+    # --- the local index --------------------------------------------------
 
-    def _listing(
-        self, query: str | None, page: int, sort: str | None, topic: str | None = None
+    def _catalogue(self) -> Catalog:
+        """Gutenberg's catalogue feed, parsed once and paged from thereafter."""
+        cached = self._catalog.get(CATALOG_KEY)
+        if cached is not None:
+            return cached
+        with self._index_lock:
+            # A thread that queued on the lock while another built the index
+            # must use that one rather than downloading 5.6 MB again.
+            cached = self._catalog.get(CATALOG_KEY)
+            if cached is not None:
+                return cached
+            _content_type, blob = self._http.get_bytes(CATALOG_PATH)
+            text = decompress_catalog(blob)
+            del blob
+            if text is None:
+                raise ConnectorHttpError("Gutenberg catalogue feed was unreadable")
+            catalog = parse_catalog(text)
+            # The 21 MB of CSV goes out of scope here; only the index is kept.
+            del text
+            if not len(catalog):
+                raise ConnectorHttpError("Gutenberg catalogue feed held no books")
+            self._catalog.set(CATALOG_KEY, catalog)
+            logger.info("Gutenberg catalogue loaded: books=%d", len(catalog))
+            return catalog
+
+    def _popular_ids(self) -> tuple[str, ...]:
+        cached = self._popular.get(POPULAR_KEY)
+        if cached is not None:
+            return cached
+        html = self._http.get_text(POPULAR_PATH)
+        ids = parse_popular_ids(html)
+        if ids:
+            self._popular.set(POPULAR_KEY, ids)
+        return ids
+
+    def _ordering(self, sort: str | None) -> list[CatalogEntry]:
+        catalog = self._catalogue()
+        mode = BROWSE_SORTS.get((sort or "").strip().lower(), "popular")
+        if mode == "newest":
+            return list(catalog.newest)
+        if mode == "oldest":
+            return list(catalog.oldest)
+        ordered = popular_entries(catalog, self._popular_ids())
+        # The leaderboard is the only popularity signal Gutenberg publishes;
+        # if it ever stops parsing, fall back to the newest books rather than
+        # handing the reader an empty shelf.
+        return ordered or list(catalog.newest)
+
+    # --- listings (0 requests once the index is warm) ----------------------
+
+    def get_series_list(
+        self, page: int, *, sort: str | None = None
     ) -> PaginatedSeriesList:
-        if page < 1:
-            page = 1
-        params = (
-            topic_params(topic, page, sort)
-            if topic
-            else browse_params(query, page, sort)
-        )
-        try:
-            payload = self._api.get_json("/books", params=params)
-        except ConnectorHttpError as exc:
-            # gutendex answers 404 for a page past the end of a result set.
-            if _is_not_found(exc):
-                logger.info("Gutenberg listing page %d is past the end", page)
-                return PaginatedSeriesList(
-                    items=[], page=page, page_size=PAGE_SIZE, total=0
-                )
-            raise
-        listing = parse_book_list(payload, page=page)
+        listing = paginate(self._ordering(sort), page)
         logger.info(
-            "Gutenberg listing q=%r topic=%s page=%d sort=%s count=%d has_more=%s",
-            query or "",
-            topic or "-",
-            page,
+            "Gutenberg browse page=%d sort=%s count=%d total=%d",
+            listing.page,
             sort or "default",
             len(listing.items),
-            listing.has_more,
+            listing.total,
         )
         return listing
 
-    def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
-        return self._listing(None, page, sort)
-
-    def search_series(self, query: str, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
+    def search_series(
+        self, query: str, page: int, *, sort: str | None = None
+    ) -> PaginatedSeriesList:
         normalized = query.strip()
         if not normalized:
             return self.get_series_list(page, sort=sort)
-        return self._listing(normalized, page, sort)
+        listing = paginate(search_entries(self._catalogue(), normalized), page)
+        logger.info(
+            "Gutenberg search %r page=%d count=%d total=%d",
+            normalized,
+            listing.page,
+            len(listing.items),
+            listing.total,
+        )
+        return listing
 
     def browse_by_genre(
         self, genre: str, page: int, *, sort: str | None = None
@@ -311,17 +367,25 @@ class GutenbergConnector(SourceConnector):
         normalized = (genre or "").strip()
         if not normalized:
             return self.get_series_list(page, sort=sort)
-        return self._listing(None, page, sort, topic=normalized)
+        listing = paginate(genre_entries(self._catalogue(), normalized), page)
+        logger.info(
+            "Gutenberg genre %r page=%d count=%d total=%d",
+            normalized,
+            listing.page,
+            len(listing.items),
+            listing.total,
+        )
+        return listing
 
-    # --- one book, one fetch ----------------------------------------------
+    # --- one book, two requests -------------------------------------------
 
     def _load_book(self, series_key: str) -> _ParsedBook | None:
         """Fetch and parse a book once; serve every later read from the cache.
 
         Returns None when the id is not a Gutenberg ebook id, the book does
-        not exist, it is not a public-domain text, or its EPUB yields no
-        readable chapters — all of which mean the same thing to a reader:
-        this is not a series we can serve.
+        not exist, it is not an English public-domain text, or its EPUB
+        yields no readable chapters — all of which mean the same thing to a
+        reader: this is not a series we can serve.
         """
         book_id = normalize_series_key(series_key)
         if not book_id:
@@ -331,21 +395,21 @@ class GutenbergConnector(SourceConnector):
             return cached
 
         try:
-            metadata = self._api.get_json(series_detail_path(book_id))
+            page = self._http.get_text(detail_path(book_id))
         except ConnectorHttpError as exc:
-            logger.warning("Gutenberg metadata %s failed: %s", book_id, exc)
+            logger.warning("Gutenberg book page %s failed: %s", book_id, exc)
             if _is_not_found(exc):
                 return None
             raise
-        series = parse_book(metadata)
+        series = parse_book_page(page, book_id)
         if series is None:
-            # Not a public-domain text with an EPUB — see series_from_book.
+            # Not an English public-domain text — see parse_book_page.
             logger.info("Gutenberg book %s is not servable; skipping", book_id)
             return None
 
         path = download_path(book_id)
         try:
-            _content_type, blob = self._files.get_bytes(path)
+            _content_type, blob = self._http.get_bytes(path)
         except ConnectorHttpError as exc:
             logger.warning("Gutenberg download %s failed: %s", path, exc)
             if _is_not_found(exc):
@@ -369,7 +433,7 @@ class GutenbergConnector(SourceConnector):
 
         series = Series(
             id=book_id,
-            # Prefer the catalogue's title; fall back to the book's own.
+            # Prefer the bibliographic record's title; fall back to the EPUB's.
             title=series.title or (parsed.title or ""),
             chapter_count=len(parsed.chapters),
             description=series.description,
