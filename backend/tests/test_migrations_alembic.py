@@ -600,3 +600,92 @@ def test_session_duration_is_written_however_the_row_is_built(tmp_path):
             for r in session.query(ReadingSession).all()
         }
     assert stored == {key: expected for key, (_, _, expected) in cases.items()}
+
+
+def test_session_duration_listener_rounds_the_way_the_backfill_does(tmp_path):
+    """Backfilled history and newly written rows must be the same number.
+
+    0009 backfills in SQL with ``strftime('%s', ended_at) - strftime('%s',
+    started_at)``, which truncates *each end* to a whole second and then
+    subtracts. A plain ``(ended_at - started_at).total_seconds()`` subtracts
+    first and truncates after, and the two differ by one second whenever the
+    fractions straddle a second boundary — 10:00:00.9 to 10:00:01.1 is 1 to
+    SQLite and 0 to the subtraction. ``utcnow()`` keeps microseconds, so every
+    real row has fractions and the drift is not hypothetical: it made every
+    session written after the migration read up to a second shorter than the
+    identical session recorded before it.
+
+    Both halves are asserted against the same rows: the migration backfills
+    one set, the mapper listener writes the other, and they must agree.
+    """
+    from sqlalchemy.orm import Session
+
+    from database.models import ReadingSession
+
+    #: (label, started_at, ended_at) — fractions chosen to straddle, and not
+    #: to straddle, a whole-second boundary in both directions.
+    cases = [
+        ("straddles-one-second", datetime(2026, 1, 1, 10, 0, 0, 900000),
+         datetime(2026, 1, 1, 10, 0, 1, 100000)),
+        ("inside-one-second", datetime(2026, 1, 1, 10, 0, 0, 100000),
+         datetime(2026, 1, 1, 10, 0, 0, 900000)),
+        ("straddles-late", datetime(2026, 1, 1, 10, 0, 0, 900000),
+         datetime(2026, 1, 1, 10, 0, 59, 100000)),
+        ("exact", datetime(2026, 1, 1, 10, 0, 0),
+         datetime(2026, 1, 1, 10, 5, 0)),
+        ("backwards-fractional", datetime(2026, 1, 1, 10, 0, 1, 100000),
+         datetime(2026, 1, 1, 10, 0, 0, 900000)),
+    ]
+
+    # --- what revision 0009's SQL backfill stores ---------------------------
+    engine = create_engine(f"sqlite:///{tmp_path / 'round.db'}")
+    _upgrade_to(engine, "0008_followed_series_chapter_count")
+    with engine.begin() as conn:
+        _seed_pre_0008_follows_accounts(conn)
+        for sid, (label, start, end) in enumerate(cases, start=1):
+            conn.execute(
+                text(
+                    "INSERT INTO reading_sessions (id, user_id, profile_id,"
+                    " source_id, series_key, chapter_key, start_page,"
+                    " end_page, pages_read, started_at, ended_at) VALUES"
+                    " (:i, 1, 10, 'mangadex', 's', :c, 1, 2, 2, :s, :e)"
+                ),
+                {"i": sid, "c": label, "s": str(start), "e": str(end)},
+            )
+    _upgrade_to(engine, "0009_reading_session_duration")
+    with engine.connect() as conn:
+        backfilled = dict(
+            conn.execute(
+                text("SELECT chapter_key, duration_seconds FROM reading_sessions")
+            ).all()
+        )
+
+    # --- what the mapper listener writes for the same instants --------------
+    listener_dir = tmp_path / "listener"
+    listener_dir.mkdir()
+    fresh = _fresh_engine(listener_dir)
+    with fresh.begin() as conn:
+        _seed_pre_0008_follows_accounts(conn)
+    with Session(fresh) as session:
+        for label, start, end in cases:
+            session.add(
+                ReadingSession(
+                    user_id=1, profile_id=10, source_id="mangadex",
+                    series_key="s", chapter_key=label,
+                    start_page=1, end_page=2, pages_read=2,
+                    started_at=start, ended_at=end,
+                )
+            )
+        session.commit()
+        written = {
+            r.chapter_key: r.duration_seconds
+            for r in session.query(ReadingSession).all()
+        }
+
+    assert written == backfilled
+    # And the values themselves are SQLite's, not a plain subtraction's.
+    assert backfilled["straddles-one-second"] == 1
+    assert backfilled["inside-one-second"] == 0
+    assert backfilled["straddles-late"] == 59
+    assert backfilled["exact"] == 300
+    assert backfilled["backwards-fractional"] == 0
