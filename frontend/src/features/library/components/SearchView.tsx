@@ -23,6 +23,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
 import { Input } from "@/components/ui/input";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
+import { useContentModeFilter } from "@/features/content-mode";
 import { useShortcut } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
 import { useFederatedSearch, useRetrySearchSource } from "@/features/sources/hooks";
@@ -99,6 +100,7 @@ export function SearchView() {
     [trimmedQuery],
   );
   const searchQuery = useFederatedSearch(searchParams);
+  const { filterRows } = useContentModeFilter();
   const retrySource = useRetrySearchSource(searchParams);
   const recentSearches = useSyncExternalStore(
     subscribeRecentSearches,
@@ -136,7 +138,14 @@ export function SearchView() {
   const hasQuery = trimmedQuery.length > 0;
   // The flat `items` list is the backend's legacy view; sections are rendered
   // from `groups` so a source that failed or returned nothing says so itself.
-  const groups = useMemo(() => searchQuery.data?.groups ?? [], [searchQuery.data]);
+  // Scoped to the active content mode. A group's `source` is null for the
+  // local-library section, which `matchesContentMode` resolves to manga —
+  // correct, since the local library is whatever the mode says it is and is
+  // itself already filtered upstream. A no-op when novels are disabled.
+  const groups = useMemo(
+    () => filterRows(searchQuery.data?.groups, (group) => group.source),
+    [filterRows, searchQuery.data],
+  );
   const { visible, quiet } = useMemo(() => splitSearchGroups(groups), [groups]);
   const resultCount = searchResultCount(groups);
   // Per-source failures already render inline via `GlobalSearchGroupSection`'s

@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { Pin, PinOff, Search, Telescope } from "lucide-react";
 import { ApiError } from "@/types/api";
 import { Button } from "@/components/ui/button";
+import { useContentModeFilter } from "@/features/content-mode";
 import { cn } from "@/lib/cn";
 import { useReplaceSourcePins, useSourcePins, useSources } from "../hooks";
 import { removeSourcePin, toggleSourcePin } from "../pins";
@@ -190,8 +191,23 @@ export function SourcesListView() {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<SourcesFilter>("all");
 
-  const sources = useMemo(() => sourcesQuery.data ?? [], [sourcesQuery.data]);
-  const pins = useMemo(() => pinsQuery.data ?? [], [pinsQuery.data]);
+  // Scoped to the active content mode: a novel archive never appears beside
+  // the manhwa sites, and vice versa. Straight off `content_kind`, so no
+  // source-id index is needed here. A no-op when novels are disabled.
+  const { filterSources, keepSource } = useContentModeFilter();
+  const sources = useMemo(
+    () => filterSources(sourcesQuery.data),
+    [filterSources, sourcesQuery.data],
+  );
+  // Pins are one server-side set spanning both modes. `allPins` is what every
+  // MUTATION works from — `PUT /sources/pins` replaces the whole set, so
+  // toggling a pin computed from a mode-filtered list would silently delete
+  // every pin belonging to the other mode. `pins` is the display slice only.
+  const allPins = useMemo(() => pinsQuery.data ?? [], [pinsQuery.data]);
+  const pins = useMemo(
+    () => allPins.filter((pin) => keepSource(pin.source_id)),
+    [allPins, keepSource],
+  );
   const { pinned, rest } = useMemo(
     () => sourceSections({ sources, pins, query, filter }),
     [sources, pins, query, filter],
@@ -248,8 +264,9 @@ export function SourcesListView() {
     }
   };
 
-  const togglePin = (source: SourceSummary) => applyPins(toggleSourcePin(pins, source));
-  const unpin = (sourceId: string) => applyPins(removeSourcePin(pins, sourceId));
+  // Both edit the FULL set (see `allPins` above), never the display slice.
+  const togglePin = (source: SourceSummary) => applyPins(toggleSourcePin(allPins, source));
+  const unpin = (sourceId: string) => applyPins(removeSourcePin(allPins, sourceId));
 
   const nothingMatches = pinned.length === 0 && rest.length === 0;
 
