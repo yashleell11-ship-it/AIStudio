@@ -33,6 +33,7 @@ import html as html_lib
 import json
 import re
 from typing import Any
+from urllib.parse import urlparse
 
 from connectors.models import BrowseMode, Chapter, Page, PaginatedSeriesList, Series
 
@@ -536,8 +537,19 @@ PAGE_IMG_RE = re.compile(r"<img[^>]+src=[\"']([^\"']+)[\"']", re.I)
 
 #: Rawkuma serves page images off two hosts, both under kyut.dev
 #: (kuma.kyut.dev and rcdn.kyut.dev). Anything else inside the reader section
-#: is theme chrome, not a page.
+#: is theme chrome -- a banner, a spacer, a house ad -- and must not be handed
+#: to the reader as a page, which would shift every page number after it.
 PAGE_HOST_SUFFIX = "kyut.dev"
+
+
+def is_page_image_url(url: str) -> bool:
+    """True when ``url`` points at Rawkuma's page-image CDN.
+
+    Matched on the parsed host, not as a substring of the whole URL: a
+    substring test would accept ``https://ads.example/?ref=kyut.dev``.
+    """
+    host = (urlparse(url).hostname or "").lower()
+    return host == PAGE_HOST_SUFFIX or host.endswith(f".{PAGE_HOST_SUFFIX}")
 
 
 def parse_chapter_pages(html: str, chapter_id: str) -> list[Page]:
@@ -557,7 +569,7 @@ def parse_chapter_pages(html: str, chapter_id: str) -> list[Page]:
         url = html_lib.unescape(url.strip())
         if not url or url in seen:
             continue
-        if PAGE_HOST_SUFFIX not in url:
+        if not is_page_image_url(url):
             continue
         seen.add(url)
         number = len(pages) + 1
