@@ -211,7 +211,8 @@ class SeriesChapterTile extends StatelessWidget {
                 ),
               ),
             ),
-            if (download != null) _DownloadControl(download: download),
+            if (download != null)
+              SeriesChapterDownloadControl(download: download),
           ],
         ),
       ),
@@ -270,8 +271,13 @@ class _DownloadStatusLine extends StatelessWidget {
 /// The trailing control. A button only where there is something to press:
 /// every other phase is a badge occupying the same slot, so a row never jumps
 /// as a chapter moves from queued to downloading to saved.
-class _DownloadControl extends StatelessWidget {
-  const _DownloadControl({required this.download});
+/// The trailing download control for one chapter row.
+///
+/// Public because the novel Contents list renders the same control beside a
+/// table-of-contents row rather than a chapter tile — two renderings of the
+/// four download phases would be two things to keep in step.
+class SeriesChapterDownloadControl extends StatelessWidget {
+  const SeriesChapterDownloadControl({super.key, required this.download});
 
   final SeriesChapterDownloadAction download;
 

@@ -1,9 +1,33 @@
 import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
+import 'package:manhwamaniacs/features/downloads/store/downloads_db.dart';
 
 /// A `saved_chapters` row — one chapter's on-device download record for one
 /// `(user, profile)` scope. Mirrors `docs/superpowers/specs/…mobile-source-native-design.md`
 /// §3's schema.
+/// What a saved chapter's blobs hold.
+///
+/// A novel chapter is stored as ONE blob of paragraph JSON, so its
+/// [SavedChapter.pageCount] is 1 and means "one blob", not "one page". Nothing
+/// in the store needed to change for that — refcounting, the read-then-expire
+/// sweep and the storage cap all work on blobs and bytes, and text blobs are
+/// tiny next to page images. What needed to change is that the row can now
+/// SAY which it is, so the reader and the Downloads screen do not have to
+/// guess from a page count of 1.
+enum DownloadKind {
+  manga,
+  novel;
+
+  static DownloadKind fromWire(String? value) =>
+      value == kNovelDownloadKind ? DownloadKind.novel : DownloadKind.manga;
+
+  String get wire => this == DownloadKind.novel
+      ? kNovelDownloadKind
+      : kMangaDownloadKind;
+
+  bool get isNovel => this == DownloadKind.novel;
+}
+
 class SavedChapter {
   const SavedChapter({
     required this.rowId,
@@ -22,6 +46,7 @@ class SavedChapter {
     required this.createdAt,
     required this.retryCount,
     required this.error,
+    this.kind = DownloadKind.manga,
   });
 
   final int rowId;
@@ -51,6 +76,14 @@ class SavedChapter {
   /// when [state] is [DownloadChapterState.failed].
   final String? error;
 
+  /// What this row's blobs hold — page images, or one blob of paragraph JSON.
+  ///
+  /// Stored on the row rather than looked up through the sources listing,
+  /// because the whole point of a download is that it reads with no network:
+  /// on a plane there is no listing to ask, and a chapter that could not say
+  /// which reader to open in would be a chapter that could not be opened.
+  final DownloadKind kind;
+
   ChapterIdentity get identity =>
       (sourceId: sourceId, seriesKey: seriesKey, chapterKey: chapterKey);
 
@@ -73,5 +106,8 @@ class SavedChapter {
         createdAt: DateTime.parse(row['created_at']! as String),
         retryCount: row['retry_count']! as int,
         error: row['error'] as String?,
+        // Absent only when read back from a row written before the v2
+        // migration ran, which is a manga chapter by definition.
+        kind: DownloadKind.fromWire(row[DownloadsSchema.colKind] as String?),
       );
 }

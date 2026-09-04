@@ -6,7 +6,10 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
+import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
@@ -198,6 +201,13 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
     final activeProgress =
         ref.watch(seriesActiveChapterProgressProvider(_identity));
     final hasScope = ref.watch(activeDownloadsScopeIdProvider) != null;
+    // What a download of this series holds — page images or prose. Resolved
+    // from the source-mode index rather than guessed, because it decides both
+    // which endpoint the queue fetches and which reader the row opens in.
+    final kind = ref.watch(contentModeScopeProvider).modeOf(_series.sourceId) ==
+            ContentMode.novel
+        ? DownloadKind.novel
+        : DownloadKind.manga;
 
     final statusChips = <SeriesDetailChip>[
       if (_series.readingStatus.isNotEmpty)
@@ -262,6 +272,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
                 chapterNumber: chapter.number,
                 title: chapter.title,
                 seriesTitle: _series.title,
+                kind: kind,
               ),
           ],
         ),

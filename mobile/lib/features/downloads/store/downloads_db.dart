@@ -30,6 +30,12 @@ abstract final class DownloadsSchema {
   static const colRetryCount = 'retry_count';
   static const colError = 'error';
 
+  /// What the saved blobs hold: `'manga'` (one blob per page image) or
+  /// `'novel'` (one blob of paragraph JSON for the whole chapter). Added in
+  /// schema v2; every pre-existing row is manga, which is what the column
+  /// default says.
+  static const colKind = 'kind';
+
   static const colChapterRowId = 'chapter_rowid';
   static const colPageNumber = 'page_number';
   static const colBlobHash = 'blob_hash';
@@ -41,7 +47,13 @@ abstract final class DownloadsSchema {
   static const colPayloadJson = 'payload_json';
 }
 
-const _dbVersion = 1;
+const _dbVersion = 2;
+
+/// The `kind` column's two values. A row's own kind, not a lookup through the
+/// sources listing — the offline path has no listing, and a downloaded
+/// chapter must be readable on a plane.
+const String kMangaDownloadKind = 'manga';
+const String kNovelDownloadKind = 'novel';
 
 /// The on-device store's database file name, under
 /// `getApplicationSupportDirectory()` — deliberately **not**
@@ -58,6 +70,20 @@ Future<Database> openDownloadsDatabase({String? overridePath}) async {
   return openDatabase(
     path,
     version: _dbVersion,
+    onUpgrade: (db, oldVersion, newVersion) async {
+      // v1 → v2: novels. `ADD COLUMN` with a default is the one schema change
+      // SQLite performs without rewriting the table, so an install with
+      // thousands of downloaded chapters upgrades instantly — and every row
+      // that already exists is a manga chapter, which is exactly what the
+      // default backfills.
+      if (oldVersion < 2) {
+        await db.execute(
+          'ALTER TABLE ${DownloadsSchema.savedChapters} '
+          'ADD COLUMN ${DownloadsSchema.colKind} TEXT NOT NULL '
+          "DEFAULT '$kMangaDownloadKind'",
+        );
+      }
+    },
     onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE ${DownloadsSchema.savedChapters} (
@@ -77,6 +103,7 @@ Future<Database> openDownloadsDatabase({String? overridePath}) async {
           ${DownloadsSchema.colCreatedAt} TEXT NOT NULL,
           ${DownloadsSchema.colRetryCount} INTEGER NOT NULL DEFAULT 0,
           ${DownloadsSchema.colError} TEXT,
+          ${DownloadsSchema.colKind} TEXT NOT NULL DEFAULT '$kMangaDownloadKind',
           UNIQUE(
             ${DownloadsSchema.colScopeId},
             ${DownloadsSchema.colSourceId},

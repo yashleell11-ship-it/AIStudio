@@ -6,13 +6,17 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
+import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/chapter_download_action.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/download_series_button.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/series_download_progress.dart';
+import 'package:manhwamaniacs/features/novels/widgets/novel_series_detail_view.dart';
 import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
@@ -80,12 +84,26 @@ class SourceSeriesDetailScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (data) => _SeriesDetailBody(
-          sourceId: sourceId,
-          seriesId: seriesId,
-          series: data.series,
-          chapters: data.chapters,
-        ),
+        // Prose gets its own screen, not this one with a different font: a
+        // novel's identity is its title and its length, not its cover, so the
+        // two pages are built the opposite way up. Which one to render is a
+        // property of the SOURCE, not of the reader's current mode — opening a
+        // novel from a manga-mode search result must still open the book page.
+        data: (data) =>
+            ref.watch(contentModeScopeProvider).modeOf(sourceId) ==
+                    ContentMode.novel
+                ? NovelSeriesDetailView(
+                    sourceId: sourceId,
+                    seriesId: seriesId,
+                    series: data.series,
+                    chapters: data.chapters,
+                  )
+                : _SeriesDetailBody(
+                    sourceId: sourceId,
+                    seriesId: seriesId,
+                    series: data.series,
+                    chapters: data.chapters,
+                  ),
       ),
     );
   }
@@ -206,6 +224,9 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
                 chapterNumber: chapter.number,
                 title: chapter.title,
                 seriesTitle: series.title,
+                // This body only ever renders for a manga source — the novel
+                // branch above took the other path.
+                kind: DownloadKind.manga,
               ),
           ],
         ),

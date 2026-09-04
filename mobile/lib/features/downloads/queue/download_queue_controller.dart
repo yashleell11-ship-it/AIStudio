@@ -158,6 +158,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     double? chapterNumber,
     String? title,
     String? seriesTitle,
+    DownloadKind kind = DownloadKind.manga,
   }) async {
     final store = ref.read(downloadsStoreProvider);
     if (store == null) return;
@@ -166,6 +167,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
       chapterNumber: chapterNumber,
       title: title,
       seriesTitle: seriesTitle,
+      kind: kind,
     );
     _bumpRevision();
     unawaited(_kick());
@@ -187,6 +189,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
         chapterNumber: chapter.chapterNumber,
         title: chapter.title,
         seriesTitle: chapter.seriesTitle,
+        kind: chapter.kind,
       );
     }
     _bumpRevision();
@@ -424,6 +427,11 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
       return _ChapterOutcome.cancelled;
     }
 
+    // Prose takes a different fetch and a different blob shape, but the same
+    // row, the same retry bound and the same completeness guard — see
+    // [_downloadOneNovelChapter].
+    if (chapter.kind.isNovel) return _downloadOneNovelChapter(store, chapter);
+
     final manifestResult = await ref.read(readerRepositoryProvider).manifest(
           sourceId: chapter.sourceId,
           seriesKey: chapter.seriesKey,
@@ -460,6 +468,61 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
       chapter,
       'Some pages failed to download.',
     );
+  }
+
+  /// Fetches one novel chapter's text and stores it as a single blob.
+  ///
+  /// Deliberately the same *shape* as the manga path rather than a parallel
+  /// pipeline: one row, `page_count = 1` (one blob, not one page), the same
+  /// [_recordChapterFailure] retry bound, and the same
+  /// [DownloadsStore.markCompleteIfAllPagesPresent] guard — which for a novel
+  /// asks "is the one blob on disk?" and is exactly as load-bearing as it is
+  /// for a forty-page chapter.
+  ///
+  /// There is no page loop, so no free-space/cap re-check mid-chapter: a
+  /// chapter of prose is a single small write, and the loop already checked
+  /// both immediately before picking this chapter up.
+  Future<_ChapterOutcome> _downloadOneNovelChapter(
+    DownloadsStore store,
+    SavedChapter chapter,
+  ) async {
+    final result = await ref.read(novelsRepositoryProvider).chapter(
+          sourceId: chapter.sourceId,
+          seriesKey: chapter.seriesKey,
+          chapterKey: chapter.chapterKey,
+        );
+    if (result.isErr) {
+      return _recordChapterFailure(store, chapter, result.error.userMessage);
+    }
+    final novel = result.value;
+    if (novel.paragraphs.isEmpty) {
+      return _recordChapterFailure(store, chapter, 'This chapter has no text.');
+    }
+
+    await store.updateManifestInfo(
+      rowId: chapter.rowId,
+      pageCount: 1,
+      chapterNumber: novel.chapterNumber,
+      title: novel.title,
+    );
+    _reportPageProgress(done: 0, total: 1);
+
+    try {
+      await store.saveNovelText(
+        rowId: chapter.rowId,
+        chapter: novel.toStoredJson(),
+      );
+    } catch (error) {
+      return _recordChapterFailure(store, chapter, 'Could not save the text.');
+    }
+    _reportPageProgress(done: 1, total: 1);
+
+    if (_cancelledRowIds.contains(chapter.rowId)) {
+      return _ChapterOutcome.cancelled;
+    }
+    final completed = await store.markCompleteIfAllPagesPresent(chapter.rowId);
+    if (completed) return _ChapterOutcome.completed;
+    return _recordChapterFailure(store, chapter, 'The text failed to save.');
   }
 
   /// Bounded retry at the chapter level: increments `retry_count` and, once
@@ -563,6 +626,7 @@ typedef ChapterQueueRequest = ({
   double? chapterNumber,
   String? title,
   String? seriesTitle,
+  DownloadKind kind,
 });
 
 final downloadQueueControllerProvider =

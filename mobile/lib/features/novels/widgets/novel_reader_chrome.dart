@@ -1,0 +1,163 @@
+import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/features/novels/widgets/novel_chapter_view.dart';
+import 'package:manhwamaniacs/features/reader/widgets/immersive_safe_area.dart';
+
+/// The novel reader's controls: a title bar and a footer, both painted in the
+/// reading palette and both hidden until the page is tapped.
+///
+/// Uses [ImmersiveSafeArea], not [SafeArea], and that is not a stylistic
+/// choice. This screen hides the system overlays, and when an overlay is
+/// hidden the OS reports **no** inset for it — so `MediaQuery.padding`
+/// collapses to zero while the Dynamic Island still physically covers the top
+/// of the display. A bar padded by `SafeArea` slides underneath the cutout and
+/// its Back button becomes unreachable. `viewPadding` reports the inset the
+/// display imposes whether or not the overlay is drawn, which is what a
+/// fullscreen surface has to respect.
+class NovelReaderChrome extends StatelessWidget {
+  const NovelReaderChrome({
+    super.key,
+    required this.visible,
+    required this.surface,
+    required this.title,
+    required this.percent,
+    required this.isOffline,
+    required this.onBack,
+    required this.onPrevious,
+    required this.onNext,
+    required this.onType,
+  });
+
+  final bool visible;
+  final NovelSurfaceColors surface;
+  final String title;
+  final int percent;
+
+  /// Whether this chapter came off the phone rather than the network. Worth
+  /// saying quietly: it explains why prev/next are missing.
+  final bool isOffline;
+
+  final VoidCallback onBack;
+  final VoidCallback? onPrevious;
+  final VoidCallback? onNext;
+  final VoidCallback onType;
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      ignoring: !visible,
+      child: AnimatedOpacity(
+        opacity: visible ? 1 : 0,
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        child: Column(
+          children: [
+            _Bar(
+              surface: surface,
+              top: true,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: onBack,
+                    icon: const Icon(Icons.arrow_back),
+                    color: surface.ink,
+                    tooltip: 'Back',
+                  ),
+                  Expanded(
+                    child: Text(
+                      title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: surface.ink,
+                      ),
+                    ),
+                  ),
+                  if (isOffline)
+                    Padding(
+                      padding: const EdgeInsets.only(right: AppSpacing.xs),
+                      child: Icon(
+                        Icons.cloud_off_rounded,
+                        size: 18,
+                        color: surface.muted,
+                      ),
+                    ),
+                  IconButton(
+                    onPressed: onType,
+                    icon: const Icon(Icons.text_fields_rounded),
+                    color: surface.ink,
+                    tooltip: 'Text and page',
+                  ),
+                ],
+              ),
+            ),
+            const Spacer(),
+            _Bar(
+              surface: surface,
+              top: false,
+              child: Row(
+                children: [
+                  IconButton(
+                    onPressed: onPrevious,
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    color: onPrevious == null ? surface.rule : surface.ink,
+                    tooltip: 'Previous chapter',
+                  ),
+                  Expanded(
+                    child: Center(
+                      child: Text(
+                        '$percent%',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: surface.muted,
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                        ),
+                      ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: onNext,
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    color: onNext == null ? surface.rule : surface.ink,
+                    tooltip: 'Next chapter',
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Bar extends StatelessWidget {
+  const _Bar({required this.surface, required this.top, required this.child});
+
+  final NovelSurfaceColors surface;
+  final bool top;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        // Opaque in the palette's own background, not a translucent scrim: a
+        // frosted bar over cream paper reads as a smudge, and the prose has to
+        // stop being visible under the controls for them to be controls.
+        color: surface.bg,
+        border: Border(
+          top: top ? BorderSide.none : BorderSide(color: surface.rule),
+          bottom: top ? BorderSide(color: surface.rule) : BorderSide.none,
+        ),
+      ),
+      child: ImmersiveSafeArea(
+        top: top,
+        bottom: !top,
+        child: SizedBox(height: 52, child: child),
+      ),
+    );
+  }
+}
