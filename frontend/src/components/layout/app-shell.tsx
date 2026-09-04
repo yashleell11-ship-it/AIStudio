@@ -8,7 +8,11 @@ import { ShortcutsDialog } from "@/components/keyboard";
 import { mobileNav } from "@/config/nav";
 import { HELP_SHORTCUT_KEYS, useShortcut } from "@/lib/keyboard";
 import { ScrollContainerProvider } from "@/lib/scroll-container";
-import { isImmersivePath, isImmersiveReaderPath } from "@/lib/reader-route";
+import {
+  isImmersiveNovelPath,
+  isImmersivePath,
+  isImmersiveReaderPath,
+} from "@/lib/reader-route";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
 // Direct, not via the `@/features/preferences` barrel: that barrel also exports
@@ -76,6 +80,7 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   // page, because the novel reader paints its own reading palette and a
   // near-black shell under a Paper page would defeat the point of choosing it.
   const isMangaChapter = isImmersiveReaderPath(pathname);
+  const isNovelChapter = isImmersiveNovelPath(pathname);
   const isReaderChapter = isImmersivePath(pathname);
 
   const assignScrollContainer = useCallback((node: HTMLElement | null) => {
@@ -190,7 +195,16 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
       <Sidebar />
 
       <div className="relative flex min-w-0 flex-1 flex-col">
-        <Topbar hideOnReader={isReaderChapter} />
+        {/* The novel reader paints its own page, and that page can be cream.
+            The app's dark bar sitting across the top of it reads as a second
+            header and as a hole punched in the book — the same reason the
+            reader's type panel borrows the reading palette instead of the
+            app's chrome. The running head carries the back arrow, the progress
+            and the settings, so nothing is lost with it gone.
+
+            The manga reader keeps the bar exactly as it has always had it: its
+            page is obsidian, so the chrome above it agrees with it. */}
+        {isNovelChapter ? null : <Topbar hideOnReader={isMangaChapter} />}
         {/* Quick profile hand-off, anchored in the topbar band. Hidden on the
             reader (its topbar is hidden) and on narrow screens where the bar is
             crowded — switching is also available under Settings → Profiles. */}

@@ -13,7 +13,7 @@ import { useContentModeFilter } from "@/features/content-mode";
 // Direct rather than through the `@/features/novels` barrel, which also pulls
 // in the novel reader.
 import { NovelShelf } from "@/features/novels/components/NovelShelf";
-import type { ShelfBook } from "@/features/novels/shelf";
+import { coverPath, type ShelfBook } from "@/features/novels/shelf";
 import { libraryCoverUrl } from "../api";
 import { useSeriesList } from "../hooks";
 import { readingStatusLabel } from "../reading-stats";
@@ -56,7 +56,9 @@ export function LibraryShelfView() {
             chapterCount: series.chapter_count,
             status: null,
             genres: [],
-            coverUrl: libraryCoverUrl(series.cover_url),
+            coverUrl: coverPath(series.cover_url)
+              ? libraryCoverUrl(series.cover_url)
+              : null,
             note: series.reading_status
               ? readingStatusLabel(series.reading_status)
               : null,

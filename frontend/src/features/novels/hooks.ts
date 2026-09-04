@@ -108,7 +108,16 @@ export function useCachedNovelWordCounts(
         key[2] === sourceId &&
         key[3] === seriesKey
       ) {
-        bumpRevision();
+        // Deferred to a microtask, not called straight through.
+        //
+        // The query cache notifies SYNCHRONOUSLY, from inside whatever call
+        // stack wrote to it — and that stack is sometimes another component's
+        // render (opening the reader from this page mounts `useNovelChapter`,
+        // which touches the cache while React is rendering `NovelReader`).
+        // Updating this component from there is the "Cannot update a component
+        // while rendering a different component" violation; a microtask puts
+        // the update back outside the render phase, where it belongs.
+        queueMicrotask(bumpRevision);
       }
     });
   }, [queryClient, sourceId, seriesKey]);
