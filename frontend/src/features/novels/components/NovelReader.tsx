@@ -2,6 +2,10 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import {
+  BOOKMARK_MEDIA_NOVEL,
+  useBookmarkCapture,
+} from "@/features/bookmarks";
 import { useSaveProgress } from "@/features/reader/hooks";
 import { seriesPageHref } from "@/features/reader/reader-link";
 import { setReaderScrollTop } from "@/features/reader/scroll-preparation";
@@ -12,6 +16,7 @@ import { toNovelChapter } from "../api";
 import { prefetchNovelChapter, useNovelChapter } from "../hooks";
 import { novelChapterHref } from "../novel-link";
 import { novelSeriesKey } from "../preferences";
+import type { ParagraphAnchor } from "../paragraph-anchor";
 import { nextProgressPush, type NovelProgressPosition } from "../progress";
 import { NovelChapterView } from "./NovelChapterView";
 
@@ -21,6 +26,17 @@ interface NovelReaderProps {
   chapterKey: string;
   /** The progress BUCKET to resume at — `?page=` carries it, see `progress.ts`. */
   initialPage?: number;
+  /**
+   * A bookmark's exact spot: 1-based PARAGRAPH plus a fraction within it, off
+   * `?para=&at=`. A paragraph is not a bucket, so it gets its own parameter —
+   * see `features/bookmarks/anchor.ts`.
+   *
+   * Two primitives rather than one object because they are compared during
+   * render to decide whether the route moved, and a fresh object literal from
+   * the page component would compare unequal to itself every time.
+   */
+  initialParagraph?: number | null;
+  initialAnchorFraction?: number | null;
 }
 
 const PROGRESS_SAVE_MS = 500;
@@ -39,7 +55,16 @@ export function NovelReader({
   seriesKey,
   chapterKey,
   initialPage = 1,
+  initialParagraph = null,
+  initialAnchorFraction = null,
 }: NovelReaderProps) {
+  const routedAnchor = useMemo(
+    () =>
+      initialParagraph != null && initialParagraph >= 1
+        ? { index: initialParagraph, fraction: initialAnchorFraction ?? 0 }
+        : null,
+    [initialAnchorFraction, initialParagraph],
+  );
   const queryClient = useQueryClient();
   const scrollElement = useScrollContainer();
 
@@ -47,21 +72,36 @@ export function NovelReader({
   // transition advances it without a navigation.
   const [activeChapterKey, setActiveChapterKey] = useState(chapterKey);
   const [resumeBucket, setResumeBucket] = useState(initialPage);
+  // Cleared on a seamless advance: chapter 41 does not open at chapter 40's
+  // bookmarked paragraph.
+  const [resumeAnchor, setResumeAnchor] = useState(routedAnchor);
 
   // A real navigation normally remounts via the page's `key`, but follow the
   // props during render anyway if they change under us — React's accepted
   // "reset state on prop change" pattern, matching `SourceReader`.
-  const [routed, setRouted] = useState({ chapterKey, initialPage });
-  if (routed.chapterKey !== chapterKey || routed.initialPage !== initialPage) {
-    setRouted({ chapterKey, initialPage });
+  const [routed, setRouted] = useState({
+    chapterKey,
+    initialPage,
+    initialParagraph,
+    initialAnchorFraction,
+  });
+  if (
+    routed.chapterKey !== chapterKey ||
+    routed.initialPage !== initialPage ||
+    routed.initialParagraph !== initialParagraph ||
+    routed.initialAnchorFraction !== initialAnchorFraction
+  ) {
+    setRouted({ chapterKey, initialPage, initialParagraph, initialAnchorFraction });
     setActiveChapterKey(chapterKey);
     setResumeBucket(initialPage);
+    setResumeAnchor(routedAnchor);
   }
 
   const ref: ChapterId = { sourceId, seriesKey, chapterKey: activeChapterKey };
   const chapterQuery = useNovelChapter(ref);
   const seriesQuery = useSourceSeriesDetail(sourceId, seriesKey);
   const saveProgress = useSaveProgress();
+  const bookmark = useBookmarkCapture();
 
   const chapter = useMemo(
     () => (chapterQuery.data ? toNovelChapter(chapterQuery.data) : undefined),
@@ -137,6 +177,30 @@ export function NovelReader({
     [persistProgress],
   );
 
+  /**
+   * One deliberate marker at the paragraph being read.
+   *
+   * Against `activeChapterKey`, not the routed key: a seamless advance moves
+   * the chapter with no navigation, so a bookmark taken after one belongs to
+   * the chapter on screen. `chapter_number` rides along so the bookmark
+   * survives the source re-keying its chapters (design §3).
+   */
+  const handleBookmark = useCallback(
+    (anchor: ParagraphAnchor) => {
+      bookmark.capture({
+        source_id: sourceId,
+        series_key: seriesKey,
+        chapter_key: activeChapterKey,
+        chapter_number: chapter?.chapterNumber ?? null,
+        media_type: BOOKMARK_MEDIA_NOVEL,
+        anchor_index: anchor.index,
+        anchor_fraction: anchor.fraction,
+        anchor_total: anchor.total,
+      });
+    },
+    [activeChapterKey, bookmark, chapter?.chapterNumber, seriesKey, sourceId],
+  );
+
   const advanceToNextChapter = useCallback(() => {
     if (!nextChapterKey || !chapter) return;
 
@@ -163,6 +227,7 @@ export function NovelReader({
     });
     furthestSent.current = 0;
     setResumeBucket(1);
+    setResumeAnchor(null);
     setActiveChapterKey(nextChapterKey);
     // A new chapter starts at its first line, not wherever the last one ended.
     setReaderScrollTop(scrollElement, 0);
@@ -199,6 +264,11 @@ export function NovelReader({
       seriesTitle={seriesQuery.data?.title ?? seriesKey}
       seriesHref={seriesPageHref({ sourceId, seriesKey })}
       initialBucket={resumeBucket}
+      initialAnchor={resumeAnchor}
+      onBookmark={handleBookmark}
+      bookmarkPending={bookmark.pending}
+      bookmarkSaved={bookmark.justSaved}
+      bookmarkFailed={bookmark.failed}
       previousChapterHref={previousChapterHref}
       nextChapterHref={nextChapterHref}
       nextChapterLabel={nextChapterLabel}

@@ -3,9 +3,17 @@
 import Link from "next/link";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ChevronRight, TriangleAlert, Type } from "lucide-react";
+import {
+  ArrowLeft,
+  Bookmark as BookmarkIcon,
+  BookmarkCheck,
+  ChevronRight,
+  TriangleAlert,
+  Type,
+} from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
+import { BookmarkNotice } from "@/features/bookmarks";
 // The manga reader's own scroll writer, reused rather than re-derived: it
 // rounds, clamps at zero and skips a no-op write.
 import { setReaderScrollTop } from "@/features/reader/scroll-preparation";
@@ -13,6 +21,11 @@ import { useScrollContainer } from "@/lib/scroll-container";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { isSceneBreak, splitDropCap, tocEntry } from "../book";
 import { paletteSurface } from "../palettes";
+import {
+  captureParagraphAnchor,
+  restoreParagraphAnchor,
+  type ParagraphAnchor,
+} from "../paragraph-anchor";
 import { activeParagraphIndex, paragraphForBucket, progressForParagraph } from "../progress";
 import { formatChapterLength } from "../reading-time";
 import { novelFontStack, stepFontSize } from "../typography";
@@ -35,6 +48,17 @@ interface NovelChapterViewProps {
   seriesHref: string;
   /** 1-based progress bucket to resume at. */
   initialBucket: number;
+  /**
+   * A bookmark's exact spot — a 1-based PARAGRAPH and a fraction within it —
+   * off the route's `?para=&at=`. Outranks `initialBucket`, which is only ever
+   * a ~1% slice of the chapter (see `progress.ts`). Null for a plain open.
+   */
+  initialAnchor?: { index: number; fraction: number } | null;
+  /** Capture the paragraph under the reading line. */
+  onBookmark: (anchor: ParagraphAnchor) => void;
+  bookmarkPending?: boolean;
+  bookmarkSaved?: boolean;
+  bookmarkFailed?: boolean;
   previousChapterHref: string | null;
   nextChapterHref: string | null;
   /** Short label for the next chapter, e.g. "Chapter 41". */
@@ -51,6 +75,8 @@ const SCROLL_EDGE_THRESHOLD = 48;
 const OVERSCROLL_TRIGGER = 140;
 /** Breathing room above a resumed paragraph, so it is not flush to the head. */
 const RESUME_OFFSET_PX = 96;
+/** How long the "opened at the nearest paragraph" explanation stays up. */
+const MOVED_NOTICE_MS = 5200;
 
 /**
  * A chapter of prose.
@@ -79,6 +105,11 @@ export function NovelChapterView({
   seriesTitle,
   seriesHref,
   initialBucket,
+  initialAnchor = null,
+  onBookmark,
+  bookmarkPending = false,
+  bookmarkSaved = false,
+  bookmarkFailed = false,
   previousChapterHref,
   nextChapterHref,
   nextChapterLabel,
@@ -103,8 +134,11 @@ export function NovelChapterView({
   const [typePanelOpen, setTypePanelOpen] = useState(false);
   const [percent, setPercent] = useState(0);
   const [atBottom, setAtBottom] = useState(false);
+  /** The bookmark this chapter opened from pointed past the end of the text. */
+  const [anchorMoved, setAnchorMoved] = useState(false);
 
   const paragraphs = useMemo(() => chapter?.paragraphs ?? [], [chapter]);
+  const paragraphCount = paragraphs.length;
   const paragraphNodes = useRef<(HTMLParagraphElement | null)[]>([]);
   const offsetsRef = useRef<number[]>([]);
   const articleRef = useRef<HTMLElement>(null);
@@ -133,14 +167,23 @@ export function NovelChapterView({
     if (!container) return;
     const containerTop = container.getBoundingClientRect().top;
     const offsets: number[] = [];
-    for (const node of paragraphNodes.current) {
-      if (!node) continue;
-      offsets.push(
-        node.getBoundingClientRect().top - containerTop + container.scrollTop,
-      );
+    // Exactly one entry per paragraph, in paragraph order: `offsets[i]` IS
+    // paragraph `i`. A bookmark records that index and the server looks the
+    // snippet up in the same array, so an entry skipped for a missing node
+    // would slide every later index by one and quote the wrong sentence. A
+    // node that has not attached inherits the previous offset, which keeps the
+    // array ascending for `activeParagraphIndex`'s binary search.
+    let previous = 0;
+    for (let index = 0; index < paragraphCount; index += 1) {
+      const node = paragraphNodes.current[index];
+      if (node) {
+        previous =
+          node.getBoundingClientRect().top - containerTop + container.scrollTop;
+      }
+      offsets.push(previous);
     }
     offsetsRef.current = offsets;
-  }, [scrollElement]);
+  }, [paragraphCount, scrollElement]);
 
   // Re-measured whenever anything that moves a paragraph changes: the chapter
   // itself, and every typography control.
@@ -167,16 +210,39 @@ export function NovelChapterView({
    */
   useEffect(() => {
     if (restoredRef.current || !hydrated || !scrollElement) return;
-    if (paragraphs.length === 0) return;
+    if (paragraphCount === 0) return;
     const offsets = offsetsRef.current;
     if (offsets.length === 0) return;
     restoredRef.current = true;
+
+    // A bookmark lands on the exact spot, not the chapter start and not the
+    // top of the paragraph: the recorded index is resolved against the
+    // paragraphs this chapter has NOW (design §3 — an aggregator can re-split
+    // the text under it), and the reading line is put back where the capture
+    // measured it. That is why this does not use `RESUME_OFFSET_PX`: the
+    // bucket resume below has only a paragraph and gives it some air; a
+    // bookmark has a pixel and must reproduce it.
+    if (initialAnchor) {
+      const target = restoreParagraphAnchor(
+        offsets,
+        initialAnchor,
+        scrollElement.scrollHeight,
+      );
+      if (!target) return;
+      setAnchorMoved(target.stale);
+      setReaderScrollTop(
+        scrollElement,
+        target.point - scrollElement.clientHeight * READING_LINE_RATIO,
+      );
+      return;
+    }
+
     if (initialBucket <= 1) return;
-    const index = paragraphForBucket(initialBucket, paragraphs.length);
+    const index = paragraphForBucket(initialBucket, paragraphCount);
     const target = offsets[index];
     if (target == null) return;
     setReaderScrollTop(scrollElement, target - RESUME_OFFSET_PX);
-  }, [hydrated, initialBucket, paragraphs.length, scrollElement]);
+  }, [hydrated, initialAnchor, initialBucket, paragraphCount, scrollElement]);
 
   const updateScrollState = useCallback(() => {
     const container = scrollElement;
@@ -236,6 +302,31 @@ export function NovelChapterView({
     };
   }, [scrollElement, atBottom, onSeamlessNext]);
 
+  /**
+   * The paragraph under the reading line, and how far into it — in one action.
+   *
+   * Measured at exactly the line `activeParagraphIndex` picks the paragraph
+   * by, so index and fraction always describe the same point; the restore
+   * above is this run backwards. Null while the column has not been measured,
+   * which is what makes the binding inert on a loading or empty chapter rather
+   * than saving "paragraph 1 of 0".
+   */
+  const captureAnchor = useCallback((): ParagraphAnchor | null => {
+    const container = scrollElement;
+    if (!container) return null;
+    return captureParagraphAnchor(
+      offsetsRef.current,
+      container.scrollTop + container.clientHeight * READING_LINE_RATIO,
+      container.scrollHeight,
+    );
+  }, [scrollElement]);
+
+  const handleBookmark = useCallback(() => {
+    const anchor = captureAnchor();
+    if (!anchor) return;
+    onBookmark(anchor);
+  }, [captureAnchor, onBookmark]);
+
   useNovelShortcuts({
     onPreviousChapter: () => {
       if (previousChapterHref) router.push(previousChapterHref);
@@ -250,6 +341,8 @@ export function NovelChapterView({
     onLargerText: () => update({ fontSize: stepFontSize(fontSize, 1) }),
     onSmallerText: () => update({ fontSize: stepFontSize(fontSize, -1) }),
     onToggleTypePanel: () => setTypePanelOpen((open) => !open),
+    onBookmark: handleBookmark,
+    canBookmark: paragraphCount > 0,
     onEscape: () => {
       if (typePanelOpen) {
         setTypePanelOpen(false);
@@ -259,10 +352,29 @@ export function NovelChapterView({
     },
   });
 
+  // "Say so quietly" (design §3), then get out of the way: this explains where
+  // the reader landed, and stops being useful the moment they start reading.
+  useEffect(() => {
+    if (!anchorMoved) return;
+    const timer = window.setTimeout(() => setAnchorMoved(false), MOVED_NOTICE_MS);
+    return () => window.clearTimeout(timer);
+  }, [anchorMoved]);
+
+  const bookmarkNotice = bookmarkFailed
+    ? { tone: "failed" as const, text: "Couldn't save that spot." }
+    : bookmarkSaved
+      ? { tone: "saved" as const, text: "Saved this spot." }
+      : anchorMoved
+        ? {
+            tone: "moved" as const,
+            text: "The text here changed — opened at the nearest paragraph.",
+          }
+        : null;
+
   const viewState = resolveViewState({
     isLoading,
     error,
-    isEmpty: chapter != null && paragraphs.length === 0,
+    isEmpty: chapter != null && paragraphCount === 0,
   });
 
   const heading = useMemo(() => {
@@ -289,6 +401,9 @@ export function NovelChapterView({
         seriesHref={seriesHref}
         chapterLabel={heading.eyebrow ?? heading.title}
         percent={percent}
+        onBookmark={paragraphCount > 0 ? handleBookmark : undefined}
+        bookmarkPending={bookmarkPending}
+        bookmarkSaved={bookmarkSaved}
         typePanelOpen={typePanelOpen}
         onToggleTypePanel={() => setTypePanelOpen((open) => !open)}
         panel={
@@ -456,6 +571,22 @@ export function NovelChapterView({
           </footer>
         </article>
       )}
+
+      {/* Painted in the reading palette rather than the app surface: a
+          near-black pill over a Paper page would defeat the point of choosing
+          Paper. */}
+      {bookmarkNotice ? (
+        <BookmarkNotice
+          tone={bookmarkNotice.tone}
+          style={{
+            backgroundColor: surface.bg,
+            color: surface.ink,
+            border: `1px solid ${surface.rule}`,
+          }}
+        >
+          {bookmarkNotice.text}
+        </BookmarkNotice>
+      ) : null}
     </div>
   );
 }
@@ -474,6 +605,9 @@ function RunningHead({
   seriesHref,
   chapterLabel,
   percent,
+  onBookmark,
+  bookmarkPending,
+  bookmarkSaved,
   typePanelOpen,
   onToggleTypePanel,
   panel,
@@ -483,6 +617,10 @@ function RunningHead({
   seriesHref: string;
   chapterLabel: string;
   percent: number;
+  /** Absent until there is text on screen to take a position in. */
+  onBookmark?: () => void;
+  bookmarkPending: boolean;
+  bookmarkSaved: boolean;
   typePanelOpen: boolean;
   onToggleTypePanel: () => void;
   panel: React.ReactNode;
@@ -515,6 +653,26 @@ function RunningHead({
         >
           {percent}%
         </span>
+        {/* The pointer equivalent of `b`. Set in the muted ink like every
+            other piece of furniture in the head, so it is findable without
+            competing with the prose. */}
+        {onBookmark ? (
+          <button
+            type="button"
+            aria-label="Bookmark this spot"
+            onClick={onBookmark}
+            disabled={bookmarkPending}
+            title="Bookmark this spot (B)"
+            className="flex size-8 shrink-0 items-center justify-center rounded-lg transition-opacity hover:opacity-70 disabled:opacity-40"
+            style={{ color: bookmarkSaved ? surface.ink : surface.muted }}
+          >
+            {bookmarkSaved ? (
+              <BookmarkCheck className="size-4" aria-hidden />
+            ) : (
+              <BookmarkIcon className="size-4" aria-hidden />
+            )}
+          </button>
+        ) : null}
         <div className="relative shrink-0">
           <button
             type="button"

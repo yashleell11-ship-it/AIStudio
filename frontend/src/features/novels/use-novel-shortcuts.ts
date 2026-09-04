@@ -10,6 +10,10 @@ export interface NovelShortcutHandlers {
   onLargerText: () => void;
   onSmallerText: () => void;
   onToggleTypePanel: () => void;
+  /** Capture the exact paragraph being read, in one press. */
+  onBookmark: () => void;
+  /** False before the chapter's text is on screen: there is no spot to save. */
+  canBookmark?: boolean;
   onEscape: () => void;
 }
 
@@ -18,8 +22,8 @@ export interface NovelShortcutHandlers {
  *
  * Deliberately a short list, and deliberately the manga reader's own keys where
  * the two readers mean the same thing — `h`/`l` for chapters, `-`/`=` for size,
- * Escape to leave. A reader who moves between the two modes should not have to
- * learn a second keyboard.
+ * `b` to bookmark, Escape to leave. A reader who moves between the two modes
+ * should not have to learn a second keyboard.
  *
  * Only ever mounted inside the novel reader, so these do not collide with the
  * manga reader's identical keys: neither reader is on screen while the other
@@ -69,6 +73,19 @@ export function useNovelShortcuts(handlers: NovelShortcutHandlers): void {
     description: "Type and page settings",
     group: GROUP,
     handler: () => handlers.onToggleTypePanel(),
+  });
+
+  // "B" for bookmark, the manga reader's own key for the same act — the two
+  // readers mean the same thing by it, so a reader who moves between them does
+  // not have to learn a second keyboard. Registered (and so listed in the `?`
+  // sheet) only while there is a paragraph under the reading line to record.
+  useShortcut({
+    id: "novel.bookmark",
+    keys: "b",
+    description: "Bookmark this spot",
+    group: GROUP,
+    enabled: handlers.canBookmark !== false,
+    handler: () => handlers.onBookmark(),
   });
 
   useShortcut({
