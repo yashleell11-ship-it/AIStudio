@@ -12,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
 import { GhostPillButton } from "@/components/premium/GhostPillButton";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
+import { browserAllowsPreload } from "@/features/reader/preload";
 import { readAllHref } from "@/features/reader/reader-link";
 import {
   followKey,
@@ -133,7 +134,14 @@ function MangaSeriesDetailView({
     return earliest ?? chapters[0] ?? null;
   }, [chapters]);
 
+  // Warm the first few chapters so the most likely next tap is instant. Gated
+  // on the same connection rule the reader's own next-chapter preload uses:
+  // five speculative chapter payloads — each one a live scrape at the source —
+  // fired the moment a series page opened, whether or not the phone was on
+  // cellular or in data-saver, and competed with the covers and the chapter
+  // list for the same connection.
   useEffect(() => {
+    if (!browserAllowsPreload()) return;
     for (const chapter of chapters.slice(0, 5)) {
       prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapter.id);
     }

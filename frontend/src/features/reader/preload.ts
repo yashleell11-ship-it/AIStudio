@@ -83,3 +83,20 @@ export function connectionAllowsPreload(connection: ConnectionHint | undefined):
   if (connection.saveData === true) return false;
   return connection.type !== "cellular";
 }
+
+/**
+ * The same rule, asked of the browser this is running in.
+ *
+ * Every speculative fetch in the app has to make this decision, and each one
+ * reading `navigator.connection` for itself is how they drift apart — the
+ * series page's open-time chapter warm-up did exactly that, and warmed five
+ * chapters over a cellular connection while the reader beside it was politely
+ * declining to warm one. Server-side (no `navigator`) it answers `true`, which
+ * is inert: nothing preloads there.
+ */
+export function browserAllowsPreload(): boolean {
+  if (typeof navigator === "undefined") return true;
+  return connectionAllowsPreload(
+    (navigator as Navigator & { connection?: ConnectionHint }).connection,
+  );
+}

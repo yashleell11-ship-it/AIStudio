@@ -3,10 +3,9 @@
 import { useEffect, useRef } from "react";
 import { readerDebug } from "./debug";
 import {
-  connectionAllowsPreload,
+  browserAllowsPreload,
   shouldPreloadNextChapter,
   warmupImageUrls,
-  type ConnectionHint,
 } from "./preload";
 
 export interface ChapterPreloadInput {
@@ -51,9 +50,7 @@ export function useChapterPreload({
     if (preloadedRef.current === chapterKey) return;
     if (!shouldPreloadNextChapter({ page, pageCount })) return;
 
-    const connection = (navigator as Navigator & { connection?: ConnectionHint })
-      .connection;
-    if (!connectionAllowsPreload(connection)) {
+    if (!browserAllowsPreload()) {
       // Data-saver is a standing answer, not a transient one: don't re-ask.
       preloadedRef.current = chapterKey;
       return;

@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  browserAllowsPreload,
   connectionAllowsPreload,
   MAX_PRELOAD_CHAPTERS_AHEAD,
   pagesAheadToWarm,
@@ -80,5 +81,32 @@ describe("connectionAllowsPreload", () => {
     expect(connectionAllowsPreload(undefined)).toBe(true);
     expect(connectionAllowsPreload({})).toBe(true);
     expect(connectionAllowsPreload({ type: "wifi", saveData: false })).toBe(true);
+  });
+});
+
+describe("browserAllowsPreload", () => {
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  /**
+   * The series page and the reader both ask this before spending someone's
+   * cellular allowance on a chapter they may never open, so it has to give the
+   * same answer `connectionAllowsPreload` would for the live connection.
+   */
+  it("reads the live connection hint", () => {
+    vi.stubGlobal("navigator", { connection: { saveData: true } });
+    expect(browserAllowsPreload()).toBe(false);
+
+    vi.stubGlobal("navigator", { connection: { type: "cellular" } });
+    expect(browserAllowsPreload()).toBe(false);
+
+    vi.stubGlobal("navigator", { connection: { type: "wifi" } });
+    expect(browserAllowsPreload()).toBe(true);
+  });
+
+  it("allows preloading when the browser reports nothing", () => {
+    vi.stubGlobal("navigator", {});
+    expect(browserAllowsPreload()).toBe(true);
   });
 });
