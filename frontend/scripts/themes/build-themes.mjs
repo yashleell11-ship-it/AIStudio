@@ -55,6 +55,39 @@ for (const [slug, scheme] of Object.entries(cache.schemes)) {
   built.set(slug, mapped);
 }
 
+/**
+ * The credit line for a tile.
+ *
+ * Upstream `author` fields are addresses as much as names — emails in angle
+ * brackets, repository URLs in parentheses, and a few that are nothing BUT a
+ * URL. Rendered raw they truncate to "Dawid Kurek (dawikur@gmail.com), morhe…",
+ * which credits nobody and looks like a bug. This keeps the human names and, for
+ * a bare URL, the account it points at, which is the name that project goes by.
+ */
+function creditFor(author) {
+  /** "https://github.com/catppuccin/catppuccin" → "catppuccin". */
+  const accountOf = (url) => {
+    const match = /https?:\/\/[^/\s]+\/([^/\s)]+)/.exec(url);
+    return match ? match[1] : null;
+  };
+
+  const text = author
+    // Parentheses and angle brackets in this corpus hold an email or a repo
+    // link every time; the name is always outside them.
+    .replace(/\s*[([<][^)\]>]*[)\]>]/g, (group) =>
+      /@|https?:/.test(group) ? "" : group,
+    )
+    // Bare URLs stand in for a name rather than annotating one.
+    .replace(/https?:\/\/\S+/g, (url) => accountOf(url) ?? "")
+    .replace(/\s+/g, " ")
+    .replace(/\s+,/g, ",")
+    .replace(/([,/])\s*(?=[,/])/g, "")
+    .replace(/^[\s,/]+|[\s,/]+$/g, "")
+    .trim();
+
+  return text === "" ? author : text;
+}
+
 const themes = [];
 for (const entry of CURATED) {
   const scheme = cache.schemes[entry.slug];
@@ -77,7 +110,7 @@ for (const entry of CURATED) {
     id: entry.slug,
     label: entry.label ?? scheme.name,
     blurb: entry.blurb,
-    author: scheme.author,
+    author: creditFor(scheme.author),
     scheme: mapped.scheme,
     roles: mapped.roles,
     notes: mapped.notes,

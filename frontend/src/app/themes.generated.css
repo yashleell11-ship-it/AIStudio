@@ -10,7 +10,7 @@
  * scripts/themes/curated.mjs picks which of those are worth a tile.
  */
 
-/* Gruvbox Hard — Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox).
+/* Gruvbox Hard — Dawid Kurek, morhetz.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); primary from base0A (base0D unusable). */
 :root[data-theme="gruvbox-dark-hard"] {
   color-scheme: dark;
@@ -45,7 +45,7 @@
   --mm-focus: #FABD2F;
 }
 
-/* Gruvbox — Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox).
+/* Gruvbox — Dawid Kurek, morhetz.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); primary from base0A (base0D unusable); danger lifted 10% along its own ramp. */
 :root[data-theme="gruvbox-dark-medium"] {
   color-scheme: dark;
@@ -80,7 +80,7 @@
   --mm-focus: #FABD2F;
 }
 
-/* Gruvbox Material — Mayush Kumar (https://github.com/MayushKumar), sainnhe (https://github.com/sainnhe/gruvbox-material-vscode).
+/* Gruvbox Material — Mayush Kumar, sainnhe.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); primary lifted 5% along its own ramp; accent lifted 15% along its own ramp. */
 :root[data-theme="gruvbox-material-dark-medium"] {
   color-scheme: dark;
@@ -150,7 +150,7 @@
   --mm-focus: #EBCB8B;
 }
 
-/* Dracula — clach04 (https://github.com/clach04).
+/* Dracula — clach04.
  * Adjusted: surface derived (base01 is not a panel tone); elevated derived (base02 is a selection tone, not a panel); muted derived 55% along base05→base03; primary lifted 10% along its own ramp; accent lifted 10% along its own ramp. */
 :root[data-theme="dracula"] {
   color-scheme: dark;
@@ -185,7 +185,7 @@
   --mm-focus: #C49EFA;
 }
 
-/* Catppuccin Mocha — https://github.com/catppuccin/catppuccin.
+/* Catppuccin Mocha — catppuccin.
  * Adjusted: surface derived (base01 is not a panel tone); muted derived 40% along base05→base03. */
 :root[data-theme="catppuccin-mocha"] {
   color-scheme: dark;
@@ -220,7 +220,7 @@
   --mm-focus: #89B4FA;
 }
 
-/* Catppuccin Macchiato — https://github.com/catppuccin/catppuccin.
+/* Catppuccin Macchiato — catppuccin.
  * Adjusted: surface derived (base01 is not a panel tone); muted derived 35% along base05→base03. */
 :root[data-theme="catppuccin-macchiato"] {
   color-scheme: dark;
@@ -255,7 +255,7 @@
   --mm-focus: #8AADF4;
 }
 
-/* Rosé Pine — Emilia Dunfelt <edun@dunfelt.se>.
+/* Rosé Pine — Emilia Dunfelt.
  * Adjusted: success lifted 20% along its own ramp. */
 :root[data-theme="rose-pine"] {
   color-scheme: dark;
@@ -290,7 +290,7 @@
   --mm-focus: #C4A7E7;
 }
 
-/* Rosé Pine Moon — Emilia Dunfelt <edun@dunfelt.se>.
+/* Rosé Pine Moon — Emilia Dunfelt.
  * Adjusted: muted derived 50% along base05→base03; success lifted 5% along its own ramp. */
 :root[data-theme="rose-pine-moon"] {
   color-scheme: dark;
@@ -325,7 +325,7 @@
   --mm-focus: #C4A7E7;
 }
 
-/* Kanagawa — Tommaso Laurenzi (https://github.com/rebelot).
+/* Kanagawa — Tommaso Laurenzi.
  * Adjusted: surface derived (base01 is not a panel tone); muted derived 45% along base05→base03; danger lifted 30% along its own ramp. */
 :root[data-theme="kanagawa"] {
   color-scheme: dark;
@@ -360,7 +360,7 @@
   --mm-focus: #7E9CD8;
 }
 
-/* Everforest — Sainnhe Park (https://github.com/sainnhe).
+/* Everforest — Sainnhe Park.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 45% along base05→base03; accent lifted 5% along its own ramp. */
 :root[data-theme="everforest-dark-hard"] {
   color-scheme: dark;
@@ -429,7 +429,7 @@
   --mm-focus: #7AA2F7;
 }
 
-/* Ayu Dark — Tinted Theming (https://github.com/tinted-theming), Ayu Theme (https://github.com/ayu-theme). */
+/* Ayu Dark — Tinted Theming, Ayu Theme. */
 :root[data-theme="ayu-dark"] {
   color-scheme: dark;
   --mm-bg: #0B0E14;
@@ -463,7 +463,7 @@
   --mm-focus: #59C2FF;
 }
 
-/* Ayu Mirage — Tinted Theming (https://github.com/tinted-theming), Ayu Theme (https://github.com/ayu-theme).
+/* Ayu Mirage — Tinted Theming, Ayu Theme.
  * Adjusted: muted derived 30% along base05→base03. */
 :root[data-theme="ayu-mirage"] {
   color-scheme: dark;
@@ -498,7 +498,7 @@
   --mm-focus: #73D0FF;
 }
 
-/* One Dark — olimorris (https://github.com/olimorris).
+/* One Dark — olimorris.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 30% along base05→base03. */
 :root[data-theme="onedark-dark"] {
   color-scheme: dark;
@@ -533,7 +533,7 @@
   --mm-focus: #61AFEF;
 }
 
-/* Monokai — Wimer Hazenberg (http://www.monokai.nl).
+/* Monokai — Wimer Hazenberg.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 50% along base05→base03; accent lifted 5% along its own ramp; danger lifted 20% along its own ramp. */
 :root[data-theme="monokai"] {
   color-scheme: dark;
@@ -602,7 +602,7 @@
   --mm-focus: #82AAFF;
 }
 
-/* GitHub Dark — Tinted Theming (https://github.com/tinted-theming).
+/* GitHub Dark — Tinted Theming.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel). */
 :root[data-theme="github-dark"] {
   color-scheme: dark;
@@ -637,7 +637,7 @@
   --mm-focus: #D2A8FF;
 }
 
-/* Flexoki Dark — Steph Ango (https://github.com/kepano/flexoki).
+/* Flexoki Dark — Steph Ango.
  * Adjusted: muted derived 50% along base05→base03; primary lifted 15% along its own ramp; accent lifted 5% along its own ramp; danger lifted 5% along its own ramp. */
 :root[data-theme="flexoki-dark"] {
   color-scheme: dark;
@@ -672,7 +672,7 @@
   --mm-focus: #5F97C6;
 }
 
-/* Oxocarbon — shaunsingh/IBM, Tinted Theming (https://github.com/tinted-theming).
+/* Oxocarbon — shaunsingh/IBM, Tinted Theming.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 50% along base05→base03. */
 :root[data-theme="oxocarbon-dark"] {
   color-scheme: dark;
@@ -707,7 +707,7 @@
   --mm-focus: #33B1FF;
 }
 
-/* Spaceduck — Guillermo Rodriguez (https://github.com/pineapplegiant), packaged by Gabriel Fontes (https://github.com/Misterio77).
+/* Spaceduck — Guillermo Rodriguez, packaged by Gabriel Fontes.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 70% along base05→base03; primary from base0A (base0D unusable); danger lifted 15% along its own ramp. */
 :root[data-theme="spaceduck"] {
   color-scheme: dark;
@@ -742,7 +742,7 @@
   --mm-focus: #F2CE00;
 }
 
-/* Eldritch — https://github.com/eldritch-theme.
+/* Eldritch — eldritch-theme.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 60% along base05→base03. */
 :root[data-theme="eldritch"] {
   color-scheme: dark;
@@ -777,7 +777,7 @@
   --mm-focus: #39DDFD;
 }
 
-/* Selenized Black — Jan Warchol (https://github.com/jan-warchol/selenized) / adapted to base16 by ali.
+/* Selenized Black — Jan Warchol / adapted to base16 by ali.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel); muted derived 50% along base05→base03; primary from base0A (base0D unusable); accent lifted 5% along its own ramp. */
 :root[data-theme="selenized-black"] {
   color-scheme: dark;
@@ -812,7 +812,7 @@
   --mm-focus: #DBB32D;
 }
 
-/* Horizon Dark — Michaël Ball (http://github.com/michael-ball/).
+/* Horizon Dark — Michaël Ball.
  * Adjusted: primary from base0A (base0D unusable); accent lifted 15% along its own ramp; danger lifted 10% along its own ramp. */
 :root[data-theme="horizon-dark"] {
   color-scheme: dark;
@@ -882,7 +882,7 @@
   --mm-focus: #E0CF9F;
 }
 
-/* Vesper — FormalSnake (https://github.com/formalsnake).
+/* Vesper — FormalSnake.
  * Adjusted: elevated derived (base02 is a selection tone, not a panel). */
 :root[data-theme="vesper"] {
   color-scheme: dark;
@@ -917,7 +917,7 @@
   --mm-focus: #8EAAAA;
 }
 
-/* Catppuccin Latte — https://github.com/catppuccin/catppuccin.
+/* Catppuccin Latte — catppuccin.
  * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 25% along base05→base03; primary lifted 10% along its own ramp; success lifted 50% along its own ramp; warning lifted 60% along its own ramp. */
 :root[data-theme="catppuccin-latte"] {
   color-scheme: light;
@@ -952,7 +952,7 @@
   --mm-focus: #2364E7;
 }
 
-/* Rosé Pine Dawn — Emilia Dunfelt <edun@dunfelt.se>.
+/* Rosé Pine Dawn — Emilia Dunfelt.
  * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 40% along base05→base03; primary from base0B (base0D unusable); accent lifted 30% along its own ramp; danger lifted 30% along its own ramp; warning lifted 60% along its own ramp. */
 :root[data-theme="rose-pine-dawn"] {
   color-scheme: light;
@@ -987,7 +987,7 @@
   --mm-focus: #286983;
 }
 
-/* Gruvbox Light — Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox).
+/* Gruvbox Light — Dawid Kurek, morhetz.
  * Adjusted: surfaces derived toward white (base01/base02 descend into the text); success lifted 5% along its own ramp; warning lifted 25% along its own ramp. */
 :root[data-theme="gruvbox-light-medium"] {
   color-scheme: light;
@@ -1022,7 +1022,7 @@
   --mm-focus: #076678;
 }
 
-/* One Light — Daniel Pfeifer (http://github.com/purpleKarrot).
+/* One Light — Daniel Pfeifer.
  * Adjusted: surfaces derived downward (the page is already white); muted derived 45% along base05→base03; primary from base0E (base0D unusable); success lifted 25% along its own ramp; warning lifted 25% along its own ramp. */
 :root[data-theme="one-light"] {
   color-scheme: light;
@@ -1057,7 +1057,7 @@
   --mm-focus: #A626A4;
 }
 
-/* GitHub Light — Tinted Theming (https://github.com/tinted-theming).
+/* GitHub Light — Tinted Theming.
  * Adjusted: surfaces derived downward (the page is already white); muted derived 45% along base05→base03; primary lifted 5% along its own ramp; warning lifted 25% along its own ramp. */
 :root[data-theme="github"] {
   color-scheme: light;
@@ -1092,7 +1092,7 @@
   --mm-focus: #7D4ED6;
 }
 
-/* Flexoki Light — Steph Ango (https://github.com/kepano/flexoki).
+/* Flexoki Light — Steph Ango.
  * Adjusted: surfaces derived downward (the page is already white); muted derived 30% along base05→base03; success lifted 5% along its own ramp; warning lifted 20% along its own ramp. */
 :root[data-theme="flexoki-light"] {
   color-scheme: light;
@@ -1197,7 +1197,7 @@
   --mm-focus: #34548A;
 }
 
-/* Selenized White — Jan Warchol (https://github.com/jan-warchol/selenized) / adapted to base16 by ali.
+/* Selenized White — Jan Warchol / adapted to base16 by ali.
  * Adjusted: surfaces derived downward (the page is already white); muted derived 55% along base05→base03; warning lifted 25% along its own ramp. */
 :root[data-theme="selenized-white"] {
   color-scheme: light;
@@ -1267,7 +1267,7 @@
   --mm-focus: #016FAE;
 }
 
-/* Horizon Light — Michaël Ball (http://github.com/michael-ball/).
+/* Horizon Light — Michaël Ball.
  * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 40% along base05→base03; accent lifted 15% along its own ramp; danger lifted 45% along its own ramp; success lifted 55.00000000000001% along its own ramp; warning lifted 60% along its own ramp. */
 :root[data-theme="horizon-light"] {
   color-scheme: light;
@@ -1302,7 +1302,7 @@
   --mm-focus: #DA103F;
 }
 
-/* Sakura — Misterio77 (http://github.com/Misterio77).
+/* Sakura — Misterio77.
  * Adjusted: surfaces derived toward white (base01/base02 descend into the text); muted derived 100% along base05→base03; danger lifted 10% along its own ramp; success lifted 25% along its own ramp; warning lifted 45% along its own ramp. */
 :root[data-theme="sakura"] {
   color-scheme: light;
