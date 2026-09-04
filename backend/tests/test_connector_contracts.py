@@ -157,10 +157,15 @@ def _mock_demonicscans(connector: SourceConnector):
     latest_page2 = (fixtures / "browse_page2.html").read_text(encoding="utf-8")
     popular = (fixtures / "browse_popular.html").read_text(encoding="utf-8")
     advanced = (fixtures / "search_advanced.html").read_text(encoding="utf-8")
+    # Real /search.php?manga=demons response. search_series stopped scanning
+    # /advanced.php and now asks the site's own search endpoint.
+    search = (fixtures / "search_demons.html").read_text(encoding="utf-8")
     series_detail = (fixtures / "series_detail.html").read_text(encoding="utf-8")
     chapter_reader = (fixtures / "chapter_reader.html").read_text(encoding="utf-8")
 
     def fake_get_text(path: str, *, params=None):
+        if path == "/search.php":
+            return search
         if path == "/lastupdates.php?list=2":
             return latest
         if path == "/lastupdates.php?list=3":
