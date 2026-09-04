@@ -8,7 +8,6 @@ import 'package:manhwamaniacs/app/app.dart';
 import 'package:manhwamaniacs/app/router/app_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
-import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
@@ -158,7 +157,7 @@ Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
           chapterId: _slashChapterId,
         ),
       ).overrideWith((ref) async =>
-          _sourceChapterManifest().toReaderChapter('http://example.test')),
+          _sourceChapterManifest().toReaderChapter('http://example.test'),),
       ..._pendingSeriesDetails(),
     ],
   );
@@ -237,7 +236,7 @@ void main() {
       expect(reader.sourceId, _libSourceId);
       expect(reader.seriesKey, _libSeriesKey);
       expect(reader.chapterKey, _slashLibChapterKey,
-          reason: 'the opaque key must round-trip through go_router verbatim');
+          reason: 'the opaque key must round-trip through go_router verbatim',);
     });
 
     testWidgets(
@@ -302,7 +301,7 @@ void main() {
       await _settleReader(tester);
       unawaited(
         router.push(
-            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey),),
       );
       await _settleReader(tester);
 
@@ -318,7 +317,7 @@ void main() {
       // And the round trip is repeatable without the stack creeping upwards.
       unawaited(
         router.push(
-            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey),),
       );
       await _settleReader(tester);
       await _tapTitle(tester);
@@ -343,7 +342,7 @@ void main() {
       await _settleReader(tester);
       unawaited(
         router.push(
-            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey),),
       );
       await _settleReader(tester);
 
@@ -365,7 +364,7 @@ void main() {
       await _settleReader(tester);
       unawaited(
         router.push(
-            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey)),
+            RoutePaths.reader(_libSourceId, _libSeriesKey, _libChapterKey),),
       );
       await _settleReader(tester);
       expect(find.byType(ReaderScreen), findsOneWidget);

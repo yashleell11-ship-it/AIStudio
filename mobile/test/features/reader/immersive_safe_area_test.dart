@@ -27,7 +27,7 @@ void main() {
       padding: EdgeInsets.zero,
       viewPadding: islandInset,
       child: ImmersiveSafeArea(child: Container(key: const Key('bar'))),
-    ));
+    ),);
 
     expect(tester.getTopLeft(find.byKey(const Key('bar'))).dy, 59);
     expect(
@@ -46,7 +46,7 @@ void main() {
         bottom: false,
         child: Container(key: const Key('top-bar')),
       ),
-    ));
+    ),);
 
     expect(tester.getTopLeft(find.byKey(const Key('top-bar'))).dy, 59);
     expect(tester.getBottomLeft(find.byKey(const Key('top-bar'))).dy, 600);
@@ -61,7 +61,7 @@ void main() {
       padding: islandInset,
       viewPadding: islandInset,
       child: ImmersiveSafeArea(child: Container(key: const Key('bar'))),
-    ));
+    ),);
 
     expect(tester.getTopLeft(find.byKey(const Key('bar'))).dy, 59);
   });

@@ -139,7 +139,7 @@ void main() {
     });
 
     test('omits geometry fields the engine did not report', () {
-      final json = OcrTextBox(text: 'hi', x: 0.1).toJson();
+      final json = const OcrTextBox(text: 'hi', x: 0.1).toJson();
 
       expect(json, {'text': 'hi', 'x': 0.1});
     });

@@ -68,7 +68,7 @@ void main() {
           DateTime.now()
               .toUtc()
               .subtract(const Duration(hours: 49))
-              .toIso8601String()
+              .toIso8601String(),
         ],
       );
 
@@ -208,9 +208,9 @@ void main() {
           (sourceId: 'asura', seriesKey: 'plain-series', chapterKey: 'q1');
 
       await _download(store,
-          chapterKey: 'p1', seriesKey: 'pinned-series', pageSize: 100);
+          chapterKey: 'p1', seriesKey: 'pinned-series', pageSize: 100,);
       await _download(store,
-          chapterKey: 'q1', seriesKey: 'plain-series', pageSize: 100);
+          chapterKey: 'q1', seriesKey: 'plain-series', pageSize: 100,);
       await store.setSeriesPinned(
         series: (sourceId: 'asura', seriesKey: 'pinned-series'),
         pinned: true,

@@ -147,7 +147,7 @@ void main() {
 
       final chapterAfterKill = await store.getChapter(_chapter);
       expect(chapterAfterKill!.state, DownloadChapterState.downloading,
-          reason: 'markCompleteIfAllPagesPresent was never reached');
+          reason: 'markCompleteIfAllPagesPresent was never reached',);
 
       // "Relaunch": a fresh store instance over the same database/blob tree.
       final resumed = harness.storeFor('u1p1');
@@ -165,7 +165,7 @@ void main() {
 
       expect(completed, isTrue);
       expect((await resumed.getChapter(_chapter))!.state,
-          DownloadChapterState.complete);
+          DownloadChapterState.complete,);
       expect(await resumed.pendingChapters(), isEmpty);
     });
 
@@ -195,7 +195,7 @@ void main() {
       final rowId3 = await store.ensureQueued(id: _chapter);
       expect(rowId3, rowId1);
       expect((await store.getChapter(_chapter))!.state,
-          DownloadChapterState.complete);
+          DownloadChapterState.complete,);
     });
 
     test('a failed chapter resets to queued (retry) via ensureQueued',
@@ -204,7 +204,7 @@ void main() {
       final rowId = await store.ensureQueued(id: _chapter);
       await store.markFailed(rowId: rowId, error: 'boom');
       expect((await store.getChapter(_chapter))!.state,
-          DownloadChapterState.failed);
+          DownloadChapterState.failed,);
 
       final retriedRowId = await store.ensureQueued(id: _chapter);
       expect(retriedRowId, rowId);

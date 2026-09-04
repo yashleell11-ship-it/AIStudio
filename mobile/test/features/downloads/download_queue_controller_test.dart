@@ -212,7 +212,7 @@ void main() {
 
     final resumedStore = harness.storeFor('u1p1');
     expect((await resumedStore.getChapter(_id))!.state,
-        DownloadChapterState.complete);
+        DownloadChapterState.complete,);
   });
 
   test('fetches at most kPageFetchConcurrency pages at once', () async {
@@ -264,8 +264,8 @@ void main() {
 
     final state = container.read(downloadQueueControllerProvider);
     expect(state.pauseReason, DownloadQueuePauseReason.none,
-        reason: 'a failed chapter must not block the rest of the queue');
-  }, timeout: const Timeout(Duration(seconds: 15)));
+        reason: 'a failed chapter must not block the rest of the queue',);
+  }, timeout: const Timeout(Duration(seconds: 15)),);
 
   test('retrying a failed chapter resets it and downloads successfully',
       () async {
@@ -289,7 +289,7 @@ void main() {
     await controller.debugWaitUntilIdle();
 
     expect((await store.getChapter(_id))!.state, DownloadChapterState.complete);
-  }, timeout: const Timeout(Duration(seconds: 15)));
+  }, timeout: const Timeout(Duration(seconds: 15)),);
 
   test('pauses at the free-space floor without dropping the queued chapter',
       () async {
@@ -362,7 +362,7 @@ void main() {
 
     expect(fetchCount, 0);
     expect(container.read(downloadQueueControllerProvider).pauseReason,
-        DownloadQueuePauseReason.backgrounded);
+        DownloadQueuePauseReason.backgrounded,);
 
     controller.setForeground(true);
     await controller.debugWaitUntilIdle();
