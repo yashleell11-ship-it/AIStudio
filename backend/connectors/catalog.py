@@ -40,6 +40,24 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #               origin cert) and topmanhua.com now 302s to a monetisation
     #               domain, so no page image can ever be served
     #
+    # Removed 2026-09-05 after the VPS probe died in the TLS handshake, not in
+    # HTTP:
+    #   manhuakey - the registration expired 2026-09-04T08:48:55Z and Namecheap
+    #               repointed the name 13 hours later, so .com now delegates
+    #               manhuakey.com to dns101/dns102.registrar-servers.com and
+    #               every public resolver answers with the parking lander's
+    #               IPs. That host carries no certificate for the name, so it
+    #               completes the TCP connect and then drops the ClientHello --
+    #               the UNEXPECTED_EOF_WHILE_READING the probe reported. It
+    #               drops it identically under OpenSSL and under curl_cffi's
+    #               BoringSSL impersonation, with SNI and without, and at a
+    #               forced TLS 1.2, so use_cf=True was never going to save it.
+    #               Port 80 does answer, with a Namecheap "registration has
+    #               expired" ad page. The WordPress origin is still up behind
+    #               Cloudflare but only stale DNS still points at it; from the
+    #               VPS a pinned Cloudflare IP answers 403. Restoring this is
+    #               one line if the owner renews inside the redemption window.
+    #
     # Probed and DELIBERATELY NOT ADDED 2026-09-05 (all four fingerprinted as
     # Madara from the outside; three do not behave like it). Do not re-add
     # without re-probing from the VPS:
@@ -59,7 +77,6 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #               A source you can never start reading from the beginning.
     _site("mangaread", "MangaRead", "mangaread.org"),
     _site("manhuaplus", "ManhuaPlus", "manhuaplus.com", extra_image_hosts=frozenset({"cdn.manhuaplus.com"})),
-    _site("manhuakey", "ManhuaKey", "manhuakey.com", use_cf=False),
     _site("manhuahot", "ManhuaHot", "manhuahot.com", use_cf=False, mature=True),
     _site("manhuanext", "ManhuaNext", "manhuanext.com", use_cf=False, mature=True),
     _site("manhwaclub", "ManhwaClub", "manhwaclub.net", mature=True, use_cf=False),
@@ -111,7 +128,7 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
 MADARA_LIVE: frozenset[str] = frozenset(s.source_id for s in MADARA_CATALOG)
 
 HANDCRAFTED_CONNECTORS: frozenset[str] = frozenset({
-    "mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "nhentai",
+    "mangadex", "asurascans", "mangakatana", "demonicscans", "nhentai",
     "18porncomic", "3hentai", "8muses", "akuma", "asmhentai", "aurorascans", "bbato", "beehentai",
     "baozimh", "comicasura", "comicsvalley", "comicland", "doujins", "ehentai", "elftoon", "flamescans",
     "freeadultcomix", "galaxymanga", "hentai20", "hentaifox", "hentaiera",

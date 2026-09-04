@@ -653,6 +653,20 @@ def test_withdrawn_domains_stay_out_of_the_catalog() -> None:
     assert "mangaread.org" in hosts
 
 
+def test_expired_manhuakey_domain_stays_withdrawn() -> None:
+    """manhuakey.com lapsed, so it cannot be reached at all -- not merely blocked.
+
+    The registration expired 2026-09-04 and .com now delegates the name to
+    Namecheap's registrar-hold nameservers, whose parking host holds no
+    certificate for it: from the VPS every TLS ClientHello is dropped
+    (UNEXPECTED_EOF_WHILE_READING) under OpenSSL and under curl_cffi's
+    BoringSSL impersonation alike, so no client setting reaches the site.
+    Re-adding the entry would only cost a reader a tap and a timeout.
+    """
+    assert "manhuakey" not in {cfg.source_id for cfg in MADARA_CATALOG}
+    assert "manhuakey.com" not in {cfg.site_host for cfg in MADARA_CATALOG}
+
+
 def test_catalog_source_ids_stay_unique() -> None:
     """Two configs with one source_id would silently drop a source.
 
