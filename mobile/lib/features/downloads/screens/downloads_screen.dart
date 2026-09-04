@@ -43,12 +43,22 @@ class DownloadsScreen extends ConsumerStatefulWidget {
 
 class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
     with SingleTickerProviderStateMixin {
-  late final TabController _tabs = TabController(length: 2, vsync: this);
+  /// Built in [initState], not lazily: the no-profile branch below never
+  /// renders the TabBar, and a `late final` initialiser would then run for
+  /// the first time inside [dispose] — where looking up the TickerMode
+  /// ancestor is already unsafe.
+  late final TabController _tabs;
 
   /// The per-chapter queue list is collapsed by default: the panel's summary
   /// answers "is it working" on its own, and a 200-chapter queue would bury
   /// the library underneath it.
   var _queueExpanded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tabs = TabController(length: 2, vsync: this);
+  }
 
   @override
   void dispose() {

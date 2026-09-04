@@ -7,6 +7,9 @@ void main() {
       expect(isMainTabRoute(Routes.library), isTrue);
       expect(isMainTabRoute(Routes.sources), isTrue);
       expect(isMainTabRoute(Routes.search), isTrue);
+      // Downloads joined the tab bar; without this the shell hides the
+      // navigation bar on its own tab.
+      expect(isMainTabRoute(Routes.downloads), isTrue);
       expect(isMainTabRoute(Routes.more), isTrue);
     });
 

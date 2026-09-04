@@ -28,19 +28,25 @@ List<({String name, Uint8List bytes, int crc})> readStoredZip(Uint8List zip) {
     final size = data.getUint32(cursor + 24, Endian.little);
     final nameLength = data.getUint16(cursor + 28, Endian.little);
     final localOffset = data.getUint32(cursor + 42, Endian.little);
-    final name = ascii.decode(zip.sublist(cursor + 46, cursor + 46 + nameLength));
+    final name =
+        ascii.decode(zip.sublist(cursor + 46, cursor + 46 + nameLength));
 
     expect(data.getUint32(localOffset, Endian.little), 0x04034B50);
-    expect(data.getUint16(localOffset + 8, Endian.little), 0,
-        reason: 'entries must be stored, not deflated');
+    expect(
+      data.getUint16(localOffset + 8, Endian.little),
+      0,
+      reason: 'entries must be stored, not deflated',
+    );
     final localNameLength = data.getUint16(localOffset + 26, Endian.little);
     final extraLength = data.getUint16(localOffset + 28, Endian.little);
     final start = localOffset + 30 + localNameLength + extraLength;
-    entries.add((
-      name: name,
-      bytes: Uint8List.sublistView(zip, start, start + size),
-      crc: crc,
-    ));
+    entries.add(
+      (
+        name: name,
+        bytes: Uint8List.sublistView(zip, start, start + size),
+        crc: crc,
+      ),
+    );
     cursor += 46 + nameLength;
   }
   return entries;

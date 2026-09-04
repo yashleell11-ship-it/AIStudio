@@ -13,10 +13,14 @@ List<int> _isoBmff(String brand) => [
 void main() {
   group('sniffPageImageType', () {
     test('recognises the formats sources actually serve', () {
-      expect(sniffPageImageType(const [0xFF, 0xD8, 0xFF, 0xE0]),
-          PageImageType.jpeg);
       expect(
-        sniffPageImageType(const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]),
+        sniffPageImageType(const [0xFF, 0xD8, 0xFF, 0xE0]),
+        PageImageType.jpeg,
+      );
+      expect(
+        sniffPageImageType(
+          const [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+        ),
         PageImageType.png,
       );
       expect(sniffPageImageType(ascii.encode('GIF89a')), PageImageType.gif);
@@ -42,7 +46,10 @@ void main() {
     test('a RIFF container that is not WebP is not claimed as WebP', () {
       final wav = [
         ...ascii.encode('RIFF'),
-        0, 0, 0, 0,
+        0,
+        0,
+        0,
+        0,
         ...ascii.encode('WAVE'),
       ];
       expect(sniffPageImageType(wav), PageImageType.unknown);

@@ -3,7 +3,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/services/chapter_export.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_db.dart';
@@ -21,7 +20,10 @@ List<int> _png(int seed) =>
     [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, seed];
 List<int> _webp(int seed) => [
       ...ascii.encode('RIFF'),
-      0x10, 0, 0, 0,
+      0x10,
+      0,
+      0,
+      0,
       ...ascii.encode('WEBP'),
       seed,
     ];
@@ -257,8 +259,10 @@ void main() {
       pages: [_jpeg(1), _png(2), _jpeg(1)], // page 3 dedupes onto page 1
     );
     final db = await harness.openDatabase();
-    Future<List<Map<String, Object?>>> snapshot(String table) =>
-        db.query(table, orderBy: table == DownloadsSchema.blobs ? 'hash' : null);
+    Future<List<Map<String, Object?>>> snapshot(String table) => db.query(
+          table,
+          orderBy: table == DownloadsSchema.blobs ? 'hash' : null,
+        );
 
     final blobsBefore = await snapshot(DownloadsSchema.blobs);
     final pagesBefore = await snapshot(DownloadsSchema.savedPages);
