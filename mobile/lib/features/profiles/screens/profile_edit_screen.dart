@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile_avatar.dart';
 import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
@@ -28,7 +28,7 @@ class ProfileEditScreen extends ConsumerWidget {
       error: (error, _) => Scaffold(
         appBar: AppBar(title: const Text('Edit profile')),
         body: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
+          padding: EdgeInsets.all(context.space.xl2),
           child: EmptyState(
             icon: Icons.error_outline,
             message: "Couldn't load profile",
@@ -41,9 +41,9 @@ class ProfileEditScreen extends ConsumerWidget {
         if (profile == null) {
           return Scaffold(
             appBar: AppBar(title: const Text('Edit profile')),
-            body: const Padding(
-              padding: EdgeInsets.all(AppSpacing.xl2),
-              child: EmptyState(
+            body: Padding(
+              padding: EdgeInsets.all(context.space.xl2),
+              child: const EmptyState(
                 icon: Icons.person_off_outlined,
                 message: 'Profile not found',
                 subtitle: 'This profile may have been removed.',

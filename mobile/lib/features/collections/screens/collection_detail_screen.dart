@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/collections/providers/collection_detail_provider.dart';
 import 'package:manhwamaniacs/features/collections/widgets/add_series_dialog.dart';
@@ -76,10 +75,10 @@ class CollectionDetailScreen extends ConsumerWidget {
                         apiBaseUrl: apiBaseUrl,
                       ),
                       Padding(
-                        padding: const EdgeInsets.all(AppSpacing.xl2),
+                        padding: EdgeInsets.all(context.space.xl2),
                         child: Wrap(
-                          spacing: AppSpacing.sm,
-                          runSpacing: AppSpacing.sm,
+                          spacing: context.space.sm,
+                          runSpacing: context.space.sm,
                           children: [
                             OutlinedButton.icon(
                               onPressed: () => _openAddSeriesDialog(context, ref, collection),
@@ -119,15 +118,15 @@ class CollectionDetailScreen extends ConsumerWidget {
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(
-                      AppSpacing.xl2,
+                    padding: EdgeInsets.fromLTRB(
+                      context.space.xl2,
                       0,
-                      AppSpacing.xl2,
-                      AppSpacing.xl4,
+                      context.space.xl2,
+                      context.space.xl4,
                     ),
                     sliver: SliverList.separated(
                       itemCount: members.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: AppSpacing.sm),
+                      separatorBuilder: (_, __) => SizedBox(height: context.space.sm),
                       itemBuilder: (context, index) {
                         final member = members[index];
                         return _CollectionSeriesTile(
@@ -276,7 +275,7 @@ class _CollectionSeriesTile extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.md),
+          padding: EdgeInsets.all(context.space.md),
           child: Row(
             children: [
               SizedBox(
@@ -287,7 +286,7 @@ class _CollectionSeriesTile extends StatelessWidget {
                   borderRadius: 8,
                 ),
               ),
-              const SizedBox(width: AppSpacing.md),
+              SizedBox(width: context.space.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,13 +295,13 @@ class _CollectionSeriesTile extends StatelessWidget {
                       seriesKey,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.labelLg,
+                      style: context.text.labelLg,
                     ),
                     Text(
                       sourceId,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: AppTypography.caption.copyWith(color: context.colors.muted),
+                      style: context.text.caption.copyWith(color: context.colors.muted),
                     ),
                   ],
                 ),
@@ -333,18 +332,18 @@ class _CollectionDetailError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl2),
+        padding: EdgeInsets.all(context.space.xl2),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: context.colors.danger),
+              style: context.text.body.copyWith(color: context.colors.danger),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             FilledButton(onPressed: onRetry, child: const Text('Retry')),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             OutlinedButton(
               onPressed: () =>
                   context.canPop() ? context.pop() : context.go(Routes.collections),

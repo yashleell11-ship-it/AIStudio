@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Cover + identity block at the top of both series pages.
 ///
@@ -53,39 +52,39 @@ class SeriesDetailHeader extends StatelessWidget {
             child: cover ?? ColoredBox(color: context.colors.panel),
           ),
         ),
-        const SizedBox(height: AppSpacing.xl2),
-        Text(title, style: AppTypography.displayMd),
+        SizedBox(height: context.space.xl2),
+        Text(title, style: context.text.displayMd),
         if (originalTitle != null && originalTitle!.trim().isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             originalTitle!,
-            style: AppTypography.body.copyWith(
+            style: context.text.body.copyWith(
               color: context.colors.muted,
               fontStyle: FontStyle.italic,
             ),
           ),
         ],
         if (author != null && author!.trim().isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             author!,
-            style: AppTypography.body.copyWith(color: context.colors.muted),
+            style: context.text.body.copyWith(color: context.colors.muted),
           ),
         ],
         if (artist != null && artist!.trim().isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xxs),
-          Text('Art by ${artist!}', style: AppTypography.caption.copyWith(color: context.colors.muted)),
+          SizedBox(height: context.space.xxs),
+          Text('Art by ${artist!}', style: context.text.caption.copyWith(color: context.colors.muted)),
         ],
         if (metaLine != null && metaLine!.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.xs),
+          SizedBox(height: context.space.xs),
           Text(
             metaLine!,
-            style: AppTypography.label.copyWith(color: context.colors.primary),
+            style: context.text.label.copyWith(color: context.colors.primary),
           ),
         ],
         if (trimmedDescription != null && trimmedDescription.isNotEmpty) ...[
-          const SizedBox(height: AppSpacing.lg),
-          Text(trimmedDescription, style: AppTypography.body),
+          SizedBox(height: context.space.lg),
+          Text(trimmedDescription, style: context.text.body),
         ],
       ],
     );

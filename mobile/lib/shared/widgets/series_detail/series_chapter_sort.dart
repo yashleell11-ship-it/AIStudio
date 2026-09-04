@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Chapter list ordering. Defaults to newest-first (highest chapter number).
 ///
@@ -62,7 +61,7 @@ class SeriesChapterSortToggle extends StatelessWidget {
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
         color: context.colors.surface2,
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(context.radii.lg),
         border: Border.all(color: context.colors.glassEdge),
       ),
       child: Row(
@@ -87,17 +86,17 @@ class SeriesChapterSortToggle extends StatelessWidget {
       child: AnimatedContainer(
         duration: motion,
         curve: Curves.easeOut,
-        padding: const EdgeInsets.symmetric(
-          horizontal: AppSpacing.md,
-          vertical: AppSpacing.xs,
+        padding: EdgeInsets.symmetric(
+          horizontal: context.space.md,
+          vertical: context.space.xs,
         ),
         decoration: BoxDecoration(
           color: selected ? context.colors.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(AppRadius.md),
+          borderRadius: BorderRadius.circular(context.radii.md),
         ),
         child: Text(
           label,
-          style: AppTypography.caption.copyWith(
+          style: context.text.caption.copyWith(
             color: selected ? context.colors.primaryFg : context.colors.muted,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           ),

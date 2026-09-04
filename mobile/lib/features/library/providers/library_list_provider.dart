@@ -1,4 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/app/theme/app_metrics.dart';
+import 'package:manhwamaniacs/app/theme/preset_controller.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
@@ -23,7 +25,21 @@ final libraryQueryProvider =
 
 class LibraryQueryNotifier extends Notifier<LibraryQuery> {
   @override
-  LibraryQuery build() => _normalizeBrowseQuery(readLibraryQuery(ref.read(sharedPrefsProvider)));
+  LibraryQuery build() {
+    // The design preset only supplies the layout a reader has never chosen —
+    // `read` (not `watch`) because switching preset must not yank the library
+    // out from under someone mid-scroll, and because a saved choice outranks
+    // it anyway.
+    final presetLayout = ref.read(presetControllerProvider).layout.seriesLayout;
+    return _normalizeBrowseQuery(
+      readLibraryQuery(
+        ref.read(sharedPrefsProvider),
+        defaultViewMode: presetLayout == SeriesLayout.list
+            ? LibraryViewMode.list
+            : LibraryViewMode.grid,
+      ),
+    );
+  }
 
   void updateQuery(LibraryQuery query) {
     final normalized = _normalizeBrowseQuery(query);

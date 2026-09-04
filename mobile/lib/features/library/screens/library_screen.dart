@@ -1,12 +1,11 @@
-﻿import 'dart:async';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
@@ -75,17 +74,17 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                AppSpacing.xl2,
+              padding: EdgeInsets.fromLTRB(
+                context.space.xl2,
                 0,
-                AppSpacing.xl2,
-                AppSpacing.sm,
+                context.space.xl2,
+                context.space.sm,
               ),
               child: Text(
                 series.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: AppTypography.h4,
+                style: context.text.h4,
               ),
             ),
             ListTile(
@@ -109,7 +108,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 ref.read(libraryListProvider.notifier).toggleFavorite(series.id);
               },
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
           ],
         ),
       ),
@@ -179,12 +178,12 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           scrollController: _scrollController,
           onRefresh: () => ref.read(libraryListProvider.notifier).refresh(),
           child: Padding(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const FadeIn(child: HeroHeading(text: 'Library')),
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
                 LibraryToolbar(
                   query: query,
                   seriesCount: 0,
@@ -198,7 +197,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                   onViewModeChanged: (viewMode) =>
                       _updateQuery((q) => q.copyWith(viewMode: viewMode)),
                 ),
-                const SizedBox(height: AppSpacing.xl2),
+                SizedBox(height: context.space.xl2),
                 LibrarySkeleton(viewMode: query.viewMode),
               ],
             ),
@@ -262,11 +261,11 @@ class _SelectionActionBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       child: Padding(
-        padding: const EdgeInsets.fromLTRB(
-          AppSpacing.lg,
-          AppSpacing.sm,
-          AppSpacing.lg,
-          AppSpacing.sm,
+        padding: EdgeInsets.fromLTRB(
+          context.space.lg,
+          context.space.sm,
+          context.space.lg,
+          context.space.sm,
         ),
         child: Row(
           children: [
@@ -277,7 +276,7 @@ class _SelectionActionBar extends StatelessWidget {
                 label: Text('Favorite ($count)'),
               ),
             ),
-            const SizedBox(width: AppSpacing.md),
+            SizedBox(width: context.space.md),
             Expanded(
               child: OutlinedButton.icon(
                 onPressed: onUnfavorite,
@@ -344,12 +343,12 @@ class _LibraryBody extends StatelessWidget {
       scrollController: scrollController,
       onRefresh: onRefresh,
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl2),
+        padding: EdgeInsets.all(context.space.xl2),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const FadeIn(child: HeroHeading(text: 'Library')),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             LibraryToolbar(
               query: query,
               seriesCount: visible.length == state.items.length
@@ -363,10 +362,10 @@ class _LibraryBody extends StatelessWidget {
               onViewModeChanged: onViewModeChanged,
             ),
             if (state.error != null) ...[
-              const SizedBox(height: AppSpacing.lg),
+              SizedBox(height: context.space.lg),
               _InlineError(message: state.error!.userMessage),
             ],
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             if (visible.isEmpty)
               LibraryEmptyPanel(emptyState: query.emptyState)
             else
@@ -381,11 +380,11 @@ class _LibraryBody extends StatelessWidget {
                 selectedIds: selectedIds,
               ),
             if (state.isLoadingMore) ...[
-              const SizedBox(height: AppSpacing.xl2),
-              const Center(
+              SizedBox(height: context.space.xl2),
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(AppSpacing.lg),
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  padding: EdgeInsets.all(context.space.lg),
+                  child: const CircularProgressIndicator(strokeWidth: 2),
                 ),
               ),
             ],
@@ -393,7 +392,7 @@ class _LibraryBody extends StatelessWidget {
             // flat xl7 that used to be here only happened to be tall enough on
             // Android's ~24pt gesture inset; iOS's 34pt eats into it.
             SizedBox(
-              height: AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+              height: context.space.xl7 + MediaQuery.paddingOf(context).bottom,
             ),
           ],
         ),
@@ -438,15 +437,15 @@ class _InlineError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(AppSpacing.lg),
+      padding: EdgeInsets.all(context.space.lg),
       decoration: BoxDecoration(
         color: context.colors.danger.withAlpha(26),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
+        borderRadius: BorderRadius.circular(context.radii.lg),
         border: Border.all(color: context.colors.danger.withAlpha(77)),
       ),
       child: Text(
         message,
-        style: AppTypography.body.copyWith(color: context.colors.danger),
+        style: context.text.body.copyWith(color: context.colors.danger),
       ),
     );
   }
@@ -465,24 +464,24 @@ class _LibraryError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl3),
+        padding: EdgeInsets.all(context.space.xl3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, color: context.colors.danger, size: 48),
-            const SizedBox(height: AppSpacing.lg),
+            SizedBox(height: context.space.lg),
             Text(
               'Could not load library',
-              style: AppTypography.h3,
+              style: context.text.h3,
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),

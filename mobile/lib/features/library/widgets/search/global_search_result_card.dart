@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/sources/utils/source_branding.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -26,7 +24,7 @@ class GlobalSearchResultCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return GlassCard(
       onTap: onTap,
-      padding: const EdgeInsets.all(AppSpacing.md),
+      padding: EdgeInsets.all(context.space.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -35,7 +33,7 @@ class GlobalSearchResultCard extends StatelessWidget {
             width: 72,
             height: 108,
           ),
-          const SizedBox(width: AppSpacing.lg),
+          SizedBox(width: context.space.lg),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,7 +42,7 @@ class GlobalSearchResultCard extends StatelessWidget {
                   item.title,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: AppTypography.labelLg.copyWith(
+                  style: context.text.labelLg.copyWith(
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -54,10 +52,10 @@ class GlobalSearchResultCard extends StatelessWidget {
                     item.author!,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.body.copyWith(color: context.colors.muted),
+                    style: context.text.body.copyWith(color: context.colors.muted),
                   ),
                 ],
-                const SizedBox(height: AppSpacing.md),
+                SizedBox(height: context.space.md),
                 SourceBadge(item: item),
               ],
             ),
@@ -91,11 +89,11 @@ class GlobalSearchResultGridCard extends StatelessWidget {
       onTap: onTap,
       behavior: HitTestBehavior.opaque,
       child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         child: DecoratedBox(
           decoration: BoxDecoration(
             color: context.colors.surface,
-            borderRadius: BorderRadius.circular(AppRadius.md),
+            borderRadius: BorderRadius.circular(context.radii.md),
             border: Border.all(color: context.colors.border),
           ),
           child: Column(
@@ -109,8 +107,8 @@ class GlobalSearchResultGridCard extends StatelessWidget {
                     SeriesCoverImage(url: item.coverUrl ?? '', borderRadius: 0),
                     if (showSourceBadge)
                       Positioned(
-                        left: AppSpacing.xxs,
-                        top: AppSpacing.xxs,
+                        left: context.space.xxs,
+                        top: context.space.xxs,
                         child: SourceBadge(item: item, compact: true),
                       ),
                   ],
@@ -118,15 +116,15 @@ class GlobalSearchResultGridCard extends StatelessWidget {
               ),
               Expanded(
                 child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: AppSpacing.xs,
-                    vertical: AppSpacing.xxs,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.space.xs,
+                    vertical: context.space.xxs,
                   ),
                   child: Text(
                     item.title,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption.copyWith(
+                    style: context.text.caption.copyWith(
                       color: context.colors.fg,
                       fontSize: 10,
                       height: 1.2,
@@ -160,14 +158,14 @@ class SourceBadge extends StatelessWidget {
 
     return Container(
       padding: EdgeInsets.symmetric(
-        horizontal: compact ? AppSpacing.xs : AppSpacing.sm,
+        horizontal: compact ? context.space.xs : context.space.sm,
         vertical: 2,
       ),
       decoration: BoxDecoration(
         color: compact
             ? context.colors.bg.withAlpha(204)
             : color.withAlpha(28),
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(context.radii.sm),
         border: Border.all(color: color.withAlpha(compact ? 120 : 77)),
       ),
       child: Row(
@@ -181,7 +179,7 @@ class SourceBadge extends StatelessWidget {
           const SizedBox(width: 4),
           Text(
             label.toUpperCase(),
-            style: AppTypography.caption.copyWith(
+            style: context.text.caption.copyWith(
               color: color,
               fontSize: compact ? 8 : 10,
               fontWeight: FontWeight.w700,

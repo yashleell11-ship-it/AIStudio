@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Large Syne uppercase heading filled with a bronze→cream vertical gradient.
 ///
@@ -33,7 +33,7 @@ class HeroHeading extends StatelessWidget {
     final width = MediaQuery.sizeOf(context).width;
     final resolvedSize = fontSize ?? (width * 0.13).clamp(40.0, 72.0);
 
-    final style = AppTypography.displayLg.copyWith(
+    final style = context.text.displayLg.copyWith(
       fontSize: resolvedSize,
       fontWeight: FontWeight.w800, // font-black
       height: 1.0, // leading-none

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 class EmptyState extends StatelessWidget {
   const EmptyState({
@@ -21,7 +20,7 @@ class EmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl3),
+        padding: EdgeInsets.all(context.space.xl3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -36,17 +35,17 @@ class EmptyState extends StatelessWidget {
               ),
               child: Icon(icon, size: 36, color: context.colors.muted.withAlpha(160)),
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             Text(
               message,
-              style: AppTypography.h4,
+              style: context.text.h4,
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...[
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: context.space.sm),
               Text(
                 subtitle!,
-                style: AppTypography.body.copyWith(
+                style: context.text.body.copyWith(
                   color: context.colors.muted,
                   height: 1.6,
                 ),
@@ -54,7 +53,7 @@ class EmptyState extends StatelessWidget {
               ),
             ],
             if (action != null) ...[
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               action!,
             ],
           ],

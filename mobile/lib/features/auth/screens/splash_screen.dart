@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_radius.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
 /// Shown while the app validates a stored session on cold start, so the user is
 /// never bounced to login before the auth state resolves.
@@ -29,7 +27,7 @@ class SplashScreen extends StatelessWidget {
                   end: Alignment.bottomRight,
                   colors: [context.colors.primary, context.colors.accent],
                 ),
-                borderRadius: BorderRadius.circular(AppRadius.xl),
+                borderRadius: BorderRadius.circular(context.radii.xl),
                 boxShadow: [
                   BoxShadow(
                     color: context.colors.primary.withValues(alpha: 0.3),
@@ -41,19 +39,19 @@ class SplashScreen extends StatelessWidget {
               child: Center(
                 child: Text(
                   'M',
-                  style: AppTypography.displayMd.copyWith(color: Colors.white),
+                  style: context.text.displayMd.copyWith(color: Colors.white),
                 ),
               ),
             ),
-            const SizedBox(height: AppSpacing.xl),
+            SizedBox(height: context.space.xl),
             Text(
               'ManhwaManiacs',
-              style: AppTypography.labelLg.copyWith(
+              style: context.text.labelLg.copyWith(
                 color: context.colors.muted,
                 letterSpacing: 2,
               ),
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             SizedBox(
               width: 22,
               height: 22,

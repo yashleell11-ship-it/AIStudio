@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/reader/theme/reader_colors.dart';
 
@@ -22,22 +21,22 @@ class ReaderErrorState extends StatelessWidget {
       color: ReaderColors.bg,
       child: Center(
         child: Padding(
-          padding: const EdgeInsets.all(AppSpacing.xl2),
+          padding: EdgeInsets.all(context.space.xl2),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               const Icon(Icons.error_outline, color: ReaderColors.danger, size: 40),
-              const SizedBox(height: AppSpacing.md),
+              SizedBox(height: context.space.md),
               Text(
                 error.userMessage,
                 // Explicit ink: this sits on the reader-owned dark surface,
                 // where the ambient theme foreground may be dark.
-                style: AppTypography.body.copyWith(color: ReaderColors.fg),
+                style: context.text.body.copyWith(color: ReaderColors.fg),
                 textAlign: TextAlign.center,
               ),
-              const SizedBox(height: AppSpacing.xl2),
+              SizedBox(height: context.space.xl2),
               FilledButton(onPressed: onRetry, child: const Text('Retry')),
-              const SizedBox(height: AppSpacing.sm),
+              SizedBox(height: context.space.sm),
               TextButton(onPressed: onBack, child: const Text('Go back')),
             ],
           ),

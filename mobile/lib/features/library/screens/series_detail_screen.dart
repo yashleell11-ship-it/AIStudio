@@ -3,8 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
@@ -458,26 +457,26 @@ class _SeriesDetailError extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(AppSpacing.xl3),
+        padding: EdgeInsets.all(context.space.xl3),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, color: context.colors.danger, size: 48),
-            const SizedBox(height: AppSpacing.lg),
-            Text('Could not load series', style: AppTypography.h3),
-            const SizedBox(height: AppSpacing.sm),
+            SizedBox(height: context.space.lg),
+            Text('Could not load series', style: context.text.h3),
+            SizedBox(height: context.space.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: context.colors.muted),
+              style: context.text.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: AppSpacing.xl2),
+            SizedBox(height: context.space.xl2),
             FilledButton.icon(
               onPressed: onRetry,
               icon: const Icon(Icons.refresh),
               label: const Text('Try Again'),
             ),
-            const SizedBox(height: AppSpacing.md),
+            SizedBox(height: context.space.md),
             OutlinedButton(
               onPressed: () => context.canPop()
                   ? context.pop()

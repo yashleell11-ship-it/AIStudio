@@ -4,8 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_error.dart';
 import 'package:manhwamaniacs/features/auth/widgets/auth_header.dart';
@@ -92,11 +91,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppSpacing.xl2),
+            padding: EdgeInsets.all(context.space.xl2),
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 420),
               child: GlassPanel(
-                padding: const EdgeInsets.all(AppSpacing.xl2),
+                padding: EdgeInsets.all(context.space.xl2),
                 child: needsBootstrap
                     ? _buildBootstrapPrompt(context)
                     : _buildLoginForm(context, registrationEnabled),
@@ -117,7 +116,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           subtitle: 'This server has no accounts yet. Create the first account '
               '— it becomes the administrator.',
         ),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         PrimaryPillButton(
           label: 'Create the first account',
           expanded: true,
@@ -140,7 +139,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           subtitle: 'Sign in to your ManhwaManiacs account to continue.',
         ),
         if (serverHost != null) ...[
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           // Tap to copy the full base URL — lets users share it with support
           // when a connection fails.
           GestureDetector(
@@ -153,10 +152,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   child: Text(
                     'Server: $serverHost',
                     style:
-                        AppTypography.caption.copyWith(color: context.colors.muted),
+                        context.text.caption.copyWith(color: context.colors.muted),
                   ),
                 ),
-                const SizedBox(width: AppSpacing.xs),
+                SizedBox(width: context.space.xs),
                 Icon(
                   Icons.copy_outlined,
                   size: 14,
@@ -166,7 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
         ],
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         TextField(
           controller: _usernameController,
           decoration: const InputDecoration(
@@ -178,7 +177,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           enableSuggestions: false,
           enabled: !_pending,
         ),
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         TextField(
           controller: _passwordController,
           decoration: InputDecoration(
@@ -201,7 +200,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           enabled: !_pending,
           onSubmitted: (_) => _submit(),
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         SwitchListTile(
           contentPadding: EdgeInsets.zero,
           title: const Text('Keep me signed in'),
@@ -210,10 +209,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               _pending ? null : (value) => setState(() => _remember = value),
         ),
         if (errorMessage != null) ...[
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           AuthError(message: errorMessage),
         ],
-        const SizedBox(height: AppSpacing.lg),
+        SizedBox(height: context.space.lg),
         // Warm CTA pill. `_submit` already no-ops while pending; the
         // IgnorePointer + dimming just makes that visually clear.
         IgnorePointer(
@@ -228,7 +227,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
         ),
         if (registrationEnabled) ...[
-          const SizedBox(height: AppSpacing.sm),
+          SizedBox(height: context.space.sm),
           TextButton(
             onPressed: _pending ? null : () => context.go(Routes.register),
             child: const Text('Create an account'),

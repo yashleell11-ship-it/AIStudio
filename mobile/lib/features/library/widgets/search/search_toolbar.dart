@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
-import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 
 class SearchToolbar extends StatefulWidget {
@@ -66,16 +65,16 @@ class _SearchToolbarState extends State<SearchToolbar> {
       children: [
         Text(
           'Search',
-          style: AppTypography.displayMd,
+          style: context.text.displayMd,
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: AppSpacing.sm),
+        SizedBox(height: context.space.sm),
         Text(
           'Find your next favorite series',
-          style: AppTypography.body.copyWith(color: context.colors.muted),
+          style: context.text.body.copyWith(color: context.colors.muted),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: AppSpacing.xl2),
+        SizedBox(height: context.space.xl2),
         TextField(
           controller: _controller,
           onChanged: widget.onSearchChanged,
@@ -86,25 +85,25 @@ class _SearchToolbarState extends State<SearchToolbar> {
             filled: true,
             fillColor: context.colors.fg.withAlpha(8),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.xl),
+              borderRadius: BorderRadius.circular(context.radii.xl),
               borderSide: BorderSide(color: context.colors.primary.withAlpha(77)),
             ),
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: AppSpacing.xl2,
-              vertical: AppSpacing.lg,
+            contentPadding: EdgeInsets.symmetric(
+              horizontal: context.space.xl2,
+              vertical: context.space.lg,
             ),
           ),
         ),
         if (widget.isSearching) ...[
-          const SizedBox(height: AppSpacing.xl2),
+          SizedBox(height: context.space.xl2),
           Row(
             children: [
               Expanded(
@@ -112,7 +111,7 @@ class _SearchToolbarState extends State<SearchToolbar> {
                   widget.isSearching && widget.resultCount == 0
                       ? 'Searching…'
                       : '${widget.resultCount} ${widget.resultCount == 1 ? 'result' : 'results'} found',
-                  style: AppTypography.body.copyWith(color: context.colors.muted),
+                  style: context.text.body.copyWith(color: context.colors.muted),
                 ),
               ),
               _ViewModeToggle(
@@ -121,14 +120,14 @@ class _SearchToolbarState extends State<SearchToolbar> {
               ),
             ],
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
                 for (final filter in LibraryFilter.values)
                   Padding(
-                    padding: const EdgeInsets.only(right: AppSpacing.sm),
+                    padding: EdgeInsets.only(right: context.space.sm),
                     child: FilterChip(
                       label: Text(filter.label),
                       selected: widget.query.filter == filter &&
@@ -140,7 +139,7 @@ class _SearchToolbarState extends State<SearchToolbar> {
                         }
                       },
                       selectedColor: context.colors.primary,
-                      labelStyle: AppTypography.label.copyWith(
+                      labelStyle: context.text.label.copyWith(
                         color: widget.query.filter == filter &&
                                 !widget.query.favoritesOnly
                             ? context.colors.primaryFg
@@ -157,7 +156,7 @@ class _SearchToolbarState extends State<SearchToolbar> {
                   onSelected: (_) =>
                       widget.onFavoritesChanged(!widget.query.favoritesOnly),
                   selectedColor: context.colors.warning.withAlpha(51),
-                  labelStyle: AppTypography.label.copyWith(
+                  labelStyle: context.text.label.copyWith(
                     color: widget.query.favoritesOnly
                         ? context.colors.warning
                         : context.colors.muted,
@@ -169,7 +168,7 @@ class _SearchToolbarState extends State<SearchToolbar> {
               ],
             ),
           ),
-          const SizedBox(height: AppSpacing.lg),
+          SizedBox(height: context.space.lg),
           DropdownButtonFormField<LibrarySort>(
             initialValue: widget.query.sort,
             decoration: const InputDecoration(
@@ -208,7 +207,7 @@ class _ViewModeToggle extends StatelessWidget {
     return Container(
       decoration: BoxDecoration(
         color: context.colors.fg.withAlpha(13),
-        borderRadius: BorderRadius.circular(AppRadius.md),
+        borderRadius: BorderRadius.circular(context.radii.md),
         border: Border.all(color: context.colors.border.withAlpha(128)),
       ),
       padding: const EdgeInsets.all(2),
@@ -246,10 +245,10 @@ class _ModeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: selected ? context.colors.primary : Colors.transparent,
-      borderRadius: BorderRadius.circular(AppRadius.sm),
+      borderRadius: BorderRadius.circular(context.radii.sm),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
+        borderRadius: BorderRadius.circular(context.radii.sm),
         child: SizedBox(
           width: 32,
           height: 32,
