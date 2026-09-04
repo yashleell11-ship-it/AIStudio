@@ -319,11 +319,19 @@ def parse_search_results(html: str, *, page: int) -> PaginatedSeriesList:
                 genres=genres,
             )
         )
+    # total_pages is deliberately pinned to 1: MangaFreak's search PAGINATOR
+    # IS DECORATIVE. It renders "1 2 3 »" links of the form `/Find/<q>?page=N`,
+    # but the server ignores the parameter completely -- verified from the VPS,
+    # `?page=1`, `?page=2`, `?p=2` and `?pages=2` all return a byte-identical
+    # document (same md5), and the path form `/Find/<q>/2` returns HTTP 200
+    # with zero results. Trusting the paginator would make the app re-serve
+    # the SAME 25 results as page 2, 3, 4 ... forever. Search on this source
+    # genuinely reaches only its first page of results.
     return _paginate(
         _dedupe(items),
         page=page,
         page_size=SEARCH_PAGE_SIZE,
-        total_pages=extract_total_pages(html),
+        total_pages=1,
     )
 
 

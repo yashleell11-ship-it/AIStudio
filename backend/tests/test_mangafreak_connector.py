@@ -386,16 +386,20 @@ def test_reading_a_chapter_backfills_its_page_count_on_the_chapter_list(
     assert by_id["Read1_Study_Group_340"] == 0
 
 
-def test_search_paginates_with_a_query_param_not_a_path_segment(
+def test_search_is_single_page_and_never_replays_results(
     connector: MangaFreakConnector,
 ):
-    """`/Find/<q>/2` answers HTTP 200 with ZERO results on this site.
+    """MangaFreak's search paginator is decorative.
 
-    Using the path form would silently report "no results" for every page
-    after the first instead of failing loudly, so the query-param form is
-    part of the contract.
+    The page renders "1 2 3 »" links of the form `/Find/<q>?page=N`, but the
+    server ignores the parameter: verified from the VPS, ?page=1, ?page=2,
+    ?p=2 and ?pages=2 all return a byte-identical document, and the path form
+    /Find/<q>/2 returns HTTP 200 with zero results. If the connector trusted
+    those links it would hand the app the SAME 25 series over and over as
+    "page 2, 3, 4 ...". Page 1 must therefore report no more results, and
+    page 2+ must cost no request at all.
     """
-    html = _load("search_study.html")
+    html = _load("search_dragon.html")
     calls: list[str] = []
 
     def fake_get_text(path: str, *, params=None):
@@ -403,10 +407,55 @@ def test_search_paginates_with_a_query_param_not_a_path_segment(
         return html
 
     with patch.object(connector._http, "get_text", side_effect=fake_get_text):
-        connector.search_series("Study", 1)
-        connector.search_series("Study", 2)
+        first = connector.search_series("Dragon", 1)
+        second = connector.search_series("Dragon", 2)
 
-    assert calls == ["/Find/study", "/Find/study?page=2"]
+    assert calls == ["/Find/dragon"]
+    assert len(first.items) == 25
+    assert first.has_more is False
+    assert first.total == 25
+    assert second.items == []
+    assert second.has_more is False
+
+
+def test_search_result_page_reports_no_more_pages_despite_its_paginator():
+    """The fixture literally contains `/Find/dragon?page=3` links."""
+    html = _load("search_dragon.html")
+
+    assert "/Find/dragon?page=3" in html
+    listing = parse_search_results(html, page=1)
+    assert listing.has_more is False
+
+
+def test_search_query_is_lowercased_and_url_encoded(connector: MangaFreakConnector):
+    calls: list[str] = []
+
+    def fake_get_text(path: str, *, params=None):
+        calls.append(path)
+        return _load("search_study.html")
+
+    with patch.object(connector._http, "get_text", side_effect=fake_get_text):
+        connector.search_series("Fullmetal Alchemist", 1)
+
+    assert calls == ["/Find/fullmetal%20alchemist"]
+
+
+def test_placeholder_rows_never_become_series():
+    """/Genre/All/1 ends with an EMPTY padding row.
+
+    It has the full ranking_item shape but a blank key (`/Manga/`), a blank
+    title and "0 Published. ()". Admitting it would put a series with an empty
+    id in the browse grid, which then 404s when opened.
+    """
+    listing = parse_ranking(_load("genre_all_page1.html"), page=1)
+
+    assert '<a href="/Manga/"><h3 class="title"></h3></a>' in _load(
+        "genre_all_page1.html"
+    )
+    assert len(listing.items) == 14
+    assert all(item.id for item in listing.items)
+    assert all(item.title for item in listing.items)
+    assert listing.items[0].id == "One_Piece"
 
 
 def test_browse_modes_map_to_distinct_endpoints(connector: MangaFreakConnector):
