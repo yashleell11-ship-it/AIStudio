@@ -24,11 +24,14 @@ here rather than by the connector's error path:
 
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
 from connectors.ids import fully_unquote
 from connectors.models import Chapter, PaginatedSeriesList, Series
+
+logger = logging.getLogger(__name__)
 
 SITE_BASE = "https://archive.org"
 PAGE_SIZE = 20
@@ -226,8 +229,13 @@ def parse_search(payload: dict[str, Any], *, page: int) -> PaginatedSeriesList:
     An ``error`` payload (deep paging) and a result-less response both yield
     an empty page rather than an exception -- from a reader's point of view
     "there is nothing past here" and "you asked too deep" are the same thing.
+    They are logged differently, though: an empty page is routine, while an
+    error body means this connector asked the API something it refuses, which
+    an operator should be able to see.
     """
-    if payload.get("error"):
+    error = payload.get("error")
+    if error:
+        logger.warning("ArchiveOrg search page %d refused: %s", page, error)
         return PaginatedSeriesList(items=[], page=page, page_size=PAGE_SIZE, total=0)
     response = payload.get("response") or {}
     items: list[Series] = []
