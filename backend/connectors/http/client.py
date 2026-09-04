@@ -109,6 +109,7 @@ class SyncConnectorHttpClient:
         timeout: float = 30.0,
         max_retries: int = 3,
         min_interval: float = 0.21,
+        burst: int = 1,
         user_agent: str = DEFAULT_USER_AGENT,
         headers: dict[str, str] | None = None,
         extra_redirect_hosts: frozenset[str] | set[str] | None = None,
@@ -117,7 +118,12 @@ class SyncConnectorHttpClient:
         self._timeout = timeout
         self._max_retries = max_retries
         self._min_interval = min_interval
-        self._last_request = 0.0
+        # How many requests may leave together before the interval applies.
+        # Raise it ONLY on a connector that deliberately fans out (see
+        # _rate_limit); the long-run rate is the same either way.
+        self._burst = max(1, int(burst))
+        self._tokens = float(self._burst)
+        self._token_clock = time.monotonic()
         self._rate_lock = threading.Lock()
         request_headers = {
             "User-Agent": user_agent,
@@ -151,12 +157,39 @@ class SyncConnectorHttpClient:
             raise ConnectorHttpError(f"Redirect blocked ({reason}).")
 
     def _rate_limit(self) -> None:
-        with self._rate_lock:
-            now = time.monotonic()
-            elapsed = now - self._last_request
-            if elapsed < self._min_interval:
-                time.sleep(self._min_interval - elapsed)
-            self._last_request = time.monotonic()
+        """Space requests out, allowing up to ``burst`` of them to go at once.
+
+        A token bucket, not a hard gap. The gap version held the lock across
+        its own ``sleep``, so a connector that deliberately fans out — webtoons
+        fetches six episode-list pages on a ThreadPoolExecutor, e-hentai four
+        thumbnail pages — had its parallelism cancelled by this method: the six
+        threads queued behind each other 0.21s apart and the batch took longer
+        than the requests did. Measured from the VPS, webtoons' chapter stage
+        spent ~2.3s of its 3.75s waiting here rather than on the network.
+
+        With ``burst=1`` (the default, and what every non-fanning connector
+        keeps) the behaviour is the old one. Above that, a batch goes out
+        together and then refills at exactly the same long-run rate, so the
+        politeness budget the interval encodes is unchanged.
+        """
+        if self._min_interval <= 0:
+            return
+        while True:
+            with self._rate_lock:
+                now = time.monotonic()
+                # Refill: one token per min_interval, capped at the burst size.
+                self._tokens = min(
+                    float(self._burst),
+                    self._tokens + (now - self._token_clock) / self._min_interval,
+                )
+                self._token_clock = now
+                if self._tokens >= 1.0:
+                    self._tokens -= 1.0
+                    return
+                wait = (1.0 - self._tokens) * self._min_interval
+            # Slept OUTSIDE the lock, so waiting threads do not serialize on
+            # each other's sleeps the way the old gap-based limiter did.
+            time.sleep(wait)
 
     def _retry_sleep(self, attempt: int, response: httpx.Response | None = None) -> None:
         if response is not None and response.status_code == 429:
