@@ -12,7 +12,7 @@ silently rewinds a reader that synced an older device.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import Depends
@@ -280,6 +280,11 @@ class ProgressService:
             _row_to_merged(row) if row is not None else None, payload
         )
 
+        # Captured BEFORE the row is mutated below: a session records only the
+        # stretch this push covered, not the chapter's whole history.
+        previous_last_page = row.last_page if row is not None else 0
+        previous_time_spent = row.time_spent_seconds if row is not None else 0
+
         if row is None:
             row = ChapterProgress(
                 user_id=user_id,
@@ -301,6 +306,37 @@ class ProgressService:
         row.time_spent_seconds = merged.time_spent_seconds
 
         self._db.flush()
+
+        # A reading session per *advance*, not per push. Clients ping progress
+        # repeatedly for the same page (autosave, scroll settle), and one row
+        # per ping would bury the real reading history in noise while inflating
+        # every statistic built from it. `advanced` is already the merge's own
+        # answer to "did this move forward", so sessions and the furthest-wins
+        # position can never disagree about whether reading happened.
+        if merged.advanced:
+            # +1 because the previous position was already read: resuming at
+            # page 5 and reaching 8 is three pages (6, 7, 8), not four. A first
+            # push has no previous position, so it starts at page 1.
+            start_page = previous_last_page + 1 if previous_last_page else 1
+            elapsed = max(0, merged.time_spent_seconds - previous_time_spent)
+            ended_at = merged.last_read_at
+            self.record_session(
+                source_id=source_id,
+                series_key=series_key,
+                chapter_key=chapter_key,
+                chapter_number=merged.chapter_number,
+                start_page=start_page,
+                end_page=merged.last_page,
+                # Only claim a start time the client actually reported. Without
+                # elapsed time, a zero-length session is honest; inventing a
+                # duration would corrupt the time-read statistic outright.
+                started_at=(
+                    ended_at - timedelta(seconds=elapsed) if elapsed else ended_at
+                ),
+                ended_at=ended_at,
+                commit=False,
+            )
+
         return row, merged
 
     def save_one(self, payload: ProgressInput) -> dict[str, Any]:
@@ -473,6 +509,7 @@ class ProgressService:
         end_page: int,
         started_at: datetime | None = None,
         ended_at: datetime | None = None,
+        commit: bool = True,
     ) -> None:
         user_id, profile_id = self._require_profile()
         pages_read = max(0, end_page - start_page + 1)
@@ -490,7 +527,12 @@ class ProgressService:
             ended_at=ended_at,
         )
         self._db.add(row)
-        self._db.commit()
+        # `commit=False` lets a caller already inside a transaction append a
+        # session without breaking it — save_batch deliberately applies the
+        # whole batch in ONE commit (audit finding 12: per-item commits let a
+        # single large batch monopolise SQLite's single writer).
+        if commit:
+            self._db.commit()
 
     # --- serialization -------------------------------------------------
 
