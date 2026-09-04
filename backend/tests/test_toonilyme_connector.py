@@ -23,6 +23,7 @@ from connectors.toonilyme.mappers import (
     parse_chapters,
     parse_series_detail,
     parse_series_list,
+    search_query_variant,
 )
 from services.outbound_security import host_matches_allowlist
 
@@ -117,6 +118,56 @@ def test_search_sends_query_and_parses_results(connector: ToonilyMeConnector):
     assert calls[0][1]["q"] == "lookism"
     assert "lookism" in {item.id for item in listing.items}
     assert listing.items[0].title == "Lookism"
+
+
+@pytest.mark.parametrize(
+    "query,expected",
+    [
+        ("lookism", "lookism"),
+        ("solo leveling", "solo-leveling"),
+        ("  tower  of   god ", "tower-of-god"),
+        ("one piece", "one-piece"),
+        ("", ""),
+    ],
+)
+def test_search_query_variant(query: str, expected: str):
+    assert search_query_variant(query) == expected
+
+
+def test_multiword_search_uses_the_hyphenated_form(connector: ToonilyMeConnector):
+    """Upstream ranks the plain phrase so badly it misses the title entirely;
+    the slug-shaped form is the one that resolves."""
+    with routed(connector, {"/titles/search": "search_lookism.json"}) as calls:
+        connector.search_series("tower of god", 1)
+    assert len(calls) == 1, "the precise form must cost only one request"
+    assert calls[0][1]["q"] == "tower-of-god"
+
+
+def test_multiword_search_falls_back_to_the_raw_phrase_when_empty(
+    connector: ToonilyMeConnector,
+):
+    calls: list[dict] = []
+
+    def fake_get_json(path: str, *, params=None):
+        calls.append(params)
+        if params["q"] == "no-such-title-here":
+            return {"success": True, "data": {"items": [], "pagination": {"total": 0}}}
+        return _load("search_lookism.json")
+
+    with patch.object(connector._http, "get_json", side_effect=fake_get_json):
+        listing = connector.search_series("no such title here", 1)
+
+    assert [c["q"] for c in calls] == ["no-such-title-here", "no such title here"]
+    assert listing.items, "fallback must preserve recall"
+
+
+def test_single_word_search_never_makes_a_second_request(connector: ToonilyMeConnector):
+    def fake_get_json(path: str, *, params=None):
+        return {"success": True, "data": {"items": [], "pagination": {"total": 0}}}
+
+    with patch.object(connector._http, "get_json", side_effect=fake_get_json) as m:
+        connector.search_series("zzzznotfound", 1)
+    assert m.call_count == 1
 
 
 def test_blank_search_falls_back_to_browse(connector: ToonilyMeConnector):
