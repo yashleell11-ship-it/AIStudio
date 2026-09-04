@@ -154,3 +154,38 @@ class ReaderFeed {
     return ReaderFeed._(chapters.sublist(0, chapters.length - drop));
   }
 }
+
+/// Where the reader is in a [ReaderFeed], in the terms every part of the
+/// chrome needs: which chapter, how far into *that* chapter, and how long it
+/// is.
+///
+/// A record, so equality is structural and the notifier carrying it does not
+/// repaint the bars on every scroll frame that lands on the same page.
+typedef ReaderFeedPosition = ({
+  /// Index into [ReaderFeed.pages] — the geometry's coordinate.
+  int flatIndex,
+  int chapterIndex,
+
+  /// 1-based, within the chapter — what the counter shows and what progress
+  /// is recorded against.
+  int page,
+
+  /// Pages in that chapter, not in the feed: a scrub rail spanning three
+  /// hundred chapters would be unusable, and "page 4 of 812" is not a thing
+  /// anyone wants to read.
+  int pageCount,
+  String chapterTitle,
+});
+
+/// Space the seam divider occupies above the first page of a continued
+/// chapter. Part of the page's own extent (see `ReaderPageMetrics`), so the
+/// list, the counter and every jump agree about where the next page starts.
+const double kChapterSeamExtent = 96;
+
+/// How close to either end of the feed the reader has to get before the
+/// adjacent chapter is asked for.
+///
+/// Pages, not pixels: a chapter is fetched and its first page decoded in a
+/// couple of seconds, and four pages is comfortably more reading than that at
+/// any speed — which is the requirement, that the seam never stalls.
+const int kSeamPrefetchPages = 4;
