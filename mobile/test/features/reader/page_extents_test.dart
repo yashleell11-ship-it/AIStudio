@@ -188,6 +188,36 @@ void main() {
       expect(metrics.pageAtOffset(readerListLeadingPadding + strip / 2), 2);
     });
 
+    test('an offset above the first page still reads as page 1', () {
+      final metrics = _verticalMetrics([2 / 3, 2 / 3]);
+
+      expect(metrics.pageAtOffset(-5000), 1);
+    });
+
+    test('page lookup stays exact across a long Read-all feed', () {
+      // Geometry is answered from a prefix sum rather than a walk, so this
+      // pins the two together: every page start, every reverse lookup and the
+      // total must agree with summing the extents by hand — across the
+      // hundreds of alternating strip/print pages Read-all produces, which is
+      // where a binary search would drift if it were subtly wrong.
+      final ratios = [
+        for (var index = 0; index < 300; index++)
+          index.isEven ? 2 / 3 : 900 / 16000,
+      ];
+      final metrics = _verticalMetrics(ratios);
+
+      var walked = readerListLeadingPadding;
+      for (var index = 0; index < ratios.length; index++) {
+        expect(metrics.offsetToPage(index + 1), closeTo(walked, 1e-6));
+        expect(metrics.pageAtOffset(walked), index + 1);
+        walked += metrics.extentAt(index);
+      }
+      expect(
+        metrics.totalPagesExtent,
+        closeTo(walked - readerListLeadingPadding, 1e-6),
+      );
+    });
+
     test('totalPagesExtent sums every page and excludes list padding', () {
       final metrics = _verticalMetrics([2 / 3, 2 / 3]);
 
@@ -198,8 +228,8 @@ void main() {
     });
 
     test('horizontal extent is one viewport tall plus the page gap', () {
-      const metrics = ReaderPageMetrics(
-        ratios: [0.5],
+      final metrics = ReaderPageMetrics(
+        ratios: const [0.5],
         direction: ReadingDirection.leftToRight,
         fitMode: ReaderFitMode.width,
         viewportWidth: 400,

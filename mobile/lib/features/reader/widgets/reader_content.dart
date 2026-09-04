@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart' show ScrollCacheExtent;
-import 'package:flutter/scheduler.dart' show SchedulerBinding, SchedulerPhase;
+import 'package:flutter/scheduler.dart' show SchedulerBinding;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
@@ -551,20 +551,53 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     unawaited(_displayMode?.apply(rate));
   }
 
-  /// Page geometry for the current layout. Rebuilt on every [build] (viewport,
-  /// zoom, direction and fit all feed it) and thrown away whenever a page's real
-  /// size lands, so nothing ever reads a stale extent.
+  /// Page geometry for the current layout. Thrown away whenever a page's real
+  /// size lands or the feed changes shape, so nothing ever reads a stale
+  /// extent.
   ReaderPageMetrics get _metrics => _cachedMetrics ??= _buildMetrics();
 
   ReaderPageMetrics _buildMetrics() {
     final defaults = _defaults;
-    return ReaderPageMetrics.of(
-      _pageExtents,
+    return _metricsFor(
       direction: defaults.direction,
       fitMode: defaults.fitMode,
       viewportWidth: _containerWidth ?? MediaQuery.sizeOf(context).width,
       viewportHeight: _containerHeight ?? MediaQuery.sizeOf(context).height,
       zoom: ref.read(readerUiProvider).zoomLevel,
+    );
+  }
+
+  /// Reuse the cached geometry when nothing it is derived from has moved.
+  ///
+  /// [_cachedMetrics] is nulled by every mutation of [_pageExtents] and by
+  /// [_reconcileFeed], so the arguments below are the only remaining inputs.
+  /// Reusing the *instance* rather than rebuilding an equal one is what lets
+  /// [_ReaderPageDelegate.shouldRebuild] recognise a rebuild that cannot have
+  /// changed a single list child — a bookmark toggle, a filter change — and
+  /// leave the ~20 live pages alone.
+  ReaderPageMetrics _metricsFor({
+    required ReadingDirection direction,
+    required ReaderFitMode fitMode,
+    required double viewportWidth,
+    required double viewportHeight,
+    required double zoom,
+  }) {
+    final cached = _cachedMetrics;
+    if (cached != null &&
+        cached.direction == direction &&
+        cached.fitMode == fitMode &&
+        cached.viewportWidth == viewportWidth &&
+        cached.viewportHeight == viewportHeight &&
+        cached.zoom == zoom) {
+      return cached;
+    }
+    return _cachedMetrics = ReaderPageMetrics.of(
+      _pageExtents,
+      direction: direction,
+      fitMode: fitMode,
+      viewportWidth: viewportWidth,
+      viewportHeight: viewportHeight,
+      zoom: zoom,
       leadingInsets: _seamInsets,
     );
   }
@@ -704,17 +737,20 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// A page has reported its real size. Fold it in when it is safe to touch the
   /// scroll position — never during build or layout, where a correction would
   /// assert.
+  ///
+  /// Always deferred to a post-frame callback, so however many pages decode
+  /// between two frames they cost exactly one commit. Committing on the spot
+  /// while the scheduler was idle — which is where a decode callback usually
+  /// lands — meant one `setState`, one metrics rebuild and one full rebuild of
+  /// every live list child *per page*, and pages decode in bursts.
   void _handleExtentSubmission() {
     if (!mounted || _extentCommitScheduled) return;
     if (_pageExtents.pendingRatios.isEmpty) return;
     _extentCommitScheduled = true;
-    final phase = SchedulerBinding.instance.schedulerPhase;
-    if (phase == SchedulerPhase.idle ||
-        phase == SchedulerPhase.postFrameCallbacks) {
-      _commitPageExtents();
-    } else {
-      WidgetsBinding.instance.addPostFrameCallback((_) => _commitPageExtents());
-    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _commitPageExtents());
+    // addPostFrameCallback does not schedule a frame, so a size that lands
+    // while nothing else is animating would otherwise never be committed.
+    SchedulerBinding.instance.ensureVisualUpdate();
   }
 
   /// Apply measured page sizes and undo the shove they give the pages below.
@@ -831,6 +867,12 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// scrolling stays smooth. Uses the same [ResizeImage] key as the rendered
   /// page, so a prefetched page is a cache hit (no re-decode) when it scrolls
   /// into view. Monotonic — never re-warms pages already requested.
+  ///
+  /// Warms from disk for a downloaded page. Before that branch existed a
+  /// downloaded chapter — the one that should be the smoothest — got no
+  /// warm-up at all: its pages carry an empty [ReaderPage.imageUrl], so every
+  /// advance fired eight fetches for the empty string, swallowed the errors and
+  /// moved the high-water mark past them anyway.
   void _prefetchUpcoming(int visiblePage) {
     if (!mounted) return;
     final pages = widget.feed.pages;
@@ -845,19 +887,28 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       ref.read(authTokenStoreProvider).token,
       profileId: ref.read(activeProfileProvider)?.id,
     );
+    var reached = _prefetchedThrough;
     for (var i = _prefetchedThrough; i < target; i++) {
+      final page = pages[i];
+      final localFile = page.localFile;
+      if (localFile == null && page.imageUrl.isEmpty) {
+        // Nothing to warm from. Leave the high-water mark here rather than
+        // stepping over it, so the page is tried again once the feed hands it
+        // a source.
+        break;
+      }
       final provider = ResizeImage.resizeIfNeeded(
         decodeWidth,
         null,
-        CachedNetworkImageProvider(
-          pages[i].imageUrl,
-          headers: headers,
-        ),
+        localFile != null
+            ? FileImage(localFile) as ImageProvider
+            : CachedNetworkImageProvider(page.imageUrl, headers: headers),
       );
       // Fire and forget; swallow errors so a bad page never crashes reading.
       precacheImage(provider, context, onError: (_, __) {});
+      reached = i + 1;
     }
-    _prefetchedThrough = target;
+    _prefetchedThrough = reached;
   }
 
   void _scheduleScrollSave(double scrollTop, ReaderFeedPosition position) {
@@ -887,7 +938,13 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   void _scheduleProgressSave(ReaderFeedPosition position) {
     if (widget.onSaveProgress == null || widget.feed.isEmpty) return;
     final chapter = widget.feed.chapters[position.chapterIndex];
-    _pending = (chapter, position.page);
+    final next = (chapter, position.page);
+    // The debounce only has to restart when there is something new to save.
+    // This runs on every scroll callback — at least once a frame during a
+    // fling — and re-arming it there was cancelling and allocating a Timer per
+    // frame to schedule the write it had just scheduled.
+    if (_pending == next && (_progressSaveTimer?.isActive ?? false)) return;
+    _pending = next;
     _progressSaveTimer?.cancel();
     _progressSaveTimer =
         Timer(const Duration(milliseconds: _progressSaveMs), () {
@@ -1281,7 +1338,14 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       viewportWidth: viewportWidth,
       viewportHeight: viewportHeight,
       priority: index < 2,
-      onLoad: _handleScroll,
+      // No per-decode callback: a page loading changes nothing this reader
+      // derives from geometry. Extents are forced from [metrics] and the
+      // scrollable range from the delegate's own total, so an arriving bitmap
+      // moves nothing — and running the whole scroll pipeline (an O(N) page
+      // lookup, two Timer allocations, a prefetch pass) once per decode, for
+      // ~20 pages loading at once, was pure overhead on the busiest frames.
+      // [_commitPageExtents] already schedules a post-frame `_handleScroll`
+      // for the one case that does move the geometry.
       // Already-known sizes need no second resolve.
       onIntrinsicSize: _pageExtents.isResolved(index)
           ? null
@@ -1451,14 +1515,12 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
         ),
     };
 
-    final metrics = _cachedMetrics = ReaderPageMetrics.of(
-      _pageExtents,
+    final metrics = _metricsFor(
       direction: direction,
       fitMode: defaults.fitMode,
       viewportWidth: mediaSize.width,
       viewportHeight: mediaSize.height,
       zoom: zoomLevel,
-      leadingInsets: _seamInsets,
     );
     final pageCount = widget.feed.length;
 
@@ -1493,6 +1555,8 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
         childrenDelegate: _ReaderPageDelegate(
           childCount: pageCount,
           totalExtent: metrics.totalPagesExtent,
+          metrics: metrics,
+          backgroundColor: readerBackground.color,
           builder: (context, index) => _buildPageItem(
             index: index,
             metrics: metrics,
@@ -1596,14 +1660,25 @@ class _ReaderPageDelegate extends SliverChildBuilderDelegate {
     required NullableIndexedWidgetBuilder builder,
     required int childCount,
     required this.totalExtent,
+    required this.metrics,
+    required this.backgroundColor,
   }) : super(
           builder,
           childCount: childCount,
           // Each page carries its own RepaintBoundary already.
           addRepaintBoundaries: false,
+          // Nothing in a page's subtree dispatches a KeepAliveNotification, so
+          // the AutomaticKeepAlive wrapper is one extra StatefulWidget per live
+          // page for a mechanism this list never uses.
+          addAutomaticKeepAlives: false,
         );
 
   final double totalExtent;
+
+  /// The geometry the builder closed over. Held only to compare against the
+  /// previous delegate — see [shouldRebuild].
+  final ReaderPageMetrics metrics;
+  final Color backgroundColor;
 
   @override
   double? estimateMaxScrollOffset(
@@ -1613,6 +1688,25 @@ class _ReaderPageDelegate extends SliverChildBuilderDelegate {
     double trailingScrollOffset,
   ) =>
       totalExtent;
+
+  /// [SliverChildBuilderDelegate] answers this `true` unconditionally, which
+  /// means every rebuild of the reader rebuilds every page currently in the
+  /// list's 6000 px cache window — around twenty of them. Most reader rebuilds
+  /// cannot have changed a page: a bookmark toggle, a colour-filter change, a
+  /// provider emitting an unrelated value.
+  ///
+  /// Everything the builder reads is either in [metrics] (direction, fit mode,
+  /// viewport, zoom, and the page ratios themselves — a new instance is
+  /// created for any change to those, and for a feed that changed shape) or is
+  /// [backgroundColor]. If those two are unchanged the builder would produce
+  /// identical widgets, so there is nothing to do.
+  @override
+  bool shouldRebuild(covariant SliverChildDelegate oldDelegate) {
+    if (oldDelegate is! _ReaderPageDelegate) return true;
+    return childCount != oldDelegate.childCount ||
+        !identical(metrics, oldDelegate.metrics) ||
+        backgroundColor != oldDelegate.backgroundColor;
+  }
 }
 
 // ── Controls overlay (separated so readerUiProvider rebuilds don't hit the list)

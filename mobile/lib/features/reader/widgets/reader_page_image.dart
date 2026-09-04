@@ -93,7 +93,6 @@ class ReaderPageImage extends ConsumerStatefulWidget {
     this.viewportWidth,
     this.viewportHeight,
     this.priority = false,
-    this.onLoad,
     this.onIntrinsicSize,
     this.httpHeaders,
     this.localFile,
@@ -121,7 +120,6 @@ class ReaderPageImage extends ConsumerStatefulWidget {
   final double? viewportWidth;
   final double? viewportHeight;
   final bool priority;
-  final VoidCallback? onLoad;
 
   /// Reports the page's real pixel dimensions the moment the decoder knows
   /// them.
@@ -146,8 +144,13 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
   ImageStream? _sizeStream;
   ImageStreamListener? _sizeListener;
   bool _sizeReported = false;
+  String? _checkedLocalPath;
+  bool _localFileExists = false;
 
-  void _retry() => setState(() => _retryToken++);
+  void _retry() => setState(() {
+        _retryToken++;
+        _checkedLocalPath = null;
+      });
 
   @override
   void didChangeDependencies() {
@@ -229,17 +232,18 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
     );
   }
 
+  /// Deliberately static.
+  ///
+  /// A spinner here is an indeterminate [AnimationController], and the reader
+  /// keeps ~20 unloaded pages alive at once inside the list's 6000 px cache
+  /// window — none of them wrapped in a disabled [TickerMode], because sliver
+  /// children in the cache region are not. Twenty tickers marking themselves
+  /// dirty every frame means the engine never reaches an idle frame: the app
+  /// renders continuously while nothing is moving, which is what "feels like
+  /// 30 Hz" is made of. A backdrop-coloured box is also what reads best
+  /// between two pages of artwork.
   Widget _loadingBox() => _placeholderBox(
-        child: ColoredBox(
-          color: widget.backgroundColor,
-          child: const Center(
-            child: SizedBox(
-              width: 24,
-              height: 24,
-              child: CircularProgressIndicator(strokeWidth: 2),
-            ),
-          ),
-        ),
+        child: ColoredBox(color: widget.backgroundColor),
       );
 
   /// Shared by both the network and on-device sources — the reader must not
@@ -272,12 +276,12 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
 
   BoxFit get _boxFit => readerFitModeToBoxFit(widget.fitMode);
 
-  Widget _loadedImage(int? decodeWidth, ImageProvider provider) {
-    // Wrap with the same ResizeImage the widget's memCacheWidth uses so this
-    // render reuses the already-decoded, downsampled bitmap instead of
-    // decoding the page a second time at full resolution.
+  /// Renders [provider], which must already carry the decode size — see
+  /// [_buildLocalImage] and [_buildNetworkImage] for why the wrapping happens
+  /// at the call site rather than here.
+  Widget _loadedImage(ImageProvider provider) {
     return ReaderLoadedPageImage(
-      image: ResizeImage.resizeIfNeeded(decodeWidth, null, provider),
+      image: provider,
       fitMode: widget.fitMode,
       layoutAxis: widget.layoutAxis,
       viewportWidth: widget.viewportWidth,
@@ -286,22 +290,41 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
     );
   }
 
+  /// Whether the on-device blob is still there.
+  ///
+  /// Checked once per path rather than on every build: this runs on the UI
+  /// isolate, [build] runs whenever the reader commits a measured page, and
+  /// on Android a stat under app documents storage is not reliably fast. A
+  /// blob that disappears mid-session is caught by the [Image.errorBuilder]
+  /// below, which is the same broken-page state this check produces.
+  bool _localFileIsPresent(File file) {
+    if (_checkedLocalPath != file.path) {
+      _checkedLocalPath = file.path;
+      _localFileExists = file.existsSync();
+    }
+    return _localFileExists;
+  }
+
   /// On-device store resolution — no network, no cache manager, works with
-  /// the server unreachable. [File.existsSync] is checked up front: a blob a
-  /// user deleted by hand through the Files app (spec §3b) shows the same
-  /// broken-page/retry state a network failure would, rather than a raw
-  /// filesystem exception.
+  /// the server unreachable. A blob a user deleted by hand through the Files
+  /// app (spec §3b) shows the same broken-page/retry state a network failure
+  /// would, rather than a raw filesystem exception.
+  ///
+  /// The outer [Image] is here only to observe the load: its `child` is
+  /// discarded, so it is never inflated. It must therefore be handed the
+  /// **same** provider the page actually renders — a bare `FileImage` would be
+  /// a different [ResizeImage] key and the page would be decoded twice, once
+  /// at the blob's full native size, which for a webtoon strip is the
+  /// expensive one.
   Widget _buildLocalImage(int? decodeWidth, File file) {
-    if (!file.existsSync()) return _brokenPageBox();
+    if (!_localFileIsPresent(file)) return _brokenPageBox();
+    final provider =
+        ResizeImage.resizeIfNeeded(decodeWidth, null, FileImage(file));
     return Image(
       key: ValueKey('local:${file.path}:$_retryToken'),
-      image: FileImage(file),
-      fit: _boxFit,
-      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-        if (frame == null) return _loadingBox();
-        WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
-        return _loadedImage(decodeWidth, FileImage(file));
-      },
+      image: provider,
+      frameBuilder: (context, child, frame, wasSynchronouslyLoaded) =>
+          frame == null ? _loadingBox() : _loadedImage(provider),
       errorBuilder: (context, error, stackTrace) => _brokenPageBox(),
     );
   }
@@ -321,13 +344,27 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
               widget.fitMode == ReaderFitMode.height
           ? double.infinity
           : null,
-      fadeInDuration: const Duration(milliseconds: 150),
+      // No cross-fade: octo_image implements it by stacking the arriving page
+      // over the placeholder behind two FadeTransitions, i.e. a saveLayer over
+      // a full-viewport-width page, and during a fast scroll several of those
+      // overlap. There is nothing to fade against either — the page already
+      // occupies its reserved extent over a backdrop-coloured box before it
+      // loads.
+      //
+      // Both halves have to be zero. Zeroing only the fade-in leaves the
+      // placeholder fading out over octo_image's default second, and it is the
+      // fade-*out* that holds the stack together: at zero it drops the
+      // placeholder outright and the page is left painting alone.
+      fadeInDuration: Duration.zero,
+      fadeOutDuration: Duration.zero,
       placeholder: (_, __) => _loadingBox(),
       errorWidget: (_, __, ___) => _brokenPageBox(),
-      imageBuilder: (context, imageProvider) {
-        WidgetsBinding.instance.addPostFrameCallback((_) => widget.onLoad?.call());
-        return _loadedImage(decodeWidth, imageProvider);
-      },
+      // The raw provider CachedNetworkImage hands back, wrapped in the same
+      // ResizeImage key its own memCacheWidth produced — equal keys, one
+      // decode, one cache entry.
+      imageBuilder: (context, imageProvider) => _loadedImage(
+        ResizeImage.resizeIfNeeded(decodeWidth, null, imageProvider),
+      ),
     );
   }
 
