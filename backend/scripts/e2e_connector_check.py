@@ -191,7 +191,14 @@ def check_images(conn, pages, samples: int) -> tuple[str, int, int, str, float, 
 
 
 def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
-              search: bool = True) -> dict:
+              search: bool = True, budget: float = 0.0) -> dict:
+    """Probe one connector, spending at most ``budget`` seconds (0 = unlimited).
+
+    The budget is checked at stage boundaries rather than enforced by killing
+    a thread, because a Python thread blocked in a socket read cannot be
+    cancelled. That is enough: the underlying client already caps a single
+    request, so the worst overrun is one in-flight request past the line.
+    """
     result = {
         "source_id": source_type,
         "browse": "-",
@@ -218,6 +225,11 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         "t_find_page": 0.0,
     }
     t0 = time.monotonic()
+    deadline = (t0 + budget) if budget > 0 else float("inf")
+
+    def _out_of_time() -> bool:
+        return time.monotonic() >= deadline
+
     try:
         conn = create_connector(source_type)
     except Exception as exc:  # noqa: BLE001
@@ -248,7 +260,7 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
         return result
 
     # search — timed and reported, but never gates ``ok`` (see STAGES).
-    if search:
+    if search and not _out_of_time():
         term = _search_term(result["series_sample"])
         result["search_term"] = term
         t_stage = time.monotonic()
@@ -294,6 +306,9 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
     target_depth = 5 if images else 3
 
     for series_id in candidate_ids:
+        if _out_of_time():
+            best["error"] = best["error"] or f"budget {budget:.0f}s exhausted"
+            break
         attempt = {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
                    "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
                    "sample": result["series_sample"], "error": "", "depth": -1,
@@ -540,7 +555,10 @@ def main() -> None:
     ap.add_argument("--mature", action="store_true", help="include mature connectors")
     ap.add_argument("--only", default="", help="comma-separated source_ids to check")
     ap.add_argument("--workers", type=int, default=8)
-    ap.add_argument("--timeout", type=float, default=30.0, help="per-connector seconds")
+    ap.add_argument("--timeout", type=float, default=90.0,
+                    help="per-connector budget in seconds, checked at stage boundaries")
+    ap.add_argument("--deadline", type=float, default=1800.0,
+                    help="hard wall-clock cap for the whole run in seconds")
     ap.add_argument("--out", default=str(REPO / "docs" / "connector_e2e_results.json"))
     ap.add_argument("--probe-out", default="",
                     help="also write docs/connector_probe_results.json-shaped JSON here")
@@ -607,20 +625,31 @@ def main() -> None:
         }
 
     results: list[dict] = []
-    with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
-        futs = {
-            ex.submit(check_one, sid, images=args.images,
-                      image_samples=args.image_samples, search=args.search): sid
-            for sid in ids
-        }
-        for fut in cf.as_completed(futs):
-            sid = futs[fut]
-            try:
-                results.append(fut.result(timeout=args.timeout))
-            except cf.TimeoutError:
-                results.append(_stub(sid, "TIMEOUT", f"timeout >{args.timeout}s", args.timeout))
-            except Exception as exc:  # noqa: BLE001
-                results.append(_stub(sid, "ERROR", f"{type(exc).__name__}: {exc}"[:200], 0.0))
+    # NOTE: the old loop passed --timeout to fut.result() inside as_completed,
+    # which can never fire (as_completed only yields already-finished futures),
+    # so a wedged source could stall the whole audit. The budget is now spent
+    # inside check_one, and cf.wait caps the run as a whole.
+    ex = cf.ThreadPoolExecutor(max_workers=args.workers)
+    futs = {
+        ex.submit(check_one, sid, images=args.images,
+                  image_samples=args.image_samples, search=args.search,
+                  budget=args.timeout): sid
+        for sid in ids
+    }
+    done, not_done = cf.wait(futs, timeout=args.deadline)
+    for fut in done:
+        sid = futs[fut]
+        try:
+            results.append(fut.result())
+        except Exception as exc:  # noqa: BLE001
+            results.append(_stub(sid, "ERROR", f"{type(exc).__name__}: {exc}"[:200], 0.0))
+    for fut in not_done:
+        sid = futs[fut]
+        results.append(_stub(sid, "TIMEOUT", f"still running at deadline "
+                                             f"{args.deadline:.0f}s", args.timeout))
+    # Threads stuck in a socket read cannot be joined in bounded time; do not
+    # wait on them. The results above are already complete.
+    ex.shutdown(wait=False, cancel_futures=True)
 
     results.sort(key=lambda r: (not r["ok"], r["source_id"]))
     fully_ok = [r for r in results if r["ok"]]
@@ -681,6 +710,14 @@ def main() -> None:
     if args.probe_out:
         mature_ids = {d.source_type for d in descriptors if getattr(d, "mature", False)}
         _write_probe_results(results, Path(args.probe_out), mature_ids)
+
+    if not_done:
+        # ThreadPoolExecutor's atexit hook joins its worker threads, so a
+        # source wedged in a socket read would hang the process forever after
+        # the report is already written. Everything is flushed; leave now.
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(0)
 
 
 if __name__ == "__main__":
