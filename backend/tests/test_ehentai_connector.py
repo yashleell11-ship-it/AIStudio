@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import threading
+import time
+
 from pathlib import Path
 from unittest.mock import patch
 
@@ -142,3 +145,75 @@ def test_parse_series_list_has_more_from_next_link():
     listing = parse_series_list(html, page=1)
     assert listing.has_more is True
     assert listing.items[0].id.count("/") == 1
+
+
+def test_opening_a_gallery_fetches_its_landing_page_once(
+    ehentai_connector: EHentaiConnector,
+):
+    """get_series, get_chapters and get_chapter_pages read the same document.
+
+    The reader calls all three back to back when a gallery is opened, and each
+    used to fetch ``/g/<id>/`` for itself -- three identical requests to a site
+    that rate-limits hard.
+    """
+    html = (FIXTURES / "gallery_detail.html").read_text(encoding="utf-8")
+    gallery_id = "2824036/518ad4908e"
+
+    with patch.object(
+        ehentai_connector, "_fetch_html", return_value=html
+    ) as mock_fetch:
+        ehentai_connector.get_series(gallery_id)
+        ehentai_connector.get_chapters(gallery_id)
+        ehentai_connector.get_chapter_pages(gallery_id)
+
+    landing = [
+        call for call in mock_fetch.call_args_list
+        if "?p=" not in call.args[0]
+    ]
+    assert len(landing) == 1, mock_fetch.call_args_list
+
+
+def test_thumbnail_pages_are_fetched_in_parallel_batches(
+    ehentai_connector: EHentaiConnector,
+):
+    """A big gallery must not cost one serial round trip per 20 images.
+
+    Measured from the VPS, a 460-image gallery spent 23.1s in the pages stage
+    walking its thumbnail pages one at a time -- the slowest single stage in
+    the connector audit.
+    """
+    html = (FIXTURES / "gallery_detail.html").read_text(encoding="utf-8")
+    gallery_id = "2824036/518ad4908e"
+    requested: list[str] = []
+    in_flight = 0
+    max_in_flight = 0
+    lock = threading.Lock()
+
+    def fake_fetch(path: str) -> str:
+        nonlocal in_flight, max_in_flight
+        with lock:
+            requested.append(path)
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+        time.sleep(0.05)
+        with lock:
+            in_flight -= 1
+        return html
+
+    # 100 images over 20-per-thumbnail-page => 5 thumbnail pages (0..4).
+    with patch.object(ehentai_connector, "_fetch_html", side_effect=fake_fetch):
+        with patch(
+            "connectors.ehentai.connector.parse_page_count", return_value=100
+        ):
+            with patch(
+                "connectors.ehentai.connector.parse_page_tokens",
+                side_effect=lambda doc, gid: {str(len(requested)): "tok"},
+            ):
+                ehentai_connector.get_chapter_pages(gallery_id)
+
+    thumb_paths = [p for p in requested if "?p=" in p]
+    assert sorted(thumb_paths) == sorted(
+        [f"/g/{gallery_id}/?p={n}" for n in range(1, 5)]
+    ), requested
+    # Serial would peak at one concurrent request; batching overlaps them.
+    assert max_in_flight > 1

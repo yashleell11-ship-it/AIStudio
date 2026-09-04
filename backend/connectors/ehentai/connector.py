@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures as cf
 import logging
 import math
 
@@ -37,6 +38,19 @@ HTML_HEADERS = {"Accept": "text/html,application/xhtml+xml"}
 BROWSER_IMPERSONATE = "chrome131"
 
 
+# A gallery's thumbnail pages are fetched in bounded parallel batches. E-Hentai
+# paginates thumbnails 20 at a time, so a 460-image gallery meant 22 strictly
+# serial round trips -- measured at 23.1s from the VPS, the slowest single
+# stage in the whole connector audit. The client's 0.35s spacing still applies
+# to each request as it starts, so overlapping them does not raise the request
+# rate this connector offers the site, only the time it waits on the replies.
+_THUMB_PAGE_WORKERS = 4
+# The gallery landing page answers three different questions -- metadata,
+# chapter row, page tokens -- and opening a gallery asks all three back to
+# back. Cache the document so that costs one fetch, not three.
+_GALLERY_HTML_TTL_SECONDS = 120.0
+
+
 class EHentaiConnector(SourceConnector):
     """Browse and read galleries from E-Hentai."""
 
@@ -61,6 +75,9 @@ class EHentaiConnector(SourceConnector):
         self._chapter_list_cache: TTLCache[list[Chapter]] = TTLCache(ttl_seconds=180.0)
         self._page_cache: TTLCache[list[Page]] = TTLCache(ttl_seconds=600.0)
         self._cursor_cache: TTLCache[str] = TTLCache(ttl_seconds=900.0)
+        self._gallery_html_cache: TTLCache[str] = TTLCache(
+            ttl_seconds=_GALLERY_HTML_TTL_SECONDS
+        )
 
     @property
     def source_type(self) -> str:
@@ -117,6 +134,20 @@ class EHentaiConnector(SourceConnector):
 
     def _fetch_html(self, path: str) -> str:
         return self._http.get_text(path)
+
+    def _gallery_html(self, gallery_id: str) -> str:
+        """The gallery landing page, fetched at most once per TTL.
+
+        get_series, get_chapters and _fetch_chapter_pages each need this exact
+        document, and opening a gallery calls all three. Without the cache
+        that is three identical requests to a site that rate-limits hard.
+        """
+        cached = self._gallery_html_cache.get(gallery_id)
+        if cached is not None:
+            return cached
+        document = self._fetch_html(gallery_path(gallery_id))
+        self._gallery_html_cache.set(gallery_id, document)
+        return document
 
     def _normalize_gallery_id(self, gallery_id: str) -> str:
         value = fully_unquote(gallery_id).strip().strip("/")
@@ -249,7 +280,7 @@ class EHentaiConnector(SourceConnector):
         if cached is not None and cached.description is not None:
             return cached
         try:
-            document = self._fetch_html(gallery_path(gallery_id))
+            document = self._gallery_html(gallery_id)
         except ConnectorHttpError:
             return None
         series = parse_series_detail(document, gallery_id=gallery_id)
@@ -269,7 +300,7 @@ class EHentaiConnector(SourceConnector):
         if parse_gallery_id(gallery_id) is None:
             return []
         try:
-            document = self._fetch_html(gallery_path(gallery_id))
+            document = self._gallery_html(gallery_id)
         except ConnectorHttpError:
             return []
         return parse_chapters(document, gallery_id=gallery_id)
@@ -287,7 +318,7 @@ class EHentaiConnector(SourceConnector):
             return []
         gid, _token = parsed
         try:
-            first_document = self._fetch_html(gallery_path(gallery_id))
+            first_document = self._gallery_html(gallery_id)
         except ConnectorHttpError:
             return []
         page_count = parse_page_count(first_document)
@@ -296,20 +327,60 @@ class EHentaiConnector(SourceConnector):
 
         tokens = parse_page_tokens(first_document, gid=gid)
         thumb_pages = max(1, math.ceil(page_count / GALLERY_THUMBS_PER_PAGE))
-        for thumb_page in range(1, thumb_pages):
-            if len(tokens) >= page_count:
-                break
-            try:
-                document = self._fetch_html(
-                    gallery_path(gallery_id, thumb_page=thumb_page)
-                )
-            except ConnectorHttpError:
-                break
-            tokens.update(parse_page_tokens(document, gid=gid))
+        # How many thumbnail pages exist is known up front from the image
+        # count, so they can be fetched in parallel batches instead of one at
+        # a time. Batching (rather than firing all 20+ at once) keeps the
+        # in-flight count bounded on a 2-vCPU box and lets the early exit
+        # below still stop as soon as every token is in hand.
+        remaining = list(range(1, thumb_pages))
+        while remaining and len(tokens) < page_count:
+            batch = remaining[:_THUMB_PAGE_WORKERS]
+            remaining = remaining[len(batch):]
+            for document in self._fetch_thumb_pages(gallery_id, batch):
+                if document is None:
+                    remaining = []
+                    break
+                tokens.update(parse_page_tokens(document, gid=gid))
 
         if not tokens:
             return []
         return build_gallery_pages(gallery_id=gallery_id, gid=gid, tokens=tokens)
+
+    def _fetch_thumb_pages(
+        self, gallery_id: str, thumb_pages: list[int]
+    ) -> list[str | None]:
+        """Fetch several thumbnail pages at once, returned in page order.
+
+        A failed page yields ``None``; the caller stops there and keeps the
+        tokens already collected, exactly as the old serial loop's ``break``
+        did, so one bad response does not cost the whole gallery.
+        """
+        if not thumb_pages:
+            return []
+        results: dict[int, str | None] = {}
+        with cf.ThreadPoolExecutor(
+            max_workers=min(_THUMB_PAGE_WORKERS, len(thumb_pages)),
+            thread_name_prefix="ehentai-thumbs",
+        ) as ex:
+            futures = {
+                ex.submit(
+                    self._fetch_html, gallery_path(gallery_id, thumb_page=thumb_page)
+                ): thumb_page
+                for thumb_page in thumb_pages
+            }
+            for future in cf.as_completed(futures):
+                thumb_page = futures[future]
+                try:
+                    results[thumb_page] = future.result()
+                except ConnectorHttpError as exc:
+                    logger.info(
+                        "E-Hentai thumb page %s of gallery %s failed: %s",
+                        thumb_page,
+                        gallery_id,
+                        exc,
+                    )
+                    results[thumb_page] = None
+        return [results.get(thumb_page) for thumb_page in thumb_pages]
 
     def find_page(self, page_id: str) -> Page | None:
         gallery_id = page_id_gallery_id(fully_unquote(page_id).strip())
