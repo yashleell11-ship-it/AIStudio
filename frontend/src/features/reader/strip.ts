@@ -75,7 +75,7 @@ export function stripChapterLabel(chapter: StripChapter): string {
   return chapter.title?.trim() || "Chapter";
 }
 
-export function stripPageRowKey(chapterKey: string, pageNumber: number): string {
+function stripPageRowKey(chapterKey: string, pageNumber: number): string {
   return `${chapterKey}:${pageNumber}`;
 }
 
@@ -254,7 +254,7 @@ export const READ_ALL_STRIP_WINDOW: StripWindow = { behind: 1, ahead: 3 };
  * reader can see would be a hole in the page, so the radius is deliberately
  * wider than the window that loads.
  */
-export const RENDER_CHAPTER_RADIUS = 2;
+const RENDER_CHAPTER_RADIUS = 2;
 
 /** Whether the strip should pull another chapter onto its end. */
 export function shouldExtendAhead(
