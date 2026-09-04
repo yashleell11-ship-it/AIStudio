@@ -16,7 +16,7 @@ from datetime import datetime, timedelta
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import select, tuple_
 from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
@@ -25,6 +25,11 @@ from core.profile_context import ProfileContext, resolve_profile_context
 from core.time_utils import utcnow
 from database.models import Bookmark, ChapterProgress, ReadingSession
 from database.session import get_db
+
+#: Row-value ``IN`` chunk size for the batch prefetch. Matches the library's
+#: (``followed_series_service._IN_CHUNK``): three bound parameters per key, so
+#: 400 keys stay inside even the old 999-variable SQLite ceiling.
+_IN_CHUNK = 300
 
 
 # ---------------------------------------------------------------------------
@@ -252,29 +257,77 @@ class ProgressService:
             stmt = stmt.where(ChapterProgress.profile_id == self._profile_id)
         return stmt
 
+    def _prefetch(
+        self, payloads: list[ProgressInput]
+    ) -> dict[tuple[str, str, str], ChapterProgress]:
+        """Every existing row a batch will touch, in one statement per chunk.
+
+        ``_apply_one`` looked its row up with its own SELECT, which is fine for
+        one push and an N+1 for a sync: the route accepts 200 items, so an
+        offline catch-up issued 200 point queries before it wrote anything.
+        Row-value ``IN`` collapses them, chunked exactly like the library's
+        lookups so the statement stays inside SQLite's variable ceiling.
+        """
+        keys = [
+            (
+                p.source_id,
+                fully_unquote(p.series_key),
+                fully_unquote(p.chapter_key),
+            )
+            for p in payloads
+        ]
+        found: dict[tuple[str, str, str], ChapterProgress] = {}
+        target = tuple_(
+            ChapterProgress.source_id,
+            ChapterProgress.series_key,
+            ChapterProgress.chapter_key,
+        )
+        for start in range(0, len(keys), _IN_CHUNK):
+            chunk = keys[start : start + _IN_CHUNK]
+            if not chunk:
+                continue
+            rows = self._db.execute(
+                self._scope(select(ChapterProgress).where(target.in_(chunk)))
+            ).scalars().all()
+            for row in rows:
+                found[(row.source_id, row.series_key, row.chapter_key)] = row
+        return found
+
     def _apply_one(
-        self, payload: ProgressInput
+        self,
+        payload: ProgressInput,
+        *,
+        prefetched: dict[tuple[str, str, str], ChapterProgress] | None = None,
     ) -> tuple[ChapterProgress, MergedProgress]:
         """Merge one push into the session WITHOUT committing.
 
         Ends with a ``flush`` so a later payload in the same batch that targets
         the same chapter sees the pending row (the per-item-commit behaviour it
         replaces provided that visibility implicitly).
+
+        ``prefetched`` is the batch path's shared row map (see ``_prefetch``).
+        It is READ AND WRITTEN: a row this call creates is put back into it, so
+        a second payload for the same chapter later in the batch merges onto
+        the same object rather than inserting a duplicate — exactly what the
+        per-item SELECT + flush used to guarantee.
         """
         user_id, profile_id = self._require_profile()
         source_id = payload.source_id
         series_key = fully_unquote(payload.series_key)
         chapter_key = fully_unquote(payload.chapter_key)
 
-        row = self._db.execute(
-            self._scope(
-                select(ChapterProgress).where(
-                    ChapterProgress.source_id == source_id,
-                    ChapterProgress.series_key == series_key,
-                    ChapterProgress.chapter_key == chapter_key,
+        if prefetched is not None:
+            row = prefetched.get((source_id, series_key, chapter_key))
+        else:
+            row = self._db.execute(
+                self._scope(
+                    select(ChapterProgress).where(
+                        ChapterProgress.source_id == source_id,
+                        ChapterProgress.series_key == series_key,
+                        ChapterProgress.chapter_key == chapter_key,
+                    )
                 )
-            )
-        ).scalar_one_or_none()
+            ).scalar_one_or_none()
 
         merged = merge_progress(
             _row_to_merged(row) if row is not None else None, payload
@@ -295,6 +348,8 @@ class ProgressService:
                 started_at=merged.last_read_at,
             )
             self._db.add(row)
+            if prefetched is not None:
+                prefetched[(source_id, series_key, chapter_key)] = row
 
         row.chapter_number = merged.chapter_number
         row.last_page = merged.last_page
@@ -342,7 +397,6 @@ class ProgressService:
     def save_one(self, payload: ProgressInput) -> dict[str, Any]:
         row, merged = self._apply_one(payload)
         self._db.commit()
-        self._db.refresh(row)
         return {**self._serialize(row), "advanced": merged.advanced}
 
     def save_batch(self, payloads: list[ProgressInput]) -> dict[str, Any]:
@@ -353,11 +407,16 @@ class ProgressService:
         SQLite for a single request, which let one large batch monopolise the
         writer (audit finding 12; the route also caps the batch length).
         """
-        applied = [self._apply_one(p) for p in payloads]
+        prefetched = self._prefetch(payloads)
+        applied = [self._apply_one(p, prefetched=prefetched) for p in payloads]
         self._db.commit()
         results = []
         for row, merged in applied:
-            self._db.refresh(row)
+            # No refresh(). The session is created with expire_on_commit=False
+            # and _apply_one flushes, so every column -- including the
+            # Python-side defaults -- is already loaded on the object. The
+            # refresh was one extra SELECT per item, 200 of them for a full
+            # batch, to re-read values this process had just written.
             results.append({**self._serialize(row), "advanced": merged.advanced})
         return {
             "saved": len(results),
