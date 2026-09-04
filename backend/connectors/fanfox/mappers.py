@@ -276,6 +276,17 @@ def unpacked_blocks(document: str) -> list[str]:
     ]
 
 
+def _reader_blocks(document: str) -> list[str]:
+    """Places reader data can live, most-specific first.
+
+    Expanded packed blocks are searched before the raw document so real data
+    always wins. The raw document is included as a fallback because nothing
+    about these declarations requires packing — fanfox packs them today, and a
+    plain ``var pix=...`` response would otherwise read as an empty chapter.
+    """
+    return [*unpacked_blocks(document), document or ""]
+
+
 # --- chapter reader ---------------------------------------------------------
 
 IMAGE_COUNT_RE = re.compile(r"var\s+imagecount\s*=\s*(\d+)")
@@ -308,7 +319,7 @@ def parse_embedded_image_urls(document: str) -> list[str]:
     chapter, so one GET resolves every page. Returns [] when this chapter uses
     the guidkey handshake instead.
     """
-    for block in unpacked_blocks(document):
+    for block in _reader_blocks(document):
         match = _NEW_IMGS_RE.search(block)
         if not match:
             continue
@@ -325,7 +336,7 @@ def parse_guidkey(document: str) -> str | None:
     (``''+'c'+'9'+...``) purely to defeat naive scraping; joining the quoted
     fragments reassembles it.
     """
-    for block in unpacked_blocks(document):
+    for block in _reader_blocks(document):
         match = _GUIDKEY_RE.search(block)
         if match:
             key = "".join(_QUOTED_RE.findall(match.group("body")))
@@ -341,7 +352,7 @@ def parse_chapterfun(document: str) -> list[str]:
     filenames, each with its own signed token). Fanfox returns the requested
     page and the one after it, so a chapter needs ceil(n/2) of these.
     """
-    for block in unpacked_blocks(document):
+    for block in _reader_blocks(document):
         pix_match = _PIX_RE.search(block)
         values_match = _PVALUE_RE.search(block)
         if not pix_match or not values_match:
