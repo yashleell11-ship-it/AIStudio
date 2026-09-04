@@ -6,6 +6,8 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/ocr/providers/ocr_providers.dart';
 import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
 import 'package:manhwamaniacs/features/settings/models/app_version.dart';
@@ -38,7 +40,12 @@ class MoreScreen extends ConsumerWidget {
     // device that can never contribute a transcript is also a device where
     // this entry would mostly lead to an empty screen — so it lives or dies
     // with the rest of the feature.
-    final ocrVisible = ref.watch(ocrFeatureVisibleProvider);
+    // ...and in Novels mode it is hidden for a second, independent reason:
+    // dialogue search reads text recognised FROM PAGE IMAGES, which a novel
+    // does not have, so the entry could only ever lead to an empty screen.
+    final scope = ref.watch(contentModeScopeProvider);
+    final ocrVisible = ref.watch(ocrFeatureVisibleProvider) &&
+        isOcrVisible(scope.mode, novelsEnabled: scope.novelsEnabled);
 
     return Scaffold(
       appBar: AppBar(title: const Text('More')),

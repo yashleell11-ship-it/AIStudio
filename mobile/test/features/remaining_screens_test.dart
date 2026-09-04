@@ -414,6 +414,10 @@ Future<Widget> _wrap(
       sharedPrefsProvider.overrideWithValue(prefs),
       readerRepositoryProvider.overrideWithValue(_EmptyReaderRepository()),
       ...overrides,
+      // Pinned so the screen does not probe /auth/bootstrap-status for the
+      // novels gate — a real request, with a real pending timer, in a test
+      // that never wanted one.
+      ...contentModeOverrides(),
     ],
     child: MaterialApp(
       theme: ThemeData(platform: platform),

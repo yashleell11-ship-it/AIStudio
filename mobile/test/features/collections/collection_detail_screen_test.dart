@@ -308,6 +308,9 @@ Future<void> _pumpDetail(
         // SeriesCoverImage resolves the active profile for the image proxy's
         // X-Profile-Id header; the seeded override keeps it off SharedPreferences.
         activeProfileOverride(),
+        // The screen asks which mode it is listing; pinning it keeps this
+        // test off SharedPreferences.
+        ...contentModeOverrides(),
       ],
       child: MaterialApp(
         home: CollectionDetailScreen(collectionId: collectionId),

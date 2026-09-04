@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
@@ -90,7 +91,7 @@ final visibleSearchGroupsProvider = Provider.autoDispose<List<SourceSearchGroup>
     final filter = ref.watch(searchGroupFilterProvider);
     final pinned = ref.watch(pinnedSourceIdsProvider);
 
-    return switch (filter) {
+    final groups = switch (filter) {
       SearchGroupFilter.all => result.groups,
       SearchGroupFilter.hasResults => result.groupsWithResults,
       // The local library is never "unpinned away" — it is the user's own shelf
@@ -100,6 +101,24 @@ final visibleSearchGroupsProvider = Provider.autoDispose<List<SourceSearchGroup>
             if (group.isLocal || pinned.contains(group.source)) group,
         ],
     };
+
+    // Scope the federated search to the active mode. One place, because every
+    // search surface renders these groups.
+    //
+    // In Novels mode the local-library group is dropped rather than filtered:
+    // `/sources/search` gives local items no `source`, so there is nothing to
+    // tell a followed manhwa from a followed novel by. Dropping it is a real
+    // loss — but showing a shelf of manhwa under a Novels search is a mode
+    // leak, and the Library tab already answers "what am I reading".
+    final scope = ref.watch(contentModeScopeProvider);
+    if (!scope.novelsEnabled) return groups;
+    return [
+      for (final group in groups)
+        if (group.isLocal
+            ? !scope.isNovel
+            : scope.modeOf(group.source) == scope.mode)
+          group,
+    ];
   },
   name: 'visibleSearchGroups',
 );

@@ -7,6 +7,8 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
@@ -25,6 +27,7 @@ class ReadingHistoryScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final historyAsync = ref.watch(readingHistoryProvider);
+    final scope = ref.watch(contentModeScopeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -59,7 +62,9 @@ class ReadingHistoryScreen extends ConsumerWidget {
             ],
           ),
         ),
-        data: (sessions) => RefreshIndicator(
+        data: (allSessions) {
+          final sessions = scope.filter(allSessions, (s) => s.sourceId);
+          return RefreshIndicator(
           color: context.colors.primary,
           onRefresh: () async => ref.invalidate(readingHistoryProvider),
           child: ListView(
@@ -82,21 +87,30 @@ class ReadingHistoryScreen extends ConsumerWidget {
                 ...sessions.map(
                   (session) => Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                    child: _SessionCard(session: session),
+                    child: _SessionCard(
+                      session: session,
+                      isNovel: scope.modeOf(session.sourceId) ==
+                          ContentMode.novel,
+                    ),
                   ),
                 ),
             ],
           ),
-        ),
+          );
+        },
       ),
     );
   }
 }
 
 class _SessionCard extends StatelessWidget {
-  const _SessionCard({required this.session});
+  const _SessionCard({required this.session, required this.isNovel});
 
   final ReadingHistoryItem session;
+
+  /// Which reader this row opens. History rows carry a source id and no kind,
+  /// so the kind comes from the source-mode index.
+  final bool isNovel;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +121,17 @@ class _SessionCard extends StatelessWidget {
 
     return GlassCard(
       onTap: () => context.push(
-        RoutePaths.reader(session.sourceId, session.seriesKey, session.chapterKey),
+        isNovel
+            ? RoutePaths.novelReader(
+                session.sourceId,
+                session.seriesKey,
+                session.chapterKey,
+              )
+            : RoutePaths.reader(
+                session.sourceId,
+                session.seriesKey,
+                session.chapterKey,
+              ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

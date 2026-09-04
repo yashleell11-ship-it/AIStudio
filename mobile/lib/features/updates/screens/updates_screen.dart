@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
@@ -65,7 +66,15 @@ class UpdatesScreen extends ConsumerWidget {
               : UnknownError(message: error.toString(), cause: error),
           onRetry: notifier.refresh,
         ),
-        data: (state) => RefreshIndicator(
+        data: (state) {
+          // Notifications and follows both carry a source id and no kind, so
+          // both are scoped through the source-mode index.
+          final scope = ref.watch(contentModeScopeProvider);
+          final notifications =
+              scope.filter(state.notifications, (n) => n.sourceId);
+          final followed = scope.filter(state.followed, (f) => f.sourceId);
+          final unread = notifications.where((n) => !n.isRead).length;
+          return RefreshIndicator(
           color: context.colors.primary,
           onRefresh: notifier.refresh,
           child: ListView(
@@ -78,7 +87,8 @@ class UpdatesScreen extends ConsumerWidget {
                     const HeroHeading(text: 'Updates', fontSize: 40),
                     const SizedBox(height: AppSpacing.xs),
                     Text(
-                      '${state.unreadCount} unread · ${state.followed.length} followed series',
+                      '$unread unread · ${followed.length} followed '
+                      '${scope.isNovel ? 'books' : 'series'}',
                       style: AppTypography.body.copyWith(color: context.colors.muted),
                     ),
                     const SizedBox(height: AppSpacing.xl2),
@@ -92,7 +102,7 @@ class UpdatesScreen extends ConsumerWidget {
                           onPressed: () =>
                               _run(context, notifier.triggerCheck()),
                         ),
-                        if (state.unreadCount > 0)
+                        if (unread > 0)
                           GhostPillButton(
                             label: 'Mark all read',
                             icon: Icons.done_all,
@@ -107,14 +117,14 @@ class UpdatesScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xl2),
               const _SectionHeader(title: 'Notifications'),
               const SizedBox(height: AppSpacing.md),
-              if (state.notifications.isEmpty)
+              if (notifications.isEmpty)
                 const EmptyState(
                   icon: Icons.notifications_none,
                   message: 'No update notifications',
                   subtitle: 'Follow series to get notified of new chapters.',
                 )
               else
-                ...state.notifications.map(
+                ...notifications.map(
                   (notification) => Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: _NotificationCard(
@@ -131,14 +141,14 @@ class UpdatesScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xl2),
               const _SectionHeader(title: 'Followed series'),
               const SizedBox(height: AppSpacing.md),
-              if (state.followed.isEmpty)
+              if (followed.isEmpty)
                 const EmptyState(
                   icon: Icons.rss_feed,
                   message: 'No followed series',
                   subtitle: 'Follow series from sources to monitor new chapters.',
                 )
               else
-                ...state.followed.map(
+                ...followed.map(
                   (series) => Padding(
                     padding: const EdgeInsets.only(bottom: AppSpacing.md),
                     child: _FollowedSeriesCard(
@@ -151,7 +161,8 @@ class UpdatesScreen extends ConsumerWidget {
                 ),
             ],
           ),
-        ),
+          );
+        },
       ),
     );
   }
