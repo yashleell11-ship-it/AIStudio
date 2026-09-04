@@ -227,12 +227,15 @@ def test_flag_on_sources_listing_carries_content_kind_and_language(novels_on):
     stub = by_id[STUB_SOURCE]
     assert stub["content_kind"] == "novel"
     assert stub["language"] == "en"
-    # The manga sources are implicitly manga and undeclared-language —
-    # the base-class default, no churn across the ~50 existing connectors.
-    manga_rows = [row for row in rows if row["id"] != STUB_SOURCE]
+    # The manga sources are implicitly manga and undeclared-language — the
+    # base-class default, no churn across the ~50 existing connectors. (Real
+    # novel connectors may be registered besides the stub; every one of them
+    # must declare English.)
+    manga_rows = [row for row in rows if row["content_kind"] == "manga"]
     assert manga_rows
-    assert all(row["content_kind"] == "manga" for row in manga_rows)
     assert all(row["language"] is None for row in manga_rows)
+    novel_rows = [row for row in rows if row["content_kind"] == "novel"]
+    assert all(row["language"] == "en" for row in novel_rows)
 
 
 def test_flag_on_bootstrap_status_says_so(novels_on):
