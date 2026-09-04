@@ -1,3 +1,7 @@
+/// The two values `content_kind` takes on the wire (`connectors/registry.py`).
+const String kMangaContentKind = 'manga';
+const String kNovelContentKind = 'novel';
+
 class SourceSummary {
   const SourceSummary({
     required this.id,
@@ -7,6 +11,7 @@ class SourceSummary {
     required this.supportsImport,
     this.mature = false,
     this.iconUrl,
+    this.contentKind = kMangaContentKind,
   });
 
   final String id;
@@ -20,6 +25,14 @@ class SourceSummary {
   final bool mature;
   final String? iconUrl;
 
+  /// What this connector serves: `"manga"` (pages) or `"novel"` (prose).
+  ///
+  /// Read tolerantly and defaulted to manga: a connector that omits the field
+  /// — every one of them, before novels existed — must keep behaving exactly
+  /// as it does today. Nothing is ever *labelled* a novel by accident, which
+  /// is what makes "not a novel" a safe definition of manga.
+  final String contentKind;
+
   factory SourceSummary.fromJson(Map<String, dynamic> json) => SourceSummary(
         id: json['id'] as String,
         name: json['name'] as String,
@@ -28,6 +41,9 @@ class SourceSummary {
         supportsImport: json['supports_import'] as bool,
         mature: json['mature'] as bool? ?? false,
         iconUrl: json['icon_url'] as String?,
+        contentKind: json['content_kind'] is String
+            ? json['content_kind']! as String
+            : kMangaContentKind,
       );
 }
 

@@ -9,6 +9,7 @@ class BootstrapStatus {
     this.inviteCodeRequired = false,
     this.bootstrapOpen,
     this.registrationOpen,
+    this.novelsEnabled = false,
   });
 
   /// True while zero accounts exist: the first account created becomes the
@@ -40,6 +41,22 @@ class BootstrapStatus {
   /// predates the field; falls back to `registrationEnabled`.
   final bool? registrationOpen;
 
+  /// Whether this deployment serves novels at all (`MM_NOVELS_ENABLED`).
+  ///
+  /// The production gate for every novel surface in the app: with it off the
+  /// Manga/Novels switch does not render, the effective content mode is forced
+  /// to manga, and nothing novel-shaped is reachable — the app must look
+  /// *exactly* as it does today, not "the same but with a disabled tab".
+  ///
+  /// Rides on this pre-auth probe (rather than an authenticated settings
+  /// call) because the client already makes it once per launch, so the novel
+  /// code ships dormant and one env var on the VPS turns it on.
+  ///
+  /// Absent on an older backend, which is the same thing as off: a deployment
+  /// that has never heard of the flag has no novel connectors to browse
+  /// either.
+  final bool novelsEnabled;
+
   /// The claim-this-server flow is only truthful while the window is open —
   /// offering it after expiry sends the user into a guaranteed rejection.
   bool get isBootstrapOpen => bootstrapOpen ?? needsBootstrap;
@@ -65,6 +82,12 @@ class BootstrapStatus {
       // the window is shut on every backend that never had one.
       bootstrapOpen: bootstrapOpen is bool ? bootstrapOpen : null,
       registrationOpen: registrationOpen is bool ? registrationOpen : null,
+      // Same tolerant read as `invite`: a server that never had the flag, or
+      // one answering with the wrong type, is "novels off" rather than a
+      // ParseError out of the probe the login screen depends on.
+      novelsEnabled: json['novels_enabled'] is bool
+          ? json['novels_enabled']! as bool
+          : false,
     );
   }
 }

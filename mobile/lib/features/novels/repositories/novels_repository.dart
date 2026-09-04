@@ -1,0 +1,24 @@
+import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/novels/models/novel_chapter.dart';
+
+/// The novel side's one network call.
+///
+/// Browse, search and series detail need no repository of their own: a novel
+/// source is a source, so `SourcesRepository` already serves them the moment
+/// the registry gate lets the connectors through. Only chapter *text* has no
+/// manga equivalent, because a manga chapter's payload is a list of image
+/// URLs and a novel chapter's is the prose itself.
+abstract class NovelsRepository {
+  /// One chapter as sanitized plain-text paragraphs.
+  ///
+  /// Query-param identity, like every other source-native endpoint: connector
+  /// keys are opaque and routinely contain `/`, so they are never path
+  /// segments. 404s when `MM_NOVELS_ENABLED` is off — the whole router is
+  /// unmounted, so an off feature is indistinguishable from one that was
+  /// never built.
+  Future<Result<NovelChapter>> chapter({
+    required String sourceId,
+    required String seriesKey,
+    required String chapterKey,
+  });
+}
