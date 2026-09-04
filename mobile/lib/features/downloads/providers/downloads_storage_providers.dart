@@ -8,20 +8,20 @@ import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller
 
 /// Real, dedup-aware on-device bytes — what the cap in Settings → Storage is
 /// enforced against. Device-wide (every profile), not just the active one —
-/// see [RetentionMaintenance]'s doc comment. Re-fetches whenever the
-/// download queue's state changes (a chapter starting/finishing/failing) so
-/// the Storage screen never shows a stale total.
+/// see [RetentionMaintenance]'s doc comment. Re-fetches whenever a chapter
+/// row's state changes (queued, finished, failed, cancelled) so the storage
+/// figures never show a stale total.
 final totalDeviceDownloadBytesProvider = FutureProvider.autoDispose<int>((ref) {
-  ref.watch(downloadQueueControllerProvider);
+  ref.watch(downloadQueueControllerProvider.select((s) => s.queueRevision));
   return ref.watch(retentionMaintenanceProvider).totalDeviceBytes();
 });
 
 /// Per-series on-device footprint for the active scope, largest first —
-/// the Storage screen's breakdown. Empty with no active scope.
+/// the storage card's breakdown. Empty with no active scope.
 final seriesStorageBreakdownProvider =
     FutureProvider.autoDispose<List<SeriesStorageUsage>>((ref) async {
   final store = ref.watch(downloadsStoreProvider);
-  ref.watch(downloadQueueControllerProvider);
+  ref.watch(downloadQueueControllerProvider.select((s) => s.queueRevision));
   if (store == null) return const [];
   return store.seriesBreakdown();
 });
