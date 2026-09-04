@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
   continueReadingChapterLabel,
-  continueReadingHref,
   continueReadingKey,
   continueReadingPercent,
   continueReadingRef,
@@ -27,14 +26,6 @@ describe("continue-reading source-native identity", () => {
       chapterKey: "ch/210",
     });
     expect(continueReadingKey(item)).toBe("asura:series/nano-machine:ch/210");
-  });
-
-  it("builds a resume link onto the last page read, with slashes encoded", () => {
-    const href = continueReadingHref(item);
-    expect(href).toContain("/reader/asura/");
-    expect(href).toContain(encodeURIComponent("series/nano-machine"));
-    expect(href).toContain("page=7");
-    expect(href).not.toContain("/reader/asura/series/nano-machine/ch/210");
   });
 
   it("joins the series title from the followed index, falling back to the key", () => {

@@ -2,8 +2,11 @@
 
 import Link from "next/link";
 import { History, TriangleAlert } from "lucide-react";
+import { useContentModeFilter } from "@/features/content-mode";
 import { useReadingHistory } from "@/features/library/hooks";
-import { readerChapterHref, seriesPageHref } from "@/features/reader/reader-link";
+import { useChapterHref } from "@/features/novels/use-chapter-href";
+import { chapterPercent } from "@/features/novels/progress";
+import { seriesPageHref } from "@/features/reader/reader-link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -13,9 +16,13 @@ import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
 export function ReadingHistoryView() {
   const historyQuery = useReadingHistory(50);
-  const history = historyQuery.data ?? [];
+  // Scoped to the active content mode, and linked through `useChapterHref` so a
+  // novel row opens the novel reader. A no-op when novels are disabled.
+  const { filterRows, ready: modeReady, mode } = useContentModeFilter();
+  const chapterHref = useChapterHref();
+  const history = filterRows(historyQuery.data, (entry) => entry.source_id);
   const viewState = resolveViewState({
-    isLoading: historyQuery.isLoading,
+    isLoading: historyQuery.isLoading || !modeReady,
     error: historyQuery.error,
     isEmpty: history.length === 0,
   });
@@ -84,11 +91,14 @@ export function ReadingHistoryView() {
                           : entry.chapter_key}
                       </p>
                       <Link
-                        href={readerChapterHref(ref, entry.last_page)}
+                        href={chapterHref(ref, entry.last_page)}
                         className="text-xs text-primary hover:underline"
                       >
-                        Resume at page {entry.last_page}
-                        {entry.page_count > 0 ? ` / ${entry.page_count}` : ""}
+                        {/* A novel has no pages: its position is a progress
+                            bucket, so it reads back as a percentage. */}
+                        {mode === "novel"
+                          ? `Resume at ${chapterPercent(entry.last_page, entry.page_count)}%`
+                          : `Resume at page ${entry.last_page}${entry.page_count > 0 ? ` / ${entry.page_count}` : ""}`}
                       </Link>
                     </div>
                     <div className="shrink-0 sm:text-right">

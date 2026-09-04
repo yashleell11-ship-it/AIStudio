@@ -7,8 +7,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
+import { useContentModeFilter } from "@/features/content-mode";
 import { useBookmarks, useDeleteBookmark } from "@/features/library/hooks";
-import { readerChapterHref } from "@/features/reader/reader-link";
+import { useChapterHref } from "@/features/novels/use-chapter-href";
 import { formatUtcDate } from "@/lib/utc-time";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 
@@ -16,9 +17,13 @@ export function BookmarksView() {
   const bookmarksQuery = useBookmarks();
   const deleteBookmark = useDeleteBookmark();
   const [pendingId, setPendingId] = useState<number | null>(null);
-  const bookmarks = bookmarksQuery.data ?? [];
+  // Scoped to the active content mode, and linked through `useChapterHref` so a
+  // novel bookmark opens the novel reader. A no-op when novels are disabled.
+  const { filterRows, ready: modeReady, mode } = useContentModeFilter();
+  const chapterHref = useChapterHref();
+  const bookmarks = filterRows(bookmarksQuery.data, (bookmark) => bookmark.source_id);
   const viewState = resolveViewState({
-    isLoading: bookmarksQuery.isLoading,
+    isLoading: bookmarksQuery.isLoading || !modeReady,
     error: bookmarksQuery.error,
     isEmpty: bookmarks.length === 0,
   });
@@ -37,7 +42,9 @@ export function BookmarksView() {
       <div className="page-container">
         <div className="mb-8">
           <h1 className="page-title">Bookmarks</h1>
-          <p className="page-subtitle">Jump back into a saved page or remove ones you no longer need.</p>
+          <p className="page-subtitle">
+            Jump back to a saved place, or remove ones you no longer need.
+          </p>
         </div>
 
         <Card>
@@ -78,7 +85,7 @@ export function BookmarksView() {
                   className="flex flex-col gap-3 rounded-lg border border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between"
                 >
                   <Link
-                    href={readerChapterHref(
+                    href={chapterHref(
                       {
                         sourceId: bookmark.source_id,
                         seriesKey: bookmark.series_key,
@@ -92,7 +99,12 @@ export function BookmarksView() {
                       {bookmark.series_key}
                     </p>
                     <p className="text-sm text-muted">
-                      {bookmark.chapter_key} · Page {bookmark.page}
+                      {/* A novel bookmark's position is a progress BUCKET, and
+                          the payload carries no bucket count to turn it into a
+                          percentage — so it says the honest thing rather than a
+                          number that would be wrong for any short chapter. */}
+                      {bookmark.chapter_key} ·{" "}
+                      {mode === "novel" ? "Saved place" : `Page ${bookmark.page}`}
                     </p>
                     {bookmark.note && (
                       <p className="mt-1 text-sm text-fg/80">{bookmark.note}</p>

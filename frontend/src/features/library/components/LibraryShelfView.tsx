@@ -10,7 +10,13 @@ import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useContentModeFilter } from "@/features/content-mode";
+// Direct rather than through the `@/features/novels` barrel, which also pulls
+// in the novel reader.
+import { NovelShelf } from "@/features/novels/components/NovelShelf";
+import type { ShelfBook } from "@/features/novels/shelf";
+import { libraryCoverUrl } from "../api";
 import { useSeriesList } from "../hooks";
+import { readingStatusLabel } from "../reading-stats";
 import { FollowedSeriesCard } from "./FollowedSeriesCard";
 
 /**
@@ -29,10 +35,34 @@ export function LibraryShelfView() {
 
   // Scoped to the active content mode (Manga / Novels). A no-op when the
   // server has novels off — `filterRows` returns the array untouched.
-  const { filterRows, ready: modeReady } = useContentModeFilter();
+  const { filterRows, ready: modeReady, mode } = useContentModeFilter();
+  const isNovelMode = mode === "novel";
   const followed = useMemo(
     () => filterRows(seriesQuery.data?.items, (series) => series.source_id),
     [filterRows, seriesQuery.data],
+  );
+
+  // A followed row carries no author, blurb or genres — those live on the
+  // source — so a shelved novel shows what the library actually knows.
+  const shelfBooks = useMemo<ShelfBook[]>(
+    () =>
+      isNovelMode
+        ? followed.map((series) => ({
+            key: String(series.id),
+            href: `/sources/${encodeURIComponent(series.source_id)}/series/${encodeURIComponent(series.series_key)}`,
+            title: series.title,
+            author: null,
+            description: null,
+            chapterCount: series.chapter_count,
+            status: null,
+            genres: [],
+            coverUrl: libraryCoverUrl(series.cover_url),
+            note: series.reading_status
+              ? readingStatusLabel(series.reading_status)
+              : null,
+          }))
+        : [],
+    [followed, isNovelMode],
   );
 
   const viewState = resolveViewState({
@@ -71,7 +101,7 @@ export function LibraryShelfView() {
   }
 
   if (viewState === "empty") {
-    return <ShelfEmpty />;
+    return <ShelfEmpty novels={isNovelMode} />;
   }
 
   return (
@@ -81,9 +111,9 @@ export function LibraryShelfView() {
           <div>
             <HeroHeading className="text-[clamp(1.5rem,6.5vw,3rem)]">Library</HeroHeading>
             <p className="mt-1 text-xs text-muted">
-              {followed.length === 1
-                ? "1 series followed"
-                : `${followed.length} series followed`}
+              {followed.length} {isNovelMode ? "novel" : "series"}
+              {followed.length === 1 ? "" : "s"}{" "}
+              {isNovelMode ? "on your shelf" : "followed"}
             </p>
           </div>
           <Link
@@ -97,24 +127,30 @@ export function LibraryShelfView() {
         </div>
       </FadeIn>
 
-      <div className="mt-6 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-        {followed.map((series) => (
-          <FollowedSeriesCard key={series.id} series={series} />
-        ))}
-      </div>
+      {isNovelMode ? (
+        <NovelShelf className="mt-6" books={shelfBooks} />
+      ) : (
+        <div className="mt-6 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+          {followed.map((series) => (
+            <FollowedSeriesCard key={series.id} series={series} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function ShelfEmpty() {
+function ShelfEmpty({ novels }: { novels: boolean }) {
   return (
     <div className="flex min-h-[70vh] flex-col items-center justify-center px-8 text-center">
       <BookOpen className="size-10 text-muted" aria-hidden />
       <h1 className="mt-4 font-display text-2xl font-bold text-fg">
-        Your library is empty
+        {novels ? "Your shelf is empty" : "Your library is empty"}
       </h1>
       <p className="mt-2 max-w-xs text-sm text-muted">
-        Follow series from Sources to build your warm little shelf.
+        {novels
+          ? "Add a book from a novel source to start your shelf."
+          : "Follow series from Sources to build your warm little shelf."}
       </p>
       <PrimaryPillButton
         href="/sources"

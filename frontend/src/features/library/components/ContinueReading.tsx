@@ -3,10 +3,10 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Play } from "lucide-react";
+import { useChapterHref } from "@/features/novels/use-chapter-href";
 import { seriesCoverUrl } from "../api";
 import {
   continueReadingChapterLabel,
-  continueReadingHref,
   continueReadingKey,
   continueReadingPercent,
   continueReadingRef,
@@ -18,6 +18,11 @@ import type { ContinueReadingItem } from "../types";
 interface ContinueReadingProps {
   items: ContinueReadingItem[];
   isLoading?: boolean;
+  /**
+   * True when the rail is showing novels, which have no pages: their stored
+   * position is a progress bucket, so it reads back as a percentage.
+   */
+  novels?: boolean;
 }
 
 /**
@@ -29,8 +34,10 @@ interface ContinueReadingProps {
  * resume link drops straight onto the last page read. The payload has no series
  * title, so it is joined from the followed-series index (falls back to the key).
  */
-export function ContinueReading({ items, isLoading }: ContinueReadingProps) {
+export function ContinueReading({ items, isLoading, novels }: ContinueReadingProps) {
   const { titles } = useFollowedIndex();
+  // Resolves to whichever reader the row's source calls for.
+  const chapterHref = useChapterHref();
 
   if (isLoading) {
     return (
@@ -63,7 +70,7 @@ export function ContinueReading({ items, isLoading }: ContinueReadingProps) {
       </h2>
 
       <Link
-        href={continueReadingHref(hero)}
+        href={chapterHref(continueReadingRef(hero), hero.last_page)}
         className="group mb-4 block focus-visible:outline-none"
       >
         <article className="glass-card relative flex gap-4 overflow-hidden rounded-3xl p-3 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60 sm:gap-6 sm:p-4">
@@ -89,8 +96,10 @@ export function ContinueReading({ items, isLoading }: ContinueReadingProps) {
               {resolveSeriesTitle(hero, titles)}
             </h3>
             <p className="text-sm text-muted">
-              {continueReadingChapterLabel(hero)} &middot; page {hero.last_page}
-              {hero.page_count > 0 ? ` of ${hero.page_count}` : ""}
+              {continueReadingChapterLabel(hero)} &middot;{" "}
+              {novels
+                ? `${heroPercent}% in`
+                : `page ${hero.last_page}${hero.page_count > 0 ? ` of ${hero.page_count}` : ""}`}
             </p>
             <div className="mt-1 max-w-sm">
               <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
@@ -116,7 +125,7 @@ export function ContinueReading({ items, isLoading }: ContinueReadingProps) {
             return (
               <Link
                 key={continueReadingKey(item)}
-                href={continueReadingHref(item)}
+                href={chapterHref(continueReadingRef(item), item.last_page)}
                 className="group w-[280px] shrink-0 snap-start"
               >
                 <article className="glass-card flex h-full gap-3 overflow-hidden rounded-2xl p-2 transition-colors hover:border-primary/40">
@@ -146,7 +155,7 @@ export function ContinueReading({ items, isLoading }: ContinueReadingProps) {
 
                     <div>
                       <div className="flex items-center justify-between text-[11px] text-muted">
-                        <span>Page {item.last_page}</span>
+                        <span>{novels ? "In progress" : `Page ${item.last_page}`}</span>
                         {percent > 0 ? (
                           <span className="tabular-nums text-primary">{percent}%</span>
                         ) : null}

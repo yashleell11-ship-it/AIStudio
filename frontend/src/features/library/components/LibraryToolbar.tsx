@@ -34,6 +34,13 @@ interface LibraryToolbarProps {
   selecting: boolean;
   onSelectingChange: (selecting: boolean) => void;
   seriesCount: number;
+  /** What the count is counting — "series" for manga, "novels" for prose. */
+  countNoun?: string;
+  /**
+   * False on the novel shelf, which has one row shape and no density to pick.
+   * A control that changes nothing is worse than no control.
+   */
+  showDensity?: boolean;
   tags: Tag[];
 }
 
@@ -79,6 +86,8 @@ export function LibraryToolbar({
   selecting,
   onSelectingChange,
   seriesCount,
+  countNoun = "series",
+  showDensity = true,
 }: LibraryToolbarProps) {
   const searchRef = useRef<HTMLInputElement>(null);
   const [filtersOpen, setFiltersOpen] = useState(false);
@@ -106,7 +115,7 @@ export function LibraryToolbar({
         <div>
           <HeroHeading className="leading-none md:text-6xl">Library</HeroHeading>
           <p className="mt-2 text-sm text-muted">
-            {seriesCount.toLocaleString()} series
+            {seriesCount.toLocaleString()} {countNoun}
           </p>
         </div>
 
@@ -155,6 +164,7 @@ export function LibraryToolbar({
             ))}
           </select>
 
+          {showDensity ? (
           <div
             className="flex rounded-lg border border-border/50 bg-white/5 p-0.5"
             role="group"
@@ -179,6 +189,7 @@ export function LibraryToolbar({
               </button>
             ))}
           </div>
+          ) : null}
         </div>
       </div>
 

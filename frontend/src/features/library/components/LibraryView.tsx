@@ -6,11 +6,17 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useContentModeFilter } from "@/features/content-mode";
+// Direct rather than through the `@/features/novels` barrel, which also pulls
+// in the novel reader.
+import { NovelShelf, type NovelShelfSelection } from "@/features/novels/components/NovelShelf";
+import type { ShelfBook } from "@/features/novels/shelf";
 import { cn } from "@/lib/cn";
 import { BulkActionBar } from "./BulkActionBar";
 import { ContinueReading } from "./ContinueReading";
 import { LibraryToolbar } from "./LibraryToolbar";
 import { SeriesGrid } from "./SeriesGrid";
+import { libraryCoverUrl } from "../api";
+import { readingStatusLabel } from "../reading-stats";
 import {
   getLibraryDensityServerSnapshot,
   getLibraryDensitySnapshot,
@@ -94,7 +100,8 @@ export function LibraryView() {
   // — the id map, the ordering, the selection, the grid — derives from
   // `items`, so this one filter covers the whole screen. A no-op when the
   // server has novels off.
-  const { filterRows, ready: modeReady } = useContentModeFilter();
+  const { filterRows, ready: modeReady, mode } = useContentModeFilter();
+  const isNovelMode = mode === "novel";
   const items = useMemo<FollowedSeries[]>(
     () => filterRows(seriesQuery.data?.items, (series) => series.source_id),
     [filterRows, seriesQuery.data],
@@ -109,6 +116,35 @@ export function LibraryView() {
     return map;
   }, [items]);
   const orderedIds = useMemo(() => items.map((series) => series.id), [items]);
+
+  /**
+   * The same library, shelved.
+   *
+   * A followed row carries no author, blurb or genres — those live on the
+   * source, not on the follow — so a novel's shelf line is what the library
+   * actually knows: how long it is and where the reader has put it. Anything
+   * more would have to be invented.
+   */
+  const shelfBooks = useMemo<ShelfBook[]>(
+    () =>
+      isNovelMode
+        ? items.map((series) => ({
+            key: String(series.id),
+            href: `/sources/${encodeURIComponent(series.source_id)}/series/${encodeURIComponent(series.series_key)}`,
+            title: series.title,
+            author: null,
+            description: null,
+            chapterCount: series.chapter_count,
+            status: null,
+            genres: [],
+            coverUrl: libraryCoverUrl(series.cover_url),
+            note: series.reading_status
+              ? readingStatusLabel(series.reading_status)
+              : null,
+          }))
+        : [],
+    [isNovelMode, items],
+  );
   // The server's `total` counts BOTH kinds, so it would over-report the moment
   // the mode filter drops a row. The rendered count is the honest one whenever
   // the filter is actually doing something.
@@ -159,6 +195,18 @@ export function LibraryView() {
     writeLibraryDensity(next);
   }, []);
 
+  // The shelf addresses rows by their view-model key; the selection is keyed by
+  // the numeric follow id, so the translation happens here rather than leaking
+  // either shape into the other.
+  const shelfSelection = useMemo<NovelShelfSelection>(
+    () => ({
+      selecting,
+      isSelected: (book) => selection.ids.has(Number(book.key)),
+      onSelect: (book, shiftKey) => handleSelect(Number(book.key), shiftKey),
+    }),
+    [handleSelect, selecting, selection.ids],
+  );
+
   const applyQuery = useCallback(
     (next: LibraryQuery) => {
       clearSelection();
@@ -188,6 +236,8 @@ export function LibraryView() {
         )}
       >
         <LibraryToolbar
+          countNoun={isNovelMode ? "novels" : "series"}
+          showDensity={!isNovelMode}
           query={query}
           onQueryChange={applyQuery}
           searchInput={searchInput}
@@ -207,6 +257,7 @@ export function LibraryView() {
           <ContinueReading
             items={continueItems}
             isLoading={continueQuery.isLoading}
+            novels={isNovelMode}
           />
         ) : null}
 
@@ -222,6 +273,31 @@ export function LibraryView() {
             title="Couldn't load your library"
             description={apiErrorMessage(seriesQuery.error, "Something went wrong.")}
             action={{ label: "Try again", onClick: () => void seriesQuery.refetch() }}
+          />
+        ) : isNovelMode ? (
+          <NovelShelf
+            books={shelfBooks}
+            isLoading={seriesQuery.isLoading}
+            emptyTitle={
+              emptyState === "search"
+                ? "No results found"
+                : emptyState === "filter"
+                  ? "No novels match these filters"
+                  : "No novels yet"
+            }
+            emptyDescription={
+              emptyState === "search"
+                ? "Try a different search term or clear filters."
+                : emptyState === "filter"
+                  ? "Adjust your filters or favourites toggle to see more."
+                  : "Browse a novel source and add a book to start your library."
+            }
+            emptyAction={
+              emptyState === "library"
+                ? { label: "Browse sources", href: "/sources" }
+                : undefined
+            }
+            selection={shelfSelection}
           />
         ) : (
           <SeriesGrid
@@ -240,8 +316,8 @@ export function LibraryView() {
         {!seriesQuery.isLoading && items.length < seriesCount ? (
           <p className="mt-6 text-center text-sm text-muted">
             Showing the first {items.length.toLocaleString()} of{" "}
-            {seriesCount.toLocaleString()} series — narrow it with search or a
-            filter.
+            {seriesCount.toLocaleString()} {isNovelMode ? "novels" : "series"} —
+            narrow it with search or a filter.
           </p>
         ) : null}
       </div>
