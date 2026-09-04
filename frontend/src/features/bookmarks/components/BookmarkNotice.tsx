@@ -24,7 +24,7 @@ interface BookmarkNoticeProps {
 }
 
 /**
- * A one-line pill at the foot of a reader.
+ * A one-line pill near the head of a reader.
  *
  * Two things need saying inside a chapter and neither deserves a dialog: that
  * a position was captured, and — design §3 — that a restored position no
@@ -32,6 +32,12 @@ interface BookmarkNoticeProps {
  * requirement, so this floats over the page, takes no clicks
  * (`pointer-events-none`) and is announced politely rather than asserted; the
  * caller decides how long it stays.
+ *
+ * Near the TOP rather than the bottom because the bottom of both readers is
+ * already spoken for: the manga reader's glass control bar is a tall
+ * multi-row panel and the settings sheet slides up over it. `top-20` clears
+ * the manga reader's page-count chip and the novel reader's sticky running
+ * head alike.
  *
  * Deliberately not a toast system. One component with three tones covers every
  * message this feature has, in both readers, and a general notification stack
@@ -49,7 +55,7 @@ export function BookmarkNotice({
       role="status"
       aria-live="polite"
       className={cn(
-        "pointer-events-none fixed inset-x-0 bottom-24 z-50 flex justify-center px-4",
+        "pointer-events-none fixed inset-x-0 top-20 z-50 flex justify-center px-4",
         className,
       )}
     >

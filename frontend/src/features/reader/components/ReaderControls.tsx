@@ -37,7 +37,13 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { usePrefersReducedMotion } from "@/components/premium/use-prefers-reduced-motion";
 import { MAX_AUTO_SCROLL_SPEED, MIN_AUTO_SCROLL_SPEED } from "../auto-scroll";
-import { AUTO_SCROLL_SHORTCUT_KEYS, SERIES_SHORTCUT_KEYS, type TapZone, type TapZoneConfig } from "../keymap";
+import {
+  AUTO_SCROLL_SHORTCUT_KEYS,
+  BOOKMARK_SHORTCUT_KEYS,
+  SERIES_SHORTCUT_KEYS,
+  type TapZone,
+  type TapZoneConfig,
+} from "../keymap";
 import { MAX_DIMMER, MAX_WARMTH } from "../overlay";
 import type { FitMode, ReadingDirection, ReadingMode } from "../types";
 import { ScrubBar } from "./ScrubBar";
@@ -735,7 +741,11 @@ export function ReaderControls({
                     size="sm"
                     onClick={onBookmark}
                     disabled={bookmarkPending}
-                    aria-label={`Bookmark page ${visiblePage}`}
+                    // Not "bookmark page N": what is saved is the exact spot
+                    // in the page, and on a webtoon strip a page is thousands
+                    // of pixels tall.
+                    aria-label="Bookmark this spot"
+                    title={`Bookmark this spot (${formatKeyCombo(BOOKMARK_SHORTCUT_KEYS).join(" ")})`}
                     className="text-muted hover:bg-white/10 hover:text-fg"
                   >
                     <Bookmark className="size-4" />
