@@ -2,8 +2,10 @@ package com.manhwamaniacs.reader
 
 import android.app.ActivityManager
 import android.content.Context
+import android.os.Build
 import android.os.Bundle
 import android.os.StatFs
+import android.view.Display
 import android.view.KeyEvent
 import androidx.core.view.WindowCompat
 import io.flutter.embedding.android.FlutterActivity
@@ -20,6 +22,8 @@ import io.flutter.plugin.common.MethodChannel
  *    ~1.5 GB free-space floor. `dart:io` has no cross-platform "bytes free"
  *    API and this project adds no new plugins for it — `StatFs` is a
  *    framework class, zero new Gradle dependencies.
+ *  - Opting the window into the panel's fastest refresh rate, which Flutter
+ *    does not do on its own (see [applyHighestRefreshRate]).
  *
  * 1c-M4's OCR lives on its own channel in [OcrChannel] rather than here: it
  * is the one piece with a real dependency behind it (ML Kit), and keeping it
@@ -39,7 +43,59 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        applyHighestRefreshRate()
     }
+
+    override fun onResume() {
+        super.onResume()
+        // The mode we asked for can be invalidated while we are backgrounded
+        // — the user changing screen resolution in system settings renumbers
+        // every mode id. Re-asking is a no-op when the preference still holds.
+        applyHighestRefreshRate()
+    }
+
+    /**
+     * Ask the window for the fastest refresh rate the panel offers *at its
+     * current resolution*.
+     *
+     * Flutter does not do this itself: an Android app inherits the display's
+     * default mode, and on nearly every 90/120/144 Hz phone that default is
+     * 60 Hz. A reader whose whole interaction is a continuous vertical scroll
+     * is exactly the app where that is most visible.
+     *
+     * Modes are filtered to the current resolution before picking the fastest
+     * one. Several phones expose 1080p@120 alongside 1440p@60; choosing purely
+     * on refresh rate would silently override the resolution the user chose in
+     * system settings, trading their sharpness for smoothness without asking.
+     */
+    private fun applyHighestRefreshRate() {
+        val display = activeDisplay() ?: return
+        val current = display.mode ?: return
+        val fastest = display.supportedModes
+            .filter {
+                it.physicalWidth == current.physicalWidth &&
+                    it.physicalHeight == current.physicalHeight
+            }
+            .maxByOrNull { it.refreshRate }
+            ?: return
+
+        // Already on the fastest mode, or we set this preference on a previous
+        // pass and it took effect. Reassigning window.attributes forces a
+        // relayout, so the early return is worth the comparison.
+        if (fastest.modeId == current.modeId) return
+
+        window.attributes = window.attributes.apply {
+            preferredDisplayModeId = fastest.modeId
+        }
+    }
+
+    private fun activeDisplay(): Display? =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            display
+        } else {
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay
+        }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
