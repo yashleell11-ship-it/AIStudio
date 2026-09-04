@@ -116,6 +116,11 @@ class BootstrapStatus(BaseModel):
     # Convenience: can POST /auth/register succeed right now at all (with a
     # valid invite code where required)? False => hide/disable the signup form.
     registration_open: bool
+    # Server-side novels switch (MM_NOVELS_ENABLED, spec 2026-09-04 §2).
+    # Clients mount their novel UI ONLY when this is true — the binaries ship
+    # with the code dormant, and this pre-auth flag is what wakes it. False
+    # in production until the owner flips the env var on the VPS.
+    novels_enabled: bool = False
 
 
 # --- helpers -----------------------------------------------------------------
@@ -187,6 +192,7 @@ def bootstrap_status(
         registration_enabled=settings.registration_enabled,
         invite_code_required=invite_configured and not bootstrap_open,
         registration_open=bootstrap_open or settings.registration_enabled,
+        novels_enabled=bool(getattr(settings, "novels_enabled", False)),
     )
 
 

@@ -21,7 +21,7 @@ from database.models import Base
 from database.session import run_alembic_migrations
 
 _BASELINE = "0001_source_native"
-_HEAD = "0006_reading_session_stats_index"
+_HEAD = "0007_novel_chapter_cache"
 
 # Every revision, oldest first. A new migration is added here deliberately —
 # the point of the guard is that revisions arrive on purpose, not that there is
@@ -33,6 +33,7 @@ _REVISIONS = [
     "0004_source_browse_cache.py",
     "0005_single_admin_guard.py",
     "0006_reading_session_stats_index.py",
+    "0007_novel_chapter_cache.py",
 ]
 
 # Every ORM-mapped table the baseline must create (spec §3).
@@ -57,6 +58,7 @@ _EXPECTED_TABLES = {
     "chapter_ocr",
     "source_series_cache",
     "source_browse_cache",
+    "novel_chapter_cache",
 }
 
 # Tables that must be gone (spec §3.11).

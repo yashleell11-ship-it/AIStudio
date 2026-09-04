@@ -77,6 +77,24 @@ class Settings(BaseModel):
     # the test suite disables it so no background threads outlive a test.
     browse_prefetch_enabled: bool = True
 
+    # Novels (spec 2026-09-04-novels-design §2). OFF by default and NOT set by
+    # the prod compose: production stays a manhwa site until the owner flips
+    # MM_NOVELS_ENABLED on the VPS. When false, novel connectors are invisible
+    # at every registry surface (listing, instantiation) and the /novels routes
+    # are not mounted at all — the feature must be indistinguishable from
+    # absent, not "present but forbidden".
+    novels_enabled: bool = False
+    # TTL (minutes) for novel_chapter_cache rows. Deliberately long (7 days):
+    # published chapter text is immutable in practice, and a refetch is a full
+    # upstream page scrape. Expired rows are still served stale when the
+    # connector is down, like the browse cache. MM_NOVEL_CACHE_TTL_MINUTES.
+    novel_cache_ttl_minutes: int = 7 * 24 * 60
+    # Row ceiling for novel_chapter_cache; least-recently-USED rows are evicted
+    # past it (the read path bumps last_used_at). A chapter is ~10-30 KB of
+    # paragraph text → 10000 rows ≈ 100-300 MB worst case, in practice far
+    # less. MM_NOVEL_CACHE_MAX_ROWS; <=0 disables the ceiling.
+    novel_cache_max_rows: int = 10000
+
     # Hard ceiling (bytes) for a single proxied image/cover body. A hostile
     # allowlisted upstream can otherwise stream an unbounded "image" and OOM
     # the box (each page-image request used to buffer the entire body with no
@@ -196,10 +214,22 @@ def get_settings() -> Settings:
         ("MM_BROWSE_CACHE_TTL_MINUTES", "browse_cache_ttl_minutes"),
         ("MM_BROWSE_CACHE_MAX_ROWS", "browse_cache_max_rows"),
         ("MM_SOURCE_CACHE_MAX_ROWS", "source_cache_max_rows"),
+        ("MM_NOVEL_CACHE_TTL_MINUTES", "novel_cache_ttl_minutes"),
+        ("MM_NOVEL_CACHE_MAX_ROWS", "novel_cache_max_rows"),
     ):
         value = os.getenv(env_key)
         if value and value.strip():
             data[field] = int(value.strip())
+    # Novels kill switch (spec 2026-09-04-novels-design §2). Same bool parsing
+    # as the other MM_* toggles; absent means the Settings default (False).
+    novels_override = os.getenv("MM_NOVELS_ENABLED")
+    if novels_override is not None:
+        data["novels_enabled"] = novels_override.strip().lower() in {
+            "1",
+            "true",
+            "yes",
+            "on",
+        }
     prefetch_override = os.getenv("MM_BROWSE_PREFETCH_ENABLED")
     if prefetch_override is not None:
         data["browse_prefetch_enabled"] = prefetch_override.strip().lower() in {

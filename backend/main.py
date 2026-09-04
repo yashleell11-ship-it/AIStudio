@@ -12,7 +12,7 @@ _restore_applied_on_boot = apply_pending_restore_if_present()
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.router import api_router
@@ -156,6 +156,19 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
     app.state.limiter = limiter
     app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
     app.include_router(api_router)
+    if getattr(settings, "novels_enabled", False):
+        # Novels (spec 2026-09-04-novels-design §2): the /novels router is
+        # mounted ONLY when MM_NOVELS_ENABLED is on. Off means the routes do
+        # not exist — a stock 404 with no auth challenge, indistinguishable
+        # from a feature that was never built. Mounted directly on the app
+        # (not the module-level api_router, which include_router would mutate
+        # for the whole process) under the same global session gate.
+        from routes.novels import router as novels_router
+        from services.auth_service import enforce_authentication
+
+        app.include_router(
+            novels_router, dependencies=[Depends(enforce_authentication)]
+        )
     return app
 
 

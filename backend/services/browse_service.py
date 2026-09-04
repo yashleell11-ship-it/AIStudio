@@ -427,6 +427,13 @@ class BrowseService:
             # descriptor has always had it, the payload just dropped it.
             "mature": descriptor.mature,
             "icon_url": descriptor.icon_url,
+            # "manga" | "novel" — clients open the matching reader on this
+            # (spec 2026-09-04-novels-design §3). Novel sources only ever
+            # appear here when MM_NOVELS_ENABLED is on (registry gate).
+            "content_kind": descriptor.content_kind,
+            # Content language ("en") where the connector declares one;
+            # null for the legacy manga connectors, which never did.
+            "language": descriptor.language,
             # Additive: lets the listing badge a source the owner's searches
             # have found unreachable, instead of it looking installed and fine
             # right up until a followed series stops updating.

@@ -403,6 +403,8 @@ BOOTSTRAP_KEYS = {
     "registration_enabled",
     "invite_code_required",
     "registration_open",
+    # Novels flag (spec 2026-09-04 §2): clients mount novel UI only on this.
+    "novels_enabled",
 }
 
 
