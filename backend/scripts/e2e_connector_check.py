@@ -525,6 +525,13 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
 SYNC_PACKAGES = ("connectors", "services")
 
 
+# Every remote artefact is namespaced by this token. Several agents verify
+# different connectors against the VPS at the same time, and the previous
+# fixed paths meant one run's `rm -rf` of the overlay could pull the code out
+# from under another run mid-flight, while both wrote the same results file.
+_RUN_TOKEN = f"{os.getpid()}_{int(time.time() * 1000) % 1_000_000}"
+
+
 def _sync_code_to_container() -> str:
     """Ship the working tree's source packages into the container as an overlay.
 
@@ -534,8 +541,8 @@ def _sync_code_to_container() -> str:
     goes to a scratch dir that is prepended to sys.path for the probe process
     only; the served app is untouched.
     """
-    overlay = "/app/_probe_overlay"
-    host_dir = "/tmp/mm_probe_overlay"
+    overlay = f"/app/_probe_overlay_{_RUN_TOKEN}"
+    host_dir = f"/tmp/mm_probe_overlay_{_RUN_TOKEN}"
     packages = " ".join(SYNC_PACKAGES)
     print(f"==> syncing working-tree {packages} -> {VPS_CONTAINER}:{overlay}", flush=True)
     subprocess.run(
@@ -577,9 +584,9 @@ def _run_remote(argv: list[str], out: str, probe_out: str, sync_code: bool = Fal
     app root the way it does in the repo.
     """
     script = Path(__file__).resolve()
-    host_tmp = "/tmp/e2e_connector_check.py"
-    ctr_out = "/tmp/e2e_results.json"
-    ctr_probe = "/tmp/probe_results.json"
+    host_tmp = f"/tmp/e2e_connector_check_{_RUN_TOKEN}.py"
+    ctr_out = f"/tmp/e2e_results_{_RUN_TOKEN}.json"
+    ctr_probe = f"/tmp/probe_results_{_RUN_TOKEN}.json"
 
     inner_args = list(argv) + ["--out", ctr_out]
     if probe_out:
@@ -597,15 +604,26 @@ def _run_remote(argv: list[str], out: str, probe_out: str, sync_code: bool = Fal
           + (f"  [overlay {overlay}]" if overlay else ""), flush=True)
     remote_cmd = (
         f"set -e; docker exec {VPS_CONTAINER} mkdir -p /app/scripts; "
-        f"docker cp {host_tmp} {VPS_CONTAINER}:/app/scripts/_e2e_check.py; "
+        f"docker cp {host_tmp} {VPS_CONTAINER}:/app/scripts/_e2e_check_{_RUN_TOKEN}.py; "
         f"docker exec -w /app -e MM_PROBE_FROM=vps "
         + (f"-e MM_PROBE_OVERLAY={overlay} " if overlay else "")
         + f"{VPS_CONTAINER} "
-        f"python /app/scripts/_e2e_check.py {inner}; "
-        f"rc=$?; docker exec {VPS_CONTAINER} rm -f /app/scripts/_e2e_check.py; "
+        f"python /app/scripts/_e2e_check_{_RUN_TOKEN}.py {inner}; "
+        f"rc=$?; docker exec {VPS_CONTAINER} rm -f /app/scripts/_e2e_check_{_RUN_TOKEN}.py; "
         f"docker cp {VPS_CONTAINER}:{ctr_out} {host_tmp}.out.json 2>/dev/null || true; "
         + (f"docker cp {VPS_CONTAINER}:{ctr_probe} {host_tmp}.probe.json 2>/dev/null || true; "
            if probe_out else "")
+        # Each overlay is a full copy of the source packages. Left behind they
+        # accumulate inside a container on a box with a ~20 GB budget, so the
+        # run that made one removes it, and sweeps any orphaned by a run that
+        # was killed before it got here.
+        + (f"docker exec {VPS_CONTAINER} rm -rf {overlay}; " if overlay else "")
+        + (f"docker exec {VPS_CONTAINER} sh -c "
+           f"'find /app -maxdepth 1 -name \"_probe_overlay_*\" -mmin +240 "
+           f"-exec rm -rf {{}} +' 2>/dev/null || true; "
+           f"rm -rf /tmp/mm_probe_overlay_{_RUN_TOKEN}; "
+           if overlay else "")
+        + f"rm -f {host_tmp} {host_tmp}.out.json.tmp; "
         + "exit $rc"
     )
     rc = subprocess.run(["ssh", "-o", "BatchMode=yes", VPS_HOST, remote_cmd]).returncode
