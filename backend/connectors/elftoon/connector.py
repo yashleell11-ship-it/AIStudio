@@ -199,6 +199,12 @@ class ElfToonConnector(SourceConnector):
         if series is None:
             self._log("detail", path, status="error", detail="parse failed")
             return None
+        # The chapter rows are already in the document just fetched, so seed
+        # the cache from it. get_chapters -- called on the next line, and again
+        # by the reader a moment later -- would otherwise re-download this
+        # exact page: a second full-page GET on every series detail open.
+        if self._chapter_list_cache.get(api_key) is None:
+            self._chapter_list_cache.set(api_key, parse_chapters(html, api_key))
         chapters = self.get_chapters(api_key)
         if chapters:
             series = Series(
