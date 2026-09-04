@@ -45,6 +45,7 @@ from connectors.toonilyme.mappers import (
     parse_series_detail,
     parse_series_list,
     search_params,
+    search_query_variant,
     series_detail_path,
     series_hsid,
     split_chapter_key,
@@ -241,10 +242,19 @@ class ToonilyMeConnector(SourceConnector):
         return self._listing("browse", page, sort=sort)
 
     def search_series(self, query: str, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
-        normalized = (query or "").strip()
+        normalized = " ".join((query or "").split())
         if not normalized:
             return self.get_series_list(page, sort=sort)
-        return self._listing("search", page, query=normalized, sort=sort)
+
+        # Multi-word phrases are searched in their hyphenated (slug-shaped)
+        # form, which is the only one upstream resolves to the intended title;
+        # see search_query_variant. Costs one request in the normal case.
+        primary = search_query_variant(normalized)
+        listing = self._listing("search", page, query=primary, sort=sort)
+        if not listing.items and primary != normalized:
+            # Precision found nothing -- retry the raw phrase for recall.
+            listing = self._listing("search", page, query=normalized, sort=sort)
+        return listing
 
     def browse_by_genre(
         self,

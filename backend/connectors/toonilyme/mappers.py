@@ -180,6 +180,25 @@ def chapter_detail_path(series_key: str, chapter_slug: str) -> str:
     return f"/titles/by-slug/{series_key}/chapters/{chapter_slug}"
 
 
+def search_query_variant(query: str) -> str:
+    """The form of a multi-word query that upstream search actually resolves.
+
+    Measured from the VPS: the API's ``q`` match is a loose OR over words and
+    ranks badly for multi-word titles. Searching the plain phrase failed to
+    return the intended series AT ALL for every multi-word title tried --
+    "tower of god" (69 hits, none of them Tower of God), "solo leveling" (70),
+    "one piece" (423), "the beginning after the end" (252). Joining the words
+    with hyphens -- the shape of the site's own slugs -- collapses each of
+    those to an exact hit ("tower-of-god" -> 1 result).
+
+    Single-word queries are unchanged. The caller falls back to the raw phrase
+    when the hyphenated form finds nothing, so recall is never reduced.
+    """
+    # Whitespace is normalized first, so this is a no-op for single-word
+    # queries and there is no separate case to branch on.
+    return "-".join((query or "").split())
+
+
 def search_params(
     query: str | None,
     page: int,
