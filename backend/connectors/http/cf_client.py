@@ -9,7 +9,11 @@ from urllib.parse import urljoin
 
 from curl_cffi.requests import Session
 
-from connectors.http.client import ConnectorHttpError, RETRYABLE_STATUS
+from connectors.http.client import (
+    RETRYABLE_STATUS,
+    ConnectorHttpError,
+    is_retryable,
+)
 from connectors.http.redirect_policy import (
     allowed_redirect_hosts,
     send_with_redirect_validation,
@@ -126,15 +130,22 @@ class CfSyncHttpClient:
                     raise ConnectorHttpError(
                         "Cloudflare challenge blocked the request.",
                         status_code=403,
+                        retryable=True,
                     )
                 if is_ddos_guard_challenge(html):
                     raise ConnectorHttpError(
                         "DDoS-Guard challenge blocked the request.",
                         status_code=403,
+                        retryable=True,
                     )
                 return html
             except (ConnectorHttpError, OSError) as exc:
                 last_error = exc
+                # A deterministic 4xx from the origin answers the same way
+                # every time; only challenges and overload statuses are worth
+                # another handshake (see connectors.http.client.is_retryable).
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 time.sleep(0.5 * (2**attempt))
@@ -186,6 +197,11 @@ class CfSyncHttpClient:
                 return response.text
             except (ConnectorHttpError, OSError) as exc:
                 last_error = exc
+                # A deterministic 4xx from the origin answers the same way
+                # every time; only challenges and overload statuses are worth
+                # another handshake (see connectors.http.client.is_retryable).
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 time.sleep(0.5 * (2**attempt))
@@ -236,6 +252,11 @@ class CfSyncHttpClient:
                 return media_type, response.content
             except (ConnectorHttpError, OSError) as exc:
                 last_error = exc
+                # A deterministic 4xx from the origin answers the same way
+                # every time; only challenges and overload statuses are worth
+                # another handshake (see connectors.http.client.is_retryable).
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 time.sleep(0.5 * (2**attempt))
