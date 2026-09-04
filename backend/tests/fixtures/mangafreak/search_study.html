@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Search Query for study - MangaFreak</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<link rel="stylesheet" href="/style.css?v84" type="text/css">
+	<link rel="shortcut icon" href="/misc/MF.ico?1">
+	<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.12.0/jquery.min.js"></script>
+	<script src="/misc/advanced_search.js?1" defer></script>
+	<script defer>
+		function togglemobile() {
+			document.getElementsByClassName("navigation")[0].classList.toggle("responsive");
+		}
+		function show_description(element) {
+			var desc;
+			var info = document.getElementsByClassName('genre_info')[0];
+			desc = element.getAttribute('datagenre');
+			info.innerHTML = '<strong>' + element.innerHTML + '</strong>' + desc;
+		}
+		function hide_description(element) {
+			var info = document.getElementsByClassName('genre_info')[0];
+			info.innerHTML = '<strong>Click To Include Genre<br>Double Click To Exclude Genre</strong>';
+		}
+	</script>
+<META NAME="ROBOTS" CONTENT="NOINDEX, FOLLOW">
+</head>
+<body>
+	<div id="tooltip">
+	</div>
+	<div class="god_box">
+		<script src="/misc/search.js"></script>
+ 		<div class="header">
+			<div class="header_section">
+				<ul class="navigation">
+					<li><a href="/">Home</a></li>
+					<li><a href="/Mangalist">Manga List</a></li>
+					<li><a href="/Latest_Releases">New Release</a></li>
+					<li><a href="/Genre">Genre</a></li>
+					<li><a href="/History">History</a></li>
+					<li><a href="/Bookmark">Bookmark</a></li>					
+					<li><a href="/Random">Random</a></li>
+					<li>
+						<form class="search_bar" onsubmit="return dosearch(this);">
+							<input type="submit" value='' aria-label="Search">
+							<input name="search" class="search" type="text" placeholder="Search" required>
+						</form>
+					</li>
+					<li><a href="/Find">Search More</a></li>
+					<li class="icon">
+						<div href="javascript:void(0);" onclick="togglemobile()">&#9776;</div>
+					</li>
+				</ul>
+			</div>
+		</div>		<div class="main">
+			<div class="main_section">
+				<div class="search_main">
+					<div class="search_box">
+						<input id="search_both" name="search" type="text" placeholder="You can search both manga and mangaka here" value="study">
+						<input type="submit" value="" class="submit_button" onsubmit="return false">
+					</div>
+					<div class="select_genre">
+						<div class="genre_table">
+							<div class="genre_info">
+							<strong>Click To Include Genre<br>Double Click To Exclude Genre</strong>
+							</div>
+							<div id="genrebox">
+								<!-- <div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="One or more heroes is thrust into a series of challenges that require physical feats, extended fights and frenetic chases.">Action</div>-->
+								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="One or more heroes is thrust into a series of challenges that require physical feats, extended fights and frenetic chases.">Act</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Actions</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Add</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Adult</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Adventure</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Animated</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Comedy</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Demons</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Drama</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Ecchi</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Fantasy</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Full Color</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Gender Bender</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Harem</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Historica</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Ancients</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Horror</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Isekai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Josei</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Lolicon</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Magic</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Manhwa</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Martial Arts</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Mature</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Mecha</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Military</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Mystery</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">One Shot</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Psychological</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Reincarnation</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Romance</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">School</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">School Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">School Of Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Sci Fi</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Seinen</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shotacon</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shoujo</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shoujo Ai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shoujoai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shounen</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shounen Ai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Shounenai</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Slice Of Life</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Smut</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Sports</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Super Power</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Superhero</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Supernatural</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Tragedy</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Vampire</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Villainess</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Web Comic</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Webtoon</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Yaoi</div>								<div class="genreoption check0" onmouseover="show_description(this)" onmouseout="hide_description()" datagenre="">Yuri</div>															</div>
+						</div>
+						<div class="options_table">
+							<div>
+								<span>Manga Type:</span>
+								<select id="type" name="type">
+									<option value="0" selected="selected">Both (Manga And Manhwa)</option>
+									<option value="1">Manga</option>
+									<option value="2">Manhwa</option>
+								</select>
+							</div>
+							<div>
+								<span>Manga Status:</span>
+								<select id="status" name="status">
+									<option value="0" selected="selected">Both (Completed And Ongoing)</option>
+									<option value="1">Completed</option>
+									<option value="2">Ongoing</option>
+								</select>
+							</div>
+							<div>
+								<span></span>
+								<span>
+									<input type="hidden" name="genre" id="genre"/>
+									<input type="hidden" class="firsturl" value="/Find/" name="firsturl"/>
+									<input type="hidden" class="secondurl" value="/Genre/" name="secondurl"/>
+									<input type="hidden" class="thirdurl" value="/Status/" name="thirdurl"/>
+									<input type="hidden" class="fourthurl" value="/Type/" name="fourthurl"/>
+									<input type="hidden" class="fifthurl" value="https://ww3.mangafreak.me" name="fifthurl"/>
+									<input type="submit" value="" class="submit_button" onsubmit="return false">
+									<input type="button" value="" class="reset_button">
+								</span>
+							</div>
+						</div>
+					</div>
+					<div class="search_result_box">
+					
+						<div class="pagination">
+						<a class="n_p active" href="/Find/study?page=1">1</a>						</div>
+					
+						<div class="search_result">
+							<div class="manga_result">
+						<h3>Manga/Manhwa Result</h3>								<div class="manga_search_item">
+									<h6>1.</h6>
+									<span>
+										<a href="/Manga/A_Simple_Thinking_About_Blood_Types"><img src="https://images.mangafreak.me/manga_images/a_simple_thinking_about_blood_types.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/A_Simple_Thinking_About_Blood_Types">A Simple Thinking About Blood Types</a>
+										</h3>
+										<div>
+											16 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manhwa (Read Left to Right)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Psychological">Psychological</a>, <a href="/Genre/Slice_Of_Life">Slice Of Life</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>2.</h6>
+									<span>
+										<a href="/Manga/Benkyou_No_Jikan"><img src="https://images.mangafreak.me/manga_images/benkyou_no_jikan.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Benkyou_No_Jikan">Benkyou no Jikan</a>
+										</h3>
+										<div>
+											3 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Drama">Drama</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Shoujo">Shoujo</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>3.</h6>
+									<span>
+										<a href="/Manga/Bokutachi_Wa_Benkyou_Ga_Dekinai"><img src="https://images.mangafreak.me/manga_images/bokutachi_wa_benkyou_ga_dekinai.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Bokutachi_Wa_Benkyou_Ga_Dekinai">Bokutachi wa Benkyou ga Dekinai</a>
+										</h3>
+										<div>
+											187e Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Ecchi">Ecchi</a>, <a href="/Genre/Harem">Harem</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>4.</h6>
+									<span>
+										<a href="/Manga/Genshiken"><img src="https://images.mangafreak.me/manga_images/genshiken.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Genshiken">Genshiken</a>
+										</h3>
+										<div>
+											107 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Slice_Of_Life">Slice Of Life</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>5.</h6>
+									<span>
+										<a href="/Manga/Midara_Na_Ao_Chan_Wa_Benkyou_Ga_Dekinai"><img src="https://images.mangafreak.me/manga_images/midara_na_ao_chan_wa_benkyou_ga_dekinai.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Midara_Na_Ao_Chan_Wa_Benkyou_Ga_Dekinai">Midara na Ao-chan wa Benkyou ga Dekinai</a>
+										</h3>
+										<div>
+											36 Chapters Published. (Completed)
+										</div>
+										<strong>
+											Manga (Read Right to Left)										</strong>
+										<div>
+											<a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Ecchi">Ecchi</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>6.</h6>
+									<span>
+										<a href="/Manga/Noroware_Oujo_Wa_Mahou_Shokubutsu_Wo_Kenkyuu_Shitai"><img src="https://images.mangafreak.me/manga_images/noroware_oujo_wa_mahou_shokubutsu_wo_kenkyuu_shitai.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Noroware_Oujo_Wa_Mahou_Shokubutsu_Wo_Kenkyuu_Shitai">Noroware Oujo wa Mahou Shokubutsu wo Kenkyuu Shitai</a>
+										</h3>
+										<div>
+											8 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+																					</strong>
+										<div>
+											<a href="/Genre/Fantasy">Fantasy</a>, <a href="/Genre/Romance">Romance</a>, <a href="/Genre/Shoujo">Shoujo</a>										</div>
+									</span>
+								</div>
+								
+														<div class="manga_search_item">
+									<h6>7.</h6>
+									<span>
+										<a href="/Manga/Study_Group"><img src="https://images.mangafreak.me/manga_images/study_group.jpg"></a>
+									</span>
+									<span>
+										<h3>
+											<a href="/Manga/Study_Group">Study Group</a>
+										</h3>
+										<div>
+											341 Chapters Published. (Ongoing)
+										</div>
+										<strong>
+											Manhwa (Read Left to Right)										</strong>
+										<div>
+											<a href="/Genre/Action">Action</a>, <a href="/Genre/Comedy">Comedy</a>, <a href="/Genre/Martial_Arts">Martial Arts</a>, <a href="/Genre/School_Life">School Life</a>, <a href="/Genre/Shounen">Shounen</a>										</div>
+									</span>
+								</div>
+								
+													</div>
+							<div class="mangaka_result">
+								<h3>Author/Artist Result(No results found)</h3>															</div>
+						</div>
+					
+						<div class="pagination">
+						<a class="n_p active" href="/Find/study?page=1">1</a>						</div>
+					</div>
+				</div>
+			</div>
+		</div>
+		<button id="back-to-top" onclick="scrollToTop()">↑</button>
+		<div class="footer">
+			<div class="footer_section">
+				<div class="title">
+					&nbsp
+				</div>
+				<div class="box">
+					<div class="footer_box">
+						<div>
+							<span>
+								<div>
+									<iframe width="300" height="250" frameborder="0" scrolling="no" src="/ads/300.html"></iframe>
+								</div>
+							</span>
+						</div>
+						<div>
+							<span>
+
+							</span>
+						</div>
+						<div>
+							<span>
+								<div>
+									<iframe width="300" height="250" frameborder="0" scrolling="no" src="/ads/300.html"></iframe>
+								</div>					 
+							</span>
+						</div>
+					</div>
+				</div>
+				<div class="title">
+					[MANGAFREAK]
+				</div>
+				<div class="box footer_info">
+					<div>Mangafreak&copy; Copyright 2026 | <a href="/About-Us">About Us</a> | <a href="/Contact">Contact Us</a> | <a href="/Privacy-Policy">Privacy Policy</a> | <a href="/Term-Of-Use">Term of Use</a></div>
+					Be reminded that we don't take any credit for any of the manga. We are just sharing the manga to promote the creator's work.
+					<div class="social_sharing">
+						<a href="https://www.facebook.com/mangafreakme" class="facebook" target="_blank" rel="noreferrer"><img src="/share/fb2.webp" id="fb" alt="Mangafreak Facebook" width="32" height="32"></a>
+						<a href="https://mastodon.social/@euko" class="mastodon" target="_blank" rel="noreferrer"><img src="/share/mastodon.webp" id="tm" alt="Mangafreak Mastodon" width="32" height="32"></a>
+						<a href="https://www.pinterest.com/mfana876/mangafreak/" class="pinterest" target="_blank" rel="noreferrer"><img src="/share/pin2.webp" id="pn" alt="Mangafreak Pinterest" width="32" height="32"></a>
+						<a href="https://bsky.app/profile/mangafreakme.bsky.social" class="bluesky" target="_blank" rel="noreferrer"><img src="/share/bluesky.webp" id="pn" alt="Mangafreak Bluesky" width="32" height="32"></a>
+						<a href="https://www.instagram.com/mangafreakme/" class="instagram" target="_blank" rel="noreferrer"><img src="/share/instagram.webp" id="pn" alt="Mangafreak Instagram" width="32" height="32"></a>
+						<a href="https://www.threads.com/@mangafreakme" class="threads" target="_blank" rel="noreferrer"><img src="/share/threads.webp" id="pn" alt="Mangafreak Threads" width="32" height="32"></a>
+					</div>
+					<div class="backlinks">
+					</div>
+				</div>
+			</div>
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-N7EZS9JGMJ"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments)}gtag("js",new Date);gtag("config","G-N7EZS9JGMJ");</script>
+<script src="https://revolthem.com/e3/9a/03/e39a031e465ffdf8606dddfc92bde99d.js"></script>
+<script src="https://revolthem.com/46/b3/a0/46b3a0fb66fcc2b8d936b69218ffcd40.js"></script>
+<script src="/misc/top.js"></script>	</div>
+<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js/v31edd6df95cf4e85bb4c19e7a9bdbcba1788362987495" integrity="sha512-iIg7k2xntmwu6/uSb5tpc/hySgZc4eoL31yB29W6tJFo2akwjPWcEqnCEdJvGexCL0KEQwVYv5BlowfhVz26hg==" data-cf-beacon='{"version":"2024.11.0","token":"d32fe7e1525d404ba057f642998e9d53","r":1,"spa":2}' crossorigin="anonymous"></script>
+</body>
+</html>
