@@ -5,8 +5,10 @@ import {
   uninstallMemoryStorage,
 } from "@/lib/scoped-storage.testing";
 import { MAX_DIMMER, MAX_WARMTH } from "./overlay";
+import { writeDesignPreset } from "@/features/preferences/preset-store";
 import {
   DEFAULT_READER_SETTINGS,
+  getReaderSettingsSnapshot,
   parseReaderSettings,
   readReaderSettings,
   writeReaderSettings,
@@ -97,5 +99,68 @@ describe("per-profile reader settings", () => {
   it("stores nothing at all when no profile is active", () => {
     writeReaderSettings({ dimmer: 0.9 });
     expect(readReaderSettings()).toEqual(DEFAULT_READER_SETTINGS);
+  });
+});
+
+describe("the design preset seeds the reader chrome", () => {
+  const ALICE = { userId: 1, profileId: 10 };
+  const BOB = { userId: 1, profileId: 11 };
+
+  beforeEach(() => {
+    installMemoryStorage();
+    setStorageScope(null);
+  });
+
+  afterEach(() => {
+    setStorageScope(null);
+    uninstallMemoryStorage();
+  });
+
+  /**
+   * "How much furniture the reader shows" is a preset axis, and the Cinema
+   * preset exists to say "none of it". Same contract as the library layout:
+   * the preset supplies the default, an explicit toggle wins for good.
+   */
+  it("opens the reader in cinema mode under the Cinema preset", () => {
+    setStorageScope(ALICE);
+    expect(readReaderSettings().cinema).toBe(false);
+
+    writeDesignPreset("cinema");
+    expect(readReaderSettings().cinema).toBe(true);
+
+    writeDesignPreset("editorial");
+    expect(readReaderSettings().cinema).toBe(false);
+  });
+
+  it("leaves every other reader setting alone", () => {
+    setStorageScope(ALICE);
+    writeDesignPreset("cinema");
+    expect(readReaderSettings()).toEqual({
+      ...DEFAULT_READER_SETTINGS,
+      cinema: true,
+    });
+  });
+
+  it("lets an explicit toggle outlive a preset change", () => {
+    setStorageScope(ALICE);
+    // Turned cinema mode off by hand, then adopted the design that defaults it
+    // on. The stored `false` is a decision and has to survive.
+    writeReaderSettings({ cinema: false });
+    writeDesignPreset("cinema");
+    expect(readReaderSettings().cinema).toBe(false);
+  });
+
+  it("re-resolves the snapshot when the preset changes", () => {
+    setStorageScope(ALICE);
+    expect(getReaderSettingsSnapshot().cinema).toBe(false);
+    writeDesignPreset("cinema");
+    expect(getReaderSettingsSnapshot().cinema).toBe(true);
+  });
+
+  it("keeps one profile's preset out of another's reader", () => {
+    setStorageScope(ALICE);
+    writeDesignPreset("cinema");
+    setStorageScope(BOB);
+    expect(readReaderSettings().cinema).toBe(false);
   });
 });

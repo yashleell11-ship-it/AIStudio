@@ -4,6 +4,7 @@ import {
   installMemoryStorage,
   uninstallMemoryStorage,
 } from "@/lib/scoped-storage.testing";
+import { writeDesignPreset } from "@/features/preferences/preset-store";
 import {
   DEFAULT_LIBRARY_DENSITY,
   densityCoverSizes,
@@ -108,5 +109,54 @@ describe("layout classes", () => {
   it("asks for smaller images the more it packs in", () => {
     expect(densityCoverSizes("list")).toBe("64px");
     expect(densityCoverSizes("compact")).not.toBe(densityCoverSizes("comfortable"));
+  });
+});
+
+describe("the design preset seeds the layout", () => {
+  /**
+   * "Poster grid, list, or compact rows" is a preset's decision, not a
+   * constant. The contract is the same one the theme system uses for the OS
+   * preference: the preset seeds a profile that has never chosen, and an
+   * explicit choice wins from then on.
+   */
+  it("opens on the preset's layout when the profile has never chosen", () => {
+    setStorageScope(ALICE);
+    expect(readLibraryDensity()).toBe("comfortable");
+
+    writeDesignPreset("editorial");
+    expect(readLibraryDensity()).toBe("list");
+
+    writeDesignPreset("compact");
+    expect(readLibraryDensity()).toBe("compact");
+  });
+
+  it("lets an explicit choice outlive a preset change", () => {
+    setStorageScope(ALICE);
+    writeLibraryDensity("comfortable");
+    writeDesignPreset("compact");
+    // Chose the poster grid, then switched to a density-first design. The
+    // design does not get to overrule a decision that was already made.
+    expect(readLibraryDensity()).toBe("comfortable");
+  });
+
+  it("re-resolves the snapshot when the preset changes", () => {
+    // What makes a preset apply live: `useSyncExternalStore` compares by
+    // reference, so a cached snapshot that ignored the preset would leave the
+    // library in its old layout until something else invalidated it.
+    setStorageScope(ALICE);
+    expect(getLibraryDensitySnapshot()).toBe("comfortable");
+    writeDesignPreset("editorial");
+    expect(getLibraryDensitySnapshot()).toBe("list");
+    writeDesignPreset("signature");
+    expect(getLibraryDensitySnapshot()).toBe("comfortable");
+  });
+
+  it("keeps one profile's preset out of another's library", () => {
+    setStorageScope(ALICE);
+    writeDesignPreset("compact");
+    expect(readLibraryDensity()).toBe("compact");
+
+    setStorageScope(BOB);
+    expect(readLibraryDensity()).toBe(DEFAULT_LIBRARY_DENSITY);
   });
 });
