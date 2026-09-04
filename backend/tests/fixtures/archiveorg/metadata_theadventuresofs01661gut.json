@@ -1,0 +1,308 @@
+{
+ "alternate_locations": {
+  "servers": [
+   {
+    "server": "dn760000.eu.archive.org",
+    "dir": "/0/items/theadventuresofs01661gut"
+   }
+  ]
+ },
+ "created": 1788512631,
+ "d1": "ia600509.us.archive.org",
+ "d2": "ia800509.us.archive.org",
+ "dir": "/22/items/theadventuresofs01661gut",
+ "files": [
+  {
+   "name": "1661-8.txt",
+   "source": "original",
+   "format": "Text",
+   "mtime": "1307139826",
+   "size": "594951",
+   "md5": "a42458a4d980dfa587fef9103dd249c9",
+   "crc32": "f9d42092",
+   "sha1": "54a7f85fe3e0f810cbe7486fb6215a64e92f504a"
+  },
+  {
+   "name": "1661-8.txt_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139826",
+   "size": "1809",
+   "md5": "9eb82ca3ac7f2d9cb120be622f887135",
+   "crc32": "ead841ac",
+   "sha1": "042d486d8a6be7e598cc39288d54e7193ef52610"
+  },
+  {
+   "name": "1661-8.zip",
+   "source": "original",
+   "format": "ZIP",
+   "mtime": "1307139830",
+   "size": "226939",
+   "md5": "2ad4a4d6de004a707b5bf8dde0bb7aa7",
+   "crc32": "c4736612",
+   "sha1": "1837d30714596dbc0615faf239ab799b822cca40",
+   "filecount": "1"
+  },
+  {
+   "name": "1661-8.zip_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139830",
+   "size": "1809",
+   "md5": "c3f9e0cc6dba23b028f43bae6fc30e5b",
+   "crc32": "d9de4e6b",
+   "sha1": "4340c83445ad83813e7c334fdc62acebef9251c8"
+  },
+  {
+   "name": "1661-h.zip",
+   "source": "original",
+   "format": "ZIP",
+   "mtime": "1307139823",
+   "size": "234034",
+   "md5": "14d3550c71372115525b838e5950a64e",
+   "crc32": "b9b80262",
+   "sha1": "f7e8df662d599303bc13f73e90eb715b0a11b040",
+   "filecount": "1"
+  },
+  {
+   "name": "1661-h.zip_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139823",
+   "size": "1809",
+   "md5": "329a53dbdd8c0d5488d2f2412a1e45a4",
+   "crc32": "fa67a02f",
+   "sha1": "50f44a33082dfdbed1d816fa41bd30df27e3037b"
+  },
+  {
+   "name": "1661.txt",
+   "source": "original",
+   "format": "Text",
+   "mtime": "1307139827",
+   "size": "594941",
+   "md5": "0d3c87e87add66a710524191d0475b69",
+   "crc32": "9cc91901",
+   "sha1": "380d5c1e24c0404df419146ccc55d85ccd69a7e6"
+  },
+  {
+   "name": "1661.txt_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139827",
+   "size": "1809",
+   "md5": "a7039ae16181f187b50949fdbc7b4fe3",
+   "crc32": "b36375ae",
+   "sha1": "dfeb93c1db08a8e38e5a1ac53d0dfdd6f831f3bf"
+  },
+  {
+   "name": "1661.zip",
+   "source": "original",
+   "format": "ZIP",
+   "mtime": "1307139828",
+   "size": "226884",
+   "md5": "adfcdd520edba166fa622e86c925c6c9",
+   "crc32": "3df68b1e",
+   "sha1": "acedc399c38d5dd2a1c89107a182ab76285ccbec",
+   "filecount": "1"
+  },
+  {
+   "name": "1661.zip_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139828",
+   "size": "1809",
+   "md5": "871b9212f592d25e5f233f63372ecf97",
+   "crc32": "a700cbef",
+   "sha1": "15cbd3b1d424e7232c08bc6ebf8336acd8e98f19"
+  },
+  {
+   "name": "pg1661.epub",
+   "source": "original",
+   "format": "EPUB",
+   "mtime": "1307139821",
+   "size": "267854",
+   "md5": "63ec1e4238c54f2f0fdf6f01c14ca6e6",
+   "crc32": "59fbc9f",
+   "sha1": "8eda5c347540103f2aa723c4390df6f629359bdd"
+  },
+  {
+   "name": "pg1661.epub_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139821",
+   "size": "1809",
+   "md5": "48fd6218c50c29b798780c9cc65622b9",
+   "crc32": "e12710bc",
+   "sha1": "c4ae2170357f366b2685012924e1ba3bd2906547"
+  },
+  {
+   "name": "pg1661.mobi",
+   "source": "original",
+   "format": "MOBI",
+   "mtime": "1307139831",
+   "size": "689618",
+   "md5": "092ec85fce71176a14ed12976eca3968",
+   "crc32": "cea0e769",
+   "sha1": "377c8690e130706e7f1cb7e03bf93f38df8a0943"
+  },
+  {
+   "name": "pg1661.mobi_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139831",
+   "size": "1809",
+   "md5": "7b41eb48c6f1d521c056fc6bc854370d",
+   "crc32": "b345a83a",
+   "sha1": "c1d141c5ef96f69a71d5005a09438cb8af61ae8c"
+  },
+  {
+   "name": "pg1661.plucker.pdb",
+   "source": "original",
+   "format": "PalmOS Plucker",
+   "mtime": "1307139829",
+   "size": "364797",
+   "md5": "2f7d08aa0988c8d9ab0688471962576a",
+   "crc32": "6cb305e5",
+   "sha1": "426fa7464486dbdf6917e18d1cd03a032cfcaaf1"
+  },
+  {
+   "name": "pg1661.plucker.pdb_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139829",
+   "size": "1809",
+   "md5": "f3265f9df4989a2c549b672b2c27113b",
+   "crc32": "a0971326",
+   "sha1": "73f8382bd41c55b32239ec46232cc1f1abea40c9"
+  },
+  {
+   "name": "pg1661.qioo.jar",
+   "source": "original",
+   "format": "Unknown",
+   "mtime": "1307139822",
+   "size": "288926",
+   "md5": "6168d879b98a7bf1e5a00318ef6fc868",
+   "crc32": "8e5e9d47",
+   "sha1": "f2804e0400f424b7b76e659927a87e833517f394"
+  },
+  {
+   "name": "pg1661.qioo.jar_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139822",
+   "size": "1809",
+   "md5": "7ae03857b34368f8f97646d5c614ca7b",
+   "crc32": "137c5c08",
+   "sha1": "1dcad89b8eddd77ecd50848eb543038897e06394"
+  },
+  {
+   "name": "pg1661.rdf",
+   "source": "original",
+   "format": "Unknown",
+   "mtime": "1307139812",
+   "size": "14648",
+   "md5": "175db72c5dc012306cc8f19f97230fc1",
+   "crc32": "c2d6a014",
+   "sha1": "2bf356ae9ac675d64189a8547a239814ff79f746"
+  },
+  {
+   "name": "pg1661.rdf_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139812",
+   "size": "1808",
+   "md5": "15553346a05acdb13853fae3c95bf536",
+   "crc32": "efec9cb5",
+   "sha1": "03025b60cc05f613960225b783c1c002a794845b"
+  },
+  {
+   "name": "pg1661.txt",
+   "source": "original",
+   "format": "Text",
+   "mtime": "1307139824",
+   "size": "594933",
+   "md5": "c58a41ddb3b295b4b38a2e8adfcafb6c",
+   "crc32": "1728f719",
+   "sha1": "e6923da7ee74d46408c8fe203eda8ee6d7c424d1"
+  },
+  {
+   "name": "pg1661.txt_meta.txt",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1307139825",
+   "size": "1809",
+   "md5": "2a76a82d15f22b81be4fdc720d40c2bc",
+   "crc32": "b468d6d4",
+   "sha1": "2efc9cc575918670cd2bb54f8c138ebd1a79d2da"
+  },
+  {
+   "name": "theadventuresofs01661gut_archive.torrent",
+   "source": "metadata",
+   "btih": "c7a99090efe7439b240db80f678ff0f8c0138a13",
+   "mtime": "1684167634",
+   "size": "3331",
+   "md5": "d967f15c150690249f0fa856c59adca3",
+   "crc32": "3e179800",
+   "sha1": "5f3b294d84edf2b4c21bfdb7dff54874bcbf3a6b",
+   "format": "Archive BitTorrent"
+  },
+  {
+   "name": "theadventuresofs01661gut_files.xml",
+   "source": "original",
+   "format": "Metadata",
+   "md5": "276725ab2a412c461806fe23f859dde2",
+   "summation": "md5"
+  },
+  {
+   "name": "theadventuresofs01661gut_meta.xml",
+   "source": "original",
+   "format": "Metadata",
+   "mtime": "1599853393",
+   "size": "1983",
+   "md5": "71403acd72d2b8b52115779aa82caca6",
+   "crc32": "ae8f8e7f",
+   "sha1": "ba9d5344b508e44489f43cd9d556390b0fd1fc11"
+  }
+ ],
+ "files_count": 25,
+ "item_last_updated": 1684167635,
+ "item_size": 4123737,
+ "metadata": {
+  "identifier": "theadventuresofs01661gut",
+  "call_number": "gutenberg etext# 1661",
+  "contributor": "Project Gutenberg",
+  "description": "Book from Project Gutenberg: The Adventures of Sherlock Holmes Library of Congress Classification: PR Note: Also available as audio book: #9551",
+  "language": "eng",
+  "licenseurl": "http://www.gnu.org/licenses/gpl.html",
+  "mediatype": "texts",
+  "rights": "Public domain in the USA.",
+  "source": "http://www.gutenberg.org/ebooks/1661",
+  "subject": [
+   "Detective and mystery stories, English",
+   "Holmes, Sherlock (Fictitious character) -- Fiction",
+   "Private investigators -- England -- Fiction"
+  ],
+  "table_of_contents": "A Scandal in Bohemia -- The Red-Headed League -- A Case of Identity -- The Boscombe Valley Mystery -- The Five Orange Pips -- The Man with the Twisted Lip -- The Adventure of the Blue Carbuncle -- The Adventure of the Speckled Band -- The Adventure of the Engineer’s Thumb -- The Adventure of the Noble Bachelor -- The Adventure of the Beryl Coronet -- The Adventure of the Copper Beeches",
+  "title": "The Adventures of Sherlock Holmes",
+  "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+  "creator-alias": "Doyle, Sir Arthur Conan",
+  "publicdate": "2011-06-03 22:23:24",
+  "uploader": "ximm@archive.org",
+  "addeddate": "2011-06-03 22:23:24",
+  "collection": "gutenberg",
+  "filesxml": "Tue Jul 3 18:51:32 UTC 2012",
+  "identifier-access": "http://archive.org/details/theadventuresofs01661gut",
+  "identifier-ark": "ark:/13960/t04x6g177",
+  "repub_state": "4",
+  "backup_location": "ia903700_17",
+  "openlibrary_edition": "OL26659250M",
+  "openlibrary_work": "OL262421W",
+  "usl_hit": "auto"
+ },
+ "server": "ia800509.us.archive.org",
+ "uniq": 371450151,
+ "workable_servers": [
+  "ia800509.us.archive.org",
+  "ia600509.us.archive.org"
+ ]
+}

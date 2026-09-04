@@ -1,0 +1,250 @@
+{
+ "alternate_locations": {
+  "servers": [
+   {
+    "server": "dn760001.eu.archive.org",
+    "dir": "/0/items/mobywordlists03201gut"
+   }
+  ]
+ },
+ "created": 1788513177,
+ "d1": "ia600702.us.archive.org",
+ "d2": "ia800702.us.archive.org",
+ "dir": "/35/items/mobywordlists03201gut",
+ "files": [
+  {
+   "name": "ACRONYMS.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "0b6091febd654726486e86cabcba8411",
+   "mtime": "743343718",
+   "size": "34254",
+   "crc32": "864fe70c",
+   "sha1": "835423eb82c2403f27933c06cb5458bbc36bbb55"
+  },
+  {
+   "name": "COMMON.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "2854cdeb02daa3f93a2baccb97230528",
+   "mtime": "834017888",
+   "size": "805232",
+   "crc32": "aa53f253",
+   "sha1": "395823f13ffdca127a9600c5774706c18a49244b"
+  },
+  {
+   "name": "COMPOUND.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "81577bae307261b0bae49c250d04aeeb",
+   "mtime": "834017636",
+   "size": "3465492",
+   "crc32": "73a2061a",
+   "sha1": "2dcbd6213b918638f12d2c13eb472a4fbaba0d71"
+  },
+  {
+   "name": "CROSSWD.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "e58eb7b851c2e78770b20c715d8f8d7b",
+   "mtime": "834017760",
+   "size": "1130523",
+   "crc32": "62e24fd0",
+   "sha1": "a88b6c6c914d6c3d4b8d01d5b38a8ed866210721"
+  },
+  {
+   "name": "CRSWD-D.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "05cd771755c7e174449d10b3e33ab047",
+   "mtime": "743343680",
+   "size": "37211",
+   "crc32": "e044aa16",
+   "sha1": "5a6f6cc00d86ddc62eaadf29bb0093684c94c892"
+  },
+  {
+   "name": "FICTION.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "5c38dffbd59c606f4c8b4e21059448f1",
+   "mtime": "743343704",
+   "size": "4797",
+   "crc32": "b807c57d",
+   "sha1": "a1c11bd587adfc16c8ec5845a25da6859d2048c7"
+  },
+  {
+   "name": "FREQ-INT.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "4f5e29a53974ba9921d0463e1828bd3e",
+   "mtime": "743343518",
+   "size": "16584",
+   "crc32": "f63047c0",
+   "sha1": "cbcaac7cd5ef22918e5ec8aff5bafec26fe44c03"
+  },
+  {
+   "name": "FREQ.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "6247b621cba0757058cde3a28077b169",
+   "mtime": "743343512",
+   "size": "7486",
+   "crc32": "fa12ec59",
+   "sha1": "160331fb2f6cf948909ccd1d7177af1a74953818"
+  },
+  {
+   "name": "KJVFREQ.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "c21c85e3b5dcca43213f0caf7f374b5c",
+   "mtime": "743343526",
+   "size": "13860",
+   "crc32": "4bf78ac0",
+   "sha1": "20cf91269a3de2da9b0a8050196566b44e9df102"
+  },
+  {
+   "name": "NAMES-F.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "117695f767159acecdb143f9c9ea5b87",
+   "mtime": "743343698",
+   "size": "40099",
+   "crc32": "34e42920",
+   "sha1": "0be16d6c86b52ea6b9dbba1a7647c775c729fa04"
+  },
+  {
+   "name": "NAMES-M.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "a2d019fd3f3fc091a34e403d424df61f",
+   "mtime": "743343658",
+   "size": "30507",
+   "crc32": "17fba806",
+   "sha1": "a133463c84060c6afe399caf9e594acecc66a29c"
+  },
+  {
+   "name": "NAMES.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "5fefaf09d5a666f65024910f471fb638",
+   "mtime": "743343644",
+   "size": "179353",
+   "crc32": "cb931137",
+   "sha1": "9944274e648dba07b159f7ae648137bae4d216c7"
+  },
+  {
+   "name": "OFTENMIS.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "170dd0b7f13fa29ee52c66bf2a46f982",
+   "mtime": "743343664",
+   "size": "3641",
+   "crc32": "45e32d99",
+   "sha1": "c93d3db098b74e9902c5cd7fca6a1a88ec1b65ac"
+  },
+  {
+   "name": "PLACES.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "95056a450a438c728cded802fb92a2ab",
+   "mtime": "743343568",
+   "size": "99443",
+   "crc32": "fcf0017a",
+   "sha1": "289e7b330ed8e6fa9aa07f3128e900460bc60e76"
+  },
+  {
+   "name": "SINGLE.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "a3b6e6303ccb672c9fcb0d3ca4abfe91",
+   "mtime": "834017448",
+   "size": "4067675",
+   "crc32": "59b0e181",
+   "sha1": "f5c9b5da3f34b0c525406a589c22fbcd647381ad"
+  },
+  {
+   "name": "USACONST.TXT",
+   "source": "original",
+   "format": "Text",
+   "md5": "14ce67ec64c92c8196033165824a6a27",
+   "mtime": "743343744",
+   "size": "46072",
+   "crc32": "3f787744",
+   "sha1": "b2e330b11859217720e62b1986b4a9533dff15e0"
+  },
+  {
+   "name": "aaREADME.txt",
+   "source": "original",
+   "format": "Text",
+   "md5": "35403348d8986359e90924e7c2fa4bd5",
+   "mtime": "983911800",
+   "size": "16793",
+   "crc32": "1a99f64e",
+   "sha1": "b367c8992c452c9d8ccdb8f8b2cd06871903a73e"
+  },
+  {
+   "name": "mobywordlists03201gut_archive.torrent",
+   "source": "metadata",
+   "btih": "32b668a7e5093b7e7f469e20dca65a6c24053fee",
+   "mtime": "1635365951",
+   "size": "4761",
+   "md5": "34f171fac12b77de29bf53a807396100",
+   "crc32": "a551eab8",
+   "sha1": "8891558cce0f0c89cefcc5cf61cf59fb1cc74119",
+   "format": "Archive BitTorrent"
+  },
+  {
+   "name": "mobywordlists03201gut_files.xml",
+   "source": "metadata",
+   "format": "XML",
+   "md5": "419163888774b0511fdf75c463cf09ff",
+   "summation": "md5"
+  },
+  {
+   "name": "mobywordlists03201gut_meta.xml",
+   "source": "metadata",
+   "format": "XML",
+   "mtime": "1476059316",
+   "size": "733",
+   "md5": "ec9571695decc831e69c6218ff51f925",
+   "crc32": "1d04d43e",
+   "sha1": "2ad6c09fc46caca2b7856514d1ae6c54bd6fa562"
+  },
+  {
+   "name": "mword10.zip",
+   "source": "original",
+   "format": "ZIP",
+   "md5": "c8c0fc1f9195d844f160e196a08d1fe2",
+   "mtime": "983912372",
+   "size": "2907512",
+   "crc32": "6735b733",
+   "sha1": "5635c507bf4a3ddae76491aa7826d6064c1f0a3d",
+   "filecount": "17"
+  }
+ ],
+ "files_count": 21,
+ "item_last_updated": 1770937450,
+ "item_size": 12912028,
+ "metadata": {
+  "identifier": "mobywordlists03201gut",
+  "title": "Moby Word Lists",
+  "possible-copyright-status": "NOT_IN_COPYRIGHT",
+  "copyright-region": "US",
+  "mediatype": "texts",
+  "collection": "gutenberg",
+  "creator": "Ward, Grady",
+  "contributor": "Project Gutenberg",
+  "description": "Book from Project Gutenberg: Moby Word Lists\n\nLibrary of Congress Classification: PS\n",
+  "language": "eng",
+  "call_number": "gutenberg etext# 3201",
+  "addeddate": "2006-12-06",
+  "publicdate": "2013-04-18 22:49:46",
+  "backup_location": "ia905609_19"
+ },
+ "server": "ia600702.us.archive.org",
+ "uniq": 1707115847,
+ "workable_servers": [
+  "ia600702.us.archive.org",
+  "ia800702.us.archive.org"
+ ]
+}

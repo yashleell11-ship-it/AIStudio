@@ -1,0 +1,306 @@
+{
+ "responseHeader": {
+  "status": 0,
+  "QTime": 52,
+  "params": {
+   "query": "collection:(gutenberg OR standardebooks) AND format:EPUB AND language:(eng OR en OR English) AND (((text:sherlock OR text:sherlock OR text__reviews:sherlock)(text:holmes OR text:holmes OR text__reviews:holmes)) OR (text:&quot;sherlock holmes&quot; OR text:&quot;sherlock holmes&quot; OR text__reviews:&quot;sherlock holmes&quot;))",
+   "qin": "collection:(gutenberg OR standardebooks) AND format:EPUB AND language:(eng OR en OR English) AND (sherlock holmes)",
+   "fields": "identifier,title,creator,description,subject,year,downloads,language",
+   "wt": "json",
+   "sort": "downloads desc",
+   "rows": 20,
+   "start": 0
+  }
+ },
+ "response": {
+  "numFound": 20,
+  "start": 0,
+  "docs": [
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Adventure of the Dying Detective Library of Congress Classification: PR",
+    "downloads": 11681,
+    "identifier": "theadventureofth02347gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventure of the Dying Detective"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Adventures of Sherlock Holmes Library of Congress Classification: PR Note: Also available as audio book: #9551",
+    "downloads": 5219,
+    "identifier": "theadventuresofs01661gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories, English",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventures of Sherlock Holmes"
+   },
+   {
+    "creator": "Arthur Conan Doyle",
+    "description": [
+     "Book from Project Gutenberg: Adventures of Sherlock Holmes Illustrated",
+     "A scandal in Bohemia -- The Red-headed League -- A case of identity -- The Boscombe Valley mystery -- The five orange pips -- The man with the twisted lip -- The adventure of the blue carbuncle -- The adventure of the speckled band -- The adventure of the engineer's thumb -- The adventure of the noble bachelor -- The adventure of the beryl coronet -- The adventure of the Copper Beeches."
+    ],
+    "downloads": 5141,
+    "identifier": "adventuresofsher48320gut",
+    "language": "en",
+    "subject": [
+     "PR",
+     "Detective and mystery stories, English",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "Adventures of Sherlock Holmes Illustrated"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Adventure of Wisteria Lodge Library of Congress Classification: PR",
+    "downloads": 3806,
+    "identifier": "theadventureofwi02343gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventure of Wisteria Lodge"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Adventure of the Cardboard Box Library of Congress Classification: PR",
+    "downloads": 2725,
+    "identifier": "theadventureofth02344gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventure of the Cardboard Box"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: A Study in Scarlet Library of Congress Classification: PR",
+    "downloads": 2586,
+    "identifier": "astudyinscarlet00244gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "England -- Fiction",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "A Study in Scarlet"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Adventure of the Bruce-Partington Plans Library of Congress Classification: PR",
+    "downloads": 2330,
+    "identifier": "theadventureofth02346gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventure of the Bruce-Partington Plans"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Hound of the Baskervilles Library of Congress Classification: PR",
+    "downloads": 2056,
+    "identifier": "thehoundofthebas02852gut",
+    "language": "eng",
+    "subject": [
+     "Blessing and cursing -- Fiction",
+     "Dartmoor (England) -- Fiction",
+     "Detective and mystery stories",
+     "Dogs -- Fiction",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Hound of the Baskervilles"
+   },
+   {
+    "creator": "Arthur Conan Doyle",
+    "description": [
+     "Book from Project Gutenberg: The Adventures of Sherlock Holmes",
+     "A scandal in Bohemia -- The Red-headed League -- A case of identity -- The Boscombe Valley mystery -- The five orange pips -- The man with the twisted lip -- The adventure of the blue carbuncle -- The adventure of the speckled band -- The adventure of the engineer's thumb -- The adventure of the noble bachelor -- The adventure of the beryl coronet -- The adventure of the Copper Beeches."
+    ],
+    "downloads": 1970,
+    "identifier": "theadventuresofs28733gut",
+    "language": "en",
+    "subject": [
+     "Detective and mystery stories, English",
+     "PR",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventures of Sherlock Holmes"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: His Last Bow Library of Congress Classification: PR",
+    "downloads": 1656,
+    "identifier": "hislastbow02350gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories, English",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "His Last Bow"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Return of Sherlock Holmes Library of Congress Classification: PR Note: Magazine Edition",
+    "downloads": 1637,
+    "identifier": "thereturnofsherl00221gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories, English",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Return of Sherlock Holmes"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Sign of the Four Library of Congress Classification: PR",
+    "downloads": 1572,
+    "identifier": "thesignofthefour02097gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Sign of the Four"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Hound of the Baskervilles Library of Congress Classification: PR",
+    "downloads": 1392,
+    "identifier": "thehoundofthebas03070gut",
+    "language": "eng",
+    "subject": [
+     "Blessing and cursing -- Fiction",
+     "Dartmoor (England) -- Fiction",
+     "Detective and mystery stories",
+     "Dogs -- Fiction",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Hound of the Baskervilles"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Disappearance of Lady Frances Carfax Library of Congress Classification: PR",
+    "downloads": 1367,
+    "identifier": "thedisappearance02348gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Disappearance of Lady Frances Carfax"
+   },
+   {
+    "creator": [
+     "Malcolm A. Strauss",
+     "Harry Graham"
+    ],
+    "description": [
+     "Book from Project Gutenberg: More Misrepresentative Men",
+     "Author's Foreword -- Publisher's Preface -- Robert Burns -- William Waldorf Astor -- Henry VIII -- Alton B. Parker -- Euclid -- J. M. Barrie -- Omar Khayyam -- Andrew Carnegie -- King Cophetua -- Joseph F. Smith -- Sherlock Holmes -- Aftword."
+    ],
+    "downloads": 1209,
+    "identifier": "moremisrepresent36782gut",
+    "language": "en",
+    "subject": [
+     "Biographical poetry",
+     "Nonsense verses",
+     "PR",
+     "Humorous poetry"
+    ],
+    "title": "More Misrepresentative Men"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Adventure of the Devil's Foot Library of Congress Classification: PR",
+    "downloads": 913,
+    "identifier": "theadventureofth02349gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventure of the Devil's Foot"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Valley of Fear Library of Congress Classification: PR",
+    "downloads": 876,
+    "identifier": "thevalleyoffear03776gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "England -- Fiction",
+     "Holmes, Sherlock (Fictitious character) -- Fiction"
+    ],
+    "title": "The Valley of Fear"
+   },
+   {
+    "creator": "Doyle, Arthur Conan, Sir, 1859-1930",
+    "description": "Book from Project Gutenberg: The Adventure of the Red Circle Library of Congress Classification: PR",
+    "downloads": 696,
+    "identifier": "theadventureofth02345gut",
+    "language": "eng",
+    "subject": [
+     "Detective and mystery stories",
+     "Holmes, Sherlock (Fictitious character) -- Fiction",
+     "Private investigators -- England -- Fiction"
+    ],
+    "title": "The Adventure of the Red Circle"
+   },
+   {
+    "creator": "Jacques Futrelle",
+    "description": "Book from Project Gutenberg: The Leak",
+    "downloads": 479,
+    "identifier": "theleak37146gut",
+    "language": "en",
+    "subject": [
+     "Short stories",
+     "Detective and mystery stories",
+     "PS",
+     "Van Dusen, Augustus S. F. X. (Fictitious character) -- Fiction"
+    ],
+    "title": "The Leak"
+   },
+   {
+    "creator": "Maurice Baring",
+    "description": [
+     "Book from Project Gutenberg: Lost Diaries",
+     "From the diary of Smith minor -- From the diary of Iseult of Brittany -- From the diary of King Cophetua -- From the diary of Froissart, war correspondent -- From the diary of George Washington -- From the diary of Marcus Aurelius -- From the diary of Mrs James Lee's husband -- From the diary of Sherlock Holmes -- From the diary of the Emperor Titus -- From the diary of Harriet Shelley -- From the journal intime of the Emperor Tiberius -- From the diary of Oedipus Rex -- From the diary of William the Conqueror -- From the diary of Mary, Mrs John Milton (née Powell) -- From the diary of Mark Antony -- From the diary of Ivan the Terrible -- From the private log of Christopher Columbus -- From the diary of the man in the iron mask -- From the diary of an English governess residing in Paris during the French Revolution -- From the diary of Hamlet, Prince of Denmark, during his stay at England, whither he was sent to study at the University of Oxford, under the special care of Polonius."
+    ],
+    "downloads": 159,
+    "identifier": "lostdiaries42542gut",
+    "language": "en",
+    "subject": [
+     "English wit and humor",
+     "PR"
+    ],
+    "title": "Lost Diaries"
+   }
+  ]
+ }
+}
