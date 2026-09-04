@@ -98,21 +98,3 @@ export function useSaveProgress() {
     },
   });
 }
-
-export function useAddBookmark() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({
-      ref,
-      page,
-      note,
-    }: {
-      ref: ChapterId;
-      page: number;
-      note?: string;
-    }) => readerApi.addBookmark(ref, page, note),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...READER_KEY, "bookmarks"] });
-    },
-  });
-}

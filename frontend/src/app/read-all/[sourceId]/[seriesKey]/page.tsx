@@ -1,10 +1,14 @@
 import { ReadAllReader } from "@/features/reader";
+import { parseAnchorParams } from "@/features/bookmarks";
 import { decodeRouteParam } from "@/lib/route-params";
 
 interface ReadAllPageProps {
   params: Promise<{ sourceId: string; seriesKey: string }>;
-  /** `from` names the chapter to resume at; `page` its page within it. */
-  searchParams: Promise<{ from?: string; page?: string }>;
+  /**
+   * `from` names the chapter to resume at, `page` its page within it, and `at`
+   * how far down that page — the last of which only a bookmark link carries.
+   */
+  searchParams: Promise<{ from?: string; page?: string; at?: string }>;
 }
 
 /**
@@ -19,8 +23,9 @@ export default async function ReadAllPage({ params, searchParams }: ReadAllPageP
   const { sourceId: rawSource, seriesKey: rawSeries } = await params;
   const sourceId = decodeRouteParam(rawSource);
   const seriesKey = decodeRouteParam(rawSeries);
-  const { from, page } = await searchParams;
+  const { from, page, at } = await searchParams;
   const initialPage = page ? Number(page) : 1;
+  const anchor = parseAnchorParams(page, at);
 
   return (
     <ReadAllReader
@@ -29,6 +34,7 @@ export default async function ReadAllPage({ params, searchParams }: ReadAllPageP
       seriesKey={seriesKey}
       fromChapterKey={from ?? null}
       initialPage={Number.isFinite(initialPage) ? initialPage : 1}
+      initialAnchorFraction={at != null && anchor ? anchor.fraction : null}
     />
   );
 }

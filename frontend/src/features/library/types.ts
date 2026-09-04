@@ -312,15 +312,3 @@ export interface Statistics {
   /** The last few sessions, deliberately NOT clipped to the window. */
   recent_sessions: RecentSession[];
 }
-
-// --- Bookmarks ---
-
-export interface Bookmark {
-  id: number;
-  source_id: string;
-  series_key: string;
-  chapter_key: string;
-  page: number;
-  note: string | null;
-  created_at: string | null;
-}

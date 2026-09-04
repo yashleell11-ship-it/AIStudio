@@ -3,15 +3,18 @@
 import { useCallback, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSourceChapters } from "@/features/sources/hooks";
-import { useAddBookmark } from "../hooks";
+import {
+  BOOKMARK_MEDIA_MANGA,
+  useBookmarkCapture,
+} from "@/features/bookmarks";
 import { readAllHref, seriesPageHref } from "../reader-link";
 import { readerSeriesKey } from "../preferences";
 import { orderIndexOf, readAllEntryKey, readingOrder } from "../read-all";
-import { READ_ALL_STRIP_WINDOW } from "../strip";
+import { chapterIndexOf, READ_ALL_STRIP_WINDOW } from "../strip";
 import { bulkChapterSource } from "../strip-source";
 import { useChapterStrip } from "../use-chapter-strip";
 import { useStripProgress } from "../use-strip-progress";
-import { ChapterReader } from "./ChapterReader";
+import { ChapterReader, type CapturedAnchor } from "./ChapterReader";
 
 interface ReadAllReaderProps {
   sourceId: string;
@@ -19,6 +22,8 @@ interface ReadAllReaderProps {
   /** Where to start the run. Absent means the first chapter of the series. */
   fromChapterKey?: string | null;
   initialPage?: number;
+  /** `?at=` — the fraction of `initialPage` a bookmark link is opening at. */
+  initialAnchorFraction?: number | null;
 }
 
 /**
@@ -44,6 +49,7 @@ export function ReadAllReader({
   seriesKey,
   fromChapterKey = null,
   initialPage = 1,
+  initialAnchorFraction = null,
 }: ReadAllReaderProps) {
   const queryClient = useQueryClient();
   const chaptersQuery = useSourceChapters(sourceId, seriesKey);
@@ -73,7 +79,7 @@ export function ReadAllReader({
     ready: order.length > 0 && entryChapterKey !== "",
   });
 
-  const addBookmark = useAddBookmark();
+  const bookmark = useBookmarkCapture();
   const chapters = strip.chapters;
 
   /**
@@ -100,13 +106,27 @@ export function ReadAllReader({
     onChapterChange: handleChapterChange,
   });
 
+  /**
+   * Same capture as the plain reader, against whichever chapter the run has
+   * reached — a bookmark taken forty chapters into a read-all belongs to
+   * chapter forty, not to the one the run started on.
+   */
   const handleBookmark = useCallback(
-    (page: number) => {
+    (anchor: CapturedAnchor) => {
       const chapterKey = activeChapterKey || entryChapterKey;
       if (!chapterKey) return;
-      addBookmark.mutate({ ref: { sourceId, seriesKey, chapterKey }, page });
+      bookmark.capture({
+        source_id: sourceId,
+        series_key: seriesKey,
+        chapter_key: chapterKey,
+        chapter_number: chapters[chapterIndexOf(chapters, chapterKey)]?.chapterNumber ?? null,
+        media_type: BOOKMARK_MEDIA_MANGA,
+        anchor_index: anchor.index,
+        anchor_fraction: anchor.fraction,
+        anchor_total: anchor.total,
+      });
     },
-    [activeChapterKey, addBookmark, entryChapterKey, seriesKey, sourceId],
+    [activeChapterKey, bookmark, chapters, entryChapterKey, seriesKey, sourceId],
   );
 
   /**
@@ -140,11 +160,14 @@ export function ReadAllReader({
       chapterPosition={chapterPosition}
       onPosition={handlePosition}
       onBookmark={handleBookmark}
+      initialAnchorFraction={initialAnchorFraction}
+      bookmarkSaved={bookmark.justSaved}
+      bookmarkFailed={bookmark.failed}
       onLoadPrevious={strip.loadPrevious}
       loadingPrevious={strip.loadingPrevious}
       nextError={strip.nextError}
       onRetryNext={strip.retryNext}
-      bookmarkPending={addBookmark.isPending}
+      bookmarkPending={bookmark.pending}
       showBookmark
     />
   );

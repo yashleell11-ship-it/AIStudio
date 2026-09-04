@@ -186,27 +186,6 @@ export function useStatistics(days: number = DEFAULT_STATISTICS_RANGE) {
   });
 }
 
-// --- Bookmarks ---
-
-export function useBookmarks(ref?: Partial<SeriesId>) {
-  return useQuery({
-    queryKey: [...DISCOVERY_KEY, "bookmarks", ref?.sourceId, ref?.seriesKey],
-    queryFn: () => libraryApi.listBookmarks(ref),
-  });
-}
-
-export function useDeleteBookmark() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (bookmarkId: number) => libraryApi.deleteBookmark(bookmarkId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({
-        queryKey: [...DISCOVERY_KEY, "bookmarks"],
-      });
-    },
-  });
-}
-
 // --- Collections ---
 
 export function useCollections() {
