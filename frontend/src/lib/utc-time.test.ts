@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
+  formatCalendarDay,
   formatUtcDate,
   formatUtcDateTime,
+  parseCalendarDay,
   parseUtcTimestamp,
   utcMinutesFromNow,
 } from "./utc-time";
@@ -105,5 +107,63 @@ describe("utcMinutesFromNow", () => {
   it("returns null when there is nothing to measure", () => {
     expect(utcMinutesFromNow(null, Date.now())).toBeNull();
     expect(utcMinutesFromNow("nonsense", Date.now())).toBeNull();
+  });
+});
+
+describe("parseCalendarDay", () => {
+  it("reads a statistics day bucket as a LOCAL calendar date, not UTC midnight", () => {
+    // The backend already bucketed at the caller's offset. Routing this through
+    // `parseUtcTimestamp` would give UTC midnight, which renders as the day
+    // before anywhere west of Greenwich.
+    const date = parseCalendarDay("2026-09-04");
+    expect(date).not.toBeNull();
+    expect(date!.getFullYear()).toBe(2026);
+    expect(date!.getMonth()).toBe(8);
+    expect(date!.getDate()).toBe(4);
+    expect(date!.getHours()).toBe(0);
+  });
+
+  it("agrees with the local Date constructor for every day of a year", () => {
+    for (let month = 0; month < 12; month += 1) {
+      const day = new Date(2026, month, 15);
+      const label = `2026-${String(month + 1).padStart(2, "0")}-15`;
+      expect(parseCalendarDay(label)!.getTime()).toBe(day.getTime());
+    }
+  });
+
+  it("rejects an impossible day instead of rolling it into the next month", () => {
+    // `new Date(2026, 1, 31)` is silently March 3rd.
+    expect(parseCalendarDay("2026-02-31")).toBeNull();
+    expect(parseCalendarDay("2026-13-01")).toBeNull();
+  });
+
+  it("rejects anything that is not a bare calendar day", () => {
+    expect(parseCalendarDay(null)).toBeNull();
+    expect(parseCalendarDay("")).toBeNull();
+    expect(parseCalendarDay("2026-09-04T03:00:00")).toBeNull();
+    expect(parseCalendarDay("nonsense")).toBeNull();
+  });
+});
+
+describe("formatCalendarDay", () => {
+  it("formats the day the backend named, with no timezone shift", () => {
+    expect(formatCalendarDay("2026-09-04")).toBe(
+      new Date(2026, 8, 4).toLocaleDateString(),
+    );
+  });
+
+  it("passes Intl options through", () => {
+    expect(formatCalendarDay("2026-09-04", { format: { month: "short", day: "numeric" } })).toBe(
+      new Date(2026, 8, 4).toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+      }),
+    );
+  });
+
+  it("renders the caller's copy for an absent or broken value", () => {
+    expect(formatCalendarDay(null)).toBe("");
+    expect(formatCalendarDay(null, { missing: "Never" })).toBe("Never");
+    expect(formatCalendarDay("2026-02-31", { invalid: "Unknown" })).toBe("Unknown");
   });
 });
