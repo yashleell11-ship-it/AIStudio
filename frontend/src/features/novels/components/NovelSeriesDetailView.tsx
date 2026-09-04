@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
@@ -36,7 +35,8 @@ import { prefetchNovelChapter, useCachedNovelWordCounts } from "../hooks";
 import { novelChapterHref } from "../novel-link";
 import { chapterPercent } from "../progress";
 import { formatChapterLength } from "../reading-time";
-import { formatStatus, shelfBlurb, shelfGenres } from "../shelf";
+import { coverPath, formatStatus, shelfBlurb, shelfGenres } from "../shelf";
+import { BookPlate } from "./BookPlate";
 
 interface NovelSeriesDetailViewProps {
   sourceId: string;
@@ -258,16 +258,15 @@ export function NovelSeriesDetailView({
 
         {/* --- Front matter --- */}
         <div className="mt-6 flex flex-col gap-8 sm:flex-row-reverse sm:items-start sm:gap-10">
-          <div className="relative h-[13rem] w-[9rem] shrink-0 overflow-hidden rounded-sm border border-border bg-surface-2 sm:h-[15.5rem] sm:w-[10.5rem]">
-            <Image
-              src={sourceImageUrl(series.cover_url)}
-              alt={series.title}
-              fill
-              className="object-cover"
-              sizes="168px"
-              unoptimized
-            />
-          </div>
+          <BookPlate
+            coverUrl={
+              coverPath(series.cover_url) ? sourceImageUrl(series.cover_url) : null
+            }
+            title={series.title}
+            alt={series.title}
+            className="h-[13rem] w-[9rem] sm:h-[15.5rem] sm:w-[10.5rem]"
+            sizes="168px"
+          />
 
           <div className="min-w-0 flex-1">
             <h1 className="font-book text-[2rem] font-normal leading-[1.15] text-fg sm:text-[2.5rem]">
@@ -279,12 +278,16 @@ export function NovelSeriesDetailView({
 
             <div className="mt-6 h-px w-14 bg-border" aria-hidden />
 
-            <dl className="mt-5 flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-sm text-muted">
-              {chapterCount ? <Fact>{chapterCount}</Fact> : null}
-              {estimatedWords ? <Fact>{estimatedWords}</Fact> : null}
-              {estimatedTime ? <Fact>{estimatedTime}</Fact> : null}
-              {status ? <Fact>{status}</Fact> : null}
-            </dl>
+            {/* A plain list, not a `<dl>`: these are four facts of the same
+                kind, not term/definition pairs, and a `<dl>` of bare `<dd>`s
+                would be invalid markup a screen reader has to guess at. */}
+            <ul className="mt-5 flex flex-wrap items-baseline gap-x-5 gap-y-1.5 text-sm text-fg/80">
+              {[chapterCount, estimatedWords, estimatedTime, status]
+                .filter((fact): fact is string => Boolean(fact))
+                .map((fact) => (
+                  <li key={fact}>{fact}</li>
+                ))}
+            </ul>
             {lengthEstimate.minutes != null ? (
               <p className="mt-1.5 text-xs text-muted/80">
                 Length estimated from {lengthEstimate.sampleSize}{" "}
@@ -431,10 +434,6 @@ export function NovelSeriesDetailView({
       </div>
     </div>
   );
-}
-
-function Fact({ children }: { children: React.ReactNode }) {
-  return <dd className="text-fg/80">{children}</dd>;
 }
 
 /** One line of the contents: number, title, and how long it is. */

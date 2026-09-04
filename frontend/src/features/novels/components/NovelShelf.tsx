@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
-import { BookOpen, Check, SearchX, TriangleAlert } from "lucide-react";
+import { Check, SearchX, TriangleAlert } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { cn } from "@/lib/cn";
 import { shelfBlurb, shelfGenres, shelfMetaParts, type ShelfBook } from "../shelf";
+import { BookPlate } from "./BookPlate";
 
 /**
  * Multi-select over a shelf, for the library.
@@ -135,7 +135,12 @@ function ShelfRow({
         </span>
       ) : null}
 
-      <BookPlate coverUrl={book.coverUrl} title={book.title} />
+      <BookPlate
+        coverUrl={book.coverUrl}
+        title={book.title}
+        className="h-[4.25rem] w-12"
+        sizes="48px"
+      />
 
       <div className="min-w-0 flex-1">
         <h3 className="font-book text-lg leading-snug text-fg transition-colors group-hover:text-primary">
@@ -185,40 +190,6 @@ function ShelfRow({
         {body}
       </Link>
     </li>
-  );
-}
-
-/**
- * The cover, small.
- *
- * A 1px rule and nothing else — no shadow, no hover lift, no spine. When a
- * source has no cover at all the plate falls back to a plain mark rather than a
- * broken image, which is the common case on a public-domain archive.
- */
-function BookPlate({ coverUrl, title }: { coverUrl: string | null; title: string }) {
-  if (!coverUrl) {
-    return (
-      <div
-        className="flex h-[4.25rem] w-12 shrink-0 items-center justify-center rounded-sm border border-border bg-surface-2"
-        aria-hidden
-      >
-        <BookOpen className="size-4 text-muted" />
-      </div>
-    );
-  }
-
-  return (
-    <div className="relative h-[4.25rem] w-12 shrink-0 overflow-hidden rounded-sm border border-border bg-surface-2">
-      <Image
-        src={coverUrl}
-        alt=""
-        fill
-        className="object-cover"
-        sizes="48px"
-        unoptimized
-      />
-      <span className="sr-only">{title}</span>
-    </div>
   );
 }
 

@@ -17,6 +17,7 @@ import {
   useSourceGenres,
   useSources,
 } from "../hooks";
+import { coverPath } from "@/features/novels/shelf";
 import { sourceImageUrl } from "../api";
 import { BrowseFreshness } from "./BrowseFreshness";
 import { SourceBrowseLoading } from "./SourceBrowseLoading";
@@ -252,7 +253,9 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
               chapterCount: series.chapter_count,
               status: series.status,
               genres: series.genres,
-              coverUrl: sourceImageUrl(series.cover_url),
+              coverUrl: coverPath(series.cover_url)
+                ? sourceImageUrl(series.cover_url)
+                : null,
               note: null,
             }))}
             isLoading={seriesQuery.isLoading}

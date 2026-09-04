@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   MAX_SHELF_GENRES,
+  coverPath,
   formatStatus,
   shelfBlurb,
   shelfGenres,
@@ -97,5 +98,25 @@ describe("shelfBlurb", () => {
     expect(shelfBlurb(null)).toBeNull();
     expect(shelfBlurb(undefined)).toBeNull();
     expect(shelfBlurb("   \n  ")).toBeNull();
+  });
+});
+
+describe("coverPath", () => {
+  it("treats a source's empty cover string as no cover at all", () => {
+    // Resolving "" against the API base yields a URL that loads the backend
+    // root as an image — the broken plate this exists to prevent.
+    expect(coverPath("")).toBeNull();
+    expect(coverPath("   ")).toBeNull();
+    expect(coverPath(null)).toBeNull();
+    expect(coverPath(undefined)).toBeNull();
+  });
+
+  it("passes a real path through untouched", () => {
+    expect(coverPath("/sources/royalroad/series/x/cover")).toBe(
+      "/sources/royalroad/series/x/cover",
+    );
+    expect(coverPath("https://example.test/cover.jpg")).toBe(
+      "https://example.test/cover.jpg",
+    );
   });
 });

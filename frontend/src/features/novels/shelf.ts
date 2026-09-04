@@ -96,3 +96,18 @@ export function shelfBlurb(description: string | null | undefined): string | nul
   const collapsed = description?.replace(/\s+/g, " ").trim();
   return collapsed ? collapsed : null;
 }
+
+/**
+ * The cover path a source actually gave, or null.
+ *
+ * A source with no cover returns an EMPTY STRING, and both cover helpers
+ * (`sourceImageUrl`, `libraryCoverUrl`) happily resolve that against the API
+ * base — producing a URL that loads the backend root as an image. On the manga
+ * side a missing cover is rare enough to have never mattered; on a
+ * public-domain novel archive it is routine, so it is filtered here and the
+ * plate renders its own "no cover" mark instead.
+ */
+export function coverPath(raw: string | null | undefined): string | null {
+  const trimmed = raw?.trim();
+  return trimmed ? trimmed : null;
+}
