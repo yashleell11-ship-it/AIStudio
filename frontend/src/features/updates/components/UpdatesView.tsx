@@ -9,6 +9,7 @@ import { OfflineState } from "@/components/ui/offline-state";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { useFollowedIndex } from "@/features/library/hooks";
+import { useContentModeFilter } from "@/features/content-mode";
 import { formatUtcDateTime } from "@/lib/utc-time";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { ApiError } from "@/types/api";
@@ -91,14 +92,18 @@ export function UpdatesView() {
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
   const { titles } = useFollowedIndex();
+  const { filterRows, ready: modeReady } = useContentModeFilter();
 
   const busy = manualCheck.isPending || markRead.isPending || markAllRead.isPending;
   // Notifications gets its own dedicated empty/error/offline treatment below;
   // keeping it out of this merged banner avoids saying the same failure twice.
   const error = settings.error ?? runs.error;
-  const rows = notifications.data ?? [];
+  // Scoped to the active content mode; a no-op when novels are disabled. The
+  // unread BADGE is a separate server count and stays whole-account — it is
+  // "you have unread updates", not "in this mode".
+  const rows = filterRows(notifications.data, (row) => row.source_id);
   const notificationsViewState = resolveViewState({
-    isLoading: notifications.isLoading,
+    isLoading: notifications.isLoading || !modeReady,
     error: notifications.error,
     isEmpty: rows.length === 0,
   });
