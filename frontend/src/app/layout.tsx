@@ -2,6 +2,10 @@ import type { Metadata, Viewport } from "next";
 import { Syne, DM_Sans } from "next/font/google";
 import { AppShell } from "@/components/layout/app-shell";
 import { ServiceWorkerBoundary } from "@/features/offline";
+// Direct, not via the `@/features/preferences` barrel: that barrel also exports
+// the settings panels, and the root layout has no business pulling every client
+// component in the feature into its module graph to emit one <script>.
+import { ThemeBootScript } from "@/features/preferences/theme-boot";
 import { Providers } from "./providers";
 import "./globals.css";
 
@@ -39,8 +43,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Same near-black as --color-bg, so the OS chrome around an installed window
-  // is the app's colour rather than white.
+  // Eclipse's near-black: the right answer for the default theme and for anyone
+  // who has not chosen one. `useApplyReadingTheme` rewrites the tag to the
+  // active palette's background once the profile has resolved.
   themeColor: "#0A0A0A",
   // The reader runs edge to edge; without this an installed iOS window letterboxes.
   viewportFit: "cover",
@@ -53,7 +58,23 @@ export default function RootLayout({
     <html
       lang="en"
       className={`${syne.variable} ${dmSans.variable} antialiased`}
+      // `ThemeBootScript` stamps `data-theme` on this element before React
+      // exists, so the hydrating tree finds an attribute the server markup did
+      // not contain. That is the whole design, not a bug to be fixed by moving
+      // the theme into the markup — the server cannot know it. This silences
+      // the mismatch warning for this element only.
+      suppressHydrationWarning
     >
+      <head>
+        {/*
+          First thing in the document, before any stylesheet has painted: reads
+          the active profile's stored palette and stamps `data-theme` on <html>.
+          Without it every cold load flashes Eclipse near-black before the
+          chosen theme lands — invisible on the dark palettes, a full white-to-
+          black blink on the paper ones. See `theme-boot-source.ts`.
+        */}
+        <ThemeBootScript />
+      </head>
       <body>
         <Providers>
           {/*

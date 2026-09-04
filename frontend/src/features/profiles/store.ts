@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
+import { ACTIVE_PROFILE_STORAGE_KEY } from "./storage-key";
 import type { ActiveProfile, Profile } from "./types";
 
 /**
@@ -53,7 +54,7 @@ export const useActiveProfileStore = create<ActiveProfileState>()(
       setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     {
-      name: "mm.active-profile",
+      name: ACTIVE_PROFILE_STORAGE_KEY,
       // Persist only the selection; `hasHydrated` is runtime-only.
       partialize: (state) => ({ activeProfile: state.activeProfile }),
       onRehydrateStorage: () => (state) => {

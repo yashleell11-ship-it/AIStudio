@@ -9,6 +9,8 @@ import {
 } from "@/lib/scoped-storage";
 import {
   DEFAULT_READING_THEME,
+  READING_THEME_STORAGE_BASE,
+  READING_THEME_META,
   initialReadingTheme,
   parseReadingTheme,
   type ReadingTheme,
@@ -27,7 +29,7 @@ import {
  * flags, and there is no theme field on it. Inventing one is not this change's
  * job, and a display choice is legitimately per-device anyway.
  */
-const READING_THEME_BASE = "manhwamaniacs:reading-theme";
+const READING_THEME_BASE = READING_THEME_STORAGE_BASE;
 
 /** Same-tab notification; `storage` only fires in the tabs that did not write. */
 const READING_THEME_EVENT = "manhwamaniacs:reading-theme";
@@ -117,13 +119,15 @@ export function useReadingTheme(): ReadingThemeState {
 
 /**
  * Publish the active theme as `<html data-theme="…">` — the single attribute
- * every palette in globals.css keys off.
+ * every palette keys off, in globals.css and themes.generated.css alike.
  *
  * Written from an effect, never rendered into the markup: the stored value is
  * per (user, profile) and the scope only exists once the session and the
  * profile selection have resolved on the client, so there is nothing the server
- * could have serialised. The attribute is therefore absent for the first paint,
- * which globals.css handles with its `:root:not([data-theme])` block.
+ * could have serialised. What covers the gap before hydration is the inline
+ * boot script (`theme-boot.tsx`), which sets the same attribute from the same
+ * key before the first paint; this effect then owns it for the rest of the
+ * session — profile switches, changes made in another tab, and the picker.
  *
  * Mounted once, by the app shell.
  */
@@ -132,6 +136,12 @@ export function useApplyReadingTheme(): ReadingTheme {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
+    // The installed-PWA window paints its title bar and the pull-to-refresh
+    // gutter from this tag, not from the stylesheet. Left alone it would keep
+    // the static Eclipse near-black declared in `layout.tsx`, so a Catppuccin
+    // Latte install would read as a light app in a black frame.
+    const meta = document.querySelector('meta[name="theme-color"]');
+    meta?.setAttribute("content", READING_THEME_META[theme].swatch.bg);
   }, [theme]);
 
   return theme;
