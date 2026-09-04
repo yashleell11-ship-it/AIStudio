@@ -125,6 +125,23 @@ def test_status_survives_the_plural_label_suffix():
     assert series.status == "Completed"
 
 
+STATUS_WITH_BLURB_HTML = """
+<h1 class="title-top">One Piece Green</h1>
+<div class="detail_info clearfix"><img src="//example.test/c.jpg" />
+<ul>
+<li><b>Status(s):</b>Ongoing &nbsp;<a href="/manga/x/c002">One Piece Green 2</a> will coming soon</li>
+</ul></div>
+"""
+
+
+def test_status_stops_at_the_promo_blurb_the_site_appends():
+    """MangaTown packs a marketing line into the same <li> as the status, so
+    flattening the whole element yields 'Ongoing One Piece Green 2 will coming
+    soon' as the status string shown in the UI."""
+    series = parse_series_detail(STATUS_WITH_BLURB_HTML, "one_piece_green")
+    assert series.status == "Ongoing"
+
+
 def test_detail_genres_include_the_demographic_and_are_deduped():
     series = parse_series_detail(_load("series_naruto.html"), "naruto")
     assert series.genres == ("Shounen", "Action", "Adventure", "Comedy", "Drama", "Fantasy")

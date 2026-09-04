@@ -369,7 +369,11 @@ def parse_series_detail(html: str, series_id: str) -> Series | None:
         elif key.startswith("artist"):
             artist = _clean(value) or None
         elif key.startswith("status"):
-            status = _clean(value) or None
+            # The status <li> is not just the status: MangaTown appends a promo
+            # blurb inside it ("Ongoing &nbsp;<a>One Piece Green 2</a> will
+            # coming soon"). Only the leading bare text is the actual status,
+            # so stop at the first nested tag rather than flattening the lot.
+            status = _clean(value.split("<", 1)[0].replace("&nbsp;", " ")) or None
 
     summary_match = _SUMMARY_RE.search(html)
     description = _clean(summary_match.group(1)) if summary_match else None
