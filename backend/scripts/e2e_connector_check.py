@@ -391,33 +391,47 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
     return result
 
 
-def _sync_code_to_container() -> str:
-    """Ship the working tree's connectors/ into the container as an overlay.
+#: Packages shipped by --sync-code. ``services`` is in the list because the
+#: image stage runs through ``BrowseService._fetch_url`` -- a change to the
+#: image proxy's transport is invisible to a connectors-only overlay, so the
+#: probe would report the deployed timings and call them verified.
+SYNC_PACKAGES = ("connectors", "services")
 
-    Verifying a connector fix means running the *new* code against the live
-    site from the production egress IP. Rebuilding the image for each attempt
-    is far too slow, and overwriting /app/connectors would mutate the running
-    service. So the tree goes to a scratch dir that is prepended to sys.path
-    for the probe process only; the served app is untouched.
+
+def _sync_code_to_container() -> str:
+    """Ship the working tree's source packages into the container as an overlay.
+
+    Verifying a fix means running the *new* code against the live site from
+    the production egress IP. Rebuilding the image for each attempt is far too
+    slow, and overwriting /app would mutate the running service. So the tree
+    goes to a scratch dir that is prepended to sys.path for the probe process
+    only; the served app is untouched.
     """
     overlay = "/app/_probe_overlay"
     host_dir = "/tmp/mm_probe_overlay"
-    print(f"==> syncing working-tree connectors/ -> {VPS_CONTAINER}:{overlay}", flush=True)
+    packages = " ".join(SYNC_PACKAGES)
+    print(f"==> syncing working-tree {packages} -> {VPS_CONTAINER}:{overlay}", flush=True)
     subprocess.run(
-        ["ssh", "-o", "BatchMode=yes", VPS_HOST, f"mkdir -p {host_dir}/connectors"],
+        ["ssh", "-o", "BatchMode=yes", VPS_HOST,
+         "mkdir -p " + " ".join(f"{host_dir}/{pkg}" for pkg in SYNC_PACKAGES)],
         check=True,
     )
-    subprocess.run(
-        ["rsync", "-az", "--delete", "-e", "ssh -o BatchMode=yes",
-         "--exclude", "__pycache__", "--exclude", "*.pyc",
-         f"{REPO}/connectors/", f"{VPS_HOST}:{host_dir}/connectors/"],
-        check=True,
+    for pkg in SYNC_PACKAGES:
+        subprocess.run(
+            ["rsync", "-az", "--delete", "-e", "ssh -o BatchMode=yes",
+             "--exclude", "__pycache__", "--exclude", "*.pyc",
+             f"{REPO}/{pkg}/", f"{VPS_HOST}:{host_dir}/{pkg}/"],
+            check=True,
+        )
+    copies = " && ".join(
+        f"docker cp {host_dir}/{pkg} {VPS_CONTAINER}:{overlay}/{pkg}"
+        for pkg in SYNC_PACKAGES
     )
     subprocess.run(
         ["ssh", "-o", "BatchMode=yes", VPS_HOST,
          f"docker exec {VPS_CONTAINER} rm -rf {overlay} && "
          f"docker exec {VPS_CONTAINER} mkdir -p {overlay} && "
-         f"docker cp {host_dir}/connectors {VPS_CONTAINER}:{overlay}/connectors"],
+         + copies],
         check=True,
     )
     return overlay
