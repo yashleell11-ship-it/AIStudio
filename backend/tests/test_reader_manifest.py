@@ -150,6 +150,39 @@ def test_manifest_refetches_when_the_chapter_is_newer_than_the_cache(db_session)
     assert m["next"] is None
 
 
+def test_manifest_recovers_from_a_cached_empty_chapter_list(db_session):
+    """One upstream blip must not make the reader deny the series for 6 hours.
+
+    ``SourceCacheService.get_series_meta`` treats a row holding ``[]`` as a
+    *fresh* hit — the ``chapters is not None`` guard is about browse
+    write-through rows, not emptiness — so a source that answered once with no
+    chapters pins that answer for ``source_cache_ttl_minutes`` (6 hours).
+    Before the manifest read from this cache it went to the connector every
+    time and could not be poisoned this way, so the live retry has to cover the
+    empty list too, not only a list that is merely missing the newest chapter.
+    """
+    browse = FakeBrowse(FIXTURE)
+    browse.series[(SRC, SERIES)]["chapters"] = []
+    svc = ReaderService(browse, db=db_session)
+
+    with pytest.raises(AppError) as excinfo:
+        svc.manifest(SRC, SERIES, "ch-2")
+    assert excinfo.value.code == "series_not_found"  # cache now holds []
+
+    # Upstream recovers well inside the 6-hour TTL.
+    browse.series[(SRC, SERIES)]["chapters"] = [
+        {"id": "ch-1", "number": 1.0, "title": "Prologue"},
+        {"id": "ch-2", "number": 2.0, "title": "Episode 1"},
+        {"id": "ch-3", "number": 3.0, "title": "Episode 2"},
+    ]
+
+    m = svc.manifest(SRC, SERIES, "ch-2")
+
+    assert m["chapter_number"] == 2.0
+    assert m["prev"] == "ch-1"
+    assert m["next"] == "ch-3"
+
+
 def test_manifest_still_404s_for_a_chapter_that_does_not_exist(db_session):
     """The refetch must not turn "no such chapter" into something else."""
     browse = FakeBrowse(FIXTURE)

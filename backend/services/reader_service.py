@@ -124,12 +124,23 @@ class ReaderService:
 
         chapters = self._chapters(source_id, series_key)
         idx = _locate(chapters, chapter_key)
-        if idx < 0 and chapters and self._cache is not None:
-            # The cached list is up to ``source_cache_ttl_minutes`` old, so a
-            # chapter published since it was written is legitimately absent.
-            # That is the one case worth a live fetch: without this retry,
-            # serving the reader from cache would 404 exactly the newest
+        if idx < 0 and self._cache is not None:
+            # The cached list is up to ``source_cache_ttl_minutes`` old (6
+            # hours), so a chapter published since it was written is
+            # legitimately absent. That is worth a live fetch: without this
+            # retry, serving the reader from cache would 404 exactly the newest
             # chapter — the one the owner is most likely to be opening.
+            #
+            # An *empty* cached list gets the same retry, and that is not an
+            # edge case: ``get_series_meta`` treats a row holding ``[]`` as a
+            # fresh hit, so one upstream blip that answered with no chapters
+            # would otherwise make the reader insist the series does not exist
+            # for the rest of the TTL. Before this service read from the cache
+            # it went to the connector every time and was immune to that; the
+            # retry is what keeps the speedup from changing the answer. The
+            # cost is one upstream fetch on a genuine 404, which is rare, and
+            # ``force=True`` still falls back to the stale row if the connector
+            # is down.
             chapters = self._chapters(source_id, series_key, force=True)
             idx = _locate(chapters, chapter_key)
         if not chapters:
