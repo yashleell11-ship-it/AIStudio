@@ -41,6 +41,7 @@ import argparse
 import concurrent.futures as cf
 import json
 import os
+import re
 import shlex
 import subprocess
 import sys
@@ -60,10 +61,38 @@ if _OVERLAY and Path(_OVERLAY).is_dir():
 
 from connectors.registry import create_connector, list_installed_connectors  # noqa: E402
 
-STAGES = ("browse", "detail", "chapters", "pages", "images")
+# Reported stages, in the order a reader hits them. ``search`` is reported and
+# timed but deliberately kept out of READ_STAGES: a source whose search is
+# broken is still readable by browsing, and conflating the two would flip
+# perfectly good sources to PARTIAL.
+STAGES = ("browse", "search", "detail", "chapters", "pages", "images")
+READ_STAGES = ("browse", "detail", "chapters", "pages", "images")
+
+# Latency budgets (seconds) for the summary table. The owner's complaint is
+# "make everything fast", so a stage that PASSes slowly is still a finding.
+SLOW_STAGE_SECS = 3.0
+SLOW_TOTAL_SECS = 8.0
 
 VPS_HOST = os.environ.get("MM_VPS_HOST", "ubuntu@135.148.43.147")
 VPS_CONTAINER = os.environ.get("MM_VPS_CONTAINER", "manhwamaniacs-backend")
+
+
+_WORD_RE = re.compile(r"[A-Za-z][A-Za-z0-9\'-]{3,}")
+
+
+def _search_term(title: str) -> str:
+    """Pick a query that the source itself should be able to find.
+
+    Searching for a word lifted from a title the source just returned tests
+    the search *path* rather than the site's catalog coverage: a generic term
+    legitimately returns 0 hits on a small source and would read as a bug.
+    """
+    for word in _WORD_RE.findall(title or ""):
+        low = word.lower()
+        if low in {"the", "and", "with", "from", "that", "this", "comic", "manga"}:
+            continue
+        return word
+    return "love"
 
 
 def _first_id(items) -> str | None:
@@ -98,34 +127,46 @@ def _sample_indices(n: int, want: int) -> list[int]:
     return sorted({int(round(i * step)) for i in range(want)})
 
 
-def check_images(conn, pages, samples: int) -> tuple[str, int, int, str]:
+def check_images(conn, pages, samples: int) -> tuple[str, int, int, str, float, float]:
     """Fetch real bytes for a few pages the way the image proxy would.
 
-    Returns (status, n_ok, n_tried, error). Also exercises ``find_page``,
-    which the reader route uses to resolve a page id back to a Page — a
-    connector can list pages fine and still serve nothing if that is broken.
+    Returns (status, n_ok, n_tried, error, find_page_secs, fetch_secs). The
+    two timings are split because they fail and drag differently: a slow
+    ``find_page`` means the connector refetches the chapter document on every
+    single image (an N+1 the reader pays once per page), while a slow byte
+    fetch is the CDN.
+
+    Also exercises ``find_page``, which the reader route uses to resolve a
+    page id back to a Page — a connector can list pages fine and still serve
+    nothing if that is broken.
     """
     if not pages:
-        return "-", 0, 0, ""
+        return "-", 0, 0, "", 0.0, 0.0
     try:
         fetch = _image_fetcher()
     except Exception as exc:  # noqa: BLE001
-        return "ERROR", 0, 0, f"image harness: {type(exc).__name__}: {exc}"[:200]
+        return "ERROR", 0, 0, f"image harness: {type(exc).__name__}: {exc}"[:200], 0.0, 0.0
 
     idxs = _sample_indices(len(pages), samples)
     n_ok = 0
     n_tried = 0
     first_error = ""
+    t_find = 0.0
+    t_fetch = 0.0
     for i in idxs:
         page = pages[i]
         n_tried += 1
         try:
             # production resolves id -> Page before fetching; verify that too
+            t_fp = time.monotonic()
             resolved = conn.find_page(page.id)
+            t_find += time.monotonic() - t_fp
             if resolved is None or not getattr(resolved, "remote_url", None):
                 first_error = first_error or f"find_page({page.id})-> none/no url"
                 continue
+            t_img = time.monotonic()
             media_type, data = fetch(resolved.remote_url, conn)
+            t_fetch += time.monotonic() - t_img
         except Exception as exc:  # noqa: BLE001
             detail = f"{type(exc).__name__}: {exc}"
             # AppError carries the upstream status in .details
@@ -143,22 +184,26 @@ def check_images(conn, pages, samples: int) -> tuple[str, int, int, str]:
         n_ok += 1
 
     if n_ok == n_tried and n_tried:
-        return "PASS", n_ok, n_tried, ""
+        return "PASS", n_ok, n_tried, "", t_find, t_fetch
     if n_ok:
-        return "PARTIAL", n_ok, n_tried, first_error
-    return "FAIL", n_ok, n_tried, first_error or "no image bytes"
+        return "PARTIAL", n_ok, n_tried, first_error, t_find, t_fetch
+    return "FAIL", n_ok, n_tried, first_error or "no image bytes", t_find, t_fetch
 
 
-def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) -> dict:
+def check_one(source_type: str, *, images: bool = True, image_samples: int = 3,
+              search: bool = True) -> dict:
     result = {
         "source_id": source_type,
         "browse": "-",
+        "search": "-",
         "detail": "-",
         "chapters": "-",
         "pages": "-",
         "images": "-",
         "series_sample": "",
+        "search_term": "",
         "n_series": 0,
+        "n_search": 0,
         "n_chapters": 0,
         "n_pages": 0,
         "n_images_ok": 0,
@@ -166,6 +211,11 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) 
         "error": "",
         "ok": False,
         "secs": 0.0,
+        # Per-stage wall clock in seconds. This is the half of the audit the
+        # PASS/FAIL grid cannot express: a source that returns the right bytes
+        # in nine seconds is a source the owner experiences as broken.
+        "t": {s: 0.0 for s in STAGES},
+        "t_find_page": 0.0,
     }
     t0 = time.monotonic()
     try:
@@ -176,9 +226,11 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) 
         return result
 
     # browse
+    t_stage = time.monotonic()
     try:
         listing = conn.get_series_list(1)
         items = list(getattr(listing, "items", []) or [])
+        result["t"]["browse"] = round(time.monotonic() - t_stage, 2)
         result["n_series"] = len(items)
         if not items:
             result["browse"] = "FAIL"
@@ -189,10 +241,30 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) 
         first = items[0]
         result["series_sample"] = (getattr(first, "title", "") or "")[:48]
     except Exception as exc:  # noqa: BLE001
+        result["t"]["browse"] = round(time.monotonic() - t_stage, 2)
         result["browse"] = "FAIL"
         result["error"] = f"browse: {type(exc).__name__}: {exc}"[:200]
         result["secs"] = round(time.monotonic() - t0, 1)
         return result
+
+    # search — timed and reported, but never gates ``ok`` (see STAGES).
+    if search:
+        term = _search_term(result["series_sample"])
+        result["search_term"] = term
+        t_stage = time.monotonic()
+        try:
+            found = conn.search_series(term, 1)
+            hits = list(getattr(found, "items", []) or [])
+            result["t"]["search"] = round(time.monotonic() - t_stage, 2)
+            result["n_search"] = len(hits)
+            result["search"] = "PASS" if hits else "FAIL"
+        except NotImplementedError:
+            result["t"]["search"] = round(time.monotonic() - t_stage, 2)
+            result["search"] = "-"
+        except Exception as exc:  # noqa: BLE001
+            result["t"]["search"] = round(time.monotonic() - t_stage, 2)
+            result["search"] = "FAIL"
+            result["search_error"] = f"{type(exc).__name__}: {exc}"[:160]
 
     # Walk detail->chapters->pages for up to a few browsed series: a single
     # title can be a source-data anomaly (e.g. a licensed/delisted series with
@@ -201,7 +273,9 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) 
     candidate_ids = [sid for sid in (_first_id([it]) for it in items[:5]) if sid]
     best = {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
             "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
-            "sample": result["series_sample"], "error": "", "depth": -1}
+            "sample": result["series_sample"], "error": "", "depth": -1,
+            "t_detail": 0.0, "t_chapters": 0.0, "t_pages": 0.0, "t_images": 0.0,
+            "t_find_page": 0.0}
 
     def _depth(d: dict) -> int:
         score = 0
@@ -222,19 +296,26 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) 
     for series_id in candidate_ids:
         attempt = {"detail": "FAIL", "chapters": "FAIL", "pages": "-", "images": "-",
                    "n_chapters": 0, "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
-                   "sample": result["series_sample"], "error": "", "depth": -1}
+                   "sample": result["series_sample"], "error": "", "depth": -1,
+                   "t_detail": 0.0, "t_chapters": 0.0, "t_pages": 0.0, "t_images": 0.0,
+                   "t_find_page": 0.0}
         chapter_id = None
+        t_stage = time.monotonic()
         try:
             series = conn.get_series(series_id)
+            attempt["t_detail"] = round(time.monotonic() - t_stage, 2)
             attempt["detail"] = "PASS" if series is not None else "FAIL"
             if series is None:
                 attempt["error"] = "detail returned None"
             elif getattr(series, "title", None):
                 attempt["sample"] = series.title[:48]
         except Exception as exc:  # noqa: BLE001
+            attempt["t_detail"] = round(time.monotonic() - t_stage, 2)
             attempt["error"] = f"detail: {type(exc).__name__}: {exc}"[:200]
+        t_stage = time.monotonic()
         try:
             chapters = list(conn.get_chapters(series_id) or [])
+            attempt["t_chapters"] = round(time.monotonic() - t_stage, 2)
             attempt["n_chapters"] = len(chapters)
             attempt["chapters"] = "PASS" if chapters else "FAIL"
             if not chapters and not attempt["error"]:
@@ -242,20 +323,29 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) 
             if chapters:
                 chapter_id = getattr(chapters[0], "id", None)
         except Exception as exc:  # noqa: BLE001
+            attempt["t_chapters"] = round(time.monotonic() - t_stage, 2)
             attempt["error"] = attempt["error"] or f"chapters: {type(exc).__name__}: {exc}"[:200]
         if chapter_id is not None:
             page_list: list = []
+            t_stage = time.monotonic()
             try:
                 page_list = list(conn.get_chapter_pages(chapter_id) or [])
+                attempt["t_pages"] = round(time.monotonic() - t_stage, 2)
                 attempt["n_pages"] = len(page_list)
                 has_url = bool(page_list) and bool(getattr(page_list[0], "remote_url", None))
                 attempt["pages"] = "PASS" if has_url else "FAIL"
                 if not has_url and not attempt["error"]:
                     attempt["error"] = "0 pages / no image url"
             except Exception as exc:  # noqa: BLE001
+                attempt["t_pages"] = round(time.monotonic() - t_stage, 2)
                 attempt["error"] = attempt["error"] or f"pages: {type(exc).__name__}: {exc}"[:200]
             if images and attempt["pages"] == "PASS":
-                status, n_ok, n_tried, img_err = check_images(conn, page_list, image_samples)
+                t_stage = time.monotonic()
+                status, n_ok, n_tried, img_err, t_find, t_bytes = check_images(
+                    conn, page_list, image_samples
+                )
+                attempt["t_images"] = round(time.monotonic() - t_stage, 2)
+                attempt["t_find_page"] = round(t_find, 2)
                 attempt["images"] = status
                 attempt["n_images_ok"] = n_ok
                 attempt["n_images_tried"] = n_tried
@@ -277,7 +367,10 @@ def check_one(source_type: str, *, images: bool = True, image_samples: int = 3) 
     result["n_images_tried"] = best["n_images_tried"]
     result["series_sample"] = best["sample"]
     result["error"] = best["error"]
-    required = STAGES if images else STAGES[:-1]
+    for stage in ("detail", "chapters", "pages", "images"):
+        result["t"][stage] = best[f"t_{stage}"]
+    result["t_find_page"] = best["t_find_page"]
+    required = READ_STAGES if images else READ_STAGES[:-1]
     result["ok"] = all(result[s] == "PASS" for s in required)
     result["secs"] = round(time.monotonic() - t0, 1)
     return result
@@ -386,6 +479,7 @@ def _write_probe_results(results: list[dict], path: Path, mature_ids: set[str]) 
     """
     out: list[dict] = []
     for r in results:
+        timings = r.get("t") or {}
         if r["ok"]:
             status = "LIVE"
         elif r["browse"] == "PASS":
@@ -403,6 +497,16 @@ def _write_probe_results(results: list[dict], path: Path, mature_ids: set[str]) 
             "detail": r.get("error", "") or "",
             "sample_title": r.get("series_sample", "") or "",
             "stages": {s: r.get(s, "-") for s in STAGES},
+            # Seconds per stage, measured on the VPS against the live site.
+            # ``images`` covers find_page + the byte fetch for 3 sampled pages;
+            # ``find_page`` is broken out because a big number there is an N+1
+            # in the connector, not the CDN.
+            "timings_secs": {
+                **{s: round(float(timings.get(s, 0.0)), 2) for s in STAGES},
+                "find_page": round(float(r.get("t_find_page", 0.0)), 2),
+                "total": round(float(r.get("secs", 0.0)), 2),
+            },
+            "search_hits": r.get("n_search", 0),
             "n_chapters": r.get("n_chapters", 0),
             "n_pages": r.get("n_pages", 0),
             "n_images_ok": r.get("n_images_ok", 0),
@@ -440,6 +544,8 @@ def main() -> None:
     ap.add_argument("--out", default=str(REPO / "docs" / "connector_e2e_results.json"))
     ap.add_argument("--probe-out", default="",
                     help="also write docs/connector_probe_results.json-shaped JSON here")
+    ap.add_argument("--no-search", dest="search", action="store_false",
+                    help="skip the search stage")
     ap.add_argument("--no-images", dest="images", action="store_false",
                     help="skip the image-bytes stage (browse/detail/chapters/pages only)")
     ap.add_argument("--image-samples", type=int, default=3,
@@ -489,18 +595,22 @@ def main() -> None:
 
     def _stub(sid: str, stage_status: str, error: str, secs: float) -> dict:
         return {
-            "source_id": sid, "browse": stage_status, "detail": "-",
+            "source_id": sid, "browse": stage_status, "search": "-", "detail": "-",
             "chapters": "-", "pages": "-", "images": "-", "series_sample": "",
-            "n_series": 0, "n_chapters": 0, "n_pages": 0,
-            "n_images_ok": 0, "n_images_tried": 0,
+            "search_term": "", "n_series": 0, "n_search": 0, "n_chapters": 0,
+            "n_pages": 0, "n_images_ok": 0, "n_images_tried": 0,
             "error": error, "ok": False, "secs": secs,
+            # A timeout is a latency measurement too: attribute the whole
+            # budget to browse so the slow-source ranking still sees it.
+            "t": {st: (secs if st == "browse" else 0.0) for st in STAGES},
+            "t_find_page": 0.0,
         }
 
     results: list[dict] = []
     with cf.ThreadPoolExecutor(max_workers=args.workers) as ex:
         futs = {
             ex.submit(check_one, sid, images=args.images,
-                      image_samples=args.image_samples): sid
+                      image_samples=args.image_samples, search=args.search): sid
             for sid in ids
         }
         for fut in cf.as_completed(futs):
@@ -522,27 +632,43 @@ def main() -> None:
                 "ERROR": "💥", "-": "·"}.get(v, v)
 
     print()
-    print(f"{'source':22} {'br':>2} {'de':>2} {'ch':>2} {'pg':>2} {'im':>2}  "
-          f"{'ser/ch/pg/img':>14}  sample / error")
-    print("-" * 110)
+    print(f"{'source':22} {'br':>2} {'se':>2} {'de':>2} {'ch':>2} {'pg':>2} {'im':>2}  "
+          f"{'browse':>6} {'srch':>5} {'detl':>5} {'chap':>5} {'page':>5} {'img':>5} "
+          f"{'TOTAL':>6}  sample / error")
+    print("-" * 150)
     for r in results:
-        counts = (f"{r['n_series']}/{r['n_chapters']}/{r['n_pages']}/"
-                  f"{r['n_images_ok']}of{r['n_images_tried']}")
+        t = r.get("t") or {}
         tail = r["series_sample"] if r["ok"] else (r["error"] or r["series_sample"])
         print(f"{r['source_id']:22} "
-              f"{mark(r['browse']):>2} {mark(r['detail']):>2} {mark(r['chapters']):>2} "
+              f"{mark(r['browse']):>2} {mark(r.get('search', '-')):>2} "
+              f"{mark(r['detail']):>2} {mark(r['chapters']):>2} "
               f"{mark(r['pages']):>2} {mark(r['images']):>2}  "
-              f"{counts:>14}  {tail[:52]}")
+              f"{t.get('browse', 0):>6.2f} {t.get('search', 0):>5.2f} "
+              f"{t.get('detail', 0):>5.2f} {t.get('chapters', 0):>5.2f} "
+              f"{t.get('pages', 0):>5.2f} {t.get('images', 0):>5.2f} "
+              f"{r['secs']:>6.1f}  {tail[:40]}")
 
-    print("-" * 110)
+    print("-" * 150)
     label = "browse+detail+chapters+pages" + ("+images" if args.images else "")
     print(f"FULLY WORKING ({label}): {len(fully_ok)}/{len(results)}")
     print("  " + ", ".join(r["source_id"] for r in fully_ok))
     if partial:
         print(f"\nPARTIAL (browses, but read path broken): {len(partial)}")
         for r in partial:
-            failed = next((s for s in STAGES if r[s] not in ("PASS", "-")), "?")
+            failed = next((s for s in READ_STAGES if r[s] not in ("PASS", "-")), "?")
             print(f"  {r['source_id']:22} fails at {failed:9} {r['error'][:60]}")
+
+    # Speed is half the audit: rank the working sources the owner waits on.
+    slow = sorted((r for r in results if r["ok"]), key=lambda r: -r["secs"])
+    slow = [r for r in slow if r["secs"] >= SLOW_TOTAL_SECS]
+    if slow:
+        print(f"\nSLOW but working (>= {SLOW_TOTAL_SECS:.0f}s end to end): {len(slow)}")
+        for r in slow:
+            t = r.get("t") or {}
+            worst = max(STAGES, key=lambda s: t.get(s, 0.0))
+            print(f"  {r['source_id']:22} {r['secs']:>6.1f}s   worst stage: "
+                  f"{worst} {t.get(worst, 0.0):.2f}s   "
+                  f"find_page {r.get('t_find_page', 0.0):.2f}s")
 
     Path(args.out).parent.mkdir(parents=True, exist_ok=True)
     Path(args.out).write_text(json.dumps({
