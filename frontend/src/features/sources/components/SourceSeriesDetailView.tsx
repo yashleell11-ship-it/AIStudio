@@ -18,6 +18,11 @@ import {
   useUnfollow,
 } from "@/features/library/hooks";
 import { useSeriesProgress } from "@/features/reader/hooks";
+// Imported directly rather than through the `@/features/novels` barrel: the
+// barrel also pulls in the novel reader, and a manga series page has no reason
+// to carry it.
+import { useIsNovelSource } from "@/features/novels/hooks";
+import { NovelSeriesDetailView } from "@/features/novels/components/NovelSeriesDetailView";
 import { ApiError } from "@/types/api";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
@@ -45,7 +50,28 @@ interface SourceSeriesDetailViewProps {
   seriesId: string;
 }
 
-export function SourceSeriesDetailView({
+/**
+ * One series page, in whichever medium its source serves.
+ *
+ * The route is shared on purpose: every link into a series — search, updates,
+ * the library, a bookmark — points here, and none of them should have to know
+ * that two kinds of series page exist. The branch happens once, here.
+ *
+ * `undefined` means the sources listing has not answered yet, so neither page
+ * can be chosen. That renders the skeleton, which is what this screen renders
+ * for its own loading state a frame later anyway.
+ */
+export function SourceSeriesDetailView(props: SourceSeriesDetailViewProps) {
+  const isNovel = useIsNovelSource(props.sourceId);
+  if (isNovel === undefined) return <SourceSeriesDetailSkeleton />;
+  return isNovel ? (
+    <NovelSeriesDetailView {...props} />
+  ) : (
+    <MangaSeriesDetailView {...props} />
+  );
+}
+
+function MangaSeriesDetailView({
   sourceId,
   seriesId,
 }: SourceSeriesDetailViewProps) {

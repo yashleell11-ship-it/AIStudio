@@ -240,3 +240,34 @@ export function resolvePalette(choice: NovelPaletteChoice): NovelPalette | null 
 export function palettesByScheme(scheme: PaletteScheme): NovelPalette[] {
   return NOVEL_PALETTES.filter((palette) => palette.scheme === scheme);
 }
+
+/**
+ * The four colours a novel surface is painted with.
+ *
+ * Values are CSS colours, not necessarily hexes: "Follow site theme" resolves
+ * to the app's own `--color-*` tokens, so one rendering path covers both a
+ * chosen palette and the inherit case — the reader never needs a second branch
+ * that swaps inline styles for utility classes.
+ */
+export interface NovelSurface {
+  bg: string;
+  ink: string;
+  muted: string;
+  /** Hairlines, dividers and the quiet furniture: muted ink, well under it. */
+  rule: string;
+}
+
+/** How much of the muted ink a hairline carries. */
+const RULE_ALPHA = "28%";
+
+export function paletteSurface(palette: NovelPalette | null): NovelSurface {
+  const [bg, ink, muted] = palette
+    ? [palette.bg, palette.ink, palette.muted]
+    : ["var(--color-bg)", "var(--color-fg)", "var(--color-muted)"];
+  return {
+    bg,
+    ink,
+    muted,
+    rule: `color-mix(in srgb, ${muted} ${RULE_ALPHA}, transparent)`,
+  };
+}

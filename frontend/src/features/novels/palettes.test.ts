@@ -7,6 +7,7 @@ import {
   isNovelPaletteId,
   NOVEL_PALETTES,
   novelPalette,
+  paletteSurface,
   palettesByScheme,
   resolvePalette,
   resolvePaletteChoice,
@@ -117,6 +118,35 @@ describe("palette guards", () => {
   it("resolves a concrete surface for every non-site choice", () => {
     for (const palette of NOVEL_PALETTES) {
       expect(resolvePalette(palette.id)).toEqual(palette);
+    }
+  });
+});
+
+describe("paletteSurface", () => {
+  it("resolves a chosen palette to its own colours", () => {
+    const surface = paletteSurface(novelPalette("paper"));
+    expect(surface.bg).toBe("#F5F1E8");
+    expect(surface.ink).toBe("#2A2622");
+    expect(surface.muted).toBe("#8A7F6D");
+    expect(surface.rule).toContain("#8A7F6D");
+  });
+
+  it("resolves 'Follow site theme' to the app's own tokens, not to a palette", () => {
+    const surface = paletteSurface(null);
+    expect(surface.bg).toBe("var(--color-bg)");
+    expect(surface.ink).toBe("var(--color-fg)");
+    expect(surface.muted).toBe("var(--color-muted)");
+    // One rendering path: the inherit case is still an inline colour, so the
+    // reader never swaps between inline styles and utility classes.
+    expect(surface.rule).toContain("var(--color-muted)");
+  });
+
+  it("paints every palette, so none can render a missing colour", () => {
+    for (const palette of NOVEL_PALETTES) {
+      const surface = paletteSurface(palette);
+      for (const value of Object.values(surface)) {
+        expect(value, palette.id).toBeTruthy();
+      }
     }
   });
 });
