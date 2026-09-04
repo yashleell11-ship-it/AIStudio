@@ -41,7 +41,9 @@ from connectors.mangadex.connector import MangaDexConnector
 from connectors.mangahub.connector import MangaHubConnector
 from connectors.mangapill.connector import MangaPillConnector
 from connectors.mangatown.connector import MangaTownConnector
+from connectors.manhwa18.connector import Manhwa18Connector
 from connectors.novelcool.connector import NovelCoolConnector
+from connectors.omegascans.connector import OmegaScansConnector
 from connectors.rawinu.connector import RawInuConnector
 from connectors.rawkuma.connector import RawkumaConnector
 from connectors.archiveorg.connector import ArchiveOrgConnector
@@ -84,7 +86,9 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     MangaHubConnector.SOURCE_TYPE,
     MangaFreakConnector.SOURCE_TYPE,
     MangaTownConnector.SOURCE_TYPE,
+    Manhwa18Connector.SOURCE_TYPE,
     NovelCoolConnector.SOURCE_TYPE,
+    OmegaScansConnector.SOURCE_TYPE,
     RawInuConnector.SOURCE_TYPE,
     RawkumaConnector.SOURCE_TYPE,
     FanFoxConnector.SOURCE_TYPE,
@@ -215,6 +219,8 @@ def _register_builtin_connectors() -> None:
         (NovelCoolConnector.SOURCE_TYPE, NovelCoolConnector),
         (RawkumaConnector.SOURCE_TYPE, RawkumaConnector),
         (RawInuConnector.SOURCE_TYPE, RawInuConnector),
+        (Manhwa18Connector.SOURCE_TYPE, Manhwa18Connector),
+        (OmegaScansConnector.SOURCE_TYPE, OmegaScansConnector),
         (FanFoxConnector.SOURCE_TYPE, FanFoxConnector),
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
