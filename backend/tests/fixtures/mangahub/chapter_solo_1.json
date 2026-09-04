@@ -1,0 +1,21 @@
+{
+ "data": {
+  "chapter": {
+   "id": 404346,
+   "mangaID": 22772,
+   "number": 1,
+   "title": "",
+   "slug": "",
+   "date": "2018-11-05T07:43:26.000Z",
+   "pages": "{\"p\":\"solo-leveling/1/\",\"i\":[\"1.jpg\",\"2.jpg\",\"3.jpg\",\"4.jpg\",\"5.jpg\",\"6.jpg\",\"7.jpg\",\"8.jpg\",\"9.jpg\",\"10.jpg\",\"11.jpg\",\"12.jpg\",\"13.jpg\",\"14.jpg\",\"15.jpg\",\"16.jpg\",\"17.jpg\",\"18.jpg\",\"19.jpg\",\"20.jpg\",\"21.jpg\",\"22.jpg\"]}",
+   "s": "m4l",
+   "manga": {
+    "id": 22772,
+    "title": "Solo Leveling",
+    "slug": "solo-leveling_105",
+    "mainSlug": "solo-leveling",
+    "isWebtoon": true
+   }
+  }
+ }
+}

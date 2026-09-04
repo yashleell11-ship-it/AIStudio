@@ -1,0 +1,930 @@
+{
+ "data": {
+  "genres": [
+   {
+    "id": 1,
+    "slug": "action",
+    "title": "Action",
+    "count": 3998,
+    "group": "Genre"
+   },
+   {
+    "id": 2,
+    "slug": "adventure",
+    "title": "Adventure",
+    "count": 2030,
+    "group": "Genre"
+   },
+   {
+    "id": 3,
+    "slug": "comedy",
+    "title": "Comedy",
+    "count": 7548,
+    "group": "Genre"
+   },
+   {
+    "id": 4,
+    "slug": "adult",
+    "title": "Adult",
+    "count": 1124,
+    "group": "Genre"
+   },
+   {
+    "id": 5,
+    "slug": "drama",
+    "title": "Drama",
+    "count": 6057,
+    "group": "Genre"
+   },
+   {
+    "id": 6,
+    "slug": "historical",
+    "title": "Historical",
+    "count": 1119,
+    "group": "Genre"
+   },
+   {
+    "id": 7,
+    "slug": "martial-arts",
+    "title": "Martial Arts",
+    "count": 512,
+    "group": "Theme"
+   },
+   {
+    "id": 8,
+    "slug": "romance",
+    "title": "Romance",
+    "count": 8695,
+    "group": "Genre"
+   },
+   {
+    "id": 9,
+    "slug": "ecchi",
+    "title": "Ecchi",
+    "count": 1568,
+    "group": "Genre"
+   },
+   {
+    "id": 10,
+    "slug": "supernatural",
+    "title": "Supernatural",
+    "count": 3439,
+    "group": "Theme"
+   },
+   {
+    "id": 11,
+    "slug": "webtoons",
+    "title": "Webtoons",
+    "count": 730,
+    "group": "Format"
+   },
+   {
+    "id": 12,
+    "slug": "manhwa",
+    "title": "Manhwa",
+    "count": 177,
+    "group": "Origin"
+   },
+   {
+    "id": 13,
+    "slug": "fantasy",
+    "title": "Fantasy",
+    "count": 3206,
+    "group": "Genre"
+   },
+   {
+    "id": 14,
+    "slug": "harem",
+    "title": "Harem",
+    "count": 701,
+    "group": "Theme"
+   },
+   {
+    "id": 15,
+    "slug": "shounen",
+    "title": "Shounen",
+    "count": 3648,
+    "group": "Demographic"
+   },
+   {
+    "id": 16,
+    "slug": "manhua",
+    "title": "Manhua",
+    "count": 105,
+    "group": "Origin"
+   },
+   {
+    "id": 17,
+    "slug": "mature",
+    "title": "Mature",
+    "count": 1292,
+    "group": "Genre"
+   },
+   {
+    "id": 18,
+    "slug": "seinen",
+    "title": "Seinen",
+    "count": 3204,
+    "group": "Demographic"
+   },
+   {
+    "id": 19,
+    "slug": "sports",
+    "title": "Sports",
+    "count": 625,
+    "group": "Genre"
+   },
+   {
+    "id": 20,
+    "slug": "school-life",
+    "title": "School Life",
+    "count": 5207,
+    "group": "Theme"
+   },
+   {
+    "id": 21,
+    "slug": "smut",
+    "title": "Smut",
+    "count": 881,
+    "group": "Genre"
+   },
+   {
+    "id": 22,
+    "slug": "mystery",
+    "title": "Mystery",
+    "count": 1338,
+    "group": "Genre"
+   },
+   {
+    "id": 23,
+    "slug": "psychological",
+    "title": "Psychological",
+    "count": 1215,
+    "group": "Genre"
+   },
+   {
+    "id": 24,
+    "slug": "shounen-ai",
+    "title": "Shounen ai",
+    "count": 931,
+    "group": "Genre"
+   },
+   {
+    "id": 25,
+    "slug": "slice-of-life",
+    "title": "Slice of life",
+    "count": 2996,
+    "group": "Genre"
+   },
+   {
+    "id": 26,
+    "slug": "shoujo-ai",
+    "title": "Shoujo ai",
+    "count": 624,
+    "group": "Genre"
+   },
+   {
+    "id": 27,
+    "slug": "cooking",
+    "title": "Cooking",
+    "count": 315,
+    "group": "Theme"
+   },
+   {
+    "id": 28,
+    "slug": "horror",
+    "title": "Horror",
+    "count": 932,
+    "group": "Genre"
+   },
+   {
+    "id": 29,
+    "slug": "tragedy",
+    "title": "Tragedy",
+    "count": 1092,
+    "group": "Genre"
+   },
+   {
+    "id": 30,
+    "slug": "doujinshi",
+    "title": "Doujinshi",
+    "count": 361,
+    "group": "Format"
+   },
+   {
+    "id": 31,
+    "slug": "sci-fi",
+    "title": "Sci-Fi",
+    "count": 1419,
+    "group": "Genre"
+   },
+   {
+    "id": 32,
+    "slug": "yuri",
+    "title": "Yuri",
+    "count": 458,
+    "group": "Demographic"
+   },
+   {
+    "id": 33,
+    "slug": "yaoi",
+    "title": "Yaoi",
+    "count": 2977,
+    "group": "Demographic"
+   },
+   {
+    "id": 34,
+    "slug": "shoujo",
+    "title": "Shoujo",
+    "count": 4894,
+    "group": "Demographic"
+   },
+   {
+    "id": 35,
+    "slug": "gender-bender",
+    "title": "Gender bender",
+    "count": 681,
+    "group": "Theme"
+   },
+   {
+    "id": 36,
+    "slug": "josei",
+    "title": "Josei",
+    "count": 965,
+    "group": "Demographic"
+   },
+   {
+    "id": 37,
+    "slug": "mecha",
+    "title": "Mecha",
+    "count": 298,
+    "group": "Genre"
+   },
+   {
+    "id": 38,
+    "slug": "medical",
+    "title": "Medical",
+    "count": 8,
+    "group": "Genre"
+   },
+   {
+    "id": 40,
+    "slug": "magic",
+    "title": "Magic",
+    "count": 2,
+    "group": "Theme"
+   },
+   {
+    "id": 44,
+    "slug": "4-koma",
+    "title": "4-Koma",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 45,
+    "slug": "music",
+    "title": "Music",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 46,
+    "slug": "webtoon",
+    "title": "Webtoon",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 47,
+    "slug": "isekai",
+    "title": "Isekai",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 49,
+    "slug": "game",
+    "title": "Game",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 50,
+    "slug": "award-winning",
+    "title": "Award Winning",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 51,
+    "slug": "oneshot",
+    "title": "Oneshot",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 52,
+    "slug": "demons",
+    "title": "Demons",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 55,
+    "slug": "military",
+    "title": "Military",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 56,
+    "slug": "police",
+    "title": "Police",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 57,
+    "slug": "super-power",
+    "title": "Super Power",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 58,
+    "slug": "food",
+    "title": "Food",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 59,
+    "slug": "kids",
+    "title": "Kids",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 60,
+    "slug": "magical-girls",
+    "title": "Magical Girls",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 63,
+    "slug": "wuxia",
+    "title": "Wuxia",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 64,
+    "slug": "superhero",
+    "title": "Superhero",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 65,
+    "slug": "thriller",
+    "title": "Thriller",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 66,
+    "slug": "crime",
+    "title": "Crime",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 67,
+    "slug": "philosophical",
+    "title": "Philosophical",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 69,
+    "slug": "adaptation",
+    "title": "Adaptation",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 70,
+    "slug": "full-color",
+    "title": "Full Color",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 72,
+    "slug": "crossdressing",
+    "title": "Crossdressing",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 73,
+    "slug": "reincarnation",
+    "title": "Reincarnation",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 75,
+    "slug": "manga",
+    "title": "Manga",
+    "count": 0,
+    "group": "Origin"
+   },
+   {
+    "id": 76,
+    "slug": "cartoon",
+    "title": "Cartoon",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 77,
+    "slug": "survival",
+    "title": "Survival",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 79,
+    "slug": "comic",
+    "title": "Comic",
+    "count": 0,
+    "group": "Origin"
+   },
+   {
+    "id": 80,
+    "slug": "english",
+    "title": "English",
+    "count": 0,
+    "group": "Origin"
+   },
+   {
+    "id": 81,
+    "slug": "harlequin",
+    "title": "Harlequin",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 82,
+    "slug": "time-travel",
+    "title": "Time Travel",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 83,
+    "slug": "traditional-games",
+    "title": "Traditional Games",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 84,
+    "slug": "reverse-harem",
+    "title": "Reverse Harem",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 85,
+    "slug": "animals",
+    "title": "Animals",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 87,
+    "slug": "aliens",
+    "title": "Aliens",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 89,
+    "slug": "loli",
+    "title": "Loli",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 90,
+    "slug": "video-games",
+    "title": "Video Games",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 91,
+    "slug": "monsters",
+    "title": "Monsters",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 92,
+    "slug": "office-workers",
+    "title": "Office Workers",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 94,
+    "slug": "system",
+    "title": "System",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 95,
+    "slug": "villainess",
+    "title": "Villainess",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 97,
+    "slug": "zombies",
+    "title": "Zombies",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 98,
+    "slug": "vampires",
+    "title": "Vampires",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 100,
+    "slug": "violence",
+    "title": "Violence",
+    "count": 0,
+    "group": "Content"
+   },
+   {
+    "id": 101,
+    "slug": "monster-girls",
+    "title": "Monster Girls",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 102,
+    "slug": "anthology",
+    "title": "Anthology",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 103,
+    "slug": "ghosts",
+    "title": "Ghosts",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 104,
+    "slug": "delinquents",
+    "title": "Delinquents",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 106,
+    "slug": "post-apocalyptic",
+    "title": "Post-Apocalyptic",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 107,
+    "slug": "xianxia",
+    "title": "Xianxia",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 110,
+    "slug": "xuanhuan",
+    "title": "Xuanhuan",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 111,
+    "slug": "r-18",
+    "title": "R-18",
+    "count": 0,
+    "group": "Content Rating"
+   },
+   {
+    "id": 112,
+    "slug": "cultivation",
+    "title": "Cultivation",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 113,
+    "slug": "rebirth",
+    "title": "Rebirth",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 115,
+    "slug": "gore",
+    "title": "Gore",
+    "count": 0,
+    "group": "Content"
+   },
+   {
+    "id": 119,
+    "slug": "russian",
+    "title": "Russian",
+    "count": 0,
+    "group": "Origin"
+   },
+   {
+    "id": 131,
+    "slug": "samurai",
+    "title": "Samurai",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 132,
+    "slug": "ninja",
+    "title": "Ninja",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 136,
+    "slug": "revenge",
+    "title": "Revenge",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 139,
+    "slug": "cheat-systems",
+    "title": "Cheat Systems",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 145,
+    "slug": "dungeons",
+    "title": "Dungeons",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 149,
+    "slug": "overpowered",
+    "title": "Overpowered",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 153,
+    "slug": "royal-family",
+    "title": "Royal family",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 156,
+    "slug": "long-strip",
+    "title": "Long Strip",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 163,
+    "slug": "shota",
+    "title": "Shota",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 165,
+    "slug": "web-comic",
+    "title": "Web Comic",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 166,
+    "slug": "virtual-reality",
+    "title": "Virtual Reality",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 168,
+    "slug": "genderswap",
+    "title": "Genderswap",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 173,
+    "slug": "suggestive",
+    "title": "Suggestive",
+    "count": 0,
+    "group": "Content Rating"
+   },
+   {
+    "id": 175,
+    "slug": "mafia",
+    "title": "Mafia",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 180,
+    "slug": "murim",
+    "title": "Murim",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 181,
+    "slug": "returner",
+    "title": "Returner",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 190,
+    "slug": "official-colored",
+    "title": "Official colored",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 192,
+    "slug": "sexual-violence",
+    "title": "Sexual Violence",
+    "count": 0,
+    "group": "Content"
+   },
+   {
+    "id": 209,
+    "slug": "gyaru",
+    "title": "Gyaru",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 231,
+    "slug": "erotica",
+    "title": "Erotica",
+    "count": 0,
+    "group": "Content Rating"
+   },
+   {
+    "id": 232,
+    "slug": "pornographic",
+    "title": "Pornographic",
+    "count": 0,
+    "group": "Content Rating"
+   },
+   {
+    "id": 260,
+    "slug": "blood",
+    "title": "Blood",
+    "count": 0,
+    "group": "Content"
+   },
+   {
+    "id": 261,
+    "slug": "fighting",
+    "title": "Fighting",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 266,
+    "slug": "girls-love",
+    "title": "Girls' love",
+    "count": 0,
+    "group": "Genre"
+   },
+   {
+    "id": 268,
+    "slug": "regression",
+    "title": "Regression",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 286,
+    "slug": "tower-climbing",
+    "title": "Tower Climbing",
+    "count": 0,
+    "group": "Theme"
+   },
+   {
+    "id": 358,
+    "slug": "fan-colored",
+    "title": "Fan Colored",
+    "count": 0,
+    "group": "Format"
+   },
+   {
+    "id": 359,
+    "slug": "self-published",
+    "title": "Self-Published",
+    "count": 0,
+    "group": "Origin"
+   },
+   {
+    "id": 364,
+    "slug": "safe",
+    "title": "Safe",
+    "count": 0,
+    "group": "Content Rating"
+   },
+   {
+    "id": 385,
+    "slug": "boys-love",
+    "title": "Boys' Love",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 386,
+    "slug": "incest",
+    "title": "Incest",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 388,
+    "slug": "weak-to-strong",
+    "title": "Weak-to-Strong",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 395,
+    "slug": "ruthless-protagonist",
+    "title": "Ruthless Protagonist",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 396,
+    "slug": "smart-mc",
+    "title": "Smart MC",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 479,
+    "slug": "hunters",
+    "title": "Hunters",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 488,
+    "slug": "mahjong",
+    "title": "Mahjong",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 495,
+    "slug": "hentai",
+    "title": "Hentai",
+    "count": 0,
+    "group": null
+   },
+   {
+    "id": 496,
+    "slug": "maga",
+    "title": "Maga",
+    "count": 0,
+    "group": null
+   }
+  ]
+ }
+}

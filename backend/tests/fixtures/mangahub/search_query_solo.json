@@ -1,0 +1,135 @@
+{
+ "data": {
+  "search": {
+   "count": 9,
+   "rows": [
+    {
+     "id": 22772,
+     "rank": 3,
+     "title": "Solo Leveling",
+     "slug": "solo-leveling_105",
+     "status": "completed",
+     "image": "mh/solo-leveling.jpg",
+     "latestChapter": 200.5,
+     "genres": "Action, Adventure, Drama, Fantasy, Monsters, Magic, Supernatural, Award Winning, Long Strip, Web Comic, Adaptation, Full Color, Safe, Shounen",
+     "author": "h-goon (현군); Chugong (추공); Gi So-Ryeong (기소령)",
+     "isSafe": true,
+     "updatedDate": "2024-07-13T06:00:55.000Z",
+     "createdDate": "2018-11-05T07:43:24.000Z"
+    },
+    {
+     "id": 60085,
+     "rank": 548,
+     "title": "Solo Leveling: Ragnarok",
+     "slug": "solo-leveling-ragnarok",
+     "status": "ongoing",
+     "image": "mrc/solo-leveling-ragnarok.webp",
+     "latestChapter": 68,
+     "genres": "Action, Adventure, Fantasy, Long Strip, Full Color, Safe, Manhwa, Webtoons, Dungeons",
+     "author": "DAUL (다울)",
+     "isSafe": true,
+     "updatedDate": "2026-01-07T14:21:44.000Z",
+     "createdDate": "2024-07-19T13:18:43.000Z"
+    },
+    {
+     "id": 22772,
+     "rank": 2351,
+     "title": "Solo Leveling Volume Version",
+     "slug": "solo-leveling-volume-version",
+     "status": "completed",
+     "image": "m4l/solo-leveling-volume-version.jpg",
+     "latestChapter": 200.5,
+     "genres": "Action, Adventure, Drama, Fantasy, Monsters, Magic, Supernatural, Award Winning, Long Strip, Web Comic, Adaptation, Full Color, Safe, Shounen",
+     "author": "h-goon (현군); Chugong (추공); Gi So-Ryeong (기소령)",
+     "isSafe": true,
+     "updatedDate": "2024-07-13T06:00:55.000Z",
+     "createdDate": "2018-11-05T07:43:24.000Z"
+    },
+    {
+     "id": 48110,
+     "rank": 5167,
+     "title": "Solo Leveling: Side Story",
+     "slug": "solo-leveling-side-story",
+     "status": "ongoing",
+     "image": "mbd/solo-leveling-side-story.png",
+     "latestChapter": 21,
+     "genres": "Action, Adventure, Fantasy, Manhwa, Shounen",
+     "author": "추공 (Chugong)",
+     "isSafe": true,
+     "updatedDate": "2023-05-31T14:45:54.000Z",
+     "createdDate": "2023-03-04T02:35:55.000Z"
+    },
+    {
+     "id": 59794,
+     "rank": 10404,
+     "title": "Solo Leveling: Arise",
+     "slug": "solo-leveling-arise",
+     "status": "ongoing",
+     "image": "md/solo-leveling-arise.jpg",
+     "latestChapter": 26,
+     "genres": "Action, Adventure, Drama, Fantasy, Monsters, Magic, Supernatural, Long Strip, Web Comic, Full Color, Safe",
+     "author": "Chugong (추공)",
+     "isSafe": true,
+     "updatedDate": "2026-08-19T20:20:11.000Z",
+     "createdDate": "2024-06-16T11:50:19.000Z"
+    },
+    {
+     "id": 59730,
+     "rank": 27377,
+     "title": "Solo Leveling: Hunter Origin",
+     "slug": "solo-leveling-hunter-origin",
+     "status": "ongoing",
+     "image": "mbd/solo-leveling-hunter-origin.png",
+     "latestChapter": 2,
+     "genres": "Webtoons, Shounen, Action, Adventure, Drama",
+     "author": "Redice Studio",
+     "isSafe": true,
+     "updatedDate": "2025-05-19T10:08:41.000Z",
+     "createdDate": "2024-07-12T13:13:58.000Z"
+    },
+    {
+     "id": 59062,
+     "rank": 32934,
+     "title": "Solo leveling - Brainrot leveling",
+     "slug": "solo-leveling-brainrot-leveling",
+     "status": "ongoing",
+     "image": "mbd/solo-leveling-brainrot-leveling.png",
+     "latestChapter": 3,
+     "genres": "Webtoons, Shounen, Action, Comedy, Fantasy, Romance",
+     "author": "",
+     "isSafe": true,
+     "updatedDate": "2024-07-08T09:27:37.000Z",
+     "createdDate": "2024-07-08T09:27:36.000Z"
+    },
+    {
+     "id": 78675,
+     "rank": 35503,
+     "title": "Solo Leveling (Comic)",
+     "slug": "solo-leveling-comic",
+     "status": "completed",
+     "image": "mbd/solo-leveling-comic.png",
+     "latestChapter": 40.6,
+     "genres": "Drama, Fantasy, Action, Adventure, Shounen",
+     "author": "",
+     "isSafe": true,
+     "updatedDate": "2026-03-27T03:16:48.000Z",
+     "createdDate": "2026-03-27T02:49:43.000Z"
+    },
+    {
+     "id": 76587,
+     "rank": 51350,
+     "title": "Solo Leveling (Novel)",
+     "slug": "solo-leveling-novel",
+     "status": "ongoing",
+     "image": "comix/solo-leveling-novel.jpg",
+     "latestChapter": 1,
+     "genres": "Shounen, Action, Adventure, Drama, Fantasy",
+     "author": "Chugong",
+     "isSafe": true,
+     "updatedDate": "2026-03-08T09:58:07.000Z",
+     "createdDate": "2026-03-08T09:43:51.000Z"
+    }
+   ]
+  }
+ }
+}

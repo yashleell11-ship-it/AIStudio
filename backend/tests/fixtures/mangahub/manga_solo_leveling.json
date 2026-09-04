@@ -1,0 +1,1455 @@
+{
+ "data": {
+  "manga": {
+   "id": 22772,
+   "title": "Solo Leveling",
+   "alternativeTitle": "Na Honjaman Level-Up; 나 혼자만 레벨업; Solo Leveling; Na Honjaman Lebel-eob; I level up alone; Ore Dake Level Up na Ken; Поднятие уровня в одиночку; 俺だけレベルアップな件; 我独自升级; I am the only the one who levels up; 我獨自升級; Solo Adtritio; Yalnız Seviye Atlama; Sadece Ben Seviye Atlayabiliyorum; I Alone Level-Up; Jogador solo; Upando sozinho; Singur îmi ridic nivelul; Тільки я візьму новий рівень; سولو لولینگ; تکرو; केवल मैं स्तर बढ़ाता हूं; सोलो लेभलिङ; Aku Level Up Sendiri; Grinding Sendiri; Ben yanlız gelişirim; Tek başına seviye atlama; სოლო ლეველინგი; سولو ليفيلنغ; الإرتقاء بالمستوى منفردًا; 俺だけレベルアップな件〜外伝〜; সোলো লেভেলিং; שחקן בודד; सोलो लेवलिंग; Egyéni szintlépés; சோலோ லெவெலிங்; Only I Level up; Tôi Thăng Cấp Một Mình",
+   "slug": "solo-leveling_105",
+   "mainSlug": "solo-leveling",
+   "status": "completed",
+   "image": "mh/solo-leveling.jpg",
+   "latestChapter": 200.5,
+   "genres": "Action, Adventure, Drama, Fantasy, Monsters, Magic, Supernatural, Award Winning, Long Strip, Web Comic, Adaptation, Full Color, Safe, Shounen",
+   "author": "h-goon (현군); Chugong (추공); Gi So-Ryeong (기소령)",
+   "artist": "REDICE Studio (레드아이스 스튜디오); Jang Sung-Rak (장성락)",
+   "isWebtoon": true,
+   "isYaoi": false,
+   "isPorn": false,
+   "isSoftPorn": false,
+   "isSafe": true,
+   "description": "10 years ago, after “the Gate” that connected the real world with the monster world opened, some of the ordinary, everyday people received the power to hunt monsters within the Gate. They are known as “Hunters“. However, not all Hunters are powerful. My name is Sung Jin-Woo, an E-rank Hunter. I’m someone who has to risk his life in the lowliest of dungeons, the “World’s Weakest“. Having no skills whatsoever to display, I barely earned the required money by fighting in low-leveled dungeons… at least until I found a hidden dungeon with the hardest difficulty within the D-rank dungeons! In the end, as I was accepting death, I suddenly received a strange power, a quest log that only I could see, a secret to leveling up that only I know about! If I trained in accordance with my quests and hunted monsters, my level would rise. Changing from the weakest Hunter to the strongest S-rank Hunter!",
+   "createdDate": "2018-11-05T07:43:24.000Z",
+   "updatedDate": "2024-07-13T06:00:55.000Z",
+   "chapters": [
+    {
+     "id": 408844,
+     "number": 0,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-21T08:44:11.000Z"
+    },
+    {
+     "id": 404346,
+     "number": 1,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-05T07:43:26.000Z"
+    },
+    {
+     "id": 404558,
+     "number": 2,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-06T04:43:27.000Z"
+    },
+    {
+     "id": 405165,
+     "number": 3,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-08T05:58:36.000Z"
+    },
+    {
+     "id": 405166,
+     "number": 4,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-08T06:13:25.000Z"
+    },
+    {
+     "id": 405351,
+     "number": 5,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-09T03:43:26.000Z"
+    },
+    {
+     "id": 405764,
+     "number": 6,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-10T16:43:31.000Z"
+    },
+    {
+     "id": 405997,
+     "number": 7,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-12T08:43:31.000Z"
+    },
+    {
+     "id": 405999,
+     "number": 8,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-12T08:58:28.000Z"
+    },
+    {
+     "id": 406208,
+     "number": 9,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-13T04:28:38.000Z"
+    },
+    {
+     "id": 406734,
+     "number": 10,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-15T03:28:27.000Z"
+    },
+    {
+     "id": 406735,
+     "number": 11,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-15T03:28:27.000Z"
+    },
+    {
+     "id": 407076,
+     "number": 12,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-16T04:13:32.000Z"
+    },
+    {
+     "id": 408845,
+     "number": 13,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-21T08:44:11.000Z"
+    },
+    {
+     "id": 408843,
+     "number": 14,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-21T08:44:11.000Z"
+    },
+    {
+     "id": 408842,
+     "number": 15,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-21T08:44:11.000Z"
+    },
+    {
+     "id": 408763,
+     "number": 16,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-21T06:28:27.000Z"
+    },
+    {
+     "id": 408764,
+     "number": 17,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-21T06:28:27.000Z"
+    },
+    {
+     "id": 409226,
+     "number": 18,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-21T23:43:27.000Z"
+    },
+    {
+     "id": 409630,
+     "number": 19,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-23T05:58:34.000Z"
+    },
+    {
+     "id": 409852,
+     "number": 20,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-24T04:43:53.000Z"
+    },
+    {
+     "id": 410056,
+     "number": 21,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-25T06:28:20.000Z"
+    },
+    {
+     "id": 410364,
+     "number": 22,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-26T13:43:17.000Z"
+    },
+    {
+     "id": 410598,
+     "number": 23,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-27T14:58:16.000Z"
+    },
+    {
+     "id": 411268,
+     "number": 24,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-29T01:28:38.000Z"
+    },
+    {
+     "id": 411586,
+     "number": 25,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-29T17:00:49.000Z"
+    },
+    {
+     "id": 411951,
+     "number": 26,
+     "title": "",
+     "slug": "",
+     "date": "2018-11-30T22:13:43.000Z"
+    },
+    {
+     "id": 412129,
+     "number": 27,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-01T21:58:21.000Z"
+    },
+    {
+     "id": 412295,
+     "number": 28,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-02T22:44:57.000Z"
+    },
+    {
+     "id": 412808,
+     "number": 29,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-04T00:44:11.000Z"
+    },
+    {
+     "id": 412834,
+     "number": 30,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-04T03:44:02.000Z"
+    },
+    {
+     "id": 413140,
+     "number": 31,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-04T23:59:34.000Z"
+    },
+    {
+     "id": 413622,
+     "number": 32,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-06T11:28:54.000Z"
+    },
+    {
+     "id": 413900,
+     "number": 33,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-07T23:29:01.000Z"
+    },
+    {
+     "id": 414076,
+     "number": 34,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-08T22:14:01.000Z"
+    },
+    {
+     "id": 414295,
+     "number": 35,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-09T22:28:55.000Z"
+    },
+    {
+     "id": 414296,
+     "number": 36,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-09T22:28:55.000Z"
+    },
+    {
+     "id": 414506,
+     "number": 37,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-10T21:13:48.000Z"
+    },
+    {
+     "id": 415375,
+     "number": 38,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-12T21:13:52.000Z"
+    },
+    {
+     "id": 415376,
+     "number": 39,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-12T21:13:52.000Z"
+    },
+    {
+     "id": 415707,
+     "number": 40,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-13T20:58:54.000Z"
+    },
+    {
+     "id": 416194,
+     "number": 41,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-14T21:59:33.000Z"
+    },
+    {
+     "id": 416402,
+     "number": 42,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-16T06:43:52.000Z"
+    },
+    {
+     "id": 416529,
+     "number": 43,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-16T23:28:58.000Z"
+    },
+    {
+     "id": 416905,
+     "number": 44,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-18T02:43:47.000Z"
+    },
+    {
+     "id": 416953,
+     "number": 45,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-18T05:43:57.000Z"
+    },
+    {
+     "id": 416950,
+     "number": 46,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-18T05:43:57.000Z"
+    },
+    {
+     "id": 416952,
+     "number": 47,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-18T05:43:57.000Z"
+    },
+    {
+     "id": 416954,
+     "number": 48,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-18T05:43:57.000Z"
+    },
+    {
+     "id": 416951,
+     "number": 49,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-18T05:43:57.000Z"
+    },
+    {
+     "id": 417812,
+     "number": 50,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-19T22:43:55.000Z"
+    },
+    {
+     "id": 420286,
+     "number": 51,
+     "title": "",
+     "slug": "",
+     "date": "2018-12-26T19:59:09.000Z"
+    },
+    {
+     "id": 422276,
+     "number": 52,
+     "title": "",
+     "slug": "",
+     "date": "2019-01-02T19:29:07.000Z"
+    },
+    {
+     "id": 424460,
+     "number": 53,
+     "title": "",
+     "slug": "",
+     "date": "2019-01-09T17:58:07.000Z"
+    },
+    {
+     "id": 426863,
+     "number": 54,
+     "title": "",
+     "slug": "",
+     "date": "2019-01-16T17:13:05.000Z"
+    },
+    {
+     "id": 429219,
+     "number": 55,
+     "title": "",
+     "slug": "",
+     "date": "2019-01-23T18:28:04.000Z"
+    },
+    {
+     "id": 431125,
+     "number": 56,
+     "title": "",
+     "slug": "",
+     "date": "2019-01-30T19:28:04.000Z"
+    },
+    {
+     "id": 432801,
+     "number": 57,
+     "title": "",
+     "slug": "",
+     "date": "2019-02-06T17:58:57.000Z"
+    },
+    {
+     "id": 436843,
+     "number": 58,
+     "title": "",
+     "slug": "",
+     "date": "2019-02-13T20:27:52.000Z"
+    },
+    {
+     "id": 439564,
+     "number": 59,
+     "title": "",
+     "slug": "",
+     "date": "2019-02-20T19:43:49.000Z"
+    },
+    {
+     "id": 443153,
+     "number": 60,
+     "title": "",
+     "slug": "",
+     "date": "2019-02-27T19:58:36.000Z"
+    },
+    {
+     "id": 445479,
+     "number": 61,
+     "title": "",
+     "slug": "",
+     "date": "2019-03-06T19:43:04.000Z"
+    },
+    {
+     "id": 447819,
+     "number": 62,
+     "title": "",
+     "slug": "",
+     "date": "2019-03-13T18:43:05.000Z"
+    },
+    {
+     "id": 449790,
+     "number": 63,
+     "title": "",
+     "slug": "",
+     "date": "2019-03-20T23:28:03.000Z"
+    },
+    {
+     "id": 451979,
+     "number": 64,
+     "title": "",
+     "slug": "",
+     "date": "2019-03-27T18:43:06.000Z"
+    },
+    {
+     "id": 453616,
+     "number": 65,
+     "title": "",
+     "slug": "",
+     "date": "2019-04-03T20:28:04.000Z"
+    },
+    {
+     "id": 455673,
+     "number": 66,
+     "title": "",
+     "slug": "",
+     "date": "2019-04-10T18:58:04.000Z"
+    },
+    {
+     "id": 458776,
+     "number": 67,
+     "title": "",
+     "slug": "",
+     "date": "2019-04-17T18:43:04.000Z"
+    },
+    {
+     "id": 460756,
+     "number": 68,
+     "title": "",
+     "slug": "",
+     "date": "2019-04-24T21:13:04.000Z"
+    },
+    {
+     "id": 462690,
+     "number": 69,
+     "title": "",
+     "slug": "",
+     "date": "2019-05-01T21:28:03.000Z"
+    },
+    {
+     "id": 464539,
+     "number": 70,
+     "title": "",
+     "slug": "",
+     "date": "2019-05-08T19:13:03.000Z"
+    },
+    {
+     "id": 460598,
+     "number": 71,
+     "title": "",
+     "slug": "",
+     "date": "2019-05-15T18:13:04.000Z"
+    },
+    {
+     "id": 467825,
+     "number": 72,
+     "title": "",
+     "slug": "",
+     "date": "2019-05-22T19:28:04.000Z"
+    },
+    {
+     "id": 469841,
+     "number": 73,
+     "title": "",
+     "slug": "",
+     "date": "2019-05-29T18:43:04.000Z"
+    },
+    {
+     "id": 471601,
+     "number": 74,
+     "title": "",
+     "slug": "",
+     "date": "2019-06-05T18:58:04.000Z"
+    },
+    {
+     "id": 473502,
+     "number": 75,
+     "title": "",
+     "slug": "",
+     "date": "2019-06-12T17:43:04.000Z"
+    },
+    {
+     "id": 475403,
+     "number": 76,
+     "title": "",
+     "slug": "",
+     "date": "2019-06-19T18:28:04.000Z"
+    },
+    {
+     "id": 477159,
+     "number": 77,
+     "title": "",
+     "slug": "",
+     "date": "2019-06-26T16:43:03.000Z"
+    },
+    {
+     "id": 479081,
+     "number": 78,
+     "title": "",
+     "slug": "",
+     "date": "2019-07-03T17:28:03.000Z"
+    },
+    {
+     "id": 481441,
+     "number": 79,
+     "title": "",
+     "slug": "",
+     "date": "2019-07-10T18:43:04.000Z"
+    },
+    {
+     "id": 483612,
+     "number": 80,
+     "title": "",
+     "slug": "",
+     "date": "2019-07-17T18:13:04.000Z"
+    },
+    {
+     "id": 486227,
+     "number": 81,
+     "title": "",
+     "slug": "",
+     "date": "2019-07-24T17:58:04.000Z"
+    },
+    {
+     "id": 488534,
+     "number": 82,
+     "title": "",
+     "slug": "",
+     "date": "2019-07-31T19:58:09.000Z"
+    },
+    {
+     "id": 490708,
+     "number": 83,
+     "title": "",
+     "slug": "",
+     "date": "2019-08-07T18:13:04.000Z"
+    },
+    {
+     "id": 493041,
+     "number": 84,
+     "title": "",
+     "slug": "",
+     "date": "2019-08-14T17:58:05.000Z"
+    },
+    {
+     "id": 494884,
+     "number": 85,
+     "title": "",
+     "slug": "",
+     "date": "2019-08-21T18:43:05.000Z"
+    },
+    {
+     "id": 502457,
+     "number": 86,
+     "title": "",
+     "slug": "",
+     "date": "2019-09-11T18:28:04.000Z"
+    },
+    {
+     "id": 515988,
+     "number": 87,
+     "title": "",
+     "slug": "",
+     "date": "2019-10-02T16:43:04.000Z"
+    },
+    {
+     "id": 518695,
+     "number": 88,
+     "title": "",
+     "slug": "",
+     "date": "2019-10-09T16:58:04.000Z"
+    },
+    {
+     "id": 521032,
+     "number": 89,
+     "title": "",
+     "slug": "",
+     "date": "2019-10-16T15:28:04.000Z"
+    },
+    {
+     "id": 523534,
+     "number": 90,
+     "title": "",
+     "slug": "",
+     "date": "2019-10-23T16:58:04.000Z"
+    },
+    {
+     "id": 527066,
+     "number": 91,
+     "title": "",
+     "slug": "",
+     "date": "2019-10-30T16:28:04.000Z"
+    },
+    {
+     "id": 530717,
+     "number": 92,
+     "title": "",
+     "slug": "",
+     "date": "2019-11-06T17:13:06.000Z"
+    },
+    {
+     "id": 533376,
+     "number": 93,
+     "title": "",
+     "slug": "",
+     "date": "2019-11-13T16:58:04.000Z"
+    },
+    {
+     "id": 535720,
+     "number": 94,
+     "title": "",
+     "slug": "",
+     "date": "2019-11-20T17:28:03.000Z"
+    },
+    {
+     "id": 539283,
+     "number": 95,
+     "title": "",
+     "slug": "",
+     "date": "2019-11-27T17:41:04.000Z"
+    },
+    {
+     "id": 545662,
+     "number": 96,
+     "title": "",
+     "slug": "",
+     "date": "2019-12-04T16:56:04.000Z"
+    },
+    {
+     "id": 549656,
+     "number": 97,
+     "title": "",
+     "slug": "",
+     "date": "2019-12-11T16:27:24.000Z"
+    },
+    {
+     "id": 552795,
+     "number": 98,
+     "title": "",
+     "slug": "",
+     "date": "2019-12-18T16:18:02.000Z"
+    },
+    {
+     "id": 556920,
+     "number": 99,
+     "title": "",
+     "slug": "",
+     "date": "2019-12-25T15:34:31.000Z"
+    },
+    {
+     "id": 559937,
+     "number": 100,
+     "title": "",
+     "slug": "",
+     "date": "2020-01-01T16:00:02.000Z"
+    },
+    {
+     "id": 562689,
+     "number": 101,
+     "title": "",
+     "slug": "",
+     "date": "2020-01-08T15:41:04.000Z"
+    },
+    {
+     "id": 565945,
+     "number": 102,
+     "title": "",
+     "slug": "",
+     "date": "2020-01-15T15:45:16.000Z"
+    },
+    {
+     "id": 571185,
+     "number": 103,
+     "title": "",
+     "slug": "",
+     "date": "2020-01-29T16:00:08.000Z"
+    },
+    {
+     "id": 573638,
+     "number": 104,
+     "title": "",
+     "slug": "",
+     "date": "2020-02-05T15:45:17.000Z"
+    },
+    {
+     "id": 576340,
+     "number": 105,
+     "title": "",
+     "slug": "",
+     "date": "2020-02-12T16:26:05.000Z"
+    },
+    {
+     "id": 579242,
+     "number": 106,
+     "title": "",
+     "slug": "",
+     "date": "2020-02-19T16:11:05.000Z"
+    },
+    {
+     "id": 582747,
+     "number": 107,
+     "title": "",
+     "slug": "",
+     "date": "2020-02-26T16:14:34.000Z"
+    },
+    {
+     "id": 585280,
+     "number": 108,
+     "title": "",
+     "slug": "",
+     "date": "2020-03-04T16:16:01.000Z"
+    },
+    {
+     "id": 587749,
+     "number": 109,
+     "title": "",
+     "slug": "",
+     "date": "2020-03-11T16:15:18.000Z"
+    },
+    {
+     "id": 592144,
+     "number": 110,
+     "title": "",
+     "slug": "",
+     "date": "2020-03-18T16:36:02.000Z"
+    },
+    {
+     "id": 597740,
+     "number": 111,
+     "title": "",
+     "slug": "",
+     "date": "2020-07-31T20:59:27.000Z"
+    },
+    {
+     "id": 656806,
+     "number": 112,
+     "title": "",
+     "slug": "",
+     "date": "2020-07-31T23:33:00.000Z"
+    },
+    {
+     "id": 659477,
+     "number": 113,
+     "title": "",
+     "slug": "",
+     "date": "2020-08-05T23:48:39.000Z"
+    },
+    {
+     "id": 662857,
+     "number": 114,
+     "title": "",
+     "slug": "",
+     "date": "2020-08-12T17:17:14.000Z"
+    },
+    {
+     "id": 667837,
+     "number": 115,
+     "title": "",
+     "slug": "",
+     "date": "2020-08-19T17:39:10.000Z"
+    },
+    {
+     "id": 672571,
+     "number": 116,
+     "title": "",
+     "slug": "",
+     "date": "2020-08-26T17:52:23.000Z"
+    },
+    {
+     "id": 676973,
+     "number": 117,
+     "title": "",
+     "slug": "",
+     "date": "2020-09-02T18:08:52.000Z"
+    },
+    {
+     "id": 680881,
+     "number": 118,
+     "title": "",
+     "slug": "",
+     "date": "2020-09-09T20:22:46.000Z"
+    },
+    {
+     "id": 684071,
+     "number": 119,
+     "title": "",
+     "slug": "",
+     "date": "2020-09-16T19:25:30.000Z"
+    },
+    {
+     "id": 687289,
+     "number": 120,
+     "title": "",
+     "slug": "",
+     "date": "2020-09-23T19:22:26.000Z"
+    },
+    {
+     "id": 693266,
+     "number": 121,
+     "title": "",
+     "slug": "",
+     "date": "2020-09-30T19:40:41.000Z"
+    },
+    {
+     "id": 697962,
+     "number": 122,
+     "title": "",
+     "slug": "",
+     "date": "2020-10-07T19:52:42.000Z"
+    },
+    {
+     "id": 701141,
+     "number": 123,
+     "title": "",
+     "slug": "",
+     "date": "2020-10-14T18:03:07.000Z"
+    },
+    {
+     "id": 704727,
+     "number": 124,
+     "title": "",
+     "slug": "",
+     "date": "2020-10-21T17:39:35.000Z"
+    },
+    {
+     "id": 708162,
+     "number": 125,
+     "title": "",
+     "slug": "",
+     "date": "2020-10-28T19:00:58.000Z"
+    },
+    {
+     "id": 711401,
+     "number": 126,
+     "title": "",
+     "slug": "",
+     "date": "2020-11-04T19:22:04.000Z"
+    },
+    {
+     "id": 715081,
+     "number": 127,
+     "title": "",
+     "slug": "",
+     "date": "2020-11-11T19:36:46.000Z"
+    },
+    {
+     "id": 721607,
+     "number": 128,
+     "title": "",
+     "slug": "",
+     "date": "2020-11-25T19:22:10.000Z"
+    },
+    {
+     "id": 724847,
+     "number": 129,
+     "title": "",
+     "slug": "",
+     "date": "2020-12-02T18:52:20.000Z"
+    },
+    {
+     "id": 728714,
+     "number": 130,
+     "title": "",
+     "slug": "",
+     "date": "2020-12-09T20:07:32.000Z"
+    },
+    {
+     "id": 732586,
+     "number": 131,
+     "title": "",
+     "slug": "",
+     "date": "2020-12-16T18:06:58.000Z"
+    },
+    {
+     "id": 736450,
+     "number": 132,
+     "title": "",
+     "slug": "",
+     "date": "2020-12-23T18:21:22.000Z"
+    },
+    {
+     "id": 741110,
+     "number": 133,
+     "title": "",
+     "slug": "",
+     "date": "2020-12-30T16:37:05.000Z"
+    },
+    {
+     "id": 745421,
+     "number": 134,
+     "title": "",
+     "slug": "",
+     "date": "2021-01-06T16:22:05.000Z"
+    },
+    {
+     "id": 750224,
+     "number": 135,
+     "title": "",
+     "slug": "",
+     "date": "2021-01-13T16:44:12.000Z"
+    },
+    {
+     "id": 756651,
+     "number": 136,
+     "title": "",
+     "slug": "",
+     "date": "2021-01-20T16:08:48.000Z"
+    },
+    {
+     "id": 761831,
+     "number": 137,
+     "title": "",
+     "slug": "",
+     "date": "2021-01-27T16:36:38.000Z"
+    },
+    {
+     "id": 767835,
+     "number": 138,
+     "title": "",
+     "slug": "",
+     "date": "2021-02-03T17:08:31.000Z"
+    },
+    {
+     "id": 772870,
+     "number": 139,
+     "title": "",
+     "slug": "",
+     "date": "2021-02-10T16:36:15.000Z"
+    },
+    {
+     "id": 778455,
+     "number": 140,
+     "title": "",
+     "slug": "",
+     "date": "2021-02-17T16:36:52.000Z"
+    },
+    {
+     "id": 783524,
+     "number": 141,
+     "title": "",
+     "slug": "",
+     "date": "2021-02-24T16:54:38.000Z"
+    },
+    {
+     "id": 788539,
+     "number": 142,
+     "title": "",
+     "slug": "",
+     "date": "2021-03-03T16:20:26.000Z"
+    },
+    {
+     "id": 793070,
+     "number": 143,
+     "title": "",
+     "slug": "",
+     "date": "2021-03-10T16:17:43.000Z"
+    },
+    {
+     "id": 797590,
+     "number": 144,
+     "title": "",
+     "slug": "",
+     "date": "2021-03-17T16:17:27.000Z"
+    },
+    {
+     "id": 801066,
+     "number": 145,
+     "title": "",
+     "slug": "",
+     "date": "2021-03-24T16:32:04.000Z"
+    },
+    {
+     "id": 805241,
+     "number": 146,
+     "title": "",
+     "slug": "",
+     "date": "2021-03-31T15:46:43.000Z"
+    },
+    {
+     "id": 816888,
+     "number": 147,
+     "title": "",
+     "slug": "",
+     "date": "2021-04-20T02:49:07.000Z"
+    },
+    {
+     "id": 822149,
+     "number": 148,
+     "title": "",
+     "slug": "",
+     "date": "2021-04-21T22:27:10.000Z"
+    },
+    {
+     "id": 826864,
+     "number": 149,
+     "title": "",
+     "slug": "",
+     "date": "2021-04-28T16:35:04.000Z"
+    },
+    {
+     "id": 831902,
+     "number": 150,
+     "title": "",
+     "slug": "",
+     "date": "2021-05-05T16:20:15.000Z"
+    },
+    {
+     "id": 837413,
+     "number": 151,
+     "title": "",
+     "slug": "",
+     "date": "2021-05-12T16:46:52.000Z"
+    },
+    {
+     "id": 842165,
+     "number": 152,
+     "title": "",
+     "slug": "",
+     "date": "2021-05-19T20:04:41.000Z"
+    },
+    {
+     "id": 846075,
+     "number": 153,
+     "title": "",
+     "slug": "",
+     "date": "2021-05-26T16:04:54.000Z"
+    },
+    {
+     "id": 849068,
+     "number": 154,
+     "title": "",
+     "slug": "",
+     "date": "2021-06-02T16:34:11.000Z"
+    },
+    {
+     "id": 853884,
+     "number": 155,
+     "title": "",
+     "slug": "",
+     "date": "2021-06-09T16:04:35.000Z"
+    },
+    {
+     "id": 869648,
+     "number": 156,
+     "title": "",
+     "slug": "",
+     "date": "2021-06-30T15:47:56.000Z"
+    },
+    {
+     "id": 873961,
+     "number": 157,
+     "title": "",
+     "slug": "",
+     "date": "2021-07-07T15:51:30.000Z"
+    },
+    {
+     "id": 880931,
+     "number": 158,
+     "title": "",
+     "slug": "",
+     "date": "2021-07-14T15:57:21.000Z"
+    },
+    {
+     "id": 886806,
+     "number": 159,
+     "title": "",
+     "slug": "",
+     "date": "2021-07-21T15:56:55.000Z"
+    },
+    {
+     "id": 891668,
+     "number": 160,
+     "title": "",
+     "slug": "",
+     "date": "2021-07-28T16:11:20.000Z"
+    },
+    {
+     "id": 897649,
+     "number": 161,
+     "title": "",
+     "slug": "",
+     "date": "2021-08-04T18:05:56.000Z"
+    },
+    {
+     "id": 902163,
+     "number": 162,
+     "title": "",
+     "slug": "",
+     "date": "2021-08-11T14:44:18.000Z"
+    },
+    {
+     "id": 906953,
+     "number": 163,
+     "title": "",
+     "slug": "",
+     "date": "2021-08-18T15:05:29.000Z"
+    },
+    {
+     "id": 911276,
+     "number": 164,
+     "title": "",
+     "slug": "",
+     "date": "2021-08-25T14:27:07.000Z"
+    },
+    {
+     "id": 915435,
+     "number": 165,
+     "title": "",
+     "slug": "",
+     "date": "2021-09-01T14:41:07.000Z"
+    },
+    {
+     "id": 919296,
+     "number": 166,
+     "title": "",
+     "slug": "",
+     "date": "2021-09-08T14:26:18.000Z"
+    },
+    {
+     "id": 923423,
+     "number": 167,
+     "title": "",
+     "slug": "",
+     "date": "2021-09-15T14:42:26.000Z"
+    },
+    {
+     "id": 927145,
+     "number": 168,
+     "title": "",
+     "slug": "",
+     "date": "2021-09-22T14:17:15.000Z"
+    },
+    {
+     "id": 939814,
+     "number": 169,
+     "title": "",
+     "slug": "",
+     "date": "2021-10-13T23:00:45.000Z"
+    },
+    {
+     "id": 944340,
+     "number": 170,
+     "title": "",
+     "slug": "",
+     "date": "2021-10-20T14:31:23.000Z"
+    },
+    {
+     "id": 948426,
+     "number": 171,
+     "title": "",
+     "slug": "",
+     "date": "2021-10-27T13:42:14.000Z"
+    },
+    {
+     "id": 952205,
+     "number": 172,
+     "title": "",
+     "slug": "",
+     "date": "2021-11-03T13:59:06.000Z"
+    },
+    {
+     "id": 956822,
+     "number": 173,
+     "title": "",
+     "slug": "",
+     "date": "2021-11-10T13:57:50.000Z"
+    },
+    {
+     "id": 960983,
+     "number": 174,
+     "title": "",
+     "slug": "",
+     "date": "2021-11-17T13:57:23.000Z"
+    },
+    {
+     "id": 965239,
+     "number": 175,
+     "title": "",
+     "slug": "",
+     "date": "2021-11-24T13:57:40.000Z"
+    },
+    {
+     "id": 970520,
+     "number": 176,
+     "title": "",
+     "slug": "",
+     "date": "2021-12-08T13:57:52.000Z"
+    },
+    {
+     "id": 970521,
+     "number": 177,
+     "title": "",
+     "slug": "",
+     "date": "2021-12-15T13:57:33.000Z"
+    },
+    {
+     "id": 984182,
+     "number": 178,
+     "title": "",
+     "slug": "",
+     "date": "2021-12-22T14:42:42.000Z"
+    },
+    {
+     "id": 990607,
+     "number": 179,
+     "title": "",
+     "slug": "",
+     "date": "2021-12-29T14:27:59.000Z"
+    },
+    {
+     "id": 1144424,
+     "number": 179.5,
+     "title": "Chapter 179.5",
+     "slug": "chapter-179-5",
+     "date": "2023-01-11T04:56:20.000Z"
+    },
+    {
+     "id": 1354171,
+     "number": 179.6,
+     "title": "Spoiler",
+     "slug": "spoiler",
+     "date": "2023-01-20T16:13:15.000Z"
+    },
+    {
+     "id": 1144425,
+     "number": 180,
+     "title": "Side Story 1",
+     "slug": "side-story-1",
+     "date": "2023-01-20T16:13:15.000Z"
+    },
+    {
+     "id": 1354172,
+     "number": 181,
+     "title": "Side Story 2",
+     "slug": "side-story-2",
+     "date": "2023-01-20T16:13:15.000Z"
+    },
+    {
+     "id": 1357204,
+     "number": 182,
+     "title": "Side Story 3",
+     "slug": "side-story-3",
+     "date": "2023-01-25T13:58:46.000Z"
+    },
+    {
+     "id": 1363448,
+     "number": 183,
+     "title": "Side Story 4",
+     "slug": "side-story-4",
+     "date": "2023-02-01T14:11:06.000Z"
+    },
+    {
+     "id": 1370153,
+     "number": 184,
+     "title": "Side Story 5",
+     "slug": "side-story-5",
+     "date": "2023-02-08T13:56:06.000Z"
+    },
+    {
+     "id": 1376314,
+     "number": 185,
+     "title": "Side Story 6",
+     "slug": "side-story-6",
+     "date": "2023-02-15T13:53:25.000Z"
+    },
+    {
+     "id": 1381912,
+     "number": 186,
+     "title": "Side Story 7",
+     "slug": "side-story-7",
+     "date": "2023-02-22T13:51:45.000Z"
+    },
+    {
+     "id": 1389160,
+     "number": 187,
+     "title": "Side Story 8",
+     "slug": "side-story-8",
+     "date": "2023-03-01T14:56:08.000Z"
+    },
+    {
+     "id": 1394458,
+     "number": 188,
+     "title": "Side Story 9",
+     "slug": "side-story-9",
+     "date": "2023-03-08T13:59:36.000Z"
+    },
+    {
+     "id": 1400359,
+     "number": 189,
+     "title": "Side Story 10",
+     "slug": "side-story-10",
+     "date": "2023-03-15T14:11:06.000Z"
+    },
+    {
+     "id": 1406621,
+     "number": 190,
+     "title": "Side Story 11",
+     "slug": "side-story-11",
+     "date": "2023-03-22T15:38:12.000Z"
+    },
+    {
+     "id": 1414759,
+     "number": 191,
+     "title": "Side Story 12",
+     "slug": "side-story-12",
+     "date": "2023-03-29T14:14:03.000Z"
+    },
+    {
+     "id": 1421630,
+     "number": 192,
+     "title": "Side Story 13",
+     "slug": "side-story-13",
+     "date": "2023-04-05T14:24:15.000Z"
+    },
+    {
+     "id": 1427450,
+     "number": 193,
+     "title": "Side Story 14",
+     "slug": "side-story-14",
+     "date": "2023-04-12T14:11:06.000Z"
+    },
+    {
+     "id": 1433381,
+     "number": 194,
+     "title": "Side Story 15",
+     "slug": "side-story-15",
+     "date": "2023-04-19T14:06:41.000Z"
+    },
+    {
+     "id": 1438842,
+     "number": 195,
+     "title": "Side Story 16",
+     "slug": "side-story-16",
+     "date": "2023-04-26T13:43:08.000Z"
+    },
+    {
+     "id": 1443996,
+     "number": 196,
+     "title": "Side Story 17",
+     "slug": "side-story-17",
+     "date": "2023-05-03T13:50:31.000Z"
+    },
+    {
+     "id": 1449244,
+     "number": 197,
+     "title": "Side Story 18",
+     "slug": "side-story-18",
+     "date": "2023-05-10T13:44:13.000Z"
+    },
+    {
+     "id": 1456623,
+     "number": 198,
+     "title": "Side Story 19",
+     "slug": "side-story-19",
+     "date": "2023-05-17T13:41:14.000Z"
+    },
+    {
+     "id": 1463926,
+     "number": 199,
+     "title": "Side Story 20",
+     "slug": "side-story-20",
+     "date": "2023-05-24T16:09:59.000Z"
+    },
+    {
+     "id": 1469155,
+     "number": 200,
+     "title": "Side Story 21 { THE END }",
+     "slug": "side-story-21-the-end",
+     "date": "2023-05-31T14:01:50.000Z"
+    },
+    {
+     "id": 1833631,
+     "number": 200.5,
+     "title": "Chapter 200.5 {NOTICE}",
+     "slug": "chapter-200-5-notice",
+     "date": "2024-07-13T06:00:55.000Z"
+    }
+   ]
+  }
+ }
+}
