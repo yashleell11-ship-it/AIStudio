@@ -1,6 +1,7 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_metrics.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
@@ -151,14 +152,20 @@ class SeriesCard extends ConsumerWidget {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
-                        SizedBox(height: context.space.xxs),
-                        Text(
-                          '${series.chapterCount} ch',
-                          style: context.text.caption.copyWith(
-                            color: Colors.white.withAlpha(160),
-                            fontSize: 10,
+                        // The chapter count is the line a minimal preset
+                        // drops: it duplicates what the progress label under
+                        // the cover already says, and on a smaller card the
+                        // title needs the room more.
+                        if (context.layout.cardDetail != CardDetail.minimal) ...[
+                          SizedBox(height: context.space.xxs),
+                          Text(
+                            '${series.chapterCount} ch',
+                            style: context.text.caption.copyWith(
+                              color: Colors.white.withAlpha(160),
+                              fontSize: 10,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
                   ),
@@ -449,9 +456,12 @@ class SeriesGrid extends ConsumerWidget {
       );
     }
 
-    // Fewer columns as covers scale up; clamp to a sensible range.
+    // Fewer columns as covers scale up; clamp to a sensible range. The design
+    // preset then biases that: a density-first preset fits one more column in,
+    // a content-maximal one takes one out to make the covers bigger.
+    final layout = context.layout;
     final base = context.seriesGridColumns;
-    final columns = (base / coverScale).round().clamp(2, 6);
+    final columns = layout.columnsFor((base / coverScale).round());
 
     return GridView.builder(
       shrinkWrap: true,
@@ -460,7 +470,7 @@ class SeriesGrid extends ConsumerWidget {
         crossAxisCount: columns,
         crossAxisSpacing: context.space.md,
         mainAxisSpacing: context.space.xl,
-        childAspectRatio: 0.52,
+        childAspectRatio: layout.gridAspectRatio,
       ),
       itemCount: items.length,
       itemBuilder: (context, index) {

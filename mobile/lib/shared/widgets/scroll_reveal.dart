@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
-import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 
 /// Reveals [child] with a subtle fade + upward slide the first time it enters
 /// the nearest scroll viewport.
 ///
 /// Designed for lazy [ListView]/[GridView] builders: each item listens to
 /// scroll only until it has animated once, then renders as a plain [child].
+///
+/// The active design preset decides whether the reveal happens at all and how
+/// fast: presets that want to feel like a tool rather than a showcase turn it
+/// off, in which case this collapses to the bare [child] and never attaches a
+/// scroll listener. The geometry below is animation, not layout rhythm, so it
+/// is stated in plain pixels rather than read from the spacing scale — a
+/// denser preset should not slide its rows a shorter distance.
 class ScrollReveal extends StatefulWidget {
   const ScrollReveal({
     super.key,
@@ -22,8 +28,15 @@ class ScrollReveal extends StatefulWidget {
   final int? index;
 
   static const Duration duration = Duration(milliseconds: 260);
-  static const double slideOffset = AppSpacing.sm;
-  static const double viewportLead = AppSpacing.xl3;
+
+  /// How far the item slides up from, in pixels.
+  static const double slideOffset = 8;
+
+  /// How far outside the viewport an item starts animating, in pixels.
+  static const double viewportLead = 32;
+
+  /// Milliseconds between staggered neighbours.
+  static const int staggerStepMs = 24;
 
   @override
   State<ScrollReveal> createState() => _ScrollRevealState();
@@ -42,8 +55,10 @@ class _ScrollRevealState extends State<ScrollReveal>
   Duration get _staggerDelay {
     final index = widget.index;
     if (index == null) return Duration.zero;
-    final stepMs = (context.space.md * 2).toInt();
-    return Duration(milliseconds: (index % 5) * stepMs);
+    final step = context.motion.scaled(
+      const Duration(milliseconds: ScrollReveal.staggerStepMs),
+    );
+    return step * (index % 5);
   }
 
   @override
@@ -103,6 +118,9 @@ class _ScrollRevealState extends State<ScrollReveal>
     if (_revealed || !mounted) return;
     _revealed = true;
     _detachScrollListener();
+    // Set here rather than in initState: the duration comes from the preset,
+    // and Theme.of is only safe once dependencies are resolved.
+    _controller.duration = context.motion.scaled(ScrollReveal.duration);
 
     final delay = _staggerDelay;
     if (delay == Duration.zero) {
@@ -141,6 +159,10 @@ class _ScrollRevealState extends State<ScrollReveal>
   @override
   Widget build(BuildContext context) {
     if (_controller.isCompleted) return widget.child;
+    // A preset that has switched the reveal off renders the item plainly. The
+    // controller is still constructed (so the widget can be rebuilt into a
+    // preset that wants it) but is never driven.
+    if (!context.motion.scrollReveal) return widget.child;
 
     return RepaintBoundary(
       child: AnimatedBuilder(

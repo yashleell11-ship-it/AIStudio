@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/app/theme/app_palettes.dart';
+import 'package:manhwamaniacs/app/theme/app_presets.dart';
+import 'package:manhwamaniacs/app/theme/preset_controller.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/storage/secure_storage.dart';
@@ -611,6 +613,59 @@ void main() {
       // lands in the device slot.
       final prefs = container.read(sharedPrefsProvider);
       expect(prefs.getString('mm.theme.device'), 'nord');
+    });
+
+    testWidgets('shows a row per design preset with its position', (tester) async {
+      await _pumpSettings(tester);
+
+      await _scrollToText(tester, 'Signature');
+      for (final preset in AppPresets.all) {
+        expect(
+          find.byKey(Key('preset-row-${preset.id}')),
+          findsOneWidget,
+          reason: preset.id,
+        );
+      }
+    });
+
+    testWidgets('tapping a design applies and persists it, live', (tester) async {
+      final container = await _pumpSettings(tester);
+
+      await _scrollToText(tester, 'Signature');
+      await tester.ensureVisible(find.byKey(const Key('preset-row-compact')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('preset-row-compact')));
+      await tester.pump();
+
+      expect(container.read(presetControllerProvider), AppPresets.compact);
+      // No signed-in (user, profile) scope in this pump, so the selection
+      // lands in the device slot.
+      expect(
+        container.read(sharedPrefsProvider).getString('mm.preset.device'),
+        'compact',
+      );
+    });
+
+    testWidgets('choosing a design leaves the theme alone', (tester) async {
+      // The orthogonality promise where a user can actually see it: the two
+      // pickers sit next to each other and must not disturb one another.
+      final container = await _pumpSettings(tester);
+
+      await _scrollToText(tester, 'Eclipse');
+      await tester.ensureVisible(find.byKey(const Key('theme-swatch-nord')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('theme-swatch-nord')));
+      await tester.pump();
+
+      await _scrollToText(tester, 'Signature');
+      await tester.ensureVisible(find.byKey(const Key('preset-row-editorial')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('preset-row-editorial')));
+      await tester.pumpAndSettle();
+
+      expect(container.read(themeControllerProvider), AppPalettes.nord);
+      expect(container.read(presetControllerProvider), AppPresets.editorial);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('toggling Keep screen awake persists the preference', (tester) async {

@@ -304,7 +304,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                             sliver: SliverGrid.builder(
                               gridDelegate:
                                   SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 3,
+                                crossAxisCount: context.layout.columnsFor(3),
                                 crossAxisSpacing: context.space.xs,
                                 mainAxisSpacing: context.space.xs,
                                 childAspectRatio: 0.56,
