@@ -122,6 +122,18 @@ class ReaderService:
         series_key = fully_unquote(series_key)
         chapter_key = fully_unquote(chapter_key)
 
+        # Per-caller gate FIRST, before anything is read. This used to be
+        # implicit: the chapter list came from ``BrowseService.get_chapters``,
+        # which resolves the connector and so applied the 18+ gate before the
+        # method could say anything else. Serving that list from
+        # ``source_series_cache`` skips the connector entirely — cache rows are
+        # global, and whether *this* caller may see the source is not — which
+        # left a gated caller able to tell a cached mature source
+        # (``chapter_not_found``) from one that was never installed
+        # (``source_not_found``). Costs no network; same call
+        # ``SourceCacheService.get_browse_page`` makes for the same reason.
+        self._browse.ensure_visible(source_id)
+
         chapters = self._chapters(source_id, series_key)
         idx = _locate(chapters, chapter_key)
         if idx < 0 and self._cache is not None:

@@ -227,3 +227,39 @@ def test_manifest_locates_the_chapter_in_a_cache_shaped_list(db_session):
     assert _chapter_key({"key": "k"}) == "k"
     assert _chapter_key({"id": "i"}) == "i"
     assert _chapter_key({}) == ""
+
+
+def test_manifest_applies_the_18plus_gate_before_reading_the_cache(db_session):
+    """A gated caller must not be able to tell a cached mature source apart
+    from one that was never installed.
+
+    The gate used to be implicit: the chapter list came from
+    ``BrowseService.get_chapters``, which resolves the connector and therefore
+    404s ``source_not_found`` before the method can say anything else. Serving
+    that list from ``source_series_cache`` skips the connector — cache rows are
+    global, the gate is per-caller — so an unknown chapter on a cached mature
+    source answered ``chapter_not_found`` instead, which is one bit more than a
+    closed gate is supposed to disclose.
+    """
+    SRC = "toonily"
+    fixture = {
+        (SRC, SERIES): {
+            "meta": {"title": "Gated"},
+            "chapters": [{"id": "ch-1", "number": 1.0, "title": "One"}],
+            "pages": {"ch-1": [{"number": 1, "image_url": "/x"}]},
+        }
+    }
+    browse = FakeBrowse(fixture)
+    svc = ReaderService(browse, db=db_session)
+    svc.manifest(SRC, SERIES, "ch-1")  # gate open: warms source_series_cache
+
+    browse.mature_sources = {SRC}
+    browse.gate_open = False
+
+    for chapter_key in ("ch-1", "no-such-chapter"):
+        with pytest.raises(AppError) as excinfo:
+            svc.manifest(SRC, SERIES, chapter_key)
+        assert excinfo.value.status_code == 404
+        assert excinfo.value.code == "source_not_found", (
+            f"{chapter_key!r} disclosed that the source exists"
+        )
