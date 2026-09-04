@@ -3,42 +3,78 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/downloaded_series_group.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
+import 'package:manhwamaniacs/features/downloads/providers/active_download_queue_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloaded_series_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
-import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/active_downloads_panel.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/downloads_storage_card.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/export_downloads_action.dart';
 import 'package:manhwamaniacs/features/ocr/widgets/ocr_chapter_action.dart';
 import 'package:manhwamaniacs/features/ocr/widgets/ocr_run_banner.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 
-/// Every chapter with an on-device footprint, grouped by series — spec §3's
-/// "Downloads tab": real sizes, pin toggles, per-chapter remove, and the
-/// queue's own status (a plain badge, since the download button on a series
-/// page already shows the enabled/disabled/retryable affordance).
-class DownloadsScreen extends ConsumerWidget {
+/// The downloads area: a top-level tab, not a row buried in More.
+///
+/// It answers three questions the owner asked in this order — *is anything
+/// happening?* (the live queue panel), *what is on my phone and what is it
+/// costing me?* (the saved list, largest series first), and *where did it
+/// go?* (the note below the queue plus Save to Files).
+///
+/// Two tabs rather than one long scroll: Chapters is the thing you open the
+/// area for, Storage is the thing you open it for once a month. Storage holds
+/// the very same [DownloadsStorageCard] that Settings → Storage does — the
+/// widget is embedded twice, never forked, so the cap, the retention interval
+/// and Free up space have exactly one implementation and one set of
+/// providers behind them.
+class DownloadsScreen extends ConsumerStatefulWidget {
   const DownloadsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<DownloadsScreen> createState() => _DownloadsScreenState();
+}
+
+class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
+    with SingleTickerProviderStateMixin {
+  late final TabController _tabs = TabController(length: 2, vsync: this);
+
+  /// The per-chapter queue list is collapsed by default: the panel's summary
+  /// answers "is it working" on its own, and a 200-chapter queue would bury
+  /// the library underneath it.
+  var _queueExpanded = false;
+
+  @override
+  void dispose() {
+    _tabs.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final scopeId = ref.watch(activeDownloadsScopeIdProvider);
-    final groupsAsync = ref.watch(downloadedSeriesProvider);
-    final queueState = ref.watch(downloadQueueControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
-          tooltip: 'Back',
-          onPressed: () => context.pop(),
-        ),
         title: const Text('Downloads'),
+        bottom: scopeId == null
+            ? null
+            : TabBar(
+                controller: _tabs,
+                labelColor: AppColors.primary,
+                unselectedLabelColor: AppColors.muted,
+                indicatorColor: AppColors.primary,
+                tabs: const [
+                  Tab(text: 'Chapters'),
+                  Tab(text: 'Storage'),
+                ],
+              ),
       ),
       body: scopeId == null
           ? const EmptyState(
@@ -46,95 +82,227 @@ class DownloadsScreen extends ConsumerWidget {
               message: 'No active profile',
               subtitle: 'Choose a reading profile to see its downloads.',
             )
-          : Column(
+          : TabBarView(
+              controller: _tabs,
               children: [
-                _QueueStatusBanner(state: queueState),
-                const OcrRunBanner(),
-                Expanded(
-                  child: groupsAsync.when(
-                    loading: () => const Center(child: CircularProgressIndicator()),
-                    error: (error, _) => Center(
-                      child: Text(
-                        'Could not load downloads.',
-                        style: AppTypography.body.copyWith(color: AppColors.danger),
-                      ),
-                    ),
-                    data: (groups) {
-                      if (groups.isEmpty) {
-                        return const EmptyState(
-                          icon: Icons.download_outlined,
-                          message: 'No downloads yet',
-                          subtitle:
-                              'Chapters you download for offline reading show up here.',
-                        );
-                      }
-                      return ListView(
-                        padding: EdgeInsets.fromLTRB(
-                          AppSpacing.xl2,
-                          AppSpacing.lg,
-                          AppSpacing.xl2,
-                          AppSpacing.xl2 + MediaQuery.paddingOf(context).bottom,
-                        ),
-                        children: [
-                          for (final group in groups)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: AppSpacing.md),
-                              child: _SeriesDownloadCard(group: group),
-                            ),
-                        ],
-                      );
-                    },
-                  ),
+                _ChaptersTab(
+                  queueExpanded: _queueExpanded,
+                  onToggleQueue: () =>
+                      setState(() => _queueExpanded = !_queueExpanded),
+                  onOpenStorageSettings: () => _tabs.animateTo(1),
                 ),
+                const _StorageTab(),
               ],
             ),
     );
   }
 }
 
-class _QueueStatusBanner extends StatelessWidget {
-  const _QueueStatusBanner({required this.state});
+class _ChaptersTab extends ConsumerWidget {
+  const _ChaptersTab({
+    required this.queueExpanded,
+    required this.onToggleQueue,
+    required this.onOpenStorageSettings,
+  });
 
-  final DownloadQueueState state;
+  final bool queueExpanded;
+  final VoidCallback onToggleQueue;
+  final VoidCallback onOpenStorageSettings;
 
-  String? get _message => switch (state.pauseReason) {
-        DownloadQueuePauseReason.backgrounded =>
-          'Downloads pause while the app is in the background — keep it open '
-              'to keep downloading.',
-        DownloadQueuePauseReason.freeSpaceFloor =>
-          'Paused: your phone is nearly full. Free up space to resume.',
-        DownloadQueuePauseReason.cap =>
-          'Paused: you\'ve reached your storage cap. Raise it or free up '
-              'space in Settings → Storage to resume.',
-        DownloadQueuePauseReason.noScope || DownloadQueuePauseReason.none => null,
-      };
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final groupsAsync = ref.watch(downloadedSeriesProvider);
+    final queued =
+        ref.watch(activeDownloadQueueProvider).valueOrNull ??
+            const <SavedChapter>[];
+
+    // Slivers, not a ListView of everything: both the queue and the saved
+    // library are unbounded (a "download series" can be hundreds of
+    // chapters), and only slivers keep those rows lazy.
+    return CustomScrollView(
+      slivers: [
+        const SliverToBoxAdapter(child: OcrRunBanner()),
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(
+            AppSpacing.xl2,
+            AppSpacing.lg,
+            AppSpacing.xl2,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(
+            child: ActiveDownloadsPanel(
+              expanded: queueExpanded,
+              onToggleExpanded: onToggleQueue,
+              onOpenStorageSettings: onOpenStorageSettings,
+            ),
+          ),
+        ),
+        if (queueExpanded && queued.isNotEmpty)
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(
+              AppSpacing.md,
+              AppSpacing.sm,
+              AppSpacing.md,
+              0,
+            ),
+            sliver: SliverList.builder(
+              itemCount: queued.length,
+              itemBuilder: (context, index) =>
+                  QueuedChapterRow(chapter: queued[index]),
+            ),
+          ),
+        const SliverPadding(
+          padding: EdgeInsets.fromLTRB(
+            AppSpacing.xl2,
+            AppSpacing.lg,
+            AppSpacing.xl2,
+            0,
+          ),
+          sliver: SliverToBoxAdapter(child: _WhereItLivesCard()),
+        ),
+        ...groupsAsync.when(
+          loading: () => const [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator()),
+            ),
+          ],
+          error: (error, _) => [
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(
+                child: Text(
+                  'Could not load downloads.',
+                  style: AppTypography.body.copyWith(color: AppColors.danger),
+                ),
+              ),
+            ),
+          ],
+          data: (groups) => _savedSlivers(context, groups),
+        ),
+      ],
+    );
+  }
+
+  List<Widget> _savedSlivers(
+    BuildContext context,
+    List<DownloadedSeriesGroup> groups,
+  ) {
+    if (groups.isEmpty) {
+      return const [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: EmptyState(
+            icon: Icons.download_outlined,
+            message: 'No downloads yet',
+            subtitle:
+                'Chapters you download for offline reading show up here.',
+          ),
+        ),
+      ];
+    }
+
+    // Largest series first — this list doubles as the answer to "what is
+    // taking up my space", and the per-series breakdown on the Storage tab
+    // uses the same ordering for the same reason.
+    final ordered = [...groups]
+      ..sort((a, b) => b.totalBytes.compareTo(a.totalBytes));
+
+    return [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(
+          AppSpacing.xl2,
+          AppSpacing.xl2,
+          AppSpacing.xl2,
+          AppSpacing.sm,
+        ),
+        sliver: SliverToBoxAdapter(
+          child: Text(
+            'On this phone — biggest first',
+            style: AppTypography.labelSm.copyWith(
+              color: AppColors.muted,
+              letterSpacing: 1.0,
+            ),
+          ),
+        ),
+      ),
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(
+          AppSpacing.xl2,
+          0,
+          AppSpacing.xl2,
+          AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
+        ),
+        sliver: SliverList.builder(
+          itemCount: ordered.length,
+          itemBuilder: (context, index) => Padding(
+            padding: const EdgeInsets.only(bottom: AppSpacing.md),
+            child: _SeriesDownloadCard(group: ordered[index]),
+          ),
+        ),
+      ),
+    ];
+  }
+}
+
+class _StorageTab extends StatelessWidget {
+  const _StorageTab();
 
   @override
   Widget build(BuildContext context) {
-    final message = _message;
-    if (message == null && !state.isDownloading) return const SizedBox.shrink();
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(
+    return ListView(
+      padding: EdgeInsets.fromLTRB(
         AppSpacing.xl2,
-        AppSpacing.lg,
         AppSpacing.xl2,
-        0,
+        AppSpacing.xl2,
+        AppSpacing.xl7 + MediaQuery.paddingOf(context).bottom,
       ),
-      child: GlassCard(
+      children: const [DownloadsStorageCard()],
+    );
+  }
+}
+
+/// The plain-sentence answer to "where is it landing on my iPhone".
+///
+/// Deliberately does **not** point at the blob tree. Page bytes are stored
+/// content-addressed under `mm-store/blobs/{hash[0:2]}/{sha256}` — that is
+/// what makes cross-profile dedup and refcounted deletion correct — so what
+/// a user would actually find by going looking is thousands of extensionless
+/// files sharded across 256 folders. Telling them to browse that would be
+/// technically true and practically useless, so the honest answer is "they
+/// live in the app; here is the button that gives you a readable copy".
+class _WhereItLivesCard extends StatelessWidget {
+  const _WhereItLivesCard();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppColors.fg.withAlpha(13),
+        borderRadius: BorderRadius.circular(AppRadius.md),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(
-              message != null ? Icons.pause_circle_outline : Icons.downloading_outlined,
-              color: message != null ? AppColors.warning : AppColors.primary,
-              size: 20,
+            const Icon(
+              Icons.info_outline,
+              color: AppColors.muted,
+              size: 18,
             ),
             const SizedBox(width: AppSpacing.sm),
             Expanded(
               child: Text(
-                message ?? 'Downloading…',
-                style: AppTypography.bodySm,
+                'Downloaded chapters are stored inside ManhwaManiacs and read '
+                'offline straight from this tab — there is nothing to find in '
+                'the Files app. For a copy you can open elsewhere, use Save to '
+                'Files on a series or chapter.',
+                style: AppTypography.caption.copyWith(
+                  color: AppColors.muted,
+                  height: 1.5,
+                ),
               ),
             ),
           ],
@@ -156,9 +324,17 @@ class _SeriesDownloadCard extends ConsumerStatefulWidget {
 class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
   var _expanded = false;
 
+  String get _seriesLabel =>
+      (widget.group.seriesTitle?.isNotEmpty ?? false)
+          ? widget.group.seriesTitle!
+          : widget.group.seriesKey;
+
   @override
   Widget build(BuildContext context) {
     final group = widget.group;
+    final saved = group.chapters
+        .where((c) => c.state == DownloadChapterState.complete)
+        .length;
 
     return GlassCard(
       padding: EdgeInsets.zero,
@@ -176,19 +352,16 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          (group.seriesTitle?.isNotEmpty ?? false)
-                              ? group.seriesTitle!
-                              : group.seriesKey,
+                          _seriesLabel,
                           style: AppTypography.labelLg,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
-                          '${group.chapters.length} chapter'
-                          '${group.chapters.length == 1 ? '' : 's'} · '
-                          '${formatDownloadBytes(group.totalBytes)}',
-                          style: AppTypography.caption.copyWith(color: AppColors.muted),
+                          _subtitle(saved, group),
+                          style: AppTypography.caption
+                              .copyWith(color: AppColors.muted),
                         ),
                       ],
                     ),
@@ -202,6 +375,23 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
                     ),
                     onPressed: () => _togglePin(group),
                   ),
+                  PopupMenuButton<_SeriesAction>(
+                    key: Key('series-menu-${group.sourceId}-${group.seriesKey}'),
+                    tooltip: 'Series options',
+                    color: AppColors.surfaceElevated,
+                    icon: const Icon(Icons.more_vert, color: AppColors.muted),
+                    onSelected: _onSeriesAction,
+                    itemBuilder: (context) => const [
+                      PopupMenuItem(
+                        value: _SeriesAction.export,
+                        child: Text('Save to Files…'),
+                      ),
+                      PopupMenuItem(
+                        value: _SeriesAction.deleteAll,
+                        child: Text('Remove all downloads'),
+                      ),
+                    ],
+                  ),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
                     color: AppColors.muted,
@@ -214,12 +404,73 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
             for (final chapter in group.chapters)
               _ChapterRow(
                 chapter: chapter,
+                seriesLabel: _seriesLabel,
                 onRemoved: () => ref.invalidate(downloadedSeriesProvider),
               ),
           if (_expanded) const SizedBox(height: AppSpacing.xs),
         ],
       ),
     );
+  }
+
+  String _subtitle(int saved, DownloadedSeriesGroup group) {
+    final total = group.chapters.length;
+    final size = formatDownloadBytes(group.totalBytes);
+    if (saved == total) {
+      return '$total chapter${total == 1 ? '' : 's'} · $size';
+    }
+    return '$saved of $total chapters saved · $size';
+  }
+
+  Future<void> _onSeriesAction(_SeriesAction action) async {
+    switch (action) {
+      case _SeriesAction.export:
+        await showDownloadExportSheet(
+          context,
+          ref,
+          seriesLabel: _seriesLabel,
+          chapters: widget.group.chapters,
+        );
+      case _SeriesAction.deleteAll:
+        await _confirmDeleteAll();
+    }
+  }
+
+  Future<void> _confirmDeleteAll() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        backgroundColor: AppColors.surfaceElevated,
+        title: Text('Remove downloads?', style: AppTypography.h4),
+        content: Text(
+          'Deletes every downloaded chapter of $_seriesLabel from this phone. '
+          'Your reading progress is kept, and you can download them again any '
+          'time.',
+          style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(false),
+            child: const Text('Keep'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(true),
+            child: Text(
+              'Remove',
+              style: AppTypography.label.copyWith(color: AppColors.danger),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    final store = ref.read(downloadsStoreProvider);
+    if (store == null) return;
+    for (final chapter in widget.group.chapters) {
+      await store.deleteDownload(chapter.identity);
+    }
+    ref.invalidate(downloadedSeriesProvider);
   }
 
   Future<void> _togglePin(DownloadedSeriesGroup group) async {
@@ -231,15 +482,23 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
   }
 }
 
+enum _SeriesAction { export, deleteAll }
+
 class _ChapterRow extends ConsumerWidget {
-  const _ChapterRow({required this.chapter, required this.onRemoved});
+  const _ChapterRow({
+    required this.chapter,
+    required this.seriesLabel,
+    required this.onRemoved,
+  });
 
   final SavedChapter chapter;
+  final String seriesLabel;
   final VoidCallback onRemoved;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final label = chapterLabel(number: chapter.chapterNumber, title: chapter.title);
+    final complete = chapter.state == DownloadChapterState.complete;
 
     return ListTile(
       dense: true,
@@ -250,7 +509,7 @@ class _ChapterRow extends ConsumerWidget {
         '${formatDownloadBytes(chapter.bytes)}',
         style: AppTypography.caption.copyWith(color: AppColors.muted),
       ),
-      onTap: chapter.state == DownloadChapterState.complete
+      onTap: complete
           ? () => context.push(
                 RoutePaths.reader(chapter.sourceId, chapter.seriesKey, chapter.chapterKey),
               )
@@ -262,6 +521,20 @@ class _ChapterRow extends ConsumerWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           OcrChapterAction(chapter: chapter),
+          if (complete)
+            IconButton(
+              key: Key(
+                'export-${chapter.sourceId}-${chapter.seriesKey}-${chapter.chapterKey}',
+              ),
+              tooltip: 'Save to Files',
+              icon: const Icon(Icons.save_alt, size: 20),
+              onPressed: () => showDownloadExportSheet(
+                context,
+                ref,
+                seriesLabel: seriesLabel,
+                chapters: [chapter],
+              ),
+            ),
           IconButton(
             key: Key('remove-${chapter.sourceId}-${chapter.seriesKey}-${chapter.chapterKey}'),
             tooltip: 'Remove download',
