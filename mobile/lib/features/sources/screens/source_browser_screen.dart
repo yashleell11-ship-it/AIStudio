@@ -6,6 +6,7 @@ import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_shelf.dart';
@@ -241,6 +242,17 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                         );
                       }
 
+                      // The poster grid spans the viewport inside its own
+                      // horizontal padding, so a tile's width is arithmetic.
+                      // The card fills its cell and cannot work it out itself.
+                      final columns = context.layout.columnsFor(3);
+                      final coverWidth = gridTileWidth(
+                        available:
+                            context.screenWidth - context.space.sm * 2,
+                        columns: columns,
+                        spacing: context.space.xs,
+                      );
+
                       return RefreshIndicator(
                         key: const ValueKey('source-browse-data'),
                         color: context.colors.primary,
@@ -304,7 +316,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                             sliver: SliverGrid.builder(
                               gridDelegate:
                                   SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: context.layout.columnsFor(3),
+                                crossAxisCount: columns,
                                 crossAxisSpacing: context.space.xs,
                                 mainAxisSpacing: context.space.xs,
                                 childAspectRatio: 0.56,
@@ -316,6 +328,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                                   index: index,
                                   child: _DenseSeriesCard(
                                     series: series,
+                                    coverWidth: coverWidth,
                                     onTap: () => context.go(
                                       RoutePaths.sourceSeriesDetail(
                                         widget.sourceId,
@@ -517,9 +530,18 @@ class _SourceOpeningState extends StatelessWidget {
 // ── Dense cover-focused card ──────────────────────────────────────────────────
 
 class _DenseSeriesCard extends StatelessWidget {
-  const _DenseSeriesCard({required this.series, required this.onTap});
+  const _DenseSeriesCard({
+    required this.series,
+    required this.coverWidth,
+    required this.onTap,
+  });
 
   final SourceSeriesSummary series;
+
+  /// Logical width of one grid tile — the card fills its cell, so only the
+  /// grid that laid it out knows how wide the cover will actually be.
+  final double coverWidth;
+
   final VoidCallback onTap;
 
   @override
@@ -541,6 +563,7 @@ class _DenseSeriesCard extends StatelessWidget {
                 flex: 6,
                 child: SeriesCoverImage(
                   url: series.coverUrl,
+                  displayWidth: coverWidth,
                   borderRadius: 0,
                 ),
               ),

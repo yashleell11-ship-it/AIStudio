@@ -18,6 +18,7 @@ class SeriesCard extends ConsumerWidget {
   const SeriesCard({
     super.key,
     required this.series,
+    required this.coverWidth,
     required this.onTap,
     required this.onToggleFavorite,
     this.onRemove,
@@ -27,6 +28,11 @@ class SeriesCard extends ConsumerWidget {
   });
 
   final FollowedSeries series;
+
+  /// Logical width of one grid tile — the card fills its cell, so only the
+  /// grid that laid it out knows how wide the cover will actually be.
+  final double coverWidth;
+
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
   final VoidCallback? onRemove;
@@ -58,6 +64,7 @@ class SeriesCard extends ConsumerWidget {
                     tag: seriesCoverHeroTag(series.id),
                     child: SeriesCoverImage(
                       url: followedSeriesCoverUrl(baseUrl, series) ?? '',
+                      displayWidth: coverWidth,
                       borderRadius: context.radii.xl,
                     ),
                   ),
@@ -462,32 +469,49 @@ class SeriesGrid extends ConsumerWidget {
     final layout = context.layout;
     final base = context.seriesGridColumns;
     final columns = layout.columnsFor((base / coverScale).round());
+    final spacing = context.space.md;
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: columns,
-        crossAxisSpacing: context.space.md,
-        mainAxisSpacing: context.space.xl,
-        childAspectRatio: layout.gridAspectRatio,
-      ),
-      itemCount: items.length,
-      itemBuilder: (context, index) {
-        final series = items[index];
-        return ScrollReveal(
-          index: index,
-          child: SeriesCard(
-            series: series,
-            onTap: () => onSeriesTap(series),
-            onToggleFavorite: () => onToggleFavorite(series.id),
-            onLongPress: onSeriesLongPress == null
-                ? null
-                : () => onSeriesLongPress!(series),
-            onRemove: onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
-            selectionMode: selectionMode,
-            selected: selectedIds.contains(series.id),
+    // Measured at the grid, not at the card: the grid's constraints are stable
+    // for a given viewport, while a card is inside a Hero that resizes on every
+    // frame of a flight — and the tile width becomes part of the cover's URL,
+    // which is the disk cache's key.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final coverWidth = gridTileWidth(
+          available: constraints.maxWidth,
+          columns: columns,
+          spacing: spacing,
+        );
+
+        return GridView.builder(
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            crossAxisSpacing: spacing,
+            mainAxisSpacing: context.space.xl,
+            childAspectRatio: layout.gridAspectRatio,
           ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            final series = items[index];
+            return ScrollReveal(
+              index: index,
+              child: SeriesCard(
+                series: series,
+                coverWidth: coverWidth,
+                onTap: () => onSeriesTap(series),
+                onToggleFavorite: () => onToggleFavorite(series.id),
+                onLongPress: onSeriesLongPress == null
+                    ? null
+                    : () => onSeriesLongPress!(series),
+                onRemove:
+                    onRemoveSeries == null ? null : () => onRemoveSeries!(series.id),
+                selectionMode: selectionMode,
+                selected: selectedIds.contains(series.id),
+              ),
+            );
+          },
         );
       },
     );

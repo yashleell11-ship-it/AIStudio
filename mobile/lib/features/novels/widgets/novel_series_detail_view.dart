@@ -256,6 +256,7 @@ class _FrontMatter extends ConsumerWidget {
                     height: 112,
                     child: SeriesCoverImage(
                       url: series.coverUrl,
+                      displayWidth: 76,
                       borderRadius: 0,
                     ),
                   ),

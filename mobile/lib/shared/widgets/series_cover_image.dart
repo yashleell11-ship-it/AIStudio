@@ -12,12 +12,17 @@ import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 /// Uses CachedNetworkImage with a shimmer placeholder and graceful fallback.
 /// Attaches the session bearer token so proxied `/library/covers/*` and
 /// `/sources/*/cover` routes succeed (they require authentication).
+///
+/// This is also the one place that asks the cover proxy for a right-sized
+/// image. Every cover in the app is painted through here, so the slot width →
+/// `?w=` translation lives here rather than in each of the sixteen call sites.
 class SeriesCoverImage extends ConsumerWidget {
   const SeriesCoverImage({
     super.key,
     required this.url,
     this.width,
     this.height,
+    this.displayWidth,
     this.borderRadius,
     this.fit = BoxFit.cover,
   });
@@ -25,6 +30,19 @@ class SeriesCoverImage extends ConsumerWidget {
   final String url;
   final double? width;
   final double? height;
+
+  /// Logical width of the slot this cover is painted into, for callers whose
+  /// cover stretches to fill its parent and so pass no [width] — a grid tile,
+  /// the detail hero. Defaults to [width], which already *is* the slot width
+  /// wherever a caller states one.
+  ///
+  /// Declared by the caller, never measured. The width ends up in the request
+  /// URL and [CachedNetworkImage] keys its disk cache on that URL, so a width
+  /// that moves buys a fresh download every time it does. A `LayoutBuilder`
+  /// here would be exactly that: covers sit inside [Hero]s that resize on
+  /// every frame of a flight, which would write one cache entry per frame. A
+  /// declared width is constant for a device and orientation — one entry.
+  final double? displayWidth;
 
   /// Null takes the preset's `md` corner — a default that has to be read
   /// from the tree, not baked into the constructor signature.
@@ -37,11 +55,18 @@ class SeriesCoverImage extends ConsumerWidget {
       ref.watch(authTokenStoreProvider).token,
       profileId: ref.watch(activeProfileProvider)?.id,
     );
+    final imageUrl = coverUrlAtWidth(
+      url,
+      coverRequestWidth(
+        displayWidth ?? width,
+        MediaQuery.devicePixelRatioOf(context),
+      ),
+    );
 
     return ClipRRect(
       borderRadius: BorderRadius.circular(borderRadius ?? context.radii.md),
       child: CachedNetworkImage(
-        imageUrl: url,
+        imageUrl: imageUrl,
         httpHeaders: headers,
         width: width,
         height: height,

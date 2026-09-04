@@ -283,6 +283,7 @@ class _CollectionSeriesTile extends StatelessWidget {
                 height: 66,
                 child: SeriesCoverImage(
                   url: sourceSeriesCoverUrl(apiBaseUrl, sourceId, seriesKey),
+                  displayWidth: 44,
                   borderRadius: 8,
                 ),
               ),

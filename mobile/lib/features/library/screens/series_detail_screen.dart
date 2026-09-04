@@ -273,6 +273,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
         tag: seriesCoverHeroTag(_series.id),
         child: SeriesCoverImage(
           url: followedSeriesCoverUrl(baseUrl, _series) ?? '',
+          displayWidth: SeriesDetailBody.coverWidthFor(context),
           borderRadius: 0,
         ),
       ),

@@ -37,6 +37,20 @@ extension ResponsiveContext on BuildContext {
   }
 }
 
+/// Logical width of one tile in a fixed-column grid spanning [available].
+///
+/// Every poster grid works this out and hands it down to the card it builds:
+/// a card fills its cell and so cannot know its own width, but its cover has
+/// to state one to ask the backend for a right-sized image.
+double gridTileWidth({
+  required double available,
+  required int columns,
+  required double spacing,
+}) {
+  if (columns <= 0 || !available.isFinite) return available;
+  return (available - spacing * (columns - 1)) / columns;
+}
+
 /// Builds a different widget depending on device class.
 class Responsive extends StatelessWidget {
   const Responsive({

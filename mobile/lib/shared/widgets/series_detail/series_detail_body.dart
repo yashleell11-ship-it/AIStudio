@@ -65,6 +65,15 @@ class SeriesDetailBody extends StatelessWidget {
   /// Shown in place of the list when there are no chapters at all.
   final Widget emptyChapters;
 
+  /// Logical width the [cover] will be painted at: the full content column,
+  /// which is the page width less this widget's own horizontal padding.
+  ///
+  /// Exposed because the cover arrives pre-built from the screen above, which
+  /// therefore has to know how wide it will end up in order to request a
+  /// right-sized image — and the padding that decides that lives here.
+  static double coverWidthFor(BuildContext context) =>
+      MediaQuery.sizeOf(context).width - context.space.xl2 * 2;
+
   @override
   Widget build(BuildContext context) {
     return ListView(
