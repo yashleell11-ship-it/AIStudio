@@ -1,0 +1,356 @@
+{
+ "data": {
+  "manga": {
+   "id": 71879,
+   "title": "I’d Rather Live as a Villain",
+   "alternativeTitle": "차라리 빌런으로 살겠다",
+   "slug": "i-d-rather-live-as-a-villain",
+   "mainSlug": "i-d-rather-live-as-a-villain",
+   "status": "ongoing",
+   "image": "mrc/i-d-rather-live-as-a-villain.jpg",
+   "latestChapter": 46,
+   "genres": "Drama, Office Workers, Long Strip, Web Comic, Adaptation, Full Color, Safe, Manhwa",
+   "author": "Dumbo (덤보)",
+   "artist": "Dada (다다)",
+   "isWebtoon": true,
+   "isYaoi": false,
+   "isPorn": false,
+   "isSoftPorn": false,
+   "isSafe": true,
+   "description": "The protagonist, once an assistant manager on Daeyoung Corporation’s Spain team, is forced into a transfer to distribution after having their achievements stolen by superiors. There, He begins working as the personal secretary to Kang Mun-jeong, the only legitimate heir of the Daeyoung Group.\n\nFeeling her position threatened, Executive Director Kang Mun-jeong proposes a contract marriage to the protagonist, Yoon Tae-sik, who has served faithfully at her side for three years, in order to once again draw public attention to herself.\n\nThe price of the marriage:  billion won.\n\nThus begins an office drama, as the protagonist carries out the terms of this contract marriage, with  billion won on the line.",
+   "createdDate": "2025-09-13T11:18:30.000Z",
+   "updatedDate": "2026-09-04T17:56:04.000Z",
+   "chapters": [
+    {
+     "id": 2243785,
+     "number": 1,
+     "title": "Chapter 1",
+     "slug": "chapter-1",
+     "date": "2025-09-13T11:18:31.000Z"
+    },
+    {
+     "id": 2243784,
+     "number": 2,
+     "title": "Chapter 2",
+     "slug": "chapter-2",
+     "date": "2025-09-13T11:18:31.000Z"
+    },
+    {
+     "id": 2243780,
+     "number": 3,
+     "title": "Chapter 3",
+     "slug": "chapter-3",
+     "date": "2025-09-13T11:18:31.000Z"
+    },
+    {
+     "id": 2243783,
+     "number": 4,
+     "title": "Chapter 4",
+     "slug": "chapter-4",
+     "date": "2025-09-13T11:18:31.000Z"
+    },
+    {
+     "id": 2243781,
+     "number": 5,
+     "title": "Chapter 5",
+     "slug": "chapter-5",
+     "date": "2025-09-13T11:18:31.000Z"
+    },
+    {
+     "id": 2243786,
+     "number": 6,
+     "title": "Chapter 6",
+     "slug": "chapter-6",
+     "date": "2025-09-13T11:18:31.000Z"
+    },
+    {
+     "id": 2247095,
+     "number": 7,
+     "title": "Chapter 7",
+     "slug": "chapter-7",
+     "date": "2025-09-16T23:56:29.000Z"
+    },
+    {
+     "id": 2255649,
+     "number": 8,
+     "title": "Chapter 8",
+     "slug": "chapter-8",
+     "date": "2025-09-24T08:11:19.000Z"
+    },
+    {
+     "id": 2262752,
+     "number": 9,
+     "title": "Chapter 9",
+     "slug": "chapter-9",
+     "date": "2025-10-01T14:56:38.000Z"
+    },
+    {
+     "id": 2270064,
+     "number": 10,
+     "title": "Chapter 10",
+     "slug": "chapter-10",
+     "date": "2025-10-09T15:56:23.000Z"
+    },
+    {
+     "id": 2273757,
+     "number": 11,
+     "title": "Chapter 11",
+     "slug": "chapter-11",
+     "date": "2025-10-13T19:26:15.000Z"
+    },
+    {
+     "id": 2285868,
+     "number": 12,
+     "title": "Chapter 12",
+     "slug": "chapter-12",
+     "date": "2025-10-26T10:56:27.000Z"
+    },
+    {
+     "id": 2290610,
+     "number": 13,
+     "title": "Chapter 13",
+     "slug": "chapter-13",
+     "date": "2025-10-30T16:41:35.000Z"
+    },
+    {
+     "id": 2303460,
+     "number": 14,
+     "title": "Chapter 14",
+     "slug": "chapter-14",
+     "date": "2025-11-14T20:11:13.000Z"
+    },
+    {
+     "id": 2304736,
+     "number": 15,
+     "title": "Chapter 15",
+     "slug": "chapter-15",
+     "date": "2025-11-16T13:57:32.000Z"
+    },
+    {
+     "id": 2320221,
+     "number": 16,
+     "title": "Chapter 16",
+     "slug": "chapter-16",
+     "date": "2025-12-05T20:41:19.000Z"
+    },
+    {
+     "id": 2326622,
+     "number": 17,
+     "title": "Chapter 17",
+     "slug": "chapter-17",
+     "date": "2025-12-14T11:41:07.000Z"
+    },
+    {
+     "id": 2326624,
+     "number": 18,
+     "title": "Chapter 18",
+     "slug": "chapter-18",
+     "date": "2025-12-14T11:41:07.000Z"
+    },
+    {
+     "id": 2330098,
+     "number": 19,
+     "title": "Chapter 19",
+     "slug": "chapter-19",
+     "date": "2025-12-18T22:56:19.000Z"
+    },
+    {
+     "id": 2333661,
+     "number": 20,
+     "title": "Chapter 20",
+     "slug": "chapter-20",
+     "date": "2025-12-22T23:11:18.000Z"
+    },
+    {
+     "id": 2336195,
+     "number": 21,
+     "title": "Chapter 21",
+     "slug": "chapter-21",
+     "date": "2025-12-25T20:11:34.000Z"
+    },
+    {
+     "id": 2356255,
+     "number": 22,
+     "title": "Chapter 22",
+     "slug": "chapter-22",
+     "date": "2026-01-15T15:11:55.000Z"
+    },
+    {
+     "id": 2362139,
+     "number": 23,
+     "title": "Chapter 23",
+     "slug": "chapter-23",
+     "date": "2026-01-22T15:11:34.000Z"
+    },
+    {
+     "id": 2383313,
+     "number": 24,
+     "title": "Chapter 24",
+     "slug": "chapter-24",
+     "date": "2026-02-03T11:28:18.000Z"
+    },
+    {
+     "id": 2398666,
+     "number": 25,
+     "title": "Chapter 25",
+     "slug": "chapter-25",
+     "date": "2026-02-10T17:17:05.000Z"
+    },
+    {
+     "id": 2432090,
+     "number": 26,
+     "title": "Chapter 26",
+     "slug": "chapter-26",
+     "date": "2026-03-03T15:41:51.000Z"
+    },
+    {
+     "id": 2434564,
+     "number": 27,
+     "title": "Chapter 27",
+     "slug": "chapter-27",
+     "date": "2026-03-03T23:11:27.000Z"
+    },
+    {
+     "id": 2436622,
+     "number": 28,
+     "title": "Chapter 28",
+     "slug": "chapter-28",
+     "date": "2026-03-04T13:11:20.000Z"
+    },
+    {
+     "id": 2436996,
+     "number": 29,
+     "title": "Chapter 29",
+     "slug": "chapter-29",
+     "date": "2026-03-04T15:41:21.000Z"
+    },
+    {
+     "id": 2485397,
+     "number": 30,
+     "title": "Chapter 30",
+     "slug": "chapter-30",
+     "date": "2026-03-16T12:26:25.000Z"
+    },
+    {
+     "id": 2485401,
+     "number": 31,
+     "title": "Chapter 31",
+     "slug": "chapter-31",
+     "date": "2026-03-16T12:26:25.000Z"
+    },
+    {
+     "id": 2526106,
+     "number": 32,
+     "title": "subordinate",
+     "slug": "subordinate",
+     "date": "2026-03-26T17:04:32.000Z"
+    },
+    {
+     "id": 2541332,
+     "number": 33,
+     "title": "friendly competition",
+     "slug": "friendly-competition",
+     "date": "2026-03-29T15:11:32.000Z"
+    },
+    {
+     "id": 2576850,
+     "number": 34,
+     "title": "Chapter 34",
+     "slug": "chapter-34",
+     "date": "2026-04-09T00:56:53.000Z"
+    },
+    {
+     "id": 2581211,
+     "number": 35,
+     "title": "Coffee Machine",
+     "slug": "coffee-machine",
+     "date": "2026-04-12T05:56:22.000Z"
+    },
+    {
+     "id": 2593440,
+     "number": 36,
+     "title": "Chapter 36",
+     "slug": "chapter-36",
+     "date": "2026-04-21T02:11:07.000Z"
+    },
+    {
+     "id": 2599503,
+     "number": 37,
+     "title": "The most expensive",
+     "slug": "the-most-expensive",
+     "date": "2026-04-25T18:12:00.000Z"
+    },
+    {
+     "id": 2626938,
+     "number": 38,
+     "title": "38-eng-li",
+     "slug": "38-eng-li",
+     "date": "2026-05-17T18:04:53.000Z"
+    },
+    {
+     "id": 2637939,
+     "number": 39,
+     "title": "Chapter 39",
+     "slug": "chapter-39",
+     "date": "2026-05-26T16:26:23.000Z"
+    },
+    {
+     "id": 2654453,
+     "number": 40,
+     "title": "Chapter 40",
+     "slug": "chapter-40",
+     "date": "2026-06-19T16:57:09.000Z"
+    },
+    {
+     "id": 2654452,
+     "number": 40.5,
+     "title": "Chapter 40.5",
+     "slug": "chapter-40-5",
+     "date": "2026-06-19T16:57:09.000Z"
+    },
+    {
+     "id": 2713830,
+     "number": 41,
+     "title": "Chapter 41",
+     "slug": "chapter-41",
+     "date": "2026-08-28T15:41:04.000Z"
+    },
+    {
+     "id": 2714885,
+     "number": 42,
+     "title": "Chapter 42",
+     "slug": "chapter-42",
+     "date": "2026-08-29T18:56:35.000Z"
+    },
+    {
+     "id": 2720074,
+     "number": 43,
+     "title": "Chapter 43",
+     "slug": "chapter-43",
+     "date": "2026-09-04T16:26:03.000Z"
+    },
+    {
+     "id": 2720078,
+     "number": 44,
+     "title": "Chapter 44",
+     "slug": "chapter-44",
+     "date": "2026-09-04T16:41:10.000Z"
+    },
+    {
+     "id": 2720088,
+     "number": 45,
+     "title": "Chapter 45",
+     "slug": "chapter-45",
+     "date": "2026-09-04T17:11:03.000Z"
+    },
+    {
+     "id": 2720139,
+     "number": 46,
+     "title": "Chapter 46",
+     "slug": "chapter-46",
+     "date": "2026-09-04T17:56:04.000Z"
+    }
+   ]
+  }
+ }
+}
