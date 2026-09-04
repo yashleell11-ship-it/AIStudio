@@ -9,6 +9,7 @@ import 'package:manhwamaniacs/features/downloads/widgets/open_chapter_scope.dart
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
+import 'package:manhwamaniacs/features/reader/providers/series_reading_order_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_feed_controller.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
@@ -31,7 +32,7 @@ class ReaderScreen extends ConsumerWidget {
     required this.seriesKey,
     required this.chapterKey,
     this.initialPage = 1,
-    this.readAllOrder,
+    this.readAll = false,
   });
 
   final String sourceId;
@@ -39,10 +40,16 @@ class ReaderScreen extends ConsumerWidget {
   final String chapterKey;
   final int initialPage;
 
-  /// Every chapter of the series in reading order — "Read all" (spec R2).
-  /// Null for an ordinary read, which continues one chapter at a time by
-  /// asking the server what comes next.
-  final List<String>? readAllOrder;
+  /// Read the whole series as one continuous scroll (spec R2), rather than
+  /// this chapter and whatever it happens to continue into.
+  ///
+  /// The difference is only that the reader is handed the series' chapter
+  /// order, so it knows what follows without asking per boundary. The order
+  /// arrives *behind* the first chapter: the reader opens in normal time and
+  /// the rest fills in, which is exactly what the owner accepted ("it doesnt
+  /// matter if it takes some time to load ... but i want that mode too") and
+  /// is why a spinner in front of 300 chapters was never on the table.
+  final bool readAll;
 
   ChapterManifestKey get _key =>
       (sourceId: sourceId, seriesKey: seriesKey, chapterKey: chapterKey);
@@ -55,6 +62,15 @@ class ReaderScreen extends ConsumerWidget {
     // network can supply them, and stays null forever if it cannot — which
     // costs the reader nothing but the prev/next affordances.
     final neighbours = ref.watch(chapterNeighboursProvider(_key)).valueOrNull;
+    final readAllOrder = readAll
+        ? ref
+            .watch(
+              seriesReadingOrderProvider(
+                (sourceId: sourceId, seriesId: seriesKey),
+              ),
+            )
+            .valueOrNull
+        : null;
 
     void retry() {
       // Both, not just the resolved provider: the manifest is a separate
@@ -160,6 +176,9 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
       prev: _prev,
       next: _next,
     );
+    // Read-all's chapter order arrives behind the first chapter, on purpose.
+    final order = widget.readAllOrder;
+    if (order != null && order.isNotEmpty) _controller.setOrder(order);
   }
 
   @override

@@ -136,4 +136,33 @@ abstract final class RoutePaths {
   static String sourceReader(String sourceId, String seriesId, String chapterId) =>
       '/sources/$sourceId/series/${Uri.encodeComponent(seriesId)}'
       '/chapters/${Uri.encodeComponent(chapterId)}/read';
+
+  /// The query flag that turns either reader into "Read all" (spec R2) — the
+  /// whole series as one continuous scroll, starting at [chapterId].
+  ///
+  /// A flag rather than a route of its own, because it *is* the same reader
+  /// opened at the same chapter: the only difference is that it has been
+  /// handed the rest of the series' chapter order, so it knows where to
+  /// continue without asking per boundary. Every deep link, resume and
+  /// bookmark into the ordinary reader keeps working untouched.
+  static const String readAllQueryParam = 'all';
+
+  static String readAll(String sourceId, String seriesKey, String chapterKey) =>
+      '${reader(sourceId, seriesKey, chapterKey)}?$readAllQueryParam=1';
+
+  static String sourceReadAll(
+    String sourceId,
+    String seriesId,
+    String chapterId,
+  ) =>
+      '${sourceReader(sourceId, seriesId, chapterId)}?$readAllQueryParam=1';
+}
+
+/// Whether a reader route's query asks for Read-all. Tolerant of the shapes a
+/// hand-typed or round-tripped link takes (`all=1`, `all=true`, bare `all`) —
+/// the flag is a request, not a protocol.
+bool isReadAllRequest(Map<String, String> queryParameters) {
+  if (!queryParameters.containsKey(RoutePaths.readAllQueryParam)) return false;
+  final value = queryParameters[RoutePaths.readAllQueryParam]?.toLowerCase();
+  return value == null || value.isEmpty || value == '1' || value == 'true';
 }

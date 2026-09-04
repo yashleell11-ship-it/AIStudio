@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart'
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/open_chapter_scope.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/providers/series_reading_order_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_feed_controller.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
@@ -37,12 +38,18 @@ class SourceReaderScreen extends ConsumerStatefulWidget {
     required this.seriesId,
     required this.chapterId,
     this.initialPage = 1,
+    this.readAll = false,
   });
 
   final String sourceId;
   final String seriesId;
   final String chapterId;
   final int initialPage;
+
+  /// Read the whole series as one continuous scroll (spec R2) rather than this
+  /// chapter and whatever it continues into. The chapter order arrives behind
+  /// the first chapter, so the reader still opens in normal time.
+  final bool readAll;
 
   @override
   ConsumerState<SourceReaderScreen> createState() => _SourceReaderScreenState();
@@ -194,6 +201,15 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
     // pages but not its neighbours, and waiting on the network to learn them
     // would put the network back in front of first paint.
     final neighbours = ref.watch(sourceChapterNeighboursProvider(key)).valueOrNull;
+    final readAllOrder = widget.readAll
+        ? ref
+            .watch(
+              seriesReadingOrderProvider(
+                (sourceId: widget.sourceId, seriesId: widget.seriesId),
+              ),
+            )
+            .valueOrNull
+        : null;
 
     void retry() {
       // The payload is its own cache entry — invalidating only the resolved
@@ -254,6 +270,9 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
           previousChapterId: previousChapterId,
           nextChapterId: nextChapterId,
         );
+        if (readAllOrder != null && readAllOrder.isNotEmpty) {
+          feedController.setOrder(readAllOrder);
+        }
 
         return OpenChapterScope(
           chapterId: (
