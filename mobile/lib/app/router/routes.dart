@@ -27,6 +27,21 @@ abstract final class Routes {
   static const String reader =
       '/library/read/:sourceId/:seriesKey/:chapterKey';
 
+  // ── Novels ────────────────────────────────────────────────────────────────
+  /// The novel reader, keyed by the same opaque
+  /// `(sourceId, seriesKey, chapterKey)` triple as [reader].
+  ///
+  /// A separate route rather than a `?kind=novel` on [reader] — the same call
+  /// the web made, for the same reason and one more. The two readers share no
+  /// rendering at all (one is a virtualized image strip, the other a text
+  /// column), and on the phone a shared route would have to *discover* the
+  /// kind before it could render anything: the source listing may not be
+  /// loaded on a cold deep link, so every manga chapter would wait on a
+  /// `/sources` round-trip to be told it was manga. Deciding at link time
+  /// costs nothing and delays nothing.
+  static const String novelReader =
+      '/novels/read/:sourceId/:seriesKey/:chapterKey';
+
   // ── Collections ───────────────────────────────────────────────────────────
   static const String collections = '/collections';
   static const String collectionDetail = '/collections/:collectionId';
@@ -93,6 +108,17 @@ abstract final class RoutePaths {
   /// location grow extra segments, which never matches this route.
   static String reader(String sourceId, String seriesKey, String chapterKey) =>
       '/library/read/$sourceId/${Uri.encodeComponent(seriesKey)}'
+      '/${Uri.encodeComponent(chapterKey)}';
+
+  /// The novel reader. Same encoding as [reader] — the whole opaque key is
+  /// one percent-encoded path segment, because go_router's `:param` matches a
+  /// single segment and connector keys routinely contain `/`.
+  static String novelReader(
+    String sourceId,
+    String seriesKey,
+    String chapterKey,
+  ) =>
+      '/novels/read/$sourceId/${Uri.encodeComponent(seriesKey)}'
       '/${Uri.encodeComponent(chapterKey)}';
 
   static String collectionDetail(int collectionId) => '/collections/$collectionId';

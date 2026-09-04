@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
+import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/models/storage_cap.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/retention_maintenance_provider.dart';
@@ -575,6 +576,7 @@ void main() {
           chapterNumber: i.toDouble(),
           title: null,
           seriesTitle: 'Solo Leveling',
+          kind: DownloadKind.manga,
         ),
     ]);
     await controller.debugWaitUntilIdle();

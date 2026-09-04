@@ -54,6 +54,7 @@ class DownloadsStore {
     double? chapterNumber,
     String? title,
     String? seriesTitle,
+    DownloadKind kind = DownloadKind.manga,
   }) async {
     final db = await database;
     final existing = await _getRow(db, id);
@@ -92,6 +93,7 @@ class DownloadsStore {
       DownloadsSchema.colCreatedAt: DateTime.now().toUtc().toIso8601String(),
       DownloadsSchema.colRetryCount: 0,
       DownloadsSchema.colError: null,
+      DownloadsSchema.colKind: kind.wire,
     });
   }
 
@@ -277,6 +279,52 @@ class DownloadsStore {
       where: '${DownloadsSchema.colId} = ?',
       whereArgs: [rowId],
     );
+  }
+
+  // ── Novel text ─────────────────────────────────────────────────────────
+  //
+  // A novel chapter is not made of pages, so it is stored as exactly ONE
+  // blob — the chapter's sanitized paragraphs as JSON — under page number
+  // [novelTextBlobNumber], with `page_count = 1`. Both helpers below
+  // delegate to the page path rather than reimplementing it, which is the
+  // whole point: refcounting, cross-profile dedup, the read-then-expire
+  // sweep, the per-series byte totals and the storage cap all keep working
+  // with no novel-shaped special case anywhere. Text blobs are a few
+  // kilobytes next to a page image's megabyte, so the cap barely notices
+  // them.
+
+  /// The one blob number a novel chapter's text lives at.
+  static const int novelTextBlobNumber = 1;
+
+  /// Writes [chapter] (a [NovelChapter.toStoredJson] map) as this chapter's
+  /// single blob. Idempotent for the same text, exactly like [savePage].
+  Future<void> saveNovelText({
+    required int rowId,
+    required Map<String, dynamic> chapter,
+  }) =>
+      savePage(
+        rowId: rowId,
+        pageNumber: novelTextBlobNumber,
+        bytes: utf8.encode(jsonEncode(chapter)),
+      );
+
+  /// Reads a downloaded novel chapter's stored JSON back, or `null` when it
+  /// is not on disk (never downloaded, mid-download, or the blob file was
+  /// deleted by hand through the Files app).
+  ///
+  /// Corrupt JSON reads as `null` rather than throwing: a damaged blob must
+  /// degrade to "not available offline" — which falls back to the network —
+  /// not to an exception out of the reader.
+  Future<Map<String, dynamic>?> readNovelText(ChapterIdentity id) async {
+    final paths = await localPagePaths(id);
+    final file = paths[novelTextBlobNumber];
+    if (file == null) return null;
+    try {
+      final decoded = jsonDecode(await file.readAsString());
+      return decoded is Map ? Map<String, dynamic>.from(decoded) : null;
+    } catch (_) {
+      return null;
+    }
   }
 
   // ── Reading ────────────────────────────────────────────────────────────

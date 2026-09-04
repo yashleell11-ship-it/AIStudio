@@ -24,6 +24,7 @@ import 'package:manhwamaniacs/features/library/screens/search_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/series_detail_screen.dart';
 import 'package:manhwamaniacs/features/library/screens/statistics_screen.dart';
 import 'package:manhwamaniacs/features/more/screens/more_screen.dart';
+import 'package:manhwamaniacs/features/novels/screens/novel_reader_screen.dart';
 import 'package:manhwamaniacs/features/ocr/screens/ocr_search_screen.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
@@ -303,6 +304,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: Routes.ocrSearch,
         builder: (context, state) => const OcrSearchScreen(),
+      ),
+      // The novel reader — a root-navigator route with the same immersive
+      // fade as the manga reader, so entering a chapter feels the same
+      // whichever medium it is, and the bottom nav is gone either way.
+      GoRoute(
+        path: Routes.novelReader,
+        parentNavigatorKey: _rootNavigatorKey,
+        pageBuilder: (context, state) {
+          // `?page=` carries the progress BUCKET, the same parameter and the
+          // same 1-based meaning the manga reader gives a page number — so a
+          // "Continue" link needs no novel-specific branch to build.
+          final pageParam = state.uri.queryParameters['page'];
+          final initialBucket =
+              pageParam != null ? int.tryParse(pageParam) ?? 1 : 1;
+          return _immersiveReaderPage(
+            NovelReaderScreen(
+              sourceId: state.pathParameters['sourceId']!,
+              seriesKey: state.pathParameters['seriesKey']!,
+              chapterKey: state.pathParameters['chapterKey']!,
+              initialBucket: initialBucket,
+            ),
+          );
+        },
       ),
       GoRoute(
         path: Routes.setup,
