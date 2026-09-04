@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { BookX, TriangleAlert } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -116,25 +116,17 @@ export function SourceSeriesDetailView({
    * per row meant one chapter fetch per row crossed — sweeping down a long
    * chapter list fired dozens in a second. See `lib/hover-intent.ts`.
    */
-  // Through a ref so the intent, created once, always prefetches for the
-  // series currently on screen even if the route swaps props without a remount.
-  const prefetchRef = useRef<(chapterId: string) => void>(() => {});
-  prefetchRef.current = (chapterId: string) => {
-    prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapterId);
-  };
-  const hoverIntent = useRef(
-    createHoverIntent<string>((chapterId) => prefetchRef.current(chapterId)),
+  const prefetchChapterPayload = useCallback(
+    (chapterId: string) => {
+      prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapterId);
+    },
+    [queryClient, seriesId, sourceId],
   );
-  useEffect(() => {
-    const intent = hoverIntent.current;
-    return () => intent.dispose();
-  }, []);
-  const prefetchOnIntent = useCallback((chapterId: string) => {
-    hoverIntent.current.enter(chapterId);
-  }, []);
-  const cancelPrefetchIntent = useCallback(() => {
-    hoverIntent.current.leave();
-  }, []);
+  const hoverIntent = useMemo(
+    () => createHoverIntent<string>(prefetchChapterPayload),
+    [prefetchChapterPayload],
+  );
+  useEffect(() => () => hoverIntent.dispose(), [hoverIntent]);
 
   // An empty answer means something different depending on what the series
   // summary claims the source holds — see `resolveChapterListState`.
@@ -193,9 +185,7 @@ export function SourceSeriesDetailView({
       : null;
   const primaryLabel = latestRead ? "Continue" : "Read Online";
 
-  const prefetchChapter = (chapterId: string) => {
-    prefetchSourceReaderChapter(queryClient, sourceId, seriesId, chapterId);
-  };
+  const prefetchChapter = prefetchChapterPayload;
 
   const toggleFollow = async () => {
     setFeedback(null);
@@ -396,10 +386,10 @@ export function SourceSeriesDetailView({
                   <div className="flex flex-wrap gap-2">
                     <Link
                       href={sourceReaderChapterPath(sourceId, seriesId, chapter.id)}
-                      onMouseEnter={() => prefetchOnIntent(chapter.id)}
-                      onMouseLeave={cancelPrefetchIntent}
-                      onFocus={() => prefetchOnIntent(chapter.id)}
-                      onBlur={cancelPrefetchIntent}
+                      onMouseEnter={() => hoverIntent.enter(chapter.id)}
+                      onMouseLeave={hoverIntent.leave}
+                      onFocus={() => hoverIntent.enter(chapter.id)}
+                      onBlur={hoverIntent.leave}
                     >
                       <Button variant="ghost" size="sm">
                         Read
