@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
@@ -8,9 +10,10 @@ plugins {
 // the upload key never reaches the repository. A missing file is not fatal — the
 // release build falls back to debug signing so `flutter run --release` still works
 // on a machine that has no key, which is how CI and fresh clones behave.
-val keystoreProperties = java.util.Properties().apply {
-    val f = rootProject.file("key.properties")
-    if (f.exists()) f.inputStream().use { load(it) }
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystorePropertiesFile.inputStream().use { keystoreProperties.load(it) }
 }
 
 android {
