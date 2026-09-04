@@ -72,11 +72,17 @@ class GlobalSearchResultGridCard extends StatelessWidget {
   const GlobalSearchResultGridCard({
     super.key,
     required this.item,
+    required this.coverWidth,
     required this.onTap,
     this.showSourceBadge = true,
   });
 
   final GlobalSearchItem item;
+
+  /// Logical width of the card — it fills whatever cell or shelf slot it is
+  /// given, so the cover cannot state its own width without being told.
+  final double coverWidth;
+
   final VoidCallback onTap;
 
   /// Off inside a per-source section, where the section header already says
@@ -104,7 +110,11 @@ class GlobalSearchResultGridCard extends StatelessWidget {
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    SeriesCoverImage(url: item.coverUrl ?? '', borderRadius: 0),
+                    SeriesCoverImage(
+                      url: item.coverUrl ?? '',
+                      displayWidth: coverWidth,
+                      borderRadius: 0,
+                    ),
                     if (showSourceBadge)
                       Positioned(
                         left: context.space.xxs,

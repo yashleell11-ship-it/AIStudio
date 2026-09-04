@@ -212,7 +212,11 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     return SeriesDetailBody(
       cover: series.coverUrl.isEmpty
           ? null
-          : SeriesCoverImage(url: series.coverUrl, borderRadius: 0),
+          : SeriesCoverImage(
+              url: series.coverUrl,
+              displayWidth: SeriesDetailBody.coverWidthFor(context),
+              borderRadius: 0,
+            ),
       title: series.title,
       author: series.author,
       artist: series.artist,

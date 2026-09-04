@@ -195,7 +195,11 @@ class _Plate extends StatelessWidget {
         child: SizedBox(
           width: size.width,
           height: size.height,
-          child: SeriesCoverImage(url: coverUrl!, borderRadius: 0),
+          child: SeriesCoverImage(
+            url: coverUrl!,
+            displayWidth: size.width,
+            borderRadius: 0,
+          ),
         ),
       );
     }

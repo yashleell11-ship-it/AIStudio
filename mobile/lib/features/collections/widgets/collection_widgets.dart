@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/collections/utils/collection_sorting.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
@@ -201,6 +202,8 @@ class CollectionHeroBanner extends ConsumerWidget {
           if (resolvedCover != null)
             SeriesCoverImage(
               url: resolvedCover,
+              // Edge to edge behind the collection's title block.
+              displayWidth: context.screenWidth,
               borderRadius: 0,
             )
           else

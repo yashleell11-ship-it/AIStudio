@@ -546,6 +546,7 @@ class _SourceSection extends StatelessWidget {
             width: cardWidth,
             child: GlobalSearchResultGridCard(
               item: item,
+              coverWidth: cardWidth,
               // The section header already names the source; repeating it on
               // every cover is noise.
               showSourceBadge: false,

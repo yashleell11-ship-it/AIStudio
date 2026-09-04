@@ -85,11 +85,17 @@ class FollowedSeriesCard extends ConsumerWidget {
   const FollowedSeriesCard({
     super.key,
     required this.series,
+    required this.coverWidth,
     required this.meta,
     required this.onTap,
   });
 
   final FollowedSeries series;
+
+  /// Logical width of one grid tile — the card fills its cell, so only the
+  /// grid that laid it out knows how wide the cover will actually be.
+  final double coverWidth;
+
   final FollowedSeriesMeta meta;
   final VoidCallback onTap;
 
@@ -123,7 +129,11 @@ class FollowedSeriesCard extends ConsumerWidget {
                   if (coverUrl == null)
                     ColoredBox(color: context.colors.surface2)
                   else
-                    SeriesCoverImage(url: coverUrl, borderRadius: context.radii.xl),
+                    SeriesCoverImage(
+                      url: coverUrl,
+                      displayWidth: coverWidth,
+                      borderRadius: context.radii.xl,
+                    ),
                   if (meta.unreadCount > 0)
                     Positioned(
                       top: context.space.sm,

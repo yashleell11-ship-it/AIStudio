@@ -149,6 +149,15 @@ class _FollowedGrid extends StatelessWidget {
     final noun = isNovelMode
         ? (followed.length == 1 ? 'book' : 'books')
         : 'series';
+    final columns = context.layout.columnsFor(context.seriesGridColumns);
+    // The grid spans the viewport inside its own horizontal padding, so the
+    // tile width is arithmetic rather than a measurement — and a card cannot
+    // work it out for itself, because it fills whatever cell it is given.
+    final coverWidth = gridTileWidth(
+      available: context.screenWidth - context.space.xl2 * 2,
+      columns: columns,
+      spacing: context.space.md,
+    );
 
     return CustomScrollView(
       // Always scrollable so pull-to-refresh still works with a single follow
@@ -189,7 +198,7 @@ class _FollowedGrid extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
           sliver: SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.layout.columnsFor(context.seriesGridColumns),
+              crossAxisCount: columns,
               crossAxisSpacing: context.space.md,
               mainAxisSpacing: context.space.xl,
               childAspectRatio: 0.5,
@@ -201,6 +210,7 @@ class _FollowedGrid extends StatelessWidget {
                 index: index,
                 child: FollowedSeriesCard(
                   series: series,
+                  coverWidth: coverWidth,
                   meta: FollowedSeriesMeta.forSeries(
                     series: series,
                     notifications: notifications,
