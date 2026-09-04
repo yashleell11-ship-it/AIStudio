@@ -115,7 +115,6 @@ describe("stripPositionAt", () => {
   it("reports a page against its own chapter", () => {
     expect(stripPositionAt(rows, 4)).toEqual({
       chapterKey: "ch-2",
-      chapterIndex: 1,
       pageNumber: 1,
       pageCount: 2,
     });
@@ -124,7 +123,6 @@ describe("stripPositionAt", () => {
   it("reports a divider as page one of the chapter being entered", () => {
     expect(stripPositionAt(rows, 3)).toEqual({
       chapterKey: "ch-2",
-      chapterIndex: 1,
       pageNumber: 1,
       pageCount: 2,
     });

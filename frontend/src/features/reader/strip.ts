@@ -138,10 +138,16 @@ export function buildStripRows(
   return rows;
 }
 
-/** Where the reader is, in the terms progress is recorded in. */
+/**
+ * Where the reader is, in the terms progress is recorded in.
+ *
+ * Deliberately a chapter KEY and not an index into the strip: the strip grows
+ * at both ends, and a report built one frame ago must still mean the same
+ * chapter when it is acted on. Whoever needs a position in the strip looks the
+ * key up in the list they hold right now.
+ */
 export interface StripPosition {
   chapterKey: string;
-  chapterIndex: number;
   /** 1-based page within that chapter. */
   pageNumber: number;
   pageCount: number;
@@ -164,7 +170,6 @@ export function stripPositionAt(
   if (!row) return null;
   return {
     chapterKey: row.chapterKey,
-    chapterIndex: row.chapterIndex,
     pageNumber: row.kind === "page" ? row.pageNumber : 1,
     pageCount: row.pageCount,
   };

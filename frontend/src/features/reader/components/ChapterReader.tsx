@@ -23,12 +23,16 @@ import { estimateScrollOffsetToPage, resolveContainerWidth } from "../page-layou
 import { readerChapterHref } from "../reader-link";
 import {
   clearChapterScrollPreparation,
-  resolveInitialScrollTop,
+  estimateResumeOffset,
   scrollReaderBy,
   setReaderScrollTop,
   syncChapterScroll,
 } from "../scroll-preparation";
-import { readScrollPosition, writeScrollPosition } from "../scroll-storage";
+import {
+  readReaderPosition,
+  writeReaderPosition,
+  type ReaderPosition,
+} from "../scroll-storage";
 import { scrubPercent } from "../scrub";
 import { buildPageViews, findViewIndex, viewLeadPage } from "../spread";
 import { useReaderStore } from "../store";
@@ -171,6 +175,7 @@ export function ChapterReader({
   const scrollSaveTimerRef = useRef<number | null>(null);
   const stripHandleRef = useRef<StripHandle | null>(null);
   const pendingScrollPageRef = useRef<number | null>(null);
+  const restoreDoneRef = useRef(false);
   const readingModeRef = useRef(readingMode);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [visiblePage, setVisiblePage] = useState(Math.max(1, initialPage));
@@ -291,25 +296,37 @@ export function ChapterReader({
   const viewIndex = useMemo(() => findViewIndex(views, visiblePage), [views, visiblePage]);
   const currentView = views[viewIndex];
 
-  /**
-   * Where the strip lands when it mounts.
-   *
-   * Always resolved against the ENTRY chapter, which is the strip's first
-   * chapter at mount: a saved offset was written relative to its own chapter's
-   * start (see the scroll writer below), so it is directly usable here and
-   * nowhere else.
-   */
   const entryPages = useMemo(() => entryChapter?.pages ?? [], [entryChapter]);
+
+  /**
+   * Where the reader left the ENTRY chapter: a page, and how far into it.
+   *
+   * The route's own `?page=` wins when it names one — a link that says where to
+   * go must go there — and otherwise the saved position stands.
+   */
+  const savedPosition = useMemo((): ReaderPosition | null => {
+    if (!entryChapter) return null;
+    if (initialPage > 1) return { page: initialPage, offset: 0 };
+    return readReaderPosition(chapterScrollKey(entryChapter));
+  }, [entryChapter, initialPage]);
+
+  /**
+   * Where the strip lands on its first paint, before anything is measured.
+   *
+   * An estimate on purpose: the exact landing is done through the strip's own
+   * handle once it can answer where a page really starts (see the restore
+   * below). This only has to be close enough that the reader does not watch
+   * page one for a frame on the way to page nine.
+   */
   const initialScrollTop = useMemo(() => {
     if (entryPages.length === 0) {
       return 0;
     }
 
     const containerWidth = resolveContainerWidth(scrollElement);
-    const targetPage = Math.max(1, Math.min(initialPage, entryPages.length));
-    return resolveInitialScrollTop({
-      savedScroll: entryChapter ? readScrollPosition(chapterScrollKey(entryChapter)) : null,
-      initialPage: targetPage,
+    const targetPage = Math.max(1, Math.min(savedPosition?.page ?? 1, entryPages.length));
+    return estimateResumeOffset({
+      position: savedPosition && { page: targetPage, offset: savedPosition.offset },
       pageCount: entryPages.length,
       estimatedOffsetToPage: estimateScrollOffsetToPage(
         entryPages,
@@ -318,41 +335,48 @@ export function ChapterReader({
         zoom,
       ),
     });
-  }, [entryChapter, entryPages, initialPage, scrollElement, zoom]);
+  }, [entryPages, savedPosition, scrollElement, zoom]);
 
   const stripScrollKey = entryChapter ? chapterScrollKey(entryChapter) : entryChapterKey;
+
+  // Read by the strip's one-time restore, which runs from a callback rather
+  // than from render — the handle arrives when the list mounts, not before.
+  const savedPositionRef = useRef(savedPosition);
+  useEffect(() => {
+    savedPositionRef.current = savedPosition;
+  }, [savedPosition]);
 
   /**
    * Where to resume the chapter being read, resolved at the moment the reader
    * leaves.
    *
-   * The offset is stored RELATIVE to the chapter's own start in the strip, not
-   * as a raw container offset: a strip that has grown a chapter at its head
-   * would otherwise hand back a number that means something different every
-   * time. A paged mode has no scroll of its own, so it reports the offset its
-   * current page would occupy.
+   * A PAGE and a distance into it, not a raw scroll offset: the strip holds
+   * several chapters, and a pixel count from the top of it means something
+   * different every time a chapter is prepended or an estimate settles. Anchored
+   * to a page, the worst a drifted estimate can do is land a little high or low
+   * inside the right page. A paged mode has no scroll of its own, so it reports
+   * its current page with no offset at all.
    */
-  const scrollAnchorRef = useRef<() => { key: string; offset: number } | null>(() => null);
+  const scrollAnchorRef = useRef<() => { key: string; position: ReaderPosition } | null>(
+    () => null,
+  );
   useEffect(() => {
     scrollAnchorRef.current = () => {
-      if (!scrollElement || !chapter) return null;
+      if (!scrollElement || !chapter || pages.length === 0) return null;
       const key = chapterScrollKey(chapter);
       if (readingModeRef.current !== "continuous") {
-        if (pages.length === 0) return null;
-        return {
-          key,
-          offset: estimateScrollOffsetToPage(
-            pages,
-            visiblePage,
-            resolveContainerWidth(scrollElement),
-            zoom,
-          ),
-        };
+        return { key, position: { page: visiblePage, offset: 0 } };
       }
-      const range = stripHandleRef.current?.chapterRange(chapter.chapterKey);
-      return { key, offset: scrollElement.scrollTop - (range?.start ?? 0) };
+      const start = stripHandleRef.current?.pageStart(chapter.chapterKey, visiblePage);
+      return {
+        key,
+        position: {
+          page: visiblePage,
+          offset: start == null ? 0 : scrollElement.scrollTop - start,
+        },
+      };
     };
-  }, [chapter, pages, scrollElement, visiblePage, zoom]);
+  }, [chapter, pages.length, scrollElement, visiblePage]);
 
   useEffect(() => {
     return () => {
@@ -362,7 +386,7 @@ export function ChapterReader({
       }
       const anchor = scrollAnchorRef.current();
       if (anchor != null) {
-        writeScrollPosition(anchor.key, Math.max(0, anchor.offset));
+        writeReaderPosition(anchor.key, anchor.position);
       }
       clearChapterScrollPreparation(stripScrollKey);
     };
@@ -417,17 +441,31 @@ export function ChapterReader({
     [onPosition],
   );
 
-  const registerStripHandle = useCallback((handle: StripHandle | null) => {
-    stripHandleRef.current = handle;
-    // A pending target means the strip was just re-entered from a paged mode.
-    // Consume it on the first registration — the list has mounted and its own
-    // restore has already run, so this is the last word on where to land.
-    const pending = pendingScrollPageRef.current;
-    if (handle && pending != null) {
-      pendingScrollPageRef.current = null;
-      handle.scrollToPosition(activeChapterKeyRef.current, pending);
-    }
-  }, []);
+  const registerStripHandle = useCallback(
+    (handle: StripHandle | null) => {
+      stripHandleRef.current = handle;
+      if (!handle) return;
+
+      // A pending target means the strip was just re-entered from a paged mode.
+      // Consume it on the first registration — the list has mounted and its own
+      // restore has already run, so this is the last word on where to land.
+      const pending = pendingScrollPageRef.current;
+      if (pending != null) {
+        pendingScrollPageRef.current = null;
+        handle.scrollToPosition(activeChapterKeyRef.current, pending);
+        return;
+      }
+
+      // The exact landing for a resumed chapter, done once and only through the
+      // strip: it is the only thing that knows where a page really begins.
+      if (restoreDoneRef.current) return;
+      restoreDoneRef.current = true;
+      const saved = savedPositionRef.current;
+      if (!saved || (saved.page <= 1 && saved.offset <= 0)) return;
+      handle.scrollToPosition(entryChapterKey, saved.page, saved.offset);
+    },
+    [entryChapterKey],
+  );
 
   const updateScrollState = useCallback(() => {
     if (!scrollElement) return;
@@ -436,7 +474,7 @@ export function ChapterReader({
     const { scrollTop, scrollHeight, clientHeight } = scrollElement;
     // Progress is per CHAPTER, not per strip: "62%" has to mean 62% of what
     // the chrome says you are reading, whatever else is loaded around it.
-    const range = stripHandleRef.current?.chapterRange(activeChapterKeyRef.current);
+    const range = stripHandleRef.current?.chapterRange(activeChapterKey);
     if (range && range.end > range.start) {
       const span = Math.max(1, range.end - range.start - clientHeight);
       const ratio = (scrollTop - range.start) / span;
@@ -453,10 +491,14 @@ export function ChapterReader({
     }
     scrollSaveTimerRef.current = window.setTimeout(() => {
       const anchor = scrollAnchorRef.current();
-      if (anchor) writeScrollPosition(anchor.key, Math.max(0, anchor.offset));
+      if (anchor) writeReaderPosition(anchor.key, anchor.position);
       scrollSaveTimerRef.current = null;
     }, SCROLL_SAVE_MS);
-  }, [scrollElement]);
+    // Re-made when the active chapter changes so the listener effect below
+    // re-attaches and recomputes at once: crossing a seam and STOPPING would
+    // otherwise leave the read-out showing the chapter above at 100%, with no
+    // further scroll to correct it.
+  }, [activeChapterKey, scrollElement]);
 
   useEffect(() => {
     if (!scrollElement) return;

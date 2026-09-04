@@ -68,8 +68,14 @@ const EMPTY_RELEASED: ReadonlySet<string> = new Set<string>();
 
 /** The strip's imperative surface, handed to the reader that owns the chrome. */
 export interface StripHandle {
-  /** Put a chapter's page at the top of the viewport. */
-  scrollToPosition(chapterKey: string, pageNumber: number): void;
+  /**
+   * Put a chapter's page at the top of the viewport, optionally `offset` px
+   * further in — which is how a resumed position lands exactly where it was
+   * left rather than at the top of the page it was inside.
+   */
+  scrollToPosition(chapterKey: string, pageNumber: number, offset?: number): void;
+  /** Where a page begins, in strip coordinates. */
+  pageStart(chapterKey: string, pageNumber: number): number | null;
   /** Where a chapter starts and ends in strip coordinates, for its progress. */
   chapterRange(chapterKey: string): { start: number; end: number } | null;
 }
@@ -370,10 +376,23 @@ export function ContinuousStrip({
   useEffect(() => {
     if (!onHandleReady) return;
     onHandleReady({
-      scrollToPosition: (chapterKey, pageNumber) => {
+      scrollToPosition: (chapterKey, pageNumber, offset = 0) => {
         const index = findStripRow(rowsRef.current, chapterKey, pageNumber);
         if (index < 0) return;
+        if (offset > 0) {
+          // Anchored to the page, so the error is that ONE page's estimate
+          // rather than every page between here and the top of the strip.
+          const start = rowStart(index);
+          if (start != null) {
+            scrollElement.scrollTop = Math.max(0, Math.round(start + offset));
+            return;
+          }
+        }
         virtualizer.scrollToIndex(index, { align: "start" });
+      },
+      pageStart: (chapterKey, pageNumber) => {
+        const index = findStripRow(rowsRef.current, chapterKey, pageNumber);
+        return index < 0 ? null : rowStart(index);
       },
       chapterRange: (chapterKey) => {
         const strip = rowsRef.current;

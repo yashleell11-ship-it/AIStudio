@@ -76,8 +76,15 @@ export function useStripProgress({
       positionRef.current = position;
 
       if (previous && previous.chapterKey !== position.chapterKey) {
-        if (position.chapterIndex > previous.chapterIndex) {
-          completeChapter(previous.chapterKey);
+        // Everything the reading line passed OVER is finished, not just the
+        // chapter directly above: one wheel gesture can clear a short chapter
+        // between two frames, and it would otherwise be left half-read for
+        // ever. Resolved against the live strip rather than the reported
+        // index, so a report built from an older row list still lands right.
+        const from = chapterIndexOf(chapters, previous.chapterKey);
+        const to = chapterIndexOf(chapters, position.chapterKey);
+        for (let index = from; index >= 0 && index < to; index += 1) {
+          completeChapter(chapters[index].chapterKey);
         }
         onChapterChange?.(position.chapterKey);
       }

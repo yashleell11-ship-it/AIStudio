@@ -2,53 +2,59 @@ import { describe, expect, it, afterEach } from "vitest";
 import {
   advanceReaderScroll,
   clearChapterScrollPreparation,
-  resolveInitialScrollTop,
+  estimateResumeOffset,
   resetChapterScrollPreparationForTests,
   restoreChapterScroll,
   syncChapterScroll,
 } from "./scroll-preparation";
 
-describe("resolveInitialScrollTop", () => {
-  it("restores a saved scroll position when present", () => {
+describe("estimateResumeOffset", () => {
+  it("lands past the page it left off in, plus how far into it", () => {
     expect(
-      resolveInitialScrollTop({
-        savedScroll: 420,
-        initialPage: 1,
+      estimateResumeOffset({
+        position: { page: 5, offset: 420 },
+        pageCount: 30,
+        estimatedOffsetToPage: 1800,
+      }),
+    ).toBe(2220);
+  });
+
+  it("keeps the offset when the reader was still on page one", () => {
+    expect(
+      estimateResumeOffset({
+        position: { page: 1, offset: 420 },
         pageCount: 30,
         estimatedOffsetToPage: 0,
       }),
     ).toBe(420);
   });
 
-  it("scrolls to the requested page when no saved position exists", () => {
-    expect(
-      resolveInitialScrollTop({
-        savedScroll: null,
-        initialPage: 5,
-        pageCount: 30,
-        estimatedOffsetToPage: 1800,
-      }),
-    ).toBe(1800);
-  });
-
   it("resets to the top for a first-time chapter open", () => {
     expect(
-      resolveInitialScrollTop({
-        savedScroll: null,
-        initialPage: 1,
+      estimateResumeOffset({
+        position: null,
         pageCount: 30,
-        estimatedOffsetToPage: 0,
+        estimatedOffsetToPage: 1800,
       }),
     ).toBe(0);
   });
 
-  it("ignores deep-link page offsets when the chapter has no pages", () => {
+  it("ignores a stored position when the chapter has no pages", () => {
     expect(
-      resolveInitialScrollTop({
-        savedScroll: null,
-        initialPage: 5,
+      estimateResumeOffset({
+        position: { page: 5, offset: 420 },
         pageCount: 0,
         estimatedOffsetToPage: 1800,
+      }),
+    ).toBe(0);
+  });
+
+  it("never resolves to a negative offset", () => {
+    expect(
+      estimateResumeOffset({
+        position: { page: 3, offset: -900 },
+        pageCount: 30,
+        estimatedOffsetToPage: -50,
       }),
     ).toBe(0);
   });

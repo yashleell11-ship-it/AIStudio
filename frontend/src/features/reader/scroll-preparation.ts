@@ -1,27 +1,33 @@
 /**
- * Resolves the scroll offset that must be applied before the virtual page list
- * mounts. Ensures the shared app scroll container does not reuse a stale position
- * from a previous route (for example the library list).
+ * The scroll offset applied before the strip mounts, for a chapter being
+ * resumed.
+ *
+ * Only ever an ESTIMATE, and deliberately so: nothing is measured yet, so this
+ * is the guess that stops the reader watching page one for a frame on the way
+ * to page nine. The exact landing happens afterwards, through the strip's own
+ * handle, which is the only thing that knows where a page really begins.
+ *
+ * It also keeps the shared app scroll container from reusing a stale position
+ * from the route before (the library list, say).
  */
-export interface ScrollPreparationInput {
-  savedScroll: number | null;
-  initialPage: number;
+export interface ResumeEstimateInput {
+  /** Where the reader left off: a page, and how far into it. */
+  position: { page: number; offset: number } | null;
   pageCount: number;
+  /** Estimated distance from the chapter's start to that page's top. */
   estimatedOffsetToPage: number;
 }
 
-export function resolveInitialScrollTop(input: ScrollPreparationInput): number {
-  const { savedScroll, initialPage, pageCount, estimatedOffsetToPage } = input;
-
-  if (savedScroll != null) {
-    return savedScroll;
+export function estimateResumeOffset(input: ResumeEstimateInput): number {
+  const { position, pageCount, estimatedOffsetToPage } = input;
+  if (position == null || pageCount <= 0) {
+    return 0;
   }
-
-  if (initialPage > 1 && pageCount > 0) {
-    return estimatedOffsetToPage;
+  const within = Math.max(0, position.offset);
+  if (position.page <= 1) {
+    return within;
   }
-
-  return 0;
+  return Math.max(0, estimatedOffsetToPage) + within;
 }
 
 const syncedScrollTargets = new Map<string, number>();
