@@ -61,30 +61,38 @@ _PAGED_STEMS: dict[str, str] = {
 }
 
 #: Curated single-page listings. These have NO page 2: requesting
-#: ``latest_2.html`` or ``popular_2.html`` does not 404 and does not return the
-#: next slice — it silently serves the generic ``index_2`` directory, which
-#: would show the reader unrelated titles under a "Latest" heading. The
-#: connector refuses to request page 2 of these at all.
+#: ``latest_2.html`` does not 404 and does not return the next slice — it
+#: silently serves the generic ``index_2`` directory, which would show the
+#: reader unrelated titles under a "Latest" heading. The connector refuses to
+#: request page 2 of these at all.
+#:
+#: ``/category/popular.html`` is deliberately NOT here. It is Novel Cool's
+#: *novel* popularity chart: measured from the VPS it carries 49 novels to 1
+#: manga, so exposing it would have given the reader a "Popular" tab with a
+#: single title on it. The site has no manga popularity view to offer instead.
 _SINGLE_PAGE_STEMS: dict[str, str] = {
     "latest": "latest",
-    "popular": "popular",
     "new": "new_list",
 }
 
+#: Manga density per mode, measured from the VPS (manga of 40-80 cards):
+#: latest 77/80, new 50/50, completed 34/40, default 22/40, ongoing 22/40.
 BROWSE_MODES: tuple[tuple[str, str], ...] = (
     ("default", "Top Rated"),
     ("latest", "Latest Releases"),
-    ("popular", "Popular"),
     ("new", "Newly Added"),
     ("ongoing", "Ongoing"),
     ("completed", "Completed"),
 )
 
-#: Genres offered by the site's own category sidebar, trimmed to the ones that
-#: actually carry manga. Each paginates as ``/category/<Genre>_<page>.html``.
+#: Genres from the site's own category sidebar, each verified from the VPS to
+#: return manga on page 1. Paginates as ``/category/<Genre>_<page>.html``.
+#:
+#: "Harem" and "Josei" are deliberately absent: both exist upstream but their
+#: first page is entirely novels, so the tab would open empty for a reader.
 GENRES: tuple[str, ...] = (
-    "Action", "Adventure", "Comedy", "Drama", "Fantasy", "Harem",
-    "Historical", "Horror", "Isekai", "Josei", "Manhua", "Manhwa",
+    "Action", "Adventure", "Comedy", "Drama", "Fantasy",
+    "Historical", "Horror", "Isekai", "Manhua", "Manhwa",
     "Martial Arts", "Mature", "Mystery", "Psychological", "Romance",
     "School Life", "Sci-fi", "Seinen", "Shoujo", "Shounen", "Slice Of Life",
     "Sports", "Supernatural", "Thriller", "Tragedy", "Webtoons",
