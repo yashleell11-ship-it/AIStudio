@@ -462,6 +462,15 @@
 
 html {
   color-scheme: dark;
+  /*
+   * The document itself never scrolls — the shell is a `h-dvh` frame and the
+   * scrolling happens inside `main`. Saying so kills iOS Safari's pull-to-
+   * refresh and the whole-page rubber-band, both of which otherwise fire on a
+   * flick inside the reader and either reload the chapter or drag the page
+   * away from under it. `main` carries `overscroll-y-contain` for the other
+   * half of the same problem (scroll chaining out of the reader).
+   */
+  overscroll-behavior: none;
 }
 
 body {
@@ -471,6 +480,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 *,

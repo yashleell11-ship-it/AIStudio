@@ -85,7 +85,7 @@ function NavLink({
   );
 }
 
-export function Sidebar() {
+export function Sidebar({ className }: { className?: string }) {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { data: user } = useCurrentUser();
@@ -100,6 +100,7 @@ export function Sidebar() {
       className={cn(
         "hidden h-full shrink-0 flex-col border-r border-border bg-sidebar transition-[width] duration-200 md:flex",
         collapsed ? "w-[68px]" : "w-60",
+        className,
       )}
     >
       <div
