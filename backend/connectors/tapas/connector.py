@@ -192,9 +192,8 @@ class TapasConnector(SourceConnector):
         if not isinstance(payload, dict):
             raise ConnectorHttpError("Expected JSON object from Tapas story-api.")
         listing = landing_response_to_paginated(payload, page=page)
-        for item in listing.items:
-            if not item.id.isdigit():
-                self._resolve_numeric_id(item.id)
+        # Same reasoning as search_series: resolving a listing's ids up front
+        # is N requests spent on behalf of a reader who opens one series.
         return listing
 
     def get_series_list(self, page: int, *, sort: str | None = None) -> PaginatedSeriesList:
@@ -243,8 +242,12 @@ class TapasConnector(SourceConnector):
             logger.warning("Tapas search failed query=%r error=%s", normalized, exc)
             raise
         listing = parse_search_html(html, page=page)
-        for item in listing.items:
-            self._resolve_numeric_id(item.id)
+        # No eager numeric-id warm-up here. It used to call
+        # _resolve_numeric_id() for every hit -- one extra HTTP request per
+        # result, serialized behind the client's rate limiter, so a 10-hit
+        # search cost 11 round trips and 1.7s to warm ids for nine series the
+        # reader will never open. The id resolves lazily (and caches) the
+        # moment a series is actually opened.
         logger.info("Tapas search query=%r page=%d count=%d", normalized, page, len(listing.items))
         return listing
 
