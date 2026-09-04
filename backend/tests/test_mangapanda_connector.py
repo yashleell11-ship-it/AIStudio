@@ -205,8 +205,25 @@ def test_parse_series_detail_metadata():
         "https://thumb.mghcdn.com/mr/naruto-gaiden-the-seventh-hokage.jpg"
     )
     assert series.description is not None
-    assert "spin-off sequel" in series.description
     assert series.canonical_path == f"/manga/{SERIES_ID}"
+
+
+def test_description_comes_from_the_summary_pane_not_the_meta_tag():
+    """og:description carries the same synopsis but prefixed with the title
+    ("Naruto Gaiden: The Seventh Hokage Manga: A spin-off...") and truncated
+    mid-sentence. The Summary tab holds the whole text, so the pane is the
+    source and the meta tag only a fallback for pages that lack one."""
+    series = parse_series_detail(_load("series_naruto_gaiden.html"), SERIES_ID)
+
+    assert series is not None
+    description = series.description
+    assert description is not None
+    assert description.startswith("A spin-off sequel mini-series")
+    # The full synopsis runs to the end; og:description stops inside a
+    # parenthesis a third of the way through.
+    assert description.endswith("Hidden Leaf Village.")
+    assert "Manga:" not in description
+    assert not description.startswith("Naruto Gaiden")
 
 
 def test_series_title_excludes_alternative_titles():
@@ -221,17 +238,33 @@ def test_series_title_excludes_alternative_titles():
     assert "Hot" not in series.title
 
 
-def test_series_genres_come_from_the_header_not_the_page_footer():
-    """Every series page ends with a "Popular Manga Updates" carousel whose
-    cards carry their own genre chips. Reading genres document-wide pulls
-    those in, so the header slice is what keeps them out."""
+EXPECTED_GENRES = ("Action", "Adventure", "Comedy", "Drama", "Fantasy", "Shounen")
+
+
+def test_series_genres_are_the_headers_own():
     series = parse_series_detail(_load("series_naruto_gaiden.html"), SERIES_ID)
     assert series is not None
-    assert series.genres == (
-        "Action", "Adventure", "Comedy", "Drama", "Fantasy", "Shounen",
+    assert series.genres == EXPECTED_GENRES
+
+
+def test_series_genres_ignore_chips_below_the_chapter_list():
+    """Genres are read from the header slice above the chapter list, not from
+    the whole document. Listing sections further down the page carry their own
+    genre chips, and reading document-wide would attribute those to this
+    series. The captured page happens to end without such a section, so this
+    appends one rather than pretending the fixture proves it."""
+    markup = _load("series_naruto_gaiden.html") + (
+        '<div class="manga-slider"><div class="media-manga media"><p>'
+        '<a href="https://mangapanda.onl/genre/sci-fi" class="label genre-label">Sci-fi</a>'
+        '<a href="https://mangapanda.onl/genre/horror" class="label genre-label">Horror</a>'
+        "</p></div></div>"
     )
-    # The carousel below carries genres this series does not have.
+    series = parse_series_detail(markup, SERIES_ID)
+
+    assert series is not None
+    assert series.genres == EXPECTED_GENRES
     assert "Sci-fi" not in series.genres
+    assert "Horror" not in series.genres
 
 
 # --------------------------------------------------------------------------
@@ -263,12 +296,62 @@ def test_chapters_are_ordered_ascending_and_keep_decimals():
     assert len(set(numbers)) == len(numbers)
 
 
-def test_chapter_rows_do_not_leak_other_series():
-    """The series page also lists other series' newest chapters in its
-    sidebar and carousel; those rows must not become chapters of this series."""
+def test_chapters_are_sorted_numerically_whatever_order_the_page_uses():
+    """The site renders newest-first, so a plain reverse happens to look
+    sorted for a normal page. This pins real numeric ordering: out-of-order
+    input must come back ascending, and 10 must sort after 2 (a lexicographic
+    sort puts "10" first)."""
+    markup = "".join(
+        _row(SERIES_ID, f"chapter-{n}", n, f"Chapter {n}")
+        for n in ("3", "1.5", "10", "2")
+    )
+    chapters = parse_chapters(markup, SERIES_ID)
+
+    assert [chapter.number for chapter in chapters] == [1.5, 2, 3, 10]
+
+
+def test_displayed_chapter_number_wins_over_the_url():
+    """The heading number is the site's own numbering; the href can carry an
+    unrelated internal id. Deriving the number from the URL instead would
+    mis-number those chapters."""
+    markup = _row(SERIES_ID, "chapter-121113.5", "9.1", "Full Colour")
+    chapters = parse_chapters(markup, SERIES_ID)
+
+    assert len(chapters) == 1
+    assert chapters[0].number == 9.1
+    assert chapters[0].title == "Full Colour"
+    # The key stays exactly as the site wrote it -- keys are opaque.
+    assert chapters[0].id == f"{SERIES_ID}/chapter-121113.5"
+
+
+def test_every_parsed_chapter_belongs_to_the_requested_series():
     chapters = parse_chapters(_load("series_naruto_gaiden.html"), SERIES_ID)
     assert chapters
     assert all(chapter.id.startswith(f"{SERIES_ID}/") for chapter in chapters)
+
+
+def _row(series_id: str, ref: str, number: str, title: str, date: str = "01-01-2026") -> str:
+    """A chapter row in the site's own shape, React comment artifacts included."""
+    return (
+        '<li class="_287KE list-group-item"><span>'
+        f'<a href="https://mangapanda.onl/chapter/{series_id}/{ref}" class="_3pfyN">'
+        '<span class="_8Qtbo"><span class="_3D1SJ">#<!-- -->' + number + "</span>"
+        '<span class="_2IG5P"> <!-- -->- <!-- -->' + title + "</span></span>"
+        f"<small class=\"UovLc\">{date}</small></a></span></li>"
+    )
+
+
+def test_rows_belonging_to_another_series_are_dropped():
+    """Chapter rows are matched by their series prefix. Without that check a
+    row for a different series appearing in this list would be stored as a
+    chapter of this one, sending the reader to the wrong manga."""
+    markup = (
+        _row(SERIES_ID, "chapter-1", "1", "Uchiha Sarada")
+        + _row("one-piece_122", "chapter-1192", "1192", "Someone Else")
+    )
+    chapters = parse_chapters(markup, SERIES_ID)
+
+    assert [chapter.id for chapter in chapters] == [f"{SERIES_ID}/chapter-1"]
     assert not any("one-piece" in chapter.id for chapter in chapters)
 
 
@@ -308,13 +391,24 @@ def test_parse_chapter_pages():
     assert all("imgx.mghcdn.com" in (page.remote_url or "") for page in pages)
 
 
-def test_chapter_pages_exclude_carousel_thumbnails():
-    """The reader page ends with cover-art carousels on the same CDN. Page
-    images end in a numeric filename (.../10/3.jpg); covers end in a title
-    slug (.../mr/kingdom.jpg), which is what separates them."""
-    pages = parse_chapter_pages(_load("chapter_naruto_gaiden_10.html"), CHAPTER_ID)
-    assert all("thumb.mghcdn.com" not in (page.remote_url or "") for page in pages)
-    assert all("/mr/" not in (page.remote_url or "") for page in pages)
+def test_cover_art_on_the_same_cdn_is_not_mistaken_for_a_page():
+    """Page images end in a numeric filename (.../10/3.jpg); cover art on the
+    same CDN ends in a title slug (.../mr/one-piece.jpg). Only the numeric
+    form is a page, or a listing section on a reader page would inject cover
+    thumbnails into the middle of the chapter."""
+    markup = (
+        '<img src="https://imgx.mghcdn.com/naruto/10/1.jpg"/>'
+        '<img src="https://thumb.mghcdn.com/mr/one-piece.jpg"/>'
+        '<img src="https://imgx.mghcdn.com/naruto/10/2.jpg"/>'
+        '<img src="/logo.png"/>'
+    )
+    pages = parse_chapter_pages(markup, CHAPTER_ID)
+
+    assert [page.remote_url for page in pages] == [
+        "https://imgx.mghcdn.com/naruto/10/1.jpg",
+        "https://imgx.mghcdn.com/naruto/10/2.jpg",
+    ]
+    assert [page.number for page in pages] == [1, 2]
 
 
 def test_page_ids_round_trip_through_the_chapter_key():
