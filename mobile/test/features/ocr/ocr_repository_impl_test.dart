@@ -43,16 +43,6 @@ void main() {
     repository = OcrRepositoryImpl(dio);
   });
 
-  RequestOptions? stub(Map<String, dynamic> body, {int status = 200}) {
-    RequestOptions? captured;
-    when(() => adapter.fetch(any(), any(), any())).thenAnswer((inv) async {
-      captured = inv.positionalArguments[0] as RequestOptions;
-      return _jsonBody(body, status);
-    });
-    // Callers read this after awaiting the repository call.
-    return captured;
-  }
-
   group('POST /ocr/chapter', () {
     test('sends the source-native triple and the recognized pages', () async {
       RequestOptions? captured;
@@ -185,7 +175,7 @@ void main() {
             {'chapter_key': 'ch/1', 'word_count': 812},
             {'chapter_key': 'ch/2', 'word_count': 0},
           ],
-        }, 200),
+        }, 200,),
       );
 
       final result = await repository.coverage(
@@ -221,7 +211,7 @@ void main() {
           'total': 30,
           'offset': 0,
           'limit': 20,
-        }, 200),
+        }, 200,),
       );
 
       final result = await repository.search('you');
@@ -238,7 +228,7 @@ void main() {
       RequestOptions? captured;
       when(() => adapter.fetch(any(), any(), any())).thenAnswer((inv) async {
         captured = inv.positionalArguments[0] as RequestOptions;
-        return _jsonBody({'items': [], 'total': 0, 'offset': 0, 'limit': 20}, 200);
+        return _jsonBody({'items': <dynamic>[], 'total': 0, 'offset': 0, 'limit': 20}, 200);
       });
 
       await repository.search('dragon', limit: 5, offset: 10);

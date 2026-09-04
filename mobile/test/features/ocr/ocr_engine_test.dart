@@ -44,7 +44,7 @@ void main() {
           },
           {'text': 'no geometry', 'x': 'nonsense'},
         ],
-      }, page: 1);
+      }, page: 1,);
 
       expect(page.boxes, hasLength(2));
       expect(page.boxes.first.x, 0.1);
