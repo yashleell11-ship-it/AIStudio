@@ -58,6 +58,11 @@ services:
       # mount. Both media paths must be explicit or the SideStore listing shows
       # a blank icon and broken screenshots.
       - MM_SCREENSHOTS_DIR=/app/mobile/screenshots
+      # Novels (spec 1d). The owner is the only user of this instance and asked
+      # for the novel reader on the live site to review it; registration is
+      # closed, so "live" means visible to him after login. Flipping this to
+      # false hides every novel source and unmounts the /novels router.
+      - MM_NOVELS_ENABLED=true
     volumes:
       - /srv/manhwamaniacs/data:/data
       # APK / IPA drop-in (populated by the mobile build pipeline — 1c). Dirs
