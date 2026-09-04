@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { LIBRARY_DENSITIES } from "@/features/library/density";
 import {
@@ -9,6 +11,11 @@ import {
   isDesignPreset,
   parseDesignPreset,
 } from "./presets";
+import {
+  NOVEL_PALETTES,
+  novelPalette,
+  paletteSurface,
+} from "@/features/novels/palettes";
 import {
   PRESETS_CSS,
   containsColourLiteral,
@@ -269,5 +276,58 @@ describe("layout and reader defaults", () => {
     for (const preset of DESIGN_PRESETS) {
       expect(DESIGN_PRESET_META[preset].motion, preset).toBeLessThanOrEqual(1);
     }
+  });
+});
+
+describe("the novel reading surface is a third, independent axis", () => {
+  /**
+   * The app has three appearance systems, not two: the palette (what colour
+   * the APP is), the preset (what shape it is), and the twelve reading
+   * palettes the novel reader paints its PAGE with. The third is the most
+   * carefully argued of them — no pure white on pure black, warm ink over warm
+   * paper, `ink` at 6:1 and `muted` at 3:1 — and none of that survives being
+   * blended with the other two.
+   *
+   * It stays separate structurally rather than by convention: the twelve are
+   * plain hexes applied to the prose column as inline styles, so nothing in
+   * the cascade reaches them. A preset can restyle every piece of chrome
+   * around the page and cannot touch the page.
+   */
+  const PALETTES_SOURCE = readFileSync(
+    path.resolve(__dirname, "../novels/palettes.ts"),
+    "utf8",
+  );
+
+  it("carries literal colours, not cascade lookups", () => {
+    for (const palette of NOVEL_PALETTES) {
+      for (const role of ["bg", "ink", "muted"] as const) {
+        expect(palette[role], `${palette.id}.${role}`).toMatch(/^#[0-9a-f]{6}$/i);
+      }
+    }
+    expect(NOVEL_PALETTES.length).toBe(12);
+  });
+
+  it("names no shape role, so no preset can reach the page", () => {
+    // The thirteenth option, "Follow site theme", DOES resolve through the
+    // cascade — that is its whole purpose — but only through colour roles.
+    // Shape has no business inside a reading surface either way.
+    expect(PALETTES_SOURCE).not.toMatch(/--shape-/);
+    expect(PALETTES_SOURCE).not.toMatch(/--text-|--radius-|--spacing/);
+  });
+
+  it("resolves 'follow site theme' through colour roles only", () => {
+    const followed = paletteSurface(null);
+    for (const role of ["bg", "ink", "muted"] as const) {
+      expect(followed[role], role).toMatch(/^var\(--color-[a-z-]+\)$/);
+    }
+  });
+
+  it("is untouched by every preset the picker offers", () => {
+    // A real palette resolves to the same four values no matter which preset
+    // is applied, because none of them is read from the document at all.
+    const paper = paletteSurface(novelPalette("paper"));
+    expect(paper.bg).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(paper.ink).toMatch(/^#[0-9a-f]{6}$/i);
+    expect(paper.rule).toContain(paper.muted);
   });
 });

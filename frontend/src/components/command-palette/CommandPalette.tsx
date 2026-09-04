@@ -26,6 +26,12 @@ import {
   isReadingTheme,
 } from "@/features/preferences/theme";
 import { useReadingTheme } from "@/features/preferences/theme-store";
+import {
+  DESIGN_PRESETS,
+  DESIGN_PRESET_META,
+  isDesignPreset,
+} from "@/features/preferences/presets";
+import { useDesignPreset } from "@/features/preferences/preset-store";
 import { sourceImageUrl } from "@/features/sources/api";
 import { useSources } from "@/features/sources/hooks";
 import { useShortcut } from "@/lib/keyboard";
@@ -71,6 +77,9 @@ const ACTION_ICON = {
 
 /** `action:theme:<id>` — one command per palette, so any of the forty is one query away. */
 const THEME_ACTION_PREFIX = "action:theme:";
+
+/** `action:preset:<id>` — the shape half of the same idea. */
+const PRESET_ACTION_PREFIX = "action:preset:";
 
 /** Title with the matched characters emphasised. */
 function Highlighted({ text, indices }: { text: string; indices: readonly number[] }) {
@@ -121,6 +130,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const logout = useLogout();
   const { theme, setTheme } = useReadingTheme();
+  const { preset, setPreset } = useDesignPreset();
 
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
@@ -159,6 +169,11 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
         if (isReadingTheme(next)) setTheme(next);
         return;
       }
+      if (id.startsWith(PRESET_ACTION_PREFIX)) {
+        const next = id.slice(PRESET_ACTION_PREFIX.length);
+        if (isDesignPreset(next)) setPreset(next);
+        return;
+      }
       switch (id) {
         case "action:settings":
           router.push("/settings");
@@ -173,7 +188,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
           return;
       }
     },
-    [logout, router, setTheme],
+    [logout, router, setTheme, setPreset],
   );
 
   const commands = useMemo<Command[]>(() => {
@@ -221,6 +236,24 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       };
     });
 
+    /*
+     * The five presets, on the same terms as the palettes. No swatch: a preset
+     * has no colour of its own, which is the point — "flat", Enter, and the
+     * app you are looking at reshapes without changing hue.
+     */
+    const presetCommands: Command[] = DESIGN_PRESETS.map((id) => {
+      const meta = DESIGN_PRESET_META[id];
+      return {
+        id: `${PRESET_ACTION_PREFIX}${id}`,
+        title:
+          id === preset ? `Design: ${meta.label} (current)` : `Design: ${meta.label}`,
+        subtitle: meta.description,
+        group: "Design",
+        kind: "action",
+        keywords: ["design", "preset", "layout", "density", "shape", id],
+      };
+    });
+
     const actionCommands: Command[] = [
       {
         id: "action:settings",
@@ -247,9 +280,10 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       // sidebar entries, which carry the real labels ("Settings", not "More").
       ...routeCommands([...primaryNav, ...moreNav, ...secondaryNav, ...mobileNav]),
       ...actionCommands,
+      ...presetCommands,
       ...themeCommands,
     ];
-  }, [search.data, sources.data, theme]);
+  }, [search.data, sources.data, theme, preset]);
 
   const ranked = useMemo(() => rankCommands(commands, query), [commands, query]);
   const groups = useMemo(() => groupCommands(ranked), [ranked]);
