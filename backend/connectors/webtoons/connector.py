@@ -100,6 +100,13 @@ class WebtoonsConnector(SourceConnector):
             SITE_BASE,
             user_agent=DESKTOP_USER_AGENT,
             headers=HTML_HEADERS,
+            # This connector fetches episode-list pages _CHAPTER_PAGE_WORKERS
+            # at a time (see _fetch_list_pages). Without a matching burst the
+            # client's rate limiter spaces them 0.21s apart and the fan-out
+            # buys nothing: measured from the VPS the chapter stage spent
+            # ~2.3s of 3.75s queued in the limiter. The long-run request rate
+            # is unchanged -- only the shape of a batch is.
+            burst=_CHAPTER_PAGE_WORKERS,
         )
         self._catalog_cache: TTLCache[list[Series]] = TTLCache(ttl_seconds=300.0)
         self._slug_cache: TTLCache[tuple[str, str]] = TTLCache(ttl_seconds=3600.0)
