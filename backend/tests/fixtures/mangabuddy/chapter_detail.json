@@ -1,0 +1,612 @@
+{
+ "success": true,
+ "data": {
+  "content_type": "manga",
+  "chapter": {
+   "id": "MjPw7z45",
+   "url": "/stay-alive/chapter-1",
+   "name": "Chapter 1",
+   "slug": "chapter-1",
+   "views": 182,
+   "comments_count": 0,
+   "updated_at": "2026-07-29T04:29:16.000Z",
+   "number": 2,
+   "cv": 1788544803294,
+   "images": [
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDVQYBVlUAVVcHAlM.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFBAADUQdcVQECBAI.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZUFpUU1IHAFQCUQQ.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVBgBRBQRVVQYDBwU.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQA1JTAFVTAFcMVQA.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFAVFQU1YCB11TUw4.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRBVZXWwAFUVcDUQ8.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDAwRQWgNSAAZXBVA.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVV1EKBVFXBV0DAFU.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlWUlcHAgoCBlMMUg8.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXAlsLBQoABlIMVQc.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHCFoEBQcFV1wCX1U.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYVQZRB1YCDVVQUQI.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkEUFUDUldcUFZRBFI.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHCVMGUQNdBQcEVwY.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZAlYLVQpcV1IEVwc.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSBlcFAFIGVVUGAgU.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYAgAAUABTVwBRUgE.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVAgYBVVJcDAAAUA8.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTBQcDWwYBA1FQBFA.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVBVoEVQACAQMDV1Q.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYCVUHBwVcBgQMUlM.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZVwEABQJRDAABBFI.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZCABQWgpWDFENUQA.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRAlAFAldXDVMEVVA.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTUFcKWgQHBF0NAFU.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQVQAGUVVUAlVXBw8.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYVFYFAQtcAQEDUQc.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlWU1VQUlFSVQRWAlA.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYV1YDBQMFB1NWUlQ.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUUlRXU1ZXAFBUXwM.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQUlQEAQtQBVFTVgY.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZBQMAUwUBAVNWU1M.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDUFtUBQYHVlANVwY.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHV1RWBVJcDVUDUgA.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlWBVMFAlBUAFcCUVc.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZV1UCAFJTVVdWVwU.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUVAMFBQUGBVAFU1I.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZBwNTUVUGAVEEXwM.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQAVoCAgoBBF0FUlI.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXAQBRAQpdB1NRBQY.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUU1dRAAJRUAcBAlU.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQUlQKUFcHB1RUBw4.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTB1YFBwICBV0FUVA.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQAwBUVlUBBwQNVAE.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHVFYGBlJWDAcGU1Q.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTB1QBWgdTUFJRVgQ.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFAlECVQUCUFBWVwM.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQUFsCUwRVBVVXVlU.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFAQMDBwddBFUAUAU.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkAVFABBwYCVwEABw4.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSAANRVVACBQEDVQM.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHUAQCBwZdA1AMUAQ.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkEUFAGUwFVBgMBAA4.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZUwZQBgBRAgcEUQE.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUU1IDUgdWUlNXBQ8.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXB1YCW1FcAwdXXgM.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDVQMHBwoADQNQBFc.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXUAYFUgtdBFJTVwA.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYCFMLAgdWBVQEVw4.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDAFNWV1IFAF0CBAQ.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVV1pWV1VVBwEFAA4.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHBFQBVAtcUVYFBwY.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRU1EHUVIHB1ABUVM.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXVVUCUQZRBFQCAgc.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQAFVXAgEFUVQEAFQ.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUV1dRWlFdBlRTBAQ.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQCQQKVVBUB11RUlM.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXVwYKVgQCA1RXAlQ.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSCVoEWlBWDF0NB1I.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQVFBQBgEBVV0CAgQ.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHB1sAUANQAAYAB1A.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSVwQBAgZVBQRWVFA.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHBwABUgVcAVEEUg8.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFUlECBwEGDQEHBQY.webp",
+    "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRUAAHVAUGAVQNUQ8.webp",
+    "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZCFtWVgICDVBRVA8.webp",
+    "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXAFQBBQVdAQcFX1U.webp",
+    "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVBloBAVcGBwNQXwU.webp",
+    "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSUFQDWgIAAFIHUgc.webp",
+    "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUV1ABUwQGDVINUQc.webp",
+    "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDAVYFVwpWV1ZXBVQ.webp",
+    "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUCVMCUlAAA1MHVlI.webp",
+    "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUBQdTWgBVUAENX1A.webp",
+    "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRU1pXU1EFBlYCA1Q.webp"
+   ],
+   "pages": [
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDVQYBVlUAVVcHAlM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFBAADUQdcVQECBAI.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZUFpUU1IHAFQCUQQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVBgBRBQRVVQYDBwU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQA1JTAFVTAFcMVQA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFAVFQU1YCB11TUw4.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRBVZXWwAFUVcDUQ8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDAwRQWgNSAAZXBVA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVV1EKBVFXBV0DAFU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlWUlcHAgoCBlMMUg8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXAlsLBQoABlIMVQc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHCFoEBQcFV1wCX1U.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYVQZRB1YCDVVQUQI.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkEUFUDUldcUFZRBFI.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHCVMGUQNdBQcEVwY.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZAlYLVQpcV1IEVwc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSBlcFAFIGVVUGAgU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYAgAAUABTVwBRUgE.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVAgYBVVJcDAAAUA8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTBQcDWwYBA1FQBFA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVBVoEVQACAQMDV1Q.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYCVUHBwVcBgQMUlM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZVwEABQJRDAABBFI.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZCABQWgpWDFENUQA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRAlAFAldXDVMEVVA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTUFcKWgQHBF0NAFU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQVQAGUVVUAlVXBw8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYVFYFAQtcAQEDUQc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlWU1VQUlFSVQRWAlA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYV1YDBQMFB1NWUlQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUUlRXU1ZXAFBUXwM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQUlQEAQtQBVFTVgY.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZBQMAUwUBAVNWU1M.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDUFtUBQYHVlANVwY.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHV1RWBVJcDVUDUgA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlWBVMFAlBUAFcCUVc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZV1UCAFJTVVdWVwU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUVAMFBQUGBVAFU1I.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZBwNTUVUGAVEEXwM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQAVoCAgoBBF0FUlI.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXAQBRAQpdB1NRBQY.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUU1dRAAJRUAcBAlU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQUlQKUFcHB1RUBw4.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTB1YFBwICBV0FUVA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQAwBUVlUBBwQNVAE.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHVFYGBlJWDAcGU1Q.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlTB1QBWgdTUFJRVgQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFAlECVQUCUFBWVwM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQUFsCUwRVBVVXVlU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFAQMDBwddBFUAUAU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkAVFABBwYCVwEABw4.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSAANRVVACBQEDVQM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHUAQCBwZdA1AMUAQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkEUFAGUwFVBgMBAA4.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZUwZQBgBRAgcEUQE.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUU1IDUgdWUlNXBQ8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXB1YCW1FcAwdXXgM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDVQMHBwoADQNQBFc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXUAYFUgtdBFJTVwA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlYCFMLAgdWBVQEVw4.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDAFNWV1IFAF0CBAQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVV1pWV1VVBwEFAA4.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHBFQBVAtcUVYFBwY.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRU1EHUVIHB1ABUVM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXVVUCUQZRBFQCAgc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQAFVXAgEFUVQEAFQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUV1dRWlFdBlRTBAQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQCQQKVVBUB11RUlM.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXVwYKVgQCA1RXAlQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSCVoEWlBWDF0NB1I.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlQVFBQBgEBVV0CAgQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHB1sAUANQAAYAB1A.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSVwQBAgZVBQRWVFA.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkHBwABUgVcAVEEUg8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFUlECBwEGDQEHBQY.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x6.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRUAAHVAUGAVQNUQ8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x7.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZCFtWVgICDVBRVA8.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x8.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlXAFQBBQVdAQcFX1U.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x9.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlVBloBAVcGBwNQXwU.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x10.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlSUFQDWgIAAFIHUgc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUV1ABUwQGDVINUQc.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDAVYFVwpWV1ZXBVQ.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUCVMCUlAAA1MHVlI.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x4.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlUBQdTWgBVUAENX1A.webp",
+     "width": 720,
+     "height": 1200
+    },
+    {
+     "url": "https://x5.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlRU1pXU1EFBlYCA1Q.webp",
+     "width": 720,
+     "height": 1271
+    }
+   ]
+  },
+  "title": {
+   "id": "A5LeWJj1",
+   "url": "/stay-alive",
+   "name": "Stay Alive",
+   "slug": "stay-alive",
+   "cover": "https://rx.comizy.io/covers/2fecb9de0ae0.webp",
+   "status": "Ongoing",
+   "stats": {
+    "day_views": 0,
+    "week_views": 0,
+    "month_views": 0
+   },
+   "updated_at": "2026-09-04T18:00:03.000Z",
+   "cv": 1788544803294,
+   "is_new": false,
+   "is_hot": false,
+   "is_adult": true,
+   "cover_censored": false,
+   "genres": [
+    {
+     "name": "Drama",
+     "slug": "drama"
+    },
+    {
+     "name": "Action",
+     "slug": "action"
+    },
+    {
+     "name": "Yaoi",
+     "slug": "yaoi"
+    },
+    {
+     "name": "Adult",
+     "slug": "adult"
+    },
+    {
+     "name": "Boys Love",
+     "slug": "boys-love"
+    },
+    {
+     "name": "Romance",
+     "slug": "romance"
+    },
+    {
+     "name": "Horror",
+     "slug": "horror"
+    },
+    {
+     "name": "Mature",
+     "slug": "mature"
+    },
+    {
+     "name": "Fantasy",
+     "slug": "fantasy"
+    },
+    {
+     "name": "Supernatural",
+     "slug": "supernatural"
+    }
+   ]
+  },
+  "next_chapter": {
+   "id": "y5J4XZ6O",
+   "url": "/stay-alive/chapter-2",
+   "name": "Chapter 2",
+   "slug": "chapter-2",
+   "updated_at": "2026-07-29T04:29:16.000Z",
+   "number": 3,
+   "cv": 1788544803294
+  },
+  "previous_chapter": {
+   "id": "1NVvwpZN",
+   "url": "/stay-alive/chapter-0",
+   "name": "Chapter 0",
+   "slug": "chapter-0",
+   "updated_at": "2026-08-06T00:35:09.000Z",
+   "number": 1,
+   "cv": 1788544803294
+  },
+  "latest_comments": []
+ },
+ "message": "Chapter details retrieved successfully"
+}

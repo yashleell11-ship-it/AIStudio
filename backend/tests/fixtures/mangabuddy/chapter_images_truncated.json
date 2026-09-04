@@ -1,0 +1,11 @@
+{
+ "success": true,
+ "data": {
+  "images": [
+   "https://x1.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkDVQYBVlUAVVcHAlM.webp",
+   "https://x2.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBkFBAADUQdcVQECBAI.webp",
+   "https://x3.cmzcdn.org/e/E0BZXFFLVwIHAE0CAl0FB1BUVBlZUFpUU1IHAFQCUQQ.webp"
+  ]
+ },
+ "message": "Chapter images retrieved successfully"
+}
