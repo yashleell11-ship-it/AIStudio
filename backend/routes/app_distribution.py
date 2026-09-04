@@ -130,6 +130,27 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.10.0",
+        build=24,
+        date="September 2026",
+        highlights=[
+            "Search the words inside your downloaded chapters. The phone reads "
+            "the text off each page itself, so a search finds a line of "
+            "dialogue, not just a title",
+            "Sources that had gone dark load again: 3hentai followed its images "
+            "to a new host, baozimh reaches its reader, mangakatana labels its "
+            "pages correctly, weebcentral finds its chapters, and the Madara "
+            "family serves images again",
+            "Four sources whose sites no longer exist were removed, so they "
+            "stop appearing only to fail",
+            "Adult-content filtering takes effect immediately instead of "
+            "leaving already-loaded titles on screen",
+            "Times and dates across the app are no longer hours off",
+            "Opening a series is quicker — its chapter list had been firing "
+            "dozens of redundant background requests",
+        ],
+    ),
+    ChangelogEntry(
         version="1.9.0",
         build=23,
         date="September 2026",
