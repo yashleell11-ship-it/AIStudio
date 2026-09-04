@@ -9,11 +9,14 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
+import 'package:manhwamaniacs/features/downloads/models/chapter_selection.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/series_download_status_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/chapter_download_action.dart';
+import 'package:manhwamaniacs/features/downloads/widgets/chapter_selection_actions.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/download_series_button.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/series_download_progress.dart';
 import 'package:manhwamaniacs/features/library/models/known_chapter.dart';
@@ -110,10 +113,29 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
 
   SeriesChapterSortOrder _sortOrder = SeriesChapterSortOrder.newest;
 
+  /// Multi-select state for this visit to this page (spec R4). Owned here,
+  /// disposed here — leaving the series must forget the selection.
+  final _selection = ChapterSelectionController();
+
   @override
   void initState() {
     super.initState();
     _series = widget.series;
+    // The rows carry the checkboxes but the range helpers live in the action
+    // bar, so a "Next 10" tap has to repaint the list too.
+    _selection.addListener(_onSelectionChanged);
+  }
+
+  @override
+  void dispose() {
+    _selection
+      ..removeListener(_onSelectionChanged)
+      ..dispose();
+    super.dispose();
+  }
+
+  void _onSelectionChanged() {
+    if (mounted) setState(() {});
   }
 
   @override
@@ -271,6 +293,13 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
         initialFollowedId: _series.id,
       ),
       secondaryActions: [
+        ChapterSelectionActions(
+          controller: _selection,
+          identity: _identity,
+          chaptersInReadingOrder: _selectableChapters(downloadStatuses),
+          seriesTitle: _series.title,
+          kind: kind,
+        ),
         DownloadSeriesButton(
           chapters: [
             for (final chapter in _series.chapters)
@@ -338,6 +367,29 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
     );
   }
 
+  /// The chapter list as the multi-select ranges see it, oldest first — the
+  /// order "next 10" is defined against, independent of the Newest/Oldest
+  /// toggle driving what is on screen.
+  List<SelectableChapter> _selectableChapters(
+    Map<String, ChapterDownloadStatus>? downloadStatuses,
+  ) {
+    return [
+      for (final chapter in sortSeriesChapters(
+        _series.chapters,
+        numberOf: (chapter) => chapter.number,
+        order: SeriesChapterSortOrder.oldest,
+      ))
+        (
+          key: chapter.key,
+          number: chapter.number,
+          title: chapter.title,
+          isRead: _series.progress[chapter.key]?.isCompleted ?? false,
+          isDownloaded: downloadStatuses?[chapter.key]?.state ==
+              DownloadChapterState.complete,
+        ),
+    ];
+  }
+
   Widget _buildChapterTile(
     KnownChapter chapter, {
     required bool hasScope,
@@ -361,7 +413,18 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       // "Reading" marks the chapter Continue would resume -- the last one
       // opened, and only while it is unfinished.
       isCurrent: isCurrent,
-      onTap: () => _openChapter(chapter),
+      // While selecting, a row tap ticks the box instead of opening the
+      // chapter: nothing else would explain what the checkbox is for.
+      onTap: _selection.isActive
+          ? () => _selection.toggle(chapter.key)
+          : () => _openChapter(chapter),
+      selection: _selection.isActive
+          ? SeriesChapterSelection(
+              selected: _selection.isSelected(chapter.key),
+              checkboxKey: Key('select-${chapter.key}'),
+              onChanged: (_) => _selection.toggle(chapter.key),
+            )
+          : null,
       download: chapterDownloadAction(
         hasScope: hasScope,
         status: status,
