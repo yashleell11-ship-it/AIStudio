@@ -34,7 +34,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _scrollSaveMs = 250;
 const _progressSaveMs = 500;
 const _autoNextChapterMs = 900;
-const _controlsAutoHideMs = 3000;
 
 /// Minimum milliseconds after a scroll event before a tap is treated as intentional.
 const _postScrollCooldownMs = 300;
@@ -675,8 +674,11 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
   void _scheduleHideControls() {
     _hideControlsTimer?.cancel();
+    // How long the bars stay up is the design preset's call: Cinema retires
+    // them in 1.2s so the page owns the screen, everything else keeps the 3s
+    // the reader has always used.
     _hideControlsTimer = Timer(
-      const Duration(milliseconds: _controlsAutoHideMs),
+      context.readerChrome.autoHideAfter,
       () {
         if (mounted) {
           ref.read(readerUiProvider.notifier).setControlsVisible(false);

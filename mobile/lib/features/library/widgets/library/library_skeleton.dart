@@ -27,7 +27,9 @@ class LibrarySkeleton extends StatelessWidget {
       );
     }
 
-    final columns = context.seriesGridColumns;
+    // Must match SeriesGrid exactly, preset bias included, or the page
+    // reflows the moment the real data arrives.
+    final columns = context.layout.columnsFor(context.seriesGridColumns);
 
     return GridView.builder(
       shrinkWrap: true,

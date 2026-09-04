@@ -17,6 +17,15 @@ import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 /// The default preset is therefore **Signature** — the house look — and the
 /// remaining names say what position each takes rather than which knob moved.
 abstract final class AppPresets {
+  /// Reader bars for the presets that have no translucency anywhere else:
+  /// opaque, at Signature's 3s auto-hide. A solid preset that left its
+  /// reader chrome see-through would be advertising one position and
+  /// shipping another.
+  static const AppReaderChrome _solidReaderChrome = AppReaderChrome(
+    autoHideAfter: Duration(milliseconds: 3000),
+    surfaceOpacity: 1,
+  );
+
   /// The shipped look, unchanged and the default.
   ///
   /// Every value here is the pre-preset constant, token for token. The
@@ -61,7 +70,11 @@ abstract final class AppPresets {
     surfaces: const AppSurfaceStyle(
       treatment: SurfaceTreatment.glass,
       blurSigma: 16,
+      chromeBlurSigma: 18,
       panelOpacity: 0.7,
+      // Stated as the exact 8-bit fraction the nav bar shipped with
+      // (withAlpha(217)) so Signature stays byte-identical.
+      chromeOpacity: 217 / 255,
       cardOpacity: 1,
       gradientCards: true,
       glowAlpha: 28,
@@ -75,7 +88,11 @@ abstract final class AppPresets {
       cardDetail: CardDetail.standard,
     ),
     motion: const AppMotion(scale: 1, scrollReveal: true, pressScale: 0.97),
-    reader: const AppReaderChrome(autoHideAfter: Duration(milliseconds: 3000)),
+    reader: const AppReaderChrome(
+      autoHideAfter: Duration(milliseconds: 3000),
+      // withAlpha(184), the reader bar's shipped alpha, exactly.
+      surfaceOpacity: 184 / 255,
+    ),
   );
 
   /// Solid ink instead of glass, at Signature's density.
@@ -103,7 +120,9 @@ abstract final class AppPresets {
     surfaces: const AppSurfaceStyle(
       treatment: SurfaceTreatment.solid,
       blurSigma: 0,
+      chromeBlurSigma: 0,
       panelOpacity: 1,
+      chromeOpacity: 1,
       cardOpacity: 1,
       gradientCards: false,
       glowAlpha: 0,
@@ -117,7 +136,7 @@ abstract final class AppPresets {
       cardDetail: CardDetail.standard,
     ),
     motion: const AppMotion(scale: 0.65, scrollReveal: false, pressScale: 0.99),
-    reader: signature.reader,
+    reader: _solidReaderChrome,
   );
 
   /// Density first: more rows per screen, list-led browse.
@@ -159,7 +178,9 @@ abstract final class AppPresets {
     surfaces: const AppSurfaceStyle(
       treatment: SurfaceTreatment.solid,
       blurSigma: 0,
+      chromeBlurSigma: 0,
       panelOpacity: 1,
+      chromeOpacity: 1,
       cardOpacity: 1,
       gradientCards: false,
       glowAlpha: 0,
@@ -179,7 +200,7 @@ abstract final class AppPresets {
       cardDetail: CardDetail.minimal,
     ),
     motion: const AppMotion(scale: 0.7, scrollReveal: true, pressScale: 0.98),
-    reader: signature.reader,
+    reader: _solidReaderChrome,
   );
 
   /// Typography-led: a system serif for headings, wide margins, metadata over
@@ -220,7 +241,9 @@ abstract final class AppPresets {
     surfaces: const AppSurfaceStyle(
       treatment: SurfaceTreatment.solid,
       blurSigma: 0,
+      chromeBlurSigma: 0,
       panelOpacity: 1,
+      chromeOpacity: 1,
       cardOpacity: 1,
       gradientCards: false,
       glowAlpha: 0,
@@ -242,7 +265,7 @@ abstract final class AppPresets {
       cardDetail: CardDetail.standard,
     ),
     motion: const AppMotion(scale: 1, scrollReveal: true, pressScale: 0.98),
-    reader: signature.reader,
+    reader: _solidReaderChrome,
   );
 
   /// Content-maximal: the chrome gets out of the way.
@@ -283,7 +306,9 @@ abstract final class AppPresets {
     surfaces: const AppSurfaceStyle(
       treatment: SurfaceTreatment.glass,
       blurSigma: 12,
+      chromeBlurSigma: 14,
       panelOpacity: 0.5,
+      chromeOpacity: 0.62,
       cardOpacity: 1,
       gradientCards: false,
       glowAlpha: 0,
@@ -297,7 +322,10 @@ abstract final class AppPresets {
       cardDetail: CardDetail.minimal,
     ),
     motion: const AppMotion(scale: 0.45, scrollReveal: false, pressScale: 0.985),
-    reader: const AppReaderChrome(autoHideAfter: Duration(milliseconds: 1200)),
+    reader: const AppReaderChrome(
+      autoHideAfter: Duration(milliseconds: 1200),
+      surfaceOpacity: 0.55,
+    ),
   );
 
   /// Picker order: the default first, then the four alternatives.

@@ -279,7 +279,9 @@ class AppSurfaceStyle {
   const AppSurfaceStyle({
     required this.treatment,
     required this.blurSigma,
+    required this.chromeBlurSigma,
     required this.panelOpacity,
+    required this.chromeOpacity,
     required this.cardOpacity,
     required this.gradientCards,
     required this.glowAlpha,
@@ -288,11 +290,21 @@ class AppSurfaceStyle {
 
   final SurfaceTreatment treatment;
 
-  /// Backdrop blur radius for panels and reader chrome; 0 skips the filter.
+  /// Backdrop blur radius for panels; 0 skips the filter.
   final double blurSigma;
+
+  /// Backdrop blur radius for *floating chrome* — the bottom nav, the reader's
+  /// bars. Stated separately from [blurSigma] rather than derived from it
+  /// because chrome hovers over arbitrary artwork and has always carried a
+  /// slightly heavier blur than a panel resting on the page background.
+  final double chromeBlurSigma;
 
   /// Alpha of a `GlassPanel`'s fill over the content behind it.
   final double panelOpacity;
+
+  /// Alpha of floating chrome's fill. Higher than [panelOpacity]: a nav bar
+  /// has to stay readable over a cover, where a panel only sits on the page.
+  final double chromeOpacity;
 
   /// Alpha of a `GlassCard`'s fill.
   final double cardOpacity;
@@ -311,6 +323,10 @@ class AppSurfaceStyle {
   /// True only when a backdrop blur is actually worth the saveLayer.
   bool get isGlass => treatment == SurfaceTreatment.glass && blurSigma > 0;
 
+  /// Whether floating chrome earns a blur.
+  bool get isChromeGlass =>
+      treatment == SurfaceTreatment.glass && chromeBlurSigma > 0;
+
   static AppSurfaceStyle lerp(
     AppSurfaceStyle a,
     AppSurfaceStyle b,
@@ -321,7 +337,9 @@ class AppSurfaceStyle {
     return AppSurfaceStyle(
       treatment: target.treatment,
       blurSigma: l(a.blurSigma, b.blurSigma),
+      chromeBlurSigma: l(a.chromeBlurSigma, b.chromeBlurSigma),
       panelOpacity: l(a.panelOpacity, b.panelOpacity),
+      chromeOpacity: l(a.chromeOpacity, b.chromeOpacity),
       cardOpacity: l(a.cardOpacity, b.cardOpacity),
       gradientCards: target.gradientCards,
       glowAlpha: l(a.glowAlpha, b.glowAlpha),
@@ -607,6 +625,15 @@ class AppLayoutDefaults {
   final double gridAspectRatio;
 
   final CardDetail cardDetail;
+
+  /// The viewport's natural column count, biased by this preset and clamped to
+  /// a range that still shows a readable cover.
+  ///
+  /// Every poster grid in the app routes through here so they stay in step —
+  /// including the loading skeleton, which has to lay out the same number of
+  /// columns as the grid it is standing in for or the page jumps when the data
+  /// lands.
+  int columnsFor(int base) => (base + gridColumnBias).clamp(2, 6);
 }
 
 // ── Motion ───────────────────────────────────────────────────────────────────
@@ -649,8 +676,16 @@ class AppMotion {
 /// How much furniture the reader shows, and for how long.
 @immutable
 class AppReaderChrome {
-  const AppReaderChrome({required this.autoHideAfter});
+  const AppReaderChrome({
+    required this.autoHideAfter,
+    required this.surfaceOpacity,
+  });
 
   /// Idle time before the reader's top and bottom bars retire themselves.
   final Duration autoHideAfter;
+
+  /// Alpha of those bars. Lower than [AppSurfaceStyle.chromeOpacity] on every
+  /// preset: the reader's furniture sits directly on the page being read and
+  /// is meant to be "almost invisible" while still legible.
+  final double surfaceOpacity;
 }

@@ -189,7 +189,7 @@ class _FollowedGrid extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
           sliver: SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.seriesGridColumns,
+              crossAxisCount: context.layout.columnsFor(context.seriesGridColumns),
               crossAxisSpacing: context.space.md,
               mainAxisSpacing: context.space.xl,
               childAspectRatio: 0.5,
@@ -287,7 +287,7 @@ class _LibrarySkeleton extends StatelessWidget {
           padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
           sliver: SliverGrid.builder(
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.seriesGridColumns,
+              crossAxisCount: context.layout.columnsFor(context.seriesGridColumns),
               crossAxisSpacing: context.space.md,
               mainAxisSpacing: context.space.xl,
               childAspectRatio: 0.5,

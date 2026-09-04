@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -45,6 +43,7 @@ import 'package:manhwamaniacs/features/sources/screens/source_reader_screen.dart
 import 'package:manhwamaniacs/features/sources/screens/source_series_detail_screen.dart';
 import 'package:manhwamaniacs/features/sources/screens/sources_list_screen.dart';
 import 'package:manhwamaniacs/features/updates/screens/updates_screen.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
 
 final _rootNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'root');
 final _shellNavigatorKey = GlobalKey<NavigatorState>(debugLabel: 'shell');
@@ -415,25 +414,31 @@ class _AppShell extends ConsumerWidget {
                 blurRadius: 20,
                 offset: const Offset(0, 6),
               ),
-              BoxShadow(
-                color: context.colors.primary.withAlpha(24),
-                blurRadius: 24,
-                offset: const Offset(0, 4),
-              ),
+              // The accent halo is decoration, not separation — the presets
+              // that drop card glows drop it here too.
+              if (context.surfaces.glowAlpha > 0)
+                BoxShadow(
+                  color: context.colors.primary.withAlpha(24),
+                  blurRadius: 24,
+                  offset: const Offset(0, 4),
+                ),
             ],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(context.radii.xl),
-            child: BackdropFilter(
-              filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+            child: ChromeBlur(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  // Eclipse Warm frosted glass: near-black surface at ~0.85
-                  // alpha over the mood backdrop, with the subtle warm-neutral
-                  // border edge.
-                  color: context.colors.surface.withAlpha(217),
+                  // Frosted glass under a glass preset, solid ink under a flat
+                  // one — the fill's alpha and the blur both come from the
+                  // preset, the colour from the palette.
+                  color: context.colors.surface
+                      .withValues(alpha: context.surfaces.chromeOpacity),
                   borderRadius: BorderRadius.circular(context.radii.xl),
-                  border: Border.all(color: context.colors.border),
+                  border: Border.all(
+                    color: context.colors.border,
+                    width: context.strokes.border,
+                  ),
                 ),
                 child: NavigationBarTheme(
                   // Active = amber (primary); inactive = muted. Icon colour on a

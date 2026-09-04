@@ -4,7 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/app/theme/app_metrics.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
+import 'package:manhwamaniacs/app/theme/preset_controller.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
@@ -119,6 +121,10 @@ class _GeneralSettingsPanel extends StatelessWidget {
         const _SectionHeading('Theme'),
         SizedBox(height: context.space.sm),
         const _ThemeSelector(),
+        SizedBox(height: context.space.xl2),
+        const _SectionHeading('Design'),
+        SizedBox(height: context.space.sm),
+        const _DesignSelector(),
         SizedBox(height: context.space.xl2),
         const _SectionHeading('Language'),
         SizedBox(height: context.space.sm),
@@ -505,6 +511,173 @@ class _ThemeSwatch extends StatelessWidget {
         height: 10,
         decoration: BoxDecoration(color: color, shape: BoxShape.circle),
       );
+}
+
+/// The design-preset picker: one row per preset, each with a live miniature
+/// drawn in the *current* palette so the two axes are visibly independent —
+/// change the theme and every preview recolours without changing shape.
+///
+/// Applies on tap, like the theme gallery, and persists per profile (see
+/// `preset_controller.dart`). Nothing here needs a restart: the preset is a
+/// ThemeExtension, so selecting one rebuilds the tree the same way a palette
+/// switch does, and the reader keeps its place.
+class _DesignSelector extends ConsumerWidget {
+  const _DesignSelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(presetControllerProvider);
+
+    return GlassCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (final preset in AppPresets.all) ...[
+            if (preset != AppPresets.all.first)
+              SizedBox(height: context.space.sm),
+            _PresetRow(
+              preset: preset,
+              selected: preset.id == active.id,
+              onTap: () {
+                ref.read(hapticsProvider).selection();
+                ref.read(presetControllerProvider.notifier).setPreset(preset.id);
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// One tappable preset: its shape in miniature, its name, and the position it
+/// takes in one line.
+class _PresetRow extends StatelessWidget {
+  const _PresetRow({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AppMetrics preset;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${preset.name} design',
+      child: InkWell(
+        key: Key('preset-row-${preset.id}'),
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(context.radii.md),
+        child: Padding(
+          padding: EdgeInsets.all(context.space.sm),
+          child: Row(
+            children: [
+              _PresetPreview(preset: preset),
+              SizedBox(width: context.space.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      preset.name,
+                      style: context.text.labelLg.copyWith(
+                        color: context.colors.fg,
+                        fontWeight:
+                            selected ? FontWeight.w700 : FontWeight.w500,
+                      ),
+                    ),
+                    SizedBox(height: context.space.xxs),
+                    Text(
+                      preset.description,
+                      style: context.text.caption
+                          .copyWith(color: context.colors.muted),
+                    ),
+                  ],
+                ),
+              ),
+              SizedBox(width: context.space.sm),
+              Icon(
+                selected ? Icons.radio_button_checked : Icons.radio_button_off,
+                size: 20,
+                color:
+                    selected ? context.colors.primary : context.colors.border,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A miniature of what the preset does: a card at that preset's radius, border
+/// weight and surface treatment, holding a heading in its face and two rows at
+/// its spacing rhythm.
+///
+/// Drawn from `preset.*` rather than `context.*` — the point is to show a
+/// preset that is *not* the active one — but coloured entirely from
+/// `context.colors`, which is exactly the orthogonality the two axes promise.
+class _PresetPreview extends StatelessWidget {
+  const _PresetPreview({required this.preset});
+
+  final AppMetrics preset;
+
+  static const double _width = 64;
+  static const double _height = 48;
+
+  @override
+  Widget build(BuildContext context) {
+    final surfaces = preset.surfaces;
+    final line = context.colors.muted.withValues(alpha: 0.5);
+
+    return Container(
+      width: _width,
+      height: _height,
+      padding: EdgeInsets.all(preset.space.sm),
+      decoration: BoxDecoration(
+        color: context.colors.surface2
+            .withValues(alpha: surfaces.isGlass ? 0.6 : 1),
+        borderRadius: BorderRadius.circular(preset.radii.lg),
+        border: Border.all(
+          color: surfaces.cardBorderIsStrong
+              ? context.colors.border
+              : context.colors.glassEdge,
+          width: preset.strokes.border,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Aa',
+            style: preset.text.h4.copyWith(
+              color: context.colors.fg,
+              fontSize: 13,
+              height: 1,
+            ),
+          ),
+          SizedBox(height: preset.space.xs),
+          for (var i = 0; i < 2; i++) ...[
+            if (i > 0) SizedBox(height: preset.space.xxs),
+            Container(
+              height: 2,
+              width: i == 0 ? _width * 0.5 : _width * 0.34,
+              decoration: BoxDecoration(
+                color: line,
+                borderRadius: BorderRadius.circular(preset.radii.xs),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
 
 class _LanguageSelector extends ConsumerWidget {

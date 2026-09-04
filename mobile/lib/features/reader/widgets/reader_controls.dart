@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
@@ -11,6 +9,7 @@ import 'package:manhwamaniacs/features/reader/widgets/immersive_safe_area.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
+import 'package:manhwamaniacs/shared/widgets/premium/glass_panel.dart';
 
 // Speed label for auto-scroll
 String _autoScrollLabel(double speed) {
@@ -23,12 +22,13 @@ const _controlsAnimMs = 220;
 
 // ── Shared glass surface ──────────────────────────────────────────────────────
 
-/// Blurred, translucent panel used by the reader's top and bottom bars so the
-/// overlay stays "almost invisible" over the page while remaining legible.
+/// The reader's top and bottom bars, so the overlay stays "almost invisible"
+/// over the page while remaining legible.
 ///
-/// Eclipse Warm frosted glass — mirrors the app's bottom nav (blur 18, near-
-/// black surface, subtle border) plus a soft warm-amber glow so the reader
-/// chrome reads as part of the same warm system.
+/// Mirrors the app's bottom nav — same chrome blur, same border, plus a soft
+/// accent glow — but at the preset's reader opacity, which is lower than the
+/// nav's on every preset because this one sits directly on the page being
+/// read. Under a solid preset the blur and the glow both leave the tree.
 class _GlassSurface extends StatelessWidget {
   const _GlassSurface({required this.child, this.padding});
 
@@ -47,23 +47,28 @@ class _GlassSurface extends StatelessWidget {
             blurRadius: 18,
             offset: const Offset(0, 6),
           ),
-          // Warm amber halo — the Eclipse Warm accent.
-          BoxShadow(
-            color: context.colors.primary.withAlpha(20),
-            blurRadius: 24,
-            spreadRadius: -6,
-          ),
+          // Warm halo in the palette's accent — decoration, so the presets
+          // that drop glows elsewhere drop it here too.
+          if (context.surfaces.glowAlpha > 0)
+            BoxShadow(
+              color: context.colors.primary.withAlpha(20),
+              blurRadius: 24,
+              spreadRadius: -6,
+            ),
         ],
       ),
       child: ClipRRect(
         borderRadius: br,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+        child: ChromeBlur(
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: context.colors.surface.withAlpha(184),
+              color: context.colors.surface
+                  .withValues(alpha: context.readerChrome.surfaceOpacity),
               borderRadius: br,
-              border: Border.all(color: context.colors.border),
+              border: Border.all(
+                color: context.colors.border,
+                width: context.strokes.border,
+              ),
             ),
             child: Padding(
               padding: padding ?? EdgeInsets.all(context.space.xs),
