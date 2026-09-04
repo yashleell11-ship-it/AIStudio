@@ -66,7 +66,7 @@ _CHAPTER_COUNT_RE = re.compile(r"([0-9a-z.]+)\s*Chapters", re.I)
 #: without this check a bogus key silently yields a homepage-shaped parse.
 _DETAIL_MARKERS = ("manga_series_image", "manga_series_data")
 
-_DETAIL_TITLE_RE = re.compile(r"<h1>(.*?)</h1>", re.S | re.I)
+_DETAIL_TITLE_RE = re.compile(r"<h1[^>]*>(.*?)</h1>", re.S | re.I)
 _DETAIL_COVER_RE = re.compile(
     r'<div class="manga_series_image">\s*<img[^>]+src="([^"]+)"', re.S | re.I
 )
