@@ -160,3 +160,37 @@ def test_manifest_still_404s_for_a_chapter_that_does_not_exist(db_session):
         svc.manifest(SRC, SERIES, "ch-does-not-exist")
     assert excinfo.value.status_code == 404
     assert excinfo.value.code == "chapter_not_found"
+
+
+@pytest.mark.parametrize("requested", ["/ch-2", "ch-2/", "/ch-2/"])
+def test_manifest_tolerates_surrounding_slashes_on_the_chapter_key(
+    db_session, requested
+):
+    """Connectors are not consistent about leading/trailing separators.
+
+    ``_locate`` falls back to a ``strip("/")`` comparison for exactly this, and
+    the fallback is what keeps a link built with one convention resolving
+    against a chapter list stored with the other. Without it these are 404s.
+    """
+    svc = ReaderService(FakeBrowse(FIXTURE), db=db_session)
+    m = svc.manifest(SRC, SERIES, requested)
+
+    assert m["chapter_number"] == 2.0
+    assert m["prev"] == "ch-1"
+    assert m["next"] == "ch-3"
+
+
+def test_manifest_locates_the_chapter_in_a_cache_shaped_list(db_session):
+    """``source_series_cache`` stores chapters under ``key``, connectors under
+    ``id``. The manifest now reads from both, so the neighbours it names must
+    be right in either shape."""
+    from services.reader_service import _chapter_key, _locate
+
+    cache_shaped = [{"key": "ch-1"}, {"key": "ch-2"}, {"key": "ch-3"}]
+    connector_shaped = [{"id": "ch-1"}, {"id": "ch-2"}, {"id": "ch-3"}]
+
+    assert _locate(cache_shaped, "ch-2") == 1
+    assert _locate(connector_shaped, "ch-2") == 1
+    assert _chapter_key({"key": "k"}) == "k"
+    assert _chapter_key({"id": "i"}) == "i"
+    assert _chapter_key({}) == ""
