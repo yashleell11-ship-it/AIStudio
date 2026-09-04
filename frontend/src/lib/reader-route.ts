@@ -7,3 +7,24 @@
 export function isImmersiveReaderPath(pathname: string): boolean {
   return /^\/reader\/[^/]+\/.+/.test(pathname);
 }
+
+/**
+ * The same, for the novel reader at
+ * `/novels/<sourceId>/<seriesKey>/<...chapterKey>`.
+ *
+ * A separate route (and so a separate test) rather than a `?kind=` on
+ * `/reader/…`, because the two readers share no rendering: one is a virtualized
+ * image strip on obsidian, the other is a text column painted in the reader's
+ * chosen palette. The shell needs to tell them apart for exactly that reason —
+ * both lose the app chrome, but only the manga reader gets the obsidian
+ * background, since a Paper palette under a near-black page would defeat the
+ * point of choosing Paper.
+ */
+export function isImmersiveNovelPath(pathname: string): boolean {
+  return /^\/novels\/[^/]+\/.+/.test(pathname);
+}
+
+/** Either reader: the shell hides its chrome for both. */
+export function isImmersivePath(pathname: string): boolean {
+  return isImmersiveReaderPath(pathname) || isImmersiveNovelPath(pathname);
+}

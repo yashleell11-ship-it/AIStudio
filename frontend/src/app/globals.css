@@ -70,6 +70,22 @@
   --font-mono: var(--font-dm-sans), ui-monospace, monospace;
   --font-display: var(--font-syne), Impact, sans-serif;
 
+  /*
+   * The novel side's face — `font-book` in markup.
+   *
+   * Manga UI is sans; novels are set in a serif, and that contrast is what
+   * makes the two modes read as different media at a glance rather than as one
+   * app with a filter on it. System stacks only: the site is behind a strict
+   * CSP and downloads no webfonts, so these are faces the reader's OS already
+   * has (Iowan Old Style is Apple Books' own; Charter ships on Android; Georgia
+   * is the near-universal floor).
+   *
+   * Kept byte-identical to `NOVEL_SERIF_STACK` in
+   * `features/novels/typography.ts`, which is what the reader applies inline
+   * once a reader picks a face. `typography.test.ts` asserts the two agree.
+   */
+  --font-book: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, "Bitstream Charter", Georgia, Cambria, "Times New Roman", serif;
+
   --shadow-glow: 0 0 24px rgba(245, 158, 11, 0.22);
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.37);
 }
