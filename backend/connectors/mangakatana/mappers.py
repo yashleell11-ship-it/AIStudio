@@ -277,6 +277,29 @@ def parse_chapter_pages(html: str, chapter_id: str) -> list[Page]:
     return pages
 
 
+#: MangaKatana serves every chapter's images from three interchangeable hosts,
+#: chosen by the reader page's own "Switch server" control (``sv1`` = default,
+#: ``sv2`` = ``?sv=mk``, ``sv3`` = ``?sv=3``). They are not equally fast.
+#: Measured from the production container against four distinct chapters, each
+#: probed in a DIFFERENT server order so a warm origin cache could not be
+#: mistaken for a fast host, three sampled pages cost:
+#:
+#:     sv1 (i1)  10.9 / 15.5 / 19.3 / 12.3 s   <- the default
+#:     sv2 (i7)   6.9 / 14.5 /  2.4 / 15.5 s
+#:     sv3 (i6)   1.3 /  0.3 /  1.3 /  1.3 s
+#:
+#: Almost all of it is time-to-first-byte -- ~350ms of that is the body, even
+#: at 480KB -- so i1 is a throttled box, not a bandwidth limit. Across 18
+#: chapters the three servers returned identical page counts and identical
+#: filenames, so this picks the fast host for bytes that are the same either
+#: way.
+IMAGE_SERVER = "3"
+
+
+def chapter_params() -> dict[str, Any]:
+    return {"sv": IMAGE_SERVER}
+
+
 def listing_path(page: int) -> str:
     return f"/manga/page/{max(page, 1)}"
 
