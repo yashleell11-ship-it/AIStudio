@@ -623,7 +623,6 @@ def _run_remote(argv: list[str], out: str, probe_out: str, sync_code: bool = Fal
            f"-exec rm -rf {{}} +' 2>/dev/null || true; "
            f"rm -rf /tmp/mm_probe_overlay_{_RUN_TOKEN}; "
            if overlay else "")
-        + f"rm -f {host_tmp} {host_tmp}.out.json.tmp; "
         + "exit $rc"
     )
     rc = subprocess.run(["ssh", "-o", "BatchMode=yes", VPS_HOST, remote_cmd]).returncode
@@ -640,6 +639,14 @@ def _run_remote(argv: list[str], out: str, probe_out: str, sync_code: bool = Fal
         )
         if fetched.returncode == 0:
             print(f"==> pulled {local_path}")
+
+    # The results have been copied down; the token-named scratch files on the
+    # VPS have no further use and there is one set per run.
+    subprocess.run(
+        ["ssh", "-o", "BatchMode=yes", VPS_HOST,
+         f"rm -f {host_tmp} {host_tmp}.out.json {host_tmp}.probe.json"],
+        check=False,
+    )
     return rc
 
 
