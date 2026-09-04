@@ -71,13 +71,20 @@ _RECENT_SESSIONS = 10
 
 
 def _build_seconds():
-    raw = func.cast(
-        func.strftime("%s", ReadingSession.ended_at), Integer
-    ) - func.cast(func.strftime("%s", ReadingSession.started_at), Integer)
-    return case(
-        (ReadingSession.ended_at.is_(None), 0),
-        else_=func.max(0, func.min(literal(SESSION_SECONDS_CAP), raw)),
-    )
+    """Capped seconds for one session row.
+
+    The elapsed time itself is stored (``ReadingSession.duration_seconds``,
+    revision 0009) instead of being recomputed from the two timestamps on every
+    read: ``strftime`` parsed both of them per row, per roll-up, and this
+    expression appears in six of them. The cap stays here rather than in the
+    column because it is a reading policy, not a fact about the session — see
+    ``SESSION_SECONDS_CAP``.
+
+    No ``max(0, ...)`` guard is needed any more: the stored value is already
+    floored at 0 by the mapper listener that writes it, so an unclosed session
+    and a client with a skewed clock both arrive as 0.
+    """
+    return func.min(literal(SESSION_SECONDS_CAP), ReadingSession.duration_seconds)
 
 
 _SECONDS = _build_seconds()

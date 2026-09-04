@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from alembic.runtime.migration import MigrationContext
@@ -22,7 +23,7 @@ from database.models import Base
 from database.session import run_alembic_migrations
 
 _BASELINE = "0001_source_native"
-_HEAD = "0008_followed_series_chapter_count"
+_HEAD = "0009_reading_session_duration"
 
 # Every revision, oldest first. A new migration is added here deliberately —
 # the point of the guard is that revisions arrive on purpose, not that there is
@@ -36,6 +37,7 @@ _REVISIONS = [
     "0006_reading_session_stats_index.py",
     "0007_novel_chapter_cache.py",
     "0008_followed_series_chapter_count.py",
+    "0009_reading_session_duration.py",
 ]
 
 # Every ORM-mapped table the baseline must create (spec §3).
@@ -508,3 +510,93 @@ def _seed_pre_0008_follows_accounts(conn) -> None:
             " VALUES (10, 1, 'A', 'a', 'calm', 0, 0, '2026-01-01')"
         )
     )
+
+
+# --- 0009_reading_session_duration ----------------------------------------
+
+
+def test_session_duration_backfill_matches_the_old_sql_expression(tmp_path):
+    """0009 reproduces exactly what the read path used to compute.
+
+    The statistics payload is a set of numbers the owner has been looking at,
+    so the migration must not move any of them. The cases that matter are the
+    ones the old expression special-cased: an unclosed session, and one whose
+    ``ended_at`` precedes its ``started_at`` (a client with a skewed clock),
+    both of which had to contribute zero rather than a negative.
+    """
+    engine = create_engine(f"sqlite:///{tmp_path / 'dur.db'}")
+    _upgrade_to(engine, "0008_followed_series_chapter_count")
+    with engine.begin() as conn:
+        _seed_pre_0008_follows_accounts(conn)
+        rows = [
+            (1, "2026-01-01 10:00:00", "2026-01-01 10:00:30", 30),   # 30s
+            (2, "2026-01-01 10:00:00", "2026-01-01 12:00:00", 7200),  # uncapped
+            (3, "2026-01-01 10:00:00", None, 0),                      # unclosed
+            (4, "2026-01-01 10:00:00", "2026-01-01 09:00:00", 0),     # backwards
+        ]
+        for sid, start, end, _ in rows:
+            conn.execute(
+                text(
+                    "INSERT INTO reading_sessions (id, user_id, profile_id,"
+                    " source_id, series_key, chapter_key, start_page,"
+                    " end_page, pages_read, started_at, ended_at) VALUES"
+                    " (:i, 1, 10, 'mangadex', 's', :c, 1, 2, 2, :s, :e)"
+                ),
+                {"i": sid, "c": f"c{sid}", "s": start, "e": end},
+            )
+    _upgrade_to(engine, "0009_reading_session_duration")
+
+    with engine.connect() as conn:
+        stored = dict(
+            conn.execute(
+                text("SELECT id, duration_seconds FROM reading_sessions")
+            ).all()
+        )
+    assert stored == {sid: expected for sid, _, _, expected in rows}
+
+
+def test_session_duration_is_written_however_the_row_is_built(tmp_path):
+    """The mapper listener covers every insert path, not just the writer.
+
+    ``duration_seconds`` derives from two columns, so nothing at a call site
+    is expected to maintain it. If the listener is removed, reading time
+    silently reads as zero everywhere — hence this test rather than trust.
+    """
+    from sqlalchemy.orm import Session
+
+    from database.models import ReadingSession
+
+    engine = _fresh_engine(tmp_path)
+    with engine.begin() as conn:
+        _seed_pre_0008_follows_accounts(conn)
+
+    base = datetime(2026, 1, 1, 10, 0, 0)
+    with Session(engine) as session:
+        cases = {
+            "closed": (base, base + timedelta(seconds=45), 45),
+            "unclosed": (base, None, 0),
+            "backwards": (base, base - timedelta(hours=1), 0),
+            "long": (base, base + timedelta(hours=3), 10800),
+        }
+        for key, (start, end, _) in cases.items():
+            session.add(
+                ReadingSession(
+                    user_id=1,
+                    profile_id=10,
+                    source_id="mangadex",
+                    series_key="s",
+                    chapter_key=key,
+                    start_page=1,
+                    end_page=2,
+                    pages_read=2,
+                    started_at=start,
+                    ended_at=end,
+                )
+            )
+        session.commit()
+
+        stored = {
+            r.chapter_key: r.duration_seconds
+            for r in session.query(ReadingSession).all()
+        }
+    assert stored == {key: expected for key, (_, _, expected) in cases.items()}
