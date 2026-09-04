@@ -52,6 +52,18 @@ export interface BootstrapStatus {
    * `registration_enabled`.
    */
   registration_open?: boolean;
+  /**
+   * Whether this deployment serves novels (`MM_NOVELS_ENABLED`).
+   *
+   * Rides on the bootstrap read rather than getting a config endpoint of its
+   * own because this is the pre-auth config surface the clients already
+   * fetch. Optional/absent on a backend that predates the flag — which is the
+   * same thing as off, and is read that way (`features/novels/gate.ts`).
+   *
+   * False means the app must look EXACTLY as it did before novels existed:
+   * no reader route, no mode switch, nothing.
+   */
+  novels_enabled?: boolean;
 }
 
 export interface LoginPayload {

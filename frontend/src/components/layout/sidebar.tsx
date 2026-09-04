@@ -5,12 +5,31 @@ import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
 import { navSections, secondaryNav, type NavItem } from "@/config/nav";
 import { useCurrentUser } from "@/features/auth/hooks";
+import {
+  ContentModeSwitch,
+  isModeVisibleNavItem,
+  useContentMode,
+} from "@/features/content-mode";
+import type { ContentMode } from "@/features/content-mode";
 import { cn } from "@/lib/cn";
 import { useUiStore } from "@/stores/ui-store";
 
-/** Admin-only entries are hidden from non-admins; everything else is visible. */
-function visibleNav(items: NavItem[], isAdmin: boolean): NavItem[] {
-  return items.filter((item) => !item.adminOnly || isAdmin);
+/**
+ * Admin-only entries are hidden from non-admins, and mode-specific ones (OCR
+ * search) from the mode they cannot serve. With novels disabled the mode test
+ * passes everything, so this is the same list it has always been.
+ */
+function visibleNav(
+  items: NavItem[],
+  isAdmin: boolean,
+  mode: ContentMode,
+  novelsEnabled: boolean,
+): NavItem[] {
+  return items.filter(
+    (item) =>
+      (!item.adminOnly || isAdmin) &&
+      isModeVisibleNavItem(item.href, mode, novelsEnabled),
+  );
 }
 
 function isNavActive(pathname: string, href: string): boolean {
@@ -70,9 +89,10 @@ export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggleSidebar = useUiStore((s) => s.toggleSidebar);
   const { data: user } = useCurrentUser();
+  const { mode, novelsEnabled } = useContentMode();
 
   const isAdmin = user?.is_admin ?? false;
-  const footerItems = visibleNav(secondaryNav, isAdmin);
+  const footerItems = visibleNav(secondaryNav, isAdmin, mode, novelsEnabled);
 
   return (
     <aside
@@ -112,8 +132,13 @@ export function Sidebar() {
         className="flex flex-1 flex-col gap-4 overflow-y-auto p-2"
         aria-label="Primary"
       >
+        {/* Above every nav group on purpose: this is not a filter on one
+            screen, it is what all of them are lists OF. Renders nothing at
+            all when the server has novels off. */}
+        <ContentModeSwitch collapsed={collapsed} />
+
         {navSections.map((section) => {
-          const items = visibleNav(section.items, isAdmin);
+          const items = visibleNav(section.items, isAdmin, mode, novelsEnabled);
           if (items.length === 0) return null;
           return (
             <div key={section.label} className="flex flex-col gap-0.5">

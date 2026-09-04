@@ -85,10 +85,20 @@ export function sourceReaderChapterPath(
   });
 }
 
-export function useSources() {
+/**
+ * Every source this profile can see.
+ *
+ * `enabled` exists for callers that only need the listing conditionally — the
+ * content-mode filter reads it solely to learn each source's `content_kind`,
+ * and a deployment with novels off has no use for it at all. The query key is
+ * unchanged, so a disabled caller still shares (and is served by) the cache
+ * that the Sources screen fills.
+ */
+export function useSources(options?: { enabled?: boolean }) {
   return useQuery({
     queryKey: [...SOURCES_KEY, "installed"],
     queryFn: () => sourcesApi.listSources(),
+    enabled: options?.enabled ?? true,
   });
 }
 
