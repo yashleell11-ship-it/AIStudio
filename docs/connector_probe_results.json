@@ -1,8 +1,8 @@
 {
-  "probed_at": "2026-09-04T12:14:05.935824+00:00",
+  "probed_at": "2026-09-04T16:59:16.350934+00:00",
   "probed_from": "vps",
-  "total": 47,
-  "live": 44,
+  "total": 53,
+  "live": 50,
   "partial": 1,
   "dead": 2,
   "error": 0,
@@ -10,6 +10,7 @@
     {
       "source_id": "18porncomic",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": true,
       "detail": "",
@@ -20,58 +21,88 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.49,
-        "search": 0.44,
-        "detail": 0.26,
-        "chapters": 0.44,
-        "pages": 0.97,
-        "images": 0.14,
+        "browse": 0.78,
+        "search": 0.96,
+        "detail": 0.21,
+        "chapters": 0.25,
+        "pages": 0.18,
+        "images": 0.84,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.9
+        "total": 3.3
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 1,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
       },
       "search_hits": 20,
       "n_chapters": 1,
       "n_pages": 13,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "3hentai",
       "status": "LIVE",
+      "kind": "manga",
       "items": 30,
       "mature": true,
       "detail": "",
-      "sample_title": "[Kozakura Yayoi] Shounen Yuusha to Slime Joou [E",
+      "sample_title": "[kumahachi] Short Collection",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
         "browse": 0.11,
-        "search": 0.43,
+        "search": 0.44,
         "detail": 0.51,
         "chapters": 0.5,
         "pages": 0.5,
-        "images": 0.09,
+        "images": 0.15,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.3
+        "total": 2.2
       },
-      "search_hits": 25,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 1,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
+      },
+      "search_hits": 17,
       "n_chapters": 1,
-      "n_pages": 42,
+      "n_pages": 12,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "8muses",
       "status": "LIVE",
+      "kind": "manga",
       "items": 72,
       "mature": true,
       "detail": "",
@@ -82,58 +113,88 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.57,
-        "search": 0.11,
+        "browse": 0.62,
+        "search": 0.12,
         "detail": 0.0,
-        "chapters": 0.31,
+        "chapters": 0.28,
         "pages": 0.12,
-        "images": 0.99,
+        "images": 0.12,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.1
+        "total": 1.3
+      },
+      "requests": {
+        "browse": 2,
+        "search": 1,
+        "detail": 0,
+        "chapters": 1,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
       },
       "search_hits": 1,
       "n_chapters": 72,
       "n_pages": 4,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "akuma",
       "status": "LIVE",
+      "kind": "manga",
       "items": 60,
       "mature": true,
       "detail": "",
-      "sample_title": "Longing for my aunt chapter 6",
+      "sample_title": "[Royal Bitch (haruhisky)] Saber-san, Taworu Ichi",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.56,
-        "search": 0.57,
-        "detail": 0.46,
-        "chapters": 0.49,
-        "pages": 1.04,
-        "images": 0.58,
+        "browse": 0.52,
+        "search": 0.48,
+        "detail": 0.48,
+        "chapters": 0.54,
+        "pages": 1.16,
+        "images": 0.6,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 3.7
+        "total": 3.8
       },
-      "search_hits": 55,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 1,
+        "pages": 2,
+        "images": 3,
+        "text": 0,
+        "total": 9
+      },
+      "search_hits": 60,
       "n_chapters": 1,
-      "n_pages": 179,
+      "n_pages": 50,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "allporncomic",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
@@ -144,27 +205,42 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.07,
-        "search": 1.09,
-        "detail": 0.04,
+        "browse": 0.08,
+        "search": 0.69,
+        "detail": 0.05,
         "chapters": 0.0,
-        "pages": 0.2,
-        "images": 0.54,
+        "pages": 0.21,
+        "images": 0.1,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.1
+        "total": 1.2
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 2,
       "n_chapters": 1,
       "n_pages": 20,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "apcomics",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
@@ -175,89 +251,180 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.77,
-        "search": 0.47,
-        "detail": 0.56,
+        "browse": 0.75,
+        "search": 0.53,
+        "detail": 0.53,
         "chapters": 0.0,
         "pages": 0.3,
-        "images": 1.03,
+        "images": 0.95,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 4.2
+        "total": 4.0
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 24,
       "n_chapters": 1,
       "n_pages": 4,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
+    },
+    {
+      "source_id": "archiveorg",
+      "status": "LIVE",
+      "kind": "novel",
+      "items": 20,
+      "mature": false,
+      "detail": "",
+      "sample_title": "The Romance of Lust A classic Victorian erotic n",
+      "stages": {
+        "browse": "PASS",
+        "search": "PASS",
+        "detail": "PASS",
+        "chapters": "PASS",
+        "pages": "-",
+        "images": "-",
+        "text": "PASS"
+      },
+      "timings_secs": {
+        "browse": 0.57,
+        "search": 0.48,
+        "detail": 4.15,
+        "chapters": 0.0,
+        "pages": 0.0,
+        "images": 0.0,
+        "text": 0.02,
+        "find_page": 0.0,
+        "total": 5.2
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 3,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 0,
+        "total": 5
+      },
+      "search_hits": 20,
+      "n_chapters": 15,
+      "n_pages": 0,
+      "n_images_ok": 0,
+      "n_images_tried": 0,
+      "n_paragraphs": 195,
+      "n_words": 12673
     },
     {
       "source_id": "asmhentai",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": true,
       "detail": "",
-      "sample_title": "[Syumai Bento (Umai)] Onii-chan no nioi ga suki",
+      "sample_title": "[Poncocchan] VR ZUPONIE｜VR性偶 (COMIC AUN 2022-06)",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.25,
-        "search": 0.41,
-        "detail": 0.49,
+        "browse": 0.49,
+        "search": 1.59,
+        "detail": 0.15,
         "chapters": 0.5,
         "pages": 0.5,
-        "images": 0.15,
+        "images": 0.2,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.3
+        "total": 3.5
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 1,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
       },
       "search_hits": 2,
       "n_chapters": 1,
-      "n_pages": 24,
+      "n_pages": 19,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "asurascans",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "The Ruler Of Darkness",
+      "sample_title": "Got Dropped into a Ghost Story, Still Gotta Work",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.15,
-        "search": 0.18,
-        "detail": 0.31,
+        "browse": 0.2,
+        "search": 0.14,
+        "detail": 0.42,
         "chapters": 0.0,
         "pages": 0.21,
-        "images": 0.08,
+        "images": 0.23,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.0
+        "total": 1.2
       },
-      "search_hits": 3,
-      "n_chapters": 29,
-      "n_pages": 25,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
+      },
+      "search_hits": 1,
+      "n_chapters": 36,
+      "n_pages": 12,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "aurorascans",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": false,
       "detail": "",
@@ -268,27 +435,42 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.58,
-        "search": 0.28,
+        "browse": 0.6,
+        "search": 0.3,
         "detail": 0.28,
         "chapters": 0.29,
         "pages": 0.29,
-        "images": 0.15,
+        "images": 0.18,
+        "text": 0.0,
         "find_page": 0.0,
         "total": 1.9
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 1,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
       },
       "search_hits": 6,
       "n_chapters": 19,
       "n_pages": 23,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "baozimh",
       "status": "LIVE",
+      "kind": "manga",
       "items": 36,
       "mature": false,
       "detail": "",
@@ -299,58 +481,88 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.0,
-        "search": 0.51,
-        "detail": 1.06,
+        "browse": 0.97,
+        "search": 0.48,
+        "detail": 0.95,
         "chapters": 0.0,
-        "pages": 1.42,
-        "images": 0.18,
+        "pages": 1.47,
+        "images": 1.12,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 4.2
+        "total": 5.0
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 3,
+        "images": 3,
+        "text": 0,
+        "total": 10
       },
       "search_hits": 86,
       "n_chapters": 3874,
       "n_pages": 6,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "beehentai",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
-      "sample_title": "Tousan wa [Kensei], Kaasan wa [Kenshin], Boku wa",
+      "sample_title": "I Report Regarding Gender Raw",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.07,
+        "browse": 0.29,
         "search": 0.29,
-        "detail": 0.14,
-        "chapters": 0.11,
-        "pages": 0.3,
-        "images": 0.22,
+        "detail": 0.16,
+        "chapters": 0.43,
+        "pages": 0.17,
+        "images": 0.28,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.2
+        "total": 1.6
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 1,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
       },
       "search_hits": 24,
-      "n_chapters": 14,
-      "n_pages": 11,
+      "n_chapters": 49,
+      "n_pages": 36,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "cocomic",
       "status": "LIVE",
+      "kind": "manga",
       "items": 12,
       "mature": true,
       "detail": "",
@@ -361,58 +573,88 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.27,
-        "search": 1.16,
-        "detail": 2.63,
+        "browse": 0.41,
+        "search": 0.93,
+        "detail": 0.64,
         "chapters": 0.0,
-        "pages": 0.24,
-        "images": 0.1,
+        "pages": 0.14,
+        "images": 0.12,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 4.4
+        "total": 2.2
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 3,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 9
       },
       "search_hits": 12,
       "n_chapters": 189,
       "n_pages": 5,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "comicasura",
       "status": "LIVE",
+      "kind": "manga",
       "items": 15,
       "mature": true,
       "detail": "",
-      "sample_title": "Olivia Jou wa Aisareru to Shinu: Danna-sama, Cho",
+      "sample_title": "The Unlimited Bacteriomancer",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.43,
-        "search": 0.03,
-        "detail": 0.22,
+        "browse": 0.4,
+        "search": 0.61,
+        "detail": 0.33,
         "chapters": 0.0,
-        "pages": 0.2,
-        "images": 0.11,
+        "pages": 0.31,
+        "images": 0.13,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.0
+        "total": 1.8
       },
-      "search_hits": 3,
-      "n_chapters": 3,
-      "n_pages": 105,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
+      },
+      "search_hits": 15,
+      "n_chapters": 4,
+      "n_pages": 43,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "comicland",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": true,
       "detail": "",
@@ -423,182 +665,272 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.07,
-        "search": 0.23,
-        "detail": 0.14,
+        "browse": 0.2,
+        "search": 0.11,
+        "detail": 0.2,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.42,
+        "pages": 0.14,
+        "images": 0.29,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.1
+        "total": 1.0
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 3,
       "n_chapters": 160,
       "n_pages": 32,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "comicsvalley",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
-      "sample_title": "Making It in a Comic Book World (Uncensored) (An",
+      "sample_title": "Love Factory (Uncensored) (Animated) [G-goon]",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.36,
-        "search": 0.33,
-        "detail": 0.84,
+        "browse": 0.6,
+        "search": 0.31,
+        "detail": 1.02,
         "chapters": 0.0,
-        "pages": 0.04,
-        "images": 0.62,
+        "pages": 0.07,
+        "images": 0.58,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.2
+        "total": 2.6
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
       },
       "search_hits": 24,
-      "n_chapters": 18,
-      "n_pages": 46,
+      "n_chapters": 21,
+      "n_pages": 33,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "cucumbermanga",
       "status": "LIVE",
+      "kind": "manga",
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "DOG AND BIRD",
+      "sample_title": "Blue Paradox",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.64,
-        "search": 0.3,
-        "detail": 0.14,
+        "browse": 0.36,
+        "search": 0.5,
+        "detail": 0.63,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.05,
+        "pages": 0.16,
+        "images": 5.2,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.4
+        "total": 6.9
       },
-      "search_hits": 2,
-      "n_chapters": 2,
-      "n_pages": 1,
-      "n_images_ok": 1,
-      "n_images_tried": 1
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 3,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 9
+      },
+      "search_hits": 10,
+      "n_chapters": 6,
+      "n_pages": 33,
+      "n_images_ok": 3,
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "demonicscans",
       "status": "LIVE",
+      "kind": "manga",
       "items": 40,
       "mature": false,
       "detail": "",
-      "sample_title": "Defense Breaker",
+      "sample_title": "Itsudemo Jitaku Ni Kaerareru Ore Wa, Isekai De G",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.51,
-        "search": 0.11,
-        "detail": 0.31,
+        "browse": 0.48,
+        "search": 0.1,
+        "detail": 0.32,
         "chapters": 0.0,
-        "pages": 0.21,
-        "images": 0.24,
+        "pages": 0.47,
+        "images": 0.25,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.4
+        "total": 1.6
       },
-      "search_hits": 6,
-      "n_chapters": 57,
-      "n_pages": 47,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
+      },
+      "search_hits": 1,
+      "n_chapters": 74,
+      "n_pages": 35,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "doujins",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
-      "sample_title": "Is this fate?",
+      "sample_title": "The Little Sister Who Lets You Have Sex",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 2.72,
-        "search": 1.05,
-        "detail": 0.13,
-        "chapters": 0.34,
+        "browse": 2.8,
+        "search": 0.98,
+        "detail": 0.11,
+        "chapters": 0.36,
         "pages": 0.35,
         "images": 0.27,
+        "text": 0.0,
         "find_page": 0.0,
         "total": 4.9
       },
-      "search_hits": 2,
+      "requests": {
+        "browse": 8,
+        "search": 2,
+        "detail": 1,
+        "chapters": 1,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 16
+      },
+      "search_hits": 5,
       "n_chapters": 1,
-      "n_pages": 26,
+      "n_pages": 21,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "ehentai",
       "status": "LIVE",
+      "kind": "manga",
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "(cartmanyang)家畜小君续集bad end+good end+番外（9video）[A",
+      "sample_title": "[Spicymancer] Quiver - Vigilante Archer (OC)",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.17,
-        "search": 0.34,
-        "detail": 0.3,
+        "browse": 0.15,
+        "search": 0.32,
+        "detail": 0.34,
         "chapters": 0.0,
-        "pages": 0.39,
-        "images": 3.53,
+        "pages": 1.96,
+        "images": 3.63,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 4.7
+        "total": 6.4
       },
-      "search_hits": 25,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 5,
+        "images": 6,
+        "text": 0,
+        "total": 14
+      },
+      "search_hits": 20,
       "n_chapters": 1,
-      "n_pages": 40,
+      "n_pages": 106,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "elftoon",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": false,
       "detail": "",
@@ -609,89 +941,180 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.81,
-        "search": 6.15,
-        "detail": 3.63,
+        "browse": 0.64,
+        "search": 2.1,
+        "detail": 0.48,
         "chapters": 0.0,
-        "pages": 0.45,
-        "images": 0.12,
+        "pages": 0.33,
+        "images": 0.14,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 11.2
+        "total": 14.3
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 10,
       "n_chapters": 12,
       "n_pages": 11,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "flamescans",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": false,
       "detail": "",
-      "sample_title": "I Became the First Prince: Legend of Sword's Son",
+      "sample_title": "Chronicles of the Demon-Slaying Ascetic",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.27,
+        "browse": 0.22,
         "search": 0.0,
         "detail": 0.19,
         "chapters": 0.0,
         "pages": 0.13,
-        "images": 0.15,
+        "images": 1.49,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 0.8
+        "total": 2.0
+      },
+      "requests": {
+        "browse": 1,
+        "search": 0,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 6
       },
       "search_hits": 1,
-      "n_chapters": 52,
-      "n_pages": 11,
+      "n_chapters": 12,
+      "n_pages": 18,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "freeadultcomix",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
-      "sample_title": "SECRET DESIRE CHAPTER 5 BY NandoF",
+      "sample_title": "GKG – Connie Maheswaran’s Newest Pleasures (Stev",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.4,
-        "search": 0.92,
-        "detail": 0.22,
+        "browse": 0.45,
+        "search": 1.04,
+        "detail": 0.25,
         "chapters": 0.0,
         "pages": 0.0,
-        "images": 0.84,
+        "images": 0.86,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.5
+        "total": 2.7
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 0,
+        "images": 3,
+        "text": 0,
+        "total": 6
       },
       "search_hits": 24,
       "n_chapters": 1,
-      "n_pages": 143,
+      "n_pages": 74,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
+    },
+    {
+      "source_id": "freewebnovel",
+      "status": "LIVE",
+      "kind": "novel",
+      "items": 20,
+      "mature": false,
+      "detail": "",
+      "sample_title": "Reverend Insanity: Dream Gu",
+      "stages": {
+        "browse": "PASS",
+        "search": "PASS",
+        "detail": "PASS",
+        "chapters": "PASS",
+        "pages": "-",
+        "images": "-",
+        "text": "PASS"
+      },
+      "timings_secs": {
+        "browse": 0.2,
+        "search": 0.16,
+        "detail": 0.26,
+        "chapters": 0.0,
+        "pages": 0.0,
+        "images": 0.0,
+        "text": 0.27,
+        "find_page": 0.0,
+        "total": 0.9
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 1,
+        "total": 4
+      },
+      "search_hits": 6,
+      "n_chapters": 212,
+      "n_pages": 0,
+      "n_images_ok": 0,
+      "n_images_tried": 0,
+      "n_paragraphs": 39,
+      "n_words": 1005
     },
     {
       "source_id": "galaxymanga",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
@@ -702,27 +1125,42 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.41,
-        "search": 1.26,
-        "detail": 1.07,
+        "browse": 1.09,
+        "search": 1.23,
+        "detail": 1.08,
         "chapters": 0.0,
-        "pages": 1.06,
-        "images": 0.2,
+        "pages": 1.1,
+        "images": 0.3,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 5.0
+        "total": 4.8
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 10,
       "n_chapters": 68,
       "n_pages": 25,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "hentai20",
       "status": "LIVE",
+      "kind": "manga",
       "items": 30,
       "mature": true,
       "detail": "",
@@ -733,120 +1171,180 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.91,
-        "search": 0.86,
-        "detail": 0.04,
+        "browse": 1.09,
+        "search": 1.04,
+        "detail": 0.17,
         "chapters": 0.0,
-        "pages": 0.2,
-        "images": 0.5,
+        "pages": 0.58,
+        "images": 0.63,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.5
+        "total": 3.5
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 20,
-      "n_chapters": 124,
+      "n_chapters": 125,
       "n_pages": 10,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "hentaiera",
       "status": "LIVE",
+      "kind": "manga",
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "[ロックハート] 中野四葉NTR漫画 (五等分の花嫁)",
+      "sample_title": "[Banana Senbei (Zawashi)] Shirao Eri vs Ero Mamo",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.19,
-        "search": 0.4,
-        "detail": 0.27,
+        "browse": 0.24,
+        "search": 0.45,
+        "detail": 0.17,
         "chapters": 0.0,
-        "pages": 0.33,
-        "images": 0.12,
+        "pages": 0.34,
+        "images": 0.44,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.3
+        "total": 1.7
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 20,
       "n_chapters": 1,
-      "n_pages": 8,
+      "n_pages": 17,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "hentaifox",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": true,
       "detail": "",
-      "sample_title": "Not Boy Meets Girl 3",
+      "sample_title": "Daniku Triangle Fight! Chapter 6",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.24,
-        "search": 0.31,
-        "detail": 0.32,
+        "browse": 0.26,
+        "search": 0.25,
+        "detail": 0.38,
         "chapters": 0.0,
-        "pages": 0.34,
-        "images": 0.12,
+        "pages": 0.32,
+        "images": 0.17,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.3
+        "total": 1.4
       },
-      "search_hits": 20,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
+      },
+      "search_hits": 14,
       "n_chapters": 1,
-      "n_pages": 30,
+      "n_pages": 21,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "lilymanga",
       "status": "LIVE",
+      "kind": "manga",
       "items": 12,
       "mature": true,
       "detail": "",
-      "sample_title": "Miss Kobayashi’s Dragon Maid",
+      "sample_title": "Promise In The Night of Fireworks",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.49,
-        "search": 0.37,
-        "detail": 2.66,
+        "browse": 1.55,
+        "search": 1.03,
+        "detail": 0.68,
         "chapters": 0.0,
         "pages": 0.18,
-        "images": 0.14,
+        "images": 0.11,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 3.8
+        "total": 3.6
+      },
+      "requests": {
+        "browse": 2,
+        "search": 2,
+        "detail": 3,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 11
       },
       "search_hits": 13,
-      "n_chapters": 200,
-      "n_pages": 17,
+      "n_chapters": 13,
+      "n_pages": 63,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manga18x",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": true,
       "detail": "",
@@ -857,58 +1355,88 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.37,
-        "search": 0.66,
-        "detail": 0.26,
+        "browse": 1.93,
+        "search": 0.6,
+        "detail": 0.58,
         "chapters": 0.0,
-        "pages": 0.28,
-        "images": 0.12,
+        "pages": 0.62,
+        "images": 0.15,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.7
+        "total": 3.9
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 15,
       "n_chapters": 2,
       "n_pages": 16,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "mangadex",
       "status": "LIVE",
+      "kind": "manga",
       "items": 24,
       "mature": false,
       "detail": "",
-      "sample_title": "Jitsu wa Imouto deshita. ~Saikin Dekita Giri no ",
+      "sample_title": "Kounai Sandai Bijo no Himo Shitemasu",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.28,
-        "search": 0.03,
-        "detail": 0.56,
+        "browse": 0.92,
+        "search": 0.37,
+        "detail": 0.59,
         "chapters": 0.0,
-        "pages": 0.32,
-        "images": 0.22,
+        "pages": 0.33,
+        "images": 0.29,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 3.5
+        "total": 2.5
       },
-      "search_hits": 5,
-      "n_chapters": 42,
-      "n_pages": 41,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
+      },
+      "search_hits": 3,
+      "n_chapters": 2,
+      "n_pages": 40,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "mangadistrict",
       "status": "LIVE",
+      "kind": "manga",
       "items": 30,
       "mature": true,
       "detail": "",
@@ -919,120 +1447,180 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.62,
-        "search": 0.68,
+        "browse": 1.19,
+        "search": 0.66,
         "detail": 0.17,
         "chapters": 0.0,
         "pages": 0.21,
-        "images": 1.64,
+        "images": 1.63,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 4.3
+        "total": 3.9
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 8,
       "n_chapters": 24,
       "n_pages": 28,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "mangakatana",
       "status": "LIVE",
+      "kind": "manga",
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "Kusunoki-san Failed to Debut in High School",
+      "sample_title": "My Older Sister's Friend Is Annoying",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.79,
-        "search": 0.37,
-        "detail": 0.18,
+        "browse": 2.19,
+        "search": 0.34,
+        "detail": 0.17,
         "chapters": 0.0,
         "pages": 0.2,
-        "images": 13.44,
+        "images": 9.51,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 15.0
+        "total": 12.4
       },
-      "search_hits": 4,
-      "n_chapters": 66,
-      "n_pages": 34,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
+      },
+      "search_hits": 20,
+      "n_chapters": 29,
+      "n_pages": 20,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "mangaread",
       "status": "LIVE",
+      "kind": "manga",
       "items": 12,
       "mature": false,
       "detail": "",
-      "sample_title": "The Great Age of Genes",
+      "sample_title": "The Saint Who Levels Up as a Necromancer",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.2,
-        "search": 0.93,
-        "detail": 0.06,
+        "browse": 0.43,
+        "search": 0.9,
+        "detail": 0.29,
         "chapters": 0.0,
-        "pages": 0.45,
-        "images": 0.08,
+        "pages": 0.3,
+        "images": 0.45,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.7
+        "total": 2.4
+      },
+      "requests": {
+        "browse": 2,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 2,
+        "images": 3,
+        "text": 0,
+        "total": 10
       },
       "search_hits": 12,
-      "n_chapters": 60,
-      "n_pages": 28,
+      "n_chapters": 37,
+      "n_pages": 17,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhuahot",
       "status": "LIVE",
+      "kind": "manga",
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "It’s over, I’ve Laid Snake Eggs After Being mark",
+      "sample_title": "Senpai-chan’s a Man?!",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
         "browse": 0.76,
-        "search": 0.6,
-        "detail": 1.35,
+        "search": 0.59,
+        "detail": 0.64,
         "chapters": 0.0,
-        "pages": 0.66,
-        "images": 0.11,
+        "pages": 0.65,
+        "images": 0.12,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 3.5
+        "total": 2.8
       },
-      "search_hits": 10,
-      "n_chapters": 49,
-      "n_pages": 1,
-      "n_images_ok": 1,
-      "n_images_tried": 1
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 2,
+        "text": 0,
+        "total": 6
+      },
+      "search_hits": 1,
+      "n_chapters": 24,
+      "n_pages": 2,
+      "n_images_ok": 2,
+      "n_images_tried": 2,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhuakey",
       "status": "LIVE",
+      "kind": "manga",
       "items": 10,
       "mature": false,
       "detail": "",
@@ -1043,58 +1631,88 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.08,
-        "search": 0.74,
-        "detail": 0.7,
+        "browse": 1.11,
+        "search": 0.65,
+        "detail": 0.72,
         "chapters": 0.0,
-        "pages": 1.2,
-        "images": 0.13,
+        "pages": 1.24,
+        "images": 0.14,
+        "text": 0.0,
         "find_page": 0.0,
         "total": 3.9
+      },
+      "requests": {
+        "browse": 2,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 2,
+        "images": 2,
+        "text": 0,
+        "total": 9
       },
       "search_hits": 2,
       "n_chapters": 2,
       "n_pages": 2,
       "n_images_ok": 2,
-      "n_images_tried": 2
+      "n_images_tried": 2,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhuanext",
       "status": "LIVE",
+      "kind": "manga",
       "items": 16,
       "mature": true,
       "detail": "",
-      "sample_title": "Reborn in Journey to the West: The Strongest Whi",
+      "sample_title": "Paranoid Mage",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.55,
-        "search": 0.3,
-        "detail": 0.3,
+        "browse": 0.57,
+        "search": 0.36,
+        "detail": 0.38,
         "chapters": 0.0,
-        "pages": 0.35,
-        "images": 0.1,
+        "pages": 0.34,
+        "images": 0.29,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.6
+        "total": 1.9
       },
-      "search_hits": 4,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
+      },
+      "search_hits": 1,
       "n_chapters": 2,
-      "n_pages": 9,
+      "n_pages": 12,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhuaplus",
       "status": "LIVE",
+      "kind": "manga",
       "items": 12,
       "mature": false,
       "detail": "",
@@ -1105,120 +1723,180 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.47,
-        "search": 0.62,
-        "detail": 1.17,
+        "browse": 0.52,
+        "search": 0.61,
+        "detail": 0.43,
         "chapters": 0.0,
-        "pages": 0.43,
-        "images": 0.23,
+        "pages": 0.44,
+        "images": 0.24,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 2.9
+        "total": 2.2
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 3,
       "n_chapters": 61,
       "n_pages": 4,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhwaclub",
       "status": "LIVE",
+      "kind": "manga",
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "Relationship Reversal",
+      "sample_title": "MILF Exchange Plan",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.55,
-        "search": 0.19,
-        "detail": 0.39,
+        "browse": 0.49,
+        "search": 0.17,
+        "detail": 0.19,
         "chapters": 0.0,
-        "pages": 0.22,
-        "images": 2.19,
+        "pages": 0.2,
+        "images": 0.08,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 3.5
+        "total": 1.1
       },
-      "search_hits": 10,
-      "n_chapters": 166,
-      "n_pages": 23,
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
+      },
+      "search_hits": 13,
+      "n_chapters": 2,
+      "n_pages": 6,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhwaden",
       "status": "LIVE",
+      "kind": "manga",
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "Love Junkie [OFCL]",
+      "sample_title": "Tears on a Withered Flower",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.45,
-        "search": 0.68,
-        "detail": 0.76,
+        "browse": 1.41,
+        "search": 0.63,
+        "detail": 0.79,
         "chapters": 0.0,
-        "pages": 0.82,
-        "images": 0.2,
+        "pages": 0.78,
+        "images": 0.26,
+        "text": 0.0,
         "find_page": 0.0,
         "total": 3.9
       },
+      "requests": {
+        "browse": 2,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 2,
+        "images": 3,
+        "text": 0,
+        "total": 10
+      },
       "search_hits": 10,
       "n_chapters": 1,
-      "n_pages": 115,
+      "n_pages": 10,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhwanex",
       "status": "LIVE",
+      "kind": "manga",
       "items": 16,
       "mature": true,
       "detail": "",
-      "sample_title": "Becoming Necromancer God Through a Skeleton Clon",
+      "sample_title": "Undead Catastrophe: A Sea of Bones at My Command",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.44,
-        "search": 0.54,
-        "detail": 0.13,
+        "browse": 0.57,
+        "search": 0.6,
+        "detail": 0.24,
         "chapters": 0.0,
-        "pages": 0.2,
-        "images": 0.28,
+        "pages": 0.23,
+        "images": 0.27,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.6
+        "total": 1.9
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 16,
       "n_chapters": 2,
-      "n_pages": 54,
+      "n_pages": 40,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "manhwatop",
       "status": "LIVE",
+      "kind": "manga",
       "items": 12,
       "mature": true,
       "detail": "",
@@ -1229,89 +1907,318 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.36,
-        "search": 1.59,
-        "detail": 2.99,
+        "browse": 0.35,
+        "search": 1.5,
+        "detail": 0.87,
         "chapters": 0.0,
         "pages": 0.26,
-        "images": 0.26,
+        "images": 0.25,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 5.5
+        "total": 3.2
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 3,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 9
       },
       "search_hits": 12,
       "n_chapters": 91,
       "n_pages": 23,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "nhentai",
       "status": "LIVE",
+      "kind": "manga",
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "[Samuwo] Migawarari no Ayano Sensei | Ayano-sens",
+      "sample_title": "[NEO-XIS (Sawtatsu)] Mesuana  Usagikan  ~Fukushu",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.5,
-        "search": 1.12,
-        "detail": 1.33,
+        "browse": 1.52,
+        "search": 1.15,
+        "detail": 1.2,
         "chapters": 0.0,
         "pages": 0.0,
-        "images": 1.16,
+        "images": 1.02,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 5.1
+        "total": 4.9
       },
-      "search_hits": 22,
+      "requests": {
+        "browse": 2,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 0,
+        "images": 3,
+        "text": 0,
+        "total": 7
+      },
+      "search_hits": 1,
       "n_chapters": 1,
-      "n_pages": 127,
+      "n_pages": 42,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
+    },
+    {
+      "source_id": "novelarchive",
+      "status": "LIVE",
+      "kind": "novel",
+      "items": 20,
+      "mature": false,
+      "detail": "",
+      "sample_title": "Shadow Slave",
+      "stages": {
+        "browse": "PASS",
+        "search": "PASS",
+        "detail": "PASS",
+        "chapters": "PASS",
+        "pages": "-",
+        "images": "-",
+        "text": "PASS"
+      },
+      "timings_secs": {
+        "browse": 0.8,
+        "search": 0.44,
+        "detail": 0.83,
+        "chapters": 0.0,
+        "pages": 0.0,
+        "images": 0.0,
+        "text": 0.79,
+        "find_page": 0.0,
+        "total": 2.9
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 1,
+        "total": 4
+      },
+      "search_hits": 20,
+      "n_chapters": 3174,
+      "n_pages": 0,
+      "n_images_ok": 0,
+      "n_images_tried": 0,
+      "n_paragraphs": 96,
+      "n_words": 1847
+    },
+    {
+      "source_id": "novelfull",
+      "status": "LIVE",
+      "kind": "novel",
+      "items": 20,
+      "mature": false,
+      "detail": "",
+      "sample_title": "Reincarnation Of The Strongest Sword God",
+      "stages": {
+        "browse": "PASS",
+        "search": "PASS",
+        "detail": "PASS",
+        "chapters": "PASS",
+        "pages": "-",
+        "images": "-",
+        "text": "PASS"
+      },
+      "timings_secs": {
+        "browse": 0.54,
+        "search": 0.22,
+        "detail": 0.58,
+        "chapters": 0.0,
+        "pages": 0.0,
+        "images": 0.0,
+        "text": 0.15,
+        "find_page": 0.0,
+        "total": 1.5
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 1,
+        "total": 5
+      },
+      "search_hits": 9,
+      "n_chapters": 3956,
+      "n_pages": 0,
+      "n_images_ok": 0,
+      "n_images_tried": 0,
+      "n_paragraphs": 89,
+      "n_words": 2979
+    },
+    {
+      "source_id": "royalroad",
+      "status": "LIVE",
+      "kind": "novel",
+      "items": 20,
+      "mature": false,
+      "detail": "",
+      "sample_title": "Mother of Learning",
+      "stages": {
+        "browse": "PASS",
+        "search": "PASS",
+        "detail": "PASS",
+        "chapters": "PASS",
+        "pages": "-",
+        "images": "-",
+        "text": "PASS"
+      },
+      "timings_secs": {
+        "browse": 0.35,
+        "search": 0.34,
+        "detail": 0.22,
+        "chapters": 0.0,
+        "pages": 0.0,
+        "images": 0.0,
+        "text": 0.23,
+        "find_page": 0.0,
+        "total": 1.1
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 1,
+        "total": 4
+      },
+      "search_hits": 20,
+      "n_chapters": 109,
+      "n_pages": 0,
+      "n_images_ok": 0,
+      "n_images_tried": 0,
+      "n_paragraphs": 173,
+      "n_words": 7618
     },
     {
       "source_id": "s2manga",
       "status": "LIVE",
+      "kind": "manga",
       "items": 12,
       "mature": false,
       "detail": "",
-      "sample_title": "Reverse Tower Dungeon",
+      "sample_title": "I’m a Villainess, but I Imprinted with the Male ",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.54,
-        "search": 1.39,
-        "detail": 0.27,
+        "browse": 0.57,
+        "search": 0.84,
+        "detail": 0.3,
         "chapters": 0.0,
-        "pages": 0.71,
-        "images": 0.67,
+        "pages": 0.37,
+        "images": 0.12,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 4.6
+        "total": 2.2
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 7
       },
       "search_hits": 12,
-      "n_chapters": 96,
-      "n_pages": 15,
+      "n_chapters": 58,
+      "n_pages": 11,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
+    },
+    {
+      "source_id": "standardebooks",
+      "status": "LIVE",
+      "kind": "novel",
+      "items": 48,
+      "mature": false,
+      "detail": "",
+      "sample_title": "Brigadier Gerard Stories",
+      "stages": {
+        "browse": "PASS",
+        "search": "PASS",
+        "detail": "PASS",
+        "chapters": "PASS",
+        "pages": "-",
+        "images": "-",
+        "text": "PASS"
+      },
+      "timings_secs": {
+        "browse": 0.16,
+        "search": 0.08,
+        "detail": 0.41,
+        "chapters": 0.0,
+        "pages": 0.0,
+        "images": 0.0,
+        "text": 0.3,
+        "find_page": 0.0,
+        "total": 1.0
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 1,
+        "total": 5
+      },
+      "search_hits": 1,
+      "n_chapters": 17,
+      "n_pages": 0,
+      "n_images_ok": 0,
+      "n_images_tried": 0,
+      "n_paragraphs": 155,
+      "n_words": 9992
     },
     {
       "source_id": "tapas",
       "status": "LIVE",
+      "kind": "manga",
       "items": 30,
       "mature": false,
       "detail": "",
@@ -1322,27 +2229,42 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.21,
-        "search": 1.7,
-        "detail": 0.71,
-        "chapters": 0.4,
-        "pages": 0.23,
-        "images": 0.46,
+        "browse": 0.16,
+        "search": 0.48,
+        "detail": 0.96,
+        "chapters": 0.62,
+        "pages": 0.32,
+        "images": 0.52,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 3.7
+        "total": 3.1
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 4,
+        "chapters": 2,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 12
       },
       "search_hits": 10,
       "n_chapters": 21,
       "n_pages": 129,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "webtoons",
       "status": "LIVE",
+      "kind": "manga",
       "items": 30,
       "mature": false,
       "detail": "",
@@ -1353,58 +2275,88 @@
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "PASS"
+        "images": "PASS",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.16,
-        "search": 0.69,
-        "detail": 0.66,
-        "chapters": 3.68,
-        "pages": 1.64,
-        "images": 0.58,
+        "browse": 1.13,
+        "search": 0.67,
+        "detail": 0.7,
+        "chapters": 2.28,
+        "pages": 1.66,
+        "images": 0.56,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 8.4
+        "total": 7.0
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 1,
+        "chapters": 11,
+        "pages": 2,
+        "images": 3,
+        "text": 0,
+        "total": 19
       },
       "search_hits": 24,
       "n_chapters": 114,
       "n_pages": 77,
       "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "weebcentral",
       "status": "PARTIAL",
+      "kind": "manga",
       "items": 32,
       "mature": false,
-      "detail": "images: p0: AppError: Failed to fetch remote image. [Client error '403 Forbidden' for url 'https://official.lowee.us/manga/The-Dungeon-Cleaning-Life-of-a-Once-Genius-Hunter/0001-001.png'\nFor more info",
-      "sample_title": "The Dungeon Cleaning Life of a Once Genius Hunte",
+      "detail": "images: p0: AppError: Failed to fetch remote image. [Client error '403 Forbidden' for url 'https://official.lowee.us/manga/tokyo-fears-rhapsody/0001-001.png'\nFor more information check: https://develo",
+      "sample_title": "Tokyo Fears Rhapsody",
       "stages": {
         "browse": "PASS",
         "search": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "FAIL"
+        "images": "FAIL",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 0.52,
-        "search": 0.3,
-        "detail": 0.33,
+        "browse": 0.53,
+        "search": 0.33,
+        "detail": 0.32,
         "chapters": 0.0,
-        "pages": 0.19,
-        "images": 0.11,
+        "pages": 0.21,
+        "images": 0.1,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 4.0
+        "total": 4.1
+      },
+      "requests": {
+        "browse": 1,
+        "search": 1,
+        "detail": 2,
+        "chapters": 0,
+        "pages": 1,
+        "images": 3,
+        "text": 0,
+        "total": 8
       },
       "search_hits": 32,
-      "n_chapters": 155,
-      "n_pages": 232,
+      "n_chapters": 28,
+      "n_pages": 31,
       "n_images_ok": 0,
-      "n_images_tried": 3
+      "n_images_tried": 3,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "bbato",
       "status": "DEAD",
+      "kind": "manga",
       "items": 0,
       "mature": true,
       "detail": "browse: ConnectorHttpError: Client error '403 Forbidden' for url 'https://bbato.com/type/manga'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
@@ -1415,27 +2367,42 @@
         "detail": "-",
         "chapters": "-",
         "pages": "-",
-        "images": "-"
+        "images": "-",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.62,
+        "browse": 0.08,
         "search": 0.0,
         "detail": 0.0,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.6
+        "total": 0.1
+      },
+      "requests": {
+        "browse": 0,
+        "search": 0,
+        "detail": 0,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 0,
+        "total": 0
       },
       "search_hits": 0,
       "n_chapters": 0,
       "n_pages": 0,
       "n_images_ok": 0,
-      "n_images_tried": 0
+      "n_images_tried": 0,
+      "n_paragraphs": 0,
+      "n_words": 0
     },
     {
       "source_id": "toonily",
       "status": "DEAD",
+      "kind": "manga",
       "items": 0,
       "mature": true,
       "detail": "browse: ConnectorHttpError: Client error '403 ' for url 'https://toonily.com/webtoons/'",
@@ -1446,23 +2413,37 @@
         "detail": "-",
         "chapters": "-",
         "pages": "-",
-        "images": "-"
+        "images": "-",
+        "text": "-"
       },
       "timings_secs": {
-        "browse": 1.55,
+        "browse": 0.04,
         "search": 0.0,
         "detail": 0.0,
         "chapters": 0.0,
         "pages": 0.0,
         "images": 0.0,
+        "text": 0.0,
         "find_page": 0.0,
-        "total": 1.6
+        "total": 0.0
+      },
+      "requests": {
+        "browse": 0,
+        "search": 0,
+        "detail": 0,
+        "chapters": 0,
+        "pages": 0,
+        "images": 0,
+        "text": 0,
+        "total": 0
       },
       "search_hits": 0,
       "n_chapters": 0,
       "n_pages": 0,
       "n_images_ok": 0,
-      "n_images_tried": 0
+      "n_images_tried": 0,
+      "n_paragraphs": 0,
+      "n_words": 0
     }
   ]
 }
