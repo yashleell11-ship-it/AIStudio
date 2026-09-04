@@ -31,6 +31,16 @@ export const CINEMA_SHORTCUT_KEYS = "c";
  */
 export const AUTO_SCROLL_SHORTCUT_KEYS = "p";
 
+/**
+ * Combo that saves the exact spot being read.
+ *
+ * "B" for bookmark, unmodified like every other reader binding. The NOVEL
+ * reader binds the same key for the same act (`features/novels/
+ * use-novel-shortcuts.ts`): the two readers never coexist on screen, and a
+ * reader who moves between them should not have to learn a second keyboard.
+ */
+export const BOOKMARK_SHORTCUT_KEYS = "b";
+
 /** What a page-turn input resolves to once reading direction is applied. */
 export type PageTurn = "advance" | "retreat";
 

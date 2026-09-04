@@ -818,19 +818,21 @@ export function ChapterReader({
    * it stops being useful the moment they start reading.
    */
   const anchorMoved = bookmarkTarget?.stale ?? false;
-  const [movedNoticeVisible, setMovedNoticeVisible] = useState(false);
+  // Derived, not mirrored into state: the effect only ever ARMS the timeout,
+  // and the timeout's setState is asynchronous. Setting a "visible" flag from
+  // the effect body instead would be a synchronous setState inside an effect —
+  // a cascading render, and the one thing `react-hooks/set-state-in-effect`
+  // exists to stop.
+  const [movedNoticeDismissed, setMovedNoticeDismissed] = useState(false);
   useEffect(() => {
-    if (!anchorMoved) {
-      setMovedNoticeVisible(false);
-      return;
-    }
-    setMovedNoticeVisible(true);
+    if (!anchorMoved) return;
     const timer = window.setTimeout(
-      () => setMovedNoticeVisible(false),
+      () => setMovedNoticeDismissed(true),
       MOVED_NOTICE_MS,
     );
     return () => window.clearTimeout(timer);
   }, [anchorMoved]);
+  const movedNoticeVisible = anchorMoved && !movedNoticeDismissed;
 
   const bookmarkNotice = bookmarkFailed
     ? { tone: "failed" as const, text: "Couldn't save that spot." }

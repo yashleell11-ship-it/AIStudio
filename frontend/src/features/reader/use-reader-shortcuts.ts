@@ -3,6 +3,7 @@
 import { useShortcut } from "@/lib/keyboard";
 import {
   AUTO_SCROLL_SHORTCUT_KEYS,
+  BOOKMARK_SHORTCUT_KEYS,
   CINEMA_SHORTCUT_KEYS,
   SERIES_SHORTCUT_KEYS,
   horizontalTurn,
@@ -170,8 +171,8 @@ export function useReaderShortcuts(handlers: ReaderShortcutHandlers): void {
 
   useShortcut({
     id: "reader.bookmark",
-    keys: "b",
-    description: "Bookmark current page",
+    keys: BOOKMARK_SHORTCUT_KEYS,
+    description: "Bookmark this spot",
     group: GROUP,
     handler: () => handlers.onBookmark(),
   });
