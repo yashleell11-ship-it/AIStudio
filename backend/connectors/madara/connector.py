@@ -206,10 +206,18 @@ class MadaraConnector(SourceConnector):
             return None
 
         chapters = self._html.parse_chapters(html, api_key)
-        if chapters and self._chapter_list_cache.get(api_key) is None:
-            self._chapter_list_cache.set(api_key, chapters)
-        if not chapters:
-            chapters = self.get_chapters(api_key)
+        if chapters:
+            if self._chapter_list_cache.get(api_key) is None:
+                self._chapter_list_cache.set(api_key, chapters)
+        else:
+            # Lazy-loading Madara builds ship an empty chapter list in the
+            # series HTML and fill it over AJAX. This used to call
+            # get_chapters(), which re-GET the series page we are already
+            # holding -- a second full-page fetch on every detail open. The
+            # AJAX resolution now runs against this HTML directly; measured
+            # from the VPS the detail stage was 2.7-3.2s on the sites that
+            # take this branch (manhwatop, manhuanext, lilymanga, cocomic).
+            chapters = self._chapters_from_html(html, api_key, path)
 
         if chapters:
             series = Series(
@@ -276,18 +284,15 @@ class MadaraConnector(SourceConnector):
             return []
         return self._html.parse_chapters(html_fragment, series_id)
 
-    def get_chapters(self, series_id: str) -> list[Chapter]:
-        api_key = self._normalize_series_id(series_id)
-        cached = self._chapter_list_cache.get(api_key)
-        if cached is not None:
-            return self._enrich_chapters(cached)
+    def _chapters_from_html(
+        self, html: str, api_key: str, path: str
+    ) -> list[Chapter]:
+        """Resolve a series' chapter list from series HTML already in hand.
 
-        path = self._html.series_id_to_path(api_key)
-        try:
-            html = self._http.get_text(path)
-        except ConnectorHttpError:
-            return []
-
+        Takes the HTML rather than a series id so both callers can share one
+        fetch: ``get_chapters`` has just downloaded the page, and
+        ``get_series`` is holding the very same document.
+        """
         chapters = self._html.parse_chapters(html, api_key)
         manga_id = self._html.parse_manga_id(html)
         if manga_id:
@@ -311,7 +316,21 @@ class MadaraConnector(SourceConnector):
 
         if chapters:
             self._chapter_list_cache.set(api_key, chapters)
-        return self._enrich_chapters(chapters)
+        return chapters
+
+    def get_chapters(self, series_id: str) -> list[Chapter]:
+        api_key = self._normalize_series_id(series_id)
+        cached = self._chapter_list_cache.get(api_key)
+        if cached is not None:
+            return self._enrich_chapters(cached)
+
+        path = self._html.series_id_to_path(api_key)
+        try:
+            html = self._http.get_text(path)
+        except ConnectorHttpError:
+            return []
+
+        return self._enrich_chapters(self._chapters_from_html(html, api_key, path))
 
     def get_chapter_pages(self, chapter_id: str) -> list[Page]:
         api_key = self._normalize_chapter_id(chapter_id)
