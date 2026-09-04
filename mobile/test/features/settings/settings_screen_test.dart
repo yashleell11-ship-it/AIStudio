@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.dart';
+import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/storage/secure_storage.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
@@ -552,13 +554,21 @@ void main() {
   });
 
   group('SettingsScreen widgets', () {
-    testWidgets('shows a radio option for each ThemeMode', (tester) async {
+    testWidgets('shows the theme gallery with a swatch per palette', (tester) async {
       await _pumpSettings(tester);
 
-      expect(find.text('System'), findsOneWidget);
-      expect(find.text('Light'), findsOneWidget);
-      expect(find.text('Dark'), findsOneWidget);
-      expect(find.byType(RadioListTile<ThemeMode>), findsNWidgets(3));
+      await _scrollToText(tester, 'Eclipse');
+      // The gallery groups palettes by brightness…
+      expect(find.text('DARK'), findsOneWidget);
+      expect(find.text('LIGHT'), findsOneWidget);
+      // …and renders one tappable swatch per registered palette.
+      for (final palette in AppPalettes.all) {
+        expect(
+          find.byKey(Key('theme-swatch-${palette.id}')),
+          findsOneWidget,
+          reason: palette.id,
+        );
+      }
     });
 
     testWidgets(
@@ -585,14 +595,22 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('selecting Dark updates the persisted theme preference', (tester) async {
+    testWidgets('tapping a swatch applies and persists that theme', (tester) async {
       final container = await _pumpSettings(tester);
 
-      await tester.tap(find.text('Dark'));
+      await _scrollToText(tester, 'Eclipse');
+      // The gallery is taller than the test viewport; make sure the tapped
+      // swatch itself is on-screen, not just the section heading.
+      await tester.ensureVisible(find.byKey(const Key('theme-swatch-nord')));
+      await tester.pump();
+      await tester.tap(find.byKey(const Key('theme-swatch-nord')));
       await tester.pump();
 
-      expect(container.read(themeModeProvider), ThemeMode.dark);
-      expect(container.read(preferencesProvider).themeMode, ThemeMode.dark);
+      expect(container.read(themeControllerProvider), AppPalettes.nord);
+      // No signed-in (user, profile) scope in this pump, so the selection
+      // lands in the device slot.
+      final prefs = container.read(sharedPrefsProvider);
+      expect(prefs.getString('mm.theme.device'), 'nord');
     });
 
     testWidgets('toggling Keep screen awake persists the preference', (tester) async {

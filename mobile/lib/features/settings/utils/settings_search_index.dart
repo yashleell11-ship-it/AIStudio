@@ -29,7 +29,7 @@ class SettingsSearchEntry {
 const List<SettingsSearchEntry> settingsSearchIndex = [
   SettingsSearchEntry(label: 'Show mature content (18+)', tabIndex: 0, subtitle: 'Adult-only series, NSFW, content'),
   SettingsSearchEntry(label: 'Reading history', tabIndex: 0, subtitle: 'Recently read chapters'),
-  SettingsSearchEntry(label: 'Theme', tabIndex: 0, subtitle: 'Light, dark or system'),
+  SettingsSearchEntry(label: 'Theme', tabIndex: 0, subtitle: 'Eclipse, OLED, Nord, paper & more'),
   SettingsSearchEntry(label: 'Language', tabIndex: 0, subtitle: 'App language'),
   SettingsSearchEntry(label: 'Haptic feedback', tabIndex: 0, subtitle: 'Feedback'),
   SettingsSearchEntry(label: 'Reading direction', tabIndex: 0, subtitle: 'Default reader preferences'),
