@@ -12,8 +12,12 @@ from services.browse_service import BrowseService, get_browse_service
 from services.reader_service import ReaderService, get_reader_service
 from services.image_resize import (
     COVER_WIDTHS,
+    PAGE_WIDTHS,
     negotiate_cover_format,
+    negotiate_image_format,
+    resize_page,
     snap_cover_width,
+    snap_page_width,
 )
 from services.source_cache_service import (
     SourceCacheService,
@@ -407,6 +411,17 @@ def get_source_page_image(
     page_id: str,
     service: BrowseDep,
     request: Request,
+    w: int | None = Query(
+        None,
+        ge=1,
+        le=10000,
+        description=(
+            "Render the page at this width in device pixels. Snapped onto "
+            f"{list(PAGE_WIDTHS)}; the width actually served comes back in "
+            "X-Page-Width, and that header is ABSENT whenever the original "
+            "was served. Omit for the original, full-resolution image."
+        ),
+    ),
 ) -> Response:
     """Proxy a page image from an online source. Rate-limited — see the cover
     proxy above; this is the hot one, several dozen requests per chapter read.
@@ -414,8 +429,46 @@ def get_source_page_image(
     Gets the same ETag/304 revalidation as covers (saves egress on re-reads)
     but keeps the shorter, non-``public`` Cache-Control: page bytes are the
     actual chapter content, so they stay out of shared edge caches.
+
+    ``?w=`` is the same contract as the cover proxy — snapped ladder, WebP only
+    when ``Accept`` says so, served width echoed back — so a client learns one
+    rule for both. Everything past that is deliberately different, and
+    ``image_resize``'s page section has the measurements behind each one:
+
+      * NOTHING IS STORED. Chapter images never touch disk, so every request
+        pays the full render where a cover pays once and is then cached. That
+        is why the render is refused above a source-megapixel ceiling, and why
+        a long webtoon strip is passed straight through.
+      * A REFUSAL IS THE COMMON CASE and costs under a millisecond — it is
+        decided from the image header, before a row is decoded. Webtoon
+        sources publish at 720-800 px, which is already at or below what a
+        DPR-3 phone asks for, so on a phone this parameter changes nothing for
+        the strips. It is not the fix for reader jank; that is client-side.
+      * The resize runs on bytes the fetch has ALREADY validated — the SSRF
+        allowlist, the no-redirect rule and ``image_proxy_max_bytes`` all live
+        in ``BrowseService._fetch_url`` and are untouched by this.
+
+    ``Vary: Accept`` rides along whenever a width is in play, even when the
+    original was served: the response could have depended on Accept, and a
+    shared cache that does not know that will hand a WebP to a client that
+    asked for JPEG.
     """
     media_type, data = service.resolve_page_image(source_id, page_id)
-    return _conditional_image_response(
-        request, media_type, data, _image_proxy_headers()
-    )
+    headers = _image_proxy_headers()
+    if w is None:
+        return _conditional_image_response(request, media_type, data, headers)
+
+    headers["Vary"] = "Accept"
+    width = snap_page_width(w)
+    if width is not None:
+        rendered = resize_page(
+            data,
+            width=width,
+            fmt=negotiate_image_format(request.headers.get("accept")),
+        )
+        if rendered is not None:
+            media_type, data = rendered
+            # Exact, not aspirational: resize_page refuses outright unless the
+            # source is meaningfully wider, so a render really is ``width`` px.
+            headers["X-Page-Width"] = str(width)
+    return _conditional_image_response(request, media_type, data, headers)
