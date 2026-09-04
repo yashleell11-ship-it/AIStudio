@@ -19,6 +19,7 @@ from connectors.mangabuddy.connector import MangaBuddyConnector, _is_not_found
 from connectors.mangabuddy.mappers import (
     PAGE_SIZE,
     declared_chapter_count,
+    explicit_sort,
     is_api_id,
     make_chapter_key,
     make_page_id,
@@ -108,6 +109,35 @@ def test_search_params_shape():
     # A blank query drops ``q`` entirely (browse, not search).
     assert "q" not in search_params("  ", page=1, sort=None)
     assert search_params("", page=1, sort=None, genre="action")["genres"] == "action"
+
+
+def test_a_keyword_search_omits_sort_so_the_api_ranks_by_relevance():
+    """Sending the browse default on a search buries the obvious hit.
+
+    Verified live from the VPS: ``q=solo+leveling&sort=latest`` returns
+    "Leveling Up With Skills" first, while omitting ``sort`` returns
+    "Solo Leveling". ``sort=best_match`` -- what the site's own UI calls this
+    mode -- is not a real API sort and answers 400.
+    """
+    params = search_params("solo leveling", page=1, sort=None)
+    assert "sort" not in params
+    assert params["q"] == "solo leveling"
+    # An explicitly chosen sort still wins over relevance.
+    assert search_params("solo leveling", page=1, sort="views")["sort"] == "views"
+    # Browsing (no query) always carries a sort.
+    assert search_params("", page=1, sort=None)["sort"] == "latest"
+    assert search_params("", page=1, sort="default")["sort"] == "latest"
+    # Neither pseudo-sort may ever reach the API.
+    assert "sort" not in search_params("solo", page=1, sort="best_match")
+    assert "sort" not in search_params("solo", page=1, sort="alphabetical")
+
+
+def test_explicit_sort_distinguishes_chosen_from_defaulted():
+    assert explicit_sort(None) is None
+    assert explicit_sort("default") is None
+    assert explicit_sort("best_match") is None
+    assert explicit_sort("alphabetical") is None
+    assert explicit_sort("views") == "views"
 
 
 # --- listing ----------------------------------------------------------------
