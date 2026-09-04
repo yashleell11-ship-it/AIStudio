@@ -187,12 +187,120 @@ export interface ReadingHistoryItem {
 
 // --- Statistics ---
 
-/** `GET /library/statistics` (`FollowedSeriesService.statistics`). */
+/**
+ * The five numbers every roll-up in the statistics payload reports, in the one
+ * shape `ReadingStatsService._roll` emits (`backend/services/reading_stats_service.py`).
+ */
+export interface ReadingRollup {
+  sessions: number;
+  pages_read: number;
+  chapters_read: number;
+  series_read: number;
+  /**
+   * Wall-clock seconds, with each individual session clamped to
+   * `range.session_cap_seconds` — a chapter left open on a locked phone is a
+   * client that stopped talking, not nine hours of reading.
+   */
+  seconds_read: number;
+}
+
+/** One day of the dense daily series. `date` is a LOCAL calendar day, not a timestamp. */
+export interface DailyReading extends ReadingRollup {
+  /** `"YYYY-MM-DD"` at `range.timezone_offset_minutes`. Use `parseCalendarDay`, never `parseUtcTimestamp`. */
+  date: string;
+}
+
+/** One of 24 hour buckets, always dense and always in `hour` order. */
+export interface HourlyReading {
+  /** 0–23, at `range.timezone_offset_minutes`. */
+  hour: number;
+  sessions: number;
+  pages_read: number;
+  seconds_read: number;
+}
+
+export interface SourceReading extends ReadingRollup {
+  source_id: string;
+  /** The connector's display name, or the raw id when it is no longer installed. */
+  name: string;
+}
+
+/** Per-series roll-up. `series_read` is omitted server-side — it is always 1. */
+export interface SeriesReading extends Omit<ReadingRollup, "series_read"> {
+  source_id: string;
+  series_key: string;
+  /** From the follow row; `null` once the series is unfollowed (its history still counts). */
+  title: string | null;
+  cover_url: string | null;
+  last_read_at: string | null;
+}
+
+export interface RecentSession {
+  source_id: string;
+  series_key: string;
+  chapter_key: string;
+  chapter_number: number | null;
+  title: string | null;
+  pages_read: number;
+  seconds_read: number;
+  started_at: string | null;
+  ended_at: string | null;
+}
+
+/**
+ * `GET /library/statistics` (`FollowedSeriesService.statistics` +
+ * `ReadingStatsService.build`).
+ *
+ * The first four fields are the original library-shape payload and keep their
+ * meaning; everything below them comes from `reading_sessions`, which the
+ * backend recorded for months before anything read it back.
+ *
+ * Two different clocks live in here and mixing them up is the bug this project
+ * has already fixed twice:
+ *  - `*_at` fields are naive-UTC instants — `parseUtcTimestamp` them.
+ *  - `daily[].date` and `streak.last_active_date` are calendar days already
+ *    bucketed at `range.timezone_offset_minutes` — `parseCalendarDay` them.
+ */
 export interface Statistics {
   followed_total: number;
   favorites: number;
   by_reading_status: Record<string, number>;
   chapters_completed: number;
+
+  range: {
+    days: number;
+    /** Naive-UTC instant the window opens at. */
+    since: string | null;
+    /** Naive-UTC "now". */
+    until: string | null;
+    /** Minutes EAST of UTC, echoed back from the request so a chart can label honestly. */
+    timezone_offset_minutes: number;
+    /** Per-session clamp applied to every `seconds_read`. */
+    session_cap_seconds: number;
+  };
+  /** All time, ignoring `range.days`. */
+  totals: ReadingRollup & {
+    first_session_at: string | null;
+    last_session_at: string | null;
+  };
+  /** The selected window only. */
+  window: ReadingRollup;
+  streak: {
+    current_days: number;
+    longest_days: number;
+    /** Calendar day, or `null` when nothing has ever been read. */
+    last_active_date: string | null;
+  };
+  /** Dense: one entry per day in the window, zeros included. */
+  daily: DailyReading[];
+  /** Always 24 entries, hour 0 through 23. */
+  by_hour: HourlyReading[];
+  /** Top sources in the window by pages read (server caps the list). */
+  by_source: SourceReading[];
+  /** Top series in the window by pages read (server caps the list). */
+  by_series: SeriesReading[];
+  /** The last few sessions, deliberately NOT clipped to the window. */
+  recent_sessions: RecentSession[];
 }
 
 // --- Bookmarks ---

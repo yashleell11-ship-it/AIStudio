@@ -78,3 +78,56 @@ export function utcMinutesFromNow(
   if (parsed === null) return null;
   return Math.round((nowMs - parsed) / 60_000);
 }
+
+/**
+ * The other half of the same hazard: a backend CALENDAR DAY, not a timestamp.
+ *
+ * `GET /library/statistics` buckets its daily series and its streak at the
+ * caller's own UTC offset (`tz_offset_minutes`) and returns the resulting LOCAL
+ * day as a bare `"YYYY-MM-DD"`. The shift has already happened server-side, so
+ * these strings must NOT go through `parseUtcTimestamp`: `Date.parse` reads a
+ * date-only string as UTC midnight, and rendering that instant anywhere west of
+ * Greenwich lands on the previous day — the same off-by-one this module exists
+ * to prevent, running the other way.
+ *
+ * The parts are therefore read straight out of the string and handed to the
+ * LOCAL `Date` constructor, which never shifts them.
+ *
+ * Returns `null` for anything that is not a real calendar date, so an
+ * impossible day (`2026-02-31`) is rejected rather than silently rolled over
+ * into March by the `Date` constructor.
+ */
+const CALENDAR_DAY = /^(\d{4})-(\d{2})-(\d{2})$/;
+
+export function parseCalendarDay(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const match = CALENDAR_DAY.exec(value.trim());
+  if (!match) return null;
+  const [, year, month, day] = match;
+  const date = new Date(Number(year), Number(month) - 1, Number(day));
+  // `new Date(2026, 1, 31)` is March 3rd, not an error. Round-trip to reject it.
+  if (
+    date.getFullYear() !== Number(year) ||
+    date.getMonth() !== Number(month) - 1 ||
+    date.getDate() !== Number(day)
+  ) {
+    return null;
+  }
+  return date;
+}
+
+export interface CalendarDayFormatOptions extends UtcFormatOptions {
+  /** Passed straight to `toLocaleDateString`; defaults to the locale's short date. */
+  format?: Intl.DateTimeFormatOptions;
+}
+
+/** Locale date for a backend `"YYYY-MM-DD"` bucket label. */
+export function formatCalendarDay(
+  value: string | null | undefined,
+  { missing = "", invalid = "", format }: CalendarDayFormatOptions = {},
+): string {
+  if (!value) return missing;
+  const date = parseCalendarDay(value);
+  if (date === null) return invalid;
+  return date.toLocaleDateString(undefined, format);
+}
