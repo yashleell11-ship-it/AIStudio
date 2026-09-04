@@ -6,13 +6,16 @@ import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller
 
 /// Every downloaded/downloading/queued/failed chapter in the active scope,
 /// grouped by series — the Downloads screen's data source. Empty with no
-/// active scope (no store, no listing — the isolation contract). Re-fetches
-/// whenever the download queue's state changes so a chapter finishing or
-/// failing is reflected without the screen polling.
+/// active scope (no store, no listing — the isolation contract).
+///
+/// Re-fetches on [DownloadQueueState.queueRevision] rather than on the whole
+/// queue state: a chapter finishing, failing, being queued or being cancelled
+/// changes what this returns, while the page-by-page counter that ticks
+/// dozens of times inside one chapter does not.
 final downloadedSeriesProvider =
     FutureProvider.autoDispose<List<DownloadedSeriesGroup>>((ref) async {
   final store = ref.watch(downloadsStoreProvider);
-  ref.watch(downloadQueueControllerProvider);
+  ref.watch(downloadQueueControllerProvider.select((s) => s.queueRevision));
   if (store == null) return const [];
 
   final chapters = await store.listChapters();

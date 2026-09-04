@@ -113,6 +113,31 @@ class DownloadsStore {
     return rows.map(SavedChapter.fromRow).toList();
   }
 
+  /// Everything the queue still owes the user — queued, mid-download **and**
+  /// failed — oldest first, i.e. exactly what the Downloads screen's queue
+  /// panel lists and what its badge counts.
+  ///
+  /// Deliberately wider than [pendingChapters] (which drives the engine and
+  /// must never re-pick a chapter that exhausted its retries): a failed
+  /// chapter is not work the queue will do on its own, but it is absolutely
+  /// still something the user is waiting on and can retry.
+  Future<List<SavedChapter>> unfinishedChapters() async {
+    final db = await database;
+    final rows = await db.query(
+      DownloadsSchema.savedChapters,
+      where:
+          '${DownloadsSchema.colScopeId} = ? AND ${DownloadsSchema.colState} IN (?, ?, ?)',
+      whereArgs: [
+        scopeId,
+        DownloadChapterState.queued.wire,
+        DownloadChapterState.downloading.wire,
+        DownloadChapterState.failed.wire,
+      ],
+      orderBy: DownloadsSchema.colCreatedAt,
+    );
+    return rows.map(SavedChapter.fromRow).toList();
+  }
+
   Future<void> updateManifestInfo({
     required int rowId,
     required int pageCount,
