@@ -14,7 +14,10 @@
 #
 # Gates: a full or frontend push runs the frontend build locally first, because
 # a Next build failure on the VPS leaves the old container up but wastes a slow
-# remote rebuild — and the box has 2 vCores.
+# remote rebuild — and the box has 2 vCores. `apk` checks what is inside the
+# APK before publishing it: /app/download serves ONE file to every phone, so an
+# APK that is missing an ABI is not a smaller download, it is a friend staring
+# at "App not installed" with nothing on screen to explain why.
 # =============================================================================
 set -euo pipefail
 
@@ -34,6 +37,20 @@ RSYNC_EXCLUDES=(
   --exclude manhwamaniacs.db
   --exclude build
   --exclude .dart_tool
+  # Gradle/NDK scratch. mobile/android/.gradle alone is ~25 MB of pure cache on
+  # a box whose whole disk budget is the point of the VPS move.
+  --exclude .gradle
+  --exclude .cxx
+  --exclude captures
+  # SECRETS. Nothing on the VPS builds an APK, so the release signing key has no
+  # business travelling there — and `all` used to rsync mobile/ wholesale, which
+  # carried android/key.properties (passwords in plaintext) and
+  # android/app/manhwamaniacs-upload.jks with it. Belt and braces alongside
+  # sync_mobile_meta below, so any future sync_dir call is safe by default.
+  --exclude key.properties
+  --exclude '*.jks'
+  --exclude '*.keystore'
+  --exclude .env
 )
 
 say(){ printf '\033[32m==>\033[0m %s\n' "$*"; }
@@ -49,6 +66,75 @@ sync_dir(){
   say "syncing $dir/"
   rsync -az --delete -e "ssh -o BatchMode=yes" "${RSYNC_EXCLUDES[@]}" \
     "$REPO/$dir/" "$HOST:$REMOTE/$dir/"
+}
+
+sync_mobile_meta(){
+  # The VPS runs no Flutter build; ops/vps/docker-compose.yml mounts exactly two
+  # things out of mobile/ — pubspec.yaml (the /app/version label) and
+  # docs/screenshots (the landing page + SideStore listing imagery). `all` used
+  # to rsync the whole of mobile/, which pushed ~30 MB of Dart source, tests and
+  # Gradle cache, plus the release signing key and its plaintext passwords, onto
+  # a production host that needs none of it.
+  say "syncing mobile/ metadata (pubspec + screenshots only)"
+  rsync -a --inplace -e "ssh -o BatchMode=yes" \
+    "$REPO/mobile/pubspec.yaml" "$HOST:$REMOTE/mobile/pubspec.yaml"
+  rsync -az --delete -e "ssh -o BatchMode=yes" "${RSYNC_EXCLUDES[@]}" \
+    "$REPO/mobile/docs/screenshots/" "$HOST:$REMOTE/mobile/docs/screenshots/"
+  # Everything mobile/ that earlier pushes left behind stays where it is —
+  # rsync only deletes inside a directory it is syncing. That is harmless for
+  # stale Dart source and NOT harmless for the signing key, so say so rather
+  # than reach into a production host and delete things from a script.
+  local leftover
+  leftover="$(ssh -o BatchMode=yes "$HOST" \
+    "ls -1 $REMOTE/mobile/android/key.properties $REMOTE/mobile/android/app/*.jks 2>/dev/null" || true)"
+  if [ -n "$leftover" ]; then
+    cat >&2 <<EOF
+
+  !! The release signing key is still on the VPS from an earlier push:
+$(sed 's/^/       /' <<<"$leftover")
+     Nothing there uses it. Remove it by hand, then rotate if you want to be
+     thorough (a new key means everyone reinstalls once):
+       ssh $HOST 'rm -rf $REMOTE/mobile/android $REMOTE/mobile/lib $REMOTE/mobile/test'
+
+EOF
+  fi
+}
+
+# ABIs packaged inside an APK, one per line (e.g. arm64-v8a, armeabi-v7a).
+apk_abis(){
+  unzip -Z1 "$1" 2>/dev/null | sed -n 's|^lib/\([^/]*\)/.*|\1|p' | sort -u
+}
+
+# Refuse to publish an APK that some phone in the owner's circle cannot install.
+# The release build packages arm64-v8a + armeabi-v7a and drops x86_64
+# (mobile/android/app/build.gradle.kts). Both ARM ABIs must be present: 64-bit
+# covers everything modern, and armeabi-v7a is the 32-bit-only budget hardware
+# that is still inside minSdk 24. A --split-per-abi build does not produce
+# app-release.apk at all, so it fails the earlier existence check instead.
+verify_apk(){
+  local apk="$1" abis missing=""
+  abis="$(apk_abis "$apk")"
+  [ -n "$abis" ] || { echo "!! $apk contains no native libraries at all — refusing" >&2; exit 3; }
+  for want in arm64-v8a armeabi-v7a; do
+    grep -qx "$want" <<<"$abis" || missing="$missing $want"
+  done
+  if [ -n "$missing" ]; then
+    cat >&2 <<EOF
+!! REFUSING TO PUBLISH: this APK is missing ABI(s):$missing
+   it contains: $(tr '\n' ' ' <<<"$abis")
+   /app/download hands one file to every phone. Publishing this one means any
+   friend on a missing architecture gets "App not installed" and no reason why.
+   Rebuild with: flutter build apk --release
+   (If per-ABI downloads are what you want, that needs a serving change in
+    backend/routes/app_distribution.py first — see the ops notes.)
+EOF
+    exit 3
+  fi
+  if grep -qx "x86_64" <<<"$abis"; then
+    say "note: this APK still carries x86_64 (~21 MB no phone can use) — the"
+    say "      release exclusion in android/app/build.gradle.kts did not apply"
+  fi
+  say "APK check: $(du -h "$apk" | cut -f1), ABIs [$(tr '\n' ' ' <<<"$abis" | sed 's/ $//')], built $(( ( $(date +%s) - $(stat -c %Y "$apk") ) / 60 )) min ago"
 }
 
 stamp(){
@@ -70,7 +156,7 @@ remote_deploy(){
 case "${1:-all}" in
   all)
     verify_frontend
-    sync_dir frontend; sync_dir backend; sync_dir ops; sync_dir mobile
+    sync_dir frontend; sync_dir backend; sync_dir ops; sync_mobile_meta
     read -r c b < <(stamp); remote_deploy "$c" "$b" ;;
   frontend)
     verify_frontend
@@ -81,10 +167,20 @@ case "${1:-all}" in
     read -r c b < <(stamp); remote_deploy "$c" "$b" ;;
   apk)
     APK="$REPO/mobile/build/app/outputs/flutter-apk/app-release.apk"
-    [ -f "$APK" ] || { echo "no APK at $APK — run the release build first" >&2; exit 1; }
-    say "publishing $(du -h "$APK" | cut -f1) APK"
+    if [ ! -f "$APK" ]; then
+      echo "no APK at $APK — run the release build first:" >&2
+      echo "    (cd mobile && flutter build apk --release)" >&2
+      # --split-per-abi writes app-arm64-v8a-release.apk et al and never
+      # app-release.apk, so this is the message that build lands on too.
+      ls "$REPO/mobile/build/app/outputs/flutter-apk/"*.apk >/dev/null 2>&1 \
+        && { echo "  (found per-ABI split APKs instead — /app/download serves a" >&2
+             echo "   single file, so publish a normal universal build)" >&2; }
+      exit 1
+    fi
+    verify_apk "$APK"
+    say "publishing the APK"
     # The version endpoint reads the pubspec through a single-FILE bind mount,
-    # and no other push mode syncs mobile/ — so without this the box happily
+    # and `apk` is usually run on its own — so without this the box happily
     # serves a 1.9.0 APK while /app/version still advertises the previous
     # release. --inplace is load-bearing: replacing a bind-mounted file
     # normally leaves the container holding the old inode, which would need a
