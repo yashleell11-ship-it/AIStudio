@@ -5,6 +5,10 @@ The OCR runner is client-side now. The server only:
   * ``GET  /ocr/chapter``   — return stored ``page_texts`` for in-reader highlight
   * ``GET  /ocr/search``    — FTS, filtered to the caller's followed series + gate
   * ``GET  /ocr/coverage``  — which chapters already have OCR
+
+The write is global (spec §3.9); all three reads are scoped to the caller's
+followed series + 18+ gate. Denial is a 404 that looks like absence, never a
+403 — see ``OcrIngestService._may_read``.
 """
 
 from __future__ import annotations
