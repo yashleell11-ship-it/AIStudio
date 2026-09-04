@@ -24,6 +24,7 @@ from __future__ import annotations
 import json
 import logging
 import threading
+from collections import OrderedDict
 from datetime import timedelta
 from typing import Annotated, Any
 
@@ -65,6 +66,77 @@ def _loads(value: str | None) -> Any:
         return json.loads(value)
     except (ValueError, TypeError):
         return None
+
+
+# --- chapter-list parse memo ----------------------------------------------
+#
+# ``source_series_cache.chapters`` is a JSON array, and every read of a series
+# — the reader manifest, a novel chapter's prev/next, the series screen —
+# parses the whole thing. That is fine for a 40-chapter manhwa and expensive
+# for the long tail: measured on the VPS, novelarchive's "Shadow Slave" is
+# 3,174 chapters / 314 KB, and ``json.loads`` alone was 9.4 ms of the 9.5 ms a
+# CACHE HIT on /novels/chapter took. novelfull carries 3,956; baozimh 3,874.
+#
+# So the parse is memoized process-wide, keyed by the row's identity AND its
+# ``fetched_at``. That key is what keeps this from changing any answer:
+# ``_upsert`` bumps ``fetched_at`` whenever a chapter list is written, so a
+# refreshed list is a different key and the stale parse can never be served.
+# A row deleted outright simply misses.
+#
+# Bounded by total chapters rather than entries, because entries differ in
+# size by two orders of magnitude and a per-entry cap would either waste the
+# budget on 40-chapter series or blow it on 4,000-chapter ones.
+_CHAPTER_MEMO_MAX_CHAPTERS = 20_000
+_chapter_memo: "OrderedDict[tuple[str, str, str], list[Any]]" = OrderedDict()
+_chapter_memo_chapters = 0
+_chapter_memo_lock = threading.Lock()
+
+
+def _memoized_chapters(row: SourceSeriesCache) -> list[Any]:
+    """``row.chapters`` parsed, reusing the last parse of this exact row.
+
+    Returns a shallow copy of the list: callers only read it today, but a
+    shared list that someone later sorts in place would corrupt every
+    subsequent request, and copying 3,000 pointers costs ~20 us against the
+    9.4 ms it saves.
+    """
+    global _chapter_memo_chapters
+    raw = row.chapters
+    if not raw:
+        return []
+    fetched = row.fetched_at.isoformat() if row.fetched_at else ""
+    # Identity + write time + byte length. ``fetched_at`` alone would already
+    # be enough (it is bumped by every chapter-list write); the length is a
+    # free second opinion, so two different lists written inside the same
+    # microsecond cannot share a parse.
+    key = (row.source_id, row.series_key, f"{fetched}:{len(raw)}")
+    with _chapter_memo_lock:
+        hit = _chapter_memo.get(key)
+        if hit is not None:
+            _chapter_memo.move_to_end(key)
+            return list(hit)
+    parsed = _loads(raw) or []
+    if not isinstance(parsed, list):
+        return []
+    with _chapter_memo_lock:
+        if key not in _chapter_memo:
+            _chapter_memo[key] = parsed
+            _chapter_memo_chapters += len(parsed)
+        _chapter_memo.move_to_end(key)
+        while _chapter_memo_chapters > _CHAPTER_MEMO_MAX_CHAPTERS and len(
+            _chapter_memo
+        ) > 1:
+            _evicted_key, evicted = _chapter_memo.popitem(last=False)
+            _chapter_memo_chapters -= len(evicted)
+    return list(parsed)
+
+
+def reset_chapter_memo() -> None:
+    """Drop the parse memo. For tests; production never needs it."""
+    global _chapter_memo_chapters
+    with _chapter_memo_lock:
+        _chapter_memo.clear()
+        _chapter_memo_chapters = 0
 
 
 def _normalize_sort(sort: str | None) -> str:
@@ -519,7 +591,8 @@ class SourceCacheService:
             "year": row.year,
             "content_rating": row.content_rating,
             "genres": _loads(row.genres) or [],
-            "chapters": _loads(row.chapters) or [],
+            # Memoized: this parse dominated every read of a long series.
+            "chapters": _memoized_chapters(row),
             "fetched_at": row.fetched_at.isoformat() if row.fetched_at else None,
         }
 

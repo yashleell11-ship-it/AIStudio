@@ -46,16 +46,24 @@ def _locate(chapters: list[dict[str, Any]], chapter_key: str) -> int:
     """Index of ``chapter_key`` in ``chapters``, or -1.
 
     Exact match first, then ignoring surrounding slashes — connectors are not
-    consistent about leading/trailing separators in chapter ids.
+    consistent about leading/trailing separators in chapter ids. The two passes
+    are deliberate and must stay in that order: an exact match late in the list
+    beats a slash-insensitive one early in it.
+
+    Scans rather than materializing every key. Both are O(n) in the worst case,
+    but the list can be four thousand chapters long (novelfull, baozimh) and
+    building four thousand strings to find one is work paid on every chapter
+    open — the exact pass usually stops within a few rows of where the reader
+    already is.
     """
-    keys = [_chapter_key(c) for c in chapters]
-    try:
-        return keys.index(chapter_key)
-    except ValueError:
-        target = chapter_key.strip("/")
-        return next(
-            (i for i, k in enumerate(keys) if k.strip("/") == target), -1
-        )
+    for index, entry in enumerate(chapters):
+        if _chapter_key(entry) == chapter_key:
+            return index
+    target = chapter_key.strip("/")
+    for index, entry in enumerate(chapters):
+        if _chapter_key(entry).strip("/") == target:
+            return index
+    return -1
 
 
 class ReaderService:
@@ -172,8 +180,12 @@ class ReaderService:
         therefore serve byte-identical per-chapter payloads by construction, not
         by two implementations agreeing.
         """
-        keys = [_chapter_key(c) for c in chapters]
         chapter = chapters[idx]
+        # Only the two neighbours are needed, so only the two neighbours are
+        # read. This used to materialize a key for every chapter in the series
+        # — and the bulk path calls this once PER requested chapter, so a
+        # 20-chapter window over a 4,000-chapter series (novelfull, baozimh)
+        # built 80,000 strings to name 40 of them.
         return {
             "source_id": source_id,
             "series_key": series_key,
@@ -183,8 +195,12 @@ class ReaderService:
             "pages": [
                 {"number": p["number"], "url": p["image_url"]} for p in pages
             ],
-            "prev": keys[idx - 1] if idx > 0 else None,
-            "next": keys[idx + 1] if idx < len(keys) - 1 else None,
+            "prev": _chapter_key(chapters[idx - 1]) if idx > 0 else None,
+            "next": (
+                _chapter_key(chapters[idx + 1])
+                if idx < len(chapters) - 1
+                else None
+            ),
         }
 
     def manifest(
