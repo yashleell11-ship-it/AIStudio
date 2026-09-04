@@ -1,4 +1,3 @@
-import { readerChapterHref } from "@/features/reader/reader-link";
 import type { ContinueReadingItem } from "./types";
 
 /**
@@ -23,10 +22,14 @@ export function continueReadingKey(item: ContinueReadingItem): string {
   return `${item.source_id}:${item.series_key}:${item.chapter_key}`;
 }
 
-/** Resume link — straight onto the last page read. */
-export function continueReadingHref(item: ContinueReadingItem): string {
-  return readerChapterHref(continueReadingRef(item), item.last_page);
-}
+/*
+ * There is deliberately no `continueReadingHref` here any more.
+ *
+ * A resume link has to know which reader its source opens in, and that answer
+ * lives in the sources listing — not in a pure helper over one row. The rail
+ * builds its links with `useChapterHref` (`features/novels/use-chapter-href`),
+ * which is the single place the manga/novel branch is made.
+ */
 
 /** Followed-index lookup key for the title join. */
 export function continueReadingSeriesKey(item: ContinueReadingItem): string {

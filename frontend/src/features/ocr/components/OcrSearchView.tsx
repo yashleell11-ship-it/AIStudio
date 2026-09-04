@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { Loader2, ScanText, Search, TriangleAlert } from "lucide-react";
+import { BookText, Loader2, ScanText, Search, TriangleAlert } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
 import { HeroHeading } from "@/components/premium/HeroHeading";
+import { isModeVisibleNavItem, useContentMode } from "@/features/content-mode";
 import { useFollowedIndex } from "@/features/library/hooks";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useOcrSearch } from "../hooks";
@@ -17,6 +18,26 @@ import type { OcrSearchResultItem } from "../types";
 const SEARCH_DEBOUNCE_MS = 300;
 
 export function OcrSearchView() {
+  // OCR reads text recognised from chapter page IMAGES, so it can only ever be
+  // empty in Novels mode. The sidebar already hides the entry; this is the
+  // matching guard for a bookmark or a typed URL, and it uses the same
+  // predicate rather than a second copy of the rule.
+  const { mode, novelsEnabled } = useContentMode();
+  if (!isModeVisibleNavItem("/ocr", mode, novelsEnabled)) {
+    return (
+      <div className="page-shell">
+        <div className="page-container">
+          <EmptyState
+            icon={BookText}
+            title="OCR search is for manga"
+            description="It searches dialogue recognised from chapter page images, and a novel has no images to recognise. Switch to Manga in the sidebar to use it."
+            action={{ label: "Search novels instead", href: "/search" }}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="page-shell">
       <div className="page-container space-y-8">
