@@ -161,8 +161,20 @@ def recommendations(
 
 
 @router.get("/statistics")
-def statistics(service: ServiceDep) -> dict[str, object]:
-    return service.statistics()
+def statistics(
+    service: ServiceDep,
+    days: int = Query(30, ge=1, le=365),
+    tz_offset_minutes: int = Query(0, ge=-720, le=840),
+) -> dict[str, object]:
+    """Library shape plus reading activity from ``reading_sessions``.
+
+    ``tz_offset_minutes`` is the caller's fixed offset from UTC and decides
+    where a day starts for the daily buckets, the hour histogram and the
+    streak; the server stores naive UTC and will not guess. The value is
+    echoed back under ``range`` so a chart can label its axis with the same
+    definition it was bucketed by. Range is UTC-12:00 to UTC+14:00.
+    """
+    return service.statistics(days=days, tz_offset_minutes=tz_offset_minutes)
 
 
 @router.get("/search")

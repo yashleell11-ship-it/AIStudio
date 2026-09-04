@@ -41,6 +41,7 @@ from database.models import (
 )
 from database.session import get_db
 from services.browse_service import BrowseService, get_browse_service
+from services.reading_stats_service import ReadingStatsService
 from services.source_cache_service import SourceCacheService
 
 READING_STATUSES = {
@@ -418,7 +419,17 @@ class FollowedSeriesService:
         ).scalars().all()
         return [self.serialize(r) for r in self._visible(list(rows))]
 
-    def statistics(self) -> dict[str, Any]:
+    def statistics(
+        self, *, days: int = 30, tz_offset_minutes: int = 0
+    ) -> dict[str, Any]:
+        """Library shape + what ``reading_sessions`` actually recorded.
+
+        The first four keys are the original payload and keep their meaning so
+        clients can migrate at their own pace. Everything else comes from
+        :class:`~services.reading_stats_service.ReadingStatsService`, which owns
+        the session aggregation (and its own ``(user_id, profile_id)`` scoping
+        and 18+ gating) rather than growing another set of scope helpers here.
+        """
         self._require_owner()
         rows = self._visible(
             list(self._db.execute(self._scope(select(FollowedSeries))).scalars().all())
@@ -428,19 +439,21 @@ class FollowedSeriesService:
             by_status[r.reading_status] = by_status.get(r.reading_status, 0) + 1
         # Profile-scoped like every other field in this payload — counting the
         # whole account here made one profile's number jump when a sibling read.
-        completed_chapters = self._db.execute(
-            self._progress_scope(
-                select(func.count())
-                .select_from(ChapterProgress)
-                .where(ChapterProgress.is_completed.is_(True))
-            )
-        ).scalar_one()
-        return {
+        stats = ReadingStatsService(
+            self._db,
+            user_id=self._user_id,
+            profile_id=self._profile_id,
+            gate_open=self._gate_open(),
+            tz_offset_minutes=tz_offset_minutes,
+        )
+        payload: dict[str, Any] = {
             "followed_total": len(rows),
             "favorites": sum(1 for r in rows if r.is_favorite),
             "by_reading_status": by_status,
-            "chapters_completed": int(completed_chapters or 0),
+            "chapters_completed": stats.chapters_completed(),
         }
+        payload.update(stats.build(days))
+        return payload
 
     def recommendations(self, limit: int = 10) -> list[dict[str, Any]]:
         """Simple genre-similarity over the followed set (spec §5.2)."""

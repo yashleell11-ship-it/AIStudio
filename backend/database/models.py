@@ -373,6 +373,13 @@ class Bookmark(Base):
 
 
 class ReadingSession(Base):
+    """One recorded stretch of reading. Per-profile, append-only.
+
+    Read by ``services.reading_stats_service`` (the statistics screen) and
+    written by ``services.progress_service``; nothing updates a row after
+    insert.
+    """
+
     __tablename__ = "reading_sessions"
     __table_args__ = (
         Index(
@@ -380,6 +387,17 @@ class ReadingSession(Base):
             "user_id",
             "profile_id",
             "started_at",
+        ),
+        # The per-source / per-series roll-ups group by exactly this prefix,
+        # and it is also the join key onto ``followed_series`` that resolves
+        # the 18+ gate — without it every breakdown sorts the profile's whole
+        # session history on a 2-vCPU box.
+        Index(
+            "ix_reading_sessions_series",
+            "user_id",
+            "profile_id",
+            "source_id",
+            "series_key",
         ),
     )
 
