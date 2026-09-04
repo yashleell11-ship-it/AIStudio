@@ -1,0 +1,56 @@
+{
+ "id": 54,
+ "title": "Glory Hole Shop",
+ "series_slug": "glory-hole-shop",
+ "thumbnail": "https://media.omegascans.org/file/zFSsXt/m8wal4qoi0dur6rcf5cl6bya.webp",
+ "total_views": 19547790,
+ "description": "<p>Ja-Kang inherits his Grandfather's store. Upon entering the secret room, he finds a \"hole\"?!</p>",
+ "series_type": "Comic",
+ "tags": [
+  {
+   "id": 2,
+   "name": "Drama",
+   "description": "",
+   "created_at": "2023-06-20T16:42:03.698+00:00",
+   "updated_at": "2023-06-20T16:42:03.698+00:00",
+   "color": "#000000"
+  },
+  {
+   "id": 4,
+   "name": "Hardcore",
+   "description": "",
+   "created_at": "2023-06-21T14:48:17.840+00:00",
+   "updated_at": "2023-06-21T14:48:17.840+00:00",
+   "color": "#000000"
+  }
+ ],
+ "rating": 4.9,
+ "status": "Completed",
+ "release_schedule": {
+  "sun": true
+ },
+ "nu_link": null,
+ "seasons": [
+  {
+   "id": 54,
+   "series_id": 54,
+   "season_name": "First season",
+   "index": 1,
+   "created_at": "2023-04-06T09:43:02.322+00:00",
+   "updated_at": "2023-04-06T09:43:02.322+00:00"
+  }
+ ],
+ "alternative_names": "구멍가게, 구멍 열었습니다 | The Hole is Open",
+ "studio": "Toptoon",
+ "author": "Kimtuk & Ddat",
+ "release_year": "2022",
+ "ratings_count": 66,
+ "viewer_rating": null,
+ "meta": {
+  "latest_update": null,
+  "folder_slug": "glory-hole-shop",
+  "metadata": {},
+  "chapters_count": "162",
+  "who_bookmarked_count": "6668"
+ }
+}

@@ -1,0 +1,105 @@
+{
+ "meta": {
+  "total": 1,
+  "per_page": 24,
+  "current_page": 1,
+  "last_page": 1,
+  "first_page": 1,
+  "first_page_url": "/?page=1",
+  "last_page_url": "/?page=1",
+  "next_page_url": null,
+  "previous_page_url": null
+ },
+ "data": [
+  {
+   "id": 7,
+   "title": "Sex Stopwatch",
+   "description": "<p>&ldquo;Hey, Loser Joo. Did you just secretly look at my chest and panties?&rdquo; Just before the ordinary repeating student, loser Joo Ohyoung, was going to get hit by a popular girl with a sexy body, he awakened the king&rsquo;s ability and stopped time&hellip;!<br>&ldquo;How dare you try to hit me? This is punishment for trying to lay a hand on this body!!&rdquo;<br>Squish &lt;3</p>",
+   "alternative_names": "섹톱워치 | Sextopwatch",
+   "series_type": "Comic",
+   "series_slug": "sex-stopwatch",
+   "thumbnail": "https://media.omegascans.org/file/zFSsXt/vzq49pwb62fcuxfgmllu3cr1.webp",
+   "total_views": 20992107,
+   "status": "Completed",
+   "created_at": "2023-03-30T20:58:58.525+00:00",
+   "updated_at": "2023-04-01T21:57:22.886+00:00",
+   "badge": "Hot",
+   "rating": 4.882353,
+   "release_schedule": {
+    "fri": true
+   },
+   "nu_link": null,
+   "is_coming_soon": false,
+   "free_chapters": [
+    {
+     "id": 10811,
+     "chapter_name": "Chapter 155",
+     "chapter_slug": "chapter-155",
+     "created_at": "2025-08-12T02:07:27.261+00:00",
+     "series_id": 7,
+     "index": "155.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "1"
+     }
+    },
+    {
+     "id": 10798,
+     "chapter_name": "Chapter 154",
+     "chapter_slug": "chapter-154",
+     "created_at": "2025-08-08T04:05:30.092+00:00",
+     "series_id": 7,
+     "index": "154.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "2"
+     }
+    },
+    {
+     "id": 10747,
+     "chapter_name": "Chapter 153",
+     "chapter_slug": "chapter-153",
+     "created_at": "2025-08-05T18:49:29.427+00:00",
+     "series_id": 7,
+     "index": "153.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "3"
+     }
+    },
+    {
+     "id": 10665,
+     "chapter_name": "Chapter 152",
+     "chapter_slug": "chapter-152",
+     "created_at": "2025-07-28T10:34:51.713+00:00",
+     "series_id": 7,
+     "index": "152.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "4"
+     }
+    },
+    {
+     "id": 10551,
+     "chapter_name": "Chapter 151",
+     "chapter_slug": "chapter-151",
+     "created_at": "2025-07-20T16:21:50.103+00:00",
+     "series_id": 7,
+     "index": "151.0",
+     "chapters_to_be_freed": [],
+     "meta": {
+      "adonis_group_limit_counter": "5"
+     }
+    }
+   ],
+   "paid_chapters": [],
+   "latest_chapter": null,
+   "meta": {
+    "latest_update": null,
+    "folder_slug": "sex-stopwatch",
+    "metadata": {},
+    "chapters_count": "156"
+   }
+  }
+ ]
+}
