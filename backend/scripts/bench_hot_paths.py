@@ -118,8 +118,6 @@ def build_cases(db, ctx, args):
         ("library.recently_updated", lambda: followed().recently_updated(limit=10)),
         ("library.statistics(30d)", lambda: followed().statistics(days=30)),
         ("library.statistics(365d)", lambda: followed().statistics(days=365)),
-        ("progress.continue_reading", lambda: ProgressService(
-            db, user_id=user_id, profile_id=profile_id).continue_reading(limit=20)),
         ("progress.history", lambda: ProgressService(
             db, user_id=user_id, profile_id=profile_id).reading_history(limit=50)),
     ]

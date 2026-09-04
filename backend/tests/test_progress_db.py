@@ -2,8 +2,11 @@
 
 The pure furthest-wins merge is pinned in ``test_progress_merge``. This file
 exercises the service against a real ``chapter_progress`` table: ``save_one`` /
-``save_batch`` persistence, furthest-wins applied per batch item, and
-``continue_reading`` ordering + completion filtering.
+``save_batch`` persistence and furthest-wins applied per batch item.
+
+The continue-reading strip is NOT here: it belongs to
+``FollowedSeriesService`` (see ``test_library_payload_guarantees``), which
+joins ``followed_series`` so the 18+ gate can be resolved.
 """
 
 from __future__ import annotations
@@ -93,43 +96,6 @@ def test_batch_higher_chapter_number_wins_even_with_lower_page(svc):
     rows = {r["chapter_key"]: r for r in svc.get_series_progress("mangadex", "solo-leveling")}
     assert rows["ch-4"]["chapter_number"] == 4.0
     assert rows["ch-4"]["last_page"] == 2
-
-
-def test_continue_reading_is_latest_unfinished_per_series(svc):
-    svc.save_one(
-        _push(
-            series_key="series-a",
-            chapter_key="a1",
-            chapter_number=1.0,
-            last_page=5,
-            last_read_at=T0,
-        )
-    )
-    svc.save_one(
-        _push(
-            series_key="series-b",
-            chapter_key="b1",
-            chapter_number=1.0,
-            last_page=5,
-            last_read_at=T0 + timedelta(hours=1),
-        )
-    )
-    # finish series-b
-    svc.save_one(
-        _push(
-            series_key="series-b",
-            chapter_key="b1",
-            chapter_number=1.0,
-            last_page=20,
-            is_completed=True,
-            last_read_at=T0 + timedelta(hours=2),
-        )
-    )
-
-    strip = svc.continue_reading()
-    keys = [r["series_key"] for r in strip]
-    assert "series-b" not in keys  # completed → dropped
-    assert keys == ["series-a"]
 
 
 def test_numberless_push_is_persisted_over_a_numbered_row(svc):
