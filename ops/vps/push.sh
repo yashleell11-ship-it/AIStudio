@@ -113,7 +113,11 @@ apk_abis(){
   names="$(unzip -Z1 "$1" 2>/dev/null)"
   while read -r abi; do
     [ -n "$abi" ] || continue
-    grep -qx "lib/$abi/libapp.so" <<<"$names" && echo "$abi"
+    # An `if`, not `grep ... && echo`: under `set -e` a failing AND-list as the
+    # last command of a loop body aborts the whole script, so the one APK this
+    # check exists to catch — engine present, libapp.so missing — would have
+    # exited 1 with nothing printed instead of refusing out loud.
+    if grep -qx "lib/$abi/libapp.so" <<<"$names"; then echo "$abi"; fi
   done < <(sed -n 's|^lib/\([^/]*\)/libflutter\.so$|\1|p' <<<"$names" | sort -u)
 }
 
