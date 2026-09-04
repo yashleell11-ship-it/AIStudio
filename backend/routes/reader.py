@@ -4,11 +4,12 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field
 
 from core.errors import AppError
 from core.profile_context import require_profile_context
+from core.rate_limit import bulk_limit, limiter
 from services.progress_service import (
     ProgressInput,
     ProgressService,
@@ -65,6 +66,54 @@ def chapter_manifest(
 ) -> dict[str, object]:
     """The download plan for a chapter: ordered page list + prev/next keys."""
     return service.manifest(source, series, chapter)
+
+
+class BulkManifestRequest(BaseModel):
+    """A WINDOW of one series' chapters (spec 2026-09-05 R2/R4).
+
+    The client names the chapters explicitly rather than asking for a numeric
+    range: ``chapter_key`` is an opaque connector string and the client already
+    holds the ordered list from the series page, so an index range would mean
+    both sides parsing keys or agreeing on an ordering that upstream can change
+    under them. A window is therefore just "these keys, in this order", and the
+    server answers in the same order.
+    """
+
+    source_id: str = Field(min_length=1, max_length=64)
+    series_key: str = Field(min_length=1, max_length=512)
+    chapter_keys: list[str] = Field(min_length=1)
+
+
+@router.post("/chapters/manifest")
+@limiter.limit(bulk_limit)
+def chapter_manifest_batch(
+    body: BulkManifestRequest,
+    service: ReaderDep,
+    request: Request,
+    response: Response,  # slowapi injects X-RateLimit-* headers into this
+) -> dict[str, object]:
+    """Download plans for a bounded window of chapters, in one round trip.
+
+    ``{source_id, series_key, max_chapters, requested, ok_count, failed_count,
+    items: [{chapter_key, status, manifest, error}]}`` where each ``manifest``
+    is byte-identical to what ``GET /reader/chapter/manifest`` serves for that
+    chapter (same code path builds both). ``status`` is ``"ok"`` or
+    ``"error"``; exactly one of ``manifest`` / ``error`` is non-null per item.
+
+    POST, not GET, because the body is a list of opaque keys that routinely
+    contain slashes and percent-encoding — twenty of them do not belong in a
+    query string. It is still a read: nothing here mutates.
+
+    Over ``max_chapters`` keys is a 413 ``batch_too_large`` (details carry
+    ``max_chapters``), matching ``POST /reader/progress/batch``. Every success
+    echoes ``max_chapters`` so a client pages by the server's stride.
+
+    Rate-limited on the ``bulk`` bucket, not ``sources``: one call is worth up
+    to ``max_chapters`` upstream scrapes.
+    """
+    return service.manifest_batch(
+        body.source_id, body.series_key, body.chapter_keys
+    )
 
 
 @router.post("/progress", dependencies=[Depends(require_profile_context)])

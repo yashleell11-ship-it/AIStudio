@@ -95,6 +95,26 @@ class Settings(BaseModel):
     # less. MM_NOVEL_CACHE_MAX_ROWS; <=0 disables the ceiling.
     novel_cache_max_rows: int = 10000
 
+    # --- bulk windows (spec 2026-09-05-reading-flow-design R2/R5) ---------
+    # Read-all and whole-series download would otherwise open one chapter per
+    # round trip — 300 requests to start a long series. The bulk endpoints take
+    # a WINDOW of chapters instead, and these are the ceilings on that window.
+    # They are deliberately small: one bulk manifest call is already up to N
+    # upstream page-list scrapes, and the box has 2 vCPU. Clients page; every
+    # bulk response echoes its cap as ``max_chapters`` so they know the stride
+    # without hard-coding it. MM_READER_BULK_MAX_CHAPTERS /
+    # MM_NOVEL_BULK_MAX_CHAPTERS.
+    reader_bulk_max_chapters: int = 20
+    novel_bulk_max_chapters: int = 20
+    # How many chapters of one window are fetched from the source at once.
+    # Upstream politeness is enforced below this by the connector's own
+    # per-client min_interval (0.21 s, one shared instance per source), so this
+    # governs how many round trips overlap, not how fast we hit a site. Kept
+    # small on purpose: 2 vCPU, and Toonily/Bbato are already Cloudflare-blocked
+    # at this egress — a burst is how the rest join them.
+    # MM_BULK_FETCH_CONCURRENCY. <=1 fetches sequentially.
+    bulk_fetch_concurrency: int = 4
+
     # Hard ceiling (bytes) for a single proxied image/cover body. A hostile
     # allowlisted upstream can otherwise stream an unbounded "image" and OOM
     # the box (each page-image request used to buffer the entire body with no
@@ -174,6 +194,14 @@ class Settings(BaseModel):
     rate_limit_bootstrap_status: str = "30/minute;240/hour"
     rate_limit_import: str = "5/minute"
     rate_limit_sources: str = "60/minute"
+    # The bulk window endpoints (POST /reader/chapters/manifest, POST
+    # /novels/chapters) get their own, much tighter bucket: one request there
+    # costs up to ``*_bulk_max_chapters`` upstream scrapes, so it is worth
+    # ~20 requests from the ``sources`` bucket. 6/minute × a 20-chapter window
+    # is 120 chapters a minute — far past any human reading rate, and enough
+    # for a whole-novel download to page through ~2400 chapters an hour without
+    # ever looking like a scraper to the source. MM_RATE_LIMIT_BULK.
+    rate_limit_bulk: str = "6/minute"
     # The request header carrying the real client IP, written by the *outermost*
     # proxy and therefore not client-controlled. Cloudflare's CF-Connecting-IP
     # is the default because that is the edge in front of this deployment.
@@ -216,6 +244,9 @@ def get_settings() -> Settings:
         ("MM_SOURCE_CACHE_MAX_ROWS", "source_cache_max_rows"),
         ("MM_NOVEL_CACHE_TTL_MINUTES", "novel_cache_ttl_minutes"),
         ("MM_NOVEL_CACHE_MAX_ROWS", "novel_cache_max_rows"),
+        ("MM_READER_BULK_MAX_CHAPTERS", "reader_bulk_max_chapters"),
+        ("MM_NOVEL_BULK_MAX_CHAPTERS", "novel_bulk_max_chapters"),
+        ("MM_BULK_FETCH_CONCURRENCY", "bulk_fetch_concurrency"),
     ):
         value = os.getenv(env_key)
         if value and value.strip():
@@ -262,6 +293,7 @@ def get_settings() -> Settings:
         ("MM_RATE_LIMIT_BOOTSTRAP_STATUS", "rate_limit_bootstrap_status"),
         ("MM_RATE_LIMIT_IMPORT", "rate_limit_import"),
         ("MM_RATE_LIMIT_SOURCES", "rate_limit_sources"),
+        ("MM_RATE_LIMIT_BULK", "rate_limit_bulk"),
     ):
         value = os.getenv(env_key)
         if value and value.strip():
