@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
@@ -9,6 +12,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database.session import get_db
 from main import create_app
+from routes import app_distribution
 
 
 @pytest.fixture
@@ -37,10 +41,15 @@ def test_app_version_payload(client: TestClient):
     assert isinstance(data["version"], str) and data["version"]
 
 
-def test_root_serves_html_to_browsers(client: TestClient, tmp_path: Path, monkeypatch):
+def _installable_apk(tmp_path: Path, monkeypatch, size: int = 4096) -> Path:
     apk = tmp_path / "app-release.apk"
-    apk.write_bytes(b"PK\x03\x04 fake apk bytes")
+    apk.write_bytes(b"PK\x03\x04" + b"\0" * (size - 4))
     monkeypatch.setattr("routes.app_distribution.APK_PATH", apk)
+    return apk
+
+
+def test_root_serves_the_install_page(client: TestClient, tmp_path: Path, monkeypatch):
+    _installable_apk(tmp_path, monkeypatch)
 
     response = client.get("/", headers={"accept": "text/html"})
     assert response.status_code == 200
@@ -49,36 +58,173 @@ def test_root_serves_html_to_browsers(client: TestClient, tmp_path: Path, monkey
     assert "/app/download" in response.text
 
 
-def test_landing_page_has_product_sections(client: TestClient, tmp_path: Path, monkeypatch):
-    apk = tmp_path / "app-release.apk"
-    apk.write_bytes(b"PK\x03\x04 fake apk bytes")
-    monkeypatch.setattr("routes.app_distribution.APK_PATH", apk)
+def test_root_serves_html_regardless_of_accept_header(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # This is the whole point of the route: `/` is the URL people are *handed*
+    # to install the app, so it must be a page for every caller -- not only ones
+    # that happen to ask for text/html. It used to content-negotiate, which left
+    # curl, link previews and terse in-app webviews staring at raw JSON.
+    _installable_apk(tmp_path, monkeypatch)
 
-    html = client.get("/", headers={"accept": "text/html"}).text
-    # Core product sections are present (hero, features, showcase, faq, download).
-    for anchor in (
-        'id="features"',
-        'id="showcase"',
-        'id="whatsnew"',
-        'id="faq"',
-        'id="download"',
-        'id="support"',
-    ):
-        assert anchor in html
-    # References its own live health probe and the bundled screenshots.
-    assert "/health" in html
-    assert "/app/media/" in html
-    # Renders live version info from the pubspec.
-    version = client.get("/app/version").json()["version"]
-    assert version in html
+    for accept in ("*/*", "application/json", "", "text/plain"):
+        response = client.get("/", headers={"accept": accept})
+        assert response.status_code == 200, accept
+        assert "text/html" in response.headers["content-type"], accept
+        assert "<!doctype html>" in response.text.lower(), accept
 
 
-def test_landing_page_handles_missing_apk(client: TestClient, tmp_path: Path, monkeypatch):
+def test_install_page_shows_both_platforms_and_the_web_app(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # Both routes are always offered and always labelled. Nothing here sniffs a
+    # user agent to hide the "wrong" one: a phone lying about itself, or a friend
+    # on a desktop sending the link on, must still see how to install on either.
+    _installable_apk(tmp_path, monkeypatch)
+    html = client.get("/").text
+
+    assert "<h2>Android</h2>" in html
+    assert "<h2>iPhone</h2>" in html
+    # The zero-install option gets its own link -- for many visitors it is the
+    # right answer, and it is the only one that works while a build is missing.
+    assert app_distribution.WEB_APP_URL in html
+
+
+def test_install_page_reads_its_version_live(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # The page and /app/version must never be able to disagree: both read the
+    # pubspec at request time. Asserted against a pubspec this test writes, so a
+    # hardcoded version anywhere in the page would fail here rather than quietly
+    # advertising a build nobody can download.
+    _installable_apk(tmp_path, monkeypatch)
+    pubspec = tmp_path / "pubspec.yaml"
+    pubspec.write_text("name: manhwamaniacs\nversion: 7.3.1+404\n", encoding="utf-8")
+    monkeypatch.setattr("routes.app_distribution.PUBSPEC_PATH", pubspec)
+
+    html = client.get("/").text
+    assert "7.3.1" in html
+    assert "404" in html
+    assert client.get("/app/version").json() == {
+        "version": "7.3.1",
+        "build": 404,
+        "apk": "/app/download",
+    }
+
+
+def test_install_page_reports_the_real_file_size_and_date(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # "40 MB, updated today" is only useful if it is true, so both come off the
+    # file's own stat rather than a constant somebody has to remember to edit.
+    apk = _installable_apk(tmp_path, monkeypatch, size=3 * 1024 * 1024)
+    when = datetime(2026, 3, 9, 12, 0, tzinfo=timezone.utc)
+    os.utime(apk, (when.timestamp(), when.timestamp()))
+
+    html = client.get("/").text
+    assert "3.0 MB" in html
+    assert "9 Mar 2026" in html
+
+
+def test_install_page_says_so_when_the_android_build_is_missing(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # No dead button: an absent artifact is stated plainly instead of offering a
+    # link that 404s on the visitor.
     monkeypatch.setattr("routes.app_distribution.APK_PATH", tmp_path / "missing.apk")
-    response = client.get("/", headers={"accept": "text/html"})
+    response = client.get("/")
+
     assert response.status_code == 200
+    assert "No Android build published yet." in response.text
+    assert 'href="/app/download"' not in response.text
+    # ...and the page still stands up: name, the other platform, the website.
     assert "ManhwaManiacs" in response.text
-    assert "flutter build apk --release" in response.text
+    assert "<h2>iPhone</h2>" in response.text
+
+
+def test_install_page_says_so_when_the_ios_build_is_missing(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    _installable_apk(tmp_path, monkeypatch)
+    monkeypatch.setattr("routes.app_distribution.IPA_PATH", tmp_path / "missing.ipa")
+
+    html = client.get("/").text
+    assert "No iPhone build published yet." in html
+    # Walking someone through adding a SideStore source that contains nothing
+    # installable is worse than telling them there is no build.
+    assert "/app/source.json" not in html
+
+
+def test_install_page_describes_the_published_ios_build(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    _installable_apk(tmp_path, monkeypatch)
+    ipa = tmp_path / "ManhwaManiacs.ipa"
+    ipa.write_bytes(b"PK\x03\x04" + b"\0" * (2 * 1024 * 1024))
+    monkeypatch.setattr("routes.app_distribution.IPA_PATH", ipa)
+    (tmp_path / "ios-build.json").write_text(
+        json.dumps({"version": "9.9.9", "buildVersion": "1042", "date": "2026-01-02"}),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("MM_IOS_META_PATH", raising=False)
+    monkeypatch.setenv("MM_PUBLIC_BASE_URL", "https://app.manhwamaniacs.xyz")
+
+    html = client.get("/").text
+    # The feed address is pasted into another app, so it has to be absolute --
+    # a relative path is meaningless once it leaves this page.
+    assert "https://app.manhwamaniacs.xyz/app/source.json" in html
+    # The numbers describe the .ipa CI published, not this server's pubspec.
+    assert "9.9.9 (build 1042)" in html
+    assert "2 Jan 2026" in html
+    assert client.get("/app/version").json()["version"] != "9.9.9"
+
+
+def test_install_page_shows_the_newest_release_notes(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    _installable_apk(tmp_path, monkeypatch)
+    newest = client.get("/app/changelog").json()["entries"][0]
+
+    html = client.get("/").text
+    assert f"What's new in {newest['version']}" in html
+    for highlight in newest["highlights"]:
+        # HTML-escaped, so compare on a distinctive escape-free prefix.
+        assert highlight.split(".")[0][:40] in html
+
+
+def test_install_page_omits_screenshots_it_cannot_serve(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # The screenshots are a bind mount in production. An unmounted one must give
+    # a page with no pictures, not a page of broken-image icons.
+    _installable_apk(tmp_path, monkeypatch)
+    empty = tmp_path / "no-screenshots"
+    empty.mkdir()
+    monkeypatch.setattr("routes.app_distribution.SCREENSHOTS_DIR", empty)
+
+    html = client.get("/").text
+    assert "/app/media/" not in html
+    assert "<h2>Android</h2>" in html
+
+
+def test_install_page_makes_no_external_requests(
+    client: TestClient, tmp_path: Path, monkeypatch
+):
+    # Served behind a strict CSP, and read on whatever connection the visitor
+    # has. A font CDN or a stray script tag would be a page that renders wrong
+    # exactly when it matters. Hyperlinks are fine; loaded subresources are not.
+    _installable_apk(tmp_path, monkeypatch)
+    html = client.get("/").text
+
+    assert "<script" not in html.lower()
+    for attr in re.findall(r'\b(?:src|href)="([^"]+)"', html):
+        if attr.startswith(("#", "/")):
+            continue
+        # The only absolute URLs on the page are things you click, not fetch.
+        assert attr in (
+            app_distribution.WEB_APP_URL,
+            app_distribution.SIDESTORE_URL,
+        ) or attr.endswith("/app/source.json"), attr
 
 
 def test_changelog_payload(client: TestClient):
@@ -121,17 +267,16 @@ def test_media_rejects_traversal_and_unknown_types(
     assert client.get("/app/media/does-not-exist.png").status_code == 404
 
 
-def test_root_still_returns_json_for_api_clients(client: TestClient):
-    # Default TestClient Accept is */*, so existing API behaviour is preserved.
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json()["status"] == "online"
-
-
-def test_health_probe_unchanged(client: TestClient):
+def test_json_status_lives_at_health(client: TestClient):
+    # `/` is a page now, so this is the JSON status payload's only home. It is
+    # what every consumer already uses -- the mobile server-URL probe, the
+    # backend healthcheck in both compose files, ops/vps/deploy.sh -- which is
+    # what made moving `/` off JSON safe.
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json()["status"] == "online"
+    assert response.json()["name"]
+    assert response.json()["version"]
 
 
 def test_download_returns_404_when_apk_missing(
@@ -165,10 +310,10 @@ def test_download_treats_directory_path_as_not_built(
     monkeypatch.setattr("routes.app_distribution.APK_PATH", apk_dir)
 
     assert client.get("/app/download").status_code == 404
-    # The landing page still renders (in its build-pending state).
-    landing = client.get("/", headers={"accept": "text/html"})
+    # The install page still renders, and offers no button it cannot honour.
+    landing = client.get("/")
     assert landing.status_code == 200
-    assert "APK not built yet" in landing.text
+    assert "No Android build published yet." in landing.text
 
 
 # ── iOS / SideStore source ───────────────────────────────────────────────────
