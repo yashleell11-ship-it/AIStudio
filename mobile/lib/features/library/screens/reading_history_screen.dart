@@ -49,7 +49,7 @@ class ReadingHistoryScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load reading history.',
-                style: AppTypography.body.copyWith(color: AppColors.danger),
+                style: AppTypography.body.copyWith(color: context.colors.danger),
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
@@ -60,7 +60,7 @@ class ReadingHistoryScreen extends ConsumerWidget {
           ),
         ),
         data: (sessions) => RefreshIndicator(
-          color: AppColors.primary,
+          color: context.colors.primary,
           onRefresh: () async => ref.invalidate(readingHistoryProvider),
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -69,7 +69,7 @@ class ReadingHistoryScreen extends ConsumerWidget {
               const SizedBox(height: AppSpacing.xs),
               Text(
                 'Your most recently read chapters.',
-                style: AppTypography.body.copyWith(color: AppColors.muted),
+                style: AppTypography.body.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.xl2),
               if (sessions.isEmpty)
@@ -116,18 +116,18 @@ class _SessionCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xs),
           Text(
             session.sourceId,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
           const SizedBox(height: AppSpacing.xs),
           Text(
             session.isCompleted
                 ? '${session.pageCount}/${session.pageCount} pages'
                 : 'Page ${session.lastPage}${session.pageCount > 0 ? '/${session.pageCount}' : ''}',
-            style: AppTypography.caption,
+            style: AppTypography.caption.copyWith(color: context.colors.muted),
           ),
           if (lastRead != null) ...[
             const SizedBox(height: AppSpacing.xs),
-            Text(lastRead, style: AppTypography.caption.copyWith(color: AppColors.muted)),
+            Text(lastRead, style: AppTypography.caption.copyWith(color: context.colors.muted)),
           ],
         ],
       ),

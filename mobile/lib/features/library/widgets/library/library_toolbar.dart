@@ -74,7 +74,7 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
                   const SizedBox(height: AppSpacing.xs),
                   Text(
                     '$countLabel ${widget.seriesCount == 1 ? 'series' : 'series'}',
-                    style: AppTypography.body.copyWith(color: AppColors.muted),
+                    style: AppTypography.body.copyWith(color: context.colors.muted),
                   ),
                 ],
               ),
@@ -89,8 +89,8 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
         TextField(
           controller: _searchController,
           onChanged: widget.onSearchChanged,
-          decoration: const InputDecoration(
-            prefixIcon: Icon(Icons.search, color: AppColors.muted),
+          decoration: InputDecoration(
+            prefixIcon: Icon(Icons.search, color: context.colors.muted),
             hintText: 'Search by title, author, or tag...',
           ),
         ),
@@ -136,10 +136,10 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
           const SizedBox(height: AppSpacing.sm),
           Row(
             children: [
-              const Icon(
+              Icon(
                 Icons.photo_size_select_small,
                 size: 18,
-                color: AppColors.muted,
+                color: context.colors.muted,
               ),
               Expanded(
                 child: Slider(
@@ -149,10 +149,10 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
                   onChanged: widget.onCoverScaleChanged,
                 ),
               ),
-              const Icon(
+              Icon(
                 Icons.photo_size_select_large,
                 size: 18,
-                color: AppColors.muted,
+                color: context.colors.muted,
               ),
             ],
           ),
@@ -175,9 +175,9 @@ class _ViewModeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.fg.withAlpha(13),
+        color: context.colors.fg.withAlpha(13),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border.withAlpha(128)),
+        border: Border.all(color: context.colors.border.withAlpha(128)),
       ),
       padding: const EdgeInsets.all(2),
       child: Row(
@@ -213,7 +213,7 @@ class _ModeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.primary : Colors.transparent,
+      color: selected ? context.colors.primary : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: InkWell(
         onTap: onTap,
@@ -224,7 +224,7 @@ class _ModeButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 18,
-            color: selected ? AppColors.primaryFg : AppColors.muted,
+            color: selected ? context.colors.primaryFg : context.colors.muted,
           ),
         ),
       ),
@@ -249,13 +249,13 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onTap(),
-      selectedColor: AppColors.primary,
-      checkmarkColor: AppColors.primaryFg,
+      selectedColor: context.colors.primary,
+      checkmarkColor: context.colors.primaryFg,
       labelStyle: AppTypography.label.copyWith(
-        color: selected ? AppColors.primaryFg : AppColors.muted,
+        color: selected ? context.colors.primaryFg : context.colors.muted,
       ),
-      backgroundColor: AppColors.fg.withAlpha(13),
-      side: BorderSide(color: AppColors.border.withAlpha(128)),
+      backgroundColor: context.colors.fg.withAlpha(13),
+      side: BorderSide(color: context.colors.border.withAlpha(128)),
       showCheckmark: false,
       padding: const EdgeInsets.symmetric(horizontal: AppSpacing.sm),
     );

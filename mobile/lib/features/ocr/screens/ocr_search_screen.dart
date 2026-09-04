@@ -108,7 +108,7 @@ class _OcrSearchScreenState extends ConsumerState<OcrSearchScreen> {
                         child: Text(
                           'Search failed — check your connection and try again.',
                           style: AppTypography.body
-                              .copyWith(color: AppColors.danger),
+                              .copyWith(color: context.colors.danger),
                           textAlign: TextAlign.center,
                         ),
                       ),
@@ -169,7 +169,7 @@ class _OcrResultCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.xxs),
           Text(
             '${result.sourceId} · ${result.chapterKey}',
-            style: AppTypography.caption.copyWith(color: AppColors.muted),
+            style: AppTypography.caption.copyWith(color: context.colors.muted),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
           ),
@@ -192,7 +192,7 @@ class _Snippet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final base = AppTypography.bodySm.copyWith(color: AppColors.muted);
+    final base = AppTypography.bodySm.copyWith(color: context.colors.muted);
     return Text.rich(
       TextSpan(
         children: [
@@ -201,7 +201,7 @@ class _Snippet extends StatelessWidget {
               text: span.text,
               style: span.highlighted
                   ? base.copyWith(
-                      color: AppColors.primary,
+                      color: context.colors.primary,
                       fontWeight: FontWeight.w600,
                     )
                   : base,

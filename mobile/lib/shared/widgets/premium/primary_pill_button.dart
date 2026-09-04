@@ -73,7 +73,7 @@ class PrimaryPillButton extends StatelessWidget {
         boxShadow: [
           // Warm outer glow (--shadow-glow) + inset-like ambient depth.
           BoxShadow(
-            color: AppColors.primary.withValues(alpha: 0.28),
+            color: context.colors.primary.withValues(alpha: 0.28),
             blurRadius: 24,
             spreadRadius: -2,
           ),

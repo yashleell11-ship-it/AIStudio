@@ -72,7 +72,7 @@ class _SearchToolbarState extends State<SearchToolbar> {
         const SizedBox(height: AppSpacing.sm),
         Text(
           'Find your next favorite series',
-          style: AppTypography.body.copyWith(color: AppColors.muted),
+          style: AppTypography.body.copyWith(color: context.colors.muted),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: AppSpacing.xl2),
@@ -81,21 +81,21 @@ class _SearchToolbarState extends State<SearchToolbar> {
           onChanged: widget.onSearchChanged,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.search, color: AppColors.muted),
+            prefixIcon: Icon(Icons.search, color: context.colors.muted),
             hintText: 'Search manga, manhwa, webtoons...',
             filled: true,
-            fillColor: AppColors.fg.withAlpha(8),
+            fillColor: context.colors.fg.withAlpha(8),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
+              borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              borderSide: BorderSide(color: AppColors.border.withAlpha(128)),
+              borderSide: BorderSide(color: context.colors.border.withAlpha(128)),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(AppRadius.xl),
-              borderSide: BorderSide(color: AppColors.primary.withAlpha(77)),
+              borderSide: BorderSide(color: context.colors.primary.withAlpha(77)),
             ),
             contentPadding: const EdgeInsets.symmetric(
               horizontal: AppSpacing.xl2,
@@ -112,7 +112,7 @@ class _SearchToolbarState extends State<SearchToolbar> {
                   widget.isSearching && widget.resultCount == 0
                       ? 'Searching…'
                       : '${widget.resultCount} ${widget.resultCount == 1 ? 'result' : 'results'} found',
-                  style: AppTypography.body.copyWith(color: AppColors.muted),
+                  style: AppTypography.body.copyWith(color: context.colors.muted),
                 ),
               ),
               _ViewModeToggle(
@@ -139,15 +139,15 @@ class _SearchToolbarState extends State<SearchToolbar> {
                           widget.onFavoritesChanged(false);
                         }
                       },
-                      selectedColor: AppColors.primary,
+                      selectedColor: context.colors.primary,
                       labelStyle: AppTypography.label.copyWith(
                         color: widget.query.filter == filter &&
                                 !widget.query.favoritesOnly
-                            ? AppColors.primaryFg
-                            : AppColors.muted,
+                            ? context.colors.primaryFg
+                            : context.colors.muted,
                       ),
-                      backgroundColor: AppColors.fg.withAlpha(13),
-                      side: BorderSide(color: AppColors.border.withAlpha(128)),
+                      backgroundColor: context.colors.fg.withAlpha(13),
+                      side: BorderSide(color: context.colors.border.withAlpha(128)),
                       showCheckmark: false,
                     ),
                   ),
@@ -156,14 +156,14 @@ class _SearchToolbarState extends State<SearchToolbar> {
                   selected: widget.query.favoritesOnly,
                   onSelected: (_) =>
                       widget.onFavoritesChanged(!widget.query.favoritesOnly),
-                  selectedColor: AppColors.warning.withAlpha(51),
+                  selectedColor: context.colors.warning.withAlpha(51),
                   labelStyle: AppTypography.label.copyWith(
                     color: widget.query.favoritesOnly
-                        ? AppColors.warning
-                        : AppColors.muted,
+                        ? context.colors.warning
+                        : context.colors.muted,
                   ),
-                  backgroundColor: AppColors.fg.withAlpha(13),
-                  side: BorderSide(color: AppColors.border.withAlpha(128)),
+                  backgroundColor: context.colors.fg.withAlpha(13),
+                  side: BorderSide(color: context.colors.border.withAlpha(128)),
                   showCheckmark: false,
                 ),
               ],
@@ -207,9 +207,9 @@ class _ViewModeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.fg.withAlpha(13),
+        color: context.colors.fg.withAlpha(13),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border.withAlpha(128)),
+        border: Border.all(color: context.colors.border.withAlpha(128)),
       ),
       padding: const EdgeInsets.all(2),
       child: Row(
@@ -245,7 +245,7 @@ class _ModeButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: selected ? AppColors.primary : Colors.transparent,
+      color: selected ? context.colors.primary : Colors.transparent,
       borderRadius: BorderRadius.circular(AppRadius.sm),
       child: InkWell(
         onTap: onTap,
@@ -256,7 +256,7 @@ class _ModeButton extends StatelessWidget {
           child: Icon(
             icon,
             size: 18,
-            color: selected ? AppColors.primaryFg : AppColors.muted,
+            color: selected ? context.colors.primaryFg : context.colors.muted,
           ),
         ),
       ),

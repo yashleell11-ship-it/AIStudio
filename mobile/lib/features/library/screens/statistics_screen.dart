@@ -45,7 +45,7 @@ class StatisticsScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load statistics.',
-                style: AppTypography.body.copyWith(color: AppColors.danger),
+                style: AppTypography.body.copyWith(color: context.colors.danger),
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
@@ -56,7 +56,7 @@ class StatisticsScreen extends ConsumerWidget {
           ),
         ),
         data: (stats) => RefreshIndicator(
-          color: AppColors.primary,
+          color: context.colors.primary,
           onRefresh: () async => ref.invalidate(statisticsProvider),
           child: ListView(
             padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -67,7 +67,7 @@ class StatisticsScreen extends ConsumerWidget {
                 stats.hasReadingHistory
                     ? 'Built from every chapter you read in the app.'
                     : 'Your library at a glance.',
-                style: AppTypography.body.copyWith(color: AppColors.muted),
+                style: AppTypography.body.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.xl2),
               if (!stats.hasReadingHistory) ...[

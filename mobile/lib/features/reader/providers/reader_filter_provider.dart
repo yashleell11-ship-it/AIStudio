@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:manhwamaniacs/app/theme/app_colors.dart';
+import 'package:manhwamaniacs/features/reader/theme/reader_colors.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 
 /// Page backdrop shown behind letterboxed pages while reading.
@@ -16,7 +16,9 @@ enum ReaderBackground {
       };
 
   Color get color => switch (this) {
-        ReaderBackground.dark => AppColors.bg,
+        // Reader-owned obsidian, NOT the theme background: the page backdrop
+        // must stay dark under light app themes (see ReaderColors).
+        ReaderBackground.dark => ReaderColors.bg,
         ReaderBackground.black => const Color(0xFF000000),
         ReaderBackground.white => const Color(0xFFF5F1E8),
       };

@@ -203,7 +203,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       if (_series.readingStatus.isNotEmpty)
         SeriesDetailChip(
           label: readingStatusLabel(_series.readingStatus).toUpperCase(),
-          color: readingStatusColor(_series.readingStatus),
+          color: readingStatusColor(context, _series.readingStatus),
         ),
       for (final genre in _series.genres ?? const <String>[])
         SeriesDetailChip(label: genre),
@@ -270,20 +270,20 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
           onPressed: _toggleFavorite,
           icon: Icon(
             _series.isFavorite ? Icons.star : Icons.star_border,
-            color: _series.isFavorite ? AppColors.warning : null,
+            color: _series.isFavorite ? context.colors.warning : null,
           ),
           label: Text(_series.isFavorite ? 'Favorited' : 'Add Favorite'),
           style: OutlinedButton.styleFrom(
             foregroundColor:
-                _series.isFavorite ? AppColors.warning : AppColors.fg,
+                _series.isFavorite ? context.colors.warning : context.colors.fg,
             side: BorderSide(
               color: _series.isFavorite
-                  ? AppColors.warning.withAlpha(77)
-                  : AppColors.border,
+                  ? context.colors.warning.withAlpha(77)
+                  : context.colors.border,
             ),
             backgroundColor: _series.isFavorite
-                ? AppColors.warning.withAlpha(26)
-                : AppColors.fg.withAlpha(13),
+                ? context.colors.warning.withAlpha(26)
+                : context.colors.fg.withAlpha(13),
           ),
         ),
       ],
@@ -377,13 +377,13 @@ class _SeriesDetailError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.danger, size: 48),
+            Icon(Icons.error_outline, color: context.colors.danger, size: 48),
             const SizedBox(height: AppSpacing.lg),
             Text('Could not load series', style: AppTypography.h3),
             const SizedBox(height: AppSpacing.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl2),

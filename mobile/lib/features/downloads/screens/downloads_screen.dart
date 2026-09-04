@@ -77,9 +77,9 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
             ? null
             : TabBar(
                 controller: _tabs,
-                labelColor: AppColors.primary,
-                unselectedLabelColor: AppColors.muted,
-                indicatorColor: AppColors.primary,
+                labelColor: context.colors.primary,
+                unselectedLabelColor: context.colors.muted,
+                indicatorColor: context.colors.primary,
                 tabs: const [
                   Tab(text: 'Chapters'),
                   Tab(text: 'Storage'),
@@ -183,7 +183,7 @@ class _ChaptersTab extends ConsumerWidget {
               child: Center(
                 child: Text(
                   'Could not load downloads.',
-                  style: AppTypography.body.copyWith(color: AppColors.danger),
+                  style: AppTypography.body.copyWith(color: context.colors.danger),
                 ),
               ),
             ),
@@ -230,7 +230,7 @@ class _ChaptersTab extends ConsumerWidget {
           child: Text(
             'On this phone — biggest first',
             style: AppTypography.labelSm.copyWith(
-              color: AppColors.muted,
+              color: context.colors.muted,
               letterSpacing: 1.0,
             ),
           ),
@@ -288,18 +288,18 @@ class _WhereItLivesCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppColors.fg.withAlpha(13),
+        color: context.colors.fg.withAlpha(13),
         borderRadius: BorderRadius.circular(AppRadius.md),
-        border: Border.all(color: AppColors.border),
+        border: Border.all(color: context.colors.border),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.md),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Icon(
+            Icon(
               Icons.info_outline,
-              color: AppColors.muted,
+              color: context.colors.muted,
               size: 18,
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -310,7 +310,7 @@ class _WhereItLivesCard extends StatelessWidget {
                 'the Files app. For a copy you can open elsewhere, use Save to '
                 'Files on a series or chapter.',
                 style: AppTypography.caption.copyWith(
-                  color: AppColors.muted,
+                  color: context.colors.muted,
                   height: 1.5,
                 ),
               ),
@@ -370,8 +370,8 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
                         const SizedBox(height: AppSpacing.xxs),
                         Text(
                           _subtitle(saved, group),
-                          style: AppTypography.caption
-                              .copyWith(color: AppColors.muted),
+                          style: AppTypography.caption.copyWith(color: context.colors.muted)
+                              .copyWith(color: context.colors.muted),
                         ),
                       ],
                     ),
@@ -381,15 +381,15 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
                     tooltip: group.pinned ? 'Unpin series' : 'Pin series',
                     icon: Icon(
                       group.pinned ? Icons.push_pin : Icons.push_pin_outlined,
-                      color: group.pinned ? AppColors.primary : AppColors.muted,
+                      color: group.pinned ? context.colors.primary : context.colors.muted,
                     ),
                     onPressed: () => _togglePin(group),
                   ),
                   PopupMenuButton<_SeriesAction>(
                     key: Key('series-menu-${group.sourceId}-${group.seriesKey}'),
                     tooltip: 'Series options',
-                    color: AppColors.surfaceElevated,
-                    icon: const Icon(Icons.more_vert, color: AppColors.muted),
+                    color: context.colors.surfaceElevated,
+                    icon: Icon(Icons.more_vert, color: context.colors.muted),
                     onSelected: _onSeriesAction,
                     itemBuilder: (context) => const [
                       PopupMenuItem(
@@ -404,7 +404,7 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
                   ),
                   Icon(
                     _expanded ? Icons.expand_less : Icons.expand_more,
-                    color: AppColors.muted,
+                    color: context.colors.muted,
                   ),
                 ],
               ),
@@ -450,13 +450,13 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: context.colors.surfaceElevated,
         title: Text('Remove downloads?', style: AppTypography.h4),
         content: Text(
           'Deletes every downloaded chapter of $_seriesLabel from this phone. '
           'Your reading progress is kept, and you can download them again any '
           'time.',
-          style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
         ),
         actions: [
           TextButton(
@@ -467,7 +467,7 @@ class _SeriesDownloadCardState extends ConsumerState<_SeriesDownloadCard> {
             onPressed: () => Navigator.of(dialogContext).pop(true),
             child: Text(
               'Remove',
-              style: AppTypography.label.copyWith(color: AppColors.danger),
+              style: AppTypography.label.copyWith(color: context.colors.danger),
             ),
           ),
         ],
@@ -517,7 +517,7 @@ class _ChapterRow extends ConsumerWidget {
       subtitle: Text(
         '${_stateLabel(chapter.state, chapter.error)} · '
         '${formatDownloadBytes(chapter.bytes)}',
-        style: AppTypography.caption.copyWith(color: AppColors.muted),
+        style: AppTypography.caption.copyWith(color: context.colors.muted),
       ),
       onTap: complete
           ? () => context.push(

@@ -60,7 +60,7 @@ Future<void> showDownloadExportSheet(
 
   final format = await showModalBottomSheet<ChapterExportFormat>(
     context: context,
-    backgroundColor: AppColors.surfaceElevated,
+    backgroundColor: context.colors.surfaceElevated,
     builder: (sheetContext) => SafeArea(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -86,35 +86,35 @@ Future<void> showDownloadExportSheet(
                           'chapters you can open from the Files app. Your '
                           'downloads stay where they are.',
                   style: AppTypography.bodySm
-                      .copyWith(color: AppColors.muted, height: 1.4),
+                      .copyWith(color: context.colors.muted, height: 1.4),
                 ),
               ],
             ),
           ),
           ListTile(
             key: const Key('export-format-images'),
-            leading: const Icon(
+            leading: Icon(
               Icons.photo_library_outlined,
-              color: AppColors.primary,
+              color: context.colors.primary,
             ),
             title: Text('Page images', style: AppTypography.labelLg),
             subtitle: Text(
               'A numbered folder per chapter. Tap any page to view it.',
-              style: AppTypography.caption.copyWith(color: AppColors.muted),
+              style: AppTypography.caption.copyWith(color: context.colors.muted),
             ),
             onTap: () =>
                 Navigator.of(sheetContext).pop(ChapterExportFormat.images),
           ),
           ListTile(
             key: const Key('export-format-cbz'),
-            leading: const Icon(
+            leading: Icon(
               Icons.folder_zip_outlined,
-              color: AppColors.primary,
+              color: context.colors.primary,
             ),
             title: Text('CBZ file', style: AppTypography.labelLg),
             subtitle: Text(
               'One file per chapter, for comic reader apps.',
-              style: AppTypography.caption.copyWith(color: AppColors.muted),
+              style: AppTypography.caption.copyWith(color: context.colors.muted),
             ),
             onTap: () => Navigator.of(sheetContext).pop(ChapterExportFormat.cbz),
           ),
@@ -182,7 +182,7 @@ class _ExportProgressDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppColors.surfaceElevated,
+      backgroundColor: context.colors.surfaceElevated,
       content: Row(
         children: [
           const SizedBox(
@@ -209,7 +209,7 @@ class _ExportResultDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      backgroundColor: AppColors.surfaceElevated,
+      backgroundColor: context.colors.surfaceElevated,
       title: Text(
         result.isEmpty ? 'Nothing to save' : 'Saved to Files',
         style: AppTypography.h4,
@@ -221,7 +221,7 @@ class _ExportResultDialog extends StatelessWidget {
           if (result.isEmpty)
             Text(
               'None of those chapters are fully on this phone yet.',
-              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+              style: AppTypography.bodySm.copyWith(color: context.colors.muted),
             )
           else ...[
             Text(
@@ -236,7 +236,7 @@ class _ExportResultDialog extends StatelessWidget {
               exportLocationDescription(result, platform),
               key: const Key('export-location'),
               style: AppTypography.bodySm.copyWith(
-                color: AppColors.primary,
+                color: context.colors.primary,
                 height: 1.4,
               ),
             ),
@@ -248,7 +248,7 @@ class _ExportResultDialog extends StatelessWidget {
                   ? '1 chapter was skipped — it is not fully downloaded.'
                   : '${result.skippedCount} chapters were skipped — they are '
                       'not fully downloaded.',
-              style: AppTypography.caption.copyWith(color: AppColors.muted),
+              style: AppTypography.caption.copyWith(color: context.colors.muted),
             ),
           ],
         ],

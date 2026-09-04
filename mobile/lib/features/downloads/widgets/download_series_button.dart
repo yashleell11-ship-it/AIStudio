@@ -59,9 +59,9 @@ class _DownloadSeriesButtonState extends ConsumerState<DownloadSeriesButton> {
           : const Icon(Icons.download_outlined),
       label: const Text('Download Series'),
       style: OutlinedButton.styleFrom(
-        foregroundColor: AppColors.fg,
-        side: const BorderSide(color: AppColors.border),
-        backgroundColor: AppColors.fg.withAlpha(13),
+        foregroundColor: context.colors.fg,
+        side: BorderSide(color: context.colors.border),
+        backgroundColor: context.colors.fg.withAlpha(13),
       ),
     );
   }

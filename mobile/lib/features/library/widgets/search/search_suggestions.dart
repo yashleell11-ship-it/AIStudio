@@ -54,11 +54,11 @@ class SearchSuggestionsPanel extends StatelessWidget {
             label: const Text('Advanced Filters'),
             style: OutlinedButton.styleFrom(
               foregroundColor:
-                  filtersOpen ? AppColors.violet400 : AppColors.muted,
+                  filtersOpen ? context.colors.violet400 : context.colors.muted,
               side: BorderSide(
                 color: filtersOpen
-                    ? AppColors.violet400.withAlpha(77)
-                    : AppColors.border,
+                    ? context.colors.violet400.withAlpha(77)
+                    : context.colors.border,
               ),
             ),
           ),
@@ -68,14 +68,14 @@ class SearchSuggestionsPanel extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(AppSpacing.lg),
             decoration: BoxDecoration(
-              color: AppColors.panel,
+              color: context.colors.panel,
               borderRadius: BorderRadius.circular(AppRadius.lg),
-              border: Border.all(color: AppColors.border),
+              border: Border.all(color: context.colors.border),
             ),
             child: Text(
               'Search matches titles, authors, and descriptions in your local library. '
               'Use the filter chips below results for status and favorites.',
-              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+              style: AppTypography.bodySm.copyWith(color: context.colors.muted),
             ),
           ),
         ],
@@ -83,13 +83,13 @@ class SearchSuggestionsPanel extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(AppSpacing.xl4),
           decoration: BoxDecoration(
-            color: AppColors.panel,
+            color: context.colors.panel,
             borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           child: Column(
             children: [
-              Icon(Icons.search, size: 32, color: AppColors.muted.withAlpha(102)),
+              Icon(Icons.search, size: 32, color: context.colors.muted.withAlpha(102)),
               const SizedBox(height: AppSpacing.md),
               Text(
                 'Start typing to search',
@@ -99,7 +99,7 @@ class SearchSuggestionsPanel extends StatelessWidget {
               const SizedBox(height: AppSpacing.sm),
               Text(
                 'Search across titles, authors, and descriptions in your library.',
-                style: AppTypography.body.copyWith(color: AppColors.muted),
+                style: AppTypography.body.copyWith(color: context.colors.muted),
                 textAlign: TextAlign.center,
               ),
             ],
@@ -120,12 +120,12 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: AppColors.cyan400),
+        Icon(icon, size: 14, color: context.colors.cyan400),
         const SizedBox(width: AppSpacing.sm),
         Text(
           label.toUpperCase(),
           style: AppTypography.labelSm.copyWith(
-            color: AppColors.muted,
+            color: context.colors.muted,
             letterSpacing: 1.5,
             fontWeight: FontWeight.w600,
           ),
@@ -146,9 +146,9 @@ class _SuggestionChip extends StatelessWidget {
     return ActionChip(
       label: Text(label),
       onPressed: onSelect,
-      backgroundColor: AppColors.fg.withAlpha(8),
-      side: BorderSide(color: AppColors.border.withAlpha(128)),
-      labelStyle: AppTypography.body.copyWith(color: AppColors.muted),
+      backgroundColor: context.colors.fg.withAlpha(8),
+      side: BorderSide(color: context.colors.border.withAlpha(128)),
+      labelStyle: AppTypography.body.copyWith(color: context.colors.muted),
     );
   }
 }

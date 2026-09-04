@@ -80,7 +80,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style: FilledButton.styleFrom(backgroundColor: context.colors.danger),
             onPressed: () => Navigator.pop(dialogCtx, true),
             child: const Text('Restore'),
           ),
@@ -153,7 +153,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           ],
           _SectionCard(
             icon: Icons.upload_outlined,
-            iconColor: AppColors.accent,
+            iconColor: context.colors.accent,
             title: 'Export backup',
             description:
                 'Download a complete snapshot of your library, reading '
@@ -173,7 +173,7 @@ class _BackupScreenState extends ConsumerState<BackupScreen> {
           const SizedBox(height: AppSpacing.xl2),
           _SectionCard(
             icon: Icons.download_outlined,
-            iconColor: AppColors.warning,
+            iconColor: context.colors.warning,
             title: 'Import backup',
             description:
                 'Restore from a previously exported backup file. This '
@@ -229,7 +229,7 @@ class _SectionCard extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             description,
-            style: AppTypography.bodySm.copyWith(color: AppColors.muted, height: 1.5),
+            style: AppTypography.bodySm.copyWith(color: context.colors.muted, height: 1.5),
           ),
           const SizedBox(height: AppSpacing.lg),
           child,
@@ -249,10 +249,10 @@ class _PendingRestoreBanner extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [AppColors.warning.withAlpha(30), AppColors.warning.withAlpha(10)],
+          colors: [context.colors.warning.withAlpha(30), context.colors.warning.withAlpha(10)],
         ),
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.warning.withAlpha(90)),
+        border: Border.all(color: context.colors.warning.withAlpha(90)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(AppSpacing.lg),
@@ -261,11 +261,11 @@ class _PendingRestoreBanner extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.pending_actions_outlined, color: AppColors.warning, size: 18),
+                Icon(Icons.pending_actions_outlined, color: context.colors.warning, size: 18),
                 const SizedBox(width: AppSpacing.sm),
                 Text(
                   'Restore pending',
-                  style: AppTypography.labelLg.copyWith(color: AppColors.warning),
+                  style: AppTypography.labelLg.copyWith(color: context.colors.warning),
                 ),
               ],
             ),
@@ -273,7 +273,7 @@ class _PendingRestoreBanner extends StatelessWidget {
             Text(
               'A backup is staged and will be applied the next time your '
               'server restarts.',
-              style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+              style: AppTypography.bodySm.copyWith(color: context.colors.muted),
             ),
             const SizedBox(height: AppSpacing.md),
             OutlinedButton(

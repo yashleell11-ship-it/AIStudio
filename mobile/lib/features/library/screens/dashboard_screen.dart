@@ -91,7 +91,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           if (followed.isEmpty) return _LibraryEmpty(onRefresh: _refresh);
 
           return RefreshIndicator(
-            color: AppColors.primary,
+            color: context.colors.primary,
             onRefresh: _refresh,
             child: _FollowedGrid(
               followed: followed,
@@ -154,7 +154,7 @@ class _FollowedGrid extends StatelessWidget {
                         ? '1 series followed'
                         : '${followed.length} series followed',
                     style:
-                        AppTypography.caption.copyWith(color: AppColors.muted),
+                        AppTypography.caption.copyWith(color: context.colors.muted),
                   ),
                 ],
               ),
@@ -209,7 +209,7 @@ class _LibraryEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return RefreshIndicator(
-      color: AppColors.primary,
+      color: context.colors.primary,
       onRefresh: onRefresh,
       child: CustomScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -303,16 +303,16 @@ class _FollowedSeriesError extends StatelessWidget {
               height: 72,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: AppColors.danger.withValues(alpha: 0.08),
+                color: context.colors.danger.withValues(alpha: 0.08),
               ),
-              child: const Icon(Icons.error_outline, color: AppColors.danger, size: 32),
+              child: Icon(Icons.error_outline, color: context.colors.danger, size: 32),
             ),
             const SizedBox(height: AppSpacing.xl2),
             const HeroHeading(text: 'Oops', fontSize: 40, textAlign: TextAlign.center),
             const SizedBox(height: AppSpacing.sm),
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: AppColors.muted),
+              style: AppTypography.body.copyWith(color: context.colors.muted),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.xl3),

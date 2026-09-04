@@ -62,7 +62,7 @@ class SeriesDownloadProgress extends ConsumerWidget {
 
     return GlassCard(
       padding: const EdgeInsets.all(AppSpacing.lg),
-      glowColor: queue.isBlocked ? AppColors.warning : AppColors.primary,
+      glowColor: queue.isBlocked ? context.colors.warning : context.colors.primary,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -71,7 +71,7 @@ class SeriesDownloadProgress extends ConsumerWidget {
               Icon(
                 saved == total ? Icons.offline_pin : Icons.downloading_outlined,
                 size: 20,
-                color: saved == total ? AppColors.success : AppColors.primary,
+                color: saved == total ? context.colors.success : context.colors.primary,
               ),
               const SizedBox(width: AppSpacing.sm),
               Expanded(
@@ -90,9 +90,9 @@ class SeriesDownloadProgress extends ConsumerWidget {
               key: const Key('series-download-bar'),
               value: total == 0 ? 0 : (saved / total).clamp(0.0, 1.0),
               minHeight: 6,
-              backgroundColor: AppColors.fg.withAlpha(20),
+              backgroundColor: context.colors.fg.withAlpha(20),
               valueColor: AlwaysStoppedAnimation(
-                saved == total ? AppColors.success : AppColors.primary,
+                saved == total ? context.colors.success : context.colors.primary,
               ),
             ),
           ),
@@ -104,7 +104,7 @@ class SeriesDownloadProgress extends ConsumerWidget {
                       '${active.progress.pageTotal}'
                   : 'Downloading now · reading chapter details…',
               key: const Key('series-download-current'),
-              style: AppTypography.bodySm.copyWith(color: AppColors.primary),
+              style: AppTypography.bodySm.copyWith(color: context.colors.primary),
             ),
           ],
           if (waiting > 0 || failed > 0) ...[
@@ -116,7 +116,7 @@ class SeriesDownloadProgress extends ConsumerWidget {
               ].join(' · '),
               key: const Key('series-download-queue-summary'),
               style: AppTypography.caption.copyWith(
-                color: failed > 0 ? AppColors.danger : AppColors.muted,
+                color: failed > 0 ? context.colors.danger : context.colors.muted,
               ),
             ),
           ],
@@ -125,7 +125,7 @@ class SeriesDownloadProgress extends ConsumerWidget {
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Icon(Icons.info_outline, color: AppColors.warning, size: 16),
+                Icon(Icons.info_outline, color: context.colors.warning, size: 16),
                 const SizedBox(width: AppSpacing.sm),
                 Expanded(
                   child: Text(
@@ -140,7 +140,7 @@ class SeriesDownloadProgress extends ConsumerWidget {
             const SizedBox(height: AppSpacing.sm),
             Text(
               kForegroundOnlyDownloadsNote,
-              style: AppTypography.caption.copyWith(color: AppColors.muted),
+              style: AppTypography.caption.copyWith(color: context.colors.muted),
             ),
           ],
         ],

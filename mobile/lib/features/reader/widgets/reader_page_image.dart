@@ -3,12 +3,12 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
 import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
+import 'package:manhwamaniacs/features/reader/theme/reader_colors.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
@@ -90,7 +90,7 @@ class ReaderPageImage extends ConsumerStatefulWidget {
     required this.alt,
     required this.aspectRatio,
     required this.fitMode,
-    this.backgroundColor = AppColors.bg,
+    this.backgroundColor = ReaderColors.bg,
     this.layoutAxis = Axis.vertical,
     this.viewportWidth,
     this.viewportHeight,
@@ -256,11 +256,11 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.broken_image_outlined, color: AppColors.muted),
+                  const Icon(Icons.broken_image_outlined, color: ReaderColors.muted),
                   const SizedBox(height: AppSpacing.sm),
                   Text(
                     'Failed to load page',
-                    style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                    style: AppTypography.bodySm.copyWith(color: ReaderColors.muted),
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: AppSpacing.md),

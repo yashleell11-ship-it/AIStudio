@@ -25,40 +25,40 @@ class OcrRunBanner extends ConsumerWidget {
     final (icon, color, message) = switch (run.phase) {
       OcrRunPhase.recognizing => (
           Icons.text_fields,
-          AppColors.primary,
+          context.colors.primary,
           run.totalPages > 0
               ? 'Extracting text — page ${run.completedPages} of ${run.totalPages}'
               : 'Extracting text…',
         ),
       OcrRunPhase.paused => (
           Icons.pause_circle_outline,
-          AppColors.warning,
+          context.colors.warning,
           'Text extraction pauses while the app is in the background — keep '
               'it open to continue.',
         ),
       OcrRunPhase.uploading => (
           Icons.cloud_upload_outlined,
-          AppColors.primary,
+          context.colors.primary,
           'Uploading the transcript…',
         ),
       OcrRunPhase.done => (
           Icons.check_circle_outline,
-          AppColors.success,
+          context.colors.success,
           run.wordCount > 0
               ? 'Text extracted — ${run.wordCount} words are now searchable.'
               : 'Text extracted.',
         ),
       OcrRunPhase.cancelled => (
           Icons.cancel_outlined,
-          AppColors.muted,
+          context.colors.muted,
           'Text extraction cancelled.',
         ),
       OcrRunPhase.failed => (
           Icons.error_outline,
-          AppColors.danger,
+          context.colors.danger,
           run.message ?? 'Text extraction failed.',
         ),
-      OcrRunPhase.idle => (Icons.text_fields, AppColors.muted, ''),
+      OcrRunPhase.idle => (Icons.text_fields, context.colors.muted, ''),
     };
 
     return Padding(
@@ -94,7 +94,7 @@ class OcrRunBanner extends ConsumerWidget {
                 child: LinearProgressIndicator(
                   value: run.progress,
                   minHeight: 3,
-                  backgroundColor: AppColors.border,
+                  backgroundColor: context.colors.border,
                 ),
               ),
             ],

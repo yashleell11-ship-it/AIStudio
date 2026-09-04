@@ -28,16 +28,16 @@ class SectionHeader extends StatelessWidget {
             width: 3,
             height: 18,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
-                colors: [AppColors.cyan400, AppColors.primary],
+                colors: [context.colors.cyan400, context.colors.primary],
               ),
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
           ),
           const SizedBox(width: AppSpacing.md),
-          Icon(icon, size: 15, color: AppColors.cyan400),
+          Icon(icon, size: 15, color: context.colors.cyan400),
           const SizedBox(width: AppSpacing.xs),
           Expanded(
             child: Text(
@@ -45,7 +45,7 @@ class SectionHeader extends StatelessWidget {
               style: AppTypography.label.copyWith(
                 fontWeight: FontWeight.w700,
                 letterSpacing: 1.4,
-                color: AppColors.fg,
+                color: context.colors.fg,
               ),
             ),
           ),
@@ -60,9 +60,9 @@ class SectionHeader extends StatelessWidget {
                   vertical: AppSpacing.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.fg.withAlpha(10),
+                  color: context.colors.fg.withAlpha(10),
                   borderRadius: BorderRadius.circular(AppRadius.full),
-                  border: Border.all(color: AppColors.border.withAlpha(100)),
+                  border: Border.all(color: context.colors.border.withAlpha(100)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -70,12 +70,12 @@ class SectionHeader extends StatelessWidget {
                     Text(
                       viewAllLabel,
                       style: AppTypography.caption.copyWith(
-                        color: AppColors.muted,
+                        color: context.colors.muted,
                         fontWeight: FontWeight.w500,
                       ),
                     ),
                     const SizedBox(width: 2),
-                    const Icon(Icons.chevron_right, size: 14, color: AppColors.muted),
+                    Icon(Icons.chevron_right, size: 14, color: context.colors.muted),
                   ],
                 ),
               ),

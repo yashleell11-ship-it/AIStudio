@@ -853,7 +853,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       context: context,
       // Elevated surface (#181818) so the sheet lifts off the reader's near-
       // black page backdrop.
-      backgroundColor: AppColors.surfaceElevated,
+      backgroundColor: context.colors.surfaceElevated,
       // Scroll-controlled so the settings sheet is never clipped and its
       // actions stay reachable regardless of content height.
       isScrollControlled: true,

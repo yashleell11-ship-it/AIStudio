@@ -118,7 +118,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            style: FilledButton.styleFrom(backgroundColor: AppColors.danger),
+            style: FilledButton.styleFrom(backgroundColor: context.colors.danger),
             onPressed: () => Navigator.of(context).pop(true),
             child: const Text('Delete'),
           ),
@@ -166,7 +166,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
               Center(
                 child: ProfileAvatar(
                   avatarKey: _avatarKey,
-                  ringColor: AppColors.accentAmber.withValues(alpha: 0.3),
+                  ringColor: context.colors.accentAmber.withValues(alpha: 0.3),
                 ),
               ),
               const SizedBox(height: AppSpacing.xl2),
@@ -197,7 +197,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
               const SizedBox(height: AppSpacing.xxs),
               Text(
                 'Tints the app while this profile is active.',
-                style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+                style: AppTypography.bodySm.copyWith(color: context.colors.muted),
               ),
               const SizedBox(height: AppSpacing.sm),
               _MoodPicker(
@@ -210,7 +210,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
                 type: MaterialType.transparency,
                 child: SwitchListTile(
                   contentPadding: EdgeInsets.zero,
-                  activeThumbColor: AppColors.primary,
+                  activeThumbColor: context.colors.primary,
                   title: const Text('Mature content'),
                   subtitle: const Text(
                     'Show 18+ sources and series for this profile.',
@@ -250,7 +250,7 @@ class _ProfileFormScaffoldState extends State<ProfileFormScaffold> {
                   icon: const Icon(Icons.delete_outline, size: 18),
                   label: const Text('Delete profile'),
                   style: TextButton.styleFrom(
-                    foregroundColor: AppColors.danger,
+                    foregroundColor: context.colors.danger,
                   ),
                 ),
               ],
@@ -285,7 +285,7 @@ class _AvatarPicker extends StatelessWidget {
                 avatarKey: preset.key,
                 size: 56,
                 ringColor:
-                    preset.key == selectedKey ? AppColors.primary : null,
+                    preset.key == selectedKey ? context.colors.primary : null,
               ),
             ),
           ),
@@ -331,10 +331,10 @@ class _MoodChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final swatch = mood.isTinted
-        ? Color.lerp(ProfileMoodColors.base, mood.tint, 0.6)!
-        : AppColors.surface2;
+        ? Color.lerp(context.colors.bg, mood.tint, 0.6)!
+        : context.colors.surface2;
     return Material(
-      color: selected ? swatch.withAlpha(220) : AppColors.surface2.withAlpha(120),
+      color: selected ? swatch.withAlpha(220) : context.colors.surface2.withAlpha(120),
       borderRadius: BorderRadius.circular(AppRadius.full),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.full),
@@ -347,7 +347,7 @@ class _MoodChip extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(AppRadius.full),
             border: Border.all(
-              color: selected ? AppColors.fg.withAlpha(120) : AppColors.border,
+              color: selected ? context.colors.fg.withAlpha(120) : context.colors.border,
             ),
           ),
           child: Row(
@@ -359,16 +359,16 @@ class _MoodChip extends StatelessWidget {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: mood.isTinted
-                      ? Color.lerp(ProfileMoodColors.base, mood.tint, 0.7)!
-                      : AppColors.muted,
-                  border: Border.all(color: AppColors.fg.withAlpha(40)),
+                      ? Color.lerp(context.colors.bg, mood.tint, 0.7)!
+                      : context.colors.muted,
+                  border: Border.all(color: context.colors.fg.withAlpha(40)),
                 ),
               ),
               const SizedBox(width: AppSpacing.sm),
               Text(
                 mood.label,
                 style: AppTypography.label.copyWith(
-                  color: selected ? AppColors.fg : AppColors.muted,
+                  color: selected ? context.colors.fg : context.colors.muted,
                 ),
               ),
             ],

@@ -186,7 +186,7 @@ class _SectionHeader extends StatelessWidget {
       child: Text(
         title.toUpperCase(),
         style: AppTypography.labelSm.copyWith(
-          color: AppColors.muted,
+          color: context.colors.muted,
           letterSpacing: 1.0,
         ),
       ),
@@ -216,7 +216,7 @@ class _MoreTile extends StatelessWidget {
         horizontal: AppSpacing.sm,
         vertical: AppSpacing.xxs,
       ),
-      leading: Icon(icon, color: AppColors.accentAmber, size: 22),
+      leading: Icon(icon, color: context.colors.accentAmber, size: 22),
       title: Text(label, style: AppTypography.labelLg),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -228,18 +228,18 @@ class _MoreTile extends StatelessWidget {
                 vertical: AppSpacing.xxs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.primary,
+                color: context.colors.primary,
                 borderRadius: BorderRadius.circular(AppRadius.full),
               ),
               child: Text(
                 badge!,
                 style: AppTypography.labelSm.copyWith(
-                  color: AppColors.primaryFg,
+                  color: context.colors.primaryFg,
                 ),
               ),
             ),
           const SizedBox(width: AppSpacing.xs),
-          const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
+          Icon(Icons.chevron_right, color: context.colors.muted, size: 18),
         ],
       ),
       shape: RoundedRectangleBorder(
@@ -267,8 +267,8 @@ class _UpdateBanner extends StatelessWidget {
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                AppColors.accentAmber.withAlpha(28),
-                AppColors.accentRose.withAlpha(14),
+                context.colors.accentAmber.withAlpha(28),
+                context.colors.accentRose.withAlpha(14),
               ],
             ),
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -280,16 +280,16 @@ class _UpdateBanner extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.system_update_outlined,
-                      color: AppColors.accentAmber,
+                      color: context.colors.accentAmber,
                       size: 18,
                     ),
                     const SizedBox(width: AppSpacing.sm),
                     Text(
                       'Update available',
                       style: AppTypography.labelLg.copyWith(
-                        color: AppColors.accentAmber,
+                        color: context.colors.accentAmber,
                       ),
                     ),
                   ],
@@ -318,12 +318,12 @@ class _UpdateBanner extends StatelessWidget {
                 Text(
                   'Downloading does not install automatically. Open the '
                   'downloaded file to install, then return here.',
-                  style: AppTypography.caption.copyWith(color: AppColors.muted),
+                  style: AppTypography.caption.copyWith(color: context.colors.muted),
                 ),
                 const SizedBox(height: AppSpacing.xxs),
                 Text(
                   'Updating from 1.2.x? Uninstall the old app first.',
-                  style: AppTypography.caption.copyWith(color: AppColors.muted),
+                  style: AppTypography.caption.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -351,12 +351,12 @@ class _UpdateBanner extends StatelessWidget {
     return showDialog<void>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        backgroundColor: AppColors.surfaceElevated,
+        backgroundColor: context.colors.surfaceElevated,
         title: Row(
           children: [
-            const Icon(
+            Icon(
               Icons.install_mobile_outlined,
-              color: AppColors.accentAmber,
+              color: context.colors.accentAmber,
               size: 20,
             ),
             const SizedBox(width: AppSpacing.sm),
@@ -371,7 +371,7 @@ class _UpdateBanner extends StatelessWidget {
           children: [
             Text(
               'The new version is downloading to your device.',
-              style: AppTypography.body.copyWith(color: AppColors.fg),
+              style: AppTypography.body.copyWith(color: context.colors.fg),
             ),
             const SizedBox(height: AppSpacing.md),
             const _Step(
@@ -422,20 +422,20 @@ class _VersionRow extends StatelessWidget {
           width: 72,
           child: Text(
             label,
-            style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+            style: AppTypography.bodySm.copyWith(color: context.colors.muted),
           ),
         ),
         Text(
           'v$version',
           style: AppTypography.bodySm.copyWith(
-            color: emphasized ? AppColors.accentAmber : AppColors.fg,
+            color: emphasized ? context.colors.accentAmber : context.colors.fg,
             fontWeight: emphasized ? FontWeight.w600 : FontWeight.w500,
           ),
         ),
         const SizedBox(width: AppSpacing.xs),
         Text(
           '(build $buildNumber)',
-          style: AppTypography.caption.copyWith(color: AppColors.muted),
+          style: AppTypography.caption.copyWith(color: context.colors.muted),
         ),
       ],
     );
@@ -460,13 +460,13 @@ class _Step extends StatelessWidget {
             height: 20,
             alignment: Alignment.center,
             decoration: BoxDecoration(
-              color: AppColors.accentAmber.withAlpha(36),
+              color: context.colors.accentAmber.withAlpha(36),
               shape: BoxShape.circle,
             ),
             child: Text(
               number,
               style: AppTypography.caption.copyWith(
-                color: AppColors.accentAmber,
+                color: context.colors.accentAmber,
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -475,7 +475,7 @@ class _Step extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: AppTypography.bodySm.copyWith(color: AppColors.fg),
+              style: AppTypography.bodySm.copyWith(color: context.colors.fg),
             ),
           ),
         ],
@@ -503,10 +503,10 @@ class _AppInfoTile extends ConsumerWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
+            gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
-              colors: [AppColors.accentAmber, AppColors.accentRose],
+              colors: [context.colors.accentAmber, context.colors.accentRose],
             ),
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
@@ -524,9 +524,9 @@ class _AppInfoTile extends ConsumerWidget {
         title: Text('ManhwaManiacs', style: AppTypography.labelLg),
         subtitle: Text(
           'v${info.version} (${info.buildNumber})',
-          style: AppTypography.bodySm.copyWith(color: AppColors.muted),
+          style: AppTypography.bodySm.copyWith(color: context.colors.muted),
         ),
-        trailing: const Icon(Icons.chevron_right, color: AppColors.muted, size: 18),
+        trailing: Icon(Icons.chevron_right, color: context.colors.muted, size: 18),
         onTap: () => context.push(Routes.settings),
       ),
     );

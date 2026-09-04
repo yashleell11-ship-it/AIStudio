@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 
-Color readingStatusColor(String status) {
+Color readingStatusColor(BuildContext context, String status) {
   return switch (status) {
-    'reading' => AppColors.primary,
-    'completed' => AppColors.success,
-    'on_hold' || 'on-hold' => AppColors.warning,
+    'reading' => context.colors.primary,
+    'completed' => context.colors.success,
+    'on_hold' || 'on-hold' => context.colors.warning,
     'plan_to_read' || 'plan' => const Color(0xFF3b82f6),
     'unread' => const Color(0xFF3b82f6).withAlpha(153),
-    _ => AppColors.fg.withAlpha(51),
+    _ => context.colors.fg.withAlpha(51),
   };
 }
 

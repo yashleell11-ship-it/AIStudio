@@ -254,7 +254,7 @@ class _MoodTakeover extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const base = ProfileMoodColors.base;
+    final base = context.colors.bg;
     final e = ProfileSelectCurves.bloom.transform(expand);
     final settle = ProfileSelectCurves.settle.transform(handoff);
     final tinted = mood.isTinted;
@@ -273,7 +273,7 @@ class _MoodTakeover extends StatelessWidget {
     final core = tinted ? Color.lerp(base, mood.tint, coreRatio)! : base;
     // A whisper of amber warmth in the very core early on, gone by handoff.
     final warmCore = tinted
-        ? Color.lerp(core, AppColors.accentAmber, lerpDouble(0.14, 0.0, settle)!)!
+        ? Color.lerp(core, context.colors.accentAmber, lerpDouble(0.14, 0.0, settle)!)!
         : base;
     final mid = tinted ? Color.lerp(base, mood.tint, midRatio)! : base;
 
@@ -308,7 +308,7 @@ class _MoodTakeover extends StatelessWidget {
         ProfileAvatar(
           avatarKey: profile.avatarKey,
           size: 132,
-          ringColor: AppColors.accentAmber,
+          ringColor: context.colors.accentAmber,
         ),
         const SizedBox(height: AppSpacing.lg),
         Text(
@@ -472,7 +472,7 @@ class _PickerBody extends StatelessWidget {
                 Text(
                   'What are you going to read today?',
                   textAlign: TextAlign.center,
-                  style: AppTypography.h3.copyWith(color: AppColors.fg),
+                  style: AppTypography.h3.copyWith(color: context.colors.fg),
                 ),
                 const SizedBox(height: AppSpacing.sm),
                 Text(
@@ -480,7 +480,7 @@ class _PickerBody extends StatelessWidget {
                       ? 'Tap a profile to edit it.'
                       : 'Choose a profile to continue.',
                   textAlign: TextAlign.center,
-                  style: AppTypography.body.copyWith(color: AppColors.muted),
+                  style: AppTypography.body.copyWith(color: context.colors.muted),
                 ),
               ],
             ),
@@ -561,13 +561,13 @@ class _UnreachableBody extends StatelessWidget {
           Text(
             error.userMessage,
             textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
           const SizedBox(height: AppSpacing.sm),
           Text(
             'Continue as your last profile, or retry once it is back.',
             textAlign: TextAlign.center,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
           ),
           const SizedBox(height: AppSpacing.xl3),
           Semantics(
@@ -634,9 +634,9 @@ class _ProfileTile extends StatelessWidget {
     // Focus/select reads WARM: the chosen tile takes an amber avatar ring and
     // an amber glass-card border (replacing the old white/violet focus ring).
     final ring = focused
-        ? AppColors.accentAmber
+        ? context.colors.accentAmber
         : (profile.mood.isTinted
-            ? Color.lerp(ProfileMoodColors.base, profile.mood.tint, 0.7)
+            ? Color.lerp(context.colors.bg, profile.mood.tint, 0.7)
             : null);
 
     // The focus phase drives three coupled moves off one fraction: the chosen
@@ -672,12 +672,12 @@ class _ProfileTile extends StatelessWidget {
                       ringColor: ring,
                     ),
                     if (manage)
-                      const DecoratedBox(
+                      DecoratedBox(
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: AppColors.scrim,
+                          color: context.colors.scrim,
                         ),
-                        child: SizedBox(
+                        child: const SizedBox(
                           width: 96,
                           height: 96,
                           child: Center(
@@ -756,16 +756,16 @@ class _AddTile extends StatelessWidget {
                     height: 96,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: AppColors.surface2.withAlpha(90),
+                      color: context.colors.surface2.withAlpha(90),
                       border: Border.all(
-                        color: AppColors.accentAmber.withValues(alpha: 0.35),
+                        color: context.colors.accentAmber.withValues(alpha: 0.35),
                         width: 2,
                       ),
                     ),
                     alignment: Alignment.center,
-                    child: const Icon(
+                    child: Icon(
                       Icons.add,
-                      color: AppColors.accentAmber,
+                      color: context.colors.accentAmber,
                       size: 34,
                     ),
                   ),
@@ -774,7 +774,7 @@ class _AddTile extends StatelessWidget {
                     'Add profile',
                     textAlign: TextAlign.center,
                     style: AppTypography.labelLg.copyWith(
-                      color: AppColors.muted,
+                      color: context.colors.muted,
                     ),
                   ),
                 ],
@@ -809,18 +809,18 @@ class _GlassTileCard extends StatelessWidget {
             vertical: AppSpacing.lg,
           ),
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(
+            color: context.colors.surface.withValues(
               alpha: focused ? 0.62 : 0.42,
             ),
             borderRadius: radius,
             border: Border.all(
-              color: focused ? AppColors.accentAmber : AppColors.border,
+              color: focused ? context.colors.accentAmber : context.colors.border,
               width: focused ? 1.5 : 1,
             ),
             boxShadow: focused
                 ? [
                     BoxShadow(
-                      color: AppColors.accentAmber.withValues(alpha: 0.22),
+                      color: context.colors.accentAmber.withValues(alpha: 0.22),
                       blurRadius: 24,
                       spreadRadius: -2,
                     ),

@@ -26,10 +26,10 @@ class ProfileSwitcherChip extends ConsumerWidget {
         vertical: AppSpacing.xs,
       ),
       child: Material(
-        color: AppColors.surface2.withAlpha(140),
+        color: context.colors.surface2.withAlpha(140),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(AppRadius.full),
-          side: BorderSide(color: AppColors.accentAmber.withValues(alpha: 0.28)),
+          side: BorderSide(color: context.colors.accentAmber.withValues(alpha: 0.28)),
         ),
         child: InkWell(
           borderRadius: BorderRadius.circular(AppRadius.full),
@@ -55,10 +55,10 @@ class ProfileSwitcherChip extends ConsumerWidget {
                     style: AppTypography.labelLg,
                   ),
                 ),
-                const Icon(
+                Icon(
                   Icons.expand_more,
                   size: 16,
-                  color: AppColors.muted,
+                  color: context.colors.muted,
                 ),
               ],
             ),

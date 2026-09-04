@@ -61,7 +61,7 @@ class _DefaultError extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, color: AppColors.danger, size: 40),
+            Icon(Icons.error_outline, color: context.colors.danger, size: 40),
             const SizedBox(height: 12),
             Text(
               error.userMessage,

@@ -58,8 +58,8 @@ class SourceLogo extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        color: AppColors.surface2,
-        border: Border.all(color: AppColors.glassEdge),
+        color: context.colors.surface2,
+        border: Border.all(color: context.colors.glassEdge),
       ),
       child: faviconUrl != null
           ? CachedNetworkImage(
@@ -85,18 +85,18 @@ class _LetterAvatar extends StatelessWidget {
   Widget build(BuildContext context) {
     final initial = name.trim().isEmpty ? '?' : name.trim()[0].toUpperCase();
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.surface2, AppColors.panel],
+          colors: [context.colors.surface2, context.colors.panel],
         ),
       ),
       child: Center(
         child: Text(
           initial,
           style: (size >= 40 ? AppTypography.h4 : AppTypography.labelLg)
-              .copyWith(color: AppColors.violet400),
+              .copyWith(color: context.colors.violet400),
         ),
       ),
     );

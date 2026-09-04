@@ -40,17 +40,17 @@ class DashboardHero extends StatelessWidget {
         fit: StackFit.expand,
         children: [
           // Deep gradient background
-          const DecoratedBox(
+          DecoratedBox(
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  AppColors.void_,
-                  AppColors.bg,
-                  AppColors.abyss,
+                  context.colors.void_,
+                  context.colors.bg,
+                  context.colors.abyss,
                 ],
-                stops: [0.0, 0.55, 1.0],
+                stops: const [0.0, 0.55, 1.0],
               ),
             ),
           ),
@@ -66,7 +66,7 @@ class DashboardHero extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.primary.withAlpha(35),
+                    context.colors.primary.withAlpha(35),
                     Colors.transparent,
                   ],
                 ),
@@ -85,7 +85,7 @@ class DashboardHero extends StatelessWidget {
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    AppColors.accent.withAlpha(25),
+                    context.colors.accent.withAlpha(25),
                     Colors.transparent,
                   ],
                 ),
@@ -94,7 +94,7 @@ class DashboardHero extends StatelessWidget {
           ),
 
           // Bottom fade-to-bg
-          const Positioned(
+          Positioned(
             left: 0,
             right: 0,
             bottom: 0,
@@ -104,7 +104,7 @@ class DashboardHero extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topCenter,
                   end: Alignment.bottomCenter,
-                  colors: [Colors.transparent, AppColors.bg],
+                  colors: [Colors.transparent, context.colors.bg],
                 ),
               ),
             ),
@@ -125,7 +125,7 @@ class DashboardHero extends StatelessWidget {
                   style: AppTypography.displayMd.copyWith(
                     fontSize: 13,
                     letterSpacing: 4,
-                    color: AppColors.cyan400.withAlpha(180),
+                    color: context.colors.cyan400.withAlpha(180),
                     fontWeight: FontWeight.w700,
                   ),
                 ),
@@ -136,7 +136,7 @@ class DashboardHero extends StatelessWidget {
                     fontSize: 40,
                     height: 1.0,
                     letterSpacing: 0.5,
-                    color: AppColors.fg,
+                    color: context.colors.fg,
                   ),
                 ),
                 const SizedBox(height: AppSpacing.xl2),
@@ -154,9 +154,9 @@ class DashboardHero extends StatelessWidget {
                         icon: const Icon(Icons.play_arrow_rounded, size: 16),
                         label: const Text('Continue'),
                         style: OutlinedButton.styleFrom(
-                          foregroundColor: AppColors.fg,
-                          side: BorderSide(color: AppColors.border.withAlpha(180)),
-                          backgroundColor: AppColors.fg.withAlpha(8),
+                          foregroundColor: context.colors.fg,
+                          side: BorderSide(color: context.colors.border.withAlpha(180)),
+                          backgroundColor: context.colors.fg.withAlpha(8),
                         ),
                       ),
                     ],
@@ -193,28 +193,28 @@ class QuickActionsRow extends StatelessWidget {
           icon: Icons.search_rounded,
           label: 'Search',
           onTap: onSearch,
-          accentColor: AppColors.cyan400,
+          accentColor: context.colors.cyan400,
         ),
         const SizedBox(width: AppSpacing.md),
         _QuickActionButton(
           icon: Icons.download_rounded,
           label: 'Downloads',
           onTap: onDownloads,
-          accentColor: AppColors.emerald400,
+          accentColor: context.colors.emerald400,
         ),
         const SizedBox(width: AppSpacing.md),
         _QuickActionButton(
           icon: Icons.notifications_rounded,
           label: 'Updates',
           onTap: onUpdates,
-          accentColor: AppColors.amber400,
+          accentColor: context.colors.amber400,
         ),
         const SizedBox(width: AppSpacing.md),
         _QuickActionButton(
           icon: Icons.settings_rounded,
           label: 'Settings',
           onTap: onSettings,
-          accentColor: AppColors.violet400,
+          accentColor: context.colors.violet400,
         ),
       ],
     );
@@ -266,7 +266,7 @@ class _QuickActionButton extends StatelessWidget {
             Text(
               label,
               style: AppTypography.labelSm.copyWith(
-                color: AppColors.muted,
+                color: context.colors.muted,
                 fontWeight: FontWeight.w600,
               ),
               textAlign: TextAlign.center,
@@ -360,7 +360,7 @@ class _TrendingCoverCard extends StatelessWidget {
                     stops: const [0.45, 1.0],
                     colors: [
                       Colors.transparent,
-                      AppColors.bg.withAlpha(240),
+                      context.colors.bg.withAlpha(240),
                     ],
                   ),
                 ),
@@ -455,7 +455,7 @@ class _ContinueReadingCard extends StatelessWidget {
       width: 300,
       child: GlassCard(
         onTap: onTap,
-        glowColor: AppColors.primary,
+        glowColor: context.colors.primary,
         padding: const EdgeInsets.all(AppSpacing.lg),
         child: Row(
           children: [
@@ -484,7 +484,7 @@ class _ContinueReadingCard extends StatelessWidget {
                     item.sourceId,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: AppTypography.caption,
+                    style: AppTypography.caption.copyWith(color: context.colors.muted),
                   ),
                   const SizedBox(height: AppSpacing.md),
                   ClipRRect(
@@ -492,8 +492,8 @@ class _ContinueReadingCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: item.progressPct,
                       minHeight: 3,
-                      backgroundColor: AppColors.fg.withAlpha(20),
-                      color: AppColors.primary,
+                      backgroundColor: context.colors.fg.withAlpha(20),
+                      color: context.colors.primary,
                     ),
                   ),
                   const SizedBox(height: AppSpacing.xs),
@@ -502,13 +502,13 @@ class _ContinueReadingCard extends StatelessWidget {
                     children: [
                       Text(
                         'Page ${item.lastPage}',
-                        style: AppTypography.caption.copyWith(fontSize: 10),
+                        style: AppTypography.caption.copyWith(color: context.colors.muted, fontSize: 10),
                       ),
                       Text(
                         '${(item.progressPct * 100).round()}%',
                         style: AppTypography.caption.copyWith(
                           fontSize: 10,
-                          color: AppColors.primary,
+                          color: context.colors.primary,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

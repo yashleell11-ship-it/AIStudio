@@ -82,7 +82,7 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
           );
 
           return RefreshIndicator(
-            color: AppColors.primary,
+            color: context.colors.primary,
             onRefresh: () => ref.read(collectionsProvider.notifier).refresh(),
             child: CustomScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -104,7 +104,7 @@ class _CollectionsScreenState extends ConsumerState<CollectionsScreen> {
                           collections.isEmpty
                               ? 'Organize your library into custom collections.'
                               : '${collections.length} collection${collections.length == 1 ? '' : 's'}',
-                          style: AppTypography.body.copyWith(color: AppColors.muted),
+                          style: AppTypography.body.copyWith(color: context.colors.muted),
                         ),
                       ],
                     ),
@@ -228,7 +228,7 @@ class _CollectionsError extends StatelessWidget {
           children: [
             Text(
               error.userMessage,
-              style: AppTypography.body.copyWith(color: AppColors.danger),
+              style: AppTypography.body.copyWith(color: context.colors.danger),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: AppSpacing.lg),

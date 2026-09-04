@@ -61,21 +61,26 @@ class SeriesChapterSortToggle extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(2),
       decoration: BoxDecoration(
-        color: AppColors.surface2,
+        color: context.colors.surface2,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(color: AppColors.glassEdge),
+        border: Border.all(color: context.colors.glassEdge),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _segment('Newest', SeriesChapterSortOrder.newest, motion),
-          _segment('Oldest', SeriesChapterSortOrder.oldest, motion),
+          _segment(context, 'Newest', SeriesChapterSortOrder.newest, motion),
+          _segment(context, 'Oldest', SeriesChapterSortOrder.oldest, motion),
         ],
       ),
     );
   }
 
-  Widget _segment(String label, SeriesChapterSortOrder order, Duration motion) {
+  Widget _segment(
+    BuildContext context,
+    String label,
+    SeriesChapterSortOrder order,
+    Duration motion,
+  ) {
     final selected = value == order;
     return GestureDetector(
       onTap: selected ? null : () => onChanged(order),
@@ -87,13 +92,13 @@ class SeriesChapterSortToggle extends StatelessWidget {
           vertical: AppSpacing.xs,
         ),
         decoration: BoxDecoration(
-          color: selected ? AppColors.primary : Colors.transparent,
+          color: selected ? context.colors.primary : Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.md),
         ),
         child: Text(
           label,
           style: AppTypography.caption.copyWith(
-            color: selected ? AppColors.primaryFg : AppColors.muted,
+            color: selected ? context.colors.primaryFg : context.colors.muted,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
           ),
         ),

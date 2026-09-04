@@ -69,7 +69,7 @@ class OcrChapterAction extends ConsumerWidget {
       icon: Icon(
         covered ? Icons.text_snippet : Icons.text_fields,
         size: 20,
-        color: covered ? AppColors.success : AppColors.muted,
+        color: covered ? context.colors.success : context.colors.muted,
       ),
       onPressed: () => ref.read(ocrRunControllerProvider.notifier).runChapter(
             id: id,

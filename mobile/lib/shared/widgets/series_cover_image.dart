@@ -62,11 +62,11 @@ class _Placeholder extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.surface2, AppColors.panel],
+          colors: [context.colors.surface2, context.colors.panel],
         ),
       ),
     );
@@ -84,9 +84,9 @@ class _ErrorPlaceholder extends StatelessWidget {
     return Container(
       width: width,
       height: height,
-      color: AppColors.surface2,
-      child: const Center(
-        child: Icon(Icons.broken_image_outlined, color: AppColors.muted),
+      color: context.colors.surface2,
+      child: Center(
+        child: Icon(Icons.broken_image_outlined, color: context.colors.muted),
       ),
     );
   }

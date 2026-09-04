@@ -75,10 +75,10 @@ class LibraryEmptyPanel extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(AppSpacing.xl4),
       decoration: BoxDecoration(
-        color: AppColors.panel,
+        color: context.colors.panel,
         borderRadius: BorderRadius.circular(AppRadius.xl),
         border: Border.all(
-          color: AppColors.border,
+          color: context.colors.border,
         ),
       ),
       child: Column(
@@ -87,7 +87,7 @@ class LibraryEmptyPanel extends StatelessWidget {
           const SizedBox(height: AppSpacing.sm),
           Text(
             copy.$2,
-            style: AppTypography.body.copyWith(color: AppColors.muted),
+            style: AppTypography.body.copyWith(color: context.colors.muted),
             textAlign: TextAlign.center,
           ),
         ],

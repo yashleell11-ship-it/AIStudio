@@ -48,7 +48,7 @@ class RecommendationsScreen extends ConsumerWidget {
             children: [
               Text(
                 error is AppError ? error.userMessage : 'Failed to load recommendations.',
-                style: AppTypography.body.copyWith(color: AppColors.danger),
+                style: AppTypography.body.copyWith(color: context.colors.danger),
               ),
               const SizedBox(height: AppSpacing.lg),
               FilledButton(
@@ -72,7 +72,7 @@ class RecommendationsScreen extends ConsumerWidget {
           }
 
           return RefreshIndicator(
-            color: AppColors.primary,
+            color: context.colors.primary,
             onRefresh: () async => ref.invalidate(recommendationsProvider),
             child: ListView(
               padding: const EdgeInsets.all(AppSpacing.xl2),
@@ -81,7 +81,7 @@ class RecommendationsScreen extends ConsumerWidget {
                 const SizedBox(height: AppSpacing.xs),
                 Text(
                   'The genres you follow most — tap one to search for more.',
-                  style: AppTypography.body.copyWith(color: AppColors.muted),
+                  style: AppTypography.body.copyWith(color: context.colors.muted),
                 ),
                 const SizedBox(height: AppSpacing.xl2),
                 Wrap(
@@ -118,7 +118,7 @@ class _GenreChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: AppColors.panel,
+      color: context.colors.panel,
       borderRadius: BorderRadius.circular(AppRadius.full),
       child: InkWell(
         onTap: onTap,
@@ -135,7 +135,7 @@ class _GenreChip extends StatelessWidget {
               const SizedBox(width: AppSpacing.xs),
               Text(
                 '$weight',
-                style: AppTypography.caption.copyWith(color: AppColors.muted),
+                style: AppTypography.caption.copyWith(color: context.colors.muted),
               ),
             ],
           ),

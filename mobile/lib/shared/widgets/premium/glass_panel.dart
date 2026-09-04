@@ -33,9 +33,9 @@ class GlassPanel extends StatelessWidget {
         child: Container(
           padding: padding,
           decoration: BoxDecoration(
-            color: AppColors.surface.withValues(alpha: 0.7),
+            color: context.colors.surface.withValues(alpha: 0.7),
             borderRadius: br,
-            border: Border.all(color: AppColors.border),
+            border: Border.all(color: context.colors.border),
           ),
           // A transparent Material sits in front of the panel's background so
           // ListTile/SwitchListTile descendants paint their tint and ink on a
