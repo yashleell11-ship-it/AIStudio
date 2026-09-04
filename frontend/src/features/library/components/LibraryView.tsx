@@ -5,6 +5,7 @@ import { TriangleAlert } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
+import { useContentModeFilter } from "@/features/content-mode";
 import { cn } from "@/lib/cn";
 import { BulkActionBar } from "./BulkActionBar";
 import { ContinueReading } from "./ContinueReading";
@@ -89,9 +90,18 @@ export function LibraryView() {
   const tagsQuery = useTags();
   const bulk = useBulkSeriesAction();
 
+  // Scoped to the active content mode (Manga / Novels). Everything downstream
+  // — the id map, the ordering, the selection, the grid — derives from
+  // `items`, so this one filter covers the whole screen. A no-op when the
+  // server has novels off.
+  const { filterRows, ready: modeReady } = useContentModeFilter();
   const items = useMemo<FollowedSeries[]>(
-    () => seriesQuery.data?.items ?? [],
-    [seriesQuery.data],
+    () => filterRows(seriesQuery.data?.items, (series) => series.source_id),
+    [filterRows, seriesQuery.data],
+  );
+  const continueItems = useMemo(
+    () => filterRows(continueQuery.data, (item) => item.source_id),
+    [filterRows, continueQuery.data],
   );
   const byId = useMemo(() => {
     const map = new Map<number, FollowedSeries>();
@@ -99,7 +109,13 @@ export function LibraryView() {
     return map;
   }, [items]);
   const orderedIds = useMemo(() => items.map((series) => series.id), [items]);
-  const seriesCount = seriesQuery.data?.total ?? items.length;
+  // The server's `total` counts BOTH kinds, so it would over-report the moment
+  // the mode filter drops a row. The rendered count is the honest one whenever
+  // the filter is actually doing something.
+  const seriesCount =
+    items.length === (seriesQuery.data?.items.length ?? 0)
+      ? seriesQuery.data?.total ?? items.length
+      : items.length;
 
   const [renderedIds, setRenderedIds] = useState(orderedIds);
   if (renderedIds !== orderedIds) {
@@ -156,7 +172,7 @@ export function LibraryView() {
   const isLanding = !isSearching && !filtersActive;
 
   const viewState = resolveViewState({
-    isLoading: seriesQuery.isLoading,
+    isLoading: seriesQuery.isLoading || !modeReady,
     error: seriesQuery.error,
     isEmpty: items.length === 0,
   });
@@ -189,7 +205,7 @@ export function LibraryView() {
 
         {isLanding && viewState !== "offline" && viewState !== "error" ? (
           <ContinueReading
-            items={continueQuery.data ?? []}
+            items={continueItems}
             isLoading={continueQuery.isLoading}
           />
         ) : null}

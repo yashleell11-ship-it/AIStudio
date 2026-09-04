@@ -9,6 +9,7 @@ import { FadeIn } from "@/components/premium/FadeIn";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
+import { useContentModeFilter } from "@/features/content-mode";
 import { useSeriesList } from "../hooks";
 import { FollowedSeriesCard } from "./FollowedSeriesCard";
 
@@ -26,13 +27,16 @@ export function LibraryShelfView() {
     sort: "recently_updated",
   });
 
+  // Scoped to the active content mode (Manga / Novels). A no-op when the
+  // server has novels off — `filterRows` returns the array untouched.
+  const { filterRows, ready: modeReady } = useContentModeFilter();
   const followed = useMemo(
-    () => seriesQuery.data?.items ?? [],
-    [seriesQuery.data],
+    () => filterRows(seriesQuery.data?.items, (series) => series.source_id),
+    [filterRows, seriesQuery.data],
   );
 
   const viewState = resolveViewState({
-    isLoading: seriesQuery.isLoading,
+    isLoading: seriesQuery.isLoading || !modeReady,
     error: seriesQuery.error,
     isEmpty: followed.length === 0,
   });
