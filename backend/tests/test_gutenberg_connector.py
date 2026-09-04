@@ -34,6 +34,8 @@ import pytest
 
 from connectors.archiveorg.epub import parse_epub
 from connectors.gutenberg.connector import (
+    API_MAX_RETRIES,
+    API_TIMEOUT_SECONDS,
     GENRE_TOPICS,
     MAX_CACHED_BOOKS,
     MAX_EPUB_BYTES,
@@ -675,3 +677,17 @@ def test_book_cache_evicts_least_recently_used_beyond_its_ceiling():
 
 def test_connector_cache_ceiling_is_small_enough_for_the_vps():
     assert 1 <= MAX_CACHED_BOOKS <= 8
+
+
+def test_the_api_client_is_sized_for_gutendex_measured_latency(
+    connector: GutenbergConnector,
+):
+    """Measured from the VPS on guaranteed-cold queries: 63-112s cold, ~0s
+    warm, plus intermittent 503s. The 30s default cannot clear a cold query,
+    so the timeout has real headroom — and because each attempt can cost the
+    full timeout, the retry count is trimmed to bound the worst case.
+    """
+    assert API_TIMEOUT_SECONDS >= 60.0
+    assert API_MAX_RETRIES >= 2  # a retry is what catches the now-warm cache
+    # Worst case must stay bounded rather than stacking three long attempts.
+    assert API_TIMEOUT_SECONDS * API_MAX_RETRIES <= 200.0

@@ -80,6 +80,22 @@ BROWSER_USER_AGENT = (
     "(KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
 )
 
+#: gutendex is a small community-run service with a very wide latency spread,
+#: measured from the VPS 2026-09-04 on guaranteed-cold queries (distinct deep
+#: page numbers, so no cache entry could already exist):
+#:
+#:     cold  63-112 s   |   warm  ~0.0 s   |   plus intermittent 503s
+#:
+#: The spread is a property of the service, not of the query — browse, search
+#: and topic all behave the same, with and without the ``mime_type`` filter.
+#: An immediately repeated query is served from their cache in milliseconds,
+#: so the pragmatic shape is one generous attempt plus one retry: the first
+#: attempt warms gutendex even if it times out on our side, and the repeat
+#: then lands instantly. Both failure modes are already retryable in the
+#: shared client (503 by status, a timeout as a transport error).
+API_TIMEOUT_SECONDS = 90.0
+API_MAX_RETRIES = 2
+
 #: Refuse to parse a book larger than this. The ``.epub.noimages`` build is a
 #: few hundred KB for a normal novel (Alice 137 KB, Pride and Prejudice
 #: 558 KB, Moby-Dick 727 KB), so this only ever fires on an anomaly — the
@@ -193,6 +209,12 @@ class GutenbergConnector(SourceConnector):
         # its own base URL (an EPUB 302s within gutenberg.org only).
         self._api = SyncConnectorHttpClient(
             API_BASE,
+            timeout=API_TIMEOUT_SECONDS,
+            # Retrying a cold query is what actually pays off here (the first
+            # attempt warms gutendex's cache even when we hang up on it), but
+            # each attempt can cost the full timeout, so the count is trimmed
+            # to bound the worst case instead of the default 3.
+            max_retries=API_MAX_RETRIES,
             user_agent=BROWSER_USER_AGENT,
             headers={"Accept": "application/json"},
         )
