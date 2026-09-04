@@ -39,7 +39,7 @@ services:
       # Tradeoff: enabled + a code = only people you gave the code to can
       # register; enabled + NO code = anyone on the internet can. Never ship
       # the second state on this host.
-      - MM_REGISTRATION_INVITE_CODE=sovereign-tower-3980
+      # No invite code: the owner wants anyone able to sign up.
       # If the users table is ever empty (fresh disk, reset-accounts), the
       # first UNINVITED registration is only accepted for this many minutes —
       # after that the empty table stops being a public admin-takeover window
