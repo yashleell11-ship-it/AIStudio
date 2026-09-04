@@ -540,6 +540,18 @@ describe("activityChartSummary", () => {
     expect(summary).toContain("Busiest day 2026-09-03");
   });
 
+  it("does not claim 'no time' for pages whose time was never measured", () => {
+    // A session the client never closed has pages but zero seconds; "no time"
+    // would announce a measured zero for a series that was never measured.
+    const summary = activityChartSummary(
+      [day("2026-09-01", { sessions: 1, pages_read: 30 })],
+      label,
+    );
+    expect(summary).toContain("30 pages");
+    expect(summary).not.toContain("no time");
+    expect(summary).not.toContain("time spent");
+  });
+
   it("says nothing was read instead of describing an empty picture", () => {
     expect(activityChartSummary([day("2026-09-01")], label)).toBe(
       "No pages read in the last 1 days.",

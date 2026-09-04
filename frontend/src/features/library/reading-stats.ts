@@ -604,9 +604,14 @@ export function activityChartSummary(
   const peakPhrase = peak
     ? ` Busiest day ${formatDay(peak.date)}, ${formatCount(peak.pages_read)} pages.`
     : "";
+  // Zero recorded seconds means time was never measured (sessions the client
+  // never closed), not a measured zero — so the time clause is left unsaid
+  // rather than announced as "no time".
+  const lead = seconds > 0 ? "Pages read and time spent" : "Pages read";
+  const timePhrase = seconds > 0 ? ` and ${formatDurationLong(seconds)}` : "";
   return (
-    `Pages read and time spent per day over ${days.length} days: ` +
-    `${formatCount(pages)} pages and ${formatDurationLong(seconds)} across ` +
+    `${lead} per day over ${days.length} days: ` +
+    `${formatCount(pages)} pages${timePhrase} across ` +
     `${active} day${active === 1 ? "" : "s"}.${peakPhrase}`
   );
 }
