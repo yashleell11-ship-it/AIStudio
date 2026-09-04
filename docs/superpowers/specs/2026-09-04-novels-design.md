@@ -88,3 +88,31 @@ built now.
 | N2 web reader | flag-gated novel browse/detail/reader + progress mapping |
 | N3 mobile reader | flag-gated reader + offline text downloads + progress outbox reuse |
 | N4 (last, gated on owner) | TTS pipeline — separate spec when the time comes |
+
+### N1 as built (2026-09-04, commits `f998b23` foundation + `cf1de13` connector)
+
+Shipped per §2–§4 with two mid-flight owner redirects folded in: **English
+only** (connectors declare `LANGUAGE = "en"`, and a conservative English
+guard fails any non-English chapter before it can be cached), and the
+connector list narrowed to **one flagship: novelarchive.cc** (owner's call —
+a ~61k-title English archive with a real JSON API; listing/detail/chapter
+endpoints discovered and fixture-captured from the VPS). A fleet builds the
+other connectors on this foundation; VPS probe record for them: Royal Road
+200 clean, FreeWebNovel 200 clean, NovelFull 200 clean (incl. the one-shot
+`/ajax-chapter-option` full chapter list), NovelBin NXDOMAIN,
+LightNovelWorld/LightNovelPub/NovelHall/ranobes.top Cloudflare-challenged
+even via curl_cffi impersonation.
+
+Deltas from the letter of §3, all additive: the `/novels/chapter` payload
+also carries the identity triple and the standard `cache` block
+(fresh/live/stale like the browse endpoints); the sources listing gained
+`language` alongside `content_kind` (novel sources say `"en"`, legacy manga
+connectors say `null`); the cache table's LRU is a real least-recently-USED
+sweep (`last_used_at` bumped on read) rather than the browse cache's
+oldest-fetched sweep, because immutable chapter text a reader returns to is
+exactly what is worth keeping; `novels_enabled` rides on
+`GET /auth/bootstrap-status` (the clients' existing pre-auth config read).
+Flag-off is enforced one level deeper than routes: novel connector classes
+stay registered but every registry query surface (listing, instantiation,
+type enumeration) hides them, so `/sources/*` 404s them exactly like sources
+that were never built, and the `/novels` router simply is not mounted.
