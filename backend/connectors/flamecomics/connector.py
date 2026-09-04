@@ -33,7 +33,6 @@ from typing import Any
 from connectors.base import SourceConnector
 from connectors.flamecomics.mappers import (
     BROWSE_MODES,
-    PAGE_SIZE,
     SITE_BASE,
     browse_data_path,
     build_id_path,
