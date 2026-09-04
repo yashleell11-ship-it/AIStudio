@@ -9,6 +9,8 @@ import 'package:manhwamaniacs/core/network/network_connectivity.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/open_chapter_scope.dart';
+import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_feed_controller.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
@@ -51,15 +53,99 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
   /// not on every unrelated rebuild of this widget.
   String? _prefetchedFor;
 
-  Future<void> _saveProgress(int page, int pageCount) async {
+  /// The continuous feed (spec R1). Built the moment the anchor chapter
+  /// resolves; null until then.
+  ReaderFeedController? _feedController;
+
+  @override
+  void dispose() {
+    _feedController?.dispose();
+    super.dispose();
+  }
+
+  SourceReaderChapterKey _keyFor(String chapterId) => (
+        sourceId: widget.sourceId,
+        seriesId: widget.seriesId,
+        chapterId: chapterId,
+      );
+
+  /// Reads a provider to completion while keeping it alive for the duration —
+  /// a bare `ref.read(p.future)` on an autoDispose family can be torn down out
+  /// from under the pending fetch.
+  Future<T> _readAlive<T>(AutoDisposeFutureProvider<T> provider) async {
+    final subscription = ref.listenManual(provider, (_, __) {});
+    try {
+      return await ref.read(provider.future);
+    } finally {
+      subscription.close();
+    }
+  }
+
+  /// Loads a chapter for the feed through the same disk-first provider the
+  /// anchor came through, so a downloaded chapter continues into another
+  /// downloaded chapter with no network at all.
+  Future<ReaderChapter?> _loadChapter(String chapterId) async {
+    try {
+      return await _readAlive(sourceReaderChapterProvider(_keyFor(chapterId)));
+    } catch (_) {
+      // A seam that cannot be crossed leaves the edge prompt as the way over.
+      return null;
+    }
+  }
+
+  Future<({String? prev, String? next})> _neighboursOf(String chapterId) async {
+    final neighbours =
+        await _readAlive(sourceChapterNeighboursProvider(_keyFor(chapterId)));
+    return (
+      prev: neighbours.previousChapterId,
+      next: neighbours.nextChapterId,
+    );
+  }
+
+  /// Builds the feed once the anchor is in hand, and keeps its idea of the
+  /// anchor's neighbours current as they arrive out of band (spec R3).
+  ReaderFeedController _feedFor(
+    ReaderChapter chapter, {
+    required String? previousChapterId,
+    required String? nextChapterId,
+  }) {
+    final existing = _feedController;
+    if (existing != null && existing.feed.contains(chapter.id)) {
+      existing.noteNeighbours(
+        chapter.id,
+        prev: previousChapterId,
+        next: nextChapterId,
+      );
+      return existing;
+    }
+    existing?.dispose();
+    final controller = ReaderFeedController(
+      anchor: chapter,
+      prev: previousChapterId,
+      next: nextChapterId,
+      neighboursOf: _neighboursOf,
+      loadChapter: _loadChapter,
+    )..addListener(() {
+        if (mounted) setState(() {});
+      });
+    _feedController = controller;
+    return controller;
+  }
+
+  Future<void> _saveProgress(ReaderChapter chapter, int page) async {
     // ReaderContent flushes progress from its dispose(), by which point this
     // state (and its ref/context) may already be deactivated — swallow that
     // race so a normal reader teardown never throws.
+    //
+    // Filed against the chapter the PAGE belongs to: a continuous feed spans
+    // several, and recording all of them against the one the reader opened
+    // would put resume in the wrong place.
+    final pageCount = chapter.pageCount;
     try {
       await ref.read(sourceProgressProvider.notifier).record(
             sourceId: widget.sourceId,
             seriesId: widget.seriesId,
-            chapterId: widget.chapterId,
+            chapterId: chapter.id,
             page: page,
             pageCount: pageCount,
           );
@@ -70,7 +156,7 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
               (
                 sourceId: widget.sourceId,
                 seriesKey: widget.seriesId,
-                chapterKey: widget.chapterId,
+                chapterKey: chapter.id,
               ),
             );
       }
@@ -163,6 +249,12 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
           );
         }
 
+        final feedController = _feedFor(
+          chapter,
+          previousChapterId: previousChapterId,
+          nextChapterId: nextChapterId,
+        );
+
         return OpenChapterScope(
           chapterId: (
             sourceId: widget.sourceId,
@@ -173,12 +265,14 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
             key: ValueKey(
               '${widget.sourceId}:${widget.seriesId}:${widget.chapterId}',
             ),
-            chapter: chapter,
+            feed: feedController.feed,
             scrollStorageKey:
                 '${widget.sourceId}:${widget.seriesId}:${widget.chapterId}',
             initialPage: widget.initialPage,
             showBookmark: false,
-            onSaveProgress: (page) => _saveProgress(page, chapter.pageCount),
+            onReachedFeedEnd: feedController.extendForward,
+            onReachedFeedStart: feedController.extendBackward,
+            onSaveProgress: _saveProgress,
             onBack: () => context.go(
               RoutePaths.sourceSeriesDetail(widget.sourceId, widget.seriesId),
             ),
