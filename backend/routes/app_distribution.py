@@ -130,6 +130,24 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="1.14.0",
+        build=28,
+        date="September 2026",
+        highlights=[
+            "15 themes. Settings -> General -> Theme: Nord, Dracula, Catppuccin "
+            "(Mocha and Latte), Gruvbox, Tokyo Night, Rose Pine (and Dawn), "
+            "Everforest, Solarized dark and light, true-black OLED, a warm "
+            "Paper sepia, a clean Daylight - and Eclipse, the look the app "
+            "has always had, still the default",
+            "Every theme passes a real contrast check - text stays readable "
+            "in all of them, not just the pretty screenshots",
+            "Each profile remembers its own theme, and switching applies "
+            "instantly with a cross-fade - no restart",
+            "Reader pages stay on their dark backdrop in every theme, so a "
+            "light theme never wraps your chapters in a white frame",
+        ],
+    ),
+    ChangelogEntry(
         version="1.13.0",
         build=27,
         date="September 2026",
