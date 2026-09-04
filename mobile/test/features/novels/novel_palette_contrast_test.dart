@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.dart';
 import 'package:manhwamaniacs/features/novels/models/novel_palette.dart';
 
 import '../../support/wcag_contrast.dart';
@@ -61,6 +62,33 @@ void main() {
           reason: '${palette.label} ink is at full luminance',
         );
       }
+    });
+  });
+
+  group('follow app theme', () {
+    test('every app palette is legible prose at the reading floor', () {
+      // "Follow app theme" paints the page with the app's own bg/fg instead of
+      // a reading palette — which also means it steps around the $inkFloor:1 ink
+      // floor the reading palettes are held to, since the app themes only
+      // promise 4.5:1. All forty-five clear it anyway, and this is what says
+      // so: without it, adding a low-contrast app palette would quietly make
+      // one reader setting worse than the one sitting next to it.
+      for (final palette in AppPalettes.all) {
+        final ratio = contrastRatio(palette.fg, palette.bg);
+        expect(
+          ratio,
+          greaterThanOrEqualTo(inkFloor),
+          reason: '${palette.name} reads at ${ratio.toStringAsFixed(2)}:1 '
+              'under "Follow app theme"',
+        );
+      }
+    });
+
+    test('"follow" resolves to no reading palette, which is the answer', () {
+      // The reader branches on `byId` returning null; a palette that ever
+      // claimed the id 'app' would silently take the branch over.
+      expect(NovelPalettes.byId(NovelPalettes.followAppId), isNull);
+      expect(NovelPalettes.isChoice(NovelPalettes.followAppId), isTrue);
     });
   });
 
