@@ -790,12 +790,24 @@ def _session_duration(row: ReadingSession) -> int:
 
     Unclosed sessions and clock-skewed clients (an ``ended_at`` before its
     ``started_at``) are both 0 — the same answer the SQL expression this
-    replaces gave, so the stored column and the old computation agree row for
-    row (verified against 12,008 seeded sessions: zero mismatches).
+    column replaces gave.
+
+    The seconds are truncated off each timestamp *before* subtracting, not off
+    the difference afterwards, because that is what the replaced expression
+    did: ``strftime('%s', ended_at) - strftime('%s', started_at)`` rounds both
+    ends down to a whole second and then subtracts. The two disagree by one
+    second whenever the fractions straddle a second boundary — 10:00:00.9 to
+    10:00:01.1 is 1 second to SQLite and 0 to a plain subtraction — and
+    ``utcnow()`` keeps microseconds, so every real row has fractions. Matching
+    the old rounding is what makes revision 0009's backfilled history and every
+    row written afterwards the same kind of number, and keeps this a pure
+    speedup rather than a quiet downward revision of the owner's reading time.
     """
     if row.ended_at is None or row.started_at is None:
         return 0
-    return max(0, int((row.ended_at - row.started_at).total_seconds()))
+    started = row.started_at.replace(microsecond=0)
+    ended = row.ended_at.replace(microsecond=0)
+    return max(0, int((ended - started).total_seconds()))
 
 
 @event.listens_for(ReadingSession, "before_insert")
