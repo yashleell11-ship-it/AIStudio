@@ -8,7 +8,6 @@ import {
   CornerDownLeft,
   Globe,
   LogOut,
-  Palette,
   Search,
   Settings as SettingsIcon,
   Sparkles,
@@ -21,7 +20,11 @@ import { useSearch } from "@/features/library/hooks";
 // From the modules directly, not the `@/features/preferences` barrel: the
 // palette ships in the app shell, and the barrel also re-exports the settings
 // panels, which would then be pulled into every page's bundle.
-import { READING_THEME_META, nextReadingTheme } from "@/features/preferences/theme";
+import {
+  READING_THEMES,
+  READING_THEME_META,
+  isReadingTheme,
+} from "@/features/preferences/theme";
 import { useReadingTheme } from "@/features/preferences/theme-store";
 import { sourceImageUrl } from "@/features/sources/api";
 import { useSources } from "@/features/sources/hooks";
@@ -62,10 +65,12 @@ const KIND_ICON = {
 } as const;
 
 const ACTION_ICON = {
-  "action:theme": Palette,
   "action:settings": SettingsIcon,
   "action:sign-out": LogOut,
 } as const;
+
+/** `action:theme:<id>` — one command per palette, so any of the forty is one query away. */
+const THEME_ACTION_PREFIX = "action:theme:";
 
 /** Title with the matched characters emphasised. */
 function Highlighted({ text, indices }: { text: string; indices: readonly number[] }) {
@@ -149,10 +154,12 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
 
   const runAction = useCallback(
     async (id: string) => {
+      if (id.startsWith(THEME_ACTION_PREFIX)) {
+        const next = id.slice(THEME_ACTION_PREFIX.length);
+        if (isReadingTheme(next)) setTheme(next);
+        return;
+      }
       switch (id) {
-        case "action:theme":
-          setTheme(nextReadingTheme(theme));
-          return;
         case "action:settings":
           router.push("/settings");
           return;
@@ -166,7 +173,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
           return;
       }
     },
-    [logout, router, setTheme, theme],
+    [logout, router, setTheme],
   );
 
   const commands = useMemo<Command[]>(() => {
@@ -192,16 +199,29 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       imageUrl: source.icon_url ? sourceImageUrl(source.icon_url) : null,
     }));
 
-    const upcoming = READING_THEME_META[nextReadingTheme(theme)];
-    const actionCommands: Command[] = [
-      {
-        id: "action:theme",
-        title: `Switch theme to ${upcoming.label}`,
-        subtitle: upcoming.description,
-        group: "Actions",
+    /*
+     * Every palette, individually. Cycling made sense at four themes and is
+     * useless at forty: nobody wants to press Enter nineteen times to reach
+     * Kanagawa. As commands they are fuzzy-searchable by name, by author and by
+     * id, which is how a rice library is meant to be navigated — "gruv", Enter.
+     *
+     * They sit in their own group, ranked below Actions, so an empty palette
+     * still opens on routes rather than on a wall of colour.
+     */
+    const themeCommands: Command[] = READING_THEMES.map((id) => {
+      const meta = READING_THEME_META[id];
+      return {
+        id: `${THEME_ACTION_PREFIX}${id}`,
+        title: id === theme ? `Theme: ${meta.label} (current)` : `Theme: ${meta.label}`,
+        subtitle: meta.description,
+        group: "Themes",
         kind: "action",
-        keywords: ["theme", "dark", "light", "sepia", "midnight", "appearance", "oled"],
-      },
+        keywords: ["theme", "appearance", "palette", meta.scheme, id, meta.author ?? ""],
+        swatch: { bg: meta.swatch.bg, accent: meta.swatch.accent },
+      };
+    });
+
+    const actionCommands: Command[] = [
       {
         id: "action:settings",
         title: "Open settings",
@@ -227,6 +247,7 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
       // sidebar entries, which carry the real labels ("Settings", not "More").
       ...routeCommands([...primaryNav, ...moreNav, ...secondaryNav, ...mobileNav]),
       ...actionCommands,
+      ...themeCommands,
     ];
   }, [search.data, sources.data, theme]);
 
@@ -452,8 +473,9 @@ interface CommandRowProps {
  * control here would put the list in the tab order and break arrow navigation.
  */
 function CommandRow({ id, command, active, onHighlight, onRun }: CommandRowProps) {
-  // A lookup, not a factory: the three action commands get their own glyph, the
-  // rest fall back to one per kind.
+  // A lookup, not a factory: the two fixed action commands get their own glyph,
+  // the rest fall back to one per kind. Theme rows never reach it — they paint a
+  // swatch instead.
   const Icon =
     ACTION_ICON[command.id as keyof typeof ACTION_ICON] ?? KIND_ICON[command.kind];
 
@@ -473,7 +495,20 @@ function CommandRow({ id, command, active, onHighlight, onRun }: CommandRowProps
         active ? "bg-primary/15" : "hover:bg-surface-2",
       )}
     >
-      {command.imageUrl ? (
+      {command.swatch ? (
+        // A palette is best identified by its own colours, not by a generic
+        // brush glyph: page background outside, accent inside.
+        <span
+          aria-hidden
+          className="flex size-8 shrink-0 items-center justify-center rounded-md ring-1 ring-border"
+          style={{ backgroundColor: command.swatch.bg }}
+        >
+          <span
+            className="size-3 rounded-full"
+            style={{ backgroundColor: command.swatch.accent }}
+          />
+        </span>
+      ) : command.imageUrl ? (
         // Cookie-authed covers and source icons resolve via a raw <img> on web.
         // Decorative: the title beside it already names the row, so alt text
         // here would be read twice.

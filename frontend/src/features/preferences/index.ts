@@ -11,15 +11,18 @@ export {
   matureToggleBlockReason,
 } from "./mature-gate";
 export {
+  BUILT_IN_THEMES,
   DEFAULT_READING_THEME,
   READING_THEMES,
   READING_THEME_META,
   initialReadingTheme,
   isReadingTheme,
-  nextReadingTheme,
   parseReadingTheme,
+  themeMatches,
+  themesByScheme,
 } from "./theme";
-export type { ReadingTheme, ReadingThemeMeta } from "./theme";
+export type { BuiltInTheme, ReadingTheme, ReadingThemeMeta } from "./theme";
+export type { ThemeScheme, ThemeSwatch } from "./theme-types";
 export { useApplyReadingTheme, useReadingTheme } from "./theme-store";
 export type { ReadingThemeState } from "./theme-store";
 export type { ContentPreferences } from "./api";
