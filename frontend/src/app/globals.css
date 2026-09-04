@@ -1,4 +1,16 @@
 @import "tailwindcss";
+/*
+ * The generated base16 palettes: one `:root[data-theme="…"]` block each, built
+ * from `scripts/themes/base16-cache.json` by `scripts/themes/build-themes.mjs`.
+ * Imported here rather than pasted in because 38 palettes of 29 roles is data,
+ * not source — and because a `@import` must precede every rule, this line has
+ * to sit directly under Tailwind's.
+ *
+ * Order does not decide the winner: those blocks are `:root[data-theme=…]`
+ * (0,2,0) and the role defaults below are bare `:root` (0,1,0), so the theme
+ * always wins on specificity no matter which is parsed first.
+ */
+@import "./themes.generated.css";
 
 /*
  * Eclipse Warm design tokens. Tailwind v4 turns each `--color-*` into utilities.

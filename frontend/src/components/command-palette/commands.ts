@@ -14,7 +14,7 @@ import { fuzzyMatchAny, type FuzzyMatch } from "./fuzzy";
  * - `route`  — go to a static app route.
  * - `series` — go to a series found in the library search.
  * - `source` — go to an installed source's browse screen.
- * - `action` — run something in place (toggle the theme, sign out, …).
+ * - `action` — run something in place (apply a theme, sign out, …).
  */
 export type CommandKind = "route" | "series" | "source" | "action";
 
@@ -32,6 +32,13 @@ export interface Command {
   keywords?: string[];
   /** Absolute cover/icon URL, when the row should show artwork. */
   imageUrl?: string | null;
+  /**
+   * Two colours for a palette chip, in place of an icon. Data rather than a
+   * view concern: which colours a theme row shows is decided by the theme, and
+   * the alternative — teaching the view to look themes up — would put the
+   * palette's registry inside a component that is otherwise free of features.
+   */
+  swatch?: { bg: string; accent: string };
 }
 
 export interface RankedCommand extends Command {
@@ -39,7 +46,7 @@ export interface RankedCommand extends Command {
 }
 
 /** Relative order of groups in the list, best-first. Unknown groups sink. */
-const GROUP_ORDER = ["Library", "Sources", "Go to", "Actions"] as const;
+const GROUP_ORDER = ["Library", "Sources", "Go to", "Actions", "Themes"] as const;
 
 function groupRank(group: string): number {
   const index = (GROUP_ORDER as readonly string[]).indexOf(group);

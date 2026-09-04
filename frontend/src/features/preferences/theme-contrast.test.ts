@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   WCAG_AA_LARGE_TEXT,
@@ -7,43 +5,27 @@ import {
   WCAG_AA_NORMAL_TEXT,
   contrastBetween,
 } from "@/lib/contrast";
-import { READING_THEMES, type ReadingTheme } from "./theme";
+import { paletteFor } from "./theme-css.testkit";
+import { READING_THEMES } from "./theme";
 
 /**
- * Contrast budget for every reading theme, read out of globals.css itself.
+ * Contrast budget for every shipped palette, read out of the CSS itself.
  *
  * The palette is the one place where an accessibility regression is invisible
- * in review — a hex is a hex — and adding three themes tripled the surface. So
- * the ratios are asserted rather than eyeballed: change a token and this fails
- * with the exact pairing and the number it missed by.
+ * in review — a hex is a hex — and the library is now forty-two palettes deep,
+ * thirty-eight of them machine-mapped from community base16 schemes. So the
+ * ratios are asserted rather than eyeballed: change a token, or change the
+ * mapping in `scripts/themes/map.mjs` and regenerate, and this fails with the
+ * exact pairing and the number it missed by.
+ *
+ * This is deliberately a SECOND opinion. The generator runs the same floors at
+ * build time and refuses to emit a scheme that misses them; this suite re-reads
+ * the emitted CSS and checks it again, so a bug in the generator's own maths
+ * cannot certify itself. The two share no code.
  *
  * The threshold used is WCAG 2.1 AA: 4.5:1 for body text, 3:1 for large text and
  * for non-text indicators (focus rings, borders that carry meaning).
  */
-
-const CSS = readFileSync(path.resolve(__dirname, "../../app/globals.css"), "utf8");
-
-/** Every `--mm-*` declaration inside the rule that starts with `selector`. */
-function roleBlock(selector: string): Record<string, string> {
-  const start = CSS.indexOf(selector);
-  if (start < 0) throw new Error(`selector not found: ${selector}`);
-  const open = CSS.indexOf("{", start);
-  const body = CSS.slice(open + 1, CSS.indexOf("}", open));
-  const roles: Record<string, string> = {};
-  for (const line of body.split(";")) {
-    const match = /(--mm-[a-z0-9-]+)\s*:\s*([^;]+)/i.exec(line);
-    if (match) roles[match[1]] = match[2].trim();
-  }
-  return roles;
-}
-
-const BASE = roleBlock(":root {");
-
-/** The fully resolved role set for a theme: its own overrides over the dark base. */
-function paletteFor(theme: ReadingTheme): Record<string, string> {
-  if (theme === "dark") return BASE;
-  return { ...BASE, ...roleBlock(`:root[data-theme="${theme}"]`) };
-}
 
 /** The three backdrops text is drawn on, in every theme. */
 const SURFACE_ROLES = ["--mm-bg", "--mm-surface", "--mm-elevated"] as const;
