@@ -11,7 +11,6 @@ import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_switch.
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/widgets/home/followed_series_card.dart';
 import 'package:manhwamaniacs/features/profiles/widgets/profile_switcher_chip.dart';
-import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
@@ -102,9 +101,11 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
             child: _FollowedGrid(
               isNovelMode: scope.isNovel,
               followed: followed,
-              notifications: scope.filter(
-                data.notifications,
-                (notification) => notification.sourceId,
+              metaBySeries: FollowedSeriesMeta.indexBySeries(
+                scope.filter(
+                  data.notifications,
+                  (notification) => notification.sourceId,
+                ),
               ),
               onOpenSeries: (series) => _openSeries(context, series),
             ),
@@ -128,13 +129,18 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
 class _FollowedGrid extends StatelessWidget {
   const _FollowedGrid({
     required this.followed,
-    required this.notifications,
+    required this.metaBySeries,
     required this.onOpenSeries,
     required this.isNovelMode,
   });
 
   final List<FollowedSeries> followed;
-  final List<UpdateNotification> notifications;
+
+  /// Notification-derived meta, already reduced to one entry per series.
+  /// The item builder does a map lookup rather than a scan — see
+  /// [FollowedSeriesMeta.indexBySeries].
+  final Map<int, FollowedSeriesMeta> metaBySeries;
+
   final void Function(FollowedSeries) onOpenSeries;
 
   /// Only the count line changes wording: the grid itself is the same grid,
@@ -211,10 +217,7 @@ class _FollowedGrid extends StatelessWidget {
                 child: FollowedSeriesCard(
                   series: series,
                   coverWidth: coverWidth,
-                  meta: FollowedSeriesMeta.forSeries(
-                    series: series,
-                    notifications: notifications,
-                  ),
+                  meta: metaBySeries[series.id] ?? FollowedSeriesMeta.none,
                   onTap: () => onOpenSeries(series),
                 ),
               );

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 
@@ -8,16 +10,32 @@ const double minLibraryCoverScale = 0.7;
 const double maxLibraryCoverScale = 1.6;
 
 class LibraryCoverScaleController extends Notifier<double> {
-  @override
-  double build() => ref
-      .watch(preferencesProvider)
-      .libraryCoverScale
-      .clamp(minLibraryCoverScale, maxLibraryCoverScale);
+  /// Debounce for the preference write. Cancelled on rebuild/dispose; losing
+  /// an in-flight write there costs one slider position, not any real state.
+  Timer? _persist;
 
-  Future<void> setScale(double value) async {
+  @override
+  double build() {
+    ref.onDispose(() => _persist?.cancel());
+    return ref
+        .watch(preferencesProvider)
+        .libraryCoverScale
+        .clamp(minLibraryCoverScale, maxLibraryCoverScale);
+  }
+
+  /// Applies [value] immediately and remembers it once the drag settles.
+  ///
+  /// The slider calls this on every frame it moves, so persisting inline meant
+  /// a SharedPreferences write per frame for the whole gesture — platform-
+  /// channel I/O on the UI isolate, of which only the last value matters.
+  void setScale(double value) {
     final clamped = value.clamp(minLibraryCoverScale, maxLibraryCoverScale);
+    if (clamped == state) return;
     state = clamped;
-    await ref.read(preferencesProvider).setLibraryCoverScale(clamped);
+    _persist?.cancel();
+    _persist = Timer(const Duration(milliseconds: 250), () {
+      ref.read(preferencesProvider).setLibraryCoverScale(clamped);
+    });
   }
 }
 

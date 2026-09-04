@@ -132,6 +132,13 @@ class _SeriesDetailBody extends ConsumerStatefulWidget {
 class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
   SeriesChapterSortOrder _sortOrder = SeriesChapterSortOrder.newest;
 
+  /// The chapter list the two orderings below were built from — the memo key,
+  /// compared by identity because the detail payload hands out the same list
+  /// until it is refetched.
+  List<SourceChapterSummary> _sortedFrom = const [];
+  List<SourceChapterSummary> _newestFirst = const [];
+  List<SourceChapterSummary> _oldestFirst = const [];
+
   /// Multi-select state for this visit to this page (spec R4). Owned here,
   /// disposed here — leaving the series must forget the selection.
   final _selection = ChapterSelectionController();
@@ -156,15 +163,27 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     if (mounted) setState(() {});
   }
 
-  List<SourceChapterSummary> _sortedChapters(
-    List<SourceChapterSummary> chapters,
-    SeriesChapterSortOrder order,
-  ) =>
-      sortSeriesChapters(
-        chapters,
-        numberOf: (chapter) => chapter.number,
-        order: order,
-      );
+  /// Rebuilds both chapter orderings, but only when the chapters changed.
+  ///
+  /// One build needs newest-first (the header's "Latest:" line), oldest-first
+  /// (the read CTA's next-chapter walk, and the order the multi-select ranges
+  /// are defined against) and whichever of the two the sort toggle is showing.
+  /// Deriving those in `build` meant four allocate-index-sort-rebuild passes
+  /// over the whole chapter list on every rebuild.
+  void _ensureSorted() {
+    if (identical(_sortedFrom, widget.chapters)) return;
+    _sortedFrom = widget.chapters;
+    _newestFirst = sortSeriesChapters(
+      _sortedFrom,
+      numberOf: (chapter) => chapter.number,
+      order: SeriesChapterSortOrder.newest,
+    );
+    _oldestFirst = sortSeriesChapters(
+      _sortedFrom,
+      numberOf: (chapter) => chapter.number,
+      order: SeriesChapterSortOrder.oldest,
+    );
+  }
 
   /// Newest chapter, for the header meta line. Prefers the highest-numbered
   /// chapter in the loaded list and falls back to the source-provided
@@ -175,8 +194,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     // days, so preferring it let the header read "Latest: Ch. 118" directly
     // above a newest-first list whose top row was Chapter 120 -- the one number
     // on this screen that has to be right.
-    final newest =
-        _sortedChapters(widget.chapters, SeriesChapterSortOrder.newest).firstOrNull;
+    final newest = _newestFirst.firstOrNull;
     if (newest != null) {
       return chapterLabel(number: newest.number, title: newest.title).primary;
     }
@@ -192,6 +210,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
 
   @override
   Widget build(BuildContext context) {
+    _ensureSorted();
     final series = widget.series;
     final chapters = widget.chapters;
     final progressMap = ref.watch(sourceProgressProvider);
@@ -203,7 +222,9 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     final activeProgress =
         ref.watch(seriesActiveChapterProgressProvider(_identity));
     final hasScope = ref.watch(activeDownloadsScopeIdProvider) != null;
-    final sortedChapters = _sortedChapters(chapters, _sortOrder);
+    final sortedChapters = _sortOrder == SeriesChapterSortOrder.newest
+        ? _newestFirst
+        : _oldestFirst;
     final latestRead = ref.read(sourceProgressProvider.notifier).latestForSeries(
           sourceId: widget.sourceId,
           seriesId: widget.seriesId,
@@ -234,8 +255,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
               sourceId: widget.sourceId,
               seriesId: widget.seriesId,
               latestRead: latestRead,
-              orderedChapters:
-                  _sortedChapters(chapters, SeriesChapterSortOrder.oldest),
+              orderedChapters: _oldestFirst,
             ),
       followAction: SeriesFollowButton(
         key: const Key('follow-toggle'),
@@ -325,8 +345,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     required Map<String, SourceChapterProgress> progressMap,
   }) {
     return [
-      for (final chapter
-          in _sortedChapters(widget.chapters, SeriesChapterSortOrder.oldest))
+      for (final chapter in _oldestFirst)
         (
           key: chapter.id,
           number: chapter.number,

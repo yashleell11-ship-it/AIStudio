@@ -614,4 +614,41 @@ void main() {
       expect(find.text('Remove from library'), findsNothing);
     });
   });
+
+  group('LibraryScreen shelf laziness', () {
+    // Forty follows is a small library and still forty covers: the screen used
+    // to build, lay out and start a fetch for every one of them on open,
+    // because the grid shrink-wrapped inside a SliverToBoxAdapter.
+    _FakeLibraryRepository longShelf() => _FakeLibraryRepository([
+          for (var i = 1; i <= 40; i++)
+            _series(
+              id: i,
+              title: 'Series ${i.toString().padLeft(2, '0')}',
+              seriesKey: 'series-$i',
+            ),
+        ]);
+
+    testWidgets('the grid is a sliver, so off-screen cards are never built',
+        (tester) async {
+      await tester.pumpWidget(await _buildTestApp(repo: longShelf()));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SliverGrid), findsOneWidget);
+      // A shrink-wrapping GridView is exactly what must not come back.
+      expect(find.byType(GridView), findsNothing);
+      expect(find.text('Series 01'), findsWidgets);
+      expect(find.text('Series 40'), findsNothing);
+    });
+
+    testWidgets('list view mode is lazy too', (tester) async {
+      await tester.pumpWidget(await _buildTestApp(repo: longShelf()));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.view_list));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(SliverList), findsOneWidget);
+      expect(find.text('Series 40'), findsNothing);
+    });
+  });
 }

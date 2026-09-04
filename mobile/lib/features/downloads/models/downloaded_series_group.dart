@@ -6,7 +6,7 @@ import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 /// store already orders [DownloadsStore.listChapters] (newest download
 /// first).
 class DownloadedSeriesGroup {
-  const DownloadedSeriesGroup({
+  DownloadedSeriesGroup({
     required this.sourceId,
     required this.seriesKey,
     required this.seriesTitle,
@@ -18,7 +18,10 @@ class DownloadedSeriesGroup {
   final String? seriesTitle;
   final List<SavedChapter> chapters;
 
-  int get totalBytes => chapters.fold(0, (sum, c) => sum + c.bytes);
+  /// Summed once per group, not per read. This is the sort key for the whole
+  /// saved list *and* the number on every card's subtitle line, so a getter
+  /// re-walked every chapter of every group on each comparison and each build.
+  late final int totalBytes = chapters.fold(0, (sum, c) => sum + c.bytes);
 
   /// A series is "pinned" once any of its chapters is — pinning always
   /// applies to every chapter at once (see [DownloadsStore.setSeriesPinned]),

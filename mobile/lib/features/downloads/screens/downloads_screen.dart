@@ -120,9 +120,11 @@ class _ChaptersTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final groupsAsync = ref.watch(downloadedSeriesProvider);
     final scope = ref.watch(contentModeScopeProvider);
-    final queued = _inMode(
+    // Already scoped and already ordered — see [downloadedShelfProvider]. The
+    // screen only lays it out.
+    final shelfAsync = ref.watch(downloadedShelfProvider);
+    final queued = chaptersInMode(
       ref.watch(activeDownloadQueueProvider).valueOrNull ??
           const <SavedChapter>[],
       scope,
@@ -172,7 +174,7 @@ class _ChaptersTab extends ConsumerWidget {
           ),
           sliver: const SliverToBoxAdapter(child: _WhereItLivesCard()),
         ),
-        ...groupsAsync.when(
+        ...shelfAsync.when(
           loading: () => const [
             SliverFillRemaining(
               hasScrollBody: false,
@@ -190,48 +192,13 @@ class _ChaptersTab extends ConsumerWidget {
               ),
             ),
           ],
-          data: (groups) => _savedSlivers(
-            context,
-            _groupsInMode(groups, scope),
-            scope,
-          ),
+          data: (groups) => _savedSlivers(context, groups, scope),
         ),
       ],
     );
   }
 
-  /// Rows of the active mode.
-  ///
-  /// Filtered on each ROW's own `kind`, not through the source-mode index:
-  /// the Downloads screen is the one screen that must be right with no
-  /// network, and the index is built from a `/sources` call that a phone in
-  /// airplane mode never made.
-  List<SavedChapter> _inMode(List<SavedChapter> rows, ContentModeScope scope) {
-    if (!scope.novelsEnabled) return rows;
-    return rows.where((c) => c.kind.isNovel == scope.isNovel).toList();
-  }
-
-  List<DownloadedSeriesGroup> _groupsInMode(
-    List<DownloadedSeriesGroup> groups,
-    ContentModeScope scope,
-  ) {
-    if (!scope.novelsEnabled) return groups;
-    final out = <DownloadedSeriesGroup>[];
-    for (final group in groups) {
-      final chapters = _inMode(group.chapters, scope);
-      if (chapters.isEmpty) continue;
-      out.add(
-        DownloadedSeriesGroup(
-          sourceId: group.sourceId,
-          seriesKey: group.seriesKey,
-          seriesTitle: group.seriesTitle,
-          chapters: chapters,
-        ),
-      );
-    }
-    return out;
-  }
-
+  /// Lays out the already-scoped, already-ordered [groups].
   List<Widget> _savedSlivers(
     BuildContext context,
     List<DownloadedSeriesGroup> groups,
@@ -251,12 +218,6 @@ class _ChaptersTab extends ConsumerWidget {
         ),
       ];
     }
-
-    // Largest series first — this list doubles as the answer to "what is
-    // taking up my space", and the per-series breakdown on the Storage tab
-    // uses the same ordering for the same reason.
-    final ordered = [...groups]
-      ..sort((a, b) => b.totalBytes.compareTo(a.totalBytes));
 
     return [
       SliverPadding(
@@ -284,10 +245,10 @@ class _ChaptersTab extends ConsumerWidget {
           context.space.xl7 + MediaQuery.paddingOf(context).bottom,
         ),
         sliver: SliverList.builder(
-          itemCount: ordered.length,
+          itemCount: groups.length,
           itemBuilder: (context, index) => Padding(
             padding: EdgeInsets.only(bottom: context.space.md),
-            child: _SeriesDownloadCard(group: ordered[index]),
+            child: _SeriesDownloadCard(group: groups[index]),
           ),
         ),
       ),
