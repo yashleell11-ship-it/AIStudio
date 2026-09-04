@@ -1,0 +1,316 @@
+{
+ "responseHeader": {
+  "status": 0,
+  "QTime": 62,
+  "params": {
+   "query": "collection:(gutenberg OR standardebooks) AND format:EPUB AND language:(eng OR en OR English)",
+   "qin": "collection:(gutenberg OR standardebooks) AND format:EPUB AND language:(eng OR en OR English)",
+   "fields": "identifier,title,creator,description,subject,year,downloads,language",
+   "wt": "json",
+   "sort": "downloads desc",
+   "rows": 20,
+   "start": 40
+  }
+ },
+ "response": {
+  "numFound": 29613,
+  "start": 40,
+  "docs": [
+   {
+    "creator": "Dickens, Charles, 1812-1870",
+    "description": "Book from Project Gutenberg: David Copperfield Library of Congress Classification: PR",
+    "downloads": 19124,
+    "identifier": "davidcopperfield00766gut",
+    "language": "eng",
+    "subject": [
+     "Autobiographical fiction",
+     "Bildungsromans",
+     "Boys -- Fiction",
+     "Child labor -- Fiction",
+     "England -- Fiction",
+     "England -- Social life and customs -- 19th century -- Fiction",
+     "Orphans -- Fiction",
+     "Stepfathers -- Fiction",
+     "Young men -- Fiction"
+    ],
+    "title": "David Copperfield"
+   },
+   {
+    "creator": [
+     "John Tyler Morgan",
+     "Henry W. B. (Henry Ward Beecher) Howard",
+     "John Brown Gordon",
+     "Selden Connor",
+     "O. O. (Oliver Otis) Howard",
+     "John Clark Ridpath",
+     "Rossiter Johnson"
+    ],
+    "description": "Book from Project Gutenberg: Campfire and Battlefield An Illustrated History of the Campaigns and Conflicts of the Great Civil War",
+    "downloads": 18920,
+    "identifier": "campfireandbattl47746gut",
+    "language": "en",
+    "subject": [
+     "E456",
+     "United States -- History -- Civil War, 1861-1865 -- Campaigns",
+     "United States -- History -- Civil War, 1861-1865 -- Pictorial works"
+    ],
+    "title": "Campfire and Battlefield An Illustrated History of the Campaigns and Conflicts of the Great Civil War"
+   },
+   {
+    "creator": "Clayton, John T.",
+    "description": "Book from Project Gutenberg: Craven's Part in the Great War",
+    "downloads": 18837,
+    "identifier": "cravenspartinthe52157gut",
+    "language": "en",
+    "title": "Craven's Part in the Great War"
+   },
+   {
+    "creator": "Charles G. (Charles Gardner) Wheeler",
+    "description": "Book from Project Gutenberg: Wood-working for Beginners: A Manual for Amateurs",
+    "downloads": 18593,
+    "identifier": "woodworkingforbe43604gut",
+    "language": "en",
+    "subject": [
+     "TT",
+     "Woodwork",
+     "Carpentry"
+    ],
+    "title": "Wood-working for Beginners: A Manual for Amateurs"
+   },
+   {
+    "creator": [
+     "G. Andrew Hutchison",
+     "C. Stansfeld Hicks",
+     "John Nevil Maskelyne",
+     "Gordon Stables"
+    ],
+    "description": "Book from Project Gutenberg: The Boy's Own Book of Indoor Games and Recreations A Popular Encyclopædia for Boys",
+    "downloads": 18549,
+    "identifier": "theboysownbookof49415gut",
+    "language": "en",
+    "subject": [
+     "Dance -- Juvenile literature",
+     "Magic tricks -- Juvenile literature",
+     "Woodwork -- Juvenile literature",
+     "Music -- History and criticism -- Juvenile literature",
+     "GV",
+     "Steam-engines -- Juvenile literature",
+     "Gymnastics -- Juvenile literature",
+     "Amusements -- Juvenile literature",
+     "Games -- Juvenile literature",
+     "Ventriloquism -- Juvenile literature",
+     "Electricity -- Juvenile literature",
+     "Chess -- Juvenile literature"
+    ],
+    "title": "The Boy's Own Book of Indoor Games and Recreations A Popular Encyclopædia for Boys"
+   },
+   {
+    "creator": "Anonymous",
+    "description": "Book from Project Gutenberg: The Power of Mesmerism A Highly Erotic Narrative of Voluptuous Facts and Fancies Library of Congress Classification: PR",
+    "downloads": 18264,
+    "identifier": "thepowerofmesmer28521gut",
+    "language": "eng",
+    "subject": "Erotic stories",
+    "title": "The Power of Mesmerism A Highly Erotic Narrative of Voluptuous Facts and Fancies"
+   },
+   {
+    "creator": "Tao Te Ching, Laozi, Standard eBooks, James Legge",
+    "description": "The Tao Te Ching is a classic Chinese text written around the 6th century BC by Laozi, a Zhou-dynasty courtier. While its authorship is debated, the text remains a fundamental building block of Taoism and one of the most influential works of its time. Today it’s one of the most-translated works in the world. The work itself is a series of 81 short poetic sections, each one written in a fluid, ambiguous style, leaving them open to wide interpretation. Subjects range from advice to those in power to advice to regular people and adages for daily living. Because of its ambiguous nature the Tao Te Ching is famously difficult to translate, and many, if not all, translations are significantly influenced by the translator’s state of mind. This translation is by James Legge, a famous Scottish sinologist and the first professor of Chinese at Oxford University.",
+    "downloads": 18210,
+    "identifier": "laozi_tao-te-ching",
+    "language": "eng",
+    "subject": [
+     "Tao Te Ching",
+     "Laozi",
+     "Standard eBooks"
+    ],
+    "title": "Tao Te Ching by Laozi"
+   },
+   {
+    "creator": [
+     "Girl Scouts of the United States of America",
+     "Bacon, Josephine Dodge Daskam, 1876-1961 [Editor]"
+    ],
+    "description": "Book from Project Gutenberg: Scouting For Girls, Official Handbook of the Girl Scouts Library of Congress Classification: HS",
+    "downloads": 17911,
+    "identifier": "scoutingforgirls28490gut",
+    "language": "eng",
+    "subject": "Girl Scouts -- Handbooks, manuals, etc.",
+    "title": "Scouting For Girls, Official Handbook of the Girl Scouts"
+   },
+   {
+    "creator": [
+     "Scott, Walter, Sir, 1771-1832",
+     "Moody, William Vaughn, 1869-1910 [Editor]"
+    ],
+    "description": "Book from Project Gutenberg: Lady of the Lake Library of Congress Classification: PR",
+    "downloads": 17819,
+    "identifier": "ladyofthelake28287gut",
+    "language": "eng",
+    "subject": "Lady of the Lake (Legendary character) -- Poetry",
+    "title": "Lady of the Lake"
+   },
+   {
+    "creator": "Henry Chase Hill",
+    "description": [
+     "Book from Project Gutenberg: The Wonder Book of Knowledge",
+     "The Marvels of Modern Industry and Invention, the Interesting Stories of Common Things, the Mysterious Processes of Nature Simply Explained"
+    ],
+    "downloads": 17689,
+    "identifier": "thewonderbookofk41111gut",
+    "language": "en",
+    "subject": [
+     "Industrial arts -- History",
+     "T"
+    ],
+    "title": "The Wonder Book of Knowledge"
+   },
+   {
+    "creator": "Walter Shaw Sparrow",
+    "description": [
+     "Book from Project Gutenberg: Women Painters of the World From the Time of Caterina Vigri, 1413-1463, to Rosa Bonheur and the Present Day",
+     "Women painters in Italy since the fifteenth century / Walter Shaw Sparrow -- Early British women painters / Walter Shaw Sparrow -- Modern British women painters / Ralph Peacock -- Women painters in the United States of America / Walter Shaw Sparrow -- Of women painters in France / Léonce Bénédite, translated into English by Edgar Preston -- Women painters in Belgium and in Holland / N. Jany, translated into English by Edgar Preston -- Women painters in Germany and Austria, in Russia, Switzerland and Spain / Wilhelm Schölermann, translated into English by Wilfrid Sparroy -- Some Finnish women painters / Helena Westermarck."
+    ],
+    "downloads": 17574,
+    "identifier": "womenpaintersoft39000gut",
+    "language": "en",
+    "subject": [
+     "Women painters -- Biography",
+     "ND",
+     "Painting -- History"
+    ],
+    "title": "Women Painters of the World From the Time of Caterina Vigri, 1413-1463, to Rosa Bonheur and the Present Day"
+   },
+   {
+    "creator": "Charles E. Moldenke",
+    "description": [
+     "Book from Project Gutenberg: The New York Obelisk: Cleopatra's Needle",
+     "With a Preliminary Sketch of the History, Erection, Uses, and Signification of Obelisks"
+    ],
+    "downloads": 17515,
+    "identifier": "thenewyorkobelis47273gut",
+    "language": "en",
+    "subject": [
+     "Cleopatra's Needle (New York, N.Y.)",
+     "DT",
+     "Inscriptions, Egyptian"
+    ],
+    "title": "The New York Obelisk: Cleopatra's Needle"
+   },
+   {
+    "creator": "Lincoln, Abraham, 1809-1865",
+    "description": "Book from Project Gutenberg: The Emancipation Proclamation",
+    "downloads": 17497,
+    "identifier": "theemancipationp22082gut",
+    "language": "eng",
+    "title": "The Emancipation Proclamation"
+   },
+   {
+    "creator": [
+     "Apicius",
+     "Vehling, Joseph Dommers, 1879-1950 [Translator]",
+     "Starr, Frederick, 1858-1933 [Commentator]"
+    ],
+    "description": "Book from Project Gutenberg: Cookery and Dining in Imperial Rome Library of Congress Classification: TX Note: De re coquinaria. English",
+    "downloads": 17260,
+    "identifier": "cookeryanddining29728gut",
+    "language": "eng",
+    "subject": "Cookery, Roman -- Early works to 1800",
+    "title": "Cookery and Dining in Imperial Rome"
+   },
+   {
+    "creator": [
+     "F. Ll. (Francis Llewellyn) Griffith",
+     "Howard Carter",
+     "George Edward Stanhope Molyneux Herbert, Earl of Carnarvon",
+     "Percy E. (Percy Edward) Newberry",
+     "Wilhelm Spiegelberg",
+     "Georges Albert Legrain",
+     "Georg Möller"
+    ],
+    "description": [
+     "Book from Project Gutenberg: Five Years' Explorations at Thebes",
+     "A Record of Work Done 1907-1911 by The Earl of Carnarvon and Howard Carter"
+    ],
+    "downloads": 17121,
+    "identifier": "fiveyearsexplora48382gut",
+    "language": "en",
+    "subject": [
+     "DT",
+     "Excavations (Archaeology) -- Egypt",
+     "Thebes (Egypt : Extinct city)"
+    ],
+    "title": "Five Years' Explorations at Thebes"
+   },
+   {
+    "creator": "Edith Francis Foster",
+    "description": [
+     "Book from Project Gutenberg: Mary's Little Lamb: A Picture Guessing Story for Little Children",
+     "Illustrated by the author."
+    ],
+    "downloads": 16876,
+    "identifier": "maryslittlelamba43808gut",
+    "language": "en",
+    "subject": [
+     "PZ",
+     "Rebuses",
+     "Lambs -- Juvenile fiction"
+    ],
+    "title": "Mary's Little Lamb: A Picture Guessing Story for Little Children"
+   },
+   {
+    "creator": "Calderón, Sofronio G., 1878-1953",
+    "description": "Book from Project Gutenberg: Diccionario Ingles-Español-Tagalog Con partes de la oracion y pronunciacion figurada",
+    "downloads": 16794,
+    "identifier": "diccionarioingle20738gut",
+    "language": [
+     "eng",
+     "spa",
+     "tgl"
+    ],
+    "title": "Diccionario Ingles-Español-Tagalog Con partes de la oracion y pronunciacion figurada"
+   },
+   {
+    "creator": "James I, King of England, 1566-1625",
+    "description": "Book from Project Gutenberg: Daemonologie. Library of Congress Classification: BF",
+    "downloads": 16707,
+    "identifier": "daemonologie25929gut",
+    "language": "eng",
+    "subject": [
+     "Demonology",
+     "Fian, John, d. 1591",
+     "Magic",
+     "Witchcraft -- Scotland"
+    ],
+    "title": "Daemonologie."
+   },
+   {
+    "creator": "John Leech",
+    "description": [
+     "Book from Project Gutenberg: John Leech's Pictures of Life and Character, Volume 1 (of 3)",
+     "From the Collection of \"Mr. Punch\""
+    ],
+    "downloads": 16611,
+    "identifier": "johnleechspictur44661gut",
+    "language": "en",
+    "subject": [
+     "English wit and humor, Pictorial",
+     "NC"
+    ],
+    "title": "John Leech's Pictures of Life and Character, Volume 1 (of 3)"
+   },
+   {
+    "creator": [
+     "Einstein, Albert, 1879-1955",
+     "Lawson, Robert W. (Robert William) [Translator]"
+    ],
+    "description": "Book from Project Gutenberg: Relativity: The Special and General Theory Library of Congress Classification: QC",
+    "downloads": 16475,
+    "identifier": "relativitythespe30155gut",
+    "language": "eng",
+    "subject": "Relativity (Physics)",
+    "title": "Relativity: The Special and General Theory"
+   }
+  ]
+ }
+}

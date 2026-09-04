@@ -1,0 +1,20 @@
+{
+ "responseHeader": {
+  "status": 0,
+  "QTime": 13,
+  "params": {
+   "query": "collection:(gutenberg OR standardebooks) AND format:EPUB AND language:(eng OR en OR English) AND (text:zzzqqqxxnomatchhere OR text:zzzqqqxxnomatchhere OR text__reviews:zzzqqqxxnomatchhere)",
+   "qin": "collection:(gutenberg OR standardebooks) AND format:EPUB AND language:(eng OR en OR English) AND (zzzqqqxxnomatchhere)",
+   "fields": "identifier,title,creator,description,subject,year,downloads,language",
+   "wt": "json",
+   "sort": "downloads desc",
+   "rows": 20,
+   "start": 0
+  }
+ },
+ "response": {
+  "numFound": 0,
+  "start": 0,
+  "docs": []
+ }
+}
