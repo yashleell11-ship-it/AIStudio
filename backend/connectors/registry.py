@@ -39,6 +39,7 @@ from connectors.mangadex.connector import MangaDexConnector
 from connectors.archiveorg.connector import ArchiveOrgConnector
 from connectors.freewebnovel.connector import FreeWebNovelConnector
 from connectors.novelarchive.connector import NovelArchiveConnector
+from connectors.novelfull.connector import NovelFullConnector
 from connectors.royalroad.connector import RoyalRoadConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
 from connectors.demonicscans.connector import DemonicScansConnector
@@ -96,6 +97,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     ArchiveOrgConnector.SOURCE_TYPE,
     FreeWebNovelConnector.SOURCE_TYPE,
     NovelArchiveConnector.SOURCE_TYPE,
+    NovelFullConnector.SOURCE_TYPE,
     RoyalRoadConnector.SOURCE_TYPE,
     *(cls.SOURCE_TYPE for cls in _MADARA_CONNECTOR_CLASSES),
 }
@@ -204,6 +206,7 @@ def _register_builtin_connectors() -> None:
         (ArchiveOrgConnector.SOURCE_TYPE, ArchiveOrgConnector),
         (FreeWebNovelConnector.SOURCE_TYPE, FreeWebNovelConnector),
         (NovelArchiveConnector.SOURCE_TYPE, NovelArchiveConnector),
+        (NovelFullConnector.SOURCE_TYPE, NovelFullConnector),
         (RoyalRoadConnector.SOURCE_TYPE, RoyalRoadConnector),
         *((cls.SOURCE_TYPE, cls) for cls in _MADARA_CONNECTOR_CLASSES),
     )
