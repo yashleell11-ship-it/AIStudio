@@ -166,6 +166,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                           seriesKey: state.pathParameters['seriesKey']!,
                           chapterKey: state.pathParameters['chapterKey']!,
                           initialPage: initialPage,
+                          // "Read all" (spec R2) — the whole series as one
+                          // continuous scroll. A flag on the same route
+                          // rather than a route of its own: it is the same
+                          // reader opened at the same chapter, told where the
+                          // rest of the series is.
+                          readAll: isReadAllRequest(state.uri.queryParameters),
                         ),
                       );
                     },
@@ -211,6 +217,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                                   chapterId:
                                       state.pathParameters['chapterId']!,
                                   initialPage: initialPage,
+                                  readAll: isReadAllRequest(
+                                    state.uri.queryParameters,
+                                  ),
                                 ),
                               );
                             },

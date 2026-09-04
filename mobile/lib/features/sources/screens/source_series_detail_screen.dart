@@ -19,6 +19,7 @@ import 'package:manhwamaniacs/features/downloads/widgets/chapter_selection_actio
 import 'package:manhwamaniacs/features/downloads/widgets/download_series_button.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/series_download_progress.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_series_detail_view.dart';
+import 'package:manhwamaniacs/features/reader/widgets/read_all_button.dart';
 import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.dart';
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
@@ -458,12 +459,50 @@ class _ReadPrimaryButton extends StatelessWidget {
     }
     final isContinue = resume != null;
 
-    return PrimaryPillButton(
-      key: const Key('read-primary'),
-      expanded: true,
-      onPressed: () => context.go(target),
-      icon: isContinue ? Icons.play_arrow_rounded : Icons.menu_book_outlined,
-      label: isContinue ? 'Continue' : 'Read Online',
+    return Row(
+      children: [
+        Expanded(
+          child: PrimaryPillButton(
+            key: const Key('read-primary'),
+            expanded: true,
+            onPressed: () => context.go(target),
+            icon: isContinue
+                ? Icons.play_arrow_rounded
+                : Icons.menu_book_outlined,
+            label: isContinue ? 'Continue' : 'Read Online',
+          ),
+        ),
+        SizedBox(width: context.space.sm),
+        // Read-all starts where reading would start — resuming into the middle
+        // of a series is still one continuous scroll, so the same target.
+        ReadAllButton(
+          onPressed: () => context.go(
+            '${RoutePaths.sourceReadAll(sourceId, seriesId, _readAllStartId())}'
+            '${_readAllPageSuffix()}',
+          ),
+        ),
+      ],
     );
+  }
+
+  /// Where a Read-all session opens: the chapter Continue would open, or the
+  /// first chapter when nothing has been read. The mode is about how the
+  /// series is presented, not about starting over.
+  String _readAllStartId() {
+    final resume = latestRead;
+    if (resume == null) return orderedChapters.first.id;
+    final index = orderedChapters.indexWhere((c) => c.id == resume.chapterId);
+    if (resume.progress.completed &&
+        index != -1 &&
+        index + 1 < orderedChapters.length) {
+      return orderedChapters[index + 1].id;
+    }
+    return resume.chapterId;
+  }
+
+  String _readAllPageSuffix() {
+    final resume = latestRead;
+    if (resume == null || resume.progress.completed) return '';
+    return '&page=${resume.progress.page}';
   }
 }

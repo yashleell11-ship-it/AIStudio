@@ -24,6 +24,7 @@ import 'package:manhwamaniacs/features/library/providers/series_detail_provider.
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/series_display.dart';
 import 'package:manhwamaniacs/features/library/widgets/series_detail/series_detail_skeleton.dart';
+import 'package:manhwamaniacs/features/reader/widgets/read_all_button.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -162,7 +163,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
     setState(() => _series = _series.copyWith(isFavorite: result.value.isFavorite));
   }
 
-  void _openChapter(KnownChapter chapter, {int? page}) {
+  void _openChapter(KnownChapter chapter, {int? page, bool readAll = false}) {
     // Prose opens the novel reader. `page` carries a progress bucket rather
     // than a page number there, but it is the same parameter and the same
     // 1-based meaning, so only the path differs.
@@ -174,8 +175,24 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
             _series.seriesKey,
             chapter.key,
           )
-        : RoutePaths.reader(_series.sourceId, _series.seriesKey, chapter.key);
-    context.push(page != null ? '$path?page=$page' : path);
+        : readAll
+            ? RoutePaths.readAll(
+                _series.sourceId,
+                _series.seriesKey,
+                chapter.key,
+              )
+            : RoutePaths.reader(
+                _series.sourceId,
+                _series.seriesKey,
+                chapter.key,
+              );
+    if (page == null) {
+      context.push(path);
+      return;
+    }
+    // Read-all's path already carries a query, so the page joins it rather
+    // than starting a second one.
+    context.push('$path${path.contains('?') ? '&' : '?'}page=$page');
   }
 
   /// Newest chapter for the header meta line — the highest-numbered row in the
@@ -272,17 +289,36 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
       description: _series.description,
       primaryAction: continueChapter == null
           ? null
-          : PrimaryPillButton(
-              key: const Key('read-primary'),
-              expanded: true,
-              icon: continueProgress != null
-                  ? Icons.play_arrow_rounded
-                  : Icons.menu_book_outlined,
-              label: continueProgress != null ? 'Continue' : 'Start Reading',
-              onPressed: () => _openChapter(
-                continueChapter,
-                page: continueProgress?.lastPage,
-              ),
+          : Row(
+              children: [
+                Expanded(
+                  child: PrimaryPillButton(
+                    key: const Key('read-primary'),
+                    expanded: true,
+                    icon: continueProgress != null
+                        ? Icons.play_arrow_rounded
+                        : Icons.menu_book_outlined,
+                    label:
+                        continueProgress != null ? 'Continue' : 'Start Reading',
+                    onPressed: () => _openChapter(
+                      continueChapter,
+                      page: continueProgress?.lastPage,
+                    ),
+                  ),
+                ),
+                SizedBox(width: context.space.sm),
+                // Prose has no Read-all: a novel is already one continuous
+                // scroll per chapter, and the mode exists to remove a page
+                // boundary that only manga has.
+                if (kind != DownloadKind.novel)
+                  ReadAllButton(
+                    onPressed: () => _openChapter(
+                      continueChapter,
+                      page: continueProgress?.lastPage,
+                      readAll: true,
+                    ),
+                  ),
+              ],
             ),
       followAction: SeriesFollowButton(
         key: const Key('follow-toggle'),

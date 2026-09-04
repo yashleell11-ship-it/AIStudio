@@ -56,7 +56,24 @@ class ReaderFeedController extends ChangeNotifier {
 
   /// The series' chapter ids in reading order, when the caller has them.
   /// Read-all always does; an ordinary read never does.
-  final List<String>? _order;
+  ///
+  /// Not final: Read-all opens the first chapter immediately and the order
+  /// arrives behind it, which is the whole reason the mode can be entered on a
+  /// 300-chapter series without a spinner in front of it.
+  List<String>? _order;
+
+  /// Hands the controller the series' chapter order once it has loaded. Until
+  /// then the feed continues the ordinary way — by asking what comes next —
+  /// so the reader is never waiting on this.
+  ///
+  /// Deliberately does NOT notify: knowing where the series goes changes
+  /// nothing on screen, only what happens at the next boundary. Notifying
+  /// would also mean a rebuild from inside a build (this is called as the
+  /// order lands, mid-frame), which is not a thing.
+  void setOrder(List<String> order) {
+    if (listEquals(_order, order)) return;
+    _order = order;
+  }
 
   ReaderFeed _feed;
   ReaderFeed get feed => _feed;
@@ -78,19 +95,15 @@ class ReaderFeedController extends ChangeNotifier {
   }
 
   /// Records what the caller already knows about a chapter's neighbours, so
-  /// the anchor's own prev/next (which arrive after first paint, out of band)
-  /// are not re-fetched.
+  /// the anchor's own prev/next (which arrive after first paint, out of band —
+  /// spec R3) are not re-fetched.
+  ///
+  /// Silent, for the same reason as [setOrder]: the neighbour keys are not on
+  /// screen anywhere, they only unlock the next extension, and this is called
+  /// from a build.
   void noteNeighbours(String chapterId, {String? prev, String? next}) {
-    var changed = false;
-    if (prev != null && _prevOf[chapterId] != prev) {
-      _prevOf[chapterId] = prev;
-      changed = true;
-    }
-    if (next != null && _nextOf[chapterId] != next) {
-      _nextOf[chapterId] = next;
-      changed = true;
-    }
-    if (changed) notifyListeners();
+    if (prev != null) _prevOf[chapterId] = prev;
+    if (next != null) _nextOf[chapterId] = next;
   }
 
   String? _nextIdAfter(String chapterId) {
