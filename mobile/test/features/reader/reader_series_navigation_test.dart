@@ -150,7 +150,7 @@ Future<ProviderContainer> _pumpApp(WidgetTester tester) async {
           chapterKey: _slashLibChapterKey,
         ),
       ).overrideWith((ref) async => _libManifest()),
-      sourceReaderChapterProvider(
+      sourceReaderPayloadProvider(
         (
           sourceId: 'toonily',
           seriesId: _slashSeriesId,
