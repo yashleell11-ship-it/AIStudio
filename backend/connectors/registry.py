@@ -48,6 +48,7 @@ from connectors.standardebooks.connector import StandardEbooksConnector
 from connectors.mangakatana.connector import MangaKatanaConnector
 from connectors.demonicscans.connector import DemonicScansConnector
 from connectors.doujins.connector import DoujinsConnector
+from connectors.fanfox.connector import FanFoxConnector
 from connectors.firstkissmanga.connector import FirstKissMangaConnector
 from connectors.nhentai.connector import NHentaiConnector
 from connectors.porncomic18.connector import PornComic18Connector
@@ -74,6 +75,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     MangaBuddyConnector.SOURCE_TYPE,
     MangaPillConnector.SOURCE_TYPE,
     MangaHubConnector.SOURCE_TYPE,
+    FanFoxConnector.SOURCE_TYPE,
     DemonicScansConnector.SOURCE_TYPE,
     DoujinsConnector.SOURCE_TYPE,
     ToonilyConnector.SOURCE_TYPE,
@@ -192,6 +194,7 @@ def _register_builtin_connectors() -> None:
         (MangaBuddyConnector.SOURCE_TYPE, MangaBuddyConnector),
         (MangaPillConnector.SOURCE_TYPE, MangaPillConnector),
         (MangaHubConnector.SOURCE_TYPE, MangaHubConnector),
+        (FanFoxConnector.SOURCE_TYPE, FanFoxConnector),
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
         (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
         (NHentaiConnector.SOURCE_TYPE, NHentaiConnector),
