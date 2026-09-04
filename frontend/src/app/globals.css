@@ -11,6 +11,14 @@
  * always wins on specificity no matter which is parsed first.
  */
 @import "./themes.generated.css";
+/*
+ * The design presets: one `:root[data-preset="…"]` block each, hand-authored.
+ * The other half of the system — themes decide what colour the app is, presets
+ * decide what shape it is. Imported here for the same reason as the palettes
+ * (an `@import` must precede every rule) and, like them, it wins over the
+ * `:root` defaults below on specificity rather than on order.
+ */
+@import "./presets.css";
 
 /*
  * Eclipse Warm design tokens. Tailwind v4 turns each `--color-*` into utilities.

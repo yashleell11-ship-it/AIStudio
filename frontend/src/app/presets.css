@@ -1,0 +1,283 @@
+/* ==========================================================================
+   DESIGN PRESETS
+   ==========================================================================
+
+   One attribute on the root (`<html data-preset="…">`) reshapes the whole app,
+   exactly as `data-theme` repaints it. Themes own colour; presets own shape.
+   The two are independent and both persist, so Nord + Compact and Nord +
+   Editorial are equally valid and equally finished.
+
+   ### What a preset is allowed to say
+
+   Only four vocabularies, and `preset.test.ts` fails the build if a block
+   reaches outside them:
+
+     `--shape-*`          the app's own shape roles (see globals.css)
+     `--radius-*`         the Tailwind radius ramp — `rounded-*` compiles to it
+     `--text-*`           the Tailwind type ramp — `text-*` compiles to it
+     `--spacing`          the Tailwind spacing unit — `p-*`, `gap-*`, `size-*`
+
+   Never a colour. Where a preset needs to change what a surface is MADE of it
+   changes which theme role paints it (`--shape-panel-fill: var(--mm-surface)`
+   instead of `var(--mm-glass-panel)`), so the palette still decides the hue.
+   That indirection is the whole reason all five presets work under all
+   forty-two palettes without a single combination being authored.
+
+   ### Why these blocks are unlayered
+
+   Tailwind's own `--text-*`, `--radius-*` and `--spacing` defaults live in
+   `@layer theme` on bare `:root`. These rules are unlayered and carry an
+   attribute selector, so they win twice over — the same mechanism the palettes
+   use, for the same reason.
+
+   ### Rhythm, not a multiplier
+
+   Each preset moves a DIFFERENT set of dials. Compact scales the spacing unit
+   and shrinks the type ramp; Editorial leaves both alone and instead widens
+   the page margin, narrows the measure and enlarges the type; Cinema touches
+   neither and works entirely through surfaces, measure and motion. A single
+   density slider would have produced five points on one line, which is not
+   five design positions.
+
+   ### Contrast
+
+   A preset changes sizes and weights, never colours, so it cannot move a
+   contrast ratio. It CAN move a pairing across the boundary between WCAG's
+   body threshold (4.5:1) and its large-text threshold (3:1) by shrinking a
+   heading — the hero gradient is gated at 3:1 precisely because it is display
+   sized. `preset-contrast.test.ts` holds every preset's display steps above
+   the large-text floor and every body step above a readable minimum.
+*/
+
+/* --------------------------------------------------------------------------
+   Signature — the app as designed, and the default.
+
+   Restates the `:root` shape base verbatim rather than declaring nothing.
+   `preset.test.ts` deep-compares the two, which turns "Signature is
+   byte-identical to what shipped before presets existed" from a promise into
+   an assertion. It also means the block is a readable inventory of everything
+   a preset may move.
+
+   It deliberately declares no `--text-*`, `--radius-*` or `--spacing`: leaving
+   Tailwind's own defaults untouched is a stronger guarantee than restating
+   them correctly.
+   -------------------------------------------------------------------------- */
+:root[data-preset="signature"] {
+  --shape-panel-fill: var(--mm-glass-panel);
+  --shape-panel-edge: var(--mm-glass-border);
+  --shape-panel-blur: 20px;
+  --shape-card-fill: var(--mm-glass-card);
+  --shape-card-edge: var(--mm-glass-border);
+  --shape-card-blur: 12px;
+  --shape-edge-width: 1px;
+  --shape-glow: var(--mm-glow);
+  --shape-panel-shadow: var(--mm-glass-shadow);
+
+  --shape-page-pad: 1.5rem;
+  --shape-page-pad-wide: 2.5rem;
+  --shape-page-measure: 80rem;
+  --shape-empty-pad: 3rem;
+
+  --shape-heading-font: var(--font-display);
+  --shape-title-size: 2.25rem;
+  --shape-title-leading: 1;
+  --shape-title-tracking: 0.025em;
+  --shape-subtitle-size: 0.875rem;
+
+  --shape-motion: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Flat — the same app with the glass taken out.
+
+   Surfaces stop being translucent and start being opaque: the panel paints
+   from `--mm-surface` and the card from `--mm-elevated`, which are the roles
+   every palette already defines as "a surface" and "a raised surface", so the
+   elevation story survives intact. The blur goes to zero, the glow and the
+   long shadow go away, and the radius ramp halves.
+
+   Density is untouched on purpose. Flat is not a smaller app; it is the same
+   app rendered as a tool rather than a showcase — and it is measurably cheaper
+   to paint, since `backdrop-filter` on a scrolling grid is the single most
+   expensive thing this interface does.
+   -------------------------------------------------------------------------- */
+:root[data-preset="flat"] {
+  --shape-panel-fill: var(--mm-surface);
+  --shape-panel-edge: var(--mm-border);
+  --shape-panel-blur: 0px;
+  --shape-card-fill: var(--mm-elevated);
+  --shape-card-edge: var(--mm-border);
+  --shape-card-blur: 0px;
+  --shape-glow: none;
+  --shape-panel-shadow: none;
+
+  --shape-title-tracking: 0.01em;
+  --shape-motion: 0.7;
+
+  --radius-sm: 0.1875rem;
+  --radius-md: 0.25rem;
+  --radius-lg: 0.3125rem;
+  --radius-xl: 0.75rem;
+  --radius-2xl: 0.5rem;
+  --radius-3xl: 1.25rem;
+  --radius-4xl: 1.875rem;
+}
+
+/* --------------------------------------------------------------------------
+   Compact — density first.
+
+   The only preset that moves `--spacing`, Tailwind's base unit: at 90% every
+   padding, gap and icon in the app tightens together, which is what keeps a
+   dense screen looking designed rather than squeezed. On top of that the page
+   frame loses a third of its margin, the measure widens, and the type ramp
+   steps down — hardest at the display end, not at all at `text-xs`, which is
+   already at the floor this app will read at.
+
+   Paired with a `compact` library grid (see `presets.ts`), which is what
+   actually delivers "more per screen": twelve columns of small covers puts
+   roughly six times as many series in front of you as the poster grid does.
+   -------------------------------------------------------------------------- */
+:root[data-preset="compact"] {
+  --spacing: 0.225rem;
+
+  --shape-panel-blur: 14px;
+  --shape-card-blur: 8px;
+
+  --shape-page-pad: 1rem;
+  --shape-page-pad-wide: 1.5rem;
+  --shape-page-measure: 88rem;
+  --shape-empty-pad: 2rem;
+
+  --shape-title-size: 1.75rem;
+  --shape-title-tracking: 0.015em;
+  --shape-subtitle-size: 0.8125rem;
+  --shape-motion: 0.6;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 1rem;
+  --radius-2xl: 0.75rem;
+  --radius-3xl: 1.5rem;
+  --radius-4xl: 2rem;
+
+  /* `--text-xs` is left at its default: it is already the smallest size this
+     interface uses for real text, and shrinking it is how a density preset
+     becomes an accessibility regression. */
+  --text-sm: 0.8125rem;
+  --text-sm--line-height: 1.35;
+  --text-base: 0.9375rem;
+  --text-base--line-height: 1.45;
+  --text-lg: 1rem;
+  --text-xl: 1.125rem;
+  --text-2xl: 1.375rem;
+  --text-3xl: 1.625rem;
+  --text-4xl: 1.875rem;
+  --text-5xl: 2.5rem;
+  --text-6xl: 3rem;
+}
+
+/* --------------------------------------------------------------------------
+   Editorial — typography leads.
+
+   Headings are set in the book serif the novel reader already uses (a system
+   stack, so nothing is downloaded and the CSP is untouched), which is what
+   makes this read as a different medium rather than the same page at a
+   different size. Text grows and leading opens; the measure NARROWS to 68rem
+   while the outer margin widens to 4.5rem, so a wide monitor gives you white
+   space rather than longer lines.
+
+   Surfaces go opaque and square, the glow goes away: restrained accents, ink
+   on paper. Pairs with a `list` library, which is the layout that puts
+   metadata beside the artwork instead of on top of it.
+   -------------------------------------------------------------------------- */
+:root[data-preset="editorial"] {
+  --shape-panel-fill: var(--mm-surface);
+  --shape-panel-edge: var(--mm-border);
+  --shape-panel-blur: 0px;
+  --shape-card-fill: var(--mm-surface);
+  --shape-card-edge: var(--mm-border);
+  --shape-card-blur: 0px;
+  --shape-glow: none;
+  --shape-panel-shadow: none;
+
+  --shape-page-pad: 2rem;
+  --shape-page-pad-wide: 4.5rem;
+  --shape-page-measure: 68rem;
+  --shape-empty-pad: 4rem;
+
+  --shape-heading-font: var(--font-book);
+  --shape-title-size: 2.75rem;
+  --shape-title-leading: 1.05;
+  /* A serif display face sets tighter than a geometric sans; the positive
+     tracking Signature uses to open up Syne would make Iowan Old Style look
+     spaced out. */
+  --shape-title-tracking: -0.01em;
+  --shape-subtitle-size: 0.9375rem;
+  --shape-motion: 0.8;
+
+  --radius-sm: 0.125rem;
+  --radius-md: 0.125rem;
+  --radius-lg: 0.1875rem;
+  --radius-xl: 0.375rem;
+  --radius-2xl: 0.25rem;
+  --radius-3xl: 0.5rem;
+  --radius-4xl: 0.75rem;
+
+  --text-xs: 0.8125rem;
+  --text-xs--line-height: 1.5;
+  --text-sm: 0.9375rem;
+  --text-sm--line-height: 1.6;
+  --text-base: 1.0625rem;
+  --text-base--line-height: 1.7;
+  --text-lg: 1.1875rem;
+  --text-lg--line-height: 1.6;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.625rem;
+  --text-3xl: 2rem;
+  --text-4xl: 2.5rem;
+  --text-5xl: 3.25rem;
+  --text-6xl: 4rem;
+}
+
+/* --------------------------------------------------------------------------
+   Cinema — the chrome gets out of the way.
+
+   Frames disappear (`--shape-edge-width: 0`), the glow and the drop shadow go
+   with them, and the blur deepens so what is left reads as atmosphere rather
+   than as furniture. The page margin shrinks to almost nothing and the measure
+   opens to 120rem, so covers and pages get the screen. Motion drops to a third
+   of Signature's — an interface you are looking THROUGH should not be moving.
+
+   Type and spacing are untouched: this preset is not about density, and a
+   reading app that shrank its own text to show more of itself would have
+   missed the point. The reader opens in cinema mode by default (see
+   `presets.ts`), which is the same idea applied to the one screen that matters
+   most.
+   -------------------------------------------------------------------------- */
+:root[data-preset="cinema"] {
+  --shape-panel-blur: 28px;
+  --shape-card-blur: 18px;
+  /* No border at all. The empty state's dashed outline goes too, which is the
+     correct reading of "chrome recedes" rather than a casualty of it. */
+  --shape-edge-width: 0px;
+  --shape-glow: none;
+  --shape-panel-shadow: none;
+
+  --shape-page-pad: 0.75rem;
+  --shape-page-pad-wide: 1.25rem;
+  --shape-page-measure: 120rem;
+  --shape-empty-pad: 2.5rem;
+
+  --shape-title-size: 2rem;
+  --shape-title-tracking: 0.04em;
+  --shape-motion: 0.35;
+
+  --radius-sm: 0.5rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 2rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 3rem;
+  --radius-4xl: 4.5rem;
+}

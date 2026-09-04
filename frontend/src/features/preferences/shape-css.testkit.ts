@@ -20,7 +20,10 @@ const APP = path.resolve(__dirname, "../../app");
 
 export const GLOBALS_CSS = readFileSync(path.join(APP, "globals.css"), "utf8");
 
-const SOURCES: readonly string[] = [GLOBALS_CSS];
+/** The five preset bundles: one `:root[data-preset=…]` block each. */
+export const PRESETS_CSS = readFileSync(path.join(APP, "presets.css"), "utf8");
+
+const SOURCES: readonly string[] = [GLOBALS_CSS, PRESETS_CSS];
 
 /** The raw body of the first rule whose selector starts with `selector`. */
 export function shapeRuleBody(selector: string): string {
