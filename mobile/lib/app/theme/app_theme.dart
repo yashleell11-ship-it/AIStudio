@@ -12,6 +12,7 @@ export 'package:manhwamaniacs/app/theme/app_colors.dart';
 export 'package:manhwamaniacs/app/theme/app_metrics.dart';
 export 'package:manhwamaniacs/app/theme/app_palette.dart';
 export 'package:manhwamaniacs/app/theme/app_palettes.dart';
+export 'package:manhwamaniacs/app/theme/app_palettes.generated.dart';
 export 'package:manhwamaniacs/app/theme/app_presets.dart';
 export 'package:manhwamaniacs/app/theme/app_typography.dart';
 

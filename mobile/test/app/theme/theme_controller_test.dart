@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/app/theme/app_palettes.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.generated.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 import 'package:manhwamaniacs/features/profiles/models/profile.dart';
@@ -62,7 +63,7 @@ void main() {
     final container = await makeContainer();
     await container.read(themeControllerProvider.notifier).setTheme('nord');
 
-    expect(container.read(themeControllerProvider), AppPalettes.nord);
+    expect(container.read(themeControllerProvider), Base16Palettes.nord);
     final prefs = container.read(sharedPrefsProvider);
     expect(prefs.getString('mm.theme.u1p1'), 'nord');
   });
@@ -73,7 +74,7 @@ void main() {
     await controller.setTheme('mocha');
     await controller.setTheme('definitely_not_a_theme');
 
-    expect(container.read(themeControllerProvider), AppPalettes.mocha);
+    expect(container.read(themeControllerProvider), Base16Palettes.mocha);
     expect(
       container.read(sharedPrefsProvider).getString('mm.theme.u1p1'),
       'mocha',
@@ -93,13 +94,13 @@ void main() {
         'mm.theme.u1p2': 'latte',
       },
     );
-    expect(container.read(themeControllerProvider), AppPalettes.gruvbox);
+    expect(container.read(themeControllerProvider), Base16Palettes.gruvbox);
 
     final profiles = container.read(activeProfileProvider.notifier)
         as _SwitchableProfileNotifier;
     profiles.switchTo(_SwitchableProfileNotifier.profileTwo);
 
-    expect(container.read(themeControllerProvider), AppPalettes.latte);
+    expect(container.read(themeControllerProvider), Base16Palettes.latte);
   });
 
   test('a persona with no saved theme gets the default, not a neighbour\'s',
@@ -117,7 +118,7 @@ void main() {
       withProfile: false,
       seeded: {'mm.theme.device': 'rose_pine'},
     );
-    expect(container.read(themeControllerProvider), AppPalettes.rosePine);
+    expect(container.read(themeControllerProvider), Base16Palettes.rosePine);
 
     await container.read(themeControllerProvider.notifier).setTheme('paper');
     expect(

@@ -37,7 +37,7 @@ void main() {
     late AppPalette seen;
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.fromPalette(AppPalettes.nord),
+        theme: AppTheme.fromPalette(Base16Palettes.nord),
         home: Builder(
           builder: (context) {
             seen = context.colors;
@@ -46,7 +46,7 @@ void main() {
         ),
       ),
     );
-    expect(seen, same(AppPalettes.nord));
+    expect(seen, same(Base16Palettes.nord));
   });
 
   testWidgets('context.colors falls back to Eclipse on a bare ThemeData',

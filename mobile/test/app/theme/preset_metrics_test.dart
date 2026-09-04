@@ -380,7 +380,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.fromPalette(
-            AppPalettes.nord,
+            Base16Palettes.nord,
             metrics: AppPresets.compact,
           ),
           home: Builder(
