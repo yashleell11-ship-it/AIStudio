@@ -16,6 +16,7 @@ import {
   hourlyBars,
   isStatisticsEmpty,
   isWindowEmpty,
+  lineStyleFor,
   niceScaleMax,
   peakHour,
   readingStatusBreakdown,
@@ -493,5 +494,24 @@ describe("hourlyBars", () => {
     const bars = hourlyBars(Array.from({ length: 24 }, (_, h) => hour(h)));
     expect(bars).toHaveLength(24);
     expect(bars.every((b) => b.fraction === 0)).toBe(true);
+  });
+});
+
+describe("lineStyleFor", () => {
+  it("gives the time series full weight and per-day markers on a readable window", () => {
+    expect(lineStyleFor(7)).toEqual({ strokeWidth: 2, opacity: 0.75, markers: true });
+    expect(lineStyleFor(30)).toEqual({ strokeWidth: 2, opacity: 0.75, markers: true });
+  });
+
+  it("thins it and drops the markers once the line is more noise than trend", () => {
+    // 90 vertices of a 2px near-white stroke bury the bars underneath them.
+    expect(lineStyleFor(90)).toEqual({ strokeWidth: 1.5, opacity: 0.6, markers: false });
+  });
+
+  it("never draws the line so faint it fails non-text contrast", () => {
+    for (const count of [0, 7, 30, 31, 32, 90, 365]) {
+      expect(lineStyleFor(count).opacity).toBeGreaterThanOrEqual(0.6);
+      expect(lineStyleFor(count).strokeWidth).toBeGreaterThanOrEqual(1.5);
+    }
   });
 });

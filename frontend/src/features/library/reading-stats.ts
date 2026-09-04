@@ -515,6 +515,34 @@ export function activityChartSummary(
 }
 
 /**
+ * Past this many days the per-day time line stops reading as a trend and starts
+ * reading as noise laid over the bars, so it thins out and drops its markers.
+ */
+export const DENSE_CHART_DAYS = 31;
+
+export interface LineStyle {
+  strokeWidth: number;
+  opacity: number;
+  /** Whether to mark each individual day on the line. */
+  markers: boolean;
+}
+
+/**
+ * How heavily to draw the time series for a given number of days.
+ *
+ * At 7 or 30 days the line is a readable shape and earns full weight; at 90 it
+ * is 90 vertices in the same space and a 2px near-white stroke buries the bars
+ * underneath it. The bars are the headline metric in both cases, so the line
+ * gives way rather than the other way round. Both opacities still clear the
+ * 3:1 non-text contrast floor against every theme's card surface.
+ */
+export function lineStyleFor(pointCount: number): LineStyle {
+  return pointCount > DENSE_CHART_DAYS
+    ? { strokeWidth: 1.5, opacity: 0.6, markers: false }
+    : { strokeWidth: 2, opacity: 0.75, markers: true };
+}
+
+/**
  * Bar heights for the 24-hour histogram, as fractions of the busiest hour.
  *
  * A single series, so height alone carries it — but the fraction is returned

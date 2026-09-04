@@ -17,6 +17,10 @@ import {
   runBulk,
   summarizeBulkOutcome,
 } from "./bulk";
+import {
+  clientTimezoneOffsetMinutes,
+  DEFAULT_STATISTICS_RANGE,
+} from "./reading-stats";
 import type { SeriesListParams } from "./url-state";
 import type { FollowedSeries } from "./types";
 
@@ -164,10 +168,21 @@ export function useReadingHistory(limit = 50) {
   });
 }
 
-export function useStatistics() {
+/**
+ * Reading statistics for one window.
+ *
+ * The viewer's UTC offset is part of the request (the backend buckets days at
+ * it) and therefore part of the cache key — a profile that crosses a timezone
+ * must not be served yesterday's buckets. It is read once per render rather
+ * than stored, so a laptop opened in another country is right on the next
+ * fetch without anything to invalidate.
+ */
+export function useStatistics(days: number = DEFAULT_STATISTICS_RANGE) {
+  const tzOffsetMinutes = clientTimezoneOffsetMinutes();
   return useQuery({
-    queryKey: [...DISCOVERY_KEY, "statistics"],
-    queryFn: () => libraryApi.statistics(),
+    queryKey: [...DISCOVERY_KEY, "statistics", days, tzOffsetMinutes],
+    queryFn: () =>
+      libraryApi.statistics({ days, tz_offset_minutes: tzOffsetMinutes }),
   });
 }
 
