@@ -665,3 +665,57 @@ def test_registry_lists_novelcool_once_wired():
     if "novelcool" not in browsable:
         pytest.skip("novelcool not yet wired into registry.py (owned by the integrator)")
     assert "novelcool" in browsable
+
+
+# ---------------------------------------------------------------------------
+# Card titles: each selector pinned on its own
+# ---------------------------------------------------------------------------
+
+
+def _card(inner: str) -> str:
+    """One ``book-item`` card carrying the two markers every card needs."""
+    return (
+        '<div class="book-item">'
+        '<div class="book-type book-type-manga"></div>'
+        '<a href="/novel/Nano-Machine.html">'
+        f"{inner}"
+        "</a></div>"
+    )
+
+
+_BOOK_NAME_TITLE = (
+    '<div class="book-name single-line-ellipsis" itemprop="name">Nano Machine</div>'
+)
+_BOOK_PIC_TITLE = '<div class="book-pic" title="Nano Machine"></div>'
+
+
+def test_card_title_comes_from_the_book_name_div():
+    """The primary selector, pinned with the fallback's markup absent.
+
+    ``parse_series_cards`` reads the title as ``_CARD_TITLE_RE or
+    _CARD_PIC_TITLE_RE``, so a card carrying both is green even when one of
+    the two is broken -- the other quietly covers for it. These two tests
+    give each branch a card only it can parse, so breaking either regex
+    fails a test instead of degrading silently.
+    """
+    (series,) = parse_series_cards(_card(_BOOK_NAME_TITLE))
+
+    assert series.title == "Nano Machine"
+
+
+def test_card_title_falls_back_to_the_book_pic_attribute():
+    """The fallback, pinned with the primary selector's markup absent."""
+    (series,) = parse_series_cards(_card(_BOOK_PIC_TITLE))
+
+    assert series.title == "Nano Machine"
+
+
+def test_card_with_no_title_markup_falls_back_to_the_slug():
+    """Neither selector matches: the id stands in, rather than an empty title.
+
+    Worth pinning because it is the failure mode that hides a markup change
+    -- the listing still renders, with slugs where titles belong.
+    """
+    (series,) = parse_series_cards(_card("<div></div>"))
+
+    assert series.title == "Nano-Machine"
