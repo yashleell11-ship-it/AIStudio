@@ -27,7 +27,7 @@ from __future__ import annotations
 
 import logging
 import time
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import replace
 from typing import Any
 
@@ -81,13 +81,20 @@ _PAGE_WORKERS = 8
 #: so only every other page number has to be asked for.
 _PAGES_PER_CHAPTERFUN = 2
 
-#: How many times the whole chapterfun fan-out is attempted. The endpoint
-#: answers an empty 200 rather than an error when it is refusing, so the
-#: shared client's own retry loop never sees a failure to retry.
+#: How many times the chapterfun fan-out is attempted. The endpoint answers
+#: an empty 200 rather than an error when it is refusing, so the shared
+#: client's own retry loop never sees a failure to retry.
 _CHAPTERFUN_ATTEMPTS = 2
 
 #: Backoff before re-asking for the pages a previous attempt did not resolve.
 _CHAPTERFUN_RETRY_DELAY = 0.75
+
+#: Consecutive blank replies that mean the endpoint is refusing this chapter
+#: outright rather than dropping the odd request. When it refuses, it refuses
+#: EVERY call (measured: 0/28 across serial, paced-serial and parallel runs
+#: of the same chapter), so the rest of the fan-out is cancelled instead of
+#: spending four more seconds learning the same answer.
+_CHAPTERFUN_BLANK_ABORT = 3
 
 #: MangaHere's CDNs refuse a request that carries no ``Referer`` -- verified
 #: from the VPS: 403 with an HTML body without it, 200 with it, for BOTH the
@@ -435,16 +442,45 @@ class MangaHereConnector(SourceConnector):
                 return page_number, []
             return page_number, parse_chapterfun_response(script)
 
+        def fan_out(numbers: list[int]) -> tuple[dict[int, str], bool]:
+            """Fetch ``numbers`` in parallel; bail early on a flat refusal."""
+            found: dict[int, str] = {}
+            blanks = 0
+            refused = False
+            workers = min(_PAGE_WORKERS, len(numbers))
+            with ThreadPoolExecutor(max_workers=workers) as pool:
+                futures = {pool.submit(fetch, number): number for number in numbers}
+                for future in as_completed(futures):
+                    page_number, urls = future.result()
+                    if not urls:
+                        blanks += 1
+                        if not found and blanks >= _CHAPTERFUN_BLANK_ABORT:
+                            refused = True
+                            for pending in futures:
+                                pending.cancel()
+                            break
+                        continue
+                    for offset, url in enumerate(urls):
+                        found.setdefault(page_number + offset, url)
+            return found, refused
+
         resolved: dict[int, str] = {}
         outstanding = wanted
         for attempt in range(_CHAPTERFUN_ATTEMPTS):
             if attempt:
                 time.sleep(_CHAPTERFUN_RETRY_DELAY * attempt)
-            workers = min(_PAGE_WORKERS, len(outstanding))
-            with ThreadPoolExecutor(max_workers=workers) as pool:
-                for page_number, urls in pool.map(fetch, outstanding):
-                    for offset, url in enumerate(urls):
-                        resolved.setdefault(page_number + offset, url)
+            found, refused = fan_out(outstanding)
+            resolved.update(found)
+            if refused:
+                # Nothing came back at all. Re-asking returns the identical
+                # answer, so stop rather than pay for a second fan-out.
+                self._log(
+                    "pages",
+                    path,
+                    status="refused",
+                    detail="chapterfun returned only blank replies",
+                )
+                return []
             outstanding = [
                 number for number in wanted if number not in resolved
             ]
