@@ -29,9 +29,19 @@
  * key would make this half the length and would hand the next profile to open
  * the app the previous one's palette for a frame — a small leak, but of exactly
  * the kind per-profile scoping exists to prevent, and a visible one on a shared
- * screen. With no profile selected (a first visit, the login screen, the
- * picker) the script does nothing and the attribute stays absent, which is what
- * the `:root:not([data-theme])` block in globals.css is for.
+ * screen. With no profile selected the script does nothing and the attribute
+ * stays absent, which is what the `:root:not([data-theme])` block in globals.css
+ * is for.
+ *
+ * ### Why it declines on /login and /register
+ *
+ * A persisted profile id outlives the session it was chosen in, so on the auth
+ * screens this could find and apply a palette for a viewer who is not signed in
+ * — while the store, which needs the session too, would resolve to the OS
+ * preference and repaint. That is a flash in the opposite direction, and it
+ * would also announce on a shared machine what the last person here reads in.
+ * Those screens belong to nobody yet, so they follow the OS, as they did before
+ * any of this existed.
  *
  * The source lives in its own module, separate from the component that emits
  * it, so `theme-boot.test.ts` can execute it against a fake `localStorage` and
@@ -39,6 +49,7 @@
  * else on the page and cannot be debugged from a stack trace.
  */
 
+import { PUBLIC_AUTH_PATHS } from "@/features/auth/access";
 import { ACTIVE_PROFILE_STORAGE_KEY } from "@/features/profiles/storage-key";
 import { READING_THEMES, READING_THEME_STORAGE_BASE } from "./theme";
 
@@ -53,6 +64,7 @@ import { READING_THEMES, READING_THEME_STORAGE_BASE } from "./theme";
  */
 export const THEME_BOOT_SOURCE = `try{
 var V=${JSON.stringify(READING_THEMES)},P=${JSON.stringify(ACTIVE_PROFILE_STORAGE_KEY)},B=${JSON.stringify(READING_THEME_STORAGE_BASE)};
+if(${JSON.stringify(PUBLIC_AUTH_PATHS)}.indexOf(location.pathname.replace(/\\/+$/,"")||"/")>=0)return;
 var raw=localStorage.getItem(P);if(!raw)return;
 var p=(JSON.parse(raw).state||{}).activeProfile;if(!p||p.id==null)return;
 var suffix=":p"+p.id,prefix=B+"::u";

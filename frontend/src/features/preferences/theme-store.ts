@@ -104,9 +104,20 @@ export interface ReadingThemeState {
 
 /** Whether a choice is actually stored, as opposed to inferred from the OS. */
 function getExplicitSnapshot(): boolean {
-  return (
-    activeStorageKey(READING_THEME_BASE) !== null && readStoredReadingTheme() !== null
-  );
+  return hasStorageScope() && readStoredReadingTheme() !== null;
+}
+
+/**
+ * Whether the (user, profile) scope this preference is keyed by exists yet.
+ *
+ * It does not, for a beat, on every cold load of an authenticated page: the
+ * scope is published only once the session probe answers and the persisted
+ * profile has rehydrated. Until then this store cannot tell "no theme stored"
+ * from "not asked yet", and it must not act as though it can — see
+ * {@link useApplyReadingTheme}.
+ */
+function hasStorageScope(): boolean {
+  return activeStorageKey(READING_THEME_BASE) !== null;
 }
 
 /** Read and write the active profile's reading theme. */
@@ -129,20 +140,42 @@ export function useReadingTheme(): ReadingThemeState {
  * key before the first paint; this effect then owns it for the rest of the
  * session — profile switches, changes made in another tab, and the picker.
  *
- * Mounted once, by the app shell.
+ * Mounted once, by the app shell, which passes `honourBootTheme: false` on the
+ * screens that belong to nobody yet (see below).
  */
-export function useApplyReadingTheme(): ReadingTheme {
+export function useApplyReadingTheme(honourBootTheme = true): ReadingTheme {
   const { theme } = useReadingTheme();
+  const scoped = useSyncExternalStore(subscribe, hasStorageScope, () => false);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme;
+    const root = document.documentElement;
+    /*
+     * The one case where this must keep its hands off: the scope has not
+     * resolved yet, and the boot script already painted something. Between
+     * hydration and the session probe answering, `theme` here is only the
+     * default — so writing it would repaint a correctly-themed page to Eclipse
+     * and back a moment later, which is the exact flash the boot script exists
+     * to remove, just moved a few hundred milliseconds later.
+     *
+     * With no attribute present there is nothing to protect (the boot script
+     * declines on the auth screens, and finds nothing for a profile that has
+     * never chosen), so the OS-derived default is written as before.
+     *
+     * `honourBootTheme` is how the shell says the wait is over: on the auth
+     * screens the scope will NEVER resolve, so a boot value carried in by a
+     * client-side redirect would otherwise sit there forever, showing the last
+     * profile's palette to whoever is looking at the login form.
+     */
+    if (honourBootTheme && !scoped && root.dataset.theme) return;
+
+    root.dataset.theme = theme;
     // The installed-PWA window paints its title bar and the pull-to-refresh
     // gutter from this tag, not from the stylesheet. Left alone it would keep
     // the static Eclipse near-black declared in `layout.tsx`, so a Catppuccin
     // Latte install would read as a light app in a black frame.
     const meta = document.querySelector('meta[name="theme-color"]');
     meta?.setAttribute("content", READING_THEME_META[theme].swatch.bg);
-  }, [theme]);
+  }, [theme, scoped, honourBootTheme]);
 
   return theme;
 }

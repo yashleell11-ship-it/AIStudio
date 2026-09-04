@@ -18,7 +18,10 @@ interface Store {
 }
 
 /** Run the script over a snapshot of localStorage; returns the attribute set. */
-function boot(store: Store, options: { throwOnRead?: boolean } = {}): string | null {
+function boot(
+  store: Store,
+  options: { throwOnRead?: boolean; pathname?: string } = {},
+): string | null {
   const keys = Object.keys(store);
   const localStorage = {
     get length() {
@@ -40,11 +43,13 @@ function boot(store: Store, options: { throwOnRead?: boolean } = {}): string | n
   };
   // The source is a function BODY (it uses bare `return`), which is why it is
   // exported separately from the IIFE the page gets.
-  const run = new Function("localStorage", "document", THEME_BOOT_SOURCE) as (
-    ls: unknown,
-    doc: unknown,
-  ) => void;
-  run(localStorage, document);
+  const run = new Function(
+    "localStorage",
+    "document",
+    "location",
+    THEME_BOOT_SOURCE,
+  ) as (ls: unknown, doc: unknown, loc: unknown) => void;
+  run(localStorage, document, { pathname: options.pathname ?? "/library" });
   return applied;
 }
 
@@ -116,6 +121,19 @@ describe("theme boot script", () => {
 
   it("survives corrupt profile JSON", () => {
     expect(boot({ [ACTIVE_PROFILE_STORAGE_KEY]: "{not json" })).toBeNull();
+  });
+
+  it("declines on the auth screens, which belong to nobody yet", () => {
+    // A persisted profile id outlives its session. Applying its palette on
+    // /login would paint for someone who is not signed in, and the store —
+    // which needs the session too — would then repaint to the OS preference.
+    const store = storeFor(4, { [themeKey(1, 4)]: "nord" });
+    expect(boot(store, { pathname: "/login" })).toBeNull();
+    expect(boot(store, { pathname: "/register" })).toBeNull();
+    expect(boot(store, { pathname: "/register/" })).toBeNull();
+    // …but every other route is fair game, including the profile picker.
+    expect(boot(store, { pathname: "/profiles" })).toBe("nord");
+    expect(boot(store, { pathname: "/login/extra" })).toBe("nord");
   });
 
   it("survives storage throwing outright", () => {
