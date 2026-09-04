@@ -27,7 +27,7 @@ export const GENERATED_THEMES = [
     id: "gruvbox-dark-hard",
     label: "Gruvbox Hard",
     description: "Retro warmth — burnt orange and olive on deep brown.",
-    author: "Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox)",
+    author: "Dawid Kurek, morhetz",
     scheme: "dark",
     swatch: {
       bg: "#1D2021",
@@ -41,7 +41,7 @@ export const GENERATED_THEMES = [
     id: "gruvbox-dark-medium",
     label: "Gruvbox",
     description: "The classic: softer ground than Hard, same earth tones.",
-    author: "Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox)",
+    author: "Dawid Kurek, morhetz",
     scheme: "dark",
     swatch: {
       bg: "#282828",
@@ -55,7 +55,7 @@ export const GENERATED_THEMES = [
     id: "gruvbox-material-dark-medium",
     label: "Gruvbox Material",
     description: "Gruvbox with the saturation pulled back for long sessions.",
-    author: "Mayush Kumar (https://github.com/MayushKumar), sainnhe (https://github.com/sainnhe/gruvbox-material-vscode)",
+    author: "Mayush Kumar, sainnhe",
     scheme: "dark",
     swatch: {
       bg: "#292828",
@@ -83,7 +83,7 @@ export const GENERATED_THEMES = [
     id: "dracula",
     label: "Dracula",
     description: "Purple and pink on deep indigo. The famous one.",
-    author: "clach04 (https://github.com/clach04)",
+    author: "clach04",
     scheme: "dark",
     swatch: {
       bg: "#282A36",
@@ -97,7 +97,7 @@ export const GENERATED_THEMES = [
     id: "catppuccin-mocha",
     label: "Catppuccin Mocha",
     description: "Pastel mauve and sky on a soft near-black.",
-    author: "https://github.com/catppuccin/catppuccin",
+    author: "catppuccin",
     scheme: "dark",
     swatch: {
       bg: "#1E1E2E",
@@ -111,7 +111,7 @@ export const GENERATED_THEMES = [
     id: "catppuccin-macchiato",
     label: "Catppuccin Macchiato",
     description: "Mocha's warmer, slightly lighter sibling.",
-    author: "https://github.com/catppuccin/catppuccin",
+    author: "catppuccin",
     scheme: "dark",
     swatch: {
       bg: "#24273A",
@@ -125,7 +125,7 @@ export const GENERATED_THEMES = [
     id: "rose-pine",
     label: "Rosé Pine",
     description: "Muted rose and pine on a deep plum night.",
-    author: "Emilia Dunfelt <edun@dunfelt.se>",
+    author: "Emilia Dunfelt",
     scheme: "dark",
     swatch: {
       bg: "#191724",
@@ -139,7 +139,7 @@ export const GENERATED_THEMES = [
     id: "rose-pine-moon",
     label: "Rosé Pine Moon",
     description: "Rosé Pine lifted off black, gentler at night.",
-    author: "Emilia Dunfelt <edun@dunfelt.se>",
+    author: "Emilia Dunfelt",
     scheme: "dark",
     swatch: {
       bg: "#232136",
@@ -153,7 +153,7 @@ export const GENERATED_THEMES = [
     id: "kanagawa",
     label: "Kanagawa",
     description: "Ink-wash blues and dry gold, after Hokusai.",
-    author: "Tommaso Laurenzi (https://github.com/rebelot)",
+    author: "Tommaso Laurenzi",
     scheme: "dark",
     swatch: {
       bg: "#1F1F28",
@@ -167,7 +167,7 @@ export const GENERATED_THEMES = [
     id: "everforest-dark-hard",
     label: "Everforest",
     description: "Low-saturation forest greens, easy on tired eyes.",
-    author: "Sainnhe Park (https://github.com/sainnhe)",
+    author: "Sainnhe Park",
     scheme: "dark",
     swatch: {
       bg: "#272E33",
@@ -195,7 +195,7 @@ export const GENERATED_THEMES = [
     id: "ayu-dark",
     label: "Ayu Dark",
     description: "Warm amber on charcoal — sharp and modern.",
-    author: "Tinted Theming (https://github.com/tinted-theming), Ayu Theme (https://github.com/ayu-theme)",
+    author: "Tinted Theming, Ayu Theme",
     scheme: "dark",
     swatch: {
       bg: "#0B0E14",
@@ -209,7 +209,7 @@ export const GENERATED_THEMES = [
     id: "ayu-mirage",
     label: "Ayu Mirage",
     description: "Ayu on slate-blue, one stop lighter.",
-    author: "Tinted Theming (https://github.com/tinted-theming), Ayu Theme (https://github.com/ayu-theme)",
+    author: "Tinted Theming, Ayu Theme",
     scheme: "dark",
     swatch: {
       bg: "#1F2430",
@@ -223,7 +223,7 @@ export const GENERATED_THEMES = [
     id: "onedark-dark",
     label: "One Dark",
     description: "Atom's default, and half the internet's.",
-    author: "olimorris (https://github.com/olimorris)",
+    author: "olimorris",
     scheme: "dark",
     swatch: {
       bg: "#000000",
@@ -237,7 +237,7 @@ export const GENERATED_THEMES = [
     id: "monokai",
     label: "Monokai",
     description: "Sublime's green, pink and orange on graphite.",
-    author: "Wimer Hazenberg (http://www.monokai.nl)",
+    author: "Wimer Hazenberg",
     scheme: "dark",
     swatch: {
       bg: "#272822",
@@ -265,7 +265,7 @@ export const GENERATED_THEMES = [
     id: "github-dark",
     label: "GitHub Dark",
     description: "GitHub's own dark mode, familiar and neutral.",
-    author: "Tinted Theming (https://github.com/tinted-theming)",
+    author: "Tinted Theming",
     scheme: "dark",
     swatch: {
       bg: "#0D1117",
@@ -279,7 +279,7 @@ export const GENERATED_THEMES = [
     id: "flexoki-dark",
     label: "Flexoki Dark",
     description: "Ink-and-paper pigments tuned for E Ink.",
-    author: "Steph Ango (https://github.com/kepano/flexoki)",
+    author: "Steph Ango",
     scheme: "dark",
     swatch: {
       bg: "#100F0F",
@@ -293,7 +293,7 @@ export const GENERATED_THEMES = [
     id: "oxocarbon-dark",
     label: "Oxocarbon",
     description: "IBM Carbon — cool blue with electric magenta.",
-    author: "shaunsingh/IBM, Tinted Theming (https://github.com/tinted-theming)",
+    author: "shaunsingh/IBM, Tinted Theming",
     scheme: "dark",
     swatch: {
       bg: "#161616",
@@ -307,7 +307,7 @@ export const GENERATED_THEMES = [
     id: "spaceduck",
     label: "Spaceduck",
     description: "Deep space navy with cyan and violet instruments.",
-    author: "Guillermo Rodriguez (https://github.com/pineapplegiant), packaged by Gabriel Fontes (https://github.com/Misterio77)",
+    author: "Guillermo Rodriguez, packaged by Gabriel Fontes",
     scheme: "dark",
     swatch: {
       bg: "#16172D",
@@ -321,7 +321,7 @@ export const GENERATED_THEMES = [
     id: "eldritch",
     label: "Eldritch",
     description: "Occult greens and purples on abyssal blue.",
-    author: "https://github.com/eldritch-theme",
+    author: "eldritch-theme",
     scheme: "dark",
     swatch: {
       bg: "#212337",
@@ -335,7 +335,7 @@ export const GENERATED_THEMES = [
     id: "selenized-black",
     label: "Selenized Black",
     description: "Solarized's successor, rebuilt for true black.",
-    author: "Jan Warchol (https://github.com/jan-warchol/selenized) / adapted to base16 by ali",
+    author: "Jan Warchol / adapted to base16 by ali",
     scheme: "dark",
     swatch: {
       bg: "#181818",
@@ -349,7 +349,7 @@ export const GENERATED_THEMES = [
     id: "horizon-dark",
     label: "Horizon Dark",
     description: "Dusk pinks and corals over a warm slate.",
-    author: "Michaël Ball (http://github.com/michael-ball/)",
+    author: "Michaël Ball",
     scheme: "dark",
     swatch: {
       bg: "#1C1E26",
@@ -377,7 +377,7 @@ export const GENERATED_THEMES = [
     id: "vesper",
     label: "Vesper",
     description: "Near-monochrome graphite with a single amber note.",
-    author: "FormalSnake (https://github.com/formalsnake)",
+    author: "FormalSnake",
     scheme: "dark",
     swatch: {
       bg: "#101010",
@@ -391,7 +391,7 @@ export const GENERATED_THEMES = [
     id: "catppuccin-latte",
     label: "Catppuccin Latte",
     description: "Pastel accents on cool porcelain.",
-    author: "https://github.com/catppuccin/catppuccin",
+    author: "catppuccin",
     scheme: "light",
     swatch: {
       bg: "#EFF1F5",
@@ -405,7 +405,7 @@ export const GENERATED_THEMES = [
     id: "rose-pine-dawn",
     label: "Rosé Pine Dawn",
     description: "Warm blush paper with muted rose ink.",
-    author: "Emilia Dunfelt <edun@dunfelt.se>",
+    author: "Emilia Dunfelt",
     scheme: "light",
     swatch: {
       bg: "#FAF4ED",
@@ -419,7 +419,7 @@ export const GENERATED_THEMES = [
     id: "gruvbox-light-medium",
     label: "Gruvbox Light",
     description: "Cream paper, earth-tone ink.",
-    author: "Dawid Kurek (dawikur@gmail.com), morhetz (https://github.com/morhetz/gruvbox)",
+    author: "Dawid Kurek, morhetz",
     scheme: "light",
     swatch: {
       bg: "#FBF1C7",
@@ -433,7 +433,7 @@ export const GENERATED_THEMES = [
     id: "one-light",
     label: "One Light",
     description: "One Dark inverted — crisp, neutral, familiar.",
-    author: "Daniel Pfeifer (http://github.com/purpleKarrot)",
+    author: "Daniel Pfeifer",
     scheme: "light",
     swatch: {
       bg: "#FAFAFA",
@@ -447,7 +447,7 @@ export const GENERATED_THEMES = [
     id: "github",
     label: "GitHub Light",
     description: "GitHub's default: plain white and a confident blue.",
-    author: "Tinted Theming (https://github.com/tinted-theming)",
+    author: "Tinted Theming",
     scheme: "light",
     swatch: {
       bg: "#FFFFFF",
@@ -461,7 +461,7 @@ export const GENERATED_THEMES = [
     id: "flexoki-light",
     label: "Flexoki Light",
     description: "Warm paper pigments; the E Ink palette by daylight.",
-    author: "Steph Ango (https://github.com/kepano/flexoki)",
+    author: "Steph Ango",
     scheme: "light",
     swatch: {
       bg: "#FFFCF0",
@@ -503,7 +503,7 @@ export const GENERATED_THEMES = [
     id: "selenized-white",
     label: "Selenized White",
     description: "Solarized's successor at full brightness.",
-    author: "Jan Warchol (https://github.com/jan-warchol/selenized) / adapted to base16 by ali",
+    author: "Jan Warchol / adapted to base16 by ali",
     scheme: "light",
     swatch: {
       bg: "#FFFFFF",
@@ -531,7 +531,7 @@ export const GENERATED_THEMES = [
     id: "horizon-light",
     label: "Horizon Light",
     description: "Dawn corals and pinks on warm off-white.",
-    author: "Michaël Ball (http://github.com/michael-ball/)",
+    author: "Michaël Ball",
     scheme: "light",
     swatch: {
       bg: "#FDF0ED",
@@ -545,7 +545,7 @@ export const GENERATED_THEMES = [
     id: "sakura",
     label: "Sakura",
     description: "Blossom pink paper with deep teal ink.",
-    author: "Misterio77 (http://github.com/Misterio77)",
+    author: "Misterio77",
     scheme: "light",
     swatch: {
       bg: "#FEEDF3",
