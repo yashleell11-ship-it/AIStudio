@@ -36,6 +36,7 @@ from connectors.excluded import EXCLUDED_CONNECTORS
 from connectors.madara.factory import madara_connector_classes
 from connectors.madara.sites import MADARA_SITES
 from connectors.mangadex.connector import MangaDexConnector
+from connectors.archiveorg.connector import ArchiveOrgConnector
 from connectors.freewebnovel.connector import FreeWebNovelConnector
 from connectors.novelarchive.connector import NovelArchiveConnector
 from connectors.royalroad.connector import RoyalRoadConnector
@@ -92,6 +93,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     EightMusesConnector.SOURCE_TYPE,
     TapasConnector.SOURCE_TYPE,
     FirstKissMangaConnector.SOURCE_TYPE,
+    ArchiveOrgConnector.SOURCE_TYPE,
     FreeWebNovelConnector.SOURCE_TYPE,
     NovelArchiveConnector.SOURCE_TYPE,
     RoyalRoadConnector.SOURCE_TYPE,
@@ -199,6 +201,7 @@ def _register_builtin_connectors() -> None:
         # Novel sources (CONTENT_KIND = "novel"): registered unconditionally,
         # but every registry query surface hides them while MM_NOVELS_ENABLED
         # is off (see _novels_enabled) — production stays a manhwa site.
+        (ArchiveOrgConnector.SOURCE_TYPE, ArchiveOrgConnector),
         (FreeWebNovelConnector.SOURCE_TYPE, FreeWebNovelConnector),
         (NovelArchiveConnector.SOURCE_TYPE, NovelArchiveConnector),
         (RoyalRoadConnector.SOURCE_TYPE, RoyalRoadConnector),
