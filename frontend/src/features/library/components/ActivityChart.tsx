@@ -97,19 +97,21 @@ export function ActivityChart({ daily }: { daily: DailyReading[] }) {
           <span aria-hidden className="h-3.5 w-2 rounded-sm bg-primary" />
           Pages read
         </span>
-        <span className="inline-flex items-center gap-2">
-          <svg aria-hidden width="22" height="8" viewBox="0 0 22 8" className="text-fg">
-            <path
-              d="M0 4 H22"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeDasharray="5 4"
-              fill="none"
-            />
-            <rect x="8" y="1" width="6" height="6" fill="currentColor" />
-          </svg>
-          Time read
-        </span>
+        {chart.hasTime ? (
+          <span className="inline-flex items-center gap-2">
+            <svg aria-hidden width="22" height="8" viewBox="0 0 22 8" className="text-fg">
+              <path
+                d="M0 4 H22"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeDasharray="5 4"
+                fill="none"
+              />
+              <rect x="8" y="1" width="6" height="6" fill="currentColor" />
+            </svg>
+            Time read
+          </span>
+        ) : null}
       </div>
 
       <svg
@@ -147,17 +149,22 @@ export function ActivityChart({ daily }: { daily: DailyReading[] }) {
               {formatCount(tick.pages)}
             </text>
           ))}
-          {chart.ticks.map((tick, index) => (
-            <text
-              key={`right-${index}`}
-              x={chart.plot.x + chart.plot.width + 8}
-              y={tick.y + 3}
-              textAnchor="start"
-              className="tabular-nums"
-            >
-              {index === 0 ? "0m" : formatDuration(tick.seconds)}
-            </text>
-          ))}
+          {/* No right axis when no time was ever recorded (a session the
+              client never closed has pages but no seconds): a scale invented
+              for a line that is not drawn invites reading the bars off it. */}
+          {chart.hasTime
+            ? chart.ticks.map((tick, index) => (
+                <text
+                  key={`right-${index}`}
+                  x={chart.plot.x + chart.plot.width + 8}
+                  y={tick.y + 3}
+                  textAnchor="start"
+                  className="tabular-nums"
+                >
+                  {index === 0 ? "0m" : formatDuration(tick.seconds)}
+                </text>
+              ))
+            : null}
           {chart.xLabels.map((label) => (
             <text
               key={label.date}
@@ -224,16 +231,21 @@ export function ActivityChart({ daily }: { daily: DailyReading[] }) {
           {chart.bars.map((bar) => (
             <rect
               key={`hit-${bar.date}`}
-              x={bar.centerX - Math.max(bar.width, chart.plot.width / Math.max(1, chart.bars.length)) / 2}
+              x={bar.centerX - Math.max(bar.width, chart.slot) / 2}
               y={chart.plot.y}
-              width={Math.max(bar.width, chart.plot.width / Math.max(1, chart.bars.length))}
+              width={Math.max(bar.width, chart.slot)}
               height={chart.plot.height}
               fill="transparent"
             >
+              {/* Unmeasured time is left unsaid — "no time" would claim a
+                  measured zero for days whose sessions were simply never
+                  closed. */}
               <title>
-                {`${longDay(bar.date)} — ${formatCount(bar.pages)} pages, ${formatDurationLong(
-                  bar.seconds,
-                )}`}
+                {chart.hasTime
+                  ? `${longDay(bar.date)} — ${formatCount(bar.pages)} pages, ${formatDurationLong(
+                      bar.seconds,
+                    )}`
+                  : `${longDay(bar.date)} — ${formatCount(bar.pages)} pages`}
               </title>
             </rect>
           ))}
