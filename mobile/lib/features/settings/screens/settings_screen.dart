@@ -17,6 +17,7 @@ import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/features/settings/screens/theme_gallery_screen.dart';
 import 'package:manhwamaniacs/features/settings/utils/settings_search_index.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
@@ -322,9 +323,15 @@ class _AdminBadge extends StatelessWidget {
   }
 }
 
-/// The multi-theme gallery: swatch previews for every registered palette,
-/// grouped dark/light, applied instantly on tap and persisted per profile
-/// (see `theme_controller.dart`).
+/// The Theme section: what the app is wearing, a strip to flick through
+/// every palette, and a way into the full gallery.
+///
+/// This used to be the whole registry in one `Wrap`. Forty-five palettes do
+/// not fit that shape — the section became taller than the rest of Settings
+/// put together, and finding a named theme meant reading every tile. So the
+/// section keeps the two things worth doing without leaving Settings (see
+/// what is on, flick to the next one) and hands browsing to
+/// [ThemeGalleryScreen], which has search and a dark/light filter.
 class _ThemeSelector extends ConsumerWidget {
   const _ThemeSelector();
 
@@ -336,181 +343,146 @@ class _ThemeSelector extends ConsumerWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _ThemeGroup(
-            label: 'Dark',
-            palettes: AppPalettes.darkPalettes,
-            activeId: active.id,
+          Semantics(
+            button: true,
+            label: 'Browse themes. Currently ${active.name}',
+            child: GestureDetector(
+              key: const Key('theme-open-gallery'),
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(
+                  builder: (_) => const ThemeGalleryScreen(),
+                ),
+              ),
+              child: Row(
+                children: [
+                  ThemeMiniature(palette: active, width: 84, height: 56),
+                  SizedBox(width: context.space.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          active.name,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.label.copyWith(
+                            color: context.colors.fg,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: context.space.xxs),
+                        Text(
+                          active.description.isEmpty
+                              ? '${AppPalettes.all.length} themes'
+                              : active.description,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: context.text.labelSm.copyWith(
+                            color: context.colors.muted,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(width: context.space.xs),
+                  Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: context.colors.muted,
+                  ),
+                ],
+              ),
+            ),
           ),
-          SizedBox(height: context.space.lg),
-          _ThemeGroup(
-            label: 'Light',
-            palettes: AppPalettes.lightPalettes,
-            activeId: active.id,
-          ),
+          SizedBox(height: context.space.md),
+          _ThemeStrip(activeId: active.id),
         ],
       ),
     );
   }
 }
 
-class _ThemeGroup extends ConsumerWidget {
-  const _ThemeGroup({
-    required this.label,
-    required this.palettes,
-    required this.activeId,
-  });
+/// Every palette as a thumbnail on one horizontal rail.
+///
+/// Deliberately nameless: at this size a caption would truncate to
+/// "Gruvbox Mat…" and the row above already says what is selected. This is for
+/// flicking until something looks right; the gallery is for looking one up.
+class _ThemeStrip extends ConsumerWidget {
+  const _ThemeStrip({required this.activeId});
 
-  final String label;
-  final List<AppPalette> palettes;
   final String activeId;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: context.text.labelSm.copyWith(
-            color: context.colors.muted,
-            letterSpacing: 1.2,
-          ),
-        ),
-        SizedBox(height: context.space.sm),
-        Wrap(
-          spacing: context.space.sm,
-          runSpacing: context.space.sm,
-          children: [
-            for (final palette in palettes)
-              _ThemeSwatch(
-                palette: palette,
-                selected: palette.id == activeId,
-                onTap: () {
-                  ref.read(hapticsProvider).selection();
-                  ref.read(themeControllerProvider.notifier).setTheme(palette.id);
-                },
-              ),
-          ],
-        ),
-      ],
-    );
-  }
-}
-
-/// One tappable palette preview: the palette's own bg/surface/fg/accents in
-/// miniature, so a theme can be judged before it is applied.
-class _ThemeSwatch extends StatelessWidget {
-  const _ThemeSwatch({
-    required this.palette,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final AppPalette palette;
-  final bool selected;
-  final VoidCallback onTap;
-
-  static const double _width = 96;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      label: '${palette.name} theme',
-      child: GestureDetector(
-        key: Key('theme-swatch-${palette.id}'),
-        onTap: onTap,
-        child: SizedBox(
-          width: _width,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Stack(
+    return SizedBox(
+      height: 52,
+      child: ListView.separated(
+        key: const Key('theme-strip'),
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        itemCount: AppPalettes.all.length,
+        separatorBuilder: (_, __) => SizedBox(width: context.space.sm),
+        itemBuilder: (context, index) {
+          final palette = AppPalettes.all[index];
+          final selected = palette.id == activeId;
+          return Semantics(
+            button: true,
+            selected: selected,
+            label: '${palette.name} theme',
+            child: GestureDetector(
+              key: Key('theme-strip-${palette.id}'),
+              onTap: () {
+                ref.read(hapticsProvider).selection();
+                ref.read(themeControllerProvider.notifier).setTheme(palette.id);
+              },
+              child: Stack(
                 children: [
-                  // Miniature of the theme: page background, a surface card
-                  // with an "Aa" text sample, and the accent pair as dots.
-                  Container(
-                    width: _width,
-                    height: 64,
-                    padding: EdgeInsets.all(context.space.sm),
+                  DecoratedBox(
                     decoration: BoxDecoration(
-                      color: palette.bg,
                       borderRadius: BorderRadius.circular(context.radii.md),
                       border: Border.all(
                         color: selected
                             ? context.colors.primary
-                            : context.colors.border,
-                        width: selected ? 2 : 1,
+                            : Colors.transparent,
+                        width: 2,
                       ),
                     ),
-                    child: Container(
-                      padding: EdgeInsets.symmetric(
-                        horizontal: context.space.sm,
-                      ),
-                      decoration: BoxDecoration(
-                        color: palette.surface,
-                        borderRadius: BorderRadius.circular(context.radii.sm),
-                        border: Border.all(color: palette.border),
-                      ),
-                      child: Row(
-                        children: [
-                          Text(
-                            'Aa',
-                            style: context.text.h4.copyWith(
-                              color: palette.fg,
-                              fontSize: 15,
-                            ),
-                          ),
-                          const Spacer(),
-                          _dot(palette.primary),
-                          SizedBox(width: context.space.xs),
-                          _dot(palette.accent),
-                        ],
+                    child: Padding(
+                      padding: const EdgeInsets.all(2),
+                      child: ThemeMiniature(
+                        palette: palette,
+                        width: 64,
+                        height: 44,
                       ),
                     ),
                   ),
                   if (selected)
                     Positioned(
-                      top: context.space.xs,
-                      right: context.space.xs,
+                      top: 4,
+                      right: 4,
                       child: Container(
-                        padding: const EdgeInsets.all(2),
+                        padding: const EdgeInsets.all(1),
                         decoration: BoxDecoration(
                           color: palette.primary,
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
                           Icons.check,
-                          size: 12,
+                          size: 10,
                           color: palette.primaryFg,
                         ),
                       ),
                     ),
                 ],
               ),
-              SizedBox(height: context.space.xs),
-              Text(
-                palette.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: context.text.labelSm.copyWith(
-                  color: selected ? context.colors.fg : context.colors.muted,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }
-
-  Widget _dot(Color color) => Container(
-        width: 10,
-        height: 10,
-        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-      );
 }
 
 /// The design-preset picker: one row per preset, each with a live miniature

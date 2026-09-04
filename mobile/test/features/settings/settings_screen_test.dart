@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/app/theme/app_palettes.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.generated.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/app/theme/preset_controller.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
@@ -419,6 +420,28 @@ Future<void> _scrollToText(WidgetTester tester, String text) async {
   await tester.pump();
 }
 
+/// Bring one palette thumbnail on the Theme strip into view.
+///
+/// The strip is a horizontal `ListView` holding every registered palette, so
+/// anything past the first handful is not built until it is scrolled to —
+/// `ensureVisible` alone only works for what already exists.
+Future<void> _revealStripSwatch(WidgetTester tester, String id) async {
+  await _scrollToText(tester, 'Eclipse');
+  final target = find.byKey(Key('theme-strip-$id'));
+  if (!tester.any(target)) {
+    await tester.scrollUntilVisible(
+      target,
+      120,
+      scrollable: find.descendant(
+        of: find.byKey(const Key('theme-strip')),
+        matching: find.byType(Scrollable),
+      ),
+    );
+  }
+  await tester.ensureVisible(target);
+  await tester.pump();
+}
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -556,21 +579,49 @@ void main() {
   });
 
   group('SettingsScreen widgets', () {
-    testWidgets('shows the theme gallery with a swatch per palette', (tester) async {
+    testWidgets('shows the active theme, the strip, and a way to the gallery',
+        (tester) async {
       await _pumpSettings(tester);
 
       await _scrollToText(tester, 'Eclipse');
-      // The gallery groups palettes by brightness…
-      expect(find.text('DARK'), findsOneWidget);
-      expect(find.text('LIGHT'), findsOneWidget);
-      // …and renders one tappable swatch per registered palette.
-      for (final palette in AppPalettes.all) {
-        expect(
-          find.byKey(Key('theme-swatch-${palette.id}')),
-          findsOneWidget,
-          reason: palette.id,
-        );
-      }
+      // The section says what is on and offers the full gallery…
+      expect(find.byKey(const Key('theme-open-gallery')), findsOneWidget);
+      expect(find.byKey(const Key('theme-strip')), findsOneWidget);
+      expect(
+        tester
+            .widget<ListView>(find.byKey(const Key('theme-strip')))
+            .semanticChildCount,
+        AppPalettes.all.length,
+      );
+      // …and the strip carries every registered palette, lazily. The default
+      // is at the head of it, so it is built without scrolling.
+      expect(find.byKey(const Key('theme-strip-eclipse')), findsOneWidget);
+      // Something far enough down the strip to prove the rail actually holds
+      // the generated set and not just the house palettes.
+      await _revealStripSwatch(tester, 'kanagawa');
+      expect(find.byKey(const Key('theme-strip-kanagawa')), findsOneWidget);
+    });
+
+    testWidgets('the gallery opens with search and a filter', (tester) async {
+      final container = await _pumpSettings(tester);
+
+      await _scrollToText(tester, 'Eclipse');
+      await tester.tap(find.byKey(const Key('theme-open-gallery')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const Key('theme-search')), findsOneWidget);
+      expect(find.byKey(const Key('theme-filter-dark')), findsOneWidget);
+
+      // Search narrows forty-five palettes to the one being looked for, and
+      // picking it from the gallery applies it like any other swatch.
+      await tester.enterText(find.byKey(const Key('theme-search')), 'kanagawa');
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('theme-swatch-kanagawa')), findsOneWidget);
+      expect(find.byKey(const Key('theme-swatch-eclipse')), findsNothing);
+
+      await tester.tap(find.byKey(const Key('theme-swatch-kanagawa')));
+      await tester.pumpAndSettle();
+      expect(container.read(themeControllerProvider), Base16Palettes.kanagawa);
     });
 
     testWidgets(
@@ -597,18 +648,14 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('tapping a swatch applies and persists that theme', (tester) async {
+    testWidgets('tapping a strip swatch applies and persists that theme', (tester) async {
       final container = await _pumpSettings(tester);
 
-      await _scrollToText(tester, 'Eclipse');
-      // The gallery is taller than the test viewport; make sure the tapped
-      // swatch itself is on-screen, not just the section heading.
-      await tester.ensureVisible(find.byKey(const Key('theme-swatch-nord')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('theme-swatch-nord')));
+      await _revealStripSwatch(tester, 'nord');
+      await tester.tap(find.byKey(const Key('theme-strip-nord')));
       await tester.pump();
 
-      expect(container.read(themeControllerProvider), AppPalettes.nord);
+      expect(container.read(themeControllerProvider), Base16Palettes.nord);
       // No signed-in (user, profile) scope in this pump, so the selection
       // lands in the device slot.
       final prefs = container.read(sharedPrefsProvider);
@@ -651,10 +698,8 @@ void main() {
       // pickers sit next to each other and must not disturb one another.
       final container = await _pumpSettings(tester);
 
-      await _scrollToText(tester, 'Eclipse');
-      await tester.ensureVisible(find.byKey(const Key('theme-swatch-nord')));
-      await tester.pump();
-      await tester.tap(find.byKey(const Key('theme-swatch-nord')));
+      await _revealStripSwatch(tester, 'nord');
+      await tester.tap(find.byKey(const Key('theme-strip-nord')));
       await tester.pump();
 
       await _scrollToText(tester, 'Signature');
@@ -663,7 +708,7 @@ void main() {
       await tester.tap(find.byKey(const Key('preset-row-editorial')));
       await tester.pumpAndSettle();
 
-      expect(container.read(themeControllerProvider), AppPalettes.nord);
+      expect(container.read(themeControllerProvider), Base16Palettes.nord);
       expect(container.read(presetControllerProvider), AppPresets.editorial);
       expect(tester.takeException(), isNull);
     });
