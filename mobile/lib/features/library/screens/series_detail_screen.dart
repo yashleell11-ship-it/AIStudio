@@ -142,7 +142,18 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
   }
 
   void _openChapter(KnownChapter chapter, {int? page}) {
-    final path = RoutePaths.reader(_series.sourceId, _series.seriesKey, chapter.key);
+    // Prose opens the novel reader. `page` carries a progress bucket rather
+    // than a page number there, but it is the same parameter and the same
+    // 1-based meaning, so only the path differs.
+    final isNovel = ref.read(contentModeScopeProvider).modeOf(_series.sourceId) ==
+        ContentMode.novel;
+    final path = isNovel
+        ? RoutePaths.novelReader(
+            _series.sourceId,
+            _series.seriesKey,
+            chapter.key,
+          )
+        : RoutePaths.reader(_series.sourceId, _series.seriesKey, chapter.key);
     context.push(page != null ? '$path?page=$page' : path);
   }
 
