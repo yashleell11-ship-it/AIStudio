@@ -18,7 +18,7 @@ export interface MoreItem {
   label: string;
   description: string;
   icon: LucideIcon;
-  /** Hidden from non-admins. Instance-wide, not per-reader. */
+  /** Hidden from non-admins. Instance-wide, not per-reader. See `nav.ts`. */
   adminOnly?: boolean;
 }
 
@@ -107,9 +107,8 @@ export const moreSections: MoreSection[] = [
       {
         href: "/settings",
         label: "Settings",
-        description: "Theme, updates, downloads, and shortcuts.",
+        description: "Design, theme, reader, mature content, and shortcuts.",
         icon: Settings,
-        adminOnly: true,
       },
       {
         href: "/admin/status",

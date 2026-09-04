@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 import { moreSections } from "@/config/more-nav";
+import { isRoleVisibleNavItem } from "@/config/nav";
 import { useCurrentUser } from "@/features/auth/hooks";
 import { useUnreadNotificationCount } from "@/features/updates/hooks";
 
@@ -25,7 +26,9 @@ export default function MorePage() {
 
       <div className="mt-6 space-y-8">
         {moreSections.map((section) => {
-          const items = section.items.filter((item) => !item.adminOnly || isAdmin);
+          const items = section.items.filter((item) =>
+            isRoleVisibleNavItem(item, isAdmin),
+          );
           if (items.length === 0) return null;
 
           return (

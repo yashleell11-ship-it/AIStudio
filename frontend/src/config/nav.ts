@@ -22,8 +22,34 @@ export interface NavItem {
   href: string;
   label: string;
   icon: LucideIcon;
-  /** Hidden from non-admins. Settings is instance-wide configuration. */
+  /**
+   * Hidden from non-admins. Only ever set on routes that administer the SERVER
+   * or other accounts — never on per-reader preferences, which every signed-in
+   * account owns a copy of.
+   */
   adminOnly?: boolean;
+}
+
+/**
+ * Whether an account may see a nav entry.
+ *
+ * The sidebar and the `/more` hub both ask here rather than each re-testing
+ * `adminOnly` inline. Each carried its own copy of the flag and its own copy of
+ * the test, and both marked `/settings` admin-only: with registration open that
+ * left every account but the owner's with no route to a theme, a design preset,
+ * reader defaults or the 18+ toggle. One predicate over one flag per route is
+ * what keeps the two surfaces from drifting apart again.
+ *
+ * This hides a link; it does not authorize anything. The server admin-gates its
+ * own instance-global writes (`PUT /updates/settings`, and the `updates_*`,
+ * `source_cache_ttl_minutes` and profile-less `mature_content_enabled` fields of
+ * `PUT /settings`), which is what actually stops a non-admin.
+ */
+export function isRoleVisibleNavItem(
+  item: { adminOnly?: boolean },
+  isAdmin: boolean,
+): boolean {
+  return !item.adminOnly || isAdmin;
 }
 
 /** A labelled group of nav items, rendered as a section in the sidebar. */
@@ -70,9 +96,11 @@ export const navSections: NavSection[] = [
 /** Pinned to the bottom of the sidebar (account / instance config). */
 export const secondaryNav: NavItem[] = [
   { href: "/profiles/manage", label: "Profiles", icon: Users },
-  { href: "/settings", label: "Settings", icon: Settings, adminOnly: true },
-  // Instance health. Admin-only for the same reason Settings is: it reports on
-  // the server, not on the reader.
+  // Not admin-only: everything behind it is the reader's own — design preset,
+  // theme, reader defaults, 18+ gate, shortcuts. The one instance-global panel
+  // it hosts is gated inside the page (see `config/settings-tabs.ts`).
+  { href: "/settings", label: "Settings", icon: Settings },
+  // Instance health: it reports on the server, not on the reader.
   { href: "/admin/status", label: "Status", icon: Activity, adminOnly: true },
 ];
 

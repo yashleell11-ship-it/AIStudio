@@ -3,7 +3,12 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ChevronRight } from "lucide-react";
-import { navSections, secondaryNav, type NavItem } from "@/config/nav";
+import {
+  isRoleVisibleNavItem,
+  navSections,
+  secondaryNav,
+  type NavItem,
+} from "@/config/nav";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
   ContentModeSwitch,
@@ -27,7 +32,7 @@ function visibleNav(
 ): NavItem[] {
   return items.filter(
     (item) =>
-      (!item.adminOnly || isAdmin) &&
+      isRoleVisibleNavItem(item, isAdmin) &&
       isModeVisibleNavItem(item.href, mode, novelsEnabled),
   );
 }
