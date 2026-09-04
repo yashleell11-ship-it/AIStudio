@@ -28,6 +28,8 @@ interface NovelTypePanelProps {
   choice: NovelPaletteChoice;
   onChoosePalette: (choice: NovelPaletteChoice) => void;
   siteScheme: PaletteScheme;
+  /** The site theme's name, shown beside the "Follow site theme" row. */
+  siteThemeLabel: string;
   onClose: () => void;
 }
 
@@ -46,6 +48,7 @@ export function NovelTypePanel({
   choice,
   onChoosePalette,
   siteScheme,
+  siteThemeLabel,
   onClose,
 }: NovelTypePanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
@@ -144,8 +147,8 @@ export function NovelTypePanel({
           }}
         >
           <span>Follow site theme</span>
-          <span className="text-xs" style={{ color: surface.muted }}>
-            {siteScheme === "light" ? "light" : "dark"}
+          <span className="truncate pl-3 text-xs" style={{ color: surface.muted }}>
+            {siteThemeLabel} · {siteScheme}
           </span>
         </button>
 

@@ -31,6 +31,12 @@ export interface NovelPaletteController {
   scheme: PaletteScheme;
   /** The app's own scheme, for seeding and for the picker's grouping. */
   siteScheme: PaletteScheme;
+  /**
+   * What the app's own theme is called, for the "Follow site theme" row. With
+   * forty-two palettes on the site, "dark" no longer tells the reader which
+   * surface that option is about to hand them.
+   */
+  siteThemeLabel: string;
   setChoice: (choice: NovelPaletteChoice) => void;
 }
 
@@ -49,7 +55,8 @@ export function useNovelPalette(): NovelPaletteController {
     getNovelSettingsServerSnapshot,
   );
   const { theme } = useReadingTheme();
-  const siteScheme = READING_THEME_META[theme].scheme;
+  const siteTheme = READING_THEME_META[theme];
+  const siteScheme = siteTheme.scheme;
 
   const choice = useMemo(
     () => resolvePaletteChoice(settings.palette, siteScheme),
@@ -66,6 +73,7 @@ export function useNovelPalette(): NovelPaletteController {
     palette,
     scheme: palette?.scheme ?? siteScheme,
     siteScheme,
+    siteThemeLabel: siteTheme.label,
     setChoice,
   };
 }

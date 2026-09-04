@@ -87,7 +87,7 @@ export function NovelChapterView({
 }: NovelChapterViewProps) {
   const router = useRouter();
   const scrollElement = useScrollContainer();
-  const { palette, choice, siteScheme, setChoice } = useNovelPalette();
+  const { palette, choice, siteScheme, siteThemeLabel, setChoice } = useNovelPalette();
   const {
     fontSize,
     lineHeight,
@@ -300,6 +300,7 @@ export function NovelChapterView({
               choice={choice}
               onChoosePalette={setChoice}
               siteScheme={siteScheme}
+              siteThemeLabel={siteThemeLabel}
               onClose={() => setTypePanelOpen(false)}
             />
           ) : null
