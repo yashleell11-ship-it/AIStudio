@@ -1,9 +1,10 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/app/display/high_refresh_rate.dart';
 import 'package:manhwamaniacs/app/router/app_router.dart';
 import 'package:manhwamaniacs/app/theme/app_theme.dart';
-import 'package:manhwamaniacs/app/theme/preset_controller.dart';
+import 'package:manhwamaniacs/app/theme/app_theme_provider.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/features/downloads/widgets/downloads_lifecycle_gate.dart';
 import 'package:manhwamaniacs/features/settings/widgets/whats_new_auto_show.dart';
@@ -17,11 +18,16 @@ class ManhwaManiacsApp extends ConsumerWidget {
     // colour (context.colors, the system bars) and the preset is shape
     // (context.space / radii / text / surfaces). Both land on one ThemeData,
     // so changing either rebuilds the tree through MaterialApp's own
-    // AnimatedTheme — which is why neither needs a restart to apply.
+    // AnimatedTheme — which is why neither needs a restart to apply. The
+    // ThemeData is built in `appThemeProvider` rather than here so that a root
+    // rebuild for some *other* reason hands back the same instance and starts
+    // no animation; see that provider for why identity is what matters.
     final palette = ref.watch(themeControllerProvider);
-    final preset = ref.watch(presetControllerProvider);
-    final themed = AppTheme.fromPalette(palette, metrics: preset);
+    final themed = ref.watch(appThemeProvider);
     final router = ref.watch(appRouterProvider);
+    // Keeps the window's display-mode preference in step with the user's
+    // setting for as long as the app is up.
+    ref.watch(highRefreshRateSyncProvider);
 
     return MaterialApp.router(
       title: 'ManhwaManiacs',

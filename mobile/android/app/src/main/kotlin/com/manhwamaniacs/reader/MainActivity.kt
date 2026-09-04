@@ -22,8 +22,8 @@ import io.flutter.plugin.common.MethodChannel
  *    ~1.5 GB free-space floor. `dart:io` has no cross-platform "bytes free"
  *    API and this project adds no new plugins for it — `StatFs` is a
  *    framework class, zero new Gradle dependencies.
- *  - Opting the window into the panel's fastest refresh rate, which Flutter
- *    does not do on its own (see [applyHighestRefreshRate]).
+ *  - Owning the window's preferred display mode, which Flutter does not set
+ *    on its own (see [applyPreferredDisplayMode]).
  *
  * 1c-M4's OCR lives on its own channel in [OcrChannel] rather than here: it
  * is the one piece with a real dependency behind it (ML Kit), and keeping it
@@ -40,10 +40,18 @@ class MainActivity : FlutterActivity() {
     // Every other screen (and a disabled setting) sees normal volume keys.
     private var volumeKeyNavEnabled = false
 
+    // Whether the window should hold the panel at its fastest mode. Defaults
+    // to true to match `PreferencesService.highRefreshRate`, so the very first
+    // frames of a cold start are already fast -- Dart pushes the user's real
+    // value over the channel a few hundred milliseconds later. A user who
+    // turned the setting off therefore pays one brief high-rate window at
+    // launch, rather than everyone else paying a 60 Hz startup.
+    private var highRefreshRateEnabled = true
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
-        applyHighestRefreshRate()
+        applyPreferredDisplayMode()
     }
 
     override fun onResume() {
@@ -51,42 +59,63 @@ class MainActivity : FlutterActivity() {
         // The mode we asked for can be invalidated while we are backgrounded
         // — the user changing screen resolution in system settings renumbers
         // every mode id. Re-asking is a no-op when the preference still holds.
-        applyHighestRefreshRate()
+        applyPreferredDisplayMode()
     }
 
     /**
-     * Ask the window for the fastest refresh rate the panel offers *at its
-     * current resolution*.
+     * Assert the window's preferred display mode: the panel's fastest mode
+     * while [highRefreshRateEnabled], the system default otherwise.
      *
-     * Flutter does not do this itself: an Android app inherits the display's
+     * Flutter does not set this itself: an Android app inherits the display's
      * default mode, and on nearly every 90/120/144 Hz phone that default is
      * 60 Hz. A reader whose whole interaction is a continuous vertical scroll
      * is exactly the app where that is most visible.
+     *
+     * Turning the setting off writes [SYSTEM_DEFAULT_MODE_ID] rather than
+     * merely skipping the request. A preference once written stays written for
+     * the life of the window, so "stop asking" would leave the panel pinned at
+     * whatever was last asked for; clearing it is what actually hands the
+     * choice back to the system's own variable-refresh policy.
+     */
+    private fun applyPreferredDisplayMode() {
+        val target = if (highRefreshRateEnabled) fastestModeId() else SYSTEM_DEFAULT_MODE_ID
+
+        // Compared against the *preference*, which is what this function
+        // establishes — not against `display.mode`, the rate the panel happens
+        // to be running this instant. The two disagree whenever something else
+        // has cleared the preference while Android's variable-refresh policy
+        // still has the fast mode active (touch input in flight, an animation
+        // finishing): checking the active mode would return early and leave
+        // the preference cleared, free to drop again a moment later.
+        // Reassigning window.attributes forces a relayout, so the guard earns
+        // its place.
+        if (window.attributes.preferredDisplayModeId == target) return
+
+        window.attributes = window.attributes.apply {
+            preferredDisplayModeId = target
+        }
+    }
+
+    /**
+     * The id of the fastest mode the panel offers *at its current resolution*,
+     * or [SYSTEM_DEFAULT_MODE_ID] when it cannot be determined.
      *
      * Modes are filtered to the current resolution before picking the fastest
      * one. Several phones expose 1080p@120 alongside 1440p@60; choosing purely
      * on refresh rate would silently override the resolution the user chose in
      * system settings, trading their sharpness for smoothness without asking.
      */
-    private fun applyHighestRefreshRate() {
-        val display = activeDisplay() ?: return
-        val current = display.mode ?: return
+    private fun fastestModeId(): Int {
+        val display = activeDisplay() ?: return SYSTEM_DEFAULT_MODE_ID
+        val current = display.mode ?: return SYSTEM_DEFAULT_MODE_ID
         val fastest = display.supportedModes
             .filter {
                 it.physicalWidth == current.physicalWidth &&
                     it.physicalHeight == current.physicalHeight
             }
             .maxByOrNull { it.refreshRate }
-            ?: return
-
-        // Already on the fastest mode, or we set this preference on a previous
-        // pass and it took effect. Reassigning window.attributes forces a
-        // relayout, so the early return is worth the comparison.
-        if (fastest.modeId == current.modeId) return
-
-        window.attributes = window.attributes.apply {
-            preferredDisplayModeId = fastest.modeId
-        }
+            ?: return SYSTEM_DEFAULT_MODE_ID
+        return fastest.modeId
     }
 
     private fun activeDisplay(): Display? =
@@ -104,6 +133,13 @@ class MainActivity : FlutterActivity() {
             when (call.method) {
                 "setVolumeKeyNavEnabled" -> {
                     volumeKeyNavEnabled = call.arguments as? Boolean ?: false
+                    result.success(null)
+                }
+                "setHighRefreshRateEnabled" -> {
+                    // Defaults to true on a malformed argument, matching both
+                    // the field's initial value and the Dart-side default.
+                    highRefreshRateEnabled = call.arguments as? Boolean ?: true
+                    applyPreferredDisplayMode()
                     result.success(null)
                 }
                 "getDeviceMemoryInfo" -> result.success(readDeviceMemoryInfo())
@@ -160,5 +196,12 @@ class MainActivity : FlutterActivity() {
             return true
         }
         return super.dispatchKeyEvent(event)
+    }
+
+    private companion object {
+        // `WindowManager.LayoutParams.preferredDisplayModeId` documents 0 as
+        // "no preference" — the same value `flutter_displaymode` sends for
+        // `DisplayMode.auto`.
+        const val SYSTEM_DEFAULT_MODE_ID = 0
     }
 }

@@ -1,7 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <!-- Deliberately identical to values-night/styles.xml.
+
+         The app never follows the OS light/dark setting: app.dart hands the
+         same ThemeData to both `theme:` and `darkTheme:` because the in-app
+         gallery owns the choice, and the default palette (Eclipse) is
+         #0A0A0A. On the stock Flutter template this file inherited
+         Theme.Light, whose `?android:colorBackground` is white — so a phone
+         in system Light mode showed a full white window for the whole
+         pre-first-frame duration and then snapped to near-black. -->
+    <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <!-- Show a splash screen on the activity. Automatically removed when
              the Flutter engine draws its first frame -->
         <item name="android:windowBackground">@drawable/launch_background</item>
@@ -12,7 +20,7 @@
          running.
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
+    <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">?android:colorBackground</item>
     </style>
 </resources>
