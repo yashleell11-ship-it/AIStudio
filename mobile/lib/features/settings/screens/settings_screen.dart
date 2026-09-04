@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_radius.dart';
 import 'package:manhwamaniacs/app/theme/app_spacing.dart';
 import 'package:manhwamaniacs/app/theme/app_typography.dart';
+import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
@@ -317,44 +318,195 @@ class _AdminBadge extends StatelessWidget {
   }
 }
 
+/// The multi-theme gallery: swatch previews for every registered palette,
+/// grouped dark/light, applied instantly on tap and persisted per profile
+/// (see `theme_controller.dart`).
 class _ThemeSelector extends ConsumerWidget {
   const _ThemeSelector();
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final themeMode = ref.watch(themeModeProvider);
+    final active = ref.watch(themeControllerProvider);
 
     return GlassCard(
-      // RadioListTile paints its selection/splash on the nearest Material
-      // ancestor; GlassCard only provides one when onTap is set, so this
-      // needs its own.
-      child: Material(
-        color: Colors.transparent,
-        child: RadioGroup<ThemeMode>(
-          groupValue: themeMode,
-          onChanged: (value) {
-            if (value != null) {
-              ref.read(themeModeProvider.notifier).setThemeMode(value);
-            }
-          },
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _ThemeGroup(
+            label: 'Dark',
+            palettes: AppPalettes.darkPalettes,
+            activeId: active.id,
+          ),
+          const SizedBox(height: AppSpacing.lg),
+          _ThemeGroup(
+            label: 'Light',
+            palettes: AppPalettes.lightPalettes,
+            activeId: active.id,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThemeGroup extends ConsumerWidget {
+  const _ThemeGroup({
+    required this.label,
+    required this.palettes,
+    required this.activeId,
+  });
+
+  final String label;
+  final List<AppPalette> palettes;
+  final String activeId;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label.toUpperCase(),
+          style: AppTypography.labelSm.copyWith(
+            color: context.colors.muted,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: AppSpacing.sm),
+        Wrap(
+          spacing: AppSpacing.sm,
+          runSpacing: AppSpacing.sm,
+          children: [
+            for (final palette in palettes)
+              _ThemeSwatch(
+                palette: palette,
+                selected: palette.id == activeId,
+                onTap: () {
+                  ref.read(hapticsProvider).selection();
+                  ref.read(themeControllerProvider.notifier).setTheme(palette.id);
+                },
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+/// One tappable palette preview: the palette's own bg/surface/fg/accents in
+/// miniature, so a theme can be judged before it is applied.
+class _ThemeSwatch extends StatelessWidget {
+  const _ThemeSwatch({
+    required this.palette,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final AppPalette palette;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static const double _width = 96;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${palette.name} theme',
+      child: GestureDetector(
+        key: Key('theme-swatch-${palette.id}'),
+        onTap: onTap,
+        child: SizedBox(
+          width: _width,
           child: Column(
-            children: ThemeMode.values.map((mode) {
-              return RadioListTile<ThemeMode>(
-                title: Text(_themeModeLabel(mode)),
-                value: mode,
-              );
-            }).toList(),
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Stack(
+                children: [
+                  // Miniature of the theme: page background, a surface card
+                  // with an "Aa" text sample, and the accent pair as dots.
+                  Container(
+                    width: _width,
+                    height: 64,
+                    padding: const EdgeInsets.all(AppSpacing.sm),
+                    decoration: BoxDecoration(
+                      color: palette.bg,
+                      borderRadius: BorderRadius.circular(AppRadius.md),
+                      border: Border.all(
+                        color: selected
+                            ? context.colors.primary
+                            : context.colors.border,
+                        width: selected ? 2 : 1,
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: AppSpacing.sm,
+                      ),
+                      decoration: BoxDecoration(
+                        color: palette.surface,
+                        borderRadius: BorderRadius.circular(AppRadius.sm),
+                        border: Border.all(color: palette.border),
+                      ),
+                      child: Row(
+                        children: [
+                          Text(
+                            'Aa',
+                            style: AppTypography.h4.copyWith(
+                              color: palette.fg,
+                              fontSize: 15,
+                            ),
+                          ),
+                          const Spacer(),
+                          _dot(palette.primary),
+                          const SizedBox(width: AppSpacing.xs),
+                          _dot(palette.accent),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (selected)
+                    Positioned(
+                      top: AppSpacing.xs,
+                      right: AppSpacing.xs,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: palette.primary,
+                          shape: BoxShape.circle,
+                        ),
+                        child: Icon(
+                          Icons.check,
+                          size: 12,
+                          color: palette.primaryFg,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: AppSpacing.xs),
+              Text(
+                palette.name,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppTypography.labelSm.copyWith(
+                  color: selected ? context.colors.fg : context.colors.muted,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                ),
+              ),
+            ],
           ),
         ),
       ),
     );
   }
 
-  String _themeModeLabel(ThemeMode mode) => switch (mode) {
-        ThemeMode.system => 'System',
-        ThemeMode.light => 'Light',
-        ThemeMode.dark => 'Dark',
-      };
+  Widget _dot(Color color) => Container(
+        width: 10,
+        height: 10,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      );
 }
 
 class _LanguageSelector extends ConsumerWidget {

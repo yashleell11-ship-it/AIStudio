@@ -1,5 +1,4 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/network/base_url.dart';
@@ -88,19 +87,8 @@ final List<void Function(Ref ref)> matureScopedInvalidators = [
 ];
 
 // ── Theme ────────────────────────────────────────────────────────────────
-
-class ThemeModeController extends Notifier<ThemeMode> {
-  @override
-  ThemeMode build() => ref.watch(preferencesProvider).themeMode;
-
-  Future<void> setThemeMode(ThemeMode mode) async {
-    state = mode;
-    await ref.read(preferencesProvider).setThemeMode(mode);
-  }
-}
-
-final themeModeProvider =
-    NotifierProvider<ThemeModeController, ThemeMode>(ThemeModeController.new);
+// The old ThemeMode (system/light/dark) selector is gone: the multi-theme
+// gallery owns the look now — see `app/theme/theme_controller.dart`.
 
 // ── Language ─────────────────────────────────────────────────────────────
 

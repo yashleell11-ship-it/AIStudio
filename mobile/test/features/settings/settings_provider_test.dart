@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
@@ -297,21 +296,6 @@ Future<ProviderContainer> _container() async {
 }
 
 void main() {
-  group('themeModeProvider', () {
-    test('reads the persisted preference on build and persists changes', () async {
-      final container = await _container();
-      addTearDown(container.dispose);
-
-      expect(container.read(themeModeProvider), ThemeMode.system);
-
-      await container.read(themeModeProvider.notifier).setThemeMode(ThemeMode.dark);
-      expect(container.read(themeModeProvider), ThemeMode.dark);
-
-      final prefs = container.read(preferencesProvider);
-      expect(prefs.themeMode, ThemeMode.dark);
-    });
-  });
-
   group('languageProvider', () {
     test('defaults to English and persists a language change', () async {
       final container = await _container();
