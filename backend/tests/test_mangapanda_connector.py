@@ -115,9 +115,12 @@ def test_updates_and_genre_listings_parse():
 
 def test_browse_modes_map_to_distinct_site_paths():
     paths = [listing_path(1, sort=mode) for mode in
-             ("default", "popular", "added", "completed", "alphabetical")]
-    assert paths == ["/updates", "/popular", "/new", "/completed", "/search"]
-    assert len(set(paths)) == 5
+             ("default", "popular", "completed", "alphabetical")]
+    assert paths == ["/updates", "/popular", "/completed", "/search"]
+    assert len(set(paths)) == 4
+    # /new is routed by the site but has no content behind it (it answers
+    # "No Manga found!" for every request), so it is not offered as a mode.
+    assert "new" not in listing_path(1, sort="added")
     # Page 2+ uses the site's /page/N form, never a ?page= query (which the
     # site silently ignores, serving page 1 again).
     assert listing_path(2, sort="popular") == "/popular/page/2"
@@ -579,3 +582,6 @@ def test_connector_identity(connector: MangaPandaConnector):
     assert connector.is_mature is False
     assert connector.content_kind == "manga"
     assert len(connector.list_genres()) == 60
+    assert [mode.id for mode in connector.list_browse_modes()] == [
+        "default", "popular", "completed", "alphabetical",
+    ]

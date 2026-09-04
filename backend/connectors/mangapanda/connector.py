@@ -163,7 +163,6 @@ class MangaPandaConnector(SourceConnector):
         return [
             BrowseMode(id="default", label="Latest Updates"),
             BrowseMode(id="popular", label="Popular"),
-            BrowseMode(id="added", label="New"),
             BrowseMode(id="completed", label="Completed"),
             BrowseMode(id="alphabetical", label="Directory"),
         ]
