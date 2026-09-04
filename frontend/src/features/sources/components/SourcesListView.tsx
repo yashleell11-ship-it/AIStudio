@@ -172,7 +172,10 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+        // 30px tall on `py-1.5`, and "All" was only 44px WIDE — three small
+        // pills side by side is the shape a thumb misses most reliably.
+        "inline-flex items-center justify-center rounded-full border px-3.5 py-1.5 text-xs font-medium transition-colors",
+        "[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:min-w-11",
         active
           ? "border-primary/40 bg-primary/12 text-primary"
           : "border-border text-muted hover:text-fg",

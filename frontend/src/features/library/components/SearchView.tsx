@@ -64,7 +64,9 @@ function SuggestionChip({
     <button
       type="button"
       onClick={() => onSelect(label)}
-      className="rounded-full border border-border/50 bg-white/[0.03] px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary"
+      // Recent/trending searches sit two rows deep on a phone; `py-1.5` alone
+      // gave a 33px chip, which is a mis-tap between neighbours.
+      className="inline-flex items-center rounded-full border border-border/50 bg-white/[0.03] px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary [@media(pointer:coarse)]:min-h-11"
     >
       {label}
     </button>
@@ -231,7 +233,7 @@ export function SearchView() {
                 type="button"
                 onClick={() => setFiltersOpen((open) => !open)}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full border border-border/50 bg-white/[0.03] px-4 py-2 text-sm text-muted transition-colors hover:border-primary/30 hover:text-fg",
+                  "inline-flex items-center gap-2 rounded-full border border-border/50 bg-white/[0.03] px-4 py-2 text-sm text-muted transition-colors hover:border-primary/30 hover:text-fg [@media(pointer:coarse)]:min-h-11",
                   filtersOpen && "border-primary/30 bg-primary/10 text-primary",
                 )}
                 aria-expanded={filtersOpen}
