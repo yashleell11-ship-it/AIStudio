@@ -66,19 +66,28 @@ export const DESIGN_PRESET_STORAGE_BASE = "manhwamaniacs:design-preset";
  * cannot read the live `--shape-*` values.
  */
 export interface PresetPreview {
-  /** Corner radius of the miniature's panels, in px. */
+  /** Corner radius of the miniature's cells, in px. */
   radius: number;
-  /** Gap between the miniature's elements, in px. */
+  /** Gap between the miniature's cells, in px — the rhythm tell. */
   gap: number;
+  /** Padding inside the miniature's frame, in px — the page-margin tell. */
+  pad: number;
   /** Translucent surfaces (the fill is glass) rather than opaque ones. */
   translucent: boolean;
-  /** Whether panels are drawn with a visible edge. */
+  /** Whether cells are drawn with a visible edge. */
   bordered: boolean;
-  /** How many content rows the miniature packs — the density tell. */
-  rows: number;
   /** Headings set in the book serif rather than the display sans. */
   serif: boolean;
 }
+
+/**
+ * How many covers fit across the miniature's shelf at each library layout.
+ * `list` is not a column count — it draws rows of metadata instead.
+ */
+export const PREVIEW_COLUMNS: Record<Exclude<LibraryDensity, "list">, number> = {
+  comfortable: 3,
+  compact: 6,
+};
 
 export interface DesignPresetMeta {
   id: DesignPreset;
@@ -115,7 +124,7 @@ export const DESIGN_PRESET_META: Record<DesignPreset, DesignPresetMeta> = {
     label: "Signature",
     description: "Glass panels, generous spacing, poster-led browse.",
     character: "The app as designed. Unchanged, and the one everything else departs from.",
-    preview: { radius: 6, gap: 5, translucent: true, bordered: true, rows: 2, serif: false },
+    preview: { radius: 5, gap: 4, pad: 6, translucent: true, bordered: true, serif: false },
     density: "comfortable",
     readerCinema: false,
     motion: 1,
@@ -125,7 +134,7 @@ export const DESIGN_PRESET_META: Record<DesignPreset, DesignPresetMeta> = {
     label: "Flat",
     description: "Solid surfaces, crisp hairlines, no blur.",
     character: "The same app rendered as a tool rather than a showcase — and cheaper to paint.",
-    preview: { radius: 3, gap: 5, translucent: false, bordered: true, rows: 2, serif: false },
+    preview: { radius: 2, gap: 4, pad: 6, translucent: false, bordered: true, serif: false },
     density: "comfortable",
     readerCinema: false,
     motion: 0.7,
@@ -135,7 +144,7 @@ export const DESIGN_PRESET_META: Record<DesignPreset, DesignPresetMeta> = {
     label: "Compact",
     description: "Tighter rhythm, smaller type, many more covers per screen.",
     character: "For scanning a big library rather than browsing a small one.",
-    preview: { radius: 4, gap: 3, translucent: true, bordered: true, rows: 4, serif: false },
+    preview: { radius: 3, gap: 2, pad: 4, translucent: true, bordered: true, serif: false },
     density: "compact",
     readerCinema: false,
     motion: 0.6,
@@ -145,7 +154,7 @@ export const DESIGN_PRESET_META: Record<DesignPreset, DesignPresetMeta> = {
     label: "Editorial",
     description: "Serif headings, wide margins, metadata beside the artwork.",
     character: "Typography leads. Reads like a publication, not a shelf.",
-    preview: { radius: 2, gap: 6, translucent: false, bordered: true, rows: 3, serif: true },
+    preview: { radius: 1, gap: 5, pad: 9, translucent: false, bordered: true, serif: true },
     density: "list",
     readerCinema: false,
     motion: 0.8,
@@ -155,7 +164,7 @@ export const DESIGN_PRESET_META: Record<DesignPreset, DesignPresetMeta> = {
     label: "Cinema",
     description: "No frames, edge-to-edge, almost no motion.",
     character: "The chrome gets out of the way. For reading, not managing.",
-    preview: { radius: 10, gap: 4, translucent: true, bordered: false, rows: 2, serif: false },
+    preview: { radius: 8, gap: 3, pad: 3, translucent: true, bordered: false, serif: false },
     density: "comfortable",
     readerCinema: true,
     motion: 0.35,

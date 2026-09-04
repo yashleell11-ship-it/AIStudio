@@ -9,6 +9,7 @@ import {
   ChevronRight,
   History,
   Keyboard,
+  LayoutTemplate,
   Palette,
   ShieldAlert,
 } from "lucide-react";
@@ -16,6 +17,7 @@ import { NotificationSettingsPanel } from "@/features/updates";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
   AppearancePanel,
+  DesignPanel,
   MatureContentPanel,
   ReaderPanel,
 } from "@/features/preferences";
@@ -26,6 +28,7 @@ import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
 
 type SettingsTab =
+  | "design"
   | "appearance"
   | "reader"
   | "notifications"
@@ -38,6 +41,12 @@ const NAV_ITEMS: {
   icon: React.ComponentType<{ className?: string }>;
   description: string;
 }[] = [
+  {
+    id: "design",
+    label: "Design",
+    icon: LayoutTemplate,
+    description: "How the app is shaped",
+  },
   {
     id: "appearance",
     label: "Appearance",
@@ -102,7 +111,9 @@ function ShortcutCard({
 }
 
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState<SettingsTab>("appearance");
+  // Design first: it is the coarser of the two appearance axes — a preset
+  // decides what the app is shaped like, a theme only what colour it is.
+  const [activeTab, setActiveTab] = useState<SettingsTab>("design");
   // System status is instance-wide health, so the entry point is only offered
   // to the account the API marks as admin — the same flag the sidebar uses.
   const { data: user } = useCurrentUser();
@@ -118,8 +129,9 @@ export default function SettingsPage() {
             Settings
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">
-            Choose your reading theme, tune the reader, and configure automatic
-            updates, mature content, and keyboard shortcuts.
+            Reshape the app with a design preset, recolour it with a reading
+            theme, tune the reader, and configure automatic updates, mature
+            content, and keyboard shortcuts.
           </p>
         </FadeIn>
 
@@ -180,6 +192,7 @@ export default function SettingsPage() {
 
           <FadeIn y={20} delay={0.15} className="min-w-0 flex-1">
             <div className="space-y-6">
+              {activeTab === "design" && <DesignPanel />}
               {activeTab === "appearance" && <AppearancePanel />}
               {activeTab === "reader" && <ReaderPanel />}
               {activeTab === "notifications" && <NotificationSettingsPanel />}
