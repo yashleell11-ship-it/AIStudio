@@ -15,12 +15,12 @@ from typing import Annotated, Any
 from urllib.parse import quote
 
 from fastapi import Depends
-from sqlalchemy import and_, func, select
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, func, select, tuple_
+from sqlalchemy.orm import Session, defer
 
 from connectors.ids import fully_unquote
-from connectors.registry import list_installed_connectors
 from core.config import get_settings
+from core.connector_directory import descriptor_for_source
 from core.content_rating import (
     TRACKER_RATING_MATURE,
     rating_from_genres,
@@ -43,6 +43,12 @@ from database.session import get_db
 from services.browse_service import BrowseService, get_browse_service
 from services.reading_stats_service import ReadingStatsService
 from services.source_cache_service import SourceCacheService
+
+#: Row-value ``IN`` list size. SQLite's default ``SQLITE_MAX_VARIABLE_NUMBER``
+#: is 32766 on modern builds but was 999 for years, and each pair here binds
+#: two parameters — chunking keeps the statement inside even the old ceiling
+#: and keeps the number of distinct prepared statements small.
+_IN_CHUNK = 400
 
 READING_STATUSES = {
     "unread",
@@ -77,6 +83,11 @@ class FollowedSeriesService:
         self._cache = SourceCacheService(db, browse)
         self._user_id = user_id
         self._profile_id = profile_id
+        # Resolved once per request. The gate is a property of the (user,
+        # profile) pair, which cannot change mid-request, and every list path
+        # asked for it again per call — `statistics` alone resolved it three
+        # times, each a `Session.get(ReadingProfile, ...)`.
+        self._gate_cache: bool | None = None
 
     # --- helpers -------------------------------------------------------
 
@@ -93,6 +104,16 @@ class FollowedSeriesService:
         if self._profile_id is None:
             return stmt.where(FollowedSeries.profile_id.is_(None))
         return stmt.where(FollowedSeries.profile_id == self._profile_id)
+
+    #: ``known_chapters`` holds a series' whole chapter list — kilobytes per
+    #: row. The paths that scan the profile's *entire* followed set (list,
+    #: statistics, recommendations, the recently-updated strip) never read it,
+    #: yet SQLite still had to read every blob off disk and SQLAlchemy still
+    #: had to build a Python string for each: ~5 MB of text per request for a
+    #: 300-series library. Deferring it makes those statements fetch the small
+    #: columns only. Any path that *does* need the array (``get_detail``,
+    #: ``follow``, ``patch``) simply does not apply this option.
+    _NO_CHAPTERS = (defer(FollowedSeries.known_chapters),)
 
     def _progress_scope(self, stmt):
         """``_scope`` for ``chapter_progress``.
@@ -124,13 +145,16 @@ class FollowedSeriesService:
         return self._profile_id
 
     def _gate_open(self) -> bool:
-        return resolve_mature_gate(self._db, self._profile_id, self._user_id)
+        if self._gate_cache is None:
+            self._gate_cache = resolve_mature_gate(
+                self._db, self._profile_id, self._user_id
+            )
+        return self._gate_cache
 
     def _descriptor(self, source_id: str):
-        for d in list_installed_connectors():
-            if d.source_type == source_id:
-                return d
-        return None
+        # Was a linear scan over a freshly *rebuilt* descriptor list, run once
+        # per followed row; see core.connector_directory.
+        return descriptor_for_source(source_id)
 
     def _rating(self, row: FollowedSeries) -> str:
         return resolve_tracker_rating(row, self._descriptor(row.source_id))
@@ -278,7 +302,7 @@ class FollowedSeriesService:
         **_ignored: Any,
     ) -> dict[str, Any]:
         self._require_owner()
-        stmt = self._scope(select(FollowedSeries))
+        stmt = self._scope(select(FollowedSeries).options(*self._NO_CHAPTERS))
         if reading_status:
             stmt = stmt.where(FollowedSeries.reading_status == reading_status)
         if is_favorite is not None:
@@ -305,7 +329,9 @@ class FollowedSeriesService:
         start = (page - 1) * per_page
         window = rows[start : start + per_page]
         return {
-            "items": [self.serialize(r) for r in window],
+            "items": [
+                self.serialize(r, include_chapters=False) for r in window
+            ],
             "total": total,
             "page": page,
             "per_page": per_page,
@@ -364,44 +390,90 @@ class FollowedSeriesService:
           home strip. The inner join is therefore load-bearing, not an
           optimisation: it both restricts the strip to series this profile
           follows and supplies the row ``_rating`` resolves the gate from.
+
+        The "one row per series" collapse happens in SQL rather than in Python.
+        It used to hydrate **every** unfinished ``chapter_progress`` row in the
+        profile — with its matching ``followed_series`` row, both as full ORM
+        entities — and then throw all but ten away: 6,000 progress rows cost
+        318 ms to produce a ten-item strip, and the query grew with every
+        chapter the owner ever opened. A window function picks the latest
+        unfinished chapter per series inside the database, so the number of
+        rows crossing into Python is the number of *series*, not chapters, and
+        the columns fetched are the seven this payload prints.
         """
         self._require_owner()
-        stmt = self._progress_scope(
-            self._scope(
-                select(ChapterProgress, FollowedSeries).join(
-                    FollowedSeries,
-                    and_(
-                        FollowedSeries.user_id == ChapterProgress.user_id,
-                        FollowedSeries.profile_id == ChapterProgress.profile_id,
-                        FollowedSeries.source_id == ChapterProgress.source_id,
-                        FollowedSeries.series_key == ChapterProgress.series_key,
-                    ),
+        # (last_read_at DESC, id DESC): the old loop kept whichever row the
+        # database happened to return first within a last_read_at tie, so the
+        # tiebreak is new — but it is a *defined* one replacing an arbitrary
+        # one, and it matches the id ordering an insert sequence gives.
+        newest_first = (ChapterProgress.last_read_at.desc(), ChapterProgress.id.desc())
+        ranked = (
+            self._progress_scope(
+                self._scope(
+                    select(
+                        ChapterProgress.source_id.label("source_id"),
+                        ChapterProgress.series_key.label("series_key"),
+                        ChapterProgress.chapter_key.label("chapter_key"),
+                        ChapterProgress.chapter_number.label("chapter_number"),
+                        ChapterProgress.last_page.label("last_page"),
+                        ChapterProgress.page_count.label("page_count"),
+                        ChapterProgress.last_read_at.label("last_read_at"),
+                        # Carried so the 18+ gate can be resolved without a
+                        # second lookup; the join itself is load-bearing (it is
+                        # what restricts the strip to *followed* series).
+                        FollowedSeries.mature_override.label("mature_override"),
+                        FollowedSeries.content_rating.label("content_rating"),
+                        func.row_number()
+                        .over(
+                            partition_by=(
+                                ChapterProgress.source_id,
+                                ChapterProgress.series_key,
+                            ),
+                            order_by=newest_first,
+                        )
+                        .label("rank"),
+                    ).join(
+                        FollowedSeries,
+                        and_(
+                            FollowedSeries.user_id == ChapterProgress.user_id,
+                            FollowedSeries.profile_id == ChapterProgress.profile_id,
+                            FollowedSeries.source_id == ChapterProgress.source_id,
+                            FollowedSeries.series_key == ChapterProgress.series_key,
+                        ),
+                    )
                 )
             )
-        ).where(ChapterProgress.is_completed.is_(False)).order_by(
-            ChapterProgress.last_read_at.desc()
+            .where(ChapterProgress.is_completed.is_(False))
+            .subquery()
         )
 
         gate_open = self._gate_open()
-        seen: set[tuple[str, str]] = set()
+        stmt = (
+            select(ranked)
+            .where(ranked.c.rank == 1)
+            .order_by(ranked.c.last_read_at.desc())
+        )
+        if gate_open:
+            # Nothing can be dropped after the fact, so the database can do the
+            # cutting too. With the gate shut the mature rows are removed below
+            # and the limit has to be applied after that; the row count is then
+            # bounded by the profile's follow count, not its history.
+            stmt = stmt.limit(limit)
+
         out: list[dict[str, Any]] = []
-        for p, follow in self._db.execute(stmt).all():
-            k = (p.source_id, p.series_key)
-            if k in seen:
-                continue
-            seen.add(k)
-            if not gate_open and self._rating(follow) == TRACKER_RATING_MATURE:
+        for row in self._db.execute(stmt).all():
+            if not gate_open and self._rating(row) == TRACKER_RATING_MATURE:
                 continue
             out.append(
                 {
-                    "source_id": p.source_id,
-                    "series_key": p.series_key,
-                    "chapter_key": p.chapter_key,
-                    "chapter_number": p.chapter_number,
-                    "last_page": p.last_page,
-                    "page_count": p.page_count,
-                    "last_read_at": p.last_read_at.isoformat()
-                    if p.last_read_at
+                    "source_id": row.source_id,
+                    "series_key": row.series_key,
+                    "chapter_key": row.chapter_key,
+                    "chapter_number": row.chapter_number,
+                    "last_page": row.last_page,
+                    "page_count": row.page_count,
+                    "last_read_at": row.last_read_at.isoformat()
+                    if row.last_read_at
                     else None,
                 }
             )
@@ -412,12 +484,15 @@ class FollowedSeriesService:
     def recently_updated(self, limit: int = 10) -> list[dict[str, Any]]:
         self._require_owner()
         rows = self._db.execute(
-            self._scope(select(FollowedSeries))
+            self._scope(select(FollowedSeries).options(*self._NO_CHAPTERS))
             .where(FollowedSeries.last_checked_at.is_not(None))
             .order_by(FollowedSeries.last_checked_at.desc())
             .limit(limit)
         ).scalars().all()
-        return [self.serialize(r) for r in self._visible(list(rows))]
+        return [
+            self.serialize(r, include_chapters=False)
+            for r in self._visible(list(rows))
+        ]
 
     def statistics(
         self, *, days: int = 30, tz_offset_minutes: int = 0
@@ -432,7 +507,11 @@ class FollowedSeriesService:
         """
         self._require_owner()
         rows = self._visible(
-            list(self._db.execute(self._scope(select(FollowedSeries))).scalars().all())
+            list(
+                self._db.execute(
+                    self._scope(select(FollowedSeries).options(*self._NO_CHAPTERS))
+                ).scalars().all()
+            )
         )
         by_status: dict[str, int] = {}
         for r in rows:
@@ -459,13 +538,31 @@ class FollowedSeriesService:
         """Simple genre-similarity over the followed set (spec §5.2)."""
         self._require_owner()
         rows = self._visible(
-            list(self._db.execute(self._scope(select(FollowedSeries))).scalars().all())
+            list(
+                self._db.execute(
+                    self._scope(select(FollowedSeries).options(*self._NO_CHAPTERS))
+                ).scalars().all()
+            )
         )
+        # One statement, not one per followed series. This was a
+        # ``Session.get`` inside the loop — 300 follows meant 300 round trips
+        # (the endpoint issued 308 queries and took 191 ms) to build a
+        # ten-entry genre histogram.
         genre_counts: dict[str, int] = {}
-        for r in rows:
-            meta = self._db.get(SourceSeriesCache, (r.source_id, r.series_key))
-            for g in (_loads(meta.genres) if meta else None) or []:
-                genre_counts[str(g).lower()] = genre_counts.get(str(g).lower(), 0) + 1
+        keys = [(r.source_id, r.series_key) for r in rows]
+        for chunk_start in range(0, len(keys), _IN_CHUNK):
+            chunk = keys[chunk_start : chunk_start + _IN_CHUNK]
+            genre_blobs = self._db.execute(
+                select(SourceSeriesCache.genres).where(
+                    tuple_(
+                        SourceSeriesCache.source_id, SourceSeriesCache.series_key
+                    ).in_(chunk)
+                )
+            ).scalars().all()
+            for blob in genre_blobs:
+                for g in _loads(blob) or []:
+                    name = str(g).lower()
+                    genre_counts[name] = genre_counts.get(name, 0) + 1
         # Without an external catalog there is nothing to recommend beyond the
         # followed set; return the top genres so the client can drive a browse.
         top = sorted(genre_counts.items(), key=lambda kv: kv[1], reverse=True)
@@ -487,7 +584,25 @@ class FollowedSeriesService:
         rows = self._db.execute(
             self._collection_scope(select(Collection)).order_by(Collection.sort_order)
         ).scalars().all()
-        return [self._serialize_collection(c) for c in rows]
+        # ``series_count`` used to come from ``len(row.series)``, which lazy
+        # -loads the whole membership relationship — one SELECT per collection,
+        # returning every member row, to print a number. One GROUP BY answers
+        # them all.
+        counts = dict(
+            self._db.execute(
+                select(
+                    CollectionSeries.collection_id, func.count()
+                )
+                .where(
+                    CollectionSeries.collection_id.in_([c.id for c in rows])
+                )
+                .group_by(CollectionSeries.collection_id)
+            ).all()
+        )
+        return [
+            self._serialize_collection(c, series_count=counts.get(c.id, 0))
+            for c in rows
+        ]
 
     def create_collection(
         self, *, name: str, description: str | None = None
@@ -598,14 +713,19 @@ class FollowedSeriesService:
         return row
 
     @staticmethod
-    def _serialize_collection(row: Collection) -> dict[str, Any]:
+    def _serialize_collection(
+        row: Collection, *, series_count: int | None = None
+    ) -> dict[str, Any]:
+        """``series_count`` supplied by the caller avoids the relationship load;
+        omitted, it falls back to the relationship (single-collection paths,
+        where the membership is usually loaded already)."""
         return {
             "id": row.id,
             "name": row.name,
             "description": row.description,
             "cover_url": row.cover_url,
             "sort_order": row.sort_order,
-            "series_count": len(row.series),
+            "series_count": len(row.series) if series_count is None else series_count,
         }
 
     # --- tags -----------------------------------------------------
@@ -711,8 +831,26 @@ class FollowedSeriesService:
 
     # --- serialization -------------------------------------------
 
-    def serialize(self, row: FollowedSeries) -> dict[str, Any]:
-        return {
+    def serialize(
+        self, row: FollowedSeries, *, include_chapters: bool = True
+    ) -> dict[str, Any]:
+        """One followed series as JSON.
+
+        ``include_chapters=False`` omits the ``known_chapters`` array while
+        keeping ``chapter_count``. That array is the series' *entire* chapter
+        list — 17 KB for a 200-chapter series — and the list endpoints embedded
+        it once per row: one page of 40 followed series measured 832 KB, of
+        which 830 KB was chapter arrays no list view draws (the web client
+        declares the field and reads only ``chapter_count``; the Flutter model
+        defaults it to ``const []`` when absent). The detail endpoint, follow
+        and patch still send it, so nothing that had the data loses it.
+
+        ``known_chapters`` is parsed once either way: this used to call
+        ``json.loads`` on the blob twice per row — once for the array, once to
+        measure it for ``chapter_count``.
+        """
+        chapters = _loads(row.known_chapters) or []
+        payload: dict[str, Any] = {
             "id": row.id,
             "source_id": row.source_id,
             "series_key": row.series_key,
@@ -726,14 +864,16 @@ class FollowedSeriesService:
             "content_rating": row.content_rating,
             "rating": self._rating(row),
             "mature_override": row.mature_override,
-            "known_chapters": _loads(row.known_chapters) or [],
-            "chapter_count": len(_loads(row.known_chapters) or []),
+            "chapter_count": len(chapters),
             "last_checked_at": row.last_checked_at.isoformat()
             if row.last_checked_at
             else None,
             "created_at": row.created_at.isoformat() if row.created_at else None,
             "updated_at": row.updated_at.isoformat() if row.updated_at else None,
         }
+        if include_chapters:
+            payload["known_chapters"] = chapters
+        return payload
 
 
 def get_followed_series_service(
