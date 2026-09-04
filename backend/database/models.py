@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from datetime import datetime
 
 from sqlalchemy import (
@@ -275,6 +276,17 @@ class FollowedSeries(Base):
     mature_override: Mapped[bool | None] = mapped_column(Integer)
     known_chapters: Mapped[str] = mapped_column(
         Text, nullable=False, default="[]", server_default="[]"
+    )
+    #: ``len(json.loads(known_chapters))``, denormalized.
+    #:
+    #: The library list endpoints print a chapter count per row and nothing
+    #: else off that array, so reading the count used to mean fetching the
+    #: whole blob — kilobytes per row, ~5 MB per page for a 300-series library
+    #: — and running ``json.loads`` on it in Python. The count is written by
+    #: the ``known_chapters`` set-listener below, so it cannot drift: there is
+    #: no way to assign the array without the count following it.
+    chapter_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
     )
     last_checked_at: Mapped[datetime | None] = mapped_column(DateTime)
     last_error: Mapped[str | None] = mapped_column(Text)
@@ -736,6 +748,28 @@ CHAPTER_OCR_FTS_DDL: tuple[str, ...] = (
     END
     """,
 )
+
+
+@event.listens_for(FollowedSeries.known_chapters, "set")
+def _sync_chapter_count(target, value, _oldvalue, _initiator) -> None:
+    """Keep ``FollowedSeries.chapter_count`` in step with ``known_chapters``.
+
+    An attribute listener rather than a discipline the writers have to
+    remember: it fires on *every* assignment, the declarative constructor's
+    keyword included, so ``FollowedSeries(known_chapters=...)`` in a test and
+    ``row.known_chapters = ...`` in the update sweep both leave the count
+    correct with no call site aware of it. There is deliberately no path that
+    writes one without the other.
+
+    A blob that is not a JSON array counts as 0 — the same thing the readers'
+    ``_loads(...) or []`` fallback yields, so a corrupt row degrades to "no
+    chapters" rather than failing the write.
+    """
+    try:
+        parsed = json.loads(value) if value else []
+    except (TypeError, ValueError):
+        parsed = []
+    target.chapter_count = len(parsed) if isinstance(parsed, list) else 0
 
 
 @event.listens_for(Base.metadata, "after_create")
