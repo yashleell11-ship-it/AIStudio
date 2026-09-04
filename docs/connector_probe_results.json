@@ -1,10 +1,10 @@
 {
-  "probed_at": "2026-09-03T22:47:46.892206+00:00",
+  "probed_at": "2026-09-04T04:12:07.917226+00:00",
   "probed_from": "vps",
   "total": 48,
-  "live": 44,
-  "partial": 2,
-  "dead": 2,
+  "live": 45,
+  "partial": 0,
+  "dead": 3,
   "error": 0,
   "results": [
     {
@@ -32,7 +32,7 @@
       "items": 30,
       "mature": true,
       "detail": "",
-      "sample_title": "[Nazunasoft (Katsura Harufumi)] Sensei... Junbi ",
+      "sample_title": "Musashi-san no Yoru Jijou Yukata to Shirushi-hen",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -41,7 +41,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 35,
+      "n_pages": 73,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -70,7 +70,7 @@
       "items": 60,
       "mature": true,
       "detail": "",
-      "sample_title": "[Kerberus] Spirit Parasite 2 / Spiritual Mind Me",
+      "sample_title": "(COMIC1☆8) [SOLID AIR (Zonda)] BUILD OVER! (Gund",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -79,7 +79,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 13,
+      "n_pages": 25,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -127,7 +127,7 @@
       "items": 20,
       "mature": true,
       "detail": "",
-      "sample_title": "[世羅吉。] Drug～インフルエンサーに堕とされて～ [momo个人汉化]",
+      "sample_title": "[Sibmanwon & Twain] 满意度评鉴中 | 滿意度評鑑中 1-11 [Chines",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -136,7 +136,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 24,
+      "n_pages": 223,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -146,7 +146,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "Steel-Eating Player",
+      "sample_title": "What a Bountiful Harvest, Demon Lord!",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -154,8 +154,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 109,
-      "n_pages": 20,
+      "n_chapters": 83,
+      "n_pages": 21,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -165,7 +165,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "Demonic Emperor",
+      "sample_title": "The Jinx's Strategy for Domination",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -173,8 +173,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 912,
-      "n_pages": 6,
+      "n_chapters": 19,
+      "n_pages": 23,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -217,25 +217,6 @@
       "n_images_tried": 3
     },
     {
-      "source_id": "cmanhua",
-      "status": "LIVE",
-      "items": 24,
-      "mature": true,
-      "detail": "",
-      "sample_title": "贵妃今天也要以身饲敌",
-      "stages": {
-        "browse": "PASS",
-        "detail": "PASS",
-        "chapters": "PASS",
-        "pages": "PASS",
-        "images": "PASS"
-      },
-      "n_chapters": 48,
-      "n_pages": 12,
-      "n_images_ok": 3,
-      "n_images_tried": 3
-    },
-    {
       "source_id": "cocomic",
       "status": "LIVE",
       "items": 12,
@@ -260,7 +241,7 @@
       "items": 15,
       "mature": true,
       "detail": "",
-      "sample_title": "A Cheap Romance",
+      "sample_title": "Cooking for the Cutest Gyaru",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -268,8 +249,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 43,
-      "n_pages": 82,
+      "n_chapters": 17,
+      "n_pages": 72,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -317,7 +298,7 @@
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "You Are My World [Uncensored]",
+      "sample_title": "Roommate in Bloom",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -325,10 +306,10 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 2,
-      "n_pages": 12,
-      "n_images_ok": 3,
-      "n_images_tried": 3
+      "n_chapters": 10,
+      "n_pages": 1,
+      "n_images_ok": 1,
+      "n_images_tried": 1
     },
     {
       "source_id": "demonicscans",
@@ -336,7 +317,7 @@
       "items": 40,
       "mature": false,
       "detail": "",
-      "sample_title": "Revenge of the wrongly accused",
+      "sample_title": "Ranker Who Lives A Second Time",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -344,8 +325,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 55,
-      "n_pages": 19,
+      "n_chapters": 247,
+      "n_pages": 9,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -355,7 +336,7 @@
       "items": 24,
       "mature": true,
       "detail": "",
-      "sample_title": "War Princess Climax 2",
+      "sample_title": "Is this fate?",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -364,7 +345,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 38,
+      "n_pages": 26,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -374,7 +355,7 @@
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "[✓] #sadako - 千人先生的插畫 - #pixiv #ai #nude #r18 [A",
+      "sample_title": "[Tillian] Shyvana (League of Legends) x Alexstra",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -383,7 +364,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 25,
+      "n_pages": 8,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -393,7 +374,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "In the Age of Class Awakening, I Bring the Under",
+      "sample_title": "After Severing Our Ties, All My Summons Became D",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -401,8 +382,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 1,
-      "n_pages": 4,
+      "n_chapters": 12,
+      "n_pages": 11,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -422,6 +403,25 @@
       },
       "n_chapters": 510,
       "n_pages": 9,
+      "n_images_ok": 3,
+      "n_images_tried": 3
+    },
+    {
+      "source_id": "freeadultcomix",
+      "status": "LIVE",
+      "items": 24,
+      "mature": true,
+      "detail": "",
+      "sample_title": "SECRET DESIRE CHAPTER 5 BY NandoF",
+      "stages": {
+        "browse": "PASS",
+        "detail": "PASS",
+        "chapters": "PASS",
+        "pages": "PASS",
+        "images": "PASS"
+      },
+      "n_chapters": 1,
+      "n_pages": 143,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -450,7 +450,7 @@
       "items": 30,
       "mature": true,
       "detail": "",
-      "sample_title": "Yeoni’s Tavern",
+      "sample_title": "Secret Class",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -458,8 +458,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 23,
-      "n_pages": 55,
+      "n_chapters": 327,
+      "n_pages": 22,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -469,7 +469,7 @@
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "[Ascended Cake] Summer Can't Get Any Privacy (Ri",
+      "sample_title": "[はらへら] 課金される千束ちゃん (リコリス・リコイル)",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -478,7 +478,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 6,
+      "n_pages": 7,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -488,7 +488,7 @@
       "items": 20,
       "mature": true,
       "detail": "",
-      "sample_title": "Re:M@STER IDOL ver.YUKIHO",
+      "sample_title": "Kimi no Mae de Kimi Igai o Daku Ch. 38 | Having ",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -497,7 +497,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 25,
+      "n_pages": 16,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -545,7 +545,7 @@
       "items": 24,
       "mature": false,
       "detail": "",
-      "sample_title": "Silver Mountain",
+      "sample_title": "Mayonaka ni Aishiteyo",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -553,8 +553,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 35,
-      "n_pages": 51,
+      "n_chapters": 1,
+      "n_pages": 47,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -583,7 +583,7 @@
       "items": 20,
       "mature": false,
       "detail": "",
-      "sample_title": "The Laid-Off Cheat-Granting Mage Enjoys a Second",
+      "sample_title": "My Cute Little Kitten",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -591,8 +591,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 37,
-      "n_pages": 50,
+      "n_chapters": 23,
+      "n_pages": 22,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -602,7 +602,7 @@
       "items": 12,
       "mature": false,
       "detail": "",
-      "sample_title": "The Extra’s Academy Survival Guide",
+      "sample_title": "Sword of the Undying",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -610,8 +610,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 124,
-      "n_pages": 10,
+      "n_chapters": 26,
+      "n_pages": 22,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -621,7 +621,7 @@
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "Day And Night",
+      "sample_title": "The Hunter’s Gonna Lay Low",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -629,10 +629,10 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 48,
-      "n_pages": 1,
-      "n_images_ok": 1,
-      "n_images_tried": 1
+      "n_chapters": 70,
+      "n_pages": 2,
+      "n_images_ok": 2,
+      "n_images_tried": 2
     },
     {
       "source_id": "manhuakey",
@@ -678,7 +678,7 @@
       "items": 12,
       "mature": false,
       "detail": "",
-      "sample_title": "Soul Land V",
+      "sample_title": "Myriad Realms Gatekeeper",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -686,8 +686,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 282,
-      "n_pages": 11,
+      "n_chapters": 61,
+      "n_pages": 4,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -697,7 +697,7 @@
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "Real Body Play",
+      "sample_title": "A Dangerous Deal and The Girl Next Door",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -705,8 +705,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 5,
-      "n_pages": 17,
+      "n_chapters": 2,
+      "n_pages": 11,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -716,7 +716,7 @@
       "items": 10,
       "mature": true,
       "detail": "",
-      "sample_title": "You Are My World",
+      "sample_title": "How to Survive as the Wife of a Serial Killer",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -725,7 +725,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 13,
+      "n_pages": 9,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -735,7 +735,7 @@
       "items": 16,
       "mature": true,
       "detail": "",
-      "sample_title": "Magic Emperor",
+      "sample_title": "Becoming Necromancer God Through a Skeleton Clon",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -744,7 +744,7 @@
         "images": "PASS"
       },
       "n_chapters": 2,
-      "n_pages": 45,
+      "n_pages": 54,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -773,7 +773,7 @@
       "items": 25,
       "mature": true,
       "detail": "",
-      "sample_title": "(C107) [Kiiroi Nakama (KIIROMARU)] Boku no MK wa",
+      "sample_title": "[Esora note (Majima Shiroyuki)] HURARETADANSHI G",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -782,7 +782,7 @@
         "images": "PASS"
       },
       "n_chapters": 1,
-      "n_pages": 23,
+      "n_pages": 40,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -792,7 +792,7 @@
       "items": 12,
       "mature": false,
       "detail": "",
-      "sample_title": "The Tang Clan Chronicles",
+      "sample_title": "Fox Love Story",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -800,8 +800,8 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 50,
-      "n_pages": 27,
+      "n_chapters": 49,
+      "n_pages": 157,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
@@ -830,7 +830,7 @@
       "items": 30,
       "mature": false,
       "detail": "",
-      "sample_title": "Osora",
+      "sample_title": "Love 4 a Walk",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
@@ -838,47 +838,28 @@
         "pages": "PASS",
         "images": "PASS"
       },
-      "n_chapters": 116,
-      "n_pages": 112,
+      "n_chapters": 114,
+      "n_pages": 77,
       "n_images_ok": 3,
       "n_images_tried": 3
     },
     {
-      "source_id": "freeadultcomix",
-      "status": "PARTIAL",
-      "items": 24,
-      "mature": true,
-      "detail": "0 pages / no image url",
-      "sample_title": "Drawn Together – Toon Sluts by Deavalin",
-      "stages": {
-        "browse": "PASS",
-        "detail": "PASS",
-        "chapters": "PASS",
-        "pages": "FAIL",
-        "images": "-"
-      },
-      "n_chapters": 1,
-      "n_pages": 0,
-      "n_images_ok": 0,
-      "n_images_tried": 0
-    },
-    {
       "source_id": "weebcentral",
-      "status": "PARTIAL",
+      "status": "LIVE",
       "items": 32,
       "mature": false,
-      "detail": "images: p0: AppError: Failed to fetch remote image. [Client error '403 Forbidden' for url 'https://scans.lastation.us/manga/aorikei-game-haishinsha-20sai-haishin-no-kiri-wasure-ni-yori-ii-hito-bare-su",
-      "sample_title": "Aorikei Game Haishinsha (20-sai), Haishin no Kir",
+      "detail": "",
+      "sample_title": "Kingdom",
       "stages": {
         "browse": "PASS",
         "detail": "PASS",
         "chapters": "PASS",
         "pages": "PASS",
-        "images": "FAIL"
+        "images": "PASS"
       },
-      "n_chapters": 17,
-      "n_pages": 44,
-      "n_images_ok": 0,
+      "n_chapters": 890,
+      "n_pages": 58,
+      "n_images_ok": 3,
       "n_images_tried": 3
     },
     {
@@ -887,6 +868,25 @@
       "items": 0,
       "mature": true,
       "detail": "browse: ConnectorHttpError: Client error '403 Forbidden' for url 'https://bbato.com/type/manga'\nFor more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/403",
+      "sample_title": "",
+      "stages": {
+        "browse": "FAIL",
+        "detail": "-",
+        "chapters": "-",
+        "pages": "-",
+        "images": "-"
+      },
+      "n_chapters": 0,
+      "n_pages": 0,
+      "n_images_ok": 0,
+      "n_images_tried": 0
+    },
+    {
+      "source_id": "cmanhua",
+      "status": "DEAD",
+      "items": 0,
+      "mature": true,
+      "detail": "browse: ConnectorHttpError: The read operation timed out",
       "sample_title": "",
       "stages": {
         "browse": "FAIL",
