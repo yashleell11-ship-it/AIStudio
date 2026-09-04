@@ -44,16 +44,21 @@ def _status() -> SystemStatus:
 
 
 @router.get("/", response_model=None)
-def get_status(request: Request) -> SystemStatus | HTMLResponse:
-    """Root endpoint.
+def get_status(request: Request) -> HTMLResponse:
+    """Root endpoint: the install page, unconditionally.
 
-    Browsers (``Accept: text/html``) get the phone-friendly APK install page;
-    API clients keep receiving the unchanged JSON status payload, so existing
-    integrations and the ``/health`` probe are unaffected.
+    This used to content-negotiate on ``Accept`` and fall back to the JSON
+    status payload. That made the page a coin toss at the one URL people are
+    actually handed to install the app: anything not asking for ``text/html``
+    -- a curl, a link-preview fetcher, a terse in-app webview -- got raw JSON
+    instead of a page it could act on.
+
+    Nothing lost the JSON: it is byte-identical at ``/health``, which is what
+    every consumer of it already uses (the mobile server-URL probe, the backend
+    healthcheck in both compose files, ops/vps/deploy.sh). Checked before the
+    change; no caller of ``/`` expected JSON.
     """
-    if "text/html" in request.headers.get("accept", ""):
-        return HTMLResponse(render_landing_html())
-    return _status()
+    return HTMLResponse(render_landing_html(request))
 
 
 @router.get("/health", response_model=SystemStatus)
