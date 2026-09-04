@@ -14,9 +14,18 @@ import 'package:manhwamaniacs/features/downloads/queue/download_queue_controller
 /// (see `chapter_download_action.dart`), so the two controls always agree on
 /// whether downloading is possible right now.
 class DownloadSeriesButton extends ConsumerStatefulWidget {
-  const DownloadSeriesButton({super.key, required this.chapters});
+  const DownloadSeriesButton({
+    super.key,
+    required this.chapters,
+    this.label = 'Download Series',
+  });
 
   final List<ChapterQueueRequest> chapters;
+
+  /// What the control calls the whole thing. A book is not a "series" on the
+  /// novel page, and the page that says "CONTENTS" over a table of contents
+  /// should not offer to download a series.
+  final String label;
 
   @override
   ConsumerState<DownloadSeriesButton> createState() => _DownloadSeriesButtonState();
@@ -57,7 +66,7 @@ class _DownloadSeriesButtonState extends ConsumerState<DownloadSeriesButton> {
               child: CircularProgressIndicator(strokeWidth: 2),
             )
           : const Icon(Icons.download_outlined),
-      label: const Text('Download Series'),
+      label: Text(widget.label),
       style: OutlinedButton.styleFrom(
         foregroundColor: context.colors.fg,
         side: BorderSide(color: context.colors.border),

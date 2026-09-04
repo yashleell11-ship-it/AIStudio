@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/downloads/models/chapter_identity.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
@@ -11,6 +12,7 @@ import 'package:manhwamaniacs/features/downloads/queue/download_constants.dart';
 import 'package:manhwamaniacs/features/downloads/services/chapter_page_fetcher.dart';
 import 'package:manhwamaniacs/features/downloads/services/device_storage_info.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_store.dart';
+import 'package:manhwamaniacs/features/novels/models/novel_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
@@ -140,6 +142,18 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   /// [cancelChapter] for why the deletion is deferred to the loop.
   final Set<int> _cancelledRowIds = {};
 
+  /// Novel chapter text fetched ahead of the loop by [_primeNovelWindow],
+  /// waiting for the pass that owns its row. Entries are removed as they are
+  /// consumed, so this holds at most one window (a few tens of kilobytes of
+  /// prose) and never a whole book.
+  final Map<ChapterIdentity, NovelChapter> _novelWindow = {};
+
+  /// How many chapters the next window asks for. Starts at the compiled-in
+  /// guess and is replaced by the server's own `max_chapters` on the first
+  /// success, or shrunk if the server rejects the batch as too large — so the
+  /// stride is the deployment's, not the app's.
+  int _novelWindowSize = kNovelWindowChapters;
+
   /// Awaits the current processing pass, if one is running — **test-only**.
   /// Production callers must never await the queue draining: `enqueueChapter`
   /// et al. are deliberately fire-and-forget so the UI stays responsive while
@@ -253,6 +267,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   Future<void> cancelAll() async {
     final store = ref.read(downloadsStoreProvider);
     if (store == null) return;
+    _novelWindow.clear();
     for (final chapter in await store.unfinishedChapters()) {
       await cancelChapter(chapter.identity);
     }
@@ -318,6 +333,9 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
 
       final pending = await store.pendingChapters();
       if (pending.isEmpty) {
+        // Nothing left to hand it to; a window kept past here would be text
+        // for chapters the user has since cancelled.
+        _novelWindow.clear();
         state = state.copyWith(
           isDownloading: false,
           pauseReason: DownloadQueuePauseReason.none,
@@ -347,6 +365,11 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
       }
 
       final chapter = pending.first;
+      // Prose only, and only when several chapters of the same book are
+      // waiting: one round trip for the next twenty instead of twenty. Runs
+      // after the floor/cap checks above so a blocked queue never fetches.
+      if (chapter.kind.isNovel) await _primeNovelWindow(chapter, pending);
+
       state = state.copyWith(
         isDownloading: true,
         pauseReason: DownloadQueuePauseReason.none,
@@ -482,19 +505,31 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   /// There is no page loop, so no free-space/cap re-check mid-chapter: a
   /// chapter of prose is a single small write, and the loop already checked
   /// both immediately before picking this chapter up.
+  ///
+  /// The text may already be in hand from [_primeNovelWindow] — that is the
+  /// only difference a window makes down here. Everything after the fetch is
+  /// identical either way, deliberately: a whole-book download is not a
+  /// separate pipeline, it is this one with fewer round trips.
   Future<_ChapterOutcome> _downloadOneNovelChapter(
     DownloadsStore store,
     SavedChapter chapter,
   ) async {
-    final result = await ref.read(novelsRepositoryProvider).chapter(
-          sourceId: chapter.sourceId,
-          seriesKey: chapter.seriesKey,
-          chapterKey: chapter.chapterKey,
-        );
-    if (result.isErr) {
-      return _recordChapterFailure(store, chapter, result.error.userMessage);
+    // Already fetched as part of a window (spec R5). Removed on the way out:
+    // a chapter is served from a window exactly once, so a retry after a
+    // failed WRITE goes back to the network rather than replaying text that
+    // may be why the write failed.
+    var novel = _novelWindow.remove(chapter.identity);
+    if (novel == null) {
+      final result = await ref.read(novelsRepositoryProvider).chapter(
+            sourceId: chapter.sourceId,
+            seriesKey: chapter.seriesKey,
+            chapterKey: chapter.chapterKey,
+          );
+      if (result.isErr) {
+        return _recordChapterFailure(store, chapter, result.error.userMessage);
+      }
+      novel = result.value;
     }
-    final novel = result.value;
     if (novel.paragraphs.isEmpty) {
       return _recordChapterFailure(store, chapter, 'This chapter has no text.');
     }
@@ -523,6 +558,80 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     final completed = await store.markCompleteIfAllPagesPresent(chapter.rowId);
     if (completed) return _ChapterOutcome.completed;
     return _recordChapterFailure(store, chapter, 'The text failed to save.');
+  }
+
+  /// Fetches the next window of this book's queued chapters in one round trip
+  /// (spec R5: "add download whole series for novels too").
+  ///
+  /// A novel chapter is kilobytes of text, so a 300-chapter book fetched one
+  /// request at a time is almost entirely round-trip overhead. This looks
+  /// ahead through the pending rows for chapters of the SAME book, asks for up
+  /// to [_novelWindowSize] of them at once, and leaves the answers in
+  /// [_novelWindow] for the passes that own those rows.
+  ///
+  /// Deliberately best-effort and invisible to everything downstream. A window
+  /// that fails — offline, rate-limited, the endpoint missing on an older
+  /// server — simply leaves the cache empty and every chapter takes the
+  /// single-chapter path it always took. Nothing here can fail a download, and
+  /// nothing here bypasses a guard: each chapter still gets its own row, its
+  /// own retry bound and its own completeness check.
+  Future<void> _primeNovelWindow(
+    SavedChapter head,
+    List<SavedChapter> pending,
+  ) async {
+    if (_novelWindow.containsKey(head.identity)) return;
+
+    final keys = <String>[];
+    for (final row in pending) {
+      if (!row.kind.isNovel) continue;
+      if (row.sourceId != head.sourceId) continue;
+      if (row.seriesKey != head.seriesKey) continue;
+      if (_novelWindow.containsKey(row.identity)) continue;
+      if (keys.contains(row.chapterKey)) continue;
+      keys.add(row.chapterKey);
+      if (keys.length >= _novelWindowSize) break;
+    }
+    if (keys.length < kMinNovelWindowChapters) return;
+
+    final result = await ref.read(novelsRepositoryProvider).chapterWindow(
+          sourceId: head.sourceId,
+          seriesKey: head.seriesKey,
+          chapterKeys: keys,
+        );
+
+    if (result.isErr) {
+      final error = result.error;
+      // The server's cap is lower than ours. Adopt its number when it says
+      // one, otherwise halve — either way the next window fits, and this one
+      // falls through to single fetches rather than being lost.
+      if (error is ApiError && error.code == 'batch_too_large') {
+        _novelWindowSize = _capFromBatchTooLarge(error) ??
+            (keys.length ~/ 2).clamp(kMinNovelWindowChapters, _novelWindowSize);
+      }
+      return;
+    }
+
+    final window = result.value;
+    if (window.maxChapters >= kMinNovelWindowChapters) {
+      _novelWindowSize = window.maxChapters;
+    }
+    for (final entry in window.chapters.entries) {
+      _novelWindow[(
+        sourceId: head.sourceId,
+        seriesKey: head.seriesKey,
+        chapterKey: entry.key,
+      )] = entry.value;
+    }
+  }
+
+  /// The cap the server named in a `batch_too_large` response, when it named
+  /// one in the shape the reader/novel endpoints use (`details.max_chapters`).
+  int? _capFromBatchTooLarge(ApiError error) {
+    final details = error.details;
+    if (details is! Map) return null;
+    final cap = details['max_chapters'];
+    if (cap is num && cap >= kMinNovelWindowChapters) return cap.toInt();
+    return null;
   }
 
   /// Bounded retry at the chapter level: increments `retry_count` and, once

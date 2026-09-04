@@ -1,5 +1,6 @@
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/novels/models/novel_chapter.dart';
+import 'package:manhwamaniacs/features/novels/models/novel_chapter_window.dart';
 
 /// The novel side's one network call.
 ///
@@ -20,5 +21,26 @@ abstract class NovelsRepository {
     required String sourceId,
     required String seriesKey,
     required String chapterKey,
+  });
+
+  /// A bounded WINDOW of one book's chapters in a single round trip —
+  /// `POST /novels/chapters` (spec R5).
+  ///
+  /// POST rather than GET because the body is a list of opaque connector keys
+  /// that routinely contain slashes and percent-encoding; twenty of those do
+  /// not belong in a query string. It is still a read.
+  ///
+  /// This is what makes "download a whole novel" reasonable: chapter text is
+  /// kilobytes, so hundreds of separate requests are almost entirely
+  /// round-trip overhead. The result is per-item, never all-or-nothing —
+  /// see [NovelChapterWindow].
+  ///
+  /// Over the server's cap the call fails with a `batch_too_large` [ApiError]
+  /// naming it; every success echoes `max_chapters`, so a caller paces itself
+  /// by the server's stride rather than a number compiled into the app.
+  Future<Result<NovelChapterWindow>> chapterWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
   });
 }
