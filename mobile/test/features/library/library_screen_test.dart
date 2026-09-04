@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
@@ -23,9 +24,10 @@ import '../../support/test_overrides.dart';
 
 /// `LibraryRepository` double for the Library (followed) browse screen. Only
 /// [listSeries] (search/filter/sort all funnel through it — see
-/// `fetchLibraryListPage`) and [patchSeries] (favorite toggling) are wired;
-/// everything else throws so an unexpected call fails loudly instead of
-/// silently returning empty data.
+/// `fetchLibraryListPage`), [patchSeries] (favorite toggling) and
+/// [follow]/[unfollow] (the long-press "Remove from library" and its undo)
+/// are wired; everything else throws so an unexpected call fails loudly
+/// instead of silently returning empty data.
 class _FakeLibraryRepository implements LibraryRepository {
   _FakeLibraryRepository(this._items);
 
@@ -34,6 +36,25 @@ class _FakeLibraryRepository implements LibraryRepository {
   String? lastReadingStatus;
   String? lastSort;
   bool? lastIsFavorite;
+
+  /// Followed ids passed to [unfollow], in call order.
+  final List<int> unfollowed = [];
+
+  /// Identities passed to [follow], in call order.
+  final List<({String sourceId, String seriesKey})> refollowed = [];
+
+  /// The last [patchSeries] call, so the undo can be checked for restoring
+  /// the shelf metadata a re-follow does not carry over.
+  ({int id, bool? isFavorite, String? readingStatus})? lastPatch;
+
+  /// Makes [unfollow] fail, to exercise the "put the card back" path.
+  bool failUnfollow = false;
+
+  /// Rows taken out by [unfollow]. A re-follow gets title and cover back from
+  /// the server's source cache, so the double keeps them here — but not the
+  /// shelf metadata, which the deleted row took with it.
+  final Map<String, FollowedSeries> _unfollowedRows = {};
+  int _nextFollowedId = 100;
 
   @override
   Future<Result<PagedResult<FollowedSeries>>> listSeries({
@@ -81,6 +102,8 @@ class _FakeLibraryRepository implements LibraryRepository {
     bool? matureOverride,
     int? sortOrder,
   }) async {
+    lastPatch =
+        (id: followedId, isFavorite: isFavorite, readingStatus: readingStatus);
     final current = _items.firstWhere((series) => series.id == followedId);
     return Ok(current.copyWith(isFavorite: isFavorite, readingStatus: readingStatus));
   }
@@ -92,11 +115,41 @@ class _FakeLibraryRepository implements LibraryRepository {
   Future<Result<FollowedSeries>> follow({
     required String sourceId,
     required String seriesKey,
-  }) =>
-      throw UnimplementedError();
+  }) async {
+    refollowed.add((sourceId: sourceId, seriesKey: seriesKey));
+    final previous = _unfollowedRows.remove(seriesKey);
+    // Mirrors the backend: a re-follow is a brand new `followed_series` row,
+    // so it comes back with default shelf metadata regardless of what the
+    // deleted one held.
+    final row = FollowedSeries(
+      id: _nextFollowedId++,
+      sourceId: sourceId,
+      seriesKey: seriesKey,
+      title: previous?.title ?? seriesKey,
+      coverUrl: previous?.coverUrl ?? '',
+      isFavorite: false,
+      readingStatus: 'reading',
+      notify: false,
+      sortOrder: 0,
+      contentRating: 'safe',
+      rating: 'safe',
+      chapterCount: previous?.chapterCount ?? 0,
+    );
+    _items.add(row);
+    return Ok(row);
+  }
 
   @override
-  Future<Result<void>> unfollow(int followedId) => throw UnimplementedError();
+  Future<Result<void>> unfollow(int followedId) async {
+    if (failUnfollow) {
+      return const Err(UnknownError(message: 'unfollow refused'));
+    }
+    unfollowed.add(followedId);
+    final row = _items.firstWhere((series) => series.id == followedId);
+    _unfollowedRows[row.seriesKey] = row;
+    _items.remove(row);
+    return const Ok(null);
+  }
 
   @override
   Future<Result<List<ContinueReadingItem>>> continueReading({int limit = 10}) =>
@@ -441,6 +494,124 @@ void main() {
       // Normal AppBar shows the HeroHeading title, which uppercases to "LIBRARY".
       expect(find.text('LIBRARY'), findsOneWidget);
       expect(find.byIcon(Icons.checklist), findsOneWidget);
+    });
+  });
+
+  group('LibraryScreen long-press actions', () {
+    /// Long-presses the named card and waits for the actions sheet to open.
+    Future<void> openActions(WidgetTester tester, String title) async {
+      await tester.ensureVisible(find.text(title).first);
+      await tester.pumpAndSettle();
+      await tester.longPress(find.text(title).first);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('long-pressing a card opens the sheet with Remove from library',
+        (tester) async {
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      await openActions(tester, 'Solo Leveling');
+
+      expect(find.text('Open'), findsOneWidget);
+      expect(find.text('Remove from library'), findsOneWidget);
+      // The line that stands in for a confirmation dialog.
+      expect(find.text('Your reading progress is kept'), findsOneWidget);
+    });
+
+    testWidgets('Remove from library unfollows and drops the card from the grid',
+        (tester) async {
+      final repo = _FakeLibraryRepository([
+        _series(id: 1, title: 'Solo Leveling', seriesKey: 'solo-leveling'),
+        _series(id: 2, title: 'Tower of God', seriesKey: 'tower-of-god'),
+      ]);
+      await tester.pumpWidget(await _buildTestApp(repo: repo));
+      await tester.pumpAndSettle();
+
+      await openActions(tester, 'Solo Leveling');
+      await tester.tap(find.text('Remove from library'));
+      await tester.pumpAndSettle();
+
+      expect(repo.unfollowed, [1]);
+      // The grid updates without a manual refresh, and the neighbour stays.
+      expect(find.text('Solo Leveling'), findsNothing);
+      expect(find.text('Tower of God'), findsWidgets);
+      expect(find.textContaining('from your library'), findsOneWidget);
+      expect(find.text('Undo'), findsOneWidget);
+    });
+
+    testWidgets('Undo re-follows and restores the shelf metadata', (tester) async {
+      // Solo Leveling is favorited in the default fixture, so an undo that
+      // only re-followed would silently return it unstarred.
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      await openActions(tester, 'Solo Leveling');
+      await tester.tap(find.text('Remove from library'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Solo Leveling'), findsWidgets);
+      expect(find.text('Tower of God'), findsWidgets);
+    });
+
+    testWidgets('Undo patches favorite and reading status onto the new row',
+        (tester) async {
+      final repo = _FakeLibraryRepository([
+        _series(
+          id: 1,
+          title: 'Solo Leveling',
+          seriesKey: 'solo-leveling',
+          isFavorite: true,
+          readingStatus: 'completed',
+        ),
+      ]);
+      await tester.pumpWidget(await _buildTestApp(repo: repo));
+      await tester.pumpAndSettle();
+
+      await openActions(tester, 'Solo Leveling');
+      await tester.tap(find.text('Remove from library'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Undo'));
+      await tester.pumpAndSettle();
+
+      expect(repo.refollowed.single.seriesKey, 'solo-leveling');
+      // A fresh row id, patched back to what the deleted row carried.
+      expect(repo.lastPatch?.id, isNot(1));
+      expect(repo.lastPatch?.isFavorite, isTrue);
+      expect(repo.lastPatch?.readingStatus, 'completed');
+    });
+
+    testWidgets('a refused removal puts the card back and says why',
+        (tester) async {
+      final repo = _FakeLibraryRepository([
+        _series(id: 1, title: 'Solo Leveling', seriesKey: 'solo-leveling'),
+      ])
+        ..failUnfollow = true;
+      await tester.pumpWidget(await _buildTestApp(repo: repo));
+      await tester.pumpAndSettle();
+
+      await openActions(tester, 'Solo Leveling');
+      await tester.tap(find.text('Remove from library'));
+      await tester.pumpAndSettle();
+
+      expect(repo.unfollowed, isEmpty);
+      expect(find.text('Solo Leveling'), findsWidgets);
+      expect(find.text('Something went wrong — please try again.'), findsOneWidget);
+      expect(find.text('Undo'), findsNothing);
+    });
+
+    testWidgets('long-press is suppressed in selection mode', (tester) async {
+      await tester.pumpWidget(await _buildTestApp());
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+      await openActions(tester, 'Solo Leveling');
+
+      expect(find.text('Remove from library'), findsNothing);
     });
   });
 }
