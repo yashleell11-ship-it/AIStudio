@@ -5,7 +5,9 @@ import {
   bestDay,
   buildActivityChart,
   chapterLabel,
+  chooseTickCount,
   clientTimezoneOffsetMinutes,
+  coverAxis,
   formatCount,
   formatDuration,
   formatDurationLong,
@@ -17,7 +19,6 @@ import {
   isStatisticsEmpty,
   isWindowEmpty,
   lineStyleFor,
-  niceScaleMax,
   peakHour,
   readingStatusBreakdown,
   seriesTitle,
@@ -320,20 +321,80 @@ describe("labels for rows the follow table no longer covers", () => {
 
 // --- chart geometry --------------------------------------------------------
 
-describe("niceScaleMax", () => {
-  it("rounds an axis up to something a human reads off it", () => {
-    expect(niceScaleMax(37)).toBe(50);
-    expect(niceScaleMax(74)).toBe(100);
-    expect(niceScaleMax(11)).toBe(20);
-    expect(niceScaleMax(10)).toBe(10);
-    expect(niceScaleMax(1)).toBe(1);
-    expect(niceScaleMax(0.4)).toBe(0.5);
+describe("coverAxis", () => {
+  it("covers the peak with a whole number of nice steps", () => {
+    expect(coverAxis(74, 4)).toBe(80);
+    expect(coverAxis(40, 4)).toBe(40);
+    expect(coverAxis(137, 3)).toBe(150);
+    expect(coverAxis(900, 4)).toBe(1000);
+  });
+
+  it("divides evenly, so every gridline label is the value and not a rounding", () => {
+    // The old axis rounded only the maximum: a peak of 3 became a 0-5 axis, and
+    // four gridlines over it read 0, 1, 3, 4, 5 for values 0, 1.25, 2.5, 3.75, 5.
+    for (const count of [1, 2, 3, 4, 5, 6]) {
+      for (const peak of [1, 2, 3, 5, 8, 12, 30, 45, 74, 137, 900]) {
+        const max = coverAxis(peak, count);
+        expect(max).toBeGreaterThanOrEqual(peak);
+        expect(Number.isInteger(max / count)).toBe(true);
+      }
+    }
   });
 
   it("never returns zero, so nothing downstream divides by it", () => {
-    expect(niceScaleMax(0)).toBe(1);
-    expect(niceScaleMax(-5)).toBe(1);
-    expect(niceScaleMax(Number.NaN)).toBe(1);
+    expect(coverAxis(0, 4)).toBe(4);
+    expect(coverAxis(-5, 1)).toBe(1);
+    expect(coverAxis(Number.NaN, 3)).toBe(3);
+  });
+});
+
+describe("chooseTickCount", () => {
+  it("spends gridlines where they waste the least of the plot", () => {
+    // Four steps fit 74 pages exactly (0-80) but strand 50 minutes on a
+    // 0-80m axis; five costs pages a little slack and lands time dead on.
+    expect(chooseTickCount(74, 50, 4)).toBe(5);
+    expect(coverAxis(74, 5)).toBe(100);
+    expect(coverAxis(50, 5)).toBe(50);
+  });
+
+  it("keeps the requested count when it already fits both series", () => {
+    expect(chooseTickCount(40, 18, 4)).toBe(4);
+  });
+
+  it("collapses to a single step when nothing was read", () => {
+    // Otherwise an empty chart is framed by an invented 0-4 scale.
+    expect(chooseTickCount(0, 0, 4)).toBe(1);
+    expect(coverAxis(0, 1)).toBe(1);
+  });
+
+  it("stays sane on the tiny peaks a brand-new profile actually has", () => {
+    for (const peak of [1, 2, 3]) {
+      const count = chooseTickCount(peak, peak, 4);
+      expect(count).toBeGreaterThanOrEqual(1);
+      expect(coverAxis(peak, count) / count).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it("never leaves an axis less than half full for any real reading", () => {
+    // The invariant the whole tick search exists for. Swept, not sampled,
+    // because the failure mode is a family gap at one particular peak (the old
+    // step family put 900 pages on a 0–2000 axis and no spot check caught it).
+    // Degenerate one-minute windows may reach 2.5×: a 1m axis doubles its
+    // waste with every extra gridline, so it pins the count low and the pages
+    // axis eats the slack — that trade is deliberate, and it is bounded too.
+    for (const target of [3, 4]) {
+      for (let pages = 1; pages <= 400; pages += 1) {
+        for (const minutes of [1, 2, 5, 12, 18, 50, 90, 240]) {
+          const count = chooseTickCount(pages, minutes, target);
+          const wastePages = coverAxis(pages, count) / pages;
+          const wasteMinutes = coverAxis(minutes, count) / minutes;
+          expect(wastePages).toBeGreaterThanOrEqual(1);
+          expect(wasteMinutes).toBeGreaterThanOrEqual(1);
+          const bound = pages >= 5 && minutes >= 5 ? 2 : 2.5;
+          expect(Math.max(wastePages, wasteMinutes)).toBeLessThanOrEqual(bound);
+        }
+      }
+    }
   });
 });
 
@@ -394,12 +455,19 @@ describe("buildActivityChart", () => {
   });
 
   it("labels both axes in their own unit at every gridline", () => {
-    expect(chart.ticks).toHaveLength(5);
+    expect(chart.ticks).toHaveLength(6);
     expect(chart.ticks[0].pages).toBe(0);
     expect(chart.ticks[0].y).toBeCloseTo(chart.plot.y + chart.plot.height, 5);
-    expect(chart.ticks[4].pages).toBe(chart.maxPages);
-    expect(chart.ticks[4].seconds).toBe(chart.maxSeconds);
-    expect(chart.ticks[4].y).toBeCloseTo(chart.plot.y, 5);
+    expect(chart.ticks[5].pages).toBe(chart.maxPages);
+    expect(chart.ticks[5].seconds).toBe(chart.maxSeconds);
+    expect(chart.ticks[5].y).toBeCloseTo(chart.plot.y, 5);
+
+    // Every gridline in between is a whole page and a whole minute, so the
+    // label under it is the value rather than a rounding of it.
+    for (const tick of chart.ticks) {
+      expect(Number.isInteger(tick.pages)).toBe(true);
+      expect(Number.isInteger(tick.seconds / 60)).toBe(true);
+    }
   });
 
   it("thins the date labels on a long window but keeps the first and last day", () => {
