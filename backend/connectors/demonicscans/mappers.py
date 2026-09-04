@@ -95,6 +95,72 @@ def parse_series_cards(html_text: str) -> list[Series]:
     return items
 
 
+#: DemonicScans has a real server-side search at ``/search.php?manga=<q>``.
+#: It answers in ~0.2s with 17KB of matches; the ``/advanced.php`` catalog page
+#: this connector used to filter client-side is 85KB and only ever contained
+#: whatever happened to be on that one page, so most queries found nothing.
+SEARCH_PATH = "/search.php"
+
+# Search hits are shaped differently from the browse cards: the <a> wraps an
+# <li>, the cover carries class="search-thumb", and the title sits in a nested
+# <div> rather than in the anchor text -- so neither THUMB_CARD_RE nor
+# SERIES_LINK_RE matches them. Parse the anchor block, then read the pieces
+# out of it, which survives the site reshuffling attributes inside the card.
+SEARCH_ANCHOR_RE = re.compile(
+    r'<a\s+href="(?P<href>/manga/[^"]+)"\s*>(?P<body>.*?)</a>', re.I | re.S
+)
+_SEARCH_COVER_RE = re.compile(r'<img[^>]+src="(?P<cover>[^"]+)"[^>]*search-thumb', re.I)
+_SEARCH_TITLE_RE = re.compile(r"<div[^>]*>\s*([^<>]+?)\s*</div>", re.I)
+
+
+def search_params(query: str) -> dict[str, Any]:
+    return {"manga": query}
+
+
+def parse_search_results(
+    html_text: str, *, page: int, query: str, page_size: int = PAGE_SIZE
+) -> PaginatedSeriesList:
+    """Parse ``/search.php`` hits into series cards.
+
+    The endpoint returns one un-paginated block of best matches, so page 2+
+    is legitimately empty rather than "more results we failed to fetch".
+    """
+    items: list[Series] = []
+    seen: set[str] = set()
+    for match in SEARCH_ANCHOR_RE.finditer(html_text):
+        body = match.group("body")
+        cover_match = _SEARCH_COVER_RE.search(body)
+        if cover_match is None:
+            continue  # not a search card (nav/footer link)
+        series_id = _series_id_from_href(match.group("href"))
+        if not series_id or series_id in seen:
+            continue
+        seen.add(series_id)
+        title_match = _SEARCH_TITLE_RE.search(body)
+        title = _clean_text(title_match.group(1)) if title_match else ""
+        items.append(
+            Series(
+                id=series_id,
+                title=title or series_id.replace("-", " "),
+                # Thumbnail filenames contain literal spaces; leaving them
+                # unencoded produces a URL the image proxy cannot fetch.
+                cover_url=_encode_url_path(
+                    urljoin(SITE_BASE, _clean_text(cover_match.group("cover")))
+                ),
+                canonical_path=f"/manga/{series_id}",
+            )
+        )
+    if page > 1:
+        items = []
+    return PaginatedSeriesList(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=len(items),
+        api_has_more=False,
+    )
+
+
 def _extract_total_pages(html_text: str) -> int:
     pages = [int(value) for value in re.findall(r"[?&]page=(\d+)", html_text)]
     return max(pages) if pages else 1
