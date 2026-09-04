@@ -12,3 +12,10 @@ GeneratedPluginRegistrant.java
 key.properties
 **/*.keystore
 **/*.jks
+
+# JVM crash + heap dumps land in this directory. One of these (a 16 GB Windows
+# box out of memory) sat untracked in the repo for two months and would have
+# been rsynced to the VPS by ops/vps/push.sh.
+hs_err_pid*.log
+replay_pid*.log
+*.hprof
