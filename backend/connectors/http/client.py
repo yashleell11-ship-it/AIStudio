@@ -32,11 +32,71 @@ def _serialize_params(params: dict[str, Any] | None) -> list[tuple[str, str]] | 
 
 
 class ConnectorHttpError(Exception):
-    """Raised when a connector HTTP request fails after retries."""
+    """Raised when a connector HTTP request fails after retries.
 
-    def __init__(self, message: str, *, status_code: int | None = None) -> None:
+    ``retryable`` overrides the status-based decision in ``is_retryable`` for
+    the cases where the status alone is misleading — a Cloudflare interstitial
+    is reported as 403 but is a *transient* block that a fresh TLS handshake
+    genuinely can get past, unlike a 403 the origin means.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        status_code: int | None = None,
+        retryable: bool | None = None,
+    ) -> None:
         super().__init__(message)
         self.status_code = status_code
+        self.retryable = retryable
+
+
+#: Longest a ``Retry-After`` header may park this thread. The header is
+#: attacker-controlled as far as we are concerned -- an origin answering
+#: ``Retry-After: 3600`` would otherwise sleep a request thread for an hour,
+#: and the caller has its own connector budget long before that.
+MAX_RETRY_AFTER_SECONDS = 8.0
+
+
+def status_of(exc: BaseException | None) -> int | None:
+    """The upstream HTTP status behind a failure, whatever shape it arrived in.
+
+    ``httpx.raise_for_status`` raises ``HTTPStatusError`` carrying the
+    response; our own wrapper carries ``status_code``. Reading both here is
+    what lets a connector write ``exc.status_code == 404`` instead of
+    grepping the message text.
+    """
+    if isinstance(exc, ConnectorHttpError):
+        return exc.status_code
+    if isinstance(exc, httpx.HTTPStatusError):
+        return exc.response.status_code
+    return None
+
+
+def is_retryable(exc: BaseException | None) -> bool:
+    """Is trying this request again capable of a different answer?
+
+    Transport failures (timeout, reset, DNS) and the overload/server statuses
+    in ``RETRYABLE_STATUS`` are worth another attempt. A deterministic 4xx is
+    not: 404 means gone, 400 means this endpoint does not accept this call,
+    403 means blocked. Re-asking returns the identical answer.
+
+    Measured on the VPS, retrying them was not free. Every Madara series page
+    probes ``/wp-admin/admin-ajax.php`` first; on cocomic, cucumbermanga,
+    lilymanga, manhwatop and manhuanext that endpoint answers 400/403, and the
+    old loop spent three round trips plus 0.5s + 1.0s of backoff *sleep* to
+    learn it again — 2.5-3.2s of the detail stage, on every series open.
+    """
+    override = getattr(exc, "retryable", None)
+    if override is not None:
+        return bool(override)
+    status = status_of(exc)
+    if status is None:
+        # A transport-level failure (httpx.TimeoutException, ConnectError,
+        # a JSON body that did not parse) — genuinely worth another attempt.
+        return True
+    return status in RETRYABLE_STATUS
 
 
 class SyncConnectorHttpClient:
@@ -103,11 +163,15 @@ class SyncConnectorHttpClient:
             retry_after = response.headers.get("Retry-After")
             if retry_after:
                 try:
-                    time.sleep(max(float(retry_after), 1.0))
+                    # Clamped: an origin is free to ask for an hour, and a
+                    # request thread parked that long is a hang, not a retry.
+                    time.sleep(
+                        min(MAX_RETRY_AFTER_SECONDS, max(float(retry_after), 1.0))
+                    )
                     return
                 except ValueError:
                     pass
-            time.sleep(min(8.0, 1.5 * (2**attempt)))
+            time.sleep(min(MAX_RETRY_AFTER_SECONDS, 1.5 * (2**attempt)))
             return
         time.sleep(0.5 * (2**attempt))
 
@@ -137,18 +201,17 @@ class SyncConnectorHttpClient:
                 return payload
             except (httpx.HTTPError, ConnectorHttpError, json.JSONDecodeError) as exc:
                 last_error = exc
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 if not isinstance(exc, ConnectorHttpError) or exc.status_code not in RETRYABLE_STATUS:
                     self._retry_sleep(attempt)
 
         message = str(last_error) if last_error else "Unknown HTTP error"
-        status_code = (
-            last_error.status_code
-            if isinstance(last_error, ConnectorHttpError)
-            else None
-        )
-        raise ConnectorHttpError(message, status_code=status_code) from last_error
+        raise ConnectorHttpError(
+            message, status_code=status_of(last_error)
+        ) from last_error
 
     def get_json_value(
         self,
@@ -174,18 +237,17 @@ class SyncConnectorHttpClient:
                 return response.json()
             except (httpx.HTTPError, ConnectorHttpError, json.JSONDecodeError) as exc:
                 last_error = exc
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 if not isinstance(exc, ConnectorHttpError) or exc.status_code not in RETRYABLE_STATUS:
                     self._retry_sleep(attempt)
 
         message = str(last_error) if last_error else "Unknown HTTP error"
-        status_code = (
-            last_error.status_code
-            if isinstance(last_error, ConnectorHttpError)
-            else None
-        )
-        raise ConnectorHttpError(message, status_code=status_code) from last_error
+        raise ConnectorHttpError(
+            message, status_code=status_of(last_error)
+        ) from last_error
 
     def get_text(
         self,
@@ -209,17 +271,16 @@ class SyncConnectorHttpClient:
                 return response.text
             except (httpx.HTTPError, ConnectorHttpError) as exc:
                 last_error = exc
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 time.sleep(0.5 * (2**attempt))
 
         message = str(last_error) if last_error else "Unknown HTTP error"
-        status_code = (
-            last_error.status_code
-            if isinstance(last_error, ConnectorHttpError)
-            else None
-        )
-        raise ConnectorHttpError(message, status_code=status_code) from last_error
+        raise ConnectorHttpError(
+            message, status_code=status_of(last_error)
+        ) from last_error
 
     def post_text(
         self,
@@ -247,17 +308,16 @@ class SyncConnectorHttpClient:
                 return response.text
             except (httpx.HTTPError, ConnectorHttpError) as exc:
                 last_error = exc
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 time.sleep(0.5 * (2**attempt))
 
         message = str(last_error) if last_error else "Unknown HTTP error"
-        status_code = (
-            last_error.status_code
-            if isinstance(last_error, ConnectorHttpError)
-            else None
-        )
-        raise ConnectorHttpError(message, status_code=status_code) from last_error
+        raise ConnectorHttpError(
+            message, status_code=status_of(last_error)
+        ) from last_error
 
     def get_bytes(self, url: str) -> tuple[str, bytes]:
         last_error: Exception | None = None
@@ -276,12 +336,16 @@ class SyncConnectorHttpClient:
                 return media_type, response.content
             except (httpx.HTTPError, ConnectorHttpError) as exc:
                 last_error = exc
+                if not is_retryable(exc):
+                    break
                 if attempt + 1 >= self._max_retries:
                     break
                 time.sleep(0.5 * (2**attempt))
 
         message = str(last_error) if last_error else "Unknown HTTP error"
-        raise ConnectorHttpError(message) from last_error
+        raise ConnectorHttpError(
+            message, status_code=status_of(last_error)
+        ) from last_error
 
     def close(self) -> None:
         self._client.close()
