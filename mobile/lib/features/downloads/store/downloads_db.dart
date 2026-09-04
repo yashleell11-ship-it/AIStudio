@@ -258,18 +258,13 @@ Future<void> _createBookmarkTables(Database db) async {
       ${DownloadsSchema.colCreatedAt} TEXT NOT NULL
     )
   ''');
-  // The Bookmarks screen's default order (newest change first) and the
-  // per-chapter lookup the reader does on open, both inside one scope.
+  // The Bookmarks screen's default order — newest change first, inside one
+  // scope. The primary key already covers lookup by client id, which is every
+  // other read the sync path does.
   await db.execute(
     'CREATE INDEX IF NOT EXISTS idx_bookmarks_scope_updated '
     'ON ${DownloadsSchema.bookmarks}('
     '${DownloadsSchema.colScopeId}, ${DownloadsSchema.colUpdatedAt})',
-  );
-  await db.execute(
-    'CREATE INDEX IF NOT EXISTS idx_bookmarks_chapter '
-    'ON ${DownloadsSchema.bookmarks}('
-    '${DownloadsSchema.colScopeId}, ${DownloadsSchema.colSourceId}, '
-    '${DownloadsSchema.colSeriesKey}, ${DownloadsSchema.colChapterKey})',
   );
   await db.execute(
     'CREATE INDEX IF NOT EXISTS idx_bookmark_outbox_scope '
