@@ -259,7 +259,12 @@ function MangaSeriesDetailView({
   return (
     <div className="p-6">
       <div className="mb-6">
-        <Link href={`/sources/${sourceId}`} className="text-sm text-muted hover:text-fg">
+        {/* 110x18 as a bare inline link — the way back off this screen should
+            not be the hardest thing on it to hit. Height on touch only. */}
+        <Link
+          href={`/sources/${sourceId}`}
+          className="-ml-2 inline-flex items-center px-2 text-sm text-muted hover:text-fg [@media(pointer:coarse)]:min-h-11"
+        >
           ← Back to source
         </Link>
       </div>
@@ -302,6 +307,10 @@ function MangaSeriesDetailView({
                 <Link
                   key={genre}
                   href={`/sources/${encodeURIComponent(sourceId)}?genre=${encodeURIComponent(genre)}`}
+                  // The badge itself is 24px and there are four of them in a
+                  // row. Height goes on the link, not on `Badge`, so the
+                  // non-interactive badges elsewhere keep their size.
+                  className="inline-flex items-center [@media(pointer:coarse)]:min-h-11"
                 >
                   <Badge
                     variant="default"
@@ -364,7 +373,10 @@ function MangaSeriesDetailView({
                   type="button"
                   onClick={() => setSortOrder(order)}
                   className={cn(
-                    "px-3 py-1 text-xs font-medium capitalize transition-colors",
+                    // Two 24px segments; the pair is the only control in the
+                    // chapter-list header and a thumb has to land in one.
+                    "inline-flex items-center justify-center px-3 py-1 text-xs font-medium capitalize transition-colors",
+                    "[@media(pointer:coarse)]:min-h-11 [@media(pointer:coarse)]:px-4",
                     sortOrder === order
                       ? "bg-primary text-primary-fg"
                       : "text-muted hover:bg-white/5 hover:text-fg",
