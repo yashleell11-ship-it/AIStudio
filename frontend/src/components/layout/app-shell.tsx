@@ -282,10 +282,32 @@ function isTabActive(pathname: string, href: string): boolean {
  *
  * A floating, rounded, frosted pill rather than a full-bleed bar — the same
  * shape as the Flutter client's `NavigationBar`: inset by 16px, 20px radius,
- * near-black surface at ~0.85 alpha over a backdrop blur, a subtle warm-neutral
- * border, and a soft black + amber shadow. The active destination gets an amber
- * wash behind it and only the active label is shown, matching
+ * near-black surface at 0.90 alpha, a subtle warm-neutral border, and a soft
+ * black + amber shadow. The active destination gets an amber wash behind it and
+ * only the active label is shown, matching
  * `NavigationDestinationLabelBehavior.onlyShowSelected`.
+ *
+ * ### Why the frost is fill and not `backdrop-filter`
+ *
+ * This pill floats over `<main>`, which is the app's ONLY scroller, so a
+ * `backdrop-filter` here makes the compositor re-sample and re-blur everything
+ * behind it on every frame of every library and browse scroll — the one place
+ * in the app where that cost is paid continuously rather than once. It is the
+ * cost `presets.css` calls the single most expensive thing this interface does,
+ * and the pill was paying it even under Flat and Editorial, the two presets
+ * whose whole point is `--shape-panel-blur: 0`.
+ *
+ * It was also buying very little. A blur only erases detail finer than its
+ * radius, and what moves behind this pill is a poster grid whose variation is
+ * cover-sized — an order of magnitude coarser than 18px, so almost all of it
+ * survived the blur. What actually hides the covers is the fill: at 0.85 alpha
+ * 15% of the backdrop still reached the eye, and 0.90 cuts that to 10%. The
+ * pill therefore hides what slides under it slightly BETTER than the blurred
+ * version did, for the cost of compositing one solid colour.
+ *
+ * The two shadows stay. A shadow is painted from this element's own geometry
+ * rather than sampled from the page behind it, so scrolling does not re-compute
+ * it — the blur was the per-frame half of the glass, not the depth.
  *
  * `pb-[env(safe-area-inset-bottom)]` keeps it clear of the iOS home indicator
  * when the site is installed and running edge to edge.
@@ -298,7 +320,7 @@ function MobileBottomNav() {
       aria-label="Primary"
       className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden"
     >
-      <div className="pointer-events-auto flex items-stretch gap-1 rounded-[20px] border border-border bg-surface/85 p-1.5 shadow-[0_6px_20px_rgba(0,0,0,0.43),0_4px_24px_rgba(245,158,11,0.09)] backdrop-blur-[18px]">
+      <div className="pointer-events-auto flex items-stretch gap-1 rounded-[20px] border border-border bg-surface/90 p-1.5 shadow-[0_6px_20px_rgba(0,0,0,0.43),0_4px_24px_rgba(245,158,11,0.09)]">
         {mobileNav.map((item) => {
           const active = isTabActive(pathname, item.href);
           const Icon = item.icon;
