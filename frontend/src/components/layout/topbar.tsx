@@ -49,7 +49,13 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
         // clock row.
         "app-no-drag flex shrink-0 items-center gap-3 border-b border-border bg-bg-void/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-sm",
         hideOnReader
-          ? "min-h-[calc(3.5rem+env(safe-area-inset-top))] max-lg:min-h-[calc(2.75rem+env(safe-area-inset-top))]"
+          ? // …and on a phone held sideways it goes entirely. 375px of height
+            // is all there is in that orientation, and the reader's own control
+            // bar already carries the way back to the series. Same 500px line
+            // the shell uses to drop the desktop rail here (`app-shell.tsx`),
+            // for the same reason: height is what tells a landscape phone apart
+            // from a desktop window this wide.
+            "min-h-[calc(3.5rem+env(safe-area-inset-top))] max-lg:min-h-[calc(2.75rem+env(safe-area-inset-top))] [@media(max-height:500px)]:hidden"
           : "min-h-[calc(3.5rem+env(safe-area-inset-top))]",
       )}
     >
