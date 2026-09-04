@@ -19,6 +19,7 @@ BACKEND = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(BACKEND))
 
 from connectors.catalog import HANDCRAFTED_CONNECTORS, MADARA_CATALOG  # noqa: E402
+from connectors.registry import list_installed_connectors  # noqa: E402
 
 RESULTS_PATH = BACKEND.parent / "docs" / "catalog_domain_probe.json"
 CONNECTOR_RESULTS = BACKEND.parent / "docs" / "connector_probe_results.json"
@@ -26,6 +27,11 @@ MAX_WORKERS = 8
 TIMEOUT = 20.0
 
 HANDCRAFTED = HANDCRAFTED_CONNECTORS
+# Asking the registry beats a hand-kept literal here: the previous one named a
+# single source, so every other adult handcrafted row printed as safe.
+MATURE_SOURCE_IDS = frozenset(
+    d.source_type for d in list_installed_connectors() if d.mature
+)
 EXCLUDED = frozenset({"comick"})
 
 MADARA_MARKERS = (
@@ -279,7 +285,7 @@ def main() -> None:
                 DomainProbeResult(
                     source_id=sid,
                     domain="(custom)",
-                    mature=sid in {"toonily"},
+                    mature=sid in MATURE_SOURCE_IDS,
                     url_segment="n/a",
                     classification="HANDCRAFTED",
                     detail="registered custom connector",

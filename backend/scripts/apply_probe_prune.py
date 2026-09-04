@@ -13,7 +13,7 @@ CATALOG_PY = REPO / "backend" / "connectors" / "catalog.py"
 RESULTS = REPO / "docs" / "connector_probe_results.json"
 
 HANDCRAFTED = frozenset(
-    {"mangadex", "asurascans", "mangakatana", "demonicscans", "toonily", "coffeemanga"}
+    {"mangadex", "asurascans", "mangakatana", "demonicscans", "coffeemanga"}
 )
 
 

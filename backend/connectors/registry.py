@@ -9,7 +9,6 @@ from typing import Any
 from connectors.akuma.connector import AkumaConnector
 from connectors.asmhentai.connector import AsmHentaiConnector
 from connectors.aurorascans.connector import AuroraScansConnector
-from connectors.bbato.connector import BbatoConnector
 from connectors.beehentai.connector import BeeHentaiConnector
 from connectors.comicland.connector import ComicLandConnector
 from connectors.flamescans.connector import FlameScansConnector
@@ -62,7 +61,6 @@ from connectors.firstkissmanga.connector import FirstKissMangaConnector
 from connectors.nhentai.connector import NHentaiConnector
 from connectors.porncomic18.connector import PornComic18Connector
 from connectors.threehentai.connector import ThreeHentaiConnector
-from connectors.toonily.connector import ToonilyConnector
 from connectors.webtoons.connector import WebtoonsConnector
 from connectors.tapas.connector import TapasConnector
 from connectors.weebcentral.connector import WeebCentralConnector
@@ -94,13 +92,11 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     FanFoxConnector.SOURCE_TYPE,
     DemonicScansConnector.SOURCE_TYPE,
     DoujinsConnector.SOURCE_TYPE,
-    ToonilyConnector.SOURCE_TYPE,
     NHentaiConnector.SOURCE_TYPE,
     PornComic18Connector.SOURCE_TYPE,
     ThreeHentaiConnector.SOURCE_TYPE,
     AsmHentaiConnector.SOURCE_TYPE,
     AuroraScansConnector.SOURCE_TYPE,
-    BbatoConnector.SOURCE_TYPE,
     BeeHentaiConnector.SOURCE_TYPE,
     ComicLandConnector.SOURCE_TYPE,
     FlameScansConnector.SOURCE_TYPE,
@@ -244,7 +240,6 @@ def _register_builtin_connectors() -> None:
         (OmegaScansConnector.SOURCE_TYPE, OmegaScansConnector),
         (FanFoxConnector.SOURCE_TYPE, FanFoxConnector),
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
-        (ToonilyConnector.SOURCE_TYPE, ToonilyConnector),
         (NHentaiConnector.SOURCE_TYPE, NHentaiConnector),
         (WeebCentralConnector.SOURCE_TYPE, WeebCentralConnector),
         (WebtoonsConnector.SOURCE_TYPE, WebtoonsConnector),
@@ -253,7 +248,6 @@ def _register_builtin_connectors() -> None:
         (ThreeHentaiConnector.SOURCE_TYPE, ThreeHentaiConnector),
         (AsmHentaiConnector.SOURCE_TYPE, AsmHentaiConnector),
         (AuroraScansConnector.SOURCE_TYPE, AuroraScansConnector),
-        (BbatoConnector.SOURCE_TYPE, BbatoConnector),
         (BeeHentaiConnector.SOURCE_TYPE, BeeHentaiConnector),
         (ComicLandConnector.SOURCE_TYPE, ComicLandConnector),
         (FlameScansConnector.SOURCE_TYPE, FlameScansConnector),
