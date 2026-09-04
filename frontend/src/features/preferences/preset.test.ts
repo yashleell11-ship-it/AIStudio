@@ -52,7 +52,7 @@ describe("design preset identity", () => {
       meta.preview.translucent,
       meta.preview.bordered,
       meta.preview.serif,
-      meta.preview.rows,
+      meta.preview.radius,
       meta.density,
       meta.readerCinema,
       meta.motion,

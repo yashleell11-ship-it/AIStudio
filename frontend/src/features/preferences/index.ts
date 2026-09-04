@@ -1,4 +1,5 @@
 export { AppearancePanel } from "./components/AppearancePanel";
+export { DesignPanel } from "./components/DesignPanel";
 export { MatureContentPanel } from "./components/MatureContentPanel";
 export { ReaderPanel } from "./components/ReaderPanel";
 export {
