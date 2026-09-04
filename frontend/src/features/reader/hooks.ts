@@ -9,7 +9,7 @@ import { manifestToChapterContent, readerApi, type ProgressPush } from "./api";
 import type { ReaderPage } from "./types";
 
 const READER_KEY = ["reader"] as const;
-const READER_CHAPTER_STALE_MS = 5 * 60_000;
+export const READER_CHAPTER_STALE_MS = 5 * 60_000;
 
 export function readerManifestQueryKey(ref: ChapterId) {
   return [
