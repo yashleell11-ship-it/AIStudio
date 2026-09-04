@@ -18,7 +18,6 @@ _SITE_ORIGINS: dict[str, str] = {
     "threehentai": "https://3hentai.net",
     "nhentai": "https://nhentai.net",
     "ehentai": "https://e-hentai.org",
-    "bbato": "https://bato.to",
     "doujins": "https://doujins.com",
 }
 

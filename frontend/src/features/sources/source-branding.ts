@@ -9,7 +9,6 @@ const FAVICON_BY_SOURCE: Record<string, string> = {
   tapas: "https://tapas.io/favicon.ico",
   comick: "https://comick.io/favicon.ico",
   bato: "https://bato.to/favicon.ico",
-  bbato: "https://bato.to/favicon.ico",
   manganelo: "https://manganelo.com/favicon.ico",
   manganato: "https://manganato.com/favicon.ico",
   reaperscans: "https://reaperscans.com/favicon.ico",
