@@ -13,6 +13,13 @@ abstract final class DownloadsSchema {
   static const blobs = 'blobs';
   static const progressOutbox = 'progress_outbox';
 
+  /// Bookmarks and their outbox, added in schema v3. Both are `scope_id`-led
+  /// like every other content table here, so one profile's bookmarks are not
+  /// merely hidden from another's — they are unreachable, because no query in
+  /// [DownloadsStore] can name a scope other than its own.
+  static const bookmarks = 'bookmarks';
+  static const bookmarkOutbox = 'bookmark_outbox';
+
   static const colId = 'id';
   static const colScopeId = 'scope_id';
   static const colSourceId = 'source_id';
@@ -45,9 +52,46 @@ abstract final class DownloadsSchema {
   static const colRefcount = 'refcount';
 
   static const colPayloadJson = 'payload_json';
+
+  // ── bookmarks (v3) ───────────────────────────────────────────────────────
+
+  /// The sync identity: client-generated, opaque, never parsed. The primary
+  /// key alongside `scope_id`, which is what makes "do I already hold this
+  /// bookmark?" structurally incapable of finding another profile's row.
+  static const colClientId = 'client_id';
+
+  /// The server's row id once a flush has come back with one, else NULL. Not
+  /// an identity — a bookmark made on a plane has none for as long as the
+  /// plane is in the air.
+  static const colServerId = 'server_id';
+
+  /// `'manga'` / `'novel'` — what [colAnchorIndex] counts.
+  static const colMediaType = 'media_type';
+
+  /// 1-based page (manga) or paragraph (novel).
+  static const colAnchorIndex = 'anchor_index';
+
+  /// 0.0–1.0 within the unit [colAnchorIndex] names. A fraction and not
+  /// pixels: the same chapter is laid out at different widths on the phone
+  /// and on the web.
+  static const colAnchorFraction = 'anchor_fraction';
+
+  /// Units in the chapter at capture time; 0 = unknown.
+  static const colAnchorTotal = 'anchor_total';
+
+  /// The prose at the bookmarked point, for novels — cached at capture time
+  /// so the Bookmarks screen is recognisable with no signal at all.
+  static const colSnippet = 'snippet';
+
+  static const colNote = 'note';
+  static const colUpdatedAt = 'updated_at';
+
+  /// Tombstone. NULL = live. Rows are never deleted from this table by the
+  /// sync path — a delete a device slept through has to be learnable.
+  static const colDeletedAt = 'deleted_at';
 }
 
-const _dbVersion = 2;
+const _dbVersion = 3;
 
 /// The `kind` column's two values. A row's own kind, not a lookup through the
 /// sources listing — the offline path has no listing, and a downloaded
@@ -82,6 +126,16 @@ Future<Database> openDownloadsDatabase({String? overridePath}) async {
           'ADD COLUMN ${DownloadsSchema.colKind} TEXT NOT NULL '
           "DEFAULT '$kMangaDownloadKind'",
         );
+      }
+      // v2 → v3: offline bookmarks. Purely additive — two new tables and
+      // their indexes, nothing dropped and no table rewritten — because the
+      // owner's phone holds real downloads and real reading progress in the
+      // tables above, and a destructive recreate would take them with it.
+      // The same DDL as [onCreate] runs here, from one place, so a phone that
+      // upgrades and a phone installed fresh cannot end up with different
+      // columns.
+      if (oldVersion < 3) {
+        await _createBookmarkTables(db);
       }
     },
     onCreate: (db, version) async {
@@ -149,7 +203,77 @@ Future<Database> openDownloadsDatabase({String? overridePath}) async {
         'CREATE INDEX idx_progress_outbox_scope '
         'ON ${DownloadsSchema.progressOutbox}(${DownloadsSchema.colScopeId})',
       );
+      await _createBookmarkTables(db);
     },
+  );
+}
+
+/// The `bookmarks` + `bookmark_outbox` DDL, run by both `onCreate` and the
+/// v2 → v3 `onUpgrade` so the two paths cannot drift.
+///
+/// `IF NOT EXISTS` throughout: an install that has already been upgraded once
+/// and is then opened by a build whose `onCreate` runs (a restored database
+/// file, a re-created path) must not fail on a table it already holds.
+Future<void> _createBookmarkTables(Database db) async {
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS ${DownloadsSchema.bookmarks} (
+      ${DownloadsSchema.colScopeId} TEXT NOT NULL,
+      ${DownloadsSchema.colClientId} TEXT NOT NULL,
+      ${DownloadsSchema.colServerId} INTEGER,
+      ${DownloadsSchema.colSourceId} TEXT NOT NULL,
+      ${DownloadsSchema.colSeriesKey} TEXT NOT NULL,
+      ${DownloadsSchema.colChapterKey} TEXT NOT NULL,
+      ${DownloadsSchema.colSeriesTitle} TEXT,
+      ${DownloadsSchema.colChapterNumber} REAL,
+      -- Literal rather than [kMangaDownloadKind]: the two vocabularies happen
+      -- to spell manga the same way, but a downloaded chapter's kind and a
+      -- bookmark's medium are different facts and must be free to diverge.
+      ${DownloadsSchema.colMediaType} TEXT NOT NULL DEFAULT 'manga',
+      ${DownloadsSchema.colAnchorIndex} INTEGER NOT NULL DEFAULT 1,
+      ${DownloadsSchema.colAnchorFraction} REAL NOT NULL DEFAULT 0,
+      ${DownloadsSchema.colAnchorTotal} INTEGER NOT NULL DEFAULT 0,
+      ${DownloadsSchema.colSnippet} TEXT,
+      ${DownloadsSchema.colNote} TEXT,
+      ${DownloadsSchema.colCreatedAt} TEXT NOT NULL,
+      ${DownloadsSchema.colUpdatedAt} TEXT NOT NULL,
+      ${DownloadsSchema.colDeletedAt} TEXT,
+      PRIMARY KEY (
+        ${DownloadsSchema.colScopeId},
+        ${DownloadsSchema.colClientId}
+      )
+    )
+  ''');
+  // The outbox mirrors `progress_outbox` — an autoincrement id, the scope, an
+  // opaque JSON payload and a stamp — with the payload carrying the op
+  // (`upsert` / `delete`) as well as the body. One table for both ops, because
+  // the ORDER between them is the whole correctness argument: a create
+  // followed by a delete has to reach the server in that order, and two
+  // tables could not express it.
+  await db.execute('''
+    CREATE TABLE IF NOT EXISTS ${DownloadsSchema.bookmarkOutbox} (
+      ${DownloadsSchema.colId} INTEGER PRIMARY KEY AUTOINCREMENT,
+      ${DownloadsSchema.colScopeId} TEXT NOT NULL,
+      ${DownloadsSchema.colClientId} TEXT NOT NULL,
+      ${DownloadsSchema.colPayloadJson} TEXT NOT NULL,
+      ${DownloadsSchema.colCreatedAt} TEXT NOT NULL
+    )
+  ''');
+  // The Bookmarks screen's default order (newest change first) and the
+  // per-chapter lookup the reader does on open, both inside one scope.
+  await db.execute(
+    'CREATE INDEX IF NOT EXISTS idx_bookmarks_scope_updated '
+    'ON ${DownloadsSchema.bookmarks}('
+    '${DownloadsSchema.colScopeId}, ${DownloadsSchema.colUpdatedAt})',
+  );
+  await db.execute(
+    'CREATE INDEX IF NOT EXISTS idx_bookmarks_chapter '
+    'ON ${DownloadsSchema.bookmarks}('
+    '${DownloadsSchema.colScopeId}, ${DownloadsSchema.colSourceId}, '
+    '${DownloadsSchema.colSeriesKey}, ${DownloadsSchema.colChapterKey})',
+  );
+  await db.execute(
+    'CREATE INDEX IF NOT EXISTS idx_bookmark_outbox_scope '
+    'ON ${DownloadsSchema.bookmarkOutbox}(${DownloadsSchema.colScopeId})',
   );
 }
 
