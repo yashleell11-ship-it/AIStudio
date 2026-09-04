@@ -291,3 +291,37 @@ def test_flag_on_unknown_source_is_404(novels_on):
 
 def test_flag_on_missing_params_are_422(novels_on):
     assert novels_on.get("/novels/chapter").status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# The memoized descriptor index must follow the flag too
+# ---------------------------------------------------------------------------
+
+
+def test_connector_directory_memo_follows_the_flag(monkeypatch):
+    """``core.connector_directory`` caches the registry's descriptor list.
+
+    Its key carries ``MM_NOVELS_ENABLED`` precisely so flipping the flag does
+    not serve a stale index — and the library serializer resolves every row's
+    18+ rating through that index. The other half of the key is the registry
+    *size*, which changes whenever a test registers a stub, so a key that had
+    silently dropped the flag would still look correct in every other test
+    here. This one flips the flag with the registry size untouched.
+    """
+    from core import connector_directory
+
+    connector_directory.reset_cache()
+
+    monkeypatch.delenv("MM_NOVELS_ENABLED", raising=False)
+    get_settings.cache_clear()
+    off = connector_directory.descriptors_by_source()
+    assert not [d for d in off.values() if d.content_kind == "novel"]
+
+    monkeypatch.setenv("MM_NOVELS_ENABLED", "true")
+    get_settings.cache_clear()
+    on = connector_directory.descriptors_by_source()
+    assert [d for d in on.values() if d.content_kind == "novel"]
+
+    monkeypatch.delenv("MM_NOVELS_ENABLED", raising=False)
+    get_settings.cache_clear()
+    connector_directory.reset_cache()

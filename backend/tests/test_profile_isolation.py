@@ -185,6 +185,39 @@ def test_continue_reading_strip_honours_the_18plus_gate(
     assert [r["series_key"] for r in open_strip] == ["adult-series"]
 
 
+# --- recently updated ----------------------------------------------------
+
+
+def test_recently_updated_strip_is_profile_scoped(
+    db_session, world, seed_follow
+):
+    """The home "recently updated" strip is a *library* view like any other.
+
+    It reads ``followed_series`` directly with no join to lean on, so its
+    ``_scope`` call is the only thing standing between one profile and the rest
+    of the account's follows.
+    """
+    from core.time_utils import utcnow
+
+    seed_follow(
+        world["u1"], world["a"], series_key="a-series", last_checked_at=utcnow()
+    )
+    seed_follow(
+        world["u1"], world["b"], series_key="b-series", last_checked_at=utcnow()
+    )
+    seed_follow(
+        world["u2"], world["c"], series_key="c-series", last_checked_at=utcnow()
+    )
+
+    a = _followed(db_session, world["u1"], world["a"]).recently_updated()
+    b = _followed(db_session, world["u1"], world["b"]).recently_updated()
+    c = _followed(db_session, world["u2"], world["c"]).recently_updated()
+
+    assert [r["series_key"] for r in a] == ["a-series"]
+    assert [r["series_key"] for r in b] == ["b-series"]
+    assert [r["series_key"] for r in c] == ["c-series"]
+
+
 # --- statistics ---------------------------------------------------------
 
 
