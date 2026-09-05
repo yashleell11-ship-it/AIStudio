@@ -100,7 +100,7 @@ export interface DesignPresetMeta {
   /**
    * The library layout this preset opens with. Only a default: the density
    * control in the library toolbar still wins once a profile has used it, the
-   * same way an explicitly chosen theme wins over the OS preference.
+   * same way an explicitly chosen theme wins over the default palette.
    */
   density: LibraryDensity;
   /**
@@ -202,10 +202,10 @@ export function parseDesignPreset(raw: string | null): DesignPreset | null {
 /**
  * The preset to apply right now.
  *
- * There is no OS preference to seed this from — nothing about a device says
- * "this person wants serif headings" — so an unset preference is simply the
- * default. That is the one place this differs from {@link
- * import("./theme").initialReadingTheme}.
+ * An unset preference is simply the default — nothing about a device says
+ * "this person wants serif headings". Exactly the shape of {@link
+ * import("./theme").initialReadingTheme}, which resolves the palette the same
+ * way.
  */
 export function initialDesignPreset(stored: string | null): DesignPreset {
   return parseDesignPreset(stored) ?? DEFAULT_DESIGN_PRESET;

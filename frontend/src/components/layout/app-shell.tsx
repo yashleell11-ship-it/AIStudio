@@ -46,7 +46,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   // Above the auth branch on purpose: the site theme paints the login and
   // register screens too. Those screens get `honourBootTheme: false`, which
-  // lets the OS preference win there even if a boot-applied palette was carried
+  // restores the DEFAULT palette there even if a boot-applied one was carried
   // in by a client-side redirect — without a session the scope never resolves,
   // so nothing else would ever clear it, and a login form wearing the last
   // profile's palette announces on a shared machine who was here.
@@ -320,7 +320,10 @@ function MobileBottomNav() {
       aria-label="Primary"
       className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden"
     >
-      <div className="pointer-events-auto flex items-stretch gap-1 rounded-[20px] border border-border bg-surface/90 p-1.5 shadow-[0_6px_20px_rgba(0,0,0,0.43),0_4px_24px_rgba(245,158,11,0.09)]">
+      {/* The accent half of the drop shadow reads from the palette rather than
+          a literal amber, so the bar keeps its lift in every theme instead of
+          casting an Eclipse-coloured glow under a Nord or a Daylight. */}
+      <div className="pointer-events-auto flex items-stretch gap-1 rounded-[20px] border border-border bg-surface/90 p-1.5 shadow-[0_6px_20px_rgba(0,0,0,0.43),0_4px_24px_color-mix(in_srgb,var(--mm-primary)_9%,transparent)]">
         {mobileNav.map((item) => {
           const active = isTabActive(pathname, item.href);
           const Icon = item.icon;

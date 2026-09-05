@@ -34,16 +34,6 @@ const READING_THEME_BASE = READING_THEME_STORAGE_BASE;
 /** Same-tab notification; `storage` only fires in the tabs that did not write. */
 const READING_THEME_EVENT = "manhwamaniacs:reading-theme";
 
-/**
- * Whether the viewer's OS asks for a light UI. Read at snapshot time rather
- * than cached, so the *first* resolution on a machine that prefers light picks
- * light even if the module was imported before the media query was readable.
- */
-function prefersLight(): boolean {
-  if (typeof window === "undefined" || !window.matchMedia) return false;
-  return window.matchMedia("(prefers-color-scheme: light)").matches;
-}
-
 /** The stored choice for the active profile, or `null` when there is none. */
 export function readStoredReadingTheme(): ReadingTheme | null {
   return parseReadingTheme(readScopedString(READING_THEME_BASE));
@@ -59,13 +49,13 @@ export function writeReadingTheme(theme: ReadingTheme): void {
 // string, so the identity check is free and no snapshot cache is needed here
 // (unlike the list-shaped scoped stores).
 function getSnapshot(): ReadingTheme {
-  return initialReadingTheme(readScopedString(READING_THEME_BASE), prefersLight());
+  return initialReadingTheme(readScopedString(READING_THEME_BASE));
 }
 
 function getServerSnapshot(): ReadingTheme {
-  // No storage and no media query on the server. The CSS `prefers-color-scheme`
-  // fallback in globals.css covers the light case for that first paint, so
-  // rendering the default here cannot produce a mismatch the viewer sees.
+  // No storage on the server, and nothing else feeds the resolution — the
+  // default is what an unset preference means on the client too, so this cannot
+  // produce a mismatch the viewer sees.
   return DEFAULT_READING_THEME;
 }
 
@@ -77,15 +67,9 @@ function subscribe(onStoreChange: () => void): () => void {
   // A profile switch changes which key this reads without touching storage, so
   // no DOM event announces it.
   const unsubscribeScope = subscribeStorageScope(handler);
-  const media = window.matchMedia?.("(prefers-color-scheme: light)");
-  // Only matters while nothing is stored — `initialReadingTheme` ignores the
-  // query once there is a choice — but without this the very first visit would
-  // not follow the OS flipping to dark mode until the next reload.
-  media?.addEventListener("change", handler);
   return () => {
     window.removeEventListener(READING_THEME_EVENT, handler);
     window.removeEventListener("storage", handler);
-    media?.removeEventListener("change", handler);
     unsubscribeScope();
   };
 }
@@ -94,15 +78,15 @@ export interface ReadingThemeState {
   theme: ReadingTheme;
   setTheme: (theme: ReadingTheme) => void;
   /**
-   * False while the theme is only being inferred from the OS preference — no
-   * choice has been stored for this profile yet, or there is no profile to
-   * store one against. The panel says so rather than showing a selection the
-   * viewer never made as if they had.
+   * False while the theme is only the default — no choice has been stored for
+   * this profile yet, or there is no profile to store one against. The panel
+   * says so rather than showing a selection the viewer never made as if they
+   * had.
    */
   isExplicit: boolean;
 }
 
-/** Whether a choice is actually stored, as opposed to inferred from the OS. */
+/** Whether a choice is actually stored, as opposed to being the default. */
 function getExplicitSnapshot(): boolean {
   return hasStorageScope() && readStoredReadingTheme() !== null;
 }
@@ -153,13 +137,13 @@ export function useApplyReadingTheme(honourBootTheme = true): ReadingTheme {
      * The one case where this must keep its hands off: the scope has not
      * resolved yet, and the boot script already painted something. Between
      * hydration and the session probe answering, `theme` here is only the
-     * default — so writing it would repaint a correctly-themed page to Eclipse
-     * and back a moment later, which is the exact flash the boot script exists
-     * to remove, just moved a few hundred milliseconds later.
+     * default — so writing it would repaint a correctly-themed page to GitHub
+     * Dark and back a moment later, which is the exact flash the boot script
+     * exists to remove, just moved a few hundred milliseconds later.
      *
      * With no attribute present there is nothing to protect (the boot script
      * declines on the auth screens, and finds nothing for a profile that has
-     * never chosen), so the OS-derived default is written as before.
+     * never chosen), so the default is written as before.
      *
      * `honourBootTheme` is how the shell says the wait is over: on the auth
      * screens the scope will NEVER resolve, so a boot value carried in by a
@@ -171,7 +155,7 @@ export function useApplyReadingTheme(honourBootTheme = true): ReadingTheme {
     root.dataset.theme = theme;
     // The installed-PWA window paints its title bar and the pull-to-refresh
     // gutter from this tag, not from the stylesheet. Left alone it would keep
-    // the static Eclipse near-black declared in `layout.tsx`, so a Catppuccin
+    // the static GitHub Dark canvas declared in `layout.tsx`, so a Catppuccin
     // Latte install would read as a light app in a black frame.
     const meta = document.querySelector('meta[name="theme-color"]');
     meta?.setAttribute("content", READING_THEME_META[theme].swatch.bg);

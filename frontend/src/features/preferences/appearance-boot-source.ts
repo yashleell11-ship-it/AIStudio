@@ -10,9 +10,9 @@
  * Both choices are stored per (user, profile) in localStorage, and the profile
  * is a client-side selection — so the server cannot serialise either attribute
  * into the markup, and an effect that sets them only runs after React hydrates.
- * Between those two moments the page paints with the `:root` defaults: Eclipse
- * near-black, Signature glass. At four themes that was a flicker for the two
- * dark ones and a genuine white-to-black blink for Sepia and Daylight. At
+ * Between those two moments the page paints with the `:root` defaults: GitHub
+ * Dark near-black, Signature glass. At four themes that was a flicker for the
+ * two dark ones and a genuine white-to-black blink for Sepia and Daylight. At
  * forty-two it would be the first thing anyone notices on every cold load —
  * exactly the detail that makes a theme system feel bolted on. The preset is
  * less violent (nobody's retina reacts to a corner radius) but it is more
@@ -50,8 +50,9 @@
  * stores, which need the session too, would resolve to the defaults and
  * repaint. That is a flash in the opposite direction, and it would also
  * announce on a shared machine what the last person here reads in. Those
- * screens belong to nobody yet, so they get the defaults, as they did before
- * any of this existed.
+ * screens belong to nobody yet, so they get the defaults — which is why the
+ * default palette has to be one the app is happy to be seen in rather than a
+ * placeholder: /login and /register wear it start to finish.
  *
  * The source lives in its own module, separate from the component that emits
  * it, so `appearance-boot.test.ts` can execute it against a fake `localStorage`

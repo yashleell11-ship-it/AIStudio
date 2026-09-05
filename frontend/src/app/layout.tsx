@@ -43,10 +43,11 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Eclipse's near-black: the right answer for the default theme and for anyone
-  // who has not chosen one. `useApplyReadingTheme` rewrites the tag to the
-  // active palette's background once the profile has resolved.
-  themeColor: "#0A0A0A",
+  // GitHub Dark's canvas: the right answer for the default theme and for anyone
+  // who has not chosen one. Must match `--mm-bg` in the bare `:root` block of
+  // globals.css. `useApplyReadingTheme` rewrites the tag to the active
+  // palette's background once the profile has resolved.
+  themeColor: "#0D1117",
   // The reader runs edge to edge; without this an installed iOS window letterboxes.
   viewportFit: "cover",
 };

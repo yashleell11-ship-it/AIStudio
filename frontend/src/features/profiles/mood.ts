@@ -32,19 +32,25 @@ export const MOOD_LABELS: Record<Mood, string> = {
   default: "Default",
 };
 
-/** The Eclipse Warm void base (the dark theme's `--color-bg-void`). */
-export const MOOD_BASE = "#0A0A0A";
+/**
+ * The default palette's void base (GitHub Dark's `--color-bg-void`).
+ *
+ * Kept in step with the bare `:root` block in globals.css: the profile picker
+ * paints it as a literal `backgroundColor` under its own gradient, and a stale
+ * value would show as a seam against the themed surface beside it.
+ */
+export const MOOD_BASE = "#0D1117";
 
 /**
  * What the tints are actually mixed over: the ACTIVE reading theme's page
  * background, not the literal above.
  *
  * The shell paints this as an inline `background`, so it covers every surface
- * beneath it. Hard-coding #0A0A0A meant that picking Sepia or Daylight left the
- * whole app near-black with light panels floating on it — the theme applied to
- * everything except the one element drawn on top. Reading the variable makes
- * the mood a TINT over whatever the theme is, which is what a mood was always
- * meant to be.
+ * beneath it. Hard-coding the page background meant that picking Sepia or
+ * Daylight left the whole app near-black with light panels floating on it — the
+ * theme applied to everything except the one element drawn on top. Reading the
+ * variable makes the mood a TINT over whatever the theme is, which is what a
+ * mood was always meant to be.
  *
  * `MOOD_BASE` stays a literal because `MOOD_TINT.default` is a colour, and
  * because it documents what "untinted" resolves to on the default theme.
@@ -54,8 +60,8 @@ export const MOOD_SURFACE = "var(--color-bg-void)";
 /**
  * The per-mood tint, mixed at a low ratio over {@link MOOD_BASE}. Each hue is
  * muted, dark, and warm-compatible on its own so that, even blended, the result
- * reads as a tinted dark surface in the Eclipse Warm (amber/rose) family rather
- * than a saturated or cool colour. Never neon.
+ * reads as a tinted dark surface rather than a saturated or cool colour.
+ * Never neon.
  */
 export const MOOD_TINT: Record<Mood, string> = {
   romantic: "#7a4650", // dusty rose
@@ -94,9 +100,9 @@ export function moodPickerBackground(mood: Mood): string {
 }
 
 /** A translucent accent derived from the mood tint, for rings/badges. Untinted
- * moods fall back to the Eclipse Warm amber accent — read from the token rather
- * than repeated as a literal, so it deepens with the paper themes the way every
- * other accent does. */
+ * moods fall back to the active theme's accent — read from the token rather
+ * than repeated as a literal, so it follows every palette the way every other
+ * accent does. */
 export function moodAccent(mood: Mood, alphaPercent = 60): string {
   const tint = isTintedMood(mood) ? MOOD_TINT[mood] : "var(--color-accent-amber)";
   return `color-mix(in srgb, ${tint} ${alphaPercent}%, transparent)`;
