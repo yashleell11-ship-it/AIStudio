@@ -18,14 +18,14 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import and_, case, literal, select, tuple_
+from sqlalchemy import and_, select, tuple_
 from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
-from core.connector_directory import descriptor_for_source, mature_source_ids
+from core.connector_directory import descriptor_for_source
 from core.content_rating import (
     TRACKER_RATING_MATURE,
-    mature_rating_predicate,
+    mature_tracker_case,
     resolve_mature_gate,
     resolve_tracker_rating,
 )
@@ -344,32 +344,13 @@ class ProgressService:
     def _mature_case(self):
         """1 when a progress row's series is 18+ for this profile, else 0.
 
-        SQL mirror of :func:`core.content_rating.resolve_tracker_rating` in the
-        same priority order — explicit override, the rating captured at follow
-        time, then the source's own maturity — copied verbatim from
-        ``reading_stats_service._progress_mature_case`` (same table, same
-        columns) so the history list and the statistics screen can never
-        disagree about what is adult. Unknown stays 0 for the reason recorded
-        there.
+        The rule is :func:`core.content_rating.mature_tracker_case` — shared
+        outright, rather than copied verbatim from
+        ``reading_stats_service._progress_mature_case`` as it once was, so the
+        history list and the statistics screen cannot disagree about what is
+        adult. All this names is the column the source's maturity is read from.
         """
-        mature_sources = mature_source_ids()
-        source_mature = (
-            case((ChapterProgress.source_id.in_(mature_sources), 1), else_=0)
-            if mature_sources
-            else literal(0)
-        )
-        return case(
-            (FollowedSeries.mature_override == 1, 1),
-            (FollowedSeries.mature_override == 0, 0),
-            (
-                FollowedSeries.content_rating.is_not(None),
-                case(
-                    (mature_rating_predicate(FollowedSeries.content_rating), 1),
-                    else_=0,
-                ),
-            ),
-            else_=source_mature,
-        )
+        return mature_tracker_case(ChapterProgress.source_id)
 
     def _series_visible(self, source_id: str, series_key: str) -> bool:
         """Whether ONE series' stored positions may be shown to this profile.

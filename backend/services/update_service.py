@@ -18,13 +18,12 @@ import time
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import case, func, literal, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from connectors.registry import list_installed_connectors
 from core.config import get_settings
-from core.connector_directory import mature_source_ids
-from core.content_rating import mature_rating_predicate, resolve_mature_gate
+from core.content_rating import mature_tracker_case, resolve_mature_gate
 from core.errors import AppError
 from core.time_utils import utcnow
 from database.models import (
@@ -158,31 +157,13 @@ class UpdateService:
     def _mature_case(self):
         """1 when a notification's series is 18+ for this profile, else 0.
 
-        SQL mirror of :func:`core.content_rating.resolve_tracker_rating` in the
-        same priority order — explicit override, the rating captured at follow
-        time, then the source's own maturity — copied from
-        ``bookmark_service._mature_case`` so the badge and every other gated
-        listing can never disagree about what is adult. Unknown stays 0 for the
-        reason recorded there.
+        The rule is :func:`core.content_rating.mature_tracker_case` — shared
+        outright, rather than copied from ``bookmark_service._mature_case`` as
+        it once was, so the badge and every other gated listing cannot disagree
+        about what is adult. All this names is the column the source's own
+        maturity is read from.
         """
-        mature_sources = mature_source_ids()
-        source_mature = (
-            case((UpdateNotification.source_id.in_(mature_sources), 1), else_=0)
-            if mature_sources
-            else literal(0)
-        )
-        return case(
-            (FollowedSeries.mature_override == 1, 1),
-            (FollowedSeries.mature_override == 0, 0),
-            (
-                FollowedSeries.content_rating.is_not(None),
-                case(
-                    (mature_rating_predicate(FollowedSeries.content_rating), 1),
-                    else_=0,
-                ),
-            ),
-            else_=source_mature,
-        )
+        return mature_tracker_case(UpdateNotification.source_id)
 
     def _visible_notifications(self, stmt):
         """``_notif_scope`` plus this profile's 18+ gate.

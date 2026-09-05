@@ -23,15 +23,15 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from sqlalchemy import func
+from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
 
 from core.config import get_settings
-from database.models import ReadingProfile
+from core.connector_directory import mature_source_ids
+from database.models import FollowedSeries, ReadingProfile
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from connectors.registry import ConnectorDescriptor
-    from database.models import FollowedSeries
 
 #: Series ``content_rating`` values (compared case-insensitively) that denote
 #: adult / 18+ content. Mirrors common source vocabularies -- e.g. MangaDex
@@ -161,6 +161,49 @@ def resolve_tracker_rating(
 
 #: Source-native alias. New callers should use this name.
 resolve_followed_rating = resolve_tracker_rating
+
+
+def mature_tracker_case(source_column):
+    """SQL mirror of :func:`resolve_tracker_rating`: 1 when 18+, else 0.
+
+    Same priority order as the Python authority above -- explicit override,
+    then the rating captured at follow time, then the source's own maturity --
+    read off a joined ``followed_series`` row and ``source_column``, the
+    ``source_id`` of whatever table is being gated.
+
+    That column is the *only* thing that differed across the five hand-copied
+    versions of this expression this replaced (reading sessions, chapter
+    progress twice, bookmarks, notifications), which is why it is the only
+    parameter. Five copies of a gate is a drift risk with teeth: the next fix
+    to one leaves four unfixed, and the failure is silent -- a series hidden on
+    four surfaces and printed by name on the fifth.
+
+    Unknown stays 0, for the reason recorded on :func:`resolve_tracker_rating`.
+
+    The *join* supplying the ``followed_series`` row stays with the caller and
+    is deliberately NOT uniform -- outer or inner, conditional or
+    unconditional, on the composite key or on a foreign key -- because each
+    answers for a different table for reasons recorded at each call site. Only
+    the rating rule is shared here; the shape of the read is not.
+    """
+    mature_sources = mature_source_ids()
+    source_mature = (
+        case((source_column.in_(mature_sources), 1), else_=0)
+        if mature_sources
+        else literal(0)
+    )
+    return case(
+        (FollowedSeries.mature_override == 1, 1),
+        (FollowedSeries.mature_override == 0, 0),
+        (
+            FollowedSeries.content_rating.is_not(None),
+            case(
+                (mature_rating_predicate(FollowedSeries.content_rating), 1),
+                else_=0,
+            ),
+        ),
+        else_=source_mature,
+    )
 
 
 def rating_from_genres(genres: tuple[str, ...] | list[str] | None) -> str | None:
