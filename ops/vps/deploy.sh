@@ -54,6 +54,47 @@ cmd_deploy() {
   echo ">> in-container health:"
   docker exec manhwamaniacs-backend python -c "import urllib.request;print(urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=4).read().decode())" || true
 
+  # Prove the CODE deployed, not just the version label.
+  #
+  # /app/version reads mobile/pubspec.yaml, which is a bind mount — so it
+  # reports the new version the moment the file rsyncs, before this rebuild
+  # runs, and would keep reporting it even if the rebuild had failed. The
+  # changelog is compiled into the image, so the two agreeing is the cheapest
+  # honest evidence that the container is running the source we just shipped.
+  # It also catches a version bumped without its release-notes entry.
+  echo ">> deployed-code check:"
+  if ! docker exec manhwamaniacs-backend python - <<'PYCHECK'
+import json, sys, time, urllib.request
+
+def get(path):
+    with urllib.request.urlopen(f"http://127.0.0.1:8000{path}", timeout=6) as r:
+        return json.loads(r.read().decode())
+
+for attempt in range(5):
+    try:
+        pubspec = get("/app/version")["version"]
+        compiled = get("/app/changelog")["entries"][0]["version"]
+        break
+    except Exception as exc:  # noqa: BLE001 - any transport failure is a retry
+        if attempt == 4:
+            print(f"!! could not reach the app to verify it: {exc}")
+            sys.exit(1)
+        time.sleep(3)
+
+if pubspec == compiled:
+    print(f">> serving {pubspec} — mounted pubspec and compiled changelog agree")
+    sys.exit(0)
+
+print(f"!! MISMATCH: /app/version says {pubspec}, compiled changelog says {compiled}")
+print("!! the container is serving code older than the mounted pubspec, or the")
+print("!! release-notes entry for this version was never added")
+sys.exit(1)
+PYCHECK
+  then
+    echo ">> DEPLOY NOT VERIFIED — see the mismatch above" >&2
+    return 1
+  fi
+
   # cmd_install_timers documents itself as idempotent and safe to re-run after
   # every deploy, but nothing ever called it — so the iOS pull loop was closed
   # only by someone remembering an undocumented subcommand, which is exactly how
