@@ -1,13 +1,21 @@
-import { readerChapterHref } from "@/features/reader/reader-link";
+import type { ChapterId } from "@/types/api";
 import type { UpdateNotification, UpdateSettings } from "./types";
 
-/** The reader URL a "new chapter" notification deep-links to. */
-export function notificationReaderHref(item: UpdateNotification): string {
-  return readerChapterHref({
+/**
+ * The chapter a "new chapter" notification points at.
+ *
+ * A ref, not a URL: this row used to build `/reader/...` unconditionally, which
+ * opened the PAGE reader for a novel and rendered "This chapter has no pages."
+ * — the follow → notify → read loop dead-ended on an error page for every web
+ * novel followed. Every other screen that can list a novel row resolves its
+ * link through `useChapterHref`, and now so does this one.
+ */
+export function notificationChapterRef(item: UpdateNotification): ChapterId {
+  return {
     sourceId: item.source_id,
     seriesKey: item.series_key,
     chapterKey: item.chapter_key,
-  });
+  };
 }
 
 /**

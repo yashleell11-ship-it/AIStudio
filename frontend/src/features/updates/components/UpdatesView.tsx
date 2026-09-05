@@ -10,10 +10,17 @@ import { HeroHeading } from "@/components/premium/HeroHeading";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { useFollowedIndex } from "@/features/library/hooks";
 import { useContentModeFilter } from "@/features/content-mode";
+// Direct rather than through the `@/features/novels` barrel, which also pulls
+// in the novel reader — this screen only links into it, it never renders it.
+import {
+  useChapterHref,
+  useChapterLinksReady,
+  type ChapterHref,
+} from "@/features/novels/use-chapter-href";
 import { formatUtcDateTime } from "@/lib/utc-time";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { ApiError } from "@/types/api";
-import { notificationReaderHref } from "../notification-link";
+import { notificationChapterRef } from "../notification-link";
 import {
   useManualCheck,
   useMarkAllNotificationsRead,
@@ -38,13 +45,15 @@ function NotificationRow({
   seriesTitle,
   onRead,
   busy,
+  chapterHref,
 }: {
   item: UpdateNotification;
   seriesTitle: string | undefined;
   onRead: (id: number) => void;
   busy: boolean;
+  chapterHref: ChapterHref;
 }) {
-  const readerHref = notificationReaderHref(item);
+  const readerHref = chapterHref(notificationChapterRef(item));
   return (
     <div
       className={`rounded-xl border border-border/40 bg-white/[0.02] p-3 transition-colors hover:border-primary/30 ${
@@ -93,6 +102,12 @@ export function UpdatesView() {
   const markAllRead = useMarkAllNotificationsRead();
   const { titles } = useFollowedIndex();
   const { filterRows, ready: modeReady } = useContentModeFilter();
+  // This list keeps novel rows in Novels mode, so it needs the same "which
+  // reader?" answer — and the same wait for it — that Statistics, Bookmarks,
+  // History and the series page already take. Satisfied immediately on a
+  // manga-only deployment.
+  const chapterHref = useChapterHref();
+  const linksReady = useChapterLinksReady();
 
   const busy = manualCheck.isPending || markRead.isPending || markAllRead.isPending;
   // Notifications gets its own dedicated empty/error/offline treatment below;
@@ -103,7 +118,7 @@ export function UpdatesView() {
   // "you have unread updates", not "in this mode".
   const rows = filterRows(notifications.data, (row) => row.source_id);
   const notificationsViewState = resolveViewState({
-    isLoading: notifications.isLoading || !modeReady,
+    isLoading: notifications.isLoading || !modeReady || !linksReady,
     error: notifications.error,
     isEmpty: rows.length === 0,
   });
@@ -176,7 +191,7 @@ export function UpdatesView() {
             </Button>
           </CardHeader>
           <CardContent className="space-y-3">
-            {notifications.isLoading ? (
+            {notificationsViewState === "loading" ? (
               <div className="space-y-3" aria-busy="true">
                 {Array.from({ length: 3 }).map((_, index) => (
                   <div
@@ -213,6 +228,7 @@ export function UpdatesView() {
                   seriesTitle={titles.get(`${item.source_id}:${item.series_key}`)}
                   busy={busy}
                   onRead={(id) => markRead.mutate(id)}
+                  chapterHref={chapterHref}
                 />
               ))
             )}

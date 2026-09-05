@@ -4,7 +4,7 @@ export { NotificationBell } from "./components/NotificationBell";
 export { UpdateBanner } from "./components/UpdateBanner";
 export { describeCheckSchedule, type CheckSchedule } from "./notifications";
 export {
-  notificationReaderHref,
+  notificationChapterRef,
   toSettingsUpdatePayload,
 } from "./notification-link";
 export * from "./hooks";

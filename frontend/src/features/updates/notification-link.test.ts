@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  notificationReaderHref,
+  notificationChapterRef,
   toSettingsUpdatePayload,
 } from "./notification-link";
 import type { UpdateNotification, UpdateSettings } from "./types";
@@ -22,19 +22,23 @@ function notification(
   };
 }
 
-describe("notificationReaderHref", () => {
-  it("deep-links a new-chapter notification into the source-native reader", () => {
-    expect(notificationReaderHref(notification())).toBe(
-      "/reader/asura/nano-machine/ch-210",
-    );
+describe("notificationChapterRef", () => {
+  it("names the chapter source-natively, leaving the reader choice to the caller", () => {
+    expect(notificationChapterRef(notification())).toEqual({
+      sourceId: "asura",
+      seriesKey: "nano-machine",
+      chapterKey: "ch-210",
+    });
   });
 
-  it("encodes opaque keys with slashes correctly", () => {
+  it("passes opaque keys through untouched, escaping nothing", () => {
+    // Encoding belongs to the link builders (`readerChapterHref` /
+    // `novelChapterHref`); a ref that pre-escaped would be double-encoded.
     expect(
-      notificationReaderHref(
+      notificationChapterRef(
         notification({ series_key: "a/b", chapter_key: "vol/1/ch/2" }),
       ),
-    ).toBe("/reader/asura/a%2Fb/vol/1/ch/2");
+    ).toEqual({ sourceId: "asura", seriesKey: "a/b", chapterKey: "vol/1/ch/2" });
   });
 });
 
