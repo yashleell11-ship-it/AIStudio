@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/features/auth/models/auth_response.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/models/bootstrap_status.dart';
+import 'package:manhwamaniacs/features/auth/models/user_session.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/auth/providers/session_offline_provider.dart';
 import 'package:manhwamaniacs/features/auth/repositories/auth_repository.dart';
@@ -122,6 +123,31 @@ class _FakeAuthRepository implements AuthRepository {
     logoutCalls++;
     return const Ok(null);
   }
+
+  @override
+  Future<Result<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async =>
+      const Err<void>(
+        ApiError(statusCode: 500, code: 'x', message: 'not used in tests'),
+      );
+
+  @override
+  Future<Result<List<UserSession>>> sessions() async =>
+      const Err<List<UserSession>>(
+        ApiError(statusCode: 500, code: 'x', message: 'not used in tests'),
+      );
+
+  @override
+  Future<Result<void>> revokeSession(int sessionId) async => const Err<void>(
+        ApiError(statusCode: 500, code: 'x', message: 'not used in tests'),
+      );
+
+  @override
+  Future<Result<void>> logoutAll() async => const Err<void>(
+        ApiError(statusCode: 500, code: 'x', message: 'not used in tests'),
+      );
 
   @override
   Future<Result<AuthUser>> me() {

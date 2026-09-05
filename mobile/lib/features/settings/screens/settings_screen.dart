@@ -18,6 +18,7 @@ import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
+import 'package:manhwamaniacs/features/settings/screens/security_screen.dart';
 import 'package:manhwamaniacs/features/settings/screens/theme_gallery_screen.dart';
 import 'package:manhwamaniacs/features/settings/utils/settings_search_index.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -226,6 +227,17 @@ class _AccountSection extends ConsumerWidget {
             ],
           ),
           SizedBox(height: context.space.lg),
+          OutlinedButton.icon(
+            key: const Key('account-open-security'),
+            // Pushed on the navigator rather than routed, like the theme
+            // gallery: one entry point, from here, and nothing deep-links to it.
+            onPressed: () => Navigator.of(context).push<void>(
+              MaterialPageRoute(builder: (_) => const SecurityScreen()),
+            ),
+            icon: const Icon(Icons.shield_outlined, size: 18),
+            label: const Text('Password & security'),
+          ),
+          SizedBox(height: context.space.sm),
           OutlinedButton.icon(
             onPressed: () => _confirmSignOut(context, ref),
             icon: const Icon(Icons.logout, size: 18),

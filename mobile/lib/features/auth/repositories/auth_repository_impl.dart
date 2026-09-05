@@ -4,6 +4,7 @@ import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_response.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/models/bootstrap_status.dart';
+import 'package:manhwamaniacs/features/auth/models/user_session.dart';
 import 'package:manhwamaniacs/features/auth/repositories/auth_repository.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
@@ -63,6 +64,46 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<Result<AuthUser>> me() => _obj('/auth/me', AuthUser.fromJson);
+
+  // Both passwords travel in the POST body and nowhere else — never a query
+  // parameter, which would land them in server logs and any proxy in between.
+  @override
+  Future<Result<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) =>
+      _void(
+        () => _dio.post<dynamic>(
+          '/auth/change-password',
+          data: {
+            'current_password': currentPassword,
+            'new_password': newPassword,
+          },
+        ),
+      );
+
+  @override
+  Future<Result<List<UserSession>>> sessions() async {
+    try {
+      final r = await _dio.get<List<dynamic>>('/auth/sessions');
+      final items = (r.data ?? [])
+          .map((e) => UserSession.fromJson(e as Map<String, dynamic>))
+          .toList();
+      return Ok(items);
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<void>> revokeSession(int sessionId) =>
+      _void(() => _dio.delete<dynamic>('/auth/sessions/$sessionId'));
+
+  @override
+  Future<Result<void>> logoutAll() =>
+      _void(() => _dio.post<dynamic>('/auth/logout-all'));
 
   // ── Helpers ─────────────────────────────────────────────────────────────
 

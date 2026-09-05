@@ -27,6 +27,10 @@ class SettingsSearchEntry {
 /// stable surface, so a static list is simpler and never drifts silently out
 /// of sync with what's rendered (each entry is added alongside its setting).
 const List<SettingsSearchEntry> settingsSearchIndex = [
+  // One entry for the whole Password & security page: search selects a TAB,
+  // and everything below lives one push deeper off the General tab's Account
+  // card — so the subtitle carries the words people actually type.
+  SettingsSearchEntry(label: 'Password & security', tabIndex: 0, subtitle: 'Change password, active sessions, devices signed in, sign out everywhere'),
   SettingsSearchEntry(label: 'Show mature content (18+)', tabIndex: 0, subtitle: 'Adult-only series, NSFW, content'),
   SettingsSearchEntry(label: 'Reading history', tabIndex: 0, subtitle: 'Recently read chapters'),
   SettingsSearchEntry(label: 'Theme', tabIndex: 0, subtitle: 'Eclipse, Gruvbox, Nord, Dracula, Catppuccin, base16 & more'),
