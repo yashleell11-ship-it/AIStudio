@@ -70,21 +70,25 @@ export default function SettingsPage() {
   return (
     <div className="page-shell bg-bg">
       <div className="page-container mx-auto max-w-6xl">
+        {/* The eyebrow said "Preferences" directly above a hero saying
+            "Settings" — the same word twice in two type styles — and under it a
+            five-line paragraph listed the very tabs rendered immediately below.
+            A heading and the tabs themselves are the whole of what this screen
+            has to say about itself. */}
         <FadeIn className="mb-8" y={20}>
-          <p className="mb-2 text-xs font-medium uppercase tracking-widest text-muted">
-            Preferences
-          </p>
           <HeroHeading className="leading-none md:text-6xl">
             Settings
           </HeroHeading>
-          <p className="mt-3 max-w-xl text-sm text-muted">
-            Reshape the app with a design preset, recolour it with a reading
-            theme, tune the reader, set your mature-content gate and keyboard
-            shortcuts, and manage your password and signed-in devices.
+          <p className="mt-2 text-sm text-muted">
+            Design, theme, reader, and account.
           </p>
         </FadeIn>
 
-        <FadeIn className="mb-6" y={20} delay={0.05}>
+        {/* Pointer widths only: on a phone the More tab already lists Reading
+            History and System Status, one tap away, so these two cards were a
+            second copy of the same links pushing the actual settings a full
+            screen down. Desktop has no More tab, so they stay there. */}
+        <FadeIn className="mb-6 hidden lg:block" y={20} delay={0.05}>
           <div className="grid gap-4 lg:grid-cols-2">
             <ShortcutCard
               href="/library/history"

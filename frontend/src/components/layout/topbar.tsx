@@ -47,7 +47,16 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
         // rather than `h-*` so that padding ADDS space above the usual 56px/44px
         // bar instead of eating into it and squeezing the toggle/notification/
         // clock row.
-        "app-no-drag flex shrink-0 items-center gap-3 border-b border-border bg-bg-void/80 px-4 pt-[env(safe-area-inset-top)] backdrop-blur-sm",
+        // Below `md` this is a bare action strip, not a bar: no fill, no rule,
+        // no product name. The Flutter client's tab screens use a transparent,
+        // zero-elevation `AppBar` carrying only its actions, and every screen
+        // here already states its own name in the heading directly underneath.
+        // Painting a second, titled band above that heading is what made the
+        // phone layout read as two stacked headers on every route.
+        //
+        // From `md` up the sidebar is on screen and the bar separates the app
+        // frame from the page, so it keeps its fill and its rule there.
+        "app-no-drag flex shrink-0 items-center gap-3 px-4 pt-[env(safe-area-inset-top)] md:border-b md:border-border md:bg-bg-void/80 md:backdrop-blur-sm",
         hideOnReader
           ? // …and on a phone held sideways it goes entirely. 375px of height
             // is all there is in that orientation, and the reader's own control
@@ -70,11 +79,6 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
         <PanelLeft className="size-5" />
       </Button>
 
-      <div className="flex items-center gap-2 md:hidden">
-        <div className="size-2 rounded-full bg-primary" aria-hidden />
-        <span className="font-display text-base tracking-wide text-fg">ManhwaManiacs</span>
-      </div>
-
       <div className="flex flex-1 items-center justify-end gap-3">
         {/* The only advertisement the keyboard layer gets. Pointer-sized
             screens only: on a touch device the sheet lists keys nobody has. */}
@@ -94,7 +98,9 @@ export function Topbar({ hideOnReader = false }: TopbarProps) {
           <Wifi className="size-3.5" aria-hidden />
           <time className="font-mono tabular-nums">{time}</time>
         </div>
-        <div className="h-6 w-px bg-border" aria-hidden />
+        {/* Separates the bell from the account menu only where the bar is a
+            filled surface. On the phone strip there is nothing to separate. */}
+        <div className="hidden h-6 w-px bg-border md:block" aria-hidden />
         <UserMenu />
       </div>
     </header>
