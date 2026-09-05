@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>页面不存在 - 瓜子漫画</title>
+<meta name="robots" content="noindex, follow">
+<style>
+*{box-sizing:border-box}
+html{-webkit-font-smoothing:antialiased}
+body{margin:0;min-height:100vh;color:#111827;background:#292929;font-family:"Microsoft YaHei","PingFang SC",system-ui,-apple-system,BlinkMacSystemFont,sans-serif}
+a{color:inherit;text-decoration:none}
+.shell{width:min(1280px,100%);min-height:100vh;margin:0 auto;background:#fff;display:grid;place-items:center;padding:28px}
+.card{width:min(720px,100%);padding:42px 38px;border:1px solid #f2d7df;border-radius:18px;background:linear-gradient(180deg,#fff7fa 0%,#fff 46%);box-shadow:0 18px 54px rgba(17,24,39,.12);text-align:center}
+.mark{width:72px;height:72px;margin:0 auto 18px;border-radius:50%;display:grid;place-items:center;color:#fff;background:#f00343;font-size:30px;font-weight:950}
+h1{margin:0 0 12px;color:#111827;font-size:34px;line-height:1.18;font-weight:950;letter-spacing:0}
+p{margin:0 auto;color:#667085;font-size:16px;line-height:1.9;max-width:520px}
+.hint{margin-top:8px;color:#98a2b3;font-size:13px}
+.actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin-top:26px}
+.actions a{height:42px;display:inline-flex;align-items:center;justify-content:center;padding:0 20px;border-radius:22px;border:1px solid #e6e8ee;background:#fff;color:#111827;font-size:14px;font-weight:850}
+.actions a.primary{border-color:#f00343;background:#f00343;color:#fff}
+.quick{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-top:28px}
+.quick a{min-height:58px;display:grid;place-items:center;border:1px solid #edf0f5;border-radius:10px;background:#fff;color:#344054;font-size:14px;font-weight:800}
+@media(max-width:640px){
+  .shell{display:block;padding:18px 14px 84px;background:#f6f7f9}
+  .card{padding:30px 20px;border-radius:18px}
+  .mark{width:62px;height:62px;font-size:26px}
+  h1{font-size:26px}
+  p{font-size:14px}
+  .actions{display:grid;grid-template-columns:1fr;gap:10px}
+  .actions a{width:100%}
+  .quick{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+</style>
+</head>
+<body>
+<main class="shell">
+  <section class="card" aria-labelledby="not-found-title">
+    <div class="mark">404</div>
+    <h1 id="not-found-title">这个页面暂时找不到</h1>
+    <p>可能是章节已下架、链接写错，或页面已经移动。你可以回到首页，继续查看今日更新和热门漫画。</p>
+    <p class="hint">这是正常的 404 页面，搜索引擎会知道这个地址不应该被收录。</p>
+    <nav class="actions" aria-label="404 页面主导航">
+      <a class="primary" href="/">返回首页</a>
+      <a href="/update.php">今日更新</a>
+      <a href="/category.php">漫画分类</a>
+      <a href="/top.php">排行榜</a>
+    </nav>
+    <nav class="quick" aria-label="404 页面快捷入口">
+      <a href="/new-comics/">新上架</a>
+      <a href="/completed/">完结漫画</a>
+      <a href="/popular-this-week/">本周热门</a>
+      <a href="/latest-chapters/">最新章节</a>
+    </nav>
+  </section>
+</main>
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?96b4f3fad26278ae7e2fa953e83b198a";
+  var s = document.getElementsByTagName("script")[0];
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
+</body>
+</html>

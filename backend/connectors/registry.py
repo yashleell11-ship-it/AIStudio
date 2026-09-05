@@ -20,10 +20,12 @@ from connectors.comicsvalley.connector import ComicsValleyConnector
 from connectors.ehentai.connector import EHentaiConnector
 from connectors.elftoon.connector import ElfToonConnector
 from connectors.galaxymanga.connector import GalaxyMangaConnector
+from connectors.guazimanhua.connector import GuaziManhuaConnector
 from connectors.harimanga.connector import HariMangaConnector
 from connectors.hentai20.connector import Hentai20Connector
 from connectors.hentaifox import HentaiFoxConnector
 from connectors.hentaiera import HentaiEraConnector
+from connectors.hentaihand.connector import HentaiHandConnector
 from connectors.asurascans.connector import AsuraScansConnector
 from connectors.base import SourceConnector
 from connectors.branding import connector_icon_url
@@ -41,6 +43,7 @@ from connectors.mangahub.connector import MangaHubConnector
 from connectors.mangapill.connector import MangaPillConnector
 from connectors.mangatown.connector import MangaTownConnector
 from connectors.manhwa18.connector import Manhwa18Connector
+from connectors.manhwa18net.connector import Manhwa18NetConnector
 from connectors.novelcool.connector import NovelCoolConnector
 from connectors.omegascans.connector import OmegaScansConnector
 from connectors.rawinu.connector import RawInuConnector
@@ -85,6 +88,7 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     MangaFreakConnector.SOURCE_TYPE,
     MangaTownConnector.SOURCE_TYPE,
     Manhwa18Connector.SOURCE_TYPE,
+    Manhwa18NetConnector.SOURCE_TYPE,
     NovelCoolConnector.SOURCE_TYPE,
     OmegaScansConnector.SOURCE_TYPE,
     RawInuConnector.SOURCE_TYPE,
@@ -108,9 +112,11 @@ _CONFIGLESS_CONNECTORS: set[str] = {
     EHentaiConnector.SOURCE_TYPE,
     ElfToonConnector.SOURCE_TYPE,
     GalaxyMangaConnector.SOURCE_TYPE,
+    GuaziManhuaConnector.SOURCE_TYPE,
     Hentai20Connector.SOURCE_TYPE,
     HentaiFoxConnector.SOURCE_TYPE,
     HentaiEraConnector.SOURCE_TYPE,
+    HentaiHandConnector.SOURCE_TYPE,
     HariMangaConnector.SOURCE_TYPE,
     EightMusesConnector.SOURCE_TYPE,
     TapasConnector.SOURCE_TYPE,
@@ -237,6 +243,7 @@ def _register_builtin_connectors() -> None:
         (RawkumaConnector.SOURCE_TYPE, RawkumaConnector),
         (RawInuConnector.SOURCE_TYPE, RawInuConnector),
         (Manhwa18Connector.SOURCE_TYPE, Manhwa18Connector),
+        (Manhwa18NetConnector.SOURCE_TYPE, Manhwa18NetConnector),
         (OmegaScansConnector.SOURCE_TYPE, OmegaScansConnector),
         (FanFoxConnector.SOURCE_TYPE, FanFoxConnector),
         (DemonicScansConnector.SOURCE_TYPE, DemonicScansConnector),
@@ -258,9 +265,11 @@ def _register_builtin_connectors() -> None:
         (ComicsValleyConnector.SOURCE_TYPE, ComicsValleyConnector),
         (EHentaiConnector.SOURCE_TYPE, EHentaiConnector),
         (GalaxyMangaConnector.SOURCE_TYPE, GalaxyMangaConnector),
+        (GuaziManhuaConnector.SOURCE_TYPE, GuaziManhuaConnector),
         (Hentai20Connector.SOURCE_TYPE, Hentai20Connector),
         (HentaiFoxConnector.SOURCE_TYPE, HentaiFoxConnector),
         (HentaiEraConnector.SOURCE_TYPE, HentaiEraConnector),
+        (HentaiHandConnector.SOURCE_TYPE, HentaiHandConnector),
         (HariMangaConnector.SOURCE_TYPE, HariMangaConnector),
         (EightMusesConnector.SOURCE_TYPE, EightMusesConnector),
         (ElfToonConnector.SOURCE_TYPE, ElfToonConnector),
