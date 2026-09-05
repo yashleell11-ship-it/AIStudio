@@ -44,18 +44,38 @@ const double readerVisiblePageLead = 80;
 /// [commitPending].
 class ReaderPageExtents extends ChangeNotifier {
   ReaderPageExtents(List<ReaderPage> pages)
-      : _ratios = _ratiosFor(pages);
+      : _ratios = _ratiosFor(pages),
+        _pixelWidths = _widthsFor(pages);
 
   /// Seed directly from ratios. ``null`` marks a page whose size is unknown.
+  ///
+  /// [pixelWidths] defaults to "no width known for any page", which is what a
+  /// test that only cares about layout wants; the prefetch budget is the only
+  /// caller that reads them.
   @visibleForTesting
-  ReaderPageExtents.fromRatios(List<double?> ratios)
-      : _ratios = List<double?>.of(ratios);
+  ReaderPageExtents.fromRatios(List<double?> ratios, [List<int?>? pixelWidths])
+      : _ratios = List<double?>.of(ratios),
+        _pixelWidths = pixelWidths == null
+            ? List<int?>.filled(ratios.length, null, growable: true)
+            : List<int?>.of(pixelWidths);
 
   /// Growable on purpose (spec R1/R2): a continuous feed gains a chapter's
   /// pages at either end as the reader approaches a seam, and every ratio
   /// already resolved has to survive that. Rebuilding this object instead
   /// would re-measure every page on screen and jerk the reader.
   final List<double?> _ratios;
+
+  /// How wide each page's bitmap is, index-aligned with [_ratios].
+  ///
+  /// The ratio alone cannot say what a page *costs*: a 720x14400 strip and a
+  /// 1440x28800 one share it and differ fourfold in bytes. This is the missing
+  /// half, and it is a number the reader was already being told and throwing
+  /// away — [submitMeasuredSize] receives it on every decode.
+  ///
+  /// A declared page holds the source's own width, a measured one the width it
+  /// actually decoded at; readers must clamp against their decode width to
+  /// cover both (see `readerDecodedPageBytes`).
+  final List<int?> _pixelWidths;
   final Map<int, double> _pending = <int, double>{};
 
   static List<double?> _ratiosFor(List<ReaderPage> pages) => [
@@ -63,11 +83,19 @@ class ReaderPageExtents extends ChangeNotifier {
           _usableRatio(page.width?.toDouble(), page.height?.toDouble()),
       ];
 
+  static List<int?> _widthsFor(List<ReaderPage> pages) => [
+        for (final page in pages)
+          _usableRatio(page.width?.toDouble(), page.height?.toDouble()) == null
+              ? null
+              : page.width,
+      ];
+
   /// Adds [pages] after the last one. Indices already in use are untouched, so
   /// nothing above the viewport moves and no correction is needed.
   void appendPages(List<ReaderPage> pages) {
     if (pages.isEmpty) return;
     _ratios.addAll(_ratiosFor(pages));
+    _pixelWidths.addAll(_widthsFor(pages));
   }
 
   /// Adds [pages] before the first one.
@@ -80,6 +108,7 @@ class ReaderPageExtents extends ChangeNotifier {
   void prependPages(List<ReaderPage> pages) {
     if (pages.isEmpty) return;
     _ratios.insertAll(0, _ratiosFor(pages));
+    _pixelWidths.insertAll(0, _widthsFor(pages));
     _shiftPending(pages.length);
   }
 
@@ -88,6 +117,7 @@ class ReaderPageExtents extends ChangeNotifier {
     final drop = count.clamp(0, _ratios.length);
     if (drop <= 0) return;
     _ratios.removeRange(0, drop);
+    _pixelWidths.removeRange(0, drop);
     _shiftPending(-drop);
   }
 
@@ -96,6 +126,7 @@ class ReaderPageExtents extends ChangeNotifier {
     final drop = count.clamp(0, _ratios.length);
     if (drop <= 0) return;
     _ratios.removeRange(_ratios.length - drop, _ratios.length);
+    _pixelWidths.removeRange(_pixelWidths.length - drop, _pixelWidths.length);
     _pending.removeWhere((index, _) => index >= _ratios.length);
   }
 
@@ -125,6 +156,17 @@ class ReaderPageExtents extends ChangeNotifier {
     return _ratios[index] ?? defaultAspectRatio;
   }
 
+  /// This page's real ratio, or ``null`` while it is still unknown — the same
+  /// question [ratioAt] answers with a fallback. Anything sizing a *bitmap*
+  /// rather than a layout slot has to be able to tell the two apart.
+  double? resolvedRatioAt(int index) =>
+      (index < 0 || index >= _ratios.length) ? null : _ratios[index];
+
+  /// How wide this page's bitmap is, or ``null`` while it is still unknown.
+  /// See [_pixelWidths] for which width it is.
+  int? pixelWidthAt(int index) =>
+      (index < 0 || index >= _pixelWidths.length) ? null : _pixelWidths[index];
+
   /// Every page's layout ratio, fallbacks included — the input to
   /// [ReaderPageMetrics]. A snapshot: metrics are immutable and must not see
   /// the list grow under them.
@@ -146,6 +188,11 @@ class ReaderPageExtents extends ChangeNotifier {
     if (_ratios[index] != null) return false;
     final ratio = _usableRatio(pixelWidth.toDouble(), pixelHeight.toDouble());
     if (ratio == null) return false;
+    // Written straight through rather than staged with the ratio: the staging
+    // exists so the scroll owner can read the old *geometry* before new sizes
+    // land, and a width feeds no geometry. It only ever narrows an unresolved
+    // page's cost estimate, which is safe to improve at any moment.
+    _pixelWidths[index] = pixelWidth;
     if (_pending[index] == ratio) return false;
     _pending[index] = ratio;
     notifyListeners();

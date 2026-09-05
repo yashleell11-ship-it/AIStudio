@@ -8,6 +8,7 @@ import 'package:manhwamaniacs/core/network/api_image.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profiles_providers.dart';
 import 'package:manhwamaniacs/features/reader/theme/reader_colors.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_layout.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_decode_diagnostics.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -96,6 +97,8 @@ class ReaderPageImage extends ConsumerStatefulWidget {
     this.onIntrinsicSize,
     this.httpHeaders,
     this.localFile,
+    this.declaredWidth,
+    this.declaredHeight,
   });
 
   final String imageUrl;
@@ -135,6 +138,14 @@ class ReaderPageImage extends ConsumerStatefulWidget {
   /// Optional auth headers for proxied `/sources/*/pages/*/image` URLs.
   final Map<String, String>? httpHeaders;
 
+  /// The size the source said this page is, when it said anything at all.
+  ///
+  /// Not used to lay the page out — [aspectRatio] already carries that — only
+  /// to tell the debug decode diagnostic what the bitmap *should* have come
+  /// back as, so a decode that disagrees can be named.
+  final int? declaredWidth;
+  final int? declaredHeight;
+
   @override
   ConsumerState<ReaderPageImage> createState() => _ReaderPageImageState();
 }
@@ -172,8 +183,16 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
   /// caller wants. Prefers the on-device file over the network for exactly
   /// the same reason the rendered page does — an offline chapter must never
   /// need a network round trip just to learn a page's aspect ratio.
+  ///
+  /// In a debug build this also runs for a page whose size is already known,
+  /// which is the only way the decode diagnostic can compare a declared size
+  /// against what the GPU actually gave back. Release builds keep exactly the
+  /// old behaviour: [readerDecodeDiagnosticsEnabled] is a compile-time false.
   void _listenForIntrinsicSize() {
-    if (widget.onIntrinsicSize == null || _sizeReported) return;
+    if (widget.onIntrinsicSize == null && !readerDecodeDiagnosticsEnabled) {
+      return;
+    }
+    if (_sizeReported) return;
     if (_sizeStream != null) return;
     final localFile = widget.localFile;
     if (localFile == null && widget.imageUrl.isEmpty) return;
@@ -183,11 +202,12 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
           ref.read(authTokenStoreProvider).token,
           profileId: ref.read(activeProfileProvider)?.id,
         );
+    final decodeWidth = readerDecodeWidth(
+      widget.viewportWidth,
+      MediaQuery.devicePixelRatioOf(context),
+    );
     final provider = ResizeImage.resizeIfNeeded(
-      readerDecodeWidth(
-        widget.viewportWidth,
-        MediaQuery.devicePixelRatioOf(context),
-      ),
+      decodeWidth,
       null,
       localFile != null
           ? FileImage(localFile) as ImageProvider
@@ -204,6 +224,14 @@ class _ReaderPageImageState extends ConsumerState<ReaderPageImage> {
         info.dispose();
         _sizeReported = true;
         _detachSizeListener();
+        reportReaderDecode(
+          label: widget.alt,
+          declaredWidth: widget.declaredWidth,
+          declaredHeight: widget.declaredHeight,
+          requestedWidth: decodeWidth,
+          decodedWidth: width,
+          decodedHeight: height,
+        );
         widget.onIntrinsicSize?.call(width, height);
       },
       // A page that never loads keeps its reserved fallback extent; there is

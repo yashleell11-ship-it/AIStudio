@@ -108,6 +108,60 @@ void main() {
 
       expect(notifications, 2);
     });
+
+    test('keeps the pixel width the payload declared', () {
+      final extents = ReaderPageExtents([
+        _page(1, width: 1440, height: 10000),
+        _page(2),
+      ]);
+
+      expect(extents.pixelWidthAt(0), 1440);
+      expect(extents.resolvedRatioAt(0), closeTo(1440 / 10000, 1e-9));
+      expect(extents.pixelWidthAt(1), isNull);
+      expect(extents.resolvedRatioAt(1), isNull);
+    });
+
+    test('keeps the pixel width a decode reported', () {
+      final extents = ReaderPageExtents([_page(1)]);
+
+      extents.submitMeasuredSize(0, pixelWidth: 720, pixelHeight: 14983);
+
+      expect(extents.pixelWidthAt(0), 720);
+      // The ratio is still staged, so nothing can price this page yet — both
+      // halves have to be in before the cost is real.
+      expect(extents.resolvedRatioAt(0), isNull);
+
+      extents.commitPending();
+      expect(extents.resolvedRatioAt(0), closeTo(720 / 14983, 1e-9));
+    });
+
+    test('an unusable measurement leaves the width unknown', () {
+      final extents = ReaderPageExtents([_page(1)]);
+
+      extents.submitMeasuredSize(0, pixelWidth: 0, pixelHeight: 0);
+
+      expect(extents.pixelWidthAt(0), isNull);
+    });
+
+    test('widths stay aligned with ratios as the feed grows and is trimmed',
+        () {
+      final extents = ReaderPageExtents([_page(1, width: 800, height: 1200)]);
+
+      extents.appendPages([_page(2, width: 900, height: 1300)]);
+      extents.prependPages([_page(0, width: 700, height: 1100)]);
+      expect(
+        [for (var i = 0; i < extents.length; i++) extents.pixelWidthAt(i)],
+        [700, 800, 900],
+      );
+
+      extents.removeLeadingPages(1);
+      expect(extents.pixelWidthAt(0), 800);
+      expect(extents.resolvedRatioAt(0), closeTo(800 / 1200, 1e-9));
+
+      extents.removeTrailingPages(1);
+      expect(extents.length, 1);
+      expect(extents.pixelWidthAt(0), 800);
+    });
   });
 
   group('ReaderPageMetrics', () {
