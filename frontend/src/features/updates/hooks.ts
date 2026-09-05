@@ -23,12 +23,27 @@ export function useUpdateSettingsMutation() {
   });
 }
 
+/**
+ * How often the bell and the new-chapters banner ask again.
+ *
+ * These two are the only continuous background load the instance carries: both
+ * are mounted in the app SHELL, not on a page, so every open tab issued eight
+ * authenticated requests a minute for as long as it stayed open — over
+ * `update_notifications`, the one table that grows without a retention sweep.
+ *
+ * A minute is the right granularity for the thing being announced. Chapters are
+ * found by a sweep that runs every 45 minutes by default; noticing one 45
+ * seconds later than before is not a difference a reader can perceive, and it
+ * is four times less standing load on a 2-vCPU box.
+ */
+const NOTIFICATION_POLL_MS = 60_000;
+
 export function useUpdateNotifications(unreadOnly = false) {
   return useQuery({
     queryKey: [...UPDATES_KEY, "notifications", unreadOnly ? "unread" : "all"],
     queryFn: () =>
       updatesApi.notifications({ unread_only: unreadOnly, limit: 100 }),
-    refetchInterval: 15_000,
+    refetchInterval: NOTIFICATION_POLL_MS,
   });
 }
 
@@ -36,7 +51,7 @@ export function useUnreadNotificationCount() {
   return useQuery({
     queryKey: [...UPDATES_KEY, "notifications", "count"],
     queryFn: () => updatesApi.unreadCount(),
-    refetchInterval: 15_000,
+    refetchInterval: NOTIFICATION_POLL_MS,
   });
 }
 
