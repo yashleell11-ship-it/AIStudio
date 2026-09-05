@@ -105,9 +105,15 @@ export const secondaryNav: NavItem[] = [
 ];
 
 /**
- * Mobile bottom-tab bar — Library · Sources · Downloads · Search · More
+ * Mobile bottom-tab bar — Library · Sources · Search · Downloads · More
  * (spec §3.8). "Downloads" here means chapters saved to this device; the server
  * download queue that used to own the name is gone.
+ *
+ * The order is the Flutter client's, destination for destination (see the
+ * `NavigationBar` in `mobile/lib/app/router/app_router.dart`). Search and
+ * Downloads used to sit the other way round here, which put a different tab
+ * under the same thumb position in each client — the one difference between
+ * the two bars a reader who uses both would feel every single time.
  *
  * "More" opens `/more`, not Settings. Five tabs cannot hold the whole app and a
  * phone has no sidebar, so without a real hub every route outside these five
@@ -116,7 +122,7 @@ export const secondaryNav: NavItem[] = [
 export const mobileNav: NavItem[] = [
   { href: "/library", label: "Library", icon: Library },
   { href: "/sources", label: "Sources", icon: Globe },
-  { href: "/downloads", label: "Downloads", icon: Download },
   { href: "/search", label: "Search", icon: Search },
+  { href: "/downloads", label: "Downloads", icon: Download },
   { href: "/more", label: "More", icon: Menu },
 ];

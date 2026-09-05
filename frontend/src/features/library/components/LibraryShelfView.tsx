@@ -15,6 +15,7 @@ import { useContentModeFilter } from "@/features/content-mode";
 import { NovelShelf } from "@/features/novels/components/NovelShelf";
 import { SHELF_PLATE_SIZES, coverPath, type ShelfBook } from "@/features/novels/shelf";
 import { libraryCoverUrl } from "../api";
+import { shelfCountLine } from "../count-line";
 import { useSeriesList } from "../hooks";
 import { readingStatusLabel } from "../reading-stats";
 import { FollowedSeriesCard } from "./FollowedSeriesCard";
@@ -112,11 +113,7 @@ export function LibraryShelfView() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <HeroHeading className="text-[clamp(1.5rem,6.5vw,3rem)]">Library</HeroHeading>
-            <p className="mt-1 text-xs text-muted">
-              {followed.length} {isNovelMode ? "novel" : "series"}
-              {followed.length === 1 ? "" : "s"}{" "}
-              {isNovelMode ? "on your shelf" : "followed"}
-            </p>
+            <p className="mt-1 text-xs text-muted">{shelfCountLine(followed.length, isNovelMode)}</p>
           </div>
           <Link
             href="/sources"
