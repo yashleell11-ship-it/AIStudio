@@ -38,11 +38,11 @@ from __future__ import annotations
 from datetime import datetime, time, timedelta
 from typing import Any
 
-from sqlalchemy import Integer, and_, case, distinct, func, literal, select
+from sqlalchemy import Integer, and_, distinct, func, literal, select
 from sqlalchemy.orm import Session
 
-from core.connector_directory import descriptors_by_source, mature_source_ids
-from core.content_rating import mature_rating_predicate
+from core.connector_directory import descriptors_by_source
+from core.content_rating import mature_tracker_case
 from core.time_utils import utcnow
 from database.models import ChapterProgress, FollowedSeries, ReadingSession
 
@@ -144,30 +144,11 @@ class ReadingStatsService:
     def _mature_case(self):
         """1 when a session's series is 18+ for this profile, else 0.
 
-        SQL mirror of :func:`core.content_rating.resolve_tracker_rating`, in the
-        same priority order: explicit override, then the rating captured at
-        follow time, then the source's own maturity. Unknown stays 0 -- folding
-        unknown into mature would blank the screen for a gated profile, which is
-        the reasoning already recorded on ``resolve_tracker_rating``.
+        The rule is :func:`core.content_rating.mature_tracker_case`, beside the
+        ``resolve_tracker_rating`` it mirrors. All this names is the column the
+        source's own maturity is read from.
         """
-        mature_sources = mature_source_ids()
-        source_mature = (
-            case((ReadingSession.source_id.in_(mature_sources), 1), else_=0)
-            if mature_sources
-            else literal(0)
-        )
-        return case(
-            (FollowedSeries.mature_override == 1, 1),
-            (FollowedSeries.mature_override == 0, 0),
-            (
-                FollowedSeries.content_rating.is_not(None),
-                case(
-                    (mature_rating_predicate(FollowedSeries.content_rating), 1),
-                    else_=0,
-                ),
-            ),
-            else_=source_mature,
-        )
+        return mature_tracker_case(ReadingSession.source_id)
 
     def _sessions(self, stmt, *, needs_follow: bool = False):
         """Scope + gate a statement whose FROM is ``reading_sessions``.
@@ -526,24 +507,7 @@ class ReadingStatsService:
 
     def _progress_mature_case(self):
         """:meth:`_mature_case` against ``chapter_progress``' source column."""
-        mature_sources = mature_source_ids()
-        source_mature = (
-            case((ChapterProgress.source_id.in_(mature_sources), 1), else_=0)
-            if mature_sources
-            else literal(0)
-        )
-        return case(
-            (FollowedSeries.mature_override == 1, 1),
-            (FollowedSeries.mature_override == 0, 0),
-            (
-                FollowedSeries.content_rating.is_not(None),
-                case(
-                    (mature_rating_predicate(FollowedSeries.content_rating), 1),
-                    else_=0,
-                ),
-            ),
-            else_=source_mature,
-        )
+        return mature_tracker_case(ChapterProgress.source_id)
 
     # --- public ---------------------------------------------------------
 
