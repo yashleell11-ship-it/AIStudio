@@ -299,6 +299,12 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
     final downloadsStore = ref.read(downloadsStoreProvider);
     final sourceId = widget.sourceId;
     final seriesKey = widget.seriesKey;
+    // Taken from the chapters at the FEED's edges rather than from the one the
+    // route opened at. In a slid Read-all window the anchor is thirty chapters
+    // back, and offering its neighbour as the way out of a run that dead-ended
+    // at chapter 30 sends the reader thirty minutes backwards.
+    final beforeFeed = _controller.previousBeforeFeed;
+    final beyondFeed = _controller.nextBeyondFeed;
 
     return ReaderContent(
       key: ValueKey('$sourceId:$seriesKey:${widget.chapterKey}'),
@@ -319,11 +325,11 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
       // The edge prompts are for a boundary the FEED could not absorb — the
       // ends of the series, or a chapter that would not load. Crossing a
       // loaded boundary is scrolling, and never navigation.
-      onPreviousChapter: _prev != null
-          ? () => context.go(RoutePaths.reader(sourceId, seriesKey, _prev!))
+      onPreviousChapter: beforeFeed != null
+          ? () => context.go(RoutePaths.reader(sourceId, seriesKey, beforeFeed))
           : null,
-      onNextChapter: _next != null
-          ? () => context.go(RoutePaths.reader(sourceId, seriesKey, _next!))
+      onNextChapter: beyondFeed != null
+          ? () => context.go(RoutePaths.reader(sourceId, seriesKey, beyondFeed))
           : null,
       onReachedFeedEnd: _controller.extendForward,
       onReachedFeedStart: _controller.extendBackward,

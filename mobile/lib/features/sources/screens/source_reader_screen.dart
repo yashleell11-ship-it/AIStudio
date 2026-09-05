@@ -273,6 +273,12 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
         if (readAllOrder != null && readAllOrder.isNotEmpty) {
           feedController.setOrder(readAllOrder);
         }
+        // The edge prompts belong to the chapters at the FEED's edges, not to
+        // the one the route opened at. A Read-all window that has slid on has
+        // left the anchor far behind, and offering its neighbour as the way out
+        // of a stalled run walks the reader back to where they started.
+        final beforeFeed = feedController.previousBeforeFeed;
+        final beyondFeed = feedController.nextBeyondFeed;
 
         return OpenChapterScope(
           chapterId: (
@@ -302,21 +308,21 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
               sourceId: widget.sourceId,
               seriesKey: widget.seriesId,
             ),
-            onPreviousChapter: previousChapterId != null
+            onPreviousChapter: beforeFeed != null
                 ? () => context.go(
                       RoutePaths.sourceReader(
                         widget.sourceId,
                         widget.seriesId,
-                        previousChapterId,
+                        beforeFeed,
                       ),
                     )
                 : null,
-            onNextChapter: nextChapterId != null
+            onNextChapter: beyondFeed != null
                 ? () => context.go(
                       RoutePaths.sourceReader(
                         widget.sourceId,
                         widget.seriesId,
-                        nextChapterId,
+                        beyondFeed,
                       ),
                     )
                 : null,

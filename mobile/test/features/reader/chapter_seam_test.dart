@@ -257,6 +257,63 @@ void main() {
 
       expect(forward, greaterThan(0));
     });
+
+    testWidgets('a window slide leaves the reader on the page they were on',
+        (tester) async {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final saved = <(String, int)>[];
+      Widget reader(ReaderFeed feed) => _wrap(
+            prefs,
+            ReaderContent(
+              feed: feed,
+              scrollStorageKey: '1',
+              onSaveProgress: (chapter, page) async {
+                saved.add((chapter.id, page));
+              },
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          );
+
+      await tester.pumpWidget(
+        reader(ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')])),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Park in the middle chapter — the one that survives the slide.
+      final controller = _listController(tester);
+      controller.jumpTo(controller.position.maxScrollExtent / 2);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+      final where = saved.last;
+      expect(where.$1, '2', reason: 'the test has to start inside chapter 2');
+
+      // Read-all's window moves on: chapter 1 released, chapter 4 appended, in
+      // one assignment. The chapter count is three before and three after —
+      // which is exactly why this used to fall through to a wholesale rebuild
+      // and drop the reader somewhere else entirely.
+      await tester.pumpWidget(
+        reader(ReaderFeed.of([_chapter('2'), _chapter('3'), _chapter('4')])),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      // A correction deliberately notifies nobody, so nudge the position to
+      // make the reader say where it thinks it is.
+      controller.jumpTo(controller.offset + 1);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      expect(
+        saved.last,
+        where,
+        reason: 'the page under the thumb must not move when the window does',
+      );
+    });
   });
 
   group('ReaderFeedController', () {
@@ -367,6 +424,105 @@ void main() {
       controller.noteNeighbours('2', next: '3');
       await controller.extendForward();
       expect(controller.feed.chapters.map((c) => c.id), ['2', '3']);
+    });
+
+    test('a chapter in hand crosses the seam without waiting on neighbours',
+        () async {
+      final neighbours = Completer<({String? prev, String? next})>();
+      final controller = ReaderFeedController(
+        anchor: _chapter('2'),
+        next: '3',
+        loadChapter: (id) async => _chapter(id),
+        neighboursOf: (_) => neighbours.future,
+      );
+      addTearDown(controller.dispose);
+
+      await controller.extendForward();
+
+      // The pages are in hand — from disk, on a downloaded chapter — and that
+      // is the whole precondition for showing them (spec R3). What lies beyond
+      // chapter 3 is learned behind the reader, not in front of them.
+      expect(controller.feed.chapters.map((c) => c.id), ['2', '3']);
+      expect(controller.isExtending, isFalse);
+
+      neighbours.complete((prev: '2', next: '4'));
+      await Future<void>.delayed(Duration.zero);
+
+      await controller.extendForward();
+      expect(controller.feed.chapters.map((c) => c.id), ['2', '3', '4']);
+    });
+
+    test('a backward fetch in flight does not hold up the forward seam',
+        () async {
+      final gate = Completer<void>();
+      final controller = ReaderFeedController(
+        anchor: _chapter('2'),
+        order: ['1', '2', '3'],
+        loadChapter: (id) async {
+          if (id == '1') await gate.future;
+          return _chapter(id);
+        },
+      );
+      addTearDown(controller.dispose);
+
+      // Entering Read-all mid-series asks for the chapter BEHIND the reader on
+      // its opening frames. Forward is the direction the mode is about.
+      final backward = controller.extendBackward();
+      await controller.extendForward();
+      expect(controller.feed.chapters.map((c) => c.id), ['2', '3']);
+
+      gate.complete();
+      await backward;
+      expect(controller.feed.chapters.map((c) => c.id), ['1', '2', '3']);
+    });
+
+    test('a source that refuses is not asked again on the next scroll frame',
+        () async {
+      var attempts = 0;
+      var now = DateTime(2026);
+      final controller = ReaderFeedController(
+        anchor: _chapter('2'),
+        order: ['2', '3'],
+        clock: () => now,
+        loadChapter: (_) async {
+          attempts++;
+          return null;
+        },
+      );
+      addTearDown(controller.dispose);
+
+      await controller.extendForward();
+      expect(attempts, 1);
+
+      // At the end of the feed the reader sits where overscroll bounces keep
+      // firing scroll notifications, and every one of them re-arms the trigger.
+      for (var i = 0; i < 20; i++) {
+        await controller.extendForward();
+      }
+      expect(attempts, 1, reason: 'a 429 must not be answered with twenty more');
+
+      now = now.add(const Duration(seconds: 3));
+      await controller.extendForward();
+      expect(attempts, 2, reason: 'backed off, not given up');
+    });
+
+    test('the way out of a run points past the FEED, not past the anchor',
+        () async {
+      final controller = build(order: ['1', '2', '3', '4', '5', '6']);
+      addTearDown(controller.dispose);
+
+      expect(controller.previousBeforeFeed, '1');
+      expect(controller.nextBeyondFeed, '3');
+
+      for (var i = 0; i < 5; i++) {
+        await controller.extendForward();
+      }
+
+      // The window has slid to [4, 5, 6]. A run that dead-ends here must not
+      // offer the anchor's neighbour — that is thirty minutes backwards.
+      expect(controller.feed.chapters.map((c) => c.id), ['4', '5', '6']);
+      expect(controller.previousBeforeFeed, '3');
+      expect(controller.nextBeyondFeed, isNull);
     });
 
     test('two extensions racing add one chapter, not two', () async {
