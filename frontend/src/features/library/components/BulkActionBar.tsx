@@ -3,10 +3,8 @@
 import { BookCheck, Loader2, Star, StarOff, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
-import { cn } from "@/lib/cn";
 import type { BulkProgress } from "../bulk";
 import type { BulkAction } from "../hooks";
-import type { Tag } from "../types";
 
 interface BulkActionBarProps {
   count: number;
@@ -16,7 +14,6 @@ interface BulkActionBarProps {
   progress: BulkProgress | null;
   /** Result of the last run; keeps the bar up after the selection is cleared. */
   message: string | null;
-  tags: Tag[];
   onRun: (action: BulkAction) => void;
   onSelectAll: () => void;
   onClear: () => void;
@@ -31,7 +28,6 @@ export function BulkActionBar({
   running,
   progress,
   message,
-  tags,
   onRun,
   onSelectAll,
   onClear,
@@ -136,30 +132,6 @@ export function BulkActionBar({
             >
               Mark unread
             </Button>
-
-            <select
-              value=""
-              onChange={(event) => {
-                const tagId = Number(event.target.value);
-                if (Number.isInteger(tagId) && tagId > 0) {
-                  onRun({ kind: "tag", tagId });
-                }
-              }}
-              disabled={tags.length === 0}
-              aria-label="Add tag to selected series"
-              className={cn(
-                "h-8 rounded-lg border border-border/50 bg-white/[0.04] px-3 text-sm text-fg",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40",
-                "disabled:cursor-not-allowed disabled:opacity-50",
-              )}
-            >
-              <option value="">{tags.length === 0 ? "No tags yet" : "Add tag…"}</option>
-              {tags.map((tag) => (
-                <option key={tag.id} value={tag.id}>
-                  {tag.name}
-                </option>
-              ))}
-            </select>
 
             <Button
               type="button"

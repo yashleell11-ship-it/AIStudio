@@ -1,11 +1,10 @@
 /**
  * Bounded-concurrency runner for the bulk actions.
  *
- * None of the bulk operations the toolbar offers has a bulk endpoint: favourite,
- * shelf status and tagging are `PATCH`/`POST /library/series/{id}/…`, and
- * membership is `POST`/`DELETE /library/series/{id}/add`
- * (backend/routes/library.py:184-233, 501-508). Every one of them is therefore N
- * requests, and "select all" on this grid is 200 of them.
+ * None of the bulk operations the toolbar offers has a bulk endpoint: favourite
+ * and shelf status are `PATCH /library/series/{id}`, unfollow is
+ * `DELETE /library/follow/{id}`. Every one of them is therefore N requests, and
+ * "select all" on this grid is 200 of them.
  *
  * Firing 200 at once would open 200 sockets against a self-hosted backend that
  * runs the whole library on one SQLite file, and give the user a frozen page

@@ -22,7 +22,7 @@ import {
   type ReadingStatus,
   hasActiveFilters,
 } from "@/features/library/url-state";
-import type { SeriesFilter, SeriesSort, Tag } from "../types";
+import type { SeriesFilter, SeriesSort } from "../types";
 
 interface LibraryToolbarProps {
   query: LibraryQuery;
@@ -41,7 +41,6 @@ interface LibraryToolbarProps {
    * A control that changes nothing is worse than no control.
    */
   showDensity?: boolean;
-  tags: Tag[];
 }
 
 const FILTER_CHIPS: { value: SeriesFilter; label: string }[] = [

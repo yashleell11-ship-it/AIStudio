@@ -278,58 +278,6 @@ export function useRemoveSeriesFromCollection() {
   });
 }
 
-// --- Tags ---
-
-export function useTags(category?: string) {
-  return useQuery({
-    queryKey: [...DISCOVERY_KEY, "tags", category],
-    queryFn: () => libraryApi.listTags(category),
-  });
-}
-
-export function useCreateTag() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (body: { name: string; category?: string; color?: string }) =>
-      libraryApi.createTag(body),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...DISCOVERY_KEY, "tags"] });
-    },
-  });
-}
-
-export function useDeleteTag() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (tagId: number) => libraryApi.deleteTag(tagId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: [...DISCOVERY_KEY, "tags"] });
-    },
-  });
-}
-
-export function useAddTagToSeries() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ ref, tagId }: { ref: SeriesId; tagId: number }) =>
-      libraryApi.addTagToSeries(ref, tagId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
-    },
-  });
-}
-
-export function useRemoveTagFromSeries() {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ ref, tagId }: { ref: SeriesId; tagId: number }) =>
-      libraryApi.removeTagFromSeries(ref, tagId),
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: LIBRARY_KEY });
-    },
-  });
-}
-
 // --- Bulk actions over the followed grid ---
 
 /**
@@ -340,7 +288,6 @@ export function useRemoveTagFromSeries() {
 export type BulkAction =
   | { kind: "favorite"; value: boolean }
   | { kind: "reading_status"; value: string }
-  | { kind: "tag"; tagId: number }
   | { kind: "unfollow" };
 
 function bulkActionVerb(action: BulkAction): string {
@@ -349,8 +296,6 @@ function bulkActionVerb(action: BulkAction): string {
       return action.value ? "favourited" : "unfavourited";
     case "reading_status":
       return action.value === "completed" ? "marked read" : `marked ${action.value}`;
-    case "tag":
-      return "tagged";
     case "unfollow":
       return "unfollowed";
   }
@@ -360,17 +305,11 @@ function bulkActionRequest(
   action: BulkAction,
   series: FollowedSeries,
 ): Promise<unknown> {
-  const ref: SeriesId = {
-    sourceId: series.source_id,
-    seriesKey: series.series_key,
-  };
   switch (action.kind) {
     case "favorite":
       return libraryApi.patchSeries(series.id, { is_favorite: action.value });
     case "reading_status":
       return libraryApi.patchSeries(series.id, { reading_status: action.value });
-    case "tag":
-      return libraryApi.addTagToSeries(ref, action.tagId);
     case "unfollow":
       return libraryApi.unfollow(series.id);
   }

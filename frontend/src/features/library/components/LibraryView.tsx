@@ -29,7 +29,6 @@ import {
   useBulkSeriesAction,
   useContinueReading,
   useSeriesList,
-  useTags,
 } from "../hooks";
 import {
   EMPTY_SELECTION,
@@ -93,7 +92,6 @@ export function LibraryView() {
   );
   const seriesQuery = useSeriesList(listParams);
   const continueQuery = useContinueReading(12);
-  const tagsQuery = useTags();
   const bulk = useBulkSeriesAction();
 
   // Scoped to the active content mode (Manga / Novels). Everything downstream
@@ -252,7 +250,6 @@ export function LibraryView() {
             else clearSelection();
           }}
           seriesCount={seriesCount}
-          tags={tagsQuery.data ?? []}
         />
 
         {isLanding && viewState !== "offline" && viewState !== "error" ? (
@@ -331,7 +328,6 @@ export function LibraryView() {
         running={bulk.isRunning}
         progress={bulk.progress}
         message={bulk.message}
-        tags={tagsQuery.data ?? []}
         onRun={runBulkAction}
         onSelectAll={() => setSelection(selectAll(orderedIds))}
         onClear={clearSelection}

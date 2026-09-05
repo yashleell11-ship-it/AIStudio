@@ -14,7 +14,6 @@ import type {
   SeriesListResponse,
   SeriesSort,
   Statistics,
-  Tag,
 } from "./types";
 
 /**
@@ -155,25 +154,5 @@ export const libraryApi = {
   removeSeriesFromCollection: (collectionId: number, ref: SeriesId) =>
     http.delete<void>(`/library/collections/${collectionId}/series`, {
       body: { source_id: ref.sourceId, series_key: ref.seriesKey },
-    }),
-
-  // --- Tags ---
-  listTags: (category?: string) =>
-    http.get<Tag[]>("/library/tags", { query: { category } }),
-
-  createTag: (body: { name: string; category?: string; color?: string }) =>
-    http.post<Tag>("/library/tags", body),
-
-  deleteTag: (tagId: number) => http.delete<void>(`/library/tags/${tagId}`),
-
-  addTagToSeries: (ref: SeriesId, tagId: number) =>
-    http.post<{ source_id: string; series_key: string; tag_id: number }>(
-      "/library/series-tags",
-      { source_id: ref.sourceId, series_key: ref.seriesKey, tag_id: tagId },
-    ),
-
-  removeTagFromSeries: (ref: SeriesId, tagId: number) =>
-    http.delete<void>("/library/series-tags", {
-      body: { source_id: ref.sourceId, series_key: ref.seriesKey, tag_id: tagId },
     }),
 };
