@@ -169,6 +169,14 @@ class Settings(BaseModel):
     # Per-(user, profile) ceiling on followed series — bounds the sweep's row
     # count at its source. Overridable via MM_MAX_FOLLOWS_PER_PROFILE.
     max_follows_per_profile: int = 1000
+    # Per-series ceiling on chapters carrying an OCR transcript. ``chapter_key``
+    # is an opaque connector string that nothing validates against the source,
+    # so the follow gate on POST /ocr/chapter still leaves one axis unbounded:
+    # a contributor may mint rows under invented chapter keys forever, each
+    # worth up to the route's whole-payload ceiling. No real series runs past
+    # a few thousand chapters. Zero disables the guard.
+    # MM_MAX_OCR_CHAPTERS_PER_SERIES.
+    max_ocr_chapters_per_series: int = 5000
 
     # Authentication (P1). Runtime-only; overridable via env for deployment.
     # registration_enabled gates self-service signup *after* the bootstrap
@@ -237,6 +245,15 @@ class Settings(BaseModel):
     # for a whole-novel download to page through ~2400 chapters an hour without
     # ever looking like a scraper to the source. MM_RATE_LIMIT_BULK.
     rate_limit_bulk: str = "6/minute"
+    # POST /ocr/chapter writes into the DB rather than fetching from a source,
+    # so it is bounded by disk rather than by politeness: one accepted request
+    # is up to 2 MB of text plus its FTS5 index (~3.8 MB of SQLite measured),
+    # and SQLite is the whole application state on a <=20GB VPS. Unlimited, one
+    # logged-in account fills the volume in minutes and every write in the app
+    # starts failing. Client-side OCR produces one request per chapter the
+    # reader finishes, so 10/minute is far above real use and 200/hour caps a
+    # sustained run at well under a gigabyte a day. MM_RATE_LIMIT_OCR.
+    rate_limit_ocr: str = "10/minute;200/hour"
     # The request header carrying the real client IP, written by the *outermost*
     # proxy and therefore not client-controlled. Cloudflare's CF-Connecting-IP
     # is the default because that is the edge in front of this deployment.
@@ -273,6 +290,7 @@ def get_settings() -> Settings:
         ("MM_UPDATE_SWEEP_SOURCE_BUDGET_SECONDS", "update_sweep_source_budget_seconds"),
         ("MM_UPDATE_SWEEP_DEADLINE_MINUTES", "update_sweep_deadline_minutes"),
         ("MM_MAX_FOLLOWS_PER_PROFILE", "max_follows_per_profile"),
+        ("MM_MAX_OCR_CHAPTERS_PER_SERIES", "max_ocr_chapters_per_series"),
         ("MM_BOOTSTRAP_WINDOW_MINUTES", "bootstrap_window_minutes"),
         ("MM_BROWSE_CACHE_TTL_MINUTES", "browse_cache_ttl_minutes"),
         ("MM_BROWSE_CACHE_MAX_ROWS", "browse_cache_max_rows"),
@@ -341,6 +359,7 @@ def get_settings() -> Settings:
         ("MM_RATE_LIMIT_IMPORT", "rate_limit_import"),
         ("MM_RATE_LIMIT_SOURCES", "rate_limit_sources"),
         ("MM_RATE_LIMIT_BULK", "rate_limit_bulk"),
+        ("MM_RATE_LIMIT_OCR", "rate_limit_ocr"),
     ):
         value = os.getenv(env_key)
         if value and value.strip():

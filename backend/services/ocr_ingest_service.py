@@ -3,12 +3,22 @@
 The phone/browser runs OCR on downloaded pages and uploads the text here.
 ``chapter_ocr`` is **global** — one row per ``(source_id, series_key,
 chapter_key)``, not per user: the OCR text of a chapter is a property of the
-chapter (same rationale as ``source_health``). The write stays global; every
-path that *returns* stored text is scoped to the caller's followed series +
-18+ gate, which is the whole reason spec §3.9 calls the global row "no
-disclosure risk". ``ocr_search`` enforced that; ``get_chapter`` and
-``coverage`` did not, and handed any account the transcript of any chapter on
-any source — mature sources included.
+chapter (same rationale as ``source_health``). Every path that *returns*
+stored text is scoped to the caller's followed series + 18+ gate, which is the
+whole reason spec §3.9 calls the global row "no disclosure risk".
+``ocr_search`` enforced that; ``get_chapter`` and ``coverage`` did not, and
+handed any account the transcript of any chapter on any source — mature
+sources included.
+
+"Global row" describes the STORAGE, not the authorization, and the write read
+it as the latter: ``ingest_chapter`` took the identity triple from the body
+and upserted, with no check at all. Registration is open, so any account could
+replace the transcript of any chapter of any series anyone follows — with up
+to 2,000,000 characters of its own text, which the owner then reads as the
+in-reader dialogue overlay and as search results, believing it to be his own
+scan. The upsert destroys the real transcript rather than versioning it. The
+write now runs the SAME predicate the reads do (:meth:`_may_write`), so a
+contributor may only supply OCR for a series their own profile follows.
 """
 
 from __future__ import annotations
@@ -17,16 +27,18 @@ import json
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
+from core.config import get_settings
 from core.connector_directory import descriptor_for_source
 from core.content_rating import (
     TRACKER_RATING_MATURE,
     resolve_mature_gate,
     resolve_tracker_rating,
 )
+from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
 from core.time_utils import utcnow
 from database.models import ChapterOcr, FollowedSeries
@@ -116,6 +128,19 @@ class OcrIngestService:
             != TRACKER_RATING_MATURE
         )
 
+    def _may_write(self, source_id: str, series_key: str) -> bool:
+        """Whether this ``(user_id, profile_id)`` may CONTRIBUTE OCR for a
+        series. Deliberately the read predicate, unchanged.
+
+        The gate a write needs here is the same question the reads ask — "is
+        this series in this profile's library, and may this profile see it" —
+        and running the identical function rather than a parallel one means
+        the two cannot drift apart: a future tightening of the read scope is a
+        tightening of the write scope for free. ``contributed_by_user_id`` was
+        already being recorded, but nothing ever read it for authorization.
+        """
+        return self._may_read(source_id, series_key)
+
     def ingest_chapter(
         self,
         *,
@@ -131,9 +156,17 @@ class OcrIngestService:
 
         An upload for an existing key **replaces** (last engine wins) unless the
         incoming ``word_count`` is 0 (spec §3.9).
+
+        404 for a series this profile does not follow (or may not see), which
+        is the same answer the reads give for it — off-limits stays
+        indistinguishable from absent on this route too.
         """
         series_key = fully_unquote(series_key)
         chapter_key = fully_unquote(chapter_key)
+        if not self._may_write(source_id, series_key):
+            raise AppError(
+                "Series not found.", code="series_not_found", status_code=404
+            )
 
         normalized_pages = [
             {
@@ -159,6 +192,7 @@ class OcrIngestService:
             return self._serialize(row)
 
         if row is None:
+            self._require_chapter_room(source_id, series_key)
             row = ChapterOcr(
                 source_id=source_id,
                 series_key=series_key,
@@ -176,6 +210,41 @@ class OcrIngestService:
         self._db.commit()
         self._db.refresh(row)
         return self._serialize(row)
+
+    def _require_chapter_room(self, source_id: str, series_key: str) -> None:
+        """Bound how many chapters of ONE series may carry a transcript.
+
+        ``chapter_key`` is an opaque connector string that nothing validates
+        against the source, so the follow gate alone still leaves one axis
+        unbounded: a contributor who follows a series may mint new rows under
+        invented chapter keys forever, and each row is worth up to the route's
+        whole-payload ceiling. Counting uses ``ix_chapter_ocr_series``, so this
+        is an index probe rather than a scan of the stored text.
+
+        Only creates are charged — replacing an existing chapter's transcript
+        adds no rows and must keep working at the cap.
+        """
+        limit = get_settings().max_ocr_chapters_per_series
+        if limit <= 0:
+            return
+        count = int(
+            self._db.execute(
+                select(func.count())
+                .select_from(ChapterOcr)
+                .where(
+                    ChapterOcr.source_id == source_id,
+                    ChapterOcr.series_key == series_key,
+                )
+            ).scalar_one()
+            or 0
+        )
+        if count >= limit:
+            raise AppError(
+                "OCR chapter limit reached for this series.",
+                code="ocr_chapter_limit_reached",
+                status_code=400,
+                details={"max_chapters": limit},
+            )
 
     def get_chapter(
         self, source_id: str, series_key: str, chapter_key: str
@@ -244,9 +313,9 @@ def get_ocr_ingest_service(
     browse: Annotated[BrowseService, Depends(get_browse_service)],
     ctx: Annotated[ProfileContext, Depends(resolve_profile_context)],
 ) -> OcrIngestService:
-    # chapter_ocr is a global table: on write the user id is audit-only
-    # (contributed_by), on read (user_id, profile_id) is the scope. ``browse``
-    # already carries this caller's resolved 18+ gate.
+    # chapter_ocr is a global TABLE, but (user_id, profile_id) is the scope of
+    # every operation on it — reads and the write alike. ``browse`` already
+    # carries this caller's resolved 18+ gate.
     return OcrIngestService(
         db, browse, user_id=ctx.user_id, profile_id=ctx.profile_id
     )

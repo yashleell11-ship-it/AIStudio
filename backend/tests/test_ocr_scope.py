@@ -1,14 +1,17 @@
-"""OCR: global write, scoped reads (spec §3.9, §4.4, §7).
+"""OCR: global storage, scoped access (spec §3.9, §4.4, §7).
 
-``chapter_ocr`` is one row per chapter, not per user. Every path that *returns*
-stored text — search, ``get_chapter``, ``coverage`` — is scoped to the caller's
-followed series in the active profile plus that profile's 18+ gate, so one
-profile never sees another's OCR contribution for a series it does not follow.
+``chapter_ocr`` is one row per chapter, not per user — but "global row"
+describes the STORAGE, not the authorization. Every path that touches it,
+returning stored text (search, ``get_chapter``, ``coverage``) *or writing it*
+(``ingest_chapter``), is scoped to the caller's followed series in the active
+profile plus that profile's 18+ gate.
 
 ``get_chapter`` and ``coverage`` used to take the identity triple and query on
 it alone: any authenticated account, on any profile, with the gate shut, could
-read the full dialogue transcript of any chapter on any source. The denial
-tests below are the ones that would have caught that.
+read the full dialogue transcript of any chapter on any source. The write read
+"global" as authorization and had no check at all, so any account could also
+*replace* any chapter's transcript. The denial tests below are the ones that
+would have caught both.
 """
 
 from __future__ import annotations
@@ -56,10 +59,14 @@ def _seed_transcript(db, accounts, chapter_key="c1", text="the dragon king awake
     )
 
 
-# --- the write stays global ----------------------------------------------
+# --- the row stays global, the write is scoped ---------------------------
 
 
-def test_ingest_writes_one_global_row(db_session, accounts):
+def test_ingest_writes_one_global_row(db_session, accounts, seed_follow):
+    """Two contributors, one row: the storage is still per-chapter, not
+    per-user. Both follow the series — that is now what buys the write."""
+    seed_follow(accounts["ua"], accounts["pa"], source_id=SRC, series_key=SERIES)
+    seed_follow(accounts["ub"], accounts["pb"], source_id=SRC, series_key=SERIES)
     r1 = _ingest(db_session, accounts["ua"], accounts["pa"]).ingest_chapter(
         source_id=SRC,
         series_key=SERIES,
@@ -85,7 +92,10 @@ def test_ingest_writes_one_global_row(db_session, accounts):
     assert rows[0].engine == "apple-vision"  # last engine wins
 
 
-def test_empty_upload_never_clobbers_a_good_transcript(db_session, accounts):
+def test_empty_upload_never_clobbers_a_good_transcript(
+    db_session, accounts, seed_follow
+):
+    seed_follow(accounts["ua"], accounts["pa"], source_id=SRC, series_key=SERIES)
     ing = _ingest(db_session, accounts["ua"], accounts["pa"])
     ing.ingest_chapter(
         source_id=SRC, series_key=SERIES, chapter_key="c2",
@@ -122,6 +132,7 @@ def test_search_is_scoped_to_the_callers_followed_series(
 def test_following_the_series_reveals_the_existing_global_ocr(
     db_session, accounts, seed_follow
 ):
+    seed_follow(accounts["ua"], accounts["pa"], source_id=SRC, series_key=SERIES)
     _seed_transcript(db_session, accounts, text="a whisper in the dark tower")
     # B now follows it → the global row becomes visible to B.
     seed_follow(accounts["ub"], accounts["pb"], source_id=SRC, series_key=SERIES)
