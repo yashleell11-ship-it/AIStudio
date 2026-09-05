@@ -322,16 +322,42 @@ class SyncConnectorHttpClient:
         data: dict[str, str] | None = None,
         extra_headers: dict[str, str] | None = None,
     ) -> str:
-        """POST form data and return the response text (used for AJAX endpoints)."""
+        """POST form data and return the response text (used for AJAX endpoints).
+
+        Only ``extra_headers`` is handed to httpx. The client's configured
+        headers still reach the wire -- httpx merges them in itself -- and
+        letting it do that merge is the whole point. ``httpx.Headers`` keeps a
+        lowercased lookup key beside each raw name, so ``dict(client.headers)``
+        hands back ``user-agent`` / ``accept`` / ``accept-encoding`` /
+        ``connection``, and re-supplying that dict (which this method used to
+        do) put those lowercase names on the wire.
+
+        Measured from the VPS against elftoon and rawkuma, both behind
+        Cloudflare: lowercasing ANY ONE of ``Accept-Encoding``, ``Connection``,
+        ``User-Agent`` or ``Accept`` turns a 200 into a 403 "Just a moment"
+        interstitial in 8-26 ms. Header casing is part of what Cloudflare
+        fingerprints against the browser the User-Agent claims to be.
+        ``Accept-Language``, ``Referer`` and ``X-Requested-With`` were
+        indifferent -- so this is not a general "explicit headers" rule, it is
+        those four standard names specifically.
+
+        Re-supplying the dict also DUPLICATED every header a connector
+        overrode: a plain dict treats ``accept`` and ``Accept`` as two keys, so
+        the Madara AJAX call shipped both the client's ``accept:`` and its own
+        ``Accept: */*``.
+
+        Connector-supplied names are passed through untouched. They are already
+        written the way a browser writes them, and some are deliberately not
+        title-case (``X-CSRF-TOKEN``).
+        """
         last_error: Exception | None = None
 
         for attempt in range(self._max_retries):
             self._rate_limit()
             try:
-                headers = dict(self._client.headers)
-                if extra_headers:
-                    headers.update(extra_headers)
-                response = self._client.post(path, data=data or {}, headers=headers)
+                response = self._client.post(
+                    path, data=data or {}, headers=extra_headers or None
+                )
                 if response.status_code in RETRYABLE_STATUS:
                     raise ConnectorHttpError(
                         f"Retryable HTTP {response.status_code}",
