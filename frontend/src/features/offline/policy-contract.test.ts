@@ -33,6 +33,8 @@ interface Policy {
   STORAGE_RESERVE_BYTES: number;
   SWR_ALLOWLIST: string[];
   OFFLINE_FALLBACK_ALLOWLIST: string[];
+  SEARCH_PATHS: string[];
+  SEARCH_QUERY_PARAMS: string[];
   INTERNAL_PREFIX: string;
   scopeToken(scope: unknown): string | null;
   shellCacheName(): string;
@@ -48,6 +50,8 @@ interface Policy {
   isAuthUrl(url: string, apiBase: string | null): boolean;
   isSwrAllowedPath(path: string): boolean;
   isOfflineFallbackPath(path: string): boolean;
+  hasSearchTerm(url: string): boolean;
+  isSearchRequest(url: string, apiBase: string | null): boolean;
   isPageImagePath(path: string): boolean;
   isChapterManifestPath(path: string): boolean;
   classifyRequest(input: Record<string, unknown>): string;
@@ -217,6 +221,47 @@ describe("what may be cached", () => {
     expect(get(`${API}/library/series?limit=20&offset=0`)).toBe("api-swr");
     expect(get(`${API}/library/series/12`)).toBe("api-swr");
     expect(get(`${API}/sources`)).toBe("api-swr");
+  });
+
+  it("never answers a search from a cache, whatever prefix it sits under", () => {
+    // The regression this exists for: `/sources` is on the SWR list for the
+    // installed-source catalogue, and allowlist entries match everything below
+    // them, so the federated fan-out at `/sources/search` was answered
+    // stale-first. Every search returned the PREVIOUS answer for that exact
+    // query while the real one was fetched behind it and stored for next time —
+    // results one search out of date, which reads as search being broken until
+    // you search again.
+    expect(get(`${API}/sources/search?q=a&page=1&per_page=40`)).toBe(
+      "network-then-saved",
+    );
+    expect(get(`${API}/sources/search?q=solo%20leveling`)).toBe("network-then-saved");
+    // A source's own search wears its listing endpoint, and is what the search
+    // view's per-source Retry calls — stale-first made Retry a no-op.
+    expect(get(`${API}/sources/asura/series?query=naruto`)).toBe("network-then-saved");
+    expect(get(`${API}/library/series?search=naruto`)).toBe("network-then-saved");
+    expect(policy.isSearchRequest(`${API}/sources/search?q=a`, API)).toBe(true);
+  });
+
+  it("still serves the catalogue reads those endpoints also answer", () => {
+    // The rule is about the typed term, not the path: without one these are the
+    // unfiltered listings they always were, and stale-first is right for them.
+    expect(get(`${API}/sources`)).toBe("api-swr");
+    expect(get(`${API}/sources/asura/series?page=2`)).toBe("api-swr");
+    expect(get(`${API}/library/series?limit=20&offset=0`)).toBe("api-swr");
+    // A present-but-blank term is not a search either.
+    expect(get(`${API}/library/series?search=`)).toBe("api-swr");
+    expect(get(`${API}/library/series?search=%20`)).toBe("api-swr");
+    expect(policy.hasSearchTerm(`${API}/library/series?search=`)).toBe(false);
+  });
+
+  it("recognises a typed term under every name this API gives one", () => {
+    // `q` (federated and OCR search), `query` (a source's own listing) and
+    // `search` (the library list) are the three, and adding a fourth without
+    // listing it here is how this bug comes back.
+    for (const name of policy.SEARCH_QUERY_PARAMS) {
+      expect(policy.hasSearchTerm(`${API}/anything?${name}=naruto`)).toBe(true);
+    }
+    expect(policy.hasSearchTerm(`${API}/anything?page=2&per_page=40`)).toBe(false);
   });
 
   it("never serves stale reading progress, which would rewind the reader", () => {

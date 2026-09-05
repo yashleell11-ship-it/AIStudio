@@ -31,8 +31,15 @@
    * out to be wrong in production. It deliberately does NOT appear in the name
    * of a saved-chapter cache: a bad rule must be fixable without deleting
    * somebody's downloaded reading.
+   *
+   * v2 → v3: the escape hatch used for exactly what it is for. Every search
+   * answered while `/sources/search` was mis-classified as stale-while-
+   * revalidate (see {@link SEARCH_PATHS}) is sitting in an API cache that
+   * nothing will ever read again now that the rule is fixed. Dropping the
+   * generation clears them instead of leaving them to age out, and costs a
+   * shell re-fetch. Saved chapters are untouched — that is CONTENT_VERSION.
    */
-  var RUNTIME_VERSION = "v2";
+  var RUNTIME_VERSION = "v3";
 
   /**
    * Saved-content generation. Bump ONLY when the on-disk shape of a saved
@@ -82,6 +89,10 @@
    *                        online fetch (network-then-saved, see sw.js).
    *   /updates*          — the entire value of the updates feed is freshness.
    *   /settings*, /system*, /admin* — instance state; stale health is a lie.
+   *
+   * Entries match everything BELOW them, which is why {@link SEARCH_PATHS} is
+   * checked first: `/sources` here means the installed-source catalogue, and on
+   * its own it also swept in the federated search endpoint underneath it.
    */
   var SWR_ALLOWLIST = ["/library/series", "/sources"];
 
@@ -108,6 +119,34 @@
    *                       train beats showing an error page.
    */
   var OFFLINE_FALLBACK_ALLOWLIST = ["/reader/bookmarks"];
+
+  /**
+   * API GET paths that ARE a search, plus the parameter names that make any
+   * other path one. A search is never answered from a cache, in any strategy.
+   *
+   * This is the rule the SWR allowlist could not express. `/sources` is on that
+   * list for the installed-source catalogue, and `matchesAllowlist` matches
+   * anything below an entry, so the federated fan-out at `/sources/search` was
+   * swept in with it — as was `/sources/{id}/series?query=`, which is one
+   * source's own search wearing its listing endpoint. Both were therefore
+   * answered stale-first: the reader was handed the PREVIOUS answer to the
+   * query they had just typed, while the real one was fetched behind them and
+   * written to the cache for next time. With ninety-odd connectors whose
+   * per-source outcomes differ from run to run, "one search behind" is not a
+   * cosmetic lag — it is the wrong page of results for the word on screen, and
+   * it looks exactly like search having stopped working until you search again.
+   *
+   * A search has nothing to offer offline to weigh against that. There is no
+   * stored answer for a query nobody has typed before, and that is every query
+   * worth typing.
+   *
+   * `q`, `query` and `search` are the only three names this API gives a typed
+   * term — federated and OCR search, a source's own listing, and the library
+   * list respectively — and nothing else uses them. An empty one is not a
+   * search: it is the unfiltered listing, and that may still be served stale.
+   */
+  var SEARCH_PATHS = ["/sources/search"];
+  var SEARCH_QUERY_PARAMS = ["q", "query", "search"];
 
   /** The source-proxy page-bytes endpoint: `/sources/{source}/pages/{page:path}/image`. */
   var PAGE_IMAGE_PATTERN = /^\/sources\/[^/]+\/pages\/.+\/image$/;
@@ -287,6 +326,24 @@
     return matchesAllowlist(OFFLINE_FALLBACK_ALLOWLIST, path);
   }
 
+  /** Does this URL carry a non-blank search term? See {@link SEARCH_PATHS}. */
+  function hasSearchTerm(url) {
+    var parsed = safeUrl(url);
+    if (parsed === null) return false;
+    for (var i = 0; i < SEARCH_QUERY_PARAMS.length; i += 1) {
+      var value = parsed.searchParams.get(SEARCH_QUERY_PARAMS[i]);
+      if (isNonEmptyString(value) && value.trim().length > 0) return true;
+    }
+    return false;
+  }
+
+  /** An API request that answers a typed query rather than reading a catalogue. */
+  function isSearchRequest(url, apiBase) {
+    var path = apiPath(url, apiBase);
+    if (path === null) return false;
+    return matchesAllowlist(SEARCH_PATHS, path) || hasSearchTerm(url);
+  }
+
   /** A source-proxy page image — the bytes an explicit "save for offline" stores. */
   function isPageImagePath(path) {
     return isNonEmptyString(path) && PAGE_IMAGE_PATTERN.test(path);
@@ -365,6 +422,10 @@
       // urls move on a re-list), and the saved copy is checked for drift as it
       // passes. Only an explicit save caches it.
       if (isChapterManifestPath(path)) return "network-then-saved";
+      // Ahead of BOTH lists, because a search is a live query whatever prefix
+      // it happens to sit under and no allowlist entry can be trusted not to
+      // swallow one — `/sources` already swallowed the federated fan-out.
+      if (isSearchRequest(request.url, request.apiBase)) return "network-then-saved";
       // Checked before the SWR list, not after: the two would answer the same
       // request differently and the difference is the whole point of having
       // both. Nothing may be in both lists — the contract test asserts it.
@@ -504,6 +565,8 @@
     MAX_USAGE_RATIO: MAX_USAGE_RATIO,
     SWR_ALLOWLIST: SWR_ALLOWLIST,
     OFFLINE_FALLBACK_ALLOWLIST: OFFLINE_FALLBACK_ALLOWLIST,
+    SEARCH_PATHS: SEARCH_PATHS,
+    SEARCH_QUERY_PARAMS: SEARCH_QUERY_PARAMS,
     scopeToken: scopeToken,
     shellCacheName: shellCacheName,
     staticCacheName: staticCacheName,
@@ -519,6 +582,8 @@
     isAuthUrl: isAuthUrl,
     isSwrAllowedPath: isSwrAllowedPath,
     isOfflineFallbackPath: isOfflineFallbackPath,
+    hasSearchTerm: hasSearchTerm,
+    isSearchRequest: isSearchRequest,
     isPageImagePath: isPageImagePath,
     isChapterManifestPath: isChapterManifestPath,
     isImmutableAssetPath: isImmutableAssetPath,

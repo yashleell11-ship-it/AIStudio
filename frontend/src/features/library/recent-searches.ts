@@ -32,7 +32,11 @@ const RECENT_SEARCHES_EVENT = "manhwamaniacs:recent-searches";
 
 const MAX_RECENT_SEARCHES = 4;
 
-/** Matches the shortest query the view actually runs a search for. */
+/**
+ * The shortest term worth REMEMBERING — not the shortest one worth searching.
+ * The search box runs from the first character; a chip offering to search "a"
+ * again is not a shortcut to anything, and four of them would be the whole list.
+ */
 const MIN_TERM_LENGTH = 2;
 
 const EMPTY_SEARCHES: string[] = [];
