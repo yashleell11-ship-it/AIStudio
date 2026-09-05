@@ -294,7 +294,7 @@ function isTabActive(pathname: string, href: string): boolean {
  * behind it on every frame of every library and browse scroll — the one place
  * in the app where that cost is paid continuously rather than once. It is the
  * cost `presets.css` calls the single most expensive thing this interface does,
- * and the pill was paying it even under Flat and Editorial, the two presets
+ * and the pill was paying it even under Matte and Editorial, the two presets
  * whose whole point is `--shape-panel-blur: 0`.
  *
  * It was also buying very little. A blur only erases detail finer than its

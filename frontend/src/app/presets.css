@@ -88,7 +88,10 @@
 }
 
 /* --------------------------------------------------------------------------
-   Flat — the same app with the glass taken out.
+   Matte — the same app with the glass taken out.
+
+   The selector still spells the id `flat`: that string is a stored preference,
+   so it outlived the rename to "Matte" (`presets.ts` carries the why).
 
    Surfaces stop being translucent and start being opaque: the panel paints
    from `--mm-surface` and the card from `--mm-elevated`, which are the roles
@@ -96,7 +99,7 @@
    elevation story survives intact. The blur goes to zero, the glow and the
    long shadow go away, and the radius ramp halves.
 
-   Density is untouched on purpose. Flat is not a smaller app; it is the same
+   Density is untouched on purpose. Matte is not a smaller app; it is the same
    app rendered as a tool rather than a showcase — and it is measurably cheaper
    to paint, since `backdrop-filter` on a scrolling grid is the single most
    expensive thing this interface does.

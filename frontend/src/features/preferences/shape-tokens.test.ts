@@ -117,7 +117,7 @@ describe("the rules a preset moves", () => {
   it("builds both app surfaces out of shape roles only", () => {
     // Fill, blur and edge weight are the surface-treatment axis — the single
     // most visible thing a preset changes. All three have to be indirect, or
-    // `Flat` could not exist without a second stylesheet.
+    // `Matte` could not exist without a second stylesheet.
     for (const [selector, fill, blur, edge] of [
       [".glass-panel", "--shape-panel-fill", "--shape-panel-blur", "--shape-panel-edge"],
       [".glass-card", "--shape-card-fill", "--shape-card-blur", "--shape-card-edge"],
