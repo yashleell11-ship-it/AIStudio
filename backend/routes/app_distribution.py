@@ -134,6 +134,22 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.6.1",
+        build=38,
+        date="September 2026",
+        highlights=[
+            "The blue is GitHub's own blue now. The palette was mapping code-"
+            "highlighting colours rather than interface ones, so the accent was "
+            "a syntax purple, errors were orange and success was pale blue \u2014 "
+            "all three now use the colours GitHub uses",
+            "The phone follows the website: GitHub Dark is its default too. Any "
+            "profile that already picked a theme keeps it",
+            "The website follows your phone's light or dark setting again, with "
+            "GitHub Light as the light side. A theme you have chosen still wins "
+            "over the system",
+        ],
+    ),
+    ChangelogEntry(
         version="2.6.0",
         build=37,
         date="September 2026",
