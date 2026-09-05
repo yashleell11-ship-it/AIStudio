@@ -35,3 +35,32 @@ const int kNovelWindowChapters = 20;
 /// sits on a far more generous rate-limit bucket than the `bulk` one, so
 /// spending a bulk token on one chapter is a straight loss.
 const int kMinNovelWindowChapters = 2;
+
+/// How many chapters one `POST /reader/chapters/manifest` window asks for
+/// before the server has said otherwise.
+///
+/// Its own constant rather than a shared one with [kNovelWindowChapters]: the
+/// two endpoints are sized by two different settings server-side
+/// (`MM_READER_BULK_MAX_CHAPTERS` / `MM_NOVEL_BULK_MAX_CHAPTERS`), and a
+/// deployment is free to move one without the other. As with novels this is
+/// only a starting guess — every successful window echoes `max_chapters` and
+/// the queue adopts it, and over the cap is a `batch_too_large` 413 the queue
+/// also reads and shrinks to.
+const int kManifestWindowChapters = 20;
+
+/// Below this, a manifest window is not worth asking for: the single-chapter
+/// endpoint sits on a far more generous rate-limit bucket than the `bulk` one,
+/// so spending a bulk token on one chapter is a straight loss.
+const int kMinManifestWindowChapters = 2;
+
+/// How long the queue leaves the `bulk` bucket alone after a window call comes
+/// back useless.
+///
+/// One duration for both window endpoints because the server charges them to
+/// ONE bucket (`core/rate_limit.py`'s `bulk_limit` covers
+/// `POST /reader/chapters/manifest` and `POST /novels/chapters` alike), so a
+/// refusal earned by either has to rest both. Without it a queue whose windows
+/// keep failing asks for a fresh window per chapter — strictly more requests
+/// than the per-chapter path it replaces, aimed at the tightest bucket we
+/// have, which is exactly the shape that drew a real multi-minute 429 before.
+const Duration kBulkWindowCooldown = Duration(seconds: 30);

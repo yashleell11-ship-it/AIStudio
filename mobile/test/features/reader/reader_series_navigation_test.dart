@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest_window.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_chapter_provider.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
@@ -98,6 +99,14 @@ class _ProgressOnlyReaderRepository implements ReaderRepository {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  @override
+  Future<Result<ChapterManifestWindow>> manifestWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
+  }) =>
+      throw UnimplementedError();
 }
 
 /// The source-browse reader's online reading position is client-side only

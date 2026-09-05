@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/features/downloads/store/downloads_store.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest_window.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -82,6 +83,14 @@ class _FakeReaderRepository implements ReaderRepository {
   Future<Result<List<ReadingProgress>>> seriesProgress({
     required String sourceId,
     required String seriesKey,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ChapterManifestWindow>> manifestWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
   }) =>
       throw UnimplementedError();
 }

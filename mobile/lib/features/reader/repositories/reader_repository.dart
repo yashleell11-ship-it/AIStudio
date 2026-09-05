@@ -1,6 +1,7 @@
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest_window.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 
 /// Source-native reader endpoints (spec §4.1) — chapter manifests, reading
@@ -11,6 +12,30 @@ abstract interface class ReaderRepository {
     required String sourceId,
     required String seriesKey,
     required String chapterKey,
+  });
+
+  /// The same plans for a bounded WINDOW of one series' chapters in a single
+  /// round trip — `POST /reader/chapters/manifest`.
+  ///
+  /// POST rather than GET because the body is a list of opaque connector keys
+  /// that routinely contain slashes and percent-encoding; twenty of those do
+  /// not belong in a query string. It is still a read.
+  ///
+  /// This is what makes "download this whole series" reasonable: a 300-chapter
+  /// series otherwise opens 300 requests before a single page lands, and
+  /// pipelining those is what previously drew a real multi-minute 429 from a
+  /// source. The endpoint sits on its own much tighter `bulk` bucket for that
+  /// reason — one call is worth up to `max_chapters` upstream scrapes — so a
+  /// caller spends a token on a window, never on a single chapter.
+  ///
+  /// The result is per-item, never all-or-nothing — see [ChapterManifestWindow].
+  /// Over the server's cap the call fails with a `batch_too_large` [ApiError]
+  /// naming it; every success echoes `max_chapters`, so a caller paces itself
+  /// by the server's stride rather than a number compiled into the app.
+  Future<Result<ChapterManifestWindow>> manifestWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
   });
 
   Future<Result<ReadingProgress>> saveProgress(ProgressPush push);
