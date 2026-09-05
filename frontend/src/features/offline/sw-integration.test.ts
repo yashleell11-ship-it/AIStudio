@@ -7,6 +7,7 @@ import {
   route,
   type Harness,
 } from "./sw-harness.testing";
+import { buildNovelSaveRequest } from "./novel-save-request";
 
 /**
  * The service worker, executed.
@@ -680,6 +681,125 @@ describe("removal", () => {
 
     expect(await harness.cacheNames()).toContain(ALICE_CACHE);
     expect(await harness.cacheNames()).not.toContain(BOB_CACHE);
+  });
+});
+
+describe("downloading a novel", () => {
+  /**
+   * The spec calls a whole-series download mobile-only because "the web has no
+   * on-device store". The web has this one, and a prose chapter fits it without
+   * a new message, a new cache or a new rule: it is a `SaveChapterRequest` with
+   * no images whose payload is `GET /novels/chapter`. This is that claim
+   * executed rather than asserted — save it, cut the network, open it.
+   */
+  const NOVEL_SOURCE = "novelbin";
+  const NOVEL_SERIES = "book/lotm";
+  const NOVEL_CHAPTER = "ch/12";
+  const NOVEL_KEY = `chapter:${NOVEL_SOURCE}:${NOVEL_SERIES}:${NOVEL_CHAPTER}`;
+  const NOVEL_BODY = JSON.stringify({
+    source_id: NOVEL_SOURCE,
+    series_key: NOVEL_SERIES,
+    chapter_key: NOVEL_CHAPTER,
+    title: "Chapter 12",
+    chapter_number: 12,
+    paragraphs: ["The fog rolled in.", "Klein woke."],
+    prev: "ch/11",
+    next: "ch/13",
+    word_count: 6,
+  });
+
+  function novelPayload() {
+    return buildNovelSaveRequest({
+      ref: {
+        sourceId: NOVEL_SOURCE,
+        seriesKey: NOVEL_SERIES,
+        chapterKey: NOVEL_CHAPTER,
+      },
+      title: "Chapter 12",
+      seriesTitle: "Lord of the Mysteries",
+      scope: ALICE,
+      apiBase: API_BASE,
+      origin: ORIGIN,
+      payloadJson: NOVEL_BODY,
+    });
+  }
+
+  it("serves the chapter text with no network at all", async () => {
+    await boot();
+    const payload = novelPayload();
+    route(harness, payload.documentUrl, { body: "<html>novel</html>" });
+    await harness.dispatchMessage({ type: "mm-offline/save-chapter", payload });
+
+    harness.offline = true;
+    const outcome = await harness.dispatchFetch({ url: payload.payloadUrl });
+    expect(outcome.handled).toBe(true);
+    expect(await outcome.response?.text()).toBe(NOVEL_BODY);
+  });
+
+  it("settles as ready — a chapter with no images has no pages to miss", async () => {
+    await boot();
+    const payload = novelPayload();
+    route(harness, payload.documentUrl, { body: "<html>novel</html>" });
+    await harness.dispatchMessage({ type: "mm-offline/save-chapter", payload });
+
+    const index = await readIndex(harness, ALICE_CACHE);
+    expect(index?.entries[NOVEL_KEY]).toMatchObject({
+      status: "ready",
+      pageCount: 0,
+      failed: 0,
+      stale: false,
+    });
+  });
+
+  it("is never flagged stale by the page-drift check, which is about images", async () => {
+    await boot();
+    const payload = novelPayload();
+    route(harness, payload.documentUrl, { body: "<html>novel</html>" });
+    route(harness, payload.payloadUrl, { body: NOVEL_BODY });
+    await harness.dispatchMessage({ type: "mm-offline/save-chapter", payload });
+
+    // Online again: the live answer wins, and the saved copy is refreshed as it
+    // passes. Prose carries no `pages`, so there is no drift to find.
+    await harness.dispatchFetch({ url: payload.payloadUrl });
+
+    const index = await readIndex(harness, ALICE_CACHE);
+    expect(index?.entries[NOVEL_KEY].stale).toBe(false);
+  });
+
+  it("opens a downloaded book cold, with the reader route never navigated to", async () => {
+    await boot();
+    const payload = novelPayload();
+    route(harness, payload.documentUrl, { body: "<html>novel</html>" });
+    await harness.dispatchMessage({ type: "mm-offline/save-chapter", payload });
+
+    harness.offline = true;
+    const outcome = await harness.dispatchFetch({
+      url: payload.documentUrl,
+      mode: "navigate",
+    });
+    expect(await outcome.response?.text()).toBe("<html>novel</html>");
+  });
+
+  it("keeps one profile's book out of another's", async () => {
+    await boot();
+    const payload = novelPayload();
+    route(harness, payload.documentUrl, { body: "<html>novel</html>" });
+    await harness.dispatchMessage({ type: "mm-offline/save-chapter", payload });
+
+    await harness.dispatchMessage(
+      { type: "mm-offline/set-scope", scope: BOB, apiBase: API_BASE },
+      "client-b",
+    );
+    harness.offline = true;
+    const outcome = await harness.dispatchFetch({
+      url: payload.payloadUrl,
+      clientId: "client-b",
+    });
+    // Handled, and refused: Bob's tab is answered from Bob's cache, which does
+    // not exist — never from Alice's, and never from a shared default.
+    expect(outcome.handled).toBe(true);
+    expect(outcome.response?.ok).toBe(false);
+    expect(await outcome.response?.text()).not.toContain("Klein");
   });
 });
 

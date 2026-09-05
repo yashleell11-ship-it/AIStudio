@@ -15,6 +15,16 @@ import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { browserAllowsPreload } from "@/features/reader/preload";
 import { readAllHref } from "@/features/reader/reader-link";
 import {
+  ChapterCheckbox,
+  ChapterDownloadBar,
+  ChapterDownloadTrigger,
+  SavedChapterMark,
+  useChapterPicker,
+} from "@/features/offline";
+// Direct rather than through the barrel: the savers pull in the reader API and
+// the novels hooks, and the barrel is what the reader itself imports.
+import { useMangaChapterSaver } from "@/features/offline/chapter-savers";
+import {
   followKey,
   useFollow,
   useFollowedIndex,
@@ -52,6 +62,7 @@ import {
  * (`lib/cover-url.ts`).
  */
 const POSTER_SIZES = "(max-width: 1023px) 200px, 220px";
+
 
 type ChapterSortOrder = "newest" | "oldest";
 
@@ -170,6 +181,47 @@ function MangaSeriesDetailView({
     [prefetchChapterPayload],
   );
   useEffect(() => () => hoverIntent.dispose(), [hoverIntent]);
+
+  /**
+   * Multi-select downloading, from the list rather than from inside the reader.
+   *
+   * Until now the only download button on the web lived in `ChapterReader`, so
+   * saving ten chapters meant opening ten chapters — and a series page could
+   * not say which of them were already on the device. The rows below now read
+   * that off the service worker's index, and the bar at the foot of the list
+   * stores a whole selection in one action.
+   *
+   * There is no whole-series helper here, unlike a book: three hundred
+   * chapters of page images is gigabytes, and the bounded helpers are the
+   * honest offer. `chapter-savers.ts` holds what a manga chapter costs to
+   * store and how a window of them is warmed.
+   */
+  // Display order, not listing order: shift-click ranges over the rows as they
+  // are on screen, and this list sorts newest-first by default.
+  const pickerRows = useMemo(
+    () =>
+      sortedChapters.map((chapter) => ({
+        key: chapter.id,
+        number: chapter.number,
+        read: progressMap[chapter.id]?.completed ?? false,
+      })),
+    [progressMap, sortedChapters],
+  );
+
+  const saver = useMangaChapterSaver({
+    sourceId,
+    seriesKey: seriesId,
+    seriesTitle: series?.title ?? null,
+  });
+
+  const picker = useChapterPicker({
+    sourceId,
+    seriesKey: seriesId,
+    chapters: pickerRows,
+    buildRequest: saver.buildRequest,
+    prepare: saver.prepare,
+    medium: "manga",
+  });
 
   // An empty answer means something different depending on what the series
   // summary claims the source holds — see `resolveChapterListState`.
@@ -370,8 +422,11 @@ function MangaSeriesDetailView({
       </div>
 
       <Card className="mt-8">
-        <CardHeader className="flex-row items-center justify-between gap-3">
+        <CardHeader className="flex-row flex-wrap items-center justify-between gap-3">
           <CardTitle>Chapters</CardTitle>
+          {chapters.length > 0 && !picker.selecting && (
+            <ChapterDownloadTrigger picker={picker} />
+          )}
           {chapters.length > 1 && (
             <div className="inline-flex overflow-hidden rounded-lg border border-border/50">
               {(["newest", "oldest"] as const).map((order) => (
@@ -445,6 +500,8 @@ function MangaSeriesDetailView({
               } else {
                 progressText = pageCount > 0 ? `${pageCount} pages` : null;
               }
+              const downloadState = picker.stateOf(chapter.id);
+              const picked = picker.isSelected(chapter.id);
               return (
                 // The WHOLE row is the link, not the "Read" button at its end.
                 // A 90px-tall row whose only target was a 62x32 button meant a
@@ -454,9 +511,20 @@ function MangaSeriesDetailView({
                 // look as a plain span: it is the affordance, the row is the hit
                 // area, and nesting a real button inside a link would be two
                 // controls where the reader sees one.
+                //
+                // In selection mode the same hit area ticks instead of opening.
+                // A separate checkbox column would put a 20px target inside a
+                // 90px row and make selecting ten chapters harder than opening
+                // them, which is the opposite of the point.
                 <Link
                   key={chapter.id}
                   href={sourceReaderChapterPath(sourceId, seriesId, chapter.id)}
+                  onClick={(event) => {
+                    if (!picker.selecting) return;
+                    event.preventDefault();
+                    picker.pick(chapter.id, event.shiftKey);
+                  }}
+                  aria-pressed={picker.selecting ? picked : undefined}
                   onMouseEnter={() => hoverIntent.enter(chapter.id)}
                   onMouseLeave={hoverIntent.leave}
                   onFocus={() => hoverIntent.enter(chapter.id)}
@@ -465,8 +533,12 @@ function MangaSeriesDetailView({
                     "group flex flex-wrap items-center justify-between gap-3 px-2 py-3 transition-colors first:pt-0 hover:bg-surface-2/60",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary/60",
                     completed && "bg-void/40",
+                    picker.selecting && picked && "bg-primary/10",
                   )}
                 >
+                  {picker.selecting ? (
+                    <ChapterCheckbox checked={picked} disabled={downloadState === "saved"} />
+                  ) : null}
                   <div className="min-w-0 flex-1">
                     <div>
                       <p className={cn("font-medium text-fg", completed && "text-fg/50")}>
@@ -484,17 +556,25 @@ function MangaSeriesDetailView({
                       )}
                     </div>
                   </div>
-                  <span
-                    aria-hidden
-                    className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg px-3 text-sm font-medium text-muted transition-colors group-hover:bg-white/5 group-hover:text-fg"
-                  >
-                    Read
-                  </span>
+                  <SavedChapterMark state={downloadState} />
+                  {picker.selecting ? null : (
+                    <span
+                      aria-hidden
+                      className="inline-flex h-8 shrink-0 items-center justify-center rounded-lg px-3 text-sm font-medium text-muted transition-colors group-hover:bg-white/5 group-hover:text-fg"
+                    >
+                      Read
+                    </span>
+                  )}
                 </Link>
               );
             })
           )}
         </CardContent>
+        {picker.selecting || picker.downloads.running || picker.downloads.summary ? (
+          <div className="px-4 pb-4">
+            <ChapterDownloadBar picker={picker} />
+          </div>
+        ) : null}
       </Card>
     </div>
   );

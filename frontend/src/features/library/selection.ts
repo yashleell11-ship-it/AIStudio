@@ -1,32 +1,42 @@
 /**
- * Multi-select state for the library grid.
+ * Multi-select state for a list the user can shift-click through.
  *
  * Kept out of the view so the range math is testable on its own: shift-click is
  * the one part of a selection UI that is easy to get subtly wrong (backwards
  * ranges, a stale anchor that a filter change scrolled off the page) and
  * impossible to notice by eye until a bulk action hits the wrong 40 series.
  *
+ * Generic over the id because two lists need exactly this behaviour and differ
+ * only in what identifies a row: the library grid selects series by numeric id,
+ * and a series page's chapter list selects chapters by their opaque string key
+ * (`features/offline/chapter-selection.ts`). The half that is easy to get wrong
+ * is the same in both, so there is one copy of it.
+ *
  * `ids` is a Set because every card asks "am I selected?" on every render, and
  * the grid routinely holds 200 of them.
  */
 
-export interface SelectionState {
-  readonly ids: ReadonlySet<number>;
+export interface SelectionState<Id = number> {
+  readonly ids: ReadonlySet<Id>;
   /**
    * The fixed end of a shift-click range: the last id clicked *without* shift.
    * `null` when nothing has been clicked yet, or when the anchor has since been
    * filtered out of the visible list.
    */
-  readonly anchor: number | null;
+  readonly anchor: Id | null;
 }
 
-export const EMPTY_SELECTION: SelectionState = { ids: new Set<number>(), anchor: null };
+/** Holds no ids at all, so it is the empty selection of every id type. */
+export const EMPTY_SELECTION: SelectionState<never> = {
+  ids: new Set<never>(),
+  anchor: null,
+};
 
-export function isSelected(state: SelectionState, id: number): boolean {
+export function isSelected<Id>(state: SelectionState<Id>, id: Id): boolean {
   return state.ids.has(id);
 }
 
-export function selectionCount(state: SelectionState): number {
+export function selectionCount<Id>(state: SelectionState<Id>): number {
   return state.ids.size;
 }
 
@@ -37,11 +47,11 @@ export function selectionCount(state: SelectionState): number {
  * shift-clicking downwards. Returns nothing when either end is missing from
  * `ordered`, which is the "anchor was filtered away" case.
  */
-export function selectionRange(
-  ordered: readonly number[],
-  from: number,
-  to: number,
-): number[] {
+export function selectionRange<Id>(
+  ordered: readonly Id[],
+  from: Id,
+  to: Id,
+): Id[] {
   const start = ordered.indexOf(from);
   const end = ordered.indexOf(to);
   if (start === -1 || end === -1) {
@@ -52,7 +62,10 @@ export function selectionRange(
 }
 
 /** Plain click: flip one id and make it the anchor for the next shift-click. */
-export function toggleSelection(state: SelectionState, id: number): SelectionState {
+export function toggleSelection<Id>(
+  state: SelectionState<Id>,
+  id: Id,
+): SelectionState<Id> {
   const ids = new Set(state.ids);
   if (ids.has(id)) {
     ids.delete(id);
@@ -75,11 +88,11 @@ export function toggleSelection(state: SelectionState, id: number): SelectionSta
  * With no usable anchor there is no range to take, so this degrades to a plain
  * click — the alternative is a click that appears to do nothing.
  */
-export function extendSelection(
-  state: SelectionState,
-  id: number,
-  ordered: readonly number[],
-): SelectionState {
+export function extendSelection<Id>(
+  state: SelectionState<Id>,
+  id: Id,
+  ordered: readonly Id[],
+): SelectionState<Id> {
   if (state.anchor === null) {
     return toggleSelection(state, id);
   }
@@ -95,11 +108,11 @@ export function extendSelection(
 }
 
 /** Select every visible id, anchoring on the first so shift-click still works. */
-export function selectAll(ordered: readonly number[]): SelectionState {
+export function selectAll<Id>(ordered: readonly Id[]): SelectionState<Id> {
   return { ids: new Set(ordered), anchor: ordered[0] ?? null };
 }
 
-export function clearSelection(): SelectionState {
+export function clearSelection<Id>(): SelectionState<Id> {
   return EMPTY_SELECTION;
 }
 
@@ -113,12 +126,12 @@ export function clearSelection(): SelectionState {
  *
  * Returns the same object when nothing was pruned so React can skip the render.
  */
-export function retainSelection(
-  state: SelectionState,
-  ordered: readonly number[],
-): SelectionState {
+export function retainSelection<Id>(
+  state: SelectionState<Id>,
+  ordered: readonly Id[],
+): SelectionState<Id> {
   const visible = new Set(ordered);
-  const kept = new Set<number>();
+  const kept = new Set<Id>();
   for (const id of state.ids) {
     if (visible.has(id)) {
       kept.add(id);
@@ -132,9 +145,9 @@ export function retainSelection(
 }
 
 /** The selected ids in display order — the order bulk actions run them in. */
-export function orderedSelection(
-  state: SelectionState,
-  ordered: readonly number[],
-): number[] {
+export function orderedSelection<Id>(
+  state: SelectionState<Id>,
+  ordered: readonly Id[],
+): Id[] {
   return ordered.filter((id) => state.ids.has(id));
 }
