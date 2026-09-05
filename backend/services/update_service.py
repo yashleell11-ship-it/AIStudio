@@ -18,12 +18,13 @@ import time
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import func, select
+from sqlalchemy import case, func, literal, select
 from sqlalchemy.orm import Session
 
 from connectors.registry import list_installed_connectors
 from core.config import get_settings
-from core.content_rating import resolve_mature_gate
+from core.connector_directory import mature_source_ids
+from core.content_rating import mature_rating_predicate, resolve_mature_gate
 from core.errors import AppError
 from core.time_utils import utcnow
 from database.models import (
@@ -74,6 +75,25 @@ class UpdateService:
         self._user_id = user_id
         self._profile_id = profile_id
         self._system = system
+        # Resolved once: the gate is a property of the (user, profile) pair,
+        # which cannot change mid-request.
+        self._gate_cache: bool | None = None
+
+    # --- the 18+ gate ---------------------------------------------------
+
+    def _gate_open(self) -> bool:
+        """Is 18+ content allowed for this (user, profile)?
+
+        Resolved through ``resolve_mature_gate`` — the single resolution path.
+        Reading ``get_settings().mature_content_enabled`` here instead is what
+        once made the in-app toggle inert, and it would make this gate answer
+        for the *instance* rather than for the profile holding the phone.
+        """
+        if self._gate_cache is None:
+            self._gate_cache = resolve_mature_gate(
+                self._db, self._profile_id, self._user_id
+            )
+        return self._gate_cache
 
     # --- global settings ------------------------------------------------
 
@@ -115,18 +135,89 @@ class UpdateService:
     # --- notifications ------------------------------------------------
 
     def _notif_scope(self, stmt):
-        if self._user_id is not None:
-            stmt = stmt.where(UpdateNotification.user_id == self._user_id)
-        if self._profile_id is not None:
-            stmt = stmt.where(UpdateNotification.profile_id == self._profile_id)
-        elif self._user_id is not None:
-            stmt = stmt.where(UpdateNotification.profile_id.is_(None))
-        return stmt
+        """(user, profile) scope for ``update_notifications``.
+
+        The ``user_id`` predicate is **unconditional**, matching
+        ``_followed_scope`` below and ``progress_service._scope``. Guarding it
+        on ``self._user_id is not None`` — which this did — is the one shape
+        that fails *open*: an unscoped service dropped the predicate entirely
+        and the statement then spanned every account's notifications. No caller
+        reaches it that way today — ``/updates/*`` is not in
+        ``auth_service._PUBLIC_ROUTES``, so the route always has a user — but a
+        scope whose safety rests on which routes happen to be public is one
+        router change away from being wrong, and its siblings fail closed.
+
+        ``profile_id`` is NOT NULL, so ``None`` is the empty legacy bucket
+        rather than a wildcard: an unscoped caller correctly sees nothing.
+        """
+        stmt = stmt.where(UpdateNotification.user_id == self._user_id)
+        if self._profile_id is None:
+            return stmt.where(UpdateNotification.profile_id.is_(None))
+        return stmt.where(UpdateNotification.profile_id == self._profile_id)
+
+    def _mature_case(self):
+        """1 when a notification's series is 18+ for this profile, else 0.
+
+        SQL mirror of :func:`core.content_rating.resolve_tracker_rating` in the
+        same priority order — explicit override, the rating captured at follow
+        time, then the source's own maturity — copied from
+        ``bookmark_service._mature_case`` so the badge and every other gated
+        listing can never disagree about what is adult. Unknown stays 0 for the
+        reason recorded there.
+        """
+        mature_sources = mature_source_ids()
+        source_mature = (
+            case((UpdateNotification.source_id.in_(mature_sources), 1), else_=0)
+            if mature_sources
+            else literal(0)
+        )
+        return case(
+            (FollowedSeries.mature_override == 1, 1),
+            (FollowedSeries.mature_override == 0, 0),
+            (
+                FollowedSeries.content_rating.is_not(None),
+                case(
+                    (mature_rating_predicate(FollowedSeries.content_rating), 1),
+                    else_=0,
+                ),
+            ),
+            else_=source_mature,
+        )
+
+    def _visible_notifications(self, stmt):
+        """``_notif_scope`` plus this profile's 18+ gate.
+
+        A notification prints ``series_key`` and ``chapter_title``, so a profile
+        with the gate shut was told in plain text about new chapters of its own
+        mature series — hidden from it in browse, in the library and on the home
+        strips, and listed here. The scope was never the problem; the missing
+        gate was.
+
+        ``followed_series_id`` is what resolves the rating, the same technique
+        ``continue_reading`` uses, and here it is a single primary-key equality
+        because the FK already names the exact row: ``_check_one`` writes the
+        notification's ``user_id`` / ``profile_id`` off the very follow it
+        diffed, so the joined row is always the caller's own.
+
+        Joined only when the gate is shut, like
+        ``reading_stats_service._sessions``: with the gate open there is nothing
+        to resolve and the statement keeps its old shape. The join is *outer* so
+        a notification whose follow row has gone is not silently dropped — with
+        no row to read an override off, ``_mature_case`` falls through to the
+        notification's own source, which still hides it if that source is adult.
+        """
+        stmt = self._notif_scope(stmt)
+        if self._gate_open():
+            return stmt
+        return stmt.outerjoin(
+            FollowedSeries,
+            UpdateNotification.followed_series_id == FollowedSeries.id,
+        ).where(self._mature_case() == 0)
 
     def list_notifications(
         self, *, unread_only: bool = False, limit: int = 100
     ) -> list[dict[str, Any]]:
-        stmt = self._notif_scope(select(UpdateNotification))
+        stmt = self._visible_notifications(select(UpdateNotification))
         if unread_only:
             stmt = stmt.where(UpdateNotification.is_read.is_(False))
         stmt = stmt.order_by(UpdateNotification.created_at.desc()).limit(limit)
@@ -136,7 +227,14 @@ class UpdateService:
         ]
 
     def count_notifications(self, *, unread_only: bool = False) -> int:
-        stmt = self._notif_scope(
+        """Cardinality of exactly what ``list_notifications`` would return.
+
+        Gated for the same reason the listing is, and then some: this is the
+        unread badge. A count that includes hidden rows discloses that mature
+        chapters landed, and leaves the client showing a badge for something the
+        user cannot open — the number never goes down however much they read.
+        """
+        stmt = self._visible_notifications(
             select(func.count()).select_from(UpdateNotification)
         )
         if unread_only:
@@ -161,20 +259,27 @@ class UpdateService:
         }
 
     def mark_notification_read(self, notification_id: int) -> dict[str, Any]:
-        """Mark one of *this profile's* notifications read, or 404.
+        """Mark one of *this profile's visible* notifications read, or 404.
 
-        ``_notif_scope`` (list / count / read-all) is per-profile, so the
-        ``user_id``-only check here let one profile clear a sibling's unread
-        badge by guessing an id — the notification stayed invisible to them and
-        simply vanished from the owner's count.
+        List / count / read-all are per-profile, so the ``user_id``-only check
+        that used to live here let one profile clear a sibling's unread badge by
+        guessing an id — the notification stayed invisible to them and simply
+        vanished from the owner's count.
+
+        Resolved through ``_visible_notifications`` rather than by hand so
+        "addressable" and "listed" are one definition: a row withheld by the
+        18+ gate 404s like one that does not exist, which is this codebase's
+        convention (``browse_service`` ~L563) and also denies the 200-vs-404
+        oracle that would otherwise confirm a hidden notification is there.
         """
-        row = self._db.get(UpdateNotification, notification_id)
-        if row is None or (
-            self._user_id is not None
-            and (
-                row.user_id != self._user_id or row.profile_id != self._profile_id
+        row = self._db.execute(
+            self._visible_notifications(
+                select(UpdateNotification).where(
+                    UpdateNotification.id == notification_id
+                )
             )
-        ):
+        ).scalars().one_or_none()
+        if row is None:
             raise AppError(
                 "Notification not found.", code="not_found", status_code=404
             )
@@ -183,7 +288,14 @@ class UpdateService:
         return self.serialize_notification(row)
 
     def mark_all_notifications_read(self) -> dict[str, int]:
-        stmt = self._notif_scope(
+        """Clear the unread badge — over exactly what the badge counted.
+
+        Gated with the listing, not merely scoped with it: a bulk clear that
+        reached rows the profile cannot see would consume its own mature
+        notifications unread, so turning the gate back on would surface a
+        library of new chapters already marked as seen.
+        """
+        stmt = self._visible_notifications(
             select(UpdateNotification).where(UpdateNotification.is_read.is_(False))
         )
         rows = self._db.execute(stmt).scalars().all()
@@ -239,11 +351,7 @@ class UpdateService:
         (audit finding 3). The system-scoped service (background sweep) keeps
         the full view; it serves no client.
         """
-        include_mature = (
-            True
-            if self._system
-            else resolve_mature_gate(self._db, self._profile_id, self._user_id)
-        )
+        include_mature = True if self._system else self._gate_open()
         return [
             {"id": d.source_type, "name": d.name}
             for d in list_installed_connectors(
