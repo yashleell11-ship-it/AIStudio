@@ -84,12 +84,20 @@ current work is.
   landed, with an acceptance test covering airplane-mode/cold-start/offline
   read. Remaining per the spec's slice order
   (`docs/superpowers/specs/2026-09-03-mobile-source-native-design.md` §5):
-  **M4 OCR** (the `mm/ocr` MethodChannel — Vision on iOS, ML Kit on Android —
-  is not implemented yet; there is no `features/ocr/` in `mobile/lib/`) and
-  **M5 builds**. M5's Android half works locally (`ops/vps/push.sh apk`); the
-  iOS half is still blocked on the user for GitHub push auth and making the
-  mirror repo readable to the VPS's anonymous release-asset fetch — see
-  [VPS_OPERATIONS.md](VPS_OPERATIONS.md) "Manual steps that are not automated".
+  **M4 OCR** and **M5 builds** have both since shipped. `mobile/lib/features/ocr/`
+  exists (controllers, models, providers, repositories) behind the `mm/ocr`
+  MethodChannel, and ML Kit's Latin model is requested at install time via the
+  `com.google.mlkit.vision.DEPENDENCIES` manifest entry.
+
+  M5 is closed on both platforms and neither half is blocked on the user.
+  Android: `ops/vps/push.sh apk` (build with `JAVA_HOME=/home/yash/jdk17`, or
+  Gradle fails while still exiting 0 and leaving a STALE apk in place — check
+  the byte count changed before publishing). iOS: this laptop *can* push to
+  `github` (`git@github.com:yashleell11-ship-it/AIStudio.git`, which is a
+  **public** repo), a push to `feat/vps-slim-source-native` triggers
+  `.github/workflows/ios-build.yml` on a cloud Mac, and `mm-fetch-ios.timer`
+  on the VPS publishes the resulting IPA to `/app/source.json` within 15
+  minutes. 2.1.0 build 1026 shipped this way on 2026-09-05.
 
 The specs under `docs/superpowers/specs/` are the authoritative plans. Start
 there, not here.
