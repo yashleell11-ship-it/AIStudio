@@ -4,6 +4,7 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/progress_outbox_provider.dart';
+import 'package:manhwamaniacs/features/downloads/utils/progress_outbox_batch.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -185,6 +186,152 @@ void main() {
       await container.read(progressOutboxControllerProvider).save(_push());
 
       verifyNever(() => repo.saveProgressBatch(any()));
+    });
+
+    test('save() stamps the capture time so a late flush is not dated now',
+        () async {
+      final repo = _ScriptedReaderRepository();
+      when(() => repo.saveProgressBatch(any()))
+          .thenAnswer((_) async => const Ok((saved: 1, advanced: 1)));
+
+      final container = buildContainer(repo);
+      final before = DateTime.now().toUtc();
+      await container.read(progressOutboxControllerProvider).save(_push());
+
+      final sent = verify(() => repo.saveProgressBatch(captureAny())).captured;
+      final push = (sent.single as List<ProgressPush>).single;
+      expect(push.lastReadAt, isNotNull);
+      expect(
+        push.lastReadAt!.isAfter(before.subtract(const Duration(seconds: 5))),
+        isTrue,
+      );
+      // And it actually reaches the wire, not just the model.
+      expect(push.toJson()['last_read_at'], isA<String>());
+    });
+  });
+
+  group('ProgressOutboxController.flush chunking', () {
+    ProviderContainer buildContainer(ReaderRepository repo) {
+      final container = ProviderContainer(
+        overrides: [
+          downloadsStoreProvider.overrideWithValue(harness.storeFor('u1p1')),
+          readerRepositoryProvider.overrideWithValue(repo),
+        ],
+      );
+      addTearDown(container.dispose);
+      return container;
+    }
+
+    /// One row per chapter, so the per-chapter collapse cannot fold them and
+    /// the queue really is [count] items wide on the wire.
+    Future<void> enqueueDistinct(int count) async {
+      final store = harness.storeFor('u1p1');
+      for (var i = 0; i < count; i++) {
+        await store.enqueueProgress(_push(chapterKey: 'c$i'));
+      }
+    }
+
+    test('an outbox past the server cap is sent as several batches, and every '
+        'row clears', () async {
+      final repo = _ScriptedReaderRepository();
+      when(() => repo.saveProgressBatch(any()))
+          .thenAnswer((_) async => const Ok((saved: 1, advanced: 1)));
+
+      // The wedge: one array of 250 used to take a 413 forever.
+      await enqueueDistinct(250);
+      final container = buildContainer(repo);
+      await container.read(progressOutboxControllerProvider).flush();
+
+      final batches = verify(() => repo.saveProgressBatch(captureAny()))
+          .captured
+          .cast<List<ProgressPush>>();
+      expect(batches, hasLength(2));
+      expect(batches[0], hasLength(kProgressBatchMaxItems));
+      expect(batches[1], hasLength(50));
+      expect(await harness.storeFor('u1p1').pendingProgressOutbox(), isEmpty);
+    });
+
+    test('a failing chunk stops the flush and leaves its rows queued',
+        () async {
+      var calls = 0;
+      final repo = _ScriptedReaderRepository();
+      when(() => repo.saveProgressBatch(any())).thenAnswer((_) async {
+        calls++;
+        if (calls == 1) return const Ok((saved: 1, advanced: 1));
+        return const Err(NetworkError(message: 'offline'));
+      });
+
+      await enqueueDistinct(250);
+      final container = buildContainer(repo);
+      await container.read(progressOutboxControllerProvider).flush();
+
+      // The accepted chunk is settled; the refused one is still pending, and
+      // nothing after it was sent out of order.
+      expect(calls, 2);
+      final pending = await harness.storeFor('u1p1').pendingProgressOutbox();
+      expect(pending, hasLength(50));
+    });
+
+    test('a 413 no longer wedges the outbox — the next flush drains it',
+        () async {
+      var refuse = true;
+      final repo = _ScriptedReaderRepository();
+      when(() => repo.saveProgressBatch(any())).thenAnswer((_) async {
+        if (refuse) {
+          return const Err(
+            ApiError(
+              statusCode: 413,
+              code: 'batch_too_large',
+              message: 'Too many progress items in one batch.',
+              details: {'max_items': 100, 'received': 250},
+            ),
+          );
+        }
+        return const Ok((saved: 1, advanced: 1));
+      });
+
+      await enqueueDistinct(250);
+      final container = buildContainer(repo);
+      final controller = container.read(progressOutboxControllerProvider);
+      await controller.flush();
+
+      expect(
+        await harness.storeFor('u1p1').pendingProgressOutbox(),
+        hasLength(250),
+      );
+
+      // The refusal named a smaller cap; the retry has to respect it rather
+      // than posting the same oversized batch again.
+      refuse = false;
+      await controller.flush();
+
+      final batches = verify(() => repo.saveProgressBatch(captureAny()))
+          .captured
+          .cast<List<ProgressPush>>();
+      expect(batches.skip(1).every((batch) => batch.length <= 100), isTrue);
+      expect(await harness.storeFor('u1p1').pendingProgressOutbox(), isEmpty);
+    });
+
+    test('a chapter read across many pages is collapsed to one item', () async {
+      final repo = _ScriptedReaderRepository();
+      when(() => repo.saveProgressBatch(any()))
+          .thenAnswer((_) async => const Ok((saved: 1, advanced: 1)));
+
+      final store = harness.storeFor('u1p1');
+      for (var page = 1; page <= 300; page++) {
+        await store.enqueueProgress(_push(lastPage: page));
+      }
+
+      final container = buildContainer(repo);
+      await container.read(progressOutboxControllerProvider).flush();
+
+      final batches = verify(() => repo.saveProgressBatch(captureAny()))
+          .captured
+          .cast<List<ProgressPush>>();
+      expect(batches, hasLength(1));
+      expect(batches.single, hasLength(1));
+      expect(batches.single.single.lastPage, 300);
+      expect(await store.pendingProgressOutbox(), isEmpty);
     });
   });
 }

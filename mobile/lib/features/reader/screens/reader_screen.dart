@@ -15,6 +15,7 @@ import 'package:manhwamaniacs/features/reader/providers/series_reading_order_pro
 import 'package:manhwamaniacs/features/reader/utils/reader_anchor.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_feed_controller.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
+import 'package:manhwamaniacs/features/reader/utils/reading_clock.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_skeleton.dart';
@@ -89,6 +90,15 @@ class ReaderScreen extends ConsumerWidget {
       ref.invalidate(resolvedReaderChapterProvider(_key));
     }
 
+    // This route is nested under the library tab root, so `go`-ing between
+    // chapters always rebuilds the shell beneath it and a plain pop has
+    // somewhere to land — unlike the novel reader, which is top-level and
+    // where the same shape left Back doing nothing at all. Routed through
+    // [leaveReader] anyway so one function owns the answer for both readers
+    // and this one cannot acquire the bug by being re-parented later.
+    void back() =>
+        leaveReader(context, sourceId: sourceId, seriesKey: seriesKey);
+
     return resolvedAsync.when(
       loading: () => const ReaderSkeleton(),
       error: (error, _) {
@@ -98,7 +108,7 @@ class ReaderScreen extends ConsumerWidget {
         return ReaderErrorState(
           error: appError,
           onRetry: retry,
-          onBack: () => context.pop(),
+          onBack: back,
         );
       },
       data: (resolved) {
@@ -106,7 +116,7 @@ class ReaderScreen extends ConsumerWidget {
           return ReaderErrorState(
             error: const UnknownError(message: 'This chapter has no pages.'),
             onRetry: retry,
-            onBack: () => context.pop(),
+            onBack: back,
           );
         }
 
@@ -229,6 +239,12 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
   /// number, not just the key — it is the axis that survives a source change.
   final Map<String, double?> _numbers = {};
 
+  /// How long this reader has been read, for the reading-time statistic. One
+  /// clock for the whole feed rather than one per chapter: reading across a
+  /// seam is continuous, and the delta is filed against whichever chapter the
+  /// push that collects it belongs to.
+  final ReadingClock _clock = ReadingClock(DateTime.now());
+
   ChapterManifestKey _keyFor(String chapterKey) => (
         sourceId: widget.sourceId,
         seriesKey: widget.seriesKey,
@@ -290,7 +306,11 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
       scrollStorageKey: '$sourceId:$seriesKey:${widget.chapterKey}',
       initialPage: widget.initialPage,
       initialAnchor: widget.initialAnchor,
-      onBack: () => context.pop(),
+      onBack: () => leaveReader(
+        context,
+        sourceId: sourceId,
+        seriesKey: seriesKey,
+      ),
       onOpenSeries: () => openSeriesFromReader(
         context,
         sourceId: sourceId,
@@ -325,6 +345,7 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
             lastPage: page,
             pageCount: chapter.pageCount,
             isCompleted: isCompleted,
+            timeSpentSeconds: _clock.elapsed(DateTime.now()),
           ),
         );
         if (isCompleted) {
