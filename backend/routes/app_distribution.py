@@ -134,6 +134,19 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.4.2",
+        build=35,
+        date="September 2026",
+        highlights=[
+            "Read all stops sending you back. When the chapter you opened at "
+            "re-resolved \u2014 the same chapter, a new object \u2014 the reader "
+            "threw the whole run away and started again from where you first "
+            "tapped, which after three chapters is three chapters back. The "
+            "check meant to prevent that compared object identity, so it never "
+            "once matched",
+        ],
+    ),
+    ChangelogEntry(
         version="2.4.1",
         build=34,
         date="September 2026",
