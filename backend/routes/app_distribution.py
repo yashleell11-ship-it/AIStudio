@@ -134,6 +134,41 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.1.0",
+        build=30,
+        date="September 2026",
+        highlights=[
+            "Android now runs at the full refresh rate the panel supports. "
+            "The app had been inheriting the display default mode, which on "
+            "nearly every "
+            "90/120/144 Hz phone is 60 Hz \u2014 so it was drawing at half the "
+            "rate the hardware offers. There is a setting if you want the "
+            "battery back",
+            "Covers load at the size they are actually drawn. A browse page "
+            "went from 20.5 MB to 1.4 MB on a phone \u2014 measured against "
+            "live images, not estimated",
+            "Sixty-four sources, every one verified end to end from the server "
+            "\u2014 not just that it lists series, but that a page image "
+            "really downloads. Four that could not serve pages were removed "
+            "rather than left to waste a tap",
+            "MangaKatana went from 23 seconds to 4. Project Gutenberg took "
+            "194 seconds to open its browse page and now takes under 3, "
+            "because it reads Gutenberg's own catalogue instead of a mirror",
+            "Everyone gets their own settings. Themes, design presets and "
+            "reader defaults were reachable only by the owner's account, so "
+            "anyone else who signed up was locked out of everything the last "
+            "release added",
+            "The web readers stop repainting on every scroll frame \u2014 prose "
+            "no longer re-renders a whole chapter each percent you scroll, and "
+            "the manga strip's page memoisation actually works now",
+            "A privacy fix: stored chapter transcripts could be read across "
+            "profiles and ignored the 18+ setting. They are now scoped to the "
+            "profile that made them",
+            "The install page at app.manhwamaniacs.xyz is a real page instead "
+            "of raw JSON, and the app finally has its own icon on Android",
+        ],
+    ),
+    ChangelogEntry(
         version="2.0.0",
         build=29,
         date="September 2026",
