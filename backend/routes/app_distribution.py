@@ -134,6 +134,40 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.4.0",
+        build=33,
+        date="September 2026",
+        highlights=[
+            "Read all stops throwing you backwards. It holds three chapters "
+            "and slides the window as you read; sliding backwards dropped a "
+            "chapter above you without moving the scroll with it, so you lost "
+            "your place by a whole chapter \u2014 and scrolling back to find it "
+            "put you in range to be thrown again",
+            "Read all stops resizing under the reading line on the web. "
+            "Chapters were being measured before they had ever been on screen, "
+            "and a cold guess for a long strip is five to ten times short, so "
+            "every page corrected itself as you reached it",
+            "Back works in the novel reader. The button did nothing and the "
+            "Android gesture closed the app mid-book",
+            "The screen stops staying awake after reading a novel. It was "
+            "never being released, for the rest of the session",
+            "Where you left off is one rule now. Finishing a chapter cleanly "
+            "sent Continue back to chapter one, and the phone, the website and "
+            "the home strip each answered the question differently",
+            "Two privacy fixes: stored chapter transcripts could be uploaded "
+            "and read by any signed-in account, and switching the 18+ setting "
+            "off cleared four of the nine caches it filters, leaving mature "
+            "series visible in the other five",
+            "A page that fails to load says so, instead of leaving 2,600 "
+            "pixels of nothing to scroll past",
+            "Novels open in the novel reader from a notification, and are "
+            "reachable from a phone browser",
+            "Search runs once per word instead of once per keystroke, the "
+            "notification badge polls once a minute instead of every fifteen "
+            "seconds, and the home screen makes its three requests together",
+        ],
+    ),
+    ChangelogEntry(
         version="2.3.0",
         build=32,
         date="September 2026",
