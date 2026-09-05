@@ -401,10 +401,35 @@ class SourceCacheService:
             self._touch_cover(row)
             return row.media_type, bytes(row.data), width
 
+        # The stale-serve fallback, snapshotted as plain values: the pooled
+        # connection is released below and ``row`` must not be read after that.
+        stale = (
+            (row.media_type, bytes(row.data), row.fetched_at)
+            if row is not None
+            else None
+        )
+
+        # Release the pooled DB connection BEFORE the upstream fetch.
+        #
+        # Reading the cache row checks a connection out of the engine's pool
+        # and the session holds it until the transaction ends -- so without
+        # this, a connection stays checked out across a live fetch that may
+        # take the whole image-proxy timeout, plus the Pillow resize after it.
+        # The pool is 15 connections (5 + 10 overflow) against a 40-thread
+        # request pool, so one dead-but-not-yet-timing-out source painted
+        # across a cover grid exhausts it: requests with nothing to do with
+        # covers -- the library list, saving progress, the reader manifest --
+        # queue for ``pool_timeout`` and then fail with a raw QueuePool error.
+        # The blast radius was the whole app rather than the one bad source.
+        # The session transparently checks a connection back out when
+        # ``_store_cover`` needs one.
+        self._db.rollback()
+
         try:
             media_type, data = self._browse.resolve_series_cover(source_id, series_key)
         except (AppError, Exception):  # noqa: BLE001 - cache must degrade
-            if row is not None:
+            if stale is not None:
+                stale_media_type, stale_data, stale_fetched_at = stale
                 logger.warning(
                     "cover_cache: connector failed for %s/%s, serving stale "
                     "(w=%d fmt=%s, fetched %s)",
@@ -412,10 +437,12 @@ class SourceCacheService:
                     key[1],
                     width,
                     fmt,
-                    row.fetched_at,
+                    stale_fetched_at,
                 )
-                self._touch_cover(row)
-                return row.media_type, bytes(row.data), width
+                refreshed = self._cover_row(key)
+                if refreshed is not None:
+                    self._touch_cover(refreshed)
+                return stale_media_type, stale_data, width
             raise
 
         resized = resize_cover(data, width=width, fmt=fmt)
