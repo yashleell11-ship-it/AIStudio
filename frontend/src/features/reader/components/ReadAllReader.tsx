@@ -169,6 +169,7 @@ export function ReadAllReader({
       onRetryNext={strip.retryNext}
       bookmarkPending={bookmark.pending}
       showBookmark
+      continuousOnly
     />
   );
 }

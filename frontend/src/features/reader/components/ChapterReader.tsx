@@ -129,6 +129,19 @@ interface ChapterReaderProps {
   preloadNextChapter?: () => Promise<ReadonlyArray<{ imageUrl: string }>>;
   bookmarkPending?: boolean;
   showBookmark?: boolean;
+  /**
+   * Pin the reader to the strip, whatever this series' saved layout says.
+   *
+   * A run through a whole series IS a scroll: the paged modes render only the
+   * ACTIVE chapter's pages, the position report that moves the run from one
+   * chapter to the next comes from the strip alone, and "next chapter" there
+   * falls through to a route — which navigates out of the run and back into the
+   * ordinary single-chapter reader. Read-all sets this so a reader who once
+   * chose two-page mode for a manga does not get one chapter and a silent exit.
+   * The preference itself is untouched, so leaving the run restores their
+   * layout.
+   */
+  continuousOnly?: boolean;
 }
 
 /** How long the "opened at the nearest page" explanation stays up. */
@@ -186,6 +199,7 @@ export function ChapterReader({
   preloadNextChapter,
   bookmarkPending,
   showBookmark = true,
+  continuousOnly = false,
 }: ChapterReaderProps) {
   const router = useRouter();
   const scrollElement = useScrollContainer();
@@ -208,7 +222,7 @@ export function ChapterReader({
   } = useReaderSettings();
 
   const {
-    readingMode,
+    readingMode: preferredReadingMode,
     fitMode,
     direction,
     zoom,
@@ -216,6 +230,9 @@ export function ChapterReader({
     hydrated: preferencesReady,
     update: updatePreferences,
   } = useReaderPreferences(seriesKey);
+  // Resolved once, here, so every layout decision below — the view builder, the
+  // page-turn handlers, the chrome — reads the mode the reader is actually in.
+  const readingMode = continuousOnly ? "continuous" : preferredReadingMode;
   const fullscreen = useFullscreen();
 
   const scrollSaveTimerRef = useRef<number | null>(null);
@@ -1203,6 +1220,7 @@ export function ChapterReader({
           onZoomReset={resetZoom}
           readingMode={readingMode}
           onReadingModeChange={changeReadingMode}
+          readingModeLocked={continuousOnly}
           fitMode={fitMode}
           onFitModeChange={(mode) => updatePreferences({ fitMode: mode })}
           direction={direction}

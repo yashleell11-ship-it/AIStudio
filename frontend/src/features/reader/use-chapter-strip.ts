@@ -140,10 +140,25 @@ export function useChapterStrip({
     identityRef.current = identity;
   }, [chapters, identity, source]);
 
+  /**
+   * Open the strip.
+   *
+   * On the WINDOW rather than on the entry chapter alone: the extend effect
+   * below cannot fire until this one has resolved and landed, so asking for one
+   * chapter here puts the second request strictly after the first — two serial
+   * round trips through a bucket that allows six a minute, before a page has
+   * painted. A source that can name what follows the entry chapter answers with
+   * the whole look-ahead in one call; one that cannot still answers with one key
+   * and nothing changes for it.
+   */
   useEffect(() => {
     if (!ready) return;
     let cancelled = false;
-    void sourceRef.current.fetch([identity.entryChapterKey]).then((result) => {
+    const keys = sourceRef.current.entryKeys(
+      identity.entryChapterKey,
+      stripWindow.ahead + 1,
+    );
+    void sourceRef.current.fetch(keys).then((result) => {
       if (cancelled) return;
       if (result.chapters.length === 0) {
         setEntryError(result.error ?? "That chapter did not load.");
@@ -154,7 +169,7 @@ export function useChapterStrip({
     return () => {
       cancelled = true;
     };
-  }, [identity, ready]);
+  }, [identity, ready, stripWindow.ahead]);
 
   /**
    * Keep the queue ahead of the reader full.
@@ -223,13 +238,17 @@ export function useChapterStrip({
 
   const loadPrevious = useCallback(() => {
     if (loadingPrevious) return;
-    const key = sourceRef.current.keyBefore(chaptersRef.current);
-    if (!key) return;
+    // A window, not the one chapter the gesture asked for: the source decides
+    // how many its transport carries per call, and for the bulk endpoint a
+    // chapter at a time would make going backwards six times dearer than going
+    // forwards through the same per-call rate bucket.
+    const keys = sourceRef.current.keysBefore(chaptersRef.current, 1);
+    if (keys.length === 0) return;
     const identityAtRequest = identityRef.current;
     setLoadingPrevious(true);
-    readerDebug("strip-prepend-requested", { key });
+    readerDebug("strip-prepend-requested", { keys });
     void sourceRef.current
-      .fetch([key])
+      .fetch(keys)
       .then((result) => {
         // The strip this was asked for may have been replaced meanwhile; its
         // pages must not be pushed onto whatever took its place.

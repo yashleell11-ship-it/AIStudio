@@ -336,6 +336,34 @@ export interface FrozenChapterHeight {
  * shapes, say — has to index it the way the strip does, and `page.number` is
  * the source's numbering, which is not required to agree.
  */
+/**
+ * Whether a released chapter's frozen row heights should be REMEMBERED.
+ *
+ * Freezing exists to preserve what was measured. A chapter the reader has never
+ * seen has nothing to preserve: none of its pages was ever on screen, so every
+ * height {@link freezeChapterHeight} produces for it is the running average of
+ * OTHER chapters — and remembering that turns one frame's guess into a
+ * permanent measurement, which the strip will then honour when the reader
+ * finally arrives instead of re-estimating from everything learnt since.
+ *
+ * Read-all makes that the common case: it fetches six chapters a window and
+ * renders two either side, so the chapters at the far end are released without
+ * ever having been rendered.
+ *
+ * The one place the guess must still be kept is a never-seen chapter BEHIND the
+ * reader (a multi-chapter prepend can leave one there). Expanding that chapter
+ * happens above the reading line, where a change in total height moves the page
+ * under the reader — so there height-neutrality beats accuracy, and the pages'
+ * own corrections as they decode are scroll-compensated one at a time.
+ */
+export function shouldPersistFrozenHeights(
+  chapterIndex: number,
+  activeIndex: number,
+  rendered: boolean,
+): boolean {
+  return rendered || chapterIndex < activeIndex;
+}
+
 export function freezeChapterHeight(
   chapter: StripChapter,
   measured: ReadonlyMap<string, number>,

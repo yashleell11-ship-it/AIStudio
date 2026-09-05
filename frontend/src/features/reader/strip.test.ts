@@ -9,6 +9,7 @@ import {
   nextChapterLabelFor,
   releasedChapterKeys,
   shouldExtendAhead,
+  shouldPersistFrozenHeights,
   stripChapterLabel,
   stripPositionAt,
   type StripChapter,
@@ -280,6 +281,32 @@ describe("freezeChapterHeight", () => {
       total: 0,
       frozen: [],
     });
+  });
+});
+
+describe("shouldPersistFrozenHeights", () => {
+  it("remembers a chapter the reader has actually seen", () => {
+    // Its rows carry real measurements; releasing and expanding must be
+    // height-neutral, which is only true if those numbers are kept.
+    expect(shouldPersistFrozenHeights(5, 3, true)).toBe(true);
+  });
+
+  it("forgets a never-seen chapter ahead of the reader", () => {
+    // Read-all fetches six chapters a window and renders two either side, so
+    // the far end is released without ever having been on screen. Every height
+    // for it is the running average of other chapters — a guess that would
+    // otherwise be honoured as a measurement when the reader arrives.
+    expect(shouldPersistFrozenHeights(5, 2, false)).toBe(false);
+  });
+
+  it("still remembers a never-seen chapter BEHIND the reader", () => {
+    // A multi-chapter prepend can leave one there, and it expands above the
+    // reading line, where a change in total height moves the page under them.
+    expect(shouldPersistFrozenHeights(0, 3, false)).toBe(true);
+  });
+
+  it("treats the reader's own chapter as ahead", () => {
+    expect(shouldPersistFrozenHeights(3, 3, false)).toBe(false);
   });
 });
 

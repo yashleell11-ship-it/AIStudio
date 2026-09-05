@@ -1,7 +1,14 @@
 import type { QueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/types/api";
 import { manifestToChapterContent, readerApi, type ChapterManifest } from "./api";
-import { keyBefore, orderedLabel, windowAfter, type OrderedChapter } from "./read-all";
+import {
+  keyBefore,
+  orderedLabel,
+  windowAfter,
+  windowBefore,
+  windowFrom,
+  type OrderedChapter,
+} from "./read-all";
 import { READER_CHAPTER_STALE_MS, readerManifestQueryKey } from "./hooks";
 import { nextChapterLabelFor, type StripChapter } from "./strip";
 
@@ -15,10 +22,31 @@ import { nextChapterLabelFor, type StripChapter } from "./strip";
  * that come next, then fetch them", which is this interface.
  */
 export interface StripSource {
+  /**
+   * The window the strip OPENS with: up to `count` keys starting at the entry
+   * chapter itself.
+   *
+   * Separate from `keysAfter` because the strip has nothing loaded yet and
+   * cannot ask "what follows this". A source that can name the chapters after
+   * the entry one answers with them, so opening a run costs a single round trip
+   * instead of one for the entry chapter and a second, strictly after it, for
+   * the window behind it.
+   */
+  entryKeys(entryChapterKey: string, count: number): string[];
   /** Up to `count` keys following the loaded tail. Empty at the end of the series. */
   keysAfter(loaded: readonly StripChapter[], count: number): string[];
   /** The key immediately before the loaded head, or null at the start. */
   keyBefore(loaded: readonly StripChapter[]): string | null;
+  /**
+   * Up to `count` keys before the loaded head, in reading order.
+   *
+   * `keyBefore` names the one chapter the head could grow into; this names the
+   * window worth asking for in one request. A source whose transport carries
+   * many chapters per call widens `count` on its own, exactly as `keysAfter`
+   * does — scrolling backwards must not cost a round trip per chapter when
+   * going forwards costs one per six.
+   */
+  keysBefore(loaded: readonly StripChapter[], count: number): string[];
   /**
    * What to call the chapter just outside one end of the strip.
    *
@@ -101,6 +129,11 @@ export function linkedChapterSource(
   };
 
   return {
+    entryKeys(entryChapterKey) {
+      // A chapter's own links are all this source has, and they are inside the
+      // manifest it has not fetched yet. The window can only be the one key.
+      return [entryChapterKey];
+    },
     keysAfter(loaded, count) {
       const last = loaded[loaded.length - 1];
       if (!last?.nextChapterKey || count <= 0) return [];
@@ -108,6 +141,10 @@ export function linkedChapterSource(
     },
     keyBefore(loaded) {
       return loaded[0]?.previousChapterKey ?? null;
+    },
+    keysBefore(loaded, count) {
+      const key = loaded[0]?.previousChapterKey;
+      return key && count > 0 ? [key] : [];
     },
     edgeLabel(loaded, direction) {
       const edge = direction === "next" ? loaded[loaded.length - 1] : loaded[0];
@@ -144,6 +181,18 @@ const BULK_WINDOW_STRIDE = 6;
 const BULK_WINDOW_CAP = 20;
 
 /**
+ * Chapters per window when the strip grows BACKWARDS.
+ *
+ * Deliberately shorter than the forward stride. Going forwards a Read-all
+ * reader has declared they are reading the rest of the series, so the chance
+ * every chapter in the window gets shown is close to one and a full stride is
+ * honest. Backwards is a single overscroll gesture: half a stride is enough
+ * that re-reading the last couple of chapters does not cost a round trip each,
+ * without spending six upstream scrapes on a maybe.
+ */
+const BULK_BACKWARD_STRIDE = 3;
+
+/**
  * Read-all's source: an ordered series list plus the bulk manifest endpoint.
  *
  * Two things it does that the linked source cannot. It knows the real reading
@@ -169,23 +218,46 @@ export function bulkChapterSource(
     return manifest ? manifestToChapterContent(manifest) : undefined;
   };
 
+  /**
+   * The cap actually in force. `cap` is only the assumption held until the
+   * server states its own, which `MM_READER_BULK_MAX_CHAPTERS` can retune at
+   * any time: a window over that cap comes back 413 for the WHOLE window, which
+   * stops a run dead with no retry, so the answer's `max_chapters` replaces it.
+   */
+  let windowCap = Math.max(1, Math.floor(cap));
+
   return {
+    entryKeys(entryChapterKey, count) {
+      const window = windowFrom(order, entryChapterKey, count, windowCap);
+      // An entry chapter outside the series list can still be read on its own;
+      // opening on nothing at all would be the worse answer.
+      return window.length > 0 ? window : [entryChapterKey];
+    },
     keysAfter(loaded, count) {
       return windowAfter(
         order,
         loaded[loaded.length - 1]?.chapterKey,
         count,
         BULK_WINDOW_STRIDE,
-        cap,
+        windowCap,
       );
     },
     keyBefore(loaded) {
       return keyBefore(order, loaded[0]?.chapterKey);
     },
+    keysBefore(loaded, count) {
+      return windowBefore(
+        order,
+        loaded[0]?.chapterKey,
+        Math.max(count, BULK_BACKWARD_STRIDE),
+        windowCap,
+      );
+    },
     edgeLabel(loaded, direction) {
       const key =
         direction === "next"
-          ? windowAfter(order, loaded[loaded.length - 1]?.chapterKey, 1, 1, cap)[0] ?? null
+          ? windowAfter(order, loaded[loaded.length - 1]?.chapterKey, 1, 1, windowCap)[0] ??
+            null
           : keyBefore(order, loaded[0]?.chapterKey);
       return orderedLabel(order, key);
     },
@@ -201,6 +273,10 @@ export function bulkChapterSource(
             { sourceId, seriesKey },
             missing,
           );
+          // The server's cap wins from the first answer that carries one.
+          if (Number.isFinite(response.max_chapters) && response.max_chapters > 0) {
+            windowCap = Math.max(1, Math.floor(response.max_chapters));
+          }
           for (const item of response.items) {
             if (item.status === "ok" && item.manifest) {
               queryClient.setQueryData(

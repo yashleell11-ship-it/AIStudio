@@ -31,6 +31,7 @@ import {
   findStripRow,
   freezeChapterHeight,
   releasedChapterKeys,
+  shouldPersistFrozenHeights,
   stripPositionAt,
   type StripChapter,
   type StripPosition,
@@ -50,9 +51,6 @@ const PREFETCH_AHEAD = PRELOAD_AHEAD_CONTINUOUS;
 
 /** The thin separator height (`pb-2` = 0.5rem) when the page-gap setting is on. */
 const PAGE_GAP_PX = 8;
-
-/** Re-measure the virtualizer when the running average shifts more than this. */
-const ESTIMATE_DRIFT_RATIO = 0.12;
 
 /**
  * The divider's exact rendered height, fixed rather than measured.
@@ -263,7 +261,10 @@ export const ContinuousStrip = memo(function ContinuousStrip({
   // real extent immediately.
   const ratiosRef = useRef<Map<string, (number | null)[]>>(new Map());
   const dirtyChaptersRef = useRef<Set<string>>(new Set());
-  const lastAvgEstimateRef = useRef(0);
+  // Chapters at least one of whose pages has actually decoded on screen. A
+  // chapter that has not is one whose heights are all guesses (see
+  // `shouldPersistFrozenHeights`), which Read-all produces on every window.
+  const renderedChaptersRef = useRef<Set<string>>(new Set());
   const layoutKeyRef = useRef<string | null>(null);
   const firstChapterKeyRef = useRef<string | null>(null);
   const onPositionChangeRef = useRef(onPositionChange);
@@ -448,7 +449,6 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     measuredByKeyRef.current = new Map();
     releasedHeightsRef.current = new Map();
     heightSamplesRef.current = EMPTY_HEIGHT_SAMPLES;
-    lastAvgEstimateRef.current = 0;
     setReleased(EMPTY_RELEASED);
     virtualizer.measure();
     // `virtualizer` identity churns per render; this must run on layout change.
@@ -564,30 +564,28 @@ export const ContinuousStrip = memo(function ContinuousStrip({
 
   /**
    * Fold a page's real rendered height into the running average that backs
-   * `estimateSize`. When the average has moved far enough that off-screen
-   * estimates are now visibly wrong, ask the virtualizer to recompute — this
-   * converges after the first handful of pages and then goes quiet.
+   * `estimateSize`.
+   *
+   * Nothing is invalidated here on purpose. A drifting average used to trigger
+   * `virtualizer.measure()`, which is `itemSizeCache.clear()` — EVERY row,
+   * including the ones above the reader, re-derived with no scroll
+   * compensation, so a run crossing from page-scan chapters into webtoon ones
+   * jumped on the frame the average moved. It was never needed: a row that has
+   * never been measured is not in that cache at all, so it is re-estimated from
+   * these samples on the next measurement pass regardless, and this write
+   * triggers one.
    */
-  const recordMeasuredHeight = useCallback(
-    (key: string, height: number) => {
-      if (!(height > 0)) return;
-      const previous = measuredByKeyRef.current.get(key);
-      if (previous != null && Math.abs(previous - height) < 1) return;
-      measuredByKeyRef.current.set(key, height);
-      heightSamplesRef.current = recordHeight(
-        heightSamplesRef.current,
-        previous,
-        height,
-      );
-      const avg = estimateFromSamples(heightSamplesRef.current, height);
-      const last = lastAvgEstimateRef.current;
-      if (last === 0 || Math.abs(avg - last) / last > ESTIMATE_DRIFT_RATIO) {
-        lastAvgEstimateRef.current = avg;
-        virtualizer.measure();
-      }
-    },
-    [virtualizer],
-  );
+  const recordMeasuredHeight = useCallback((key: string, height: number) => {
+    if (!(height > 0)) return;
+    const previous = measuredByKeyRef.current.get(key);
+    if (previous != null && Math.abs(previous - height) < 1) return;
+    measuredByKeyRef.current.set(key, height);
+    heightSamplesRef.current = recordHeight(
+      heightSamplesRef.current,
+      previous,
+      height,
+    );
+  }, []);
 
   const reportPosition = useCallback(() => {
     const strip = rowsRef.current;
@@ -640,6 +638,7 @@ export const ContinuousStrip = memo(function ContinuousStrip({
           dirtyChaptersRef.current.add(chapterKey);
         }
       }
+      renderedChaptersRef.current.add(chapterKey);
 
       const element = virtualizer.elementsCache.get(rowKey);
       if (element) {
@@ -649,10 +648,10 @@ export const ContinuousStrip = memo(function ContinuousStrip({
         // aspect ratio — reading it back here would feed the estimate its own
         // guess and the running average would never learn anything.
         //
-        // The DOM read is still the fallback, and still taken BEFORE
-        // `measureElement`: that call ends by correcting the scroll offset to
-        // absorb the height change, and a read taken after that write has to
-        // flush layout a second time.
+        // The DOM read is still the fallback for a page the browser resolved no
+        // intrinsic size for, and still taken BEFORE anything is written back:
+        // a write ends by correcting the scroll offset to absorb the height
+        // change, and a read after it has to flush layout a second time.
         const height =
           ratio != null
             ? Math.round(
@@ -660,7 +659,20 @@ export const ContinuousStrip = memo(function ContinuousStrip({
               ) + (pageGapRef.current ? PAGE_GAP_PX : 0)
             : Math.round(element.getBoundingClientRect().height);
         if (height > 0) {
-          virtualizer.measureElement(element);
+          // Handed the derived height rather than `measureElement`, which reads
+          // the DOM back — the same placeholder box the note above explains is
+          // a lie. Publishing that put a third, wrong number in the size cache
+          // and left the ResizeObserver (already watching this node, from the
+          // ref below) to correct it a frame later, so every unknown-dimension
+          // page resized twice. The observer still confirms this one; it just
+          // agrees with it now. `data-index` is the attribute the virtualizer
+          // resolves an element's index by itself.
+          const index = Number(element.getAttribute("data-index"));
+          if (ratio != null && Number.isInteger(index)) {
+            virtualizer.resizeItem(index, height);
+          } else {
+            virtualizer.measureElement(element);
+          }
           recordMeasuredHeight(rowKey, height);
         }
       }
@@ -694,6 +706,14 @@ export const ContinuousStrip = memo(function ContinuousStrip({
    * that replaces them is exactly as tall as they were and expanding it again
    * puts every page back where it was. That is what lets a Read-all session
    * cross a hundred chapters without the strip ever lurching.
+   *
+   * Two things are deliberate about WHICH chapters get frozen numbers written
+   * down. A chapter re-entering the released set is re-frozen rather than left
+   * on the height it had the first time — it has been read since, so its real
+   * measurements are what the spacer must stand at, and its cold first guess
+   * would collapse the strip above the reader. And a chapter that has never
+   * been rendered keeps no per-page numbers at all: see
+   * `shouldPersistFrozenHeights`.
    */
   useEffect(() => {
     if (activeChapterKey === null) return;
@@ -704,20 +724,29 @@ export const ContinuousStrip = memo(function ContinuousStrip({
       return;
     }
 
-    for (const chapter of chapters) {
-      if (!next.has(chapter.chapterKey) || releasedHeightsRef.current.has(chapter.chapterKey)) {
-        continue;
-      }
+    chapters.forEach((chapter, index) => {
+      // Already released and untouched since: the numbers it was frozen at are
+      // still the numbers its spacer is standing on.
+      if (!next.has(chapter.chapterKey) || released.has(chapter.chapterKey)) return;
       const { total, frozen } = freezeChapterHeight(
         chapter,
         measuredByKeyRef.current,
         (page, pageNumber) => pageRowHeight(page, chapter.chapterKey, pageNumber),
       );
+      releasedHeightsRef.current.set(chapter.chapterKey, total);
+      if (
+        !shouldPersistFrozenHeights(
+          index,
+          activeIndex,
+          renderedChaptersRef.current.has(chapter.chapterKey),
+        )
+      ) {
+        return;
+      }
       for (const [key, height] of frozen) {
         measuredByKeyRef.current.set(key, height);
       }
-      releasedHeightsRef.current.set(chapter.chapterKey, total);
-    }
+    });
 
     // A released chapter is done being measured, so its shapes are final: this
     // is the natural moment to write them down, and it keeps a Read-all session
