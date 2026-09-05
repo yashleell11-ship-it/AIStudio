@@ -78,6 +78,7 @@ export function buildSaveRequest({
     chapterKey: chapter.chapterKey,
     title: chapter.title,
     seriesTitle: chapter.seriesTitle ?? null,
+    medium: "manga",
     scope,
     profileId: scope.profileId,
     documentUrl: absoluteUrl(

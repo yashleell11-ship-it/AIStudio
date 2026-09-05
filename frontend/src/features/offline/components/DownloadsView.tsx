@@ -20,6 +20,10 @@ import { GlassPanel } from "@/components/premium/GlassPanel";
 import { HeroHeading } from "@/components/premium/HeroHeading";
 import { cn } from "@/lib/cn";
 import { readerChapterHref, seriesPageHref } from "@/features/reader/reader-link";
+import { CONTENT_MODE_COPY, useContentMode } from "@/features/content-mode";
+// Direct rather than through the `@/features/novels` barrel, which pulls in the
+// novel reader — this screen only links into it.
+import { novelChapterHref } from "@/features/novels/novel-link";
 import {
   clearOfflineScope,
   refreshOfflineState,
@@ -35,6 +39,7 @@ import {
   formatBytes,
   formatDueIn,
   groupBySeries,
+  isSavedNovel,
   savePercent,
   summariseStorage,
 } from "../format";
@@ -65,6 +70,11 @@ export function DownloadsView() {
   const scope = useStorageScope();
   const state = useOfflineState();
   const online = useOnlineStatus();
+  // Scoped to the active mode like every other list, but off the entry's own
+  // recorded medium rather than through the `/sources` index: this is the one
+  // screen that has to be right with no network at all, and a source listing
+  // that never arrives would otherwise file every saved book under manga.
+  const { mode, novelsEnabled } = useContentMode();
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
@@ -131,8 +141,11 @@ export function DownloadsView() {
     setPersisted(await requestPersistentStorage());
   }, []);
 
-  const summary = summariseStorage(state.entries, state.estimate);
-  const groups = groupBySeries(state.entries);
+  const entries = novelsEnabled
+    ? state.entries.filter((entry) => (isSavedNovel(entry) ? "novel" : "manga") === mode)
+    : state.entries;
+  const summary = summariseStorage(entries, state.estimate);
+  const groups = groupBySeries(entries);
 
   return (
     <div className="page-shell bg-bg">
@@ -265,7 +278,11 @@ export function DownloadsView() {
             ) : groups.length === 0 ? (
               <EmptyState
                 icon={CloudOff}
-                title="Nothing downloaded yet"
+                title={
+                  novelsEnabled
+                    ? `No ${CONTENT_MODE_COPY[mode].plural} downloaded yet`
+                    : "Nothing downloaded yet"
+                }
                 description={
                   <>
                     Pick chapters on a series page and press{" "}
@@ -385,16 +402,21 @@ function SavedChapterRow({
   const description = describeEntry(entry);
   const dueAt = expiryDueAt(entry, retentionMs);
   const percent = savePercent(entry);
+  const ref = {
+    sourceId: entry.sourceId,
+    seriesKey: entry.seriesKey,
+    chapterKey: entry.chapterKey,
+  };
+  // Off the entry's own medium, not off `useChapterHref`: this row has to
+  // resolve with no network, and prose opened through the page reader renders
+  // "This chapter has no pages." over bytes that are all present.
+  const href = isSavedNovel(entry) ? novelChapterHref(ref) : readerChapterHref(ref);
 
   return (
     <li className="flex items-center gap-3 border-b border-border/40 px-5 py-3 last:border-b-0">
       <div className="min-w-0 flex-1">
         <Link
-          href={readerChapterHref({
-            sourceId: entry.sourceId,
-            seriesKey: entry.seriesKey,
-            chapterKey: entry.chapterKey,
-          })}
+          href={href}
           className="block truncate text-sm text-fg transition-colors hover:text-primary"
         >
           {entry.title}

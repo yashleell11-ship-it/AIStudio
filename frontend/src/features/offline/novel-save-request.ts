@@ -65,6 +65,7 @@ export function buildNovelSaveRequest({
     chapterKey: ref.chapterKey,
     title,
     seriesTitle,
+    medium: "novel",
     scope,
     profileId: scope.profileId,
     documentUrl: absoluteUrl(novelChapterHref(ref), origin),

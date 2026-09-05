@@ -1,5 +1,5 @@
 import type { StorageScope } from "@/lib/scoped-storage";
-import type { OfflineWorkerState } from "./types";
+import type { OfflineWorkerState, SavedChapterMedium } from "./types";
 
 /**
  * The page ↔ service worker message contract.
@@ -37,6 +37,15 @@ export interface SaveChapterRequest {
   chapterKey: string;
   title: string;
   seriesTitle: string | null;
+  /**
+   * Which reader this chapter belongs to.
+   *
+   * Carried explicitly rather than inferred from an empty `imageUrls`: the
+   * `/downloads` screen has to name a reader for a row it never opened, and
+   * guessing sent every saved book to the page reader, which answers "This
+   * chapter has no pages."
+   */
+  medium: SavedChapterMedium;
   scope: StorageScope;
   profileId: number;
   /** The reader route, so a cold offline start has a document to render. */

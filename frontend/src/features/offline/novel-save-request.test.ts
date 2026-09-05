@@ -59,6 +59,10 @@ describe("buildNovelSaveRequest", () => {
     expect(request.key).toBe("chapter:novelbin:book/lotm:ch/12");
   });
 
+  it("labels the plan prose, so /downloads names the right reader", () => {
+    expect(request.medium).toBe("novel");
+  });
+
   it("stores no images — the text is the chapter", () => {
     expect(request.imageUrls).toEqual([]);
     expect(request.extraUrls).toEqual([request.payloadUrl]);

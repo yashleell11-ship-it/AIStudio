@@ -360,6 +360,7 @@ export async function readIndex(
 
 export interface IndexEntry {
   key: string;
+  medium: string;
   savedPages: number;
   pageCount: number;
   bytes: number;

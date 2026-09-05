@@ -63,6 +63,7 @@ function savePayload(scope: { userId: number; profileId: number }) {
     chapterKey: CHAPTER,
     title: "Chapter 50",
     seriesTitle: "Solo Levelling",
+    medium: "manga",
     scope,
     profileId: scope.profileId,
     documentUrl: DOCUMENT_URL,
@@ -156,6 +157,7 @@ describe("saving a chapter", () => {
     expect(index?.entries[KEY].status).toBe("ready");
     expect(index?.entries[KEY].savedPages).toBe(2);
     expect(index?.entries[KEY].bytes).toBeGreaterThan(0);
+    expect(index?.entries[KEY].medium).toBe("manga");
   });
 
   it("uses the payload the page already had instead of asking again", async () => {
@@ -748,6 +750,10 @@ describe("downloading a novel", () => {
       pageCount: 0,
       failed: 0,
       stale: false,
+      // /downloads reads this to open prose in the novel reader. Without it the
+      // row linked to the page reader, which answers "This chapter has no
+      // pages." over bytes that are all present.
+      medium: "novel",
     });
   });
 
