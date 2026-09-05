@@ -21,6 +21,7 @@ import {
   lineStyleFor,
   peakHour,
   readingStatusBreakdown,
+  scopeBreakdowns,
   seriesTitle,
   sourceShares,
   STATISTICS_RANGES,
@@ -28,9 +29,13 @@ import {
 import type {
   DailyReading,
   HourlyReading,
+  RecentSession,
+  SeriesReading,
   SourceReading,
   Statistics,
 } from "./types";
+import type { SourceSummary } from "@/features/sources/types";
+import { buildSourceModeIndex, matchesContentMode } from "@/features/content-mode";
 
 function day(date: string, over: Partial<DailyReading> = {}): DailyReading {
   return {
@@ -301,6 +306,152 @@ describe("sourceShares", () => {
     const zeroed = rows.map((row) => ({ ...row, pages_read: 0 }));
     expect(sourceShares(zeroed).every((row) => row.percent === 0)).toBe(true);
     expect(sourceShares([])).toEqual([]);
+  });
+});
+
+describe("scopeBreakdowns", () => {
+  // The real index the screen builds, so the scoping under test is the one
+  // production runs — including "a source the listing does not carry is manga".
+  const sources: SourceSummary[] = [
+    {
+      id: "asura",
+      name: "Asura Scans",
+      description: "",
+      browsable: true,
+      supports_import: false,
+      content_kind: "manga",
+    },
+    {
+      id: "novelbin",
+      name: "NovelBin",
+      description: "",
+      browsable: true,
+      supports_import: false,
+      content_kind: "novel",
+    },
+  ];
+  const index = buildSourceModeIndex(sources);
+  const keep = (mode: "manga" | "novel") => (sourceId: string) =>
+    matchesContentMode(sourceId, index, mode);
+
+  const bySource: SourceReading[] = [
+    {
+      source_id: "asura",
+      name: "Asura Scans",
+      sessions: 10,
+      pages_read: 150,
+      chapters_read: 8,
+      series_read: 2,
+      seconds_read: 5000,
+    },
+    {
+      source_id: "novelbin",
+      name: "NovelBin",
+      sessions: 6,
+      pages_read: 50,
+      chapters_read: 4,
+      series_read: 1,
+      seconds_read: 2400,
+    },
+  ];
+
+  const seriesRow = (source_id: string, series_key: string): SeriesReading => ({
+    source_id,
+    series_key,
+    title: series_key,
+    cover_url: null,
+    last_read_at: null,
+    sessions: 1,
+    pages_read: 10,
+    chapters_read: 1,
+    seconds_read: 300,
+  });
+
+  const session = (source_id: string): RecentSession => ({
+    source_id,
+    series_key: `${source_id}/s`,
+    chapter_key: `${source_id}/s/1`,
+    chapter_number: 1,
+    title: null,
+    pages_read: 5,
+    seconds_read: 200,
+    started_at: "2026-09-04T08:00:00",
+    ended_at: "2026-09-04T08:04:00",
+  });
+
+  const payload = stats({
+    followed_total: 12,
+    chapters_completed: 40,
+    totals: {
+      sessions: 16,
+      pages_read: 200,
+      chapters_read: 12,
+      series_read: 3,
+      seconds_read: 7400,
+      first_session_at: "2026-01-01T00:00:00",
+      last_session_at: "2026-09-04T08:04:00",
+    },
+    window: {
+      sessions: 16,
+      pages_read: 200,
+      chapters_read: 12,
+      series_read: 3,
+      seconds_read: 7400,
+    },
+    streak: { current_days: 9, longest_days: 21, last_active_date: "2026-09-04" },
+    daily: [day("2026-09-04", { sessions: 16, pages_read: 200 })],
+    by_source: bySource,
+    by_series: [seriesRow("asura", "solo-leveling"), seriesRow("novelbin", "shadow-slave")],
+    recent_sessions: [session("asura"), session("novelbin"), session("gone")],
+  });
+
+  it("scopes all three source-carrying lists, not just one of them", () => {
+    const novels = scopeBreakdowns(payload, keep("novel"));
+    expect(novels.by_source.map((row) => row.source_id)).toEqual(["novelbin"]);
+    expect(novels.by_series.map((row) => row.series_key)).toEqual(["shadow-slave"]);
+    expect(novels.recent_sessions.map((row) => row.source_id)).toEqual(["novelbin"]);
+
+    const manga = scopeBreakdowns(payload, keep("manga"));
+    expect(manga.by_source.map((row) => row.source_id)).toEqual(["asura"]);
+    expect(manga.by_series.map((row) => row.series_key)).toEqual(["solo-leveling"]);
+    // An id the source listing no longer carries reads as manga, so a removed
+    // connector's history keeps showing where it shows today.
+    expect(manga.recent_sessions.map((row) => row.source_id)).toEqual(["asura", "gone"]);
+  });
+
+  it("leaves every aggregate exactly as the server computed it", () => {
+    // The deliberate half of the split: totals, streak, daily and the clock
+    // describe the reader across both media and are not rebuildable per mode.
+    const novels = scopeBreakdowns(payload, keep("novel"));
+    expect(novels.totals).toEqual(payload.totals);
+    expect(novels.window).toEqual(payload.window);
+    expect(novels.streak).toEqual(payload.streak);
+    expect(novels.daily).toEqual(payload.daily);
+    expect(novels.by_hour).toEqual(payload.by_hour);
+    expect(novels.followed_total).toBe(payload.followed_total);
+    expect(novels.chapters_completed).toBe(payload.chapters_completed);
+  });
+
+  it("re-bases the source bars on the mode, so they still read as shares", () => {
+    // 50 of 200 pages overall, but all of the novel reading — the bar has to
+    // say 100%, not 25%, or "Where you read" describes a list it is not showing.
+    const shares = sourceShares(scopeBreakdowns(payload, keep("novel")).by_source);
+    expect(shares).toHaveLength(1);
+    expect(shares[0].percent).toBe(100);
+  });
+
+  it("changes nothing while novels are disabled", () => {
+    // `keepSource` is true for every row on a dark deployment, so the screen
+    // renders the identical payload however many lists are wired through here.
+    const scoped = scopeBreakdowns(payload, () => true);
+    expect(scoped).toEqual(payload);
+  });
+
+  it("survives a payload whose breakdowns are empty", () => {
+    const bare = scopeBreakdowns(stats(), keep("novel"));
+    expect(bare.by_source).toEqual([]);
+    expect(bare.by_series).toEqual([]);
+    expect(bare.recent_sessions).toEqual([]);
   });
 });
 

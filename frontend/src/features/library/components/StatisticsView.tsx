@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import {
@@ -11,6 +11,7 @@ import {
   Layers,
   TriangleAlert,
 } from "lucide-react";
+import { useContentModeFilter, type ContentMode } from "@/features/content-mode";
 import { libraryCoverUrl } from "@/features/library/api";
 import { useStatistics } from "@/features/library/hooks";
 import {
@@ -28,6 +29,7 @@ import {
   isWindowEmpty,
   peakHour,
   readingStatusBreakdown,
+  scopeBreakdowns,
   seriesTitle,
   sourceShares,
   STATISTICS_RANGE_LABELS,
@@ -444,10 +446,20 @@ function LoadingSkeleton() {
 export function StatisticsView() {
   const [range, setRange] = useState<StatisticsRange>(DEFAULT_STATISTICS_RANGE);
   const statsQuery = useStatistics(range);
-  const stats = statsQuery.data;
+  // Scoped to the active content mode the way every other list screen is, and
+  // a no-op when the server has novels off. Only the three source-carrying
+  // lists move — see `scopeBreakdowns` for why the aggregates do not.
+  const { keepSource, ready: modeReady, mode, novelsEnabled } = useContentModeFilter();
+  const stats = useMemo(
+    () => (statsQuery.data ? scopeBreakdowns(statsQuery.data, keepSource) : undefined),
+    [keepSource, statsQuery.data],
+  );
 
   const viewState = resolveViewState({
-    isLoading: statsQuery.isLoading,
+    // Held on `modeReady` so the breakdowns are never drawn against an empty
+    // source index, which in Novels mode is every row filtered out: a frame of
+    // "nothing read yet" before the real lists arrive.
+    isLoading: statsQuery.isLoading || !modeReady,
     error: statsQuery.error,
     // Empty means the profile has NEVER read and follows nothing — the common
     // case on a fresh profile, and the one case where a grid of zeroes would
@@ -496,7 +508,12 @@ export function StatisticsView() {
             secondaryAction={{ label: "Go to library", href: "/library", variant: "secondary" }}
           />
         ) : stats ? (
-          <StatisticsContent stats={stats} range={range} />
+          <StatisticsContent
+            stats={stats}
+            range={range}
+            mode={mode}
+            novelsEnabled={novelsEnabled}
+          />
         ) : null}
       </div>
     </div>
@@ -506,9 +523,13 @@ export function StatisticsView() {
 function StatisticsContent({
   stats,
   range,
+  mode,
+  novelsEnabled,
 }: {
   stats: Statistics;
   range: StatisticsRange;
+  mode: ContentMode;
+  novelsEnabled: boolean;
 }) {
   const rangeLabel = STATISTICS_RANGE_LABELS[range].toLowerCase();
   const everRead = hasReadingHistory(stats);
@@ -534,6 +555,17 @@ function StatisticsContent({
 
   return (
     <div className="space-y-6">
+      {/* The lists below are scoped to the mode and the numbers above them are
+          not. Saying which is which costs one line and is the whole difference
+          between a deliberate split and a page that looks wrong. */}
+      {novelsEnabled ? (
+        <p className="text-sm text-muted">
+          Streak, totals and the charts cover everything you read; the source,
+          series and session lists are {mode === "novel" ? "novels" : "manga"}{" "}
+          only.
+        </p>
+      ) : null}
+
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
           icon={BookOpen}
