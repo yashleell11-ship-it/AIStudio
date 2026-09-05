@@ -6,6 +6,8 @@ bookmarks CRUD — real request/response with ``as_user`` + ``X-Profile-Id``.
 
 from __future__ import annotations
 
+from datetime import datetime
+
 import pytest
 
 from services.browse_service import get_browse_service
@@ -182,3 +184,62 @@ def test_bookmarks_crud(api, h):
     assert api.get("/reader/bookmarks", headers=h).json() == []
 
     assert api.delete("/reader/bookmarks/999999", headers=h).status_code == 404
+
+
+# --- the device's own clock on a progress push -----------------------------
+
+
+def test_an_offline_push_can_carry_the_time_it_was_actually_recorded(api, h):
+    """``ProgressInput.last_read_at`` existed and the merge used it, but no
+    route ever populated it — so every push was stamped at flush time.
+
+    That is the one place furthest-wins is genuinely undermined: on a position
+    tie the merge takes the incoming scroll offset when the incoming push is
+    more recent, and a week-old offline push claiming "now" always is. Replay
+    a flight's worth of reading and it overwrites a position set on the web an
+    hour ago, and jumps to the head of Continue Reading (ordered by
+    ``last_read_at``) on a chapter that is not the one read most recently.
+    """
+    fresh = _save(api, h, last_page=5, scroll_offset_px=9000).json()
+    assert fresh["scroll_offset_px"] == 9000
+
+    stale = _save(
+        api,
+        h,
+        last_page=5,
+        scroll_offset_px=100,
+        last_read_at="2026-08-29T12:00:00Z",
+    ).json()
+
+    # Same position, older push → the newer server value stands.
+    assert stale["scroll_offset_px"] == 9000
+
+
+def test_a_push_without_the_field_still_behaves_as_now(api, h):
+    """The shipped clients do not send it yet, so omitting it must keep the
+    old semantics: the push is the most recent read."""
+    _save(api, h, last_page=5, scroll_offset_px=9000)
+    newer = _save(api, h, last_page=5, scroll_offset_px=123).json()
+    assert newer["scroll_offset_px"] == 123
+
+
+def test_a_future_device_clock_cannot_pin_itself_to_the_head_of_the_strip(api, h):
+    """``last_read_at`` orders Continue Reading, so an unclamped future stamp
+    is not one odd row: it is rank 1 for that series until the date passes."""
+    from datetime import timedelta
+
+    from core.time_utils import utcnow
+
+    saved = _save(
+        api, h, last_page=5, last_read_at="2099-01-01T00:00:00Z"
+    ).json()
+    assert saved["last_read_at"] is not None
+    stamped = datetime.fromisoformat(saved["last_read_at"].replace("Z", ""))
+    assert stamped < utcnow() + timedelta(hours=1)
+
+
+def test_an_offset_aware_timestamp_is_normalized_rather_than_crashing(api, h):
+    """The columns are naive UTC and a client is free to send +05:30;
+    comparing the two mid-merge is a TypeError."""
+    ok = _save(api, h, last_page=5, last_read_at="2026-08-29T17:30:00+05:30")
+    assert ok.status_code == 200, ok.text

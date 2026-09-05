@@ -41,7 +41,7 @@ from __future__ import annotations
 import json
 import uuid
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Annotated, Any, Iterable, Sequence
 
 from fastapi import Depends
@@ -58,7 +58,9 @@ from core.content_rating import (
 )
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
-from core.time_utils import utcnow
+# to_naive_utc is re-exported here: it is imported from this module by
+# callers and tests that think of it as part of the bookmark merge.
+from core.time_utils import to_naive_utc, utcnow
 from database.models import (
     BOOKMARK_MEDIA_MANGA,
     BOOKMARK_MEDIA_NOVEL,
@@ -171,23 +173,6 @@ def decide(stored: StoredState | None, op: BookmarkOp, *, now: datetime) -> str:
     if (op.updated_at or now) <= stored.updated_at:
         return STATUS_STALE
     return STATUS_UPDATED
-
-
-def to_naive_utc(value: datetime | None) -> datetime | None:
-    """A client clock, forced into the naive-UTC the DB columns hold.
-
-    Every timestamp column here is a naive SQLite ``DATETIME`` meaning UTC
-    (see ``core.time_utils``), while a client is free to send
-    ``2026-09-05T10:00:00Z`` or ``+05:30``. Comparing an aware datetime with a
-    naive one is a ``TypeError``, so an offline flush carrying a normal
-    ISO-8601 timestamp would 500 in the middle of :func:`decide` — convert at
-    the boundary, once, and everything downstream stays naive.
-    """
-    if value is None:
-        return None
-    if value.tzinfo is None:
-        return value
-    return value.astimezone(timezone.utc).replace(tzinfo=None)
 
 
 def clamp_fraction(value: float | None) -> float:
