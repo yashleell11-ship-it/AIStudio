@@ -43,13 +43,13 @@ Future<void> _pumpChip(
   await tester.pumpWidget(
     ProviderScope(
       overrides: await _overrides(novelsEnabled: novelsEnabled),
-      child: const MaterialApp(
+      child: MaterialApp(
         home: Scaffold(
           appBar: AppBar(
-            title: Text('Downloads'),
-            actions: [ContentModeChip()],
+            title: const Text('Downloads'),
+            actions: const [ContentModeChip()],
           ),
-          body: SizedBox.shrink(),
+          body: const SizedBox.shrink(),
         ),
       ),
     ),
