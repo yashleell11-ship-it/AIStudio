@@ -134,6 +134,32 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.3.0",
+        build=32,
+        date="September 2026",
+        highlights=[
+            "Downloads on the web, from the page you are already looking at. "
+            "Every chapter row shows whether it is saved, you can tick several "
+            "at once or use Next 10 and All unread, and a whole book saves in "
+            "one action. Saving was previously possible only from inside the "
+            "reader, one chapter at a time",
+            "The downloads page can remove a whole series at once, because "
+            "undoing a twenty-chapter save one bin icon at a time is not an "
+            "undo",
+            "Search on some sources returned the first page forever. Scrolling "
+            "past it silently repeated the same results",
+            "Sources that need a POST were being turned away by their own "
+            "front door. A shared piece of the fetching code sent header names "
+            "in lower case, which reads as a bot, and two sources had been "
+            "working around it rather than it being fixed",
+            "The design preset called Flat on the web is called Matte on the "
+            "phone. It is one preset, so it now has one name",
+            "The 18+ rule had grown five separate copies while it was being "
+            "fixed. There is one of it now, and the tests that hold it "
+            "reach every screen instead of one each",
+        ],
+    ),
+    ChangelogEntry(
         version="2.2.0",
         build=31,
         date="September 2026",
