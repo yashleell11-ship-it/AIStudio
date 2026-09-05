@@ -60,8 +60,19 @@ const SEARCH_DEBOUNCE_MS = 220;
  */
 const SERIES_RESULT_LIMIT = 8;
 
-/** The shortest query worth a round trip. One character matches nearly everything. */
-const MIN_QUERY_LENGTH = 2;
+/**
+ * The shortest query worth a round trip.
+ *
+ * One, i.e. anything that is not blank. It was two, on the reasoning that a
+ * single character matches nearly everything and so is not worth asking for —
+ * but "nearly everything, ranked" is a perfectly good answer to one letter, and
+ * withholding it made the palette look broken for the length of a keystroke.
+ * What this costs is one `GET /library/search` against the profile's own
+ * followed set: an indexed query over a personal shelf, capped at
+ * {@link SERIES_RESULT_LIMIT} rows, debounced by {@link SEARCH_DEBOUNCE_MS}.
+ * That is not the federated fan-out — nothing here touches a source connector.
+ */
+const MIN_QUERY_LENGTH = 1;
 
 /**
  * A result row's thumbnail, `size-8`. The palette opens on every `/` keypress
@@ -160,8 +171,8 @@ function CommandPaletteDialog({ onClose }: { onClose: () => void }) {
   }, [query]);
 
   const trimmedQuery = query.trim();
-  // Derived rather than stored: backing out to one character has to stop the
-  // search immediately, and computing it here avoids a second state write (and
+  // Derived rather than stored: clearing the box has to stop the search
+  // immediately, and computing it here avoids a second state write (and
   // the render it would cost) on every keystroke. While a longer query settles,
   // the previous answer deliberately stays on screen instead of blanking, and
   // `isSearching` says so.

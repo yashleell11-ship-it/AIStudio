@@ -10,6 +10,7 @@ import { useIsNovelSource } from "@/features/novels/hooks";
 import { NovelShelf } from "@/features/novels/components/NovelShelf";
 import { useLoadMoreOnScroll } from "@/lib/use-load-more-on-scroll";
 import { useShortcut } from "@/lib/keyboard";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import {
   useInfiniteSourceSeries,
   useRefreshSourceBrowse,
@@ -23,6 +24,17 @@ import { BrowseFreshness } from "./BrowseFreshness";
 import { SourceBrowseLoading } from "./SourceBrowseLoading";
 import { SourceLogo } from "./SourceLogo";
 import { SourceSeriesGrid } from "./SourceSeriesGrid";
+
+/**
+ * How long this box waits before it searches.
+ *
+ * The same 300 ms the global search box takes, for a much smaller reason: this
+ * queries ONE source, so a keystroke here costs a single upstream request
+ * rather than a fan-out across the whole registry. The wait is here so holding
+ * a key down does not queue a request per character against one site's
+ * politeness budget — not because the search is expensive.
+ */
+const SEARCH_DEBOUNCE_MS = 300;
 
 interface SourceBrowserViewProps {
   sourceId: string;
@@ -44,7 +56,10 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
 
   const initialGenre = searchParams.get("genre") ?? "";
   const [search, setSearch] = useState("");
-  const [query, setQuery] = useState("");
+  // Searches as it is typed, like every other box in the app. It used to run
+  // only on submit, so typing into it and waiting — which is what a search box
+  // teaches you to do — showed the unfiltered catalogue indefinitely.
+  const [query, searchNow] = useDebouncedValue(search.trim(), SEARCH_DEBOUNCE_MS);
   const [sort, setSort] = useState("default");
   const [genre, setGenre] = useState(initialGenre);
   const [prevInitialGenre, setPrevInitialGenre] = useState(initialGenre);
@@ -123,10 +138,6 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
     [genreOptions, router, searchParams, sourceId],
   );
 
-  const submitSearch = useCallback(() => {
-    setQuery(search.trim());
-  }, [search]);
-
   const loadMore = useCallback(() => {
     if (seriesQuery.hasNextPage && !seriesQuery.isFetchingNextPage) {
       void seriesQuery.fetchNextPage();
@@ -186,7 +197,9 @@ export function SourceBrowserView({ sourceId }: SourceBrowserViewProps) {
           className="flex w-full max-w-2xl flex-col gap-2 sm:flex-row sm:items-center"
           onSubmit={(event) => {
             event.preventDefault();
-            submitSearch();
+            // Enter and the button skip the wait: whoever pressed one has
+            // plainly finished typing.
+            searchNow();
           }}
         >
           <label className="flex w-full min-w-0 flex-1 flex-col gap-1 sm:max-w-[11rem]">

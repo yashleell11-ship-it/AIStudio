@@ -26,6 +26,28 @@ const WORKER_SOURCE = readFileSync(new URL("../../../public/sw.js", import.meta.
 export const ORIGIN = "https://manhwa.example";
 export const API_BASE = `${ORIGIN}/api`;
 
+/**
+ * The generations the shipped policy is currently on, read from it rather than
+ * written down here.
+ *
+ * A test that spells a cache name out in full — `"mm-api-v2-u1p10"` — fails the
+ * next time either generation is bumped, which is a deliberate and correct act
+ * (RUNTIME_VERSION is the escape hatch for a bad caching rule) and should not
+ * look like a broken worker. Suites build their names from these instead.
+ */
+const policyGenerations = (() => {
+  const host: Record<string, unknown> = {};
+  new Function("self", POLICY_SOURCE)(host);
+  const policy = host.MMOfflinePolicy as {
+    RUNTIME_VERSION: string;
+    CONTENT_VERSION: string;
+  };
+  return policy;
+})();
+
+export const RUNTIME_VERSION = policyGenerations.RUNTIME_VERSION;
+export const CONTENT_VERSION = policyGenerations.CONTENT_VERSION;
+
 interface StoredResponse {
   body: string;
   status: number;

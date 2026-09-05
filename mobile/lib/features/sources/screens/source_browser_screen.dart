@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -45,6 +47,13 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
   /// frame spent there, only to be thrown away by `loadMore`'s own guard.
   bool _canLoadMore = false;
 
+  /// Holds the search back until typing settles. 300 ms, the same wait the
+  /// federated search box takes, for a much smaller reason: this queries ONE
+  /// source, so a keystroke costs a single upstream request rather than a
+  /// fan-out across the registry. It is here so holding a key down does not
+  /// queue a request per character against one site's politeness budget.
+  Timer? _searchDebounce;
+
   @override
   void initState() {
     super.initState();
@@ -53,6 +62,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
 
   @override
   void dispose() {
+    _searchDebounce?.cancel();
     _searchController.dispose();
     _scrollController.dispose();
     _showBackToTop.dispose();
@@ -69,16 +79,39 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
     ref.read(sourceBrowseProvider(widget.sourceId).notifier).loadMore();
   }
 
+  /// Searches as it is typed. This box used to run only when the keyboard's
+  /// Search key was pressed, so typing into it and waiting — which is what a
+  /// search box teaches you to do — left the unfiltered catalogue on screen
+  /// indefinitely.
+  void _onSearchChanged(String value) {
+    _searchDebounce?.cancel();
+    _searchDebounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _applySearch(value),
+    );
+  }
+
+  /// Skips the wait: whoever pressed the keyboard's Search key, or the arrow
+  /// beside the box, has plainly finished typing.
   void _submitSearch() {
-    final q = _searchController.text.trim();
-    ref.read(sourceBrowseQueryProvider(widget.sourceId).notifier).state =
-        ref.read(sourceBrowseQueryProvider(widget.sourceId)).copyWith(search: q);
+    _searchDebounce?.cancel();
+    _applySearch(_searchController.text);
   }
 
   void _clearSearch() {
+    _searchDebounce?.cancel();
     _searchController.clear();
-    ref.read(sourceBrowseQueryProvider(widget.sourceId).notifier).state =
-        ref.read(sourceBrowseQueryProvider(widget.sourceId)).copyWith(search: '');
+    _applySearch('');
+  }
+
+  void _applySearch(String value) {
+    final q = value.trim();
+    final notifier = ref.read(sourceBrowseQueryProvider(widget.sourceId).notifier);
+    // The provider re-fetches on any state write, so a no-op keystroke — a
+    // trailing space, a character typed and deleted inside the debounce — must
+    // not become a request.
+    if (notifier.state.search == q) return;
+    notifier.state = notifier.state.copyWith(search: q);
   }
 
   @override
@@ -166,6 +199,7 @@ class _SourceBrowserScreenState extends ConsumerState<SourceBrowserScreen> {
                 contentPadding: const EdgeInsets.symmetric(vertical: 10),
               ),
               textInputAction: TextInputAction.search,
+              onChanged: _onSearchChanged,
               onSubmitted: (_) => _submitSearch(),
             ),
           ),

@@ -28,12 +28,18 @@ class _FakeSourcesRepository implements SourcesRepository {
   final List<SourceSeriesSummary> browseItems;
   int browseCalls = 0;
 
+  /// Every query the screen actually asked for, in order. A federated search
+  /// fans out across the whole registry, so *how many* of these there are for a
+  /// given piece of typing is the load the debounce exists to bound.
+  final queries = <String>[];
+
   @override
   Future<Result<GroupedSearchResult>> searchGrouped(
     String query, {
     int page = 1,
     int perPage = 40,
   }) async {
+    queries.add(query);
     if (error != null) return Err(error!);
     return Ok(result ?? const GroupedSearchResult());
   }
@@ -336,6 +342,60 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('SOURCE demonicscans md-1'), findsOneWidget);
+    });
+  });
+
+  group('SearchScreen (when the query is sent)', () {
+    testWidgets('searches on the first character, not the second',
+        (tester) async {
+      final repo = _FakeSourcesRepository();
+      await _pumpSearch(tester, repo);
+
+      await _search(tester, 'a');
+
+      expect(repo.queries, ['a']);
+    });
+
+    testWidgets('sends one query per pause, not one per keystroke',
+        (tester) async {
+      // The guarantee that makes searching from one character affordable: this
+      // is a fan-out across every installed connector, so a request per
+      // keystroke queues them on each other behind the per-source politeness
+      // budget. Typing three characters inside the debounce must cost one.
+      final repo = _FakeSourcesRepository();
+      await _pumpSearch(tester, repo);
+
+      for (final term in ['s', 'so', 'sol']) {
+        await tester.enterText(find.byType(TextField), term);
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(repo.queries, isEmpty, reason: 'still mid-word');
+
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.pumpAndSettle();
+
+      expect(repo.queries, ['sol']);
+    });
+
+    testWidgets("the keyboard's Search key does not wait for the debounce",
+        (tester) async {
+      final repo = _FakeSourcesRepository();
+      await _pumpSearch(tester, repo);
+
+      await tester.enterText(find.byType(TextField), 'solo');
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(repo.queries, isEmpty);
+
+      await tester.testTextInput.receiveAction(TextInputAction.search);
+      await tester.pump();
+
+      // Asked already, well inside the 300 ms the timer still had to run.
+      expect(repo.queries, ['solo']);
+
+      // And the cancelled timer does not fire a second, identical fan-out.
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.pumpAndSettle();
+      expect(repo.queries, ['solo']);
     });
   });
 }

@@ -98,6 +98,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     ref.read(searchQueryProvider.notifier).state = value.trim();
   }
 
+  /// Skips the debounce. The field asks for a Search key
+  /// (`TextInputAction.search`) and then ignored it, so the one gesture that
+  /// says "I have finished typing" was the one that did nothing.
+  void _submitSearch(String value) {
+    _searchDebounce?.cancel();
+    ref.read(searchQueryProvider.notifier).state = value.trim();
+  }
+
   Future<void> _persistRecentSearch(String trimmedQuery) async {
     if (trimmedQuery.length < 2 || _lastPersistedQuery == trimmedQuery) return;
     _lastPersistedQuery = trimmedQuery;
@@ -224,6 +232,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             recentSearches: _recentSearches,
             searchController: _searchController,
             onSearchChanged: _onSearchChanged,
+            onSubmitSearch: _submitSearch,
             onSelectSuggestion: _applySuggestion,
             onGroupFilterChanged: (value) =>
                 ref.read(searchGroupFilterProvider.notifier).state = value,
@@ -326,6 +335,7 @@ class _SearchHeader extends StatelessWidget {
     required this.recentSearches,
     required this.searchController,
     required this.onSearchChanged,
+    required this.onSubmitSearch,
     required this.onSelectSuggestion,
     required this.onGroupFilterChanged,
     this.state,
@@ -341,6 +351,7 @@ class _SearchHeader extends StatelessWidget {
   final List<String> recentSearches;
   final TextEditingController searchController;
   final ValueChanged<String> onSearchChanged;
+  final ValueChanged<String> onSubmitSearch;
   final ValueChanged<String> onSelectSuggestion;
   final ValueChanged<SearchGroupFilter> onGroupFilterChanged;
 
@@ -372,6 +383,7 @@ class _SearchHeader extends StatelessWidget {
         TextField(
           controller: searchController,
           onChanged: onSearchChanged,
+          onSubmitted: onSubmitSearch,
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             prefixIcon: Icon(Icons.search, color: context.colors.muted),

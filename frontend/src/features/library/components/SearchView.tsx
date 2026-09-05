@@ -169,7 +169,14 @@ export function SearchView() {
   // searching so the first letter draws skeletons instead of flashing "No
   // results found" for the length of the debounce.
   const debouncePending = trimmedQuery !== settledQuery;
-  const searching = searchQuery.isLoading || debouncePending;
+  // `isFetching`, not `isLoading`. `placeholderData` keeps the PREVIOUS query's
+  // results on screen while the new one runs, which is right — but `isLoading`
+  // is false the whole time it does, so the header used to label those stale
+  // rows "N results found" and print the scope line for a query that is no
+  // longer the one in the box. On a fan-out that can take twelve seconds, that
+  // is the whole of "it doesn't update while I type": the answer on screen is
+  // the last word's, and nothing says so.
+  const searching = searchQuery.isFetching || debouncePending;
   // The flat `items` list is the backend's legacy view; sections are rendered
   // from `groups` so a source that failed or returned nothing says so itself.
   // Scoped to the active content mode. A group's `source` is null for the

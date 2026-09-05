@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   API_BASE,
+  CONTENT_VERSION,
   ORIGIN,
+  RUNTIME_VERSION,
   createHarness,
   readIndex,
   route,
@@ -24,8 +26,8 @@ import { buildNovelSaveRequest } from "./novel-save-request";
 
 const ALICE = { userId: 1, profileId: 10 };
 const BOB = { userId: 1, profileId: 11 };
-const ALICE_CACHE = "mm-offline-c2-u1p10";
-const BOB_CACHE = "mm-offline-c2-u1p11";
+const ALICE_CACHE = `mm-offline-${CONTENT_VERSION}-u1p10`;
+const BOB_CACHE = `mm-offline-${CONTENT_VERSION}-u1p11`;
 
 const SOURCE = "asura";
 const SERIES = "series/solo-levelling";
@@ -39,7 +41,7 @@ const PAYLOAD =
   `?source=${SOURCE}&series=${encodeURIComponent(SERIES)}&chapter=${encodeURIComponent(CHAPTER)}`;
 const DOCUMENT_URL = `${ORIGIN}/reader/${SOURCE}/${encodeURIComponent(SERIES)}/ch/50`;
 const BOOKMARKS = `${API_BASE}/reader/bookmarks`;
-const ALICE_API_CACHE = "mm-api-v2-u1p10";
+const ALICE_API_CACHE = `mm-api-${RUNTIME_VERSION}-u1p10`;
 
 const CHAPTER_BODY = JSON.stringify({
   source_id: SOURCE,
@@ -104,21 +106,21 @@ beforeEach(() => {
 describe("install and activate", () => {
   it("precaches the offline fallback so there is always something to render", async () => {
     await harness.dispatchInstall();
-    const shell = harness.cacheFor("mm-shell-v2");
+    const shell = harness.cacheFor(`mm-shell-${RUNTIME_VERSION}`);
     expect(await shell?.match("/offline-fallback.html")).toBeTruthy();
   });
 
   it("warms the installed app's start_url", async () => {
     await harness.dispatchInstall();
     await harness.dispatchActivate();
-    const pages = harness.cacheFor("mm-pages-v2");
+    const pages = harness.cacheFor(`mm-pages-${RUNTIME_VERSION}`);
     expect(await pages?.match("/library")).toBeTruthy();
   });
 
   it("warms /downloads, the one page the offline fallback links to", async () => {
     await harness.dispatchInstall();
     await harness.dispatchActivate();
-    const pages = harness.cacheFor("mm-pages-v2");
+    const pages = harness.cacheFor(`mm-pages-${RUNTIME_VERSION}`);
     expect(await pages?.match("/downloads")).toBeTruthy();
   });
 
@@ -310,7 +312,7 @@ describe("reading with no network", () => {
       route(harness, url, { body: `series ${index}` });
       await harness.dispatchFetch({ url, mode: "navigate" });
     }
-    const pages = harness.cacheFor("mm-pages-v2");
+    const pages = harness.cacheFor(`mm-pages-${RUNTIME_VERSION}`);
     expect((await (pages as { keys(): Promise<unknown[]> }).keys()).length).toBeLessThanOrEqual(
       60,
     );
@@ -505,7 +507,7 @@ describe("stale-while-revalidate", () => {
 
     const third = await harness.dispatchFetch({ url: listUrl });
     expect(await third.response?.text()).toBe('["second"]');
-    expect(await harness.cacheNames()).toContain("mm-api-v2-u1p10");
+    expect(await harness.cacheNames()).toContain(ALICE_API_CACHE);
   });
 
   it("caches nothing per-profile when there is no profile", async () => {
