@@ -4,8 +4,9 @@ A single process-wide limiter, keyed by the real client IP as reported by the
 outermost proxy (the app runs behind Caddy/Cloudflare, so the socket peer is
 the proxy — see :func:`client_ip` for why that is *not* X-Forwarded-For).
 Applied selectively to the expensive/abusable endpoints — auth
-(login/register), the admin backup restore-upload, and source proxying
-(browse/search/cover/page-image) — via the per-bucket limit callables below.
+(login/register), the admin backup restore-upload, source proxying
+(browse/search/cover/page-image), the bulk chapter windows, and the OCR
+transcript upload — via the per-bucket limit callables below.
 
 The limit *values* are read from Settings on every request, so they stay
 env-configurable (MM_RATE_LIMIT_AUTH / _IMPORT / _SOURCES) without touching
@@ -117,6 +118,19 @@ def bulk_limit() -> str:
     would multiply the effective outbound rate by twenty. Sized in
     ``Settings.rate_limit_bulk`` (MM_RATE_LIMIT_BULK)."""
     return get_settings().rate_limit_bulk
+
+
+def ocr_limit() -> str:
+    """Limit for POST /ocr/chapter.
+
+    Every other limited route is bounded by what it costs *upstream*; this one
+    is bounded by disk. An accepted upload is up to 2 MB of text plus its FTS5
+    index — ~3.8 MB of SQLite measured — and SQLite here is not a cache but the
+    entire application state, on a volume small enough to fill. With no bucket,
+    one logged-in account fills it in minutes and every write in the app starts
+    failing: no progress, no bookmarks, no logins. Sized in
+    ``Settings.rate_limit_ocr`` (MM_RATE_LIMIT_OCR)."""
+    return get_settings().rate_limit_ocr
 
 
 def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:

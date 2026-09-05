@@ -36,9 +36,9 @@ def h(as_user, acct):
 
 @pytest.fixture
 def follows(seed_follow, acct):
-    """Reading a transcript back is follow-scoped; the upload bounds these
-    tests are about are not, so the follow is just what makes the read-back
-    assertions observable."""
+    """The caller's library. Uploading is follow-scoped too now, so any test
+    whose upload is meant to be ACCEPTED needs this; the rejection tests below
+    are refused by the payload validator before the service is ever reached."""
     uid, pid = acct
     seed_follow(uid, pid, source_id=SRC, series_key=SERIES)
 
@@ -117,7 +117,7 @@ def test_free_form_box_junk_is_dropped_not_stored(client, h, follows):
     assert "huge_extra" not in box
 
 
-def test_normal_upload_still_works(client, h):
+def test_normal_upload_still_works(client, h, follows):
     pages = [
         {"page": 1, "text": "line one", "boxes": [{"text": "line one", "x": 0.0}]},
         {"page": 2, "text": "line two"},
@@ -125,3 +125,69 @@ def test_normal_upload_still_works(client, h):
     up = _upload(client, h, pages)
     assert up.status_code == 200, up.text
     assert up.json()["word_count"] == 4
+
+
+# --- the row count, not just the payload size -----------------------------
+
+
+@pytest.fixture
+def tiny_chapter_cap(monkeypatch):
+    """Two chapters per series, so the ceiling is reachable in a test."""
+    from core.config import get_settings
+
+    monkeypatch.setenv("MM_MAX_OCR_CHAPTERS_PER_SERIES", "2")
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def _upload_chapter(client, h, chapter_key):
+    return client.post(
+        "/ocr/chapter",
+        json={
+            "source_id": SRC,
+            "series_key": SERIES,
+            "chapter_key": chapter_key,
+            "engine": "mlkit",
+            "pages": [{"page": 1, "text": "dialogue"}],
+        },
+        headers=h,
+    )
+
+
+def test_chapter_rows_per_series_are_capped(client, h, follows, tiny_chapter_cap):
+    """``chapter_key`` is an opaque connector string nothing validates against
+    the source, so the follow gate alone still leaves one axis unbounded: a
+    contributor may mint rows under invented chapter keys forever, each worth
+    up to the whole-payload ceiling."""
+    assert _upload_chapter(client, h, "c1").status_code == 200
+    assert _upload_chapter(client, h, "c2").status_code == 200
+
+    over = _upload_chapter(client, h, "c3")
+    assert over.status_code == 400, over.text
+    assert over.json()["code"] == "ocr_chapter_limit_reached"
+    assert over.json()["details"]["max_chapters"] == 2
+
+
+def test_replacing_an_existing_transcript_still_works_at_the_cap(
+    client, h, follows, tiny_chapter_cap
+):
+    """Only creates are charged. A re-scan of a chapter that already has a row
+    adds nothing to the count and must keep working, or the cap would freeze
+    every transcript in a full series."""
+    assert _upload_chapter(client, h, "c1").status_code == 200
+    assert _upload_chapter(client, h, "c2").status_code == 200
+
+    again = client.post(
+        "/ocr/chapter",
+        json={
+            "source_id": SRC,
+            "series_key": SERIES,
+            "chapter_key": "c1",
+            "engine": "apple-vision",
+            "pages": [{"page": 1, "text": "a better scan of the same page"}],
+        },
+        headers=h,
+    )
+    assert again.status_code == 200, again.text
+    assert again.json()["engine"] == "apple-vision"

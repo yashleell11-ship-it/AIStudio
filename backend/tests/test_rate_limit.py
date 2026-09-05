@@ -231,3 +231,58 @@ def test_expensive_source_routes_are_rate_limited(sources_client, path):
     limited = sources_client.get(path, headers=headers)
     assert limited.status_code == 429, path
     assert limited.json()["code"] == "rate_limited"
+
+
+# --- the OCR upload carries a bucket ---------------------------------------
+
+OCR_SRC = "mangadex"
+OCR_SERIES = "rate-limited-series"
+
+
+@pytest.fixture
+def ocr_client(client, monkeypatch, make_user, make_profile, seed_follow, as_user):
+    """An account that follows the series, so the upload is authorized and the
+    only thing left that can stop it is the limiter."""
+    monkeypatch.setenv("MM_RATE_LIMIT_OCR", "2/minute")
+    get_settings.cache_clear()
+    user = make_user("ocr-flood")
+    profile = make_profile(user.id, "Main")
+    seed_follow(user.id, profile.id, source_id=OCR_SRC, series_key=OCR_SERIES)
+    yield client, as_user(user.id, profile.id)
+    get_settings.cache_clear()
+
+
+@pytest.mark.rate_limit
+def test_ocr_upload_is_rate_limited(ocr_client):
+    """The one limited route whose cost is DISK, not upstream politeness.
+
+    ``POST /ocr/chapter`` had per-request ceilings but no bucket, so nothing
+    bounded the number of requests: 30 max-size uploads from one ordinary
+    account were accepted in 0.7 s and grew the SQLite file to 115 MB. SQLite
+    is the whole application state on a <=20GB VPS, so filling the volume takes
+    every write in the app down with it — progress, bookmarks, logins — and
+    recovery is manual surgery, not a restart.
+    """
+    api, headers = ocr_client
+    headers = {**headers, "CF-Connecting-IP": "203.0.113.210"}
+
+    def _upload(chapter_key: str):
+        return api.post(
+            "/ocr/chapter",
+            json={
+                "source_id": OCR_SRC,
+                "series_key": OCR_SERIES,
+                "chapter_key": chapter_key,
+                "engine": "mlkit",
+                "pages": [{"page": 1, "text": "some dialogue"}],
+            },
+            headers=headers,
+        )
+
+    accepted = [_upload(f"c{n}").status_code for n in range(2)]
+    assert accepted == [200, 200]
+
+    limited = _upload("c2")
+    assert limited.status_code == 429, limited.text
+    assert limited.json()["code"] == "rate_limited"
+    assert "retry-after" in {k.lower() for k in limited.headers}

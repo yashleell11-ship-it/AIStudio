@@ -6,21 +6,22 @@ The OCR runner is client-side now. The server only:
   * ``GET  /ocr/search``    — FTS, filtered to the caller's followed series + gate
   * ``GET  /ocr/coverage``  — which chapters already have OCR
 
-The write is global (spec §3.9); all three reads are scoped to the caller's
-followed series + 18+ gate. Denial is a 404 that looks like absence, never a
-403 — see ``OcrIngestService._may_read``.
+The row is global (spec §3.9), but every operation on it — the write included
+— is scoped to the caller's followed series + 18+ gate. Denial is a 404 that
+looks like absence, never a 403 — see ``OcrIngestService._may_read``.
 """
 
 from __future__ import annotations
 
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel, Field, model_validator
 from pydantic_core import PydanticCustomError
 
 from core.errors import AppError
 from core.profile_context import require_profile_context
+from core.rate_limit import limiter, ocr_limit
 from services.ocr_ingest_service import OcrIngestService, get_ocr_ingest_service
 from services.ocr_search import OcrSearchService, get_ocr_search_service
 
@@ -98,7 +99,19 @@ class OcrChapterUpload(BaseModel):
 
 
 @router.post("/chapter", dependencies=[Depends(require_profile_context)])
-def upload_chapter_ocr(body: OcrChapterUpload, service: IngestDep) -> dict[str, Any]:
+@limiter.limit(ocr_limit)
+def upload_chapter_ocr(
+    body: OcrChapterUpload,
+    service: IngestDep,
+    request: Request,
+    response: Response,  # slowapi injects X-RateLimit-* headers into this
+) -> dict[str, Any]:
+    """Accept a client-side OCR transcript for one chapter.
+
+    The per-request ceilings above bound ONE upload; the limiter bounds how
+    many, which is the half that matters when the cost is disk rather than
+    upstream politeness. See ``core.rate_limit.ocr_limit``.
+    """
     return service.ingest_chapter(
         source_id=body.source_id,
         series_key=body.series_key,

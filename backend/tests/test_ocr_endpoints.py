@@ -282,6 +282,65 @@ def test_an_unauthenticated_caller_never_reaches_the_store(api, h, follows):
     assert anon.status_code == 401, anon.text
 
 
+# --- the write scope ------------------------------------------------------
+
+
+def test_a_stranger_cannot_contribute_ocr_for_a_series_it_does_not_follow(
+    api, h, follows, as_user, make_user, make_profile
+):
+    """The reported hole, end to end: the write had NO authorization at all.
+
+    ``require_profile_context`` proves the caller owns the profile it named. It
+    says nothing about the series, and ``ingest_chapter`` asked nothing else —
+    so with registration open, any account could POST the identity triple of
+    any chapter of any series anyone follows and REPLACE the stored transcript
+    with up to 2,000,000 characters of its own text. The owner then reads that
+    text as the in-reader dialogue overlay and as ``/ocr/search`` results,
+    with nothing marking it as not his own scan, and the real transcript is
+    gone rather than versioned.
+
+    The asymmetry is what made it easy to miss: the stranger's READ of the very
+    row it just wrote was already refused. Reads were scoped per
+    ``(user, profile)``; the write was not scoped at all.
+    """
+    assert _upload(api, h, "c1", "the original scan").status_code == 200
+
+    stranger = make_user("ocr-stranger")
+    stranger_profile = make_profile(stranger.id, "Main")
+    stranger_h = as_user(stranger.id, stranger_profile.id)
+
+    poisoned = _upload(api, stranger_h, "c1", "attacker supplied dialogue")
+    assert poisoned.status_code == 404, poisoned.text
+    assert poisoned.json()["code"] == "series_not_found"
+
+    # And the owner's transcript is untouched.
+    got = api.get(
+        "/ocr/chapter",
+        params={"source": SRC, "series": SERIES, "chapter": "c1"},
+        headers=h,
+    )
+    assert got.status_code == 200, got.text
+    assert got.json()["page_texts"][0]["text"] == "the original scan"
+
+
+def test_a_stranger_cannot_mint_a_new_chapter_row_either(
+    api, db_session, as_user, make_user, make_profile
+):
+    """Not just overwrites: creating a row for an unfollowed series is refused
+    too, so an account with no library cannot grow the table at all."""
+    from database.models import ChapterOcr
+
+    stranger = make_user("ocr-stranger-2")
+    stranger_profile = make_profile(stranger.id, "Main")
+    stranger_h = as_user(stranger.id, stranger_profile.id)
+
+    made = _upload(api, stranger_h, "brand-new", "unsolicited text")
+    assert made.status_code == 404, made.text
+    assert (
+        db_session.query(ChapterOcr).filter_by(chapter_key="brand-new").count() == 0
+    )
+
+
 # --- shape ---------------------------------------------------------------
 
 
@@ -320,15 +379,28 @@ def test_empty_upload_does_not_clobber(api, h, follows):
     assert got["word_count"] == 3
 
 
-def test_search_is_scoped_to_followed_series(api, h, acct, seed_follow):
+def test_search_is_scoped_to_followed_series(
+    api, h, acct, seed_follow, as_user, make_user, make_profile
+):
+    """The row is global storage; a search hit still needs the caller's own
+    follow. Contributing now needs one too, so the non-follower here has to be
+    a second account rather than the uploader before it followed."""
     uid, pid = acct
+    seed_follow(uid, pid, source_id=SRC, series_key=SERIES)
     _upload(api, h, "c1", "the crimson knight bellowed a challenge")
 
-    # not following yet → no hit
-    assert api.get("/ocr/search", params={"q": "crimson"}, headers=h).json()["items"] == []
+    other = make_user("ocr-searcher")
+    other_profile = make_profile(other.id, "Main")
+    other_h = as_user(other.id, other_profile.id)
 
-    seed_follow(uid, pid, source_id=SRC, series_key=SERIES)
-    hits = api.get("/ocr/search", params={"q": "crimson"}, headers=h).json()
+    # not following yet → no hit
+    assert (
+        api.get("/ocr/search", params={"q": "crimson"}, headers=other_h).json()["items"]
+        == []
+    )
+
+    seed_follow(other.id, other_profile.id, source_id=SRC, series_key=SERIES)
+    hits = api.get("/ocr/search", params={"q": "crimson"}, headers=other_h).json()
     assert [hit["chapter_key"] for hit in hits["items"]] == ["c1"]
     assert "<mark>" in hits["items"][0]["snippet"]
 
