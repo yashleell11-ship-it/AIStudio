@@ -713,6 +713,44 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #               literal leaks into hrefs, hinting part of the catalogue
     #               links out to third-party hosts. Owner decision before
     #               anyone spends connector time on it.
+    # Added 2026-09-05 after an end-to-end probe from the VPS and a second
+    # pass from this workstation. Two unrelated adult Madara installs, slug
+    # sets disjoint from each other and from every registered source. Plain
+    # curl cleared apex, listing, series, chapter and image bytes on both, so
+    # use_cf=False buys the cheaper client.
+    #
+    # HentaiSco keeps its chapter list inline in the series HTML (6
+    # ``wp-manga-chapter`` <li> on the sampled series), so the AJAX probe
+    # never runs. Its page images are on cdn.hentaisco.cc -- a subdomain the
+    # host-derived allowlist would already accept, named here anyway so the
+    # real image origin stays visible if the CDN ever moves off the apex.
+    _site("hentaisco", "HentaiSco", "hentaisco.cc", url_segment="hentai", mature=True, use_cf=False, extra_image_hosts=frozenset({"cdn.hentaisco.cc"})),
+    # HentaiSyaoi names Madara in its generator meta and is the plain case:
+    # /manga/ segment, chapters from the per-series ``{series}/ajax/chapters/``
+    # endpoint (admin-ajax answers manga_get_chapters with 400, so the
+    # connector settles on the relative shape after one probe), page images
+    # self-hosted under /wp-content/uploads/WP-manga/data/. Yaoi doujinshi,
+    # mostly oneshots.
+    _site("hentaisyaoi", "HentaiSyaoi", "hentaisyaoi.com", mature=True, use_cf=False),
+    # Probed alongside those two on 2026-09-05 and DELIBERATELY NOT ADDED:
+    #   hentai4free.net - fingerprints as Madara from the outside (104
+    #               "madara" and 588 "wp-manga" markers, /hentai/ segment, and
+    #               a bare /hentai/ that 302s onto one series, so it would
+    #               have needed listing_post_type="wp-manga"), but the
+    #               operator replaced the reader with an in-house plugin,
+    #               h4f-reader-engine-v2. Chapter pages carry ZERO
+    #               wp-manga-chapter-img tags, no chapter_preloaded_images and
+    #               no reading-content div -- the 29 page images sit in a
+    #               <script type="application/json" id="h4f-r2-data"> blob the
+    #               reader hydrates from. All three strategies in
+    #               parse_chapter_pages miss it, so a stock line here yields a
+    #               source that browses and lists chapters and then opens
+    #               every chapter to zero pages. Confirmed on two chapters and
+    #               under ?style=list, so it is site-wide. The images are on
+    #               hentai4free.net itself under the usual
+    #               /wp-content/uploads/WP-manga/data/ path, so one more
+    #               fallback in madara/mappers.py would land it -- a connector
+    #               change, not a catalog line. Adult throughout.
 )
 # fmt: on
 
