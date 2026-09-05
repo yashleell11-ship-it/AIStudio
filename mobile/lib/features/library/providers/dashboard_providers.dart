@@ -7,9 +7,18 @@ import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 final dashboardProvider = FutureProvider.autoDispose<DashboardData>((ref) async {
   final repo = ref.watch(libraryRepositoryProvider);
 
-  final recentlyUpdatedResult = await repo.recentlyUpdated(limit: 8);
-  final continueReadingResult = await repo.continueReading(limit: 6);
-  final statisticsResult = await repo.statistics();
+  // Started together, awaited after: the home screen cannot draw until all
+  // three have landed, and statistics is the heaviest endpoint in the app
+  // (`GET /library/statistics` scans the profile's whole session history), so
+  // running it third in a chain put its cost in front of first paint for no
+  // reason. Every request is independent and none feeds another.
+  final recentlyUpdated = repo.recentlyUpdated(limit: 8);
+  final continueReading = repo.continueReading(limit: 6);
+  final statistics = repo.statistics();
+
+  final recentlyUpdatedResult = await recentlyUpdated;
+  final continueReadingResult = await continueReading;
+  final statisticsResult = await statistics;
 
   final error = _firstError([
     recentlyUpdatedResult,
