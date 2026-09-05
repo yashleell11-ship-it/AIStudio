@@ -92,7 +92,7 @@ const themes = [];
 for (const entry of CURATED) {
   const scheme = cache.schemes[entry.slug];
   if (!scheme) throw new Error(`curated scheme is not in the cache: ${entry.slug}`);
-  const mapped = built.get(entry.slug);
+  let mapped = built.get(entry.slug);
   // A curated scheme that fails the gate is a decision to revisit, not a
   // warning to scroll past — the whole point of curating on top of a gate is
   // that both halves have to agree.
@@ -100,6 +100,22 @@ for (const entry of CURATED) {
     throw new Error(
       `curated scheme fails the contrast gate: ${entry.slug} — ${audit.schemes[entry.slug].reason}`,
     );
+  }
+  // Hand-set roles (see `curated.mjs`) re-run the whole mapping rather than
+  // being patched over the result, so everything derived FROM a role — the
+  // hover, the tint, the button label, the focus ring, the glow, the hero
+  // gradient — follows the colour that was actually chosen. And they re-run the
+  // gate: an override picks a hue, it does not excuse a contrast failure.
+  if (entry.roles) {
+    mapped = mapScheme(scheme, entry.roles);
+    if (!mapped.ok) {
+      throw new Error(`curated roles break ${entry.slug}: ${mapped.reason}`);
+    }
+    const overrideFailures = verifyRoles(mapped.roles);
+    if (overrideFailures.length > 0) {
+      throw new Error(`curated roles break ${entry.slug}: ${overrideFailures.join("; ")}`);
+    }
+    audit.schemes[entry.slug].notes = mapped.notes;
   }
   if (RESERVED.has(entry.slug)) {
     throw new Error(`curated slug collides with a hand-written theme: ${entry.slug}`);

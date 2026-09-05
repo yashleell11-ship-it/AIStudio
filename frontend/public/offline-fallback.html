@@ -23,8 +23,14 @@
         --surface: #161b22;
         --fg: #c9d1d9;
         --muted: #8b949e;
-        --primary: #d2a8ff;
-        --primary-hover: #d0b0f7;
+        --primary: #58a6ff;
+        --primary-hover: #6faff7;
+        /* The primary's channels, so the washes below can be derived from it
+           rather than restated. They used to be literal Eclipse amber, left
+           behind when the default became GitHub Dark: a blue button above an
+           amber glow and an amber hover outline. */
+        --primary-rgb: 88, 166, 255;
+        --danger: #f85149;
         --border: rgba(201, 209, 217, 0.14);
       }
       * {
@@ -56,7 +62,7 @@
         border-radius: 1.25rem;
         margin: 0 auto 1.5rem;
         display: block;
-        box-shadow: 0 0 24px rgba(245, 158, 11, 0.22);
+        box-shadow: 0 0 24px rgba(var(--primary-rgb), 0.22);
       }
       h1 {
         font-size: 1.5rem;
@@ -105,8 +111,8 @@
         border: 1px solid var(--border);
       }
       a:hover {
-        border-color: rgba(245, 158, 11, 0.4);
-        background: rgba(245, 158, 11, 0.1);
+        border-color: rgba(var(--primary-rgb), 0.4);
+        background: rgba(var(--primary-rgb), 0.1);
       }
       .note {
         margin: 1.5rem 0 0;
@@ -132,7 +138,7 @@
         width: 0.5rem;
         height: 0.5rem;
         border-radius: 999px;
-        background: #ef4444;
+        background: var(--danger);
       }
       body.online .dot {
         background: #10b981;

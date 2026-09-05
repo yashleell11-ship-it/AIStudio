@@ -23,7 +23,7 @@ export interface EmptyStateProps {
   action?: EmptyStateAction;
   secondaryAction?: EmptyStateAction;
   /**
-   * "empty" (default, amber) — nothing here yet.
+   * "empty" (default, the primary accent) — nothing here yet.
    * "error" (red) — the request failed; pair with a "Try again" `action`.
    * "offline" (yellow) — the server could not be reached at all; pair with an
    * `action` that points at what still works without one (e.g. Downloads).

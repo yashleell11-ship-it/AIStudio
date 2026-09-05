@@ -51,22 +51,22 @@
   --color-muted-foreground: #8B949E;
   --color-background: #0D1117;
 
-  --color-primary: #D2A8FF;
-  --color-primary-hover: #D0B0F7;
+  --color-primary: #58A6FF;
+  --color-primary-hover: #6FAFF7;
   --color-primary-fg: #0D1117;
   --color-primary-foreground: #0D1117;
-  --color-accent: #FF7B72;
+  --color-accent: #D2A8FF;
   --color-accent-fg: #0D1117;
 
-  --color-danger: #FFA657;
-  --color-success: #A5D6FF;
-  --color-warning: #BB8009;
+  --color-danger: #F85149;
+  --color-success: #3FB950;
+  --color-warning: #D29922;
 
-  --color-violet-400: #E0C2FF;
-  --color-violet-500: #D2A8FF;
-  --color-violet-600: #D0B0F7;
-  --color-cyan-400: #E0C2FF;
-  --color-cyan-500: #FF7B72;
+  --color-violet-400: #8AC1FF;
+  --color-violet-500: #58A6FF;
+  --color-violet-600: #6FAFF7;
+  --color-cyan-400: #8AC1FF;
+  --color-cyan-500: #D2A8FF;
 
   /* Semantic token names for page agents (see the note above about the hues) */
   --color-bg-void: #0D1117;
@@ -76,8 +76,8 @@
   --color-text-primary: #C9D1D9;
   --color-text-muted: #8B949E;
   --color-text-dark: #0D1117;
-  --color-accent-amber: #D2A8FF;
-  --color-accent-rose: #FF7B72;
+  --color-accent-amber: #58A6FF;
+  --color-accent-rose: #D2A8FF;
   --color-accent-warm: #79C0FF;
   --color-border-subtle: rgba(201, 209, 217, 0.14);
   --color-border-light: rgba(13, 17, 23, 0.16);
@@ -110,7 +110,7 @@
    */
   --font-book: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, "Bitstream Charter", Georgia, Cambria, "Times New Roman", serif;
 
-  --shadow-glow: 0 0 24px rgba(210, 168, 255, 0.22);
+  --shadow-glow: 0 0 24px rgba(88, 166, 255, 0.22);
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.37);
 }
 
@@ -148,16 +148,23 @@
  * them). It is a bare `:root`, so every `[data-theme=…]` block outranks it on
  * specificity — which is what makes it the FALLBACK rather than an override.
  *
- * It is also the only palette some screens will ever see. `data-theme` is set
- * from a per-(user, profile) key that does not exist before the session and the
+ * It is also the whole of what some screens ever see. `data-theme` is set from
+ * a per-(user, profile) key that does not exist before the session and the
  * profile resolve, and the boot script deliberately declines on /login and
  * /register (see `appearance-boot-source.ts`), so the auth screens paint from
- * here start to finish. That is why the default is a real palette and not a
- * placeholder.
+ * here — or, on a light-mode device, from the `prefers-color-scheme` block
+ * further down — start to finish. That is why the default is a real palette and
+ * not a placeholder.
  *
  * `color-scheme` is stated so form controls, scrollbars and the caret are dark
  * on those screens too, rather than defaulting to the light UA styling and
- * putting a white dropdown on a near-black page.
+ * putting a white dropdown on a near-black page. The light fallback restates it
+ * the other way for the same reason.
+ *
+ * The accent, status and warning roles here are Primer's — GitHub's own UI
+ * colours — rather than the base16 slots the mapping would otherwise read; see
+ * the `roles` note in `scripts/themes/curated.mjs` for why those two schemes
+ * name them by hand.
  */
 :root {
   color-scheme: dark;
@@ -175,28 +182,28 @@
   --mm-contrast-fg: #0D1117;
   --mm-contrast-border: rgba(13, 17, 23, 0.16);
 
-  --mm-primary: #D2A8FF;
-  --mm-primary-hover: #D0B0F7;
+  --mm-primary: #58A6FF;
+  --mm-primary-hover: #6FAFF7;
   --mm-primary-fg: #0D1117;
-  --mm-primary-tint: #E0C2FF;
-  --mm-accent: #FF7B72;
+  --mm-primary-tint: #8AC1FF;
+  --mm-accent: #D2A8FF;
   --mm-accent-fg: #0D1117;
   --mm-accent-warm: #79C0FF;
 
-  --mm-danger: #FFA657;
-  --mm-success: #A5D6FF;
-  --mm-warning: #BB8009;
+  --mm-danger: #F85149;
+  --mm-success: #3FB950;
+  --mm-warning: #D29922;
 
   --mm-glass-panel: rgba(22, 27, 34, 0.72);
   --mm-glass-card: rgba(35, 40, 47, 0.62);
   --mm-glass-border: rgba(201, 209, 217, 0.1);
-  --mm-hero-from: #D2A8FF;
+  --mm-hero-from: #58A6FF;
   --mm-hero-to: #C9D1D9;
   --mm-scrollbar: rgba(139, 148, 158, 0.35);
   --mm-scrollbar-hover: rgba(139, 148, 158, 0.55);
-  --mm-glow: 0 0 24px rgba(210, 168, 255, 0.22);
+  --mm-glow: 0 0 24px rgba(88, 166, 255, 0.22);
   --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
-  --mm-focus: #D2A8FF;
+  --mm-focus: #58A6FF;
 
   /* ---- Alias fan-out: every Tailwind token, pointed at its role ---- */
   --color-bg: var(--mm-bg);
@@ -436,21 +443,64 @@
 }
 
 /*
- * There is deliberately NO `@media (prefers-color-scheme: light)` fallback.
+ * FIRST PAINT ONLY: the OS preference, for a viewer who has not chosen.
  *
- * There used to be one: with the default being Eclipse, a viewer whose OS asked
- * for light got Daylight on their first visit, and `initialReadingTheme()`
- * agreed so the two never disagreed mid-load. The default is now GitHub Dark
- * because that is what the app is asked to look like out of the box, and "out of
- * the box" has to include the screens that can never read a stored preference —
- * /login and /register, where the boot script declines by design. Seeding those
- * from the OS would make the sign-in page white on a light-mode phone and black
- * on a dark-mode one, which is not a default anyone chose.
+ * `data-theme` comes from a per-(user, profile) key, so it is absent until the
+ * profile resolves — and on /login and /register it never arrives at all,
+ * because the boot script declines there by design (see
+ * `appearance-boot-source.ts`). Without this block every one of those frames
+ * paints GitHub Dark, including at a viewer whose phone is in light mode and
+ * whose sign-in page is therefore the one screen of the app they cannot get out
+ * of. So the OS answers for them, once.
  *
- * The OS preference is not ignored so much as outranked once: every light
- * palette is still one click away in the theme picker, and a stored choice
- * always wins (`initialReadingTheme()` has no other input).
+ * The palette is GitHub Light — `github` in the picker — because the dark
+ * default is GitHub Dark and the pair should be the same interface at two
+ * brightnesses, not two unrelated looks. Copied verbatim from that theme's own
+ * generated block, which cannot share a selector with this one;
+ * `theme.test.ts` parses both files and fails if they drift.
+ *
+ * (Written without spelling the generated selector out: the test kit finds a
+ * rule by the first occurrence of its selector text and would match a comment.)
+ *
+ * It is an INITIAL value and not an override: `:not([data-theme])` stops
+ * matching the moment a theme is applied, so a stored choice always wins, and
+ * `initialReadingTheme()` takes the same preference as an input so the store
+ * resolves to the same palette this paints and there is no flash between them.
  */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme]) {
+    color-scheme: light;
+    --mm-bg: #FFFFFF;
+    --mm-surface: #F7F8F8;
+    --mm-elevated: #EFF0F0;
+    --mm-fg: #424A53;
+    --mm-muted: #636C75;
+    --mm-border: rgba(66, 74, 83, 0.18);
+    --mm-contrast-bg: #1F2328;
+    --mm-contrast-fg: #FFFFFF;
+    --mm-contrast-border: rgba(255, 255, 255, 0.16);
+    --mm-primary: #0969DA;
+    --mm-primary-hover: #1463BF;
+    --mm-primary-fg: #FFFFFF;
+    --mm-primary-tint: #1054A5;
+    --mm-accent: #7D4ED6;
+    --mm-accent-fg: #FFFFFF;
+    --mm-accent-warm: #0550AE;
+    --mm-danger: #CF222E;
+    --mm-success: #1A7F37;
+    --mm-warning: #9A6700;
+    --mm-glass-panel: rgba(247, 248, 248, 0.72);
+    --mm-glass-card: rgba(239, 240, 240, 0.62);
+    --mm-glass-border: rgba(66, 74, 83, 0.1);
+    --mm-hero-from: #0969DA;
+    --mm-hero-to: #424A53;
+    --mm-scrollbar: rgba(99, 108, 117, 0.35);
+    --mm-scrollbar-hover: rgba(99, 108, 117, 0.55);
+    --mm-glow: 0 2px 16px rgba(9, 105, 218, 0.18);
+    --mm-glass-shadow: 0 8px 24px rgba(66, 74, 83, 0.12);
+    --mm-focus: #0969DA;
+  }
+}
 
 /* ==========================================================================
    SHAPE ROLES

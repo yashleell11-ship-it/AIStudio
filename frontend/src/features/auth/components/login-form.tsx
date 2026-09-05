@@ -10,7 +10,7 @@ import { ApiError } from "@/types/api";
 import { useLogin } from "../hooks";
 import { PasswordInput } from "./password-input";
 
-/** Dark surface field with an amber focus ring, matching the Eclipse Warm auth inputs. */
+/** Themed surface field; the focus ring is the palette's primary, whatever it is. */
 const authInputClass =
   "bg-surface border-border focus-visible:border-primary/40 focus-visible:ring-primary";
 

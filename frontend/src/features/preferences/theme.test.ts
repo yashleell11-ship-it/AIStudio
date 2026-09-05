@@ -8,6 +8,7 @@ import {
 } from "./theme-css.testkit";
 import {
   BUILT_IN_THEMES,
+  DEFAULT_LIGHT_READING_THEME,
   DEFAULT_READING_THEME,
   READING_THEMES,
   READING_THEME_META,
@@ -64,6 +65,15 @@ describe("reading theme identity", () => {
     expect(DEFAULT_READING_THEME).toBe("github-dark");
     expect(READING_THEMES).toContain(DEFAULT_READING_THEME);
     expect(READING_THEME_META[DEFAULT_READING_THEME].scheme).toBe("dark");
+  });
+
+  it("pairs that default with GitHub Light for a light-mode device", () => {
+    // The two "nothing stored" answers have to be the same interface at two
+    // brightnesses. A light default from another family would make the sign-in
+    // page a different app depending on the viewer's OS setting.
+    expect(DEFAULT_LIGHT_READING_THEME).toBe("github");
+    expect(READING_THEMES).toContain(DEFAULT_LIGHT_READING_THEME);
+    expect(READING_THEME_META[DEFAULT_LIGHT_READING_THEME].scheme).toBe("light");
   });
 
   it("keeps Eclipse in the library as a palette anyone can still choose", () => {
@@ -124,33 +134,41 @@ describe("isReadingTheme", () => {
 });
 
 describe("initialReadingTheme", () => {
-  it("honours a stored choice", () => {
-    expect(initialReadingTheme("sepia")).toBe("sepia");
-    expect(initialReadingTheme("midnight")).toBe("midnight");
-    expect(initialReadingTheme("dark")).toBe("dark");
+  it("honours a stored choice, whatever the OS asks for", () => {
+    // The half of the contract that matters most: a viewer who picked Sepia is
+    // not flipped back to a default every sunrise.
+    expect(initialReadingTheme("sepia", false)).toBe("sepia");
+    expect(initialReadingTheme("sepia", true)).toBe("sepia");
+    expect(initialReadingTheme("midnight", true)).toBe("midnight");
+    expect(initialReadingTheme("dark", true)).toBe("dark");
   });
 
   it("falls back to the default when nothing is stored", () => {
-    expect(initialReadingTheme(null)).toBe(DEFAULT_READING_THEME);
-    expect(initialReadingTheme("")).toBe(DEFAULT_READING_THEME);
+    expect(initialReadingTheme(null, false)).toBe(DEFAULT_READING_THEME);
+    expect(initialReadingTheme("", false)).toBe(DEFAULT_READING_THEME);
+  });
+
+  it("seeds a first visit from prefers-color-scheme", () => {
+    expect(initialReadingTheme(null, true)).toBe(DEFAULT_LIGHT_READING_THEME);
+    expect(initialReadingTheme(null, false)).toBe(DEFAULT_READING_THEME);
   });
 
   it("treats an unrecognised stored value as unset", () => {
-    expect(initialReadingTheme("solarized")).toBe(DEFAULT_READING_THEME);
+    expect(initialReadingTheme("solarized", false)).toBe(DEFAULT_READING_THEME);
+    expect(initialReadingTheme("solarized", true)).toBe(DEFAULT_LIGHT_READING_THEME);
   });
 
   it("honours a generated palette the same as a built-in one", () => {
-    expect(initialReadingTheme("nord")).toBe("nord");
-    expect(initialReadingTheme("catppuccin-latte")).toBe("catppuccin-latte");
+    expect(initialReadingTheme("nord", true)).toBe("nord");
+    expect(initialReadingTheme("catppuccin-latte", false)).toBe("catppuccin-latte");
   });
 
-  it("never consults the OS: a light-preferring machine still gets the default", () => {
-    // There is no `prefers-color-scheme` input any more, in this function or in
-    // globals.css. The sign-in page can never read a stored choice, so a default
-    // that changed colour with the OS would make it white on one phone and
-    // near-black on the next.
-    expect(initialReadingTheme(null)).toBe(DEFAULT_READING_THEME);
-    expect(READING_THEME_META[initialReadingTheme(null)].scheme).toBe("dark");
+  it("answers with a real palette in both directions, never a placeholder", () => {
+    // Whatever this returns unstored is the whole of what /login and /register
+    // will ever wear, so both answers are held to being a shipped theme of the
+    // right variant rather than merely "not undefined".
+    expect(READING_THEME_META[initialReadingTheme(null, false)].scheme).toBe("dark");
+    expect(READING_THEME_META[initialReadingTheme(null, true)].scheme).toBe("light");
   });
 });
 
@@ -181,12 +199,12 @@ describe("themeMatches", () => {
 /**
  * The palettes as CSS: what the browser will actually load.
  *
- * globals.css states the light palette twice — once for `[data-theme="light"]`
- * and once for the `prefers-color-scheme` first-paint fallback, which cannot
- * share a selector with it. CSS has no way to keep the two in step, so this
- * does. And every generated palette has to be a COMPLETE role set, because it
- * cascades over the dark defaults: one role left out is a Catppuccin Latte with
- * a near-black scrollbar.
+ * The app states GitHub Light twice — once as `[data-theme="github"]` in the
+ * generated stylesheet and once in globals.css as the `prefers-color-scheme`
+ * first-paint fallback, which cannot share a selector with it. CSS has no way
+ * to keep the two in step, so this does. And every generated palette has to be
+ * a COMPLETE role set, because it cascades over the dark defaults: one role
+ * left out is a Catppuccin Latte with a near-black scrollbar.
  */
 describe("theme CSS blocks", () => {
   it("declares a block for every theme the app offers", () => {
@@ -231,13 +249,16 @@ describe("theme CSS blocks", () => {
     );
   });
 
-  it("ships no prefers-color-scheme fallback to disagree with the default", () => {
-    // The old no-attribute block seeded a light palette from the OS. It is gone,
-    // and `initialReadingTheme` lost the matching input; a reintroduced block
-    // would repaint the first frame at a viewer the store then immediately
-    // overrules. Matched on the selector, not on the media query, so the comment
-    // in globals.css explaining the absence does not trip it.
-    expect(THEME_CSS_SOURCES.HAND_WRITTEN).not.toContain(":not([data-theme])");
+  it("paints the OS light preference with the same palette the store resolves", () => {
+    // The no-attribute block is what a light-mode device sees before the store
+    // exists — on /login and /register, forever. If it drifted from the palette
+    // `initialReadingTheme(null, true)` picks, the page would repaint one frame
+    // in and the sign-in screen would flash on every cold load.
+    expect(THEME_CSS_SOURCES.HAND_WRITTEN).toContain(":root:not([data-theme])");
+    expect(roleBlock(":root:not([data-theme])")).toEqual(
+      roleBlock(`:root[data-theme="${DEFAULT_LIGHT_READING_THEME}"]`),
+    );
+    expect(ruleBody(":root:not([data-theme])")).toContain("color-scheme: light");
   });
 
   it("restates every role the dark base defines, and invents none", () => {

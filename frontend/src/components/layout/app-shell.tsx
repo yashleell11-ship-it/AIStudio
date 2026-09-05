@@ -282,9 +282,9 @@ function isTabActive(pathname: string, href: string): boolean {
  *
  * A floating, rounded, frosted pill rather than a full-bleed bar — the same
  * shape as the Flutter client's `NavigationBar`: inset by 16px, 20px radius,
- * near-black surface at 0.90 alpha, a subtle warm-neutral border, and a soft
- * black + amber shadow. The active destination gets an amber wash behind it and
- * only the active label is shown, matching
+ * surface at 0.90 alpha, a border from the palette, and a shadow that is one
+ * part black and one part primary. The active destination gets a wash of the
+ * primary behind it and only the active label is shown, matching
  * `NavigationDestinationLabelBehavior.onlyShowSelected`.
  *
  * ### Why the frost is fill and not `backdrop-filter`
@@ -321,8 +321,8 @@ function MobileBottomNav() {
       className="pointer-events-none absolute inset-x-0 bottom-0 z-30 px-4 pb-[max(env(safe-area-inset-bottom),0.5rem)] md:hidden"
     >
       {/* The accent half of the drop shadow reads from the palette rather than
-          a literal amber, so the bar keeps its lift in every theme instead of
-          casting an Eclipse-coloured glow under a Nord or a Daylight. */}
+          a literal hex, so the bar keeps its lift in every theme instead of
+          casting one theme's glow under a Nord or a Daylight. */}
       <div className="pointer-events-auto flex items-stretch gap-1 rounded-[20px] border border-border bg-surface/90 p-1.5 shadow-[0_6px_20px_rgba(0,0,0,0.43),0_4px_24px_color-mix(in_srgb,var(--mm-primary)_9%,transparent)]">
         {mobileNav.map((item) => {
           const active = isTabActive(pathname, item.href);
