@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -57,6 +58,81 @@ ReaderChapter _unsizedChapter(String id, {int pages = 6}) => ReaderChapter(
           ),
       ],
     );
+
+/// A chapter of webtoon strips — 800x12000, the shape the window is actually
+/// slid over. Declared rather than measured so the geometry is the same on
+/// every frame of a long scroll and a drift is the reader's, not the fixture's.
+ReaderChapter _tallChapter(String id, {int pages = 6}) => ReaderChapter(
+      id: id,
+      seriesId: 'series',
+      title: 'Chapter $id',
+      pageCount: pages,
+      pages: [
+        for (var n = 1; n <= pages; n++)
+          ReaderPage(
+            id: '$id:$n',
+            number: n,
+            imageUrl: 'http://example.test/$id/$n',
+            width: 800,
+            height: 12000,
+          ),
+      ],
+    );
+
+/// Mirrors what `ReaderScreen` does around [ReaderContent]: owns the feed
+/// controller, and rebuilds with the new feed every time the window moves.
+///
+/// The point of driving the real controller is that the test does not get to
+/// choose the shapes — a slide, a release, a double extension landing in one
+/// frame all arrive the way they arrive on the device.
+class _SlidingWindowHost extends StatefulWidget {
+  const _SlidingWindowHost({
+    required this.controller,
+    required this.onPosition,
+  });
+
+  final ReaderFeedController controller;
+  final void Function(String chapterId, int page) onPosition;
+
+  @override
+  State<_SlidingWindowHost> createState() => _SlidingWindowHostState();
+}
+
+class _SlidingWindowHostState extends State<_SlidingWindowHost> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller.addListener(_onFeedChanged);
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onFeedChanged);
+    super.dispose();
+  }
+
+  void _onFeedChanged() {
+    if (mounted) setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) => ReaderContent(
+        // Stable across the whole read, exactly like the screen's: the key is
+        // built from the ROUTE's chapter key, and crossing a seam is scrolling
+        // rather than navigation. A key that moved with the window would tear
+        // the reader's state down at every seam.
+        key: const ValueKey('reader'),
+        feed: widget.controller.feed,
+        scrollStorageKey: 'series:1',
+        onBack: () {},
+        onOpenSeries: () {},
+        onReachedFeedEnd: widget.controller.extendForward,
+        onReachedFeedStart: widget.controller.extendBackward,
+        onSaveProgress: (chapter, page) async {
+          widget.onPosition(chapter.id, page);
+        },
+      );
+}
 
 /// The geometry the reader itself lays out with, seam dividers included — the
 /// dividers are the point, so a helper that omitted them would agree with the
@@ -546,6 +622,340 @@ void main() {
       // exactly [kChapterSeamExtent] short.
       expect(controller.offset, moreOrLessEquals(before + growth, epsilon: 1));
     });
+  });
+
+  /// Every shape `_reconcileFeed` can be handed, measured in pixels rather
+  /// than in chapter-and-page.
+  ///
+  /// The claim the reader makes is one sentence — a feed change must not move
+  /// what is on screen — and it is worth asserting at the precision the claim
+  /// is made at. A chapter-and-page assertion passes while the strip slides a
+  /// page and a half under the reader's eyes; this one does not.
+  ///
+  /// Seven shapes, because six of them were separate branches once and the
+  /// seventh (a feed replaced by an equal one) is the case that has to cost
+  /// nothing. The window only ever emits four of them, which is exactly the
+  /// argument for testing all seven: the two nobody expected — a slide, then a
+  /// slide from the other end — are the two that shipped broken.
+  group('a feed change leaves the page under the thumb where it was', () {
+    // A page of 800x2400 laid out at 430 wide is 1290 tall.
+    const pageHeight = 430 * 3.0;
+
+    /// Mount [before], park so [pinnedPage] sits at a known place on screen,
+    /// swap in [after], and answer how far that same page moved. Zero is the
+    /// only correct answer, whatever the shape.
+    Future<double> drift(
+      WidgetTester tester, {
+      required ReaderFeed before,
+      required ReaderFeed after,
+      required String pinnedPage,
+      required double parkAt,
+    }) async {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      // Supplied rather than owned so the test can read the very extents the
+      // reader lays out with; asking it to rebuild its own would be asking a
+      // different question than the one on screen.
+      final extents = ReaderPageExtents(before.pages);
+      addTearDown(extents.dispose);
+
+      Widget reader(ReaderFeed feed) => _wrap(
+            prefs,
+            ReaderContent(
+              feed: feed,
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          );
+
+      /// Where the top edge of [pageId]'s image sits relative to the viewport.
+      double screenTopOf(ReaderFeed feed, String pageId) {
+        final flat = feed.pages.indexWhere((page) => page.id == pageId);
+        expect(flat, isNot(-1), reason: '$pageId has to be in the feed');
+        final metrics = _metricsWithSeams(tester, extents, {
+          for (var c = 1; c < feed.chapters.length; c++)
+            feed.startOfChapter(c): kChapterSeamExtent,
+        });
+        return (metrics.offsetToPage(flat + 1) + metrics.leadingInsetAt(flat)) -
+            _listController(tester).offset;
+      }
+
+      await tester.pumpWidget(reader(before));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      _listController(tester).jumpTo(parkAt);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final was = screenTopOf(before, pinnedPage);
+
+      await tester.pumpWidget(reader(after));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      return screenTopOf(after, pinnedPage) - was;
+    }
+
+    testWidgets('appended at the end', (tester) async {
+      expect(
+        await drift(
+          tester,
+          before: ReaderFeed.of([_chapter('1'), _chapter('2')]),
+          after: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          pinnedPage: '2:1',
+          parkAt: pageHeight * 4,
+        ),
+        moreOrLessEquals(0, epsilon: 0.5),
+        reason: 'nothing above the viewport moved, so nothing may be corrected',
+      );
+    });
+
+    testWidgets('prepended at the front', (tester) async {
+      expect(
+        await drift(
+          tester,
+          before: ReaderFeed.of([_chapter('2'), _chapter('3')]),
+          after: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          pinnedPage: '2:3',
+          parkAt: pageHeight * 2,
+        ),
+        moreOrLessEquals(0, epsilon: 0.5),
+        reason: 'a whole chapter arrived above the viewport',
+      );
+    });
+
+    testWidgets('released from the front', (tester) async {
+      expect(
+        await drift(
+          tester,
+          before: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          after: ReaderFeed.of([_chapter('2'), _chapter('3')]),
+          pinnedPage: '3:1',
+          parkAt: pageHeight * 8,
+        ),
+        moreOrLessEquals(0, epsilon: 0.5),
+        reason: 'a whole chapter left from above the viewport',
+      );
+    });
+
+    testWidgets('released from the end', (tester) async {
+      expect(
+        await drift(
+          tester,
+          before: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          after: ReaderFeed.of([_chapter('1'), _chapter('2')]),
+          pinnedPage: '1:2',
+          parkAt: pageHeight * 1,
+        ),
+        moreOrLessEquals(0, epsilon: 0.5),
+        reason: 'what left was below the viewport: correcting would be the jump',
+      );
+    });
+
+    testWidgets('slid forward — released at the front, appended at the end',
+        (tester) async {
+      expect(
+        await drift(
+          tester,
+          before: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          after: ReaderFeed.of([_chapter('2'), _chapter('3'), _chapter('4')]),
+          pinnedPage: '3:1',
+          parkAt: pageHeight * 8,
+        ),
+        moreOrLessEquals(0, epsilon: 0.5),
+        reason: 'the shape every seam after the first one emits',
+      );
+    });
+
+    testWidgets('slid backward — prepended at the front, released at the end',
+        (tester) async {
+      expect(
+        await drift(
+          tester,
+          before: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          after: ReaderFeed.of([_chapter('0'), _chapter('1'), _chapter('2')]),
+          pinnedPage: '1:2',
+          parkAt: pageHeight * 1,
+        ),
+        moreOrLessEquals(0, epsilon: 0.5),
+        reason: 'released from the TAIL, which the front-scanning detector '
+            'reported as zero — the reported backwards jump',
+      );
+    });
+
+    testWidgets('replaced by an equal feed', (tester) async {
+      expect(
+        await drift(
+          tester,
+          before: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          after: ReaderFeed.of([_chapter('1'), _chapter('2'), _chapter('3')]),
+          pinnedPage: '2:2',
+          parkAt: pageHeight * 5,
+        ),
+        moreOrLessEquals(0, epsilon: 0.5),
+        reason: 'the same chapters in the same order cost nothing',
+      );
+    });
+
+    /// The two shapes above again, but with the asymmetry the device actually
+    /// has: the chapter being released was read, so every page of it decoded
+    /// at its real height, while the chapter arriving has never been on screen
+    /// and is still sitting on the 2/3 fallback. A correction that measured
+    /// the departing chapter with the arriving chapter's geometry would be out
+    /// by the ten-to-one difference between them, which on a webtoon strip is
+    /// tens of thousands of pixels.
+    testWidgets('a measured chapter released, an unmeasured one appended',
+        (tester) async {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final before = ReaderFeed.of(
+        [_unsizedChapter('1'), _unsizedChapter('2'), _unsizedChapter('3')],
+      );
+      final extents = ReaderPageExtents(before.pages);
+      addTearDown(extents.dispose);
+
+      Widget reader(ReaderFeed feed) => _wrap(
+            prefs,
+            ReaderContent(
+              feed: feed,
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          );
+
+      double screenTopOf(ReaderFeed feed, String pageId) {
+        final flat = feed.pages.indexWhere((page) => page.id == pageId);
+        final metrics = _metricsWithSeams(tester, extents, {
+          for (var c = 1; c < feed.chapters.length; c++)
+            feed.startOfChapter(c): kChapterSeamExtent,
+        });
+        return (metrics.offsetToPage(flat + 1) + metrics.leadingInsetAt(flat)) -
+            _listController(tester).offset;
+      }
+
+      await tester.pumpWidget(reader(before));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      // Chapters 1 and 2 have been read, so they decoded — 900x14000 strips,
+      // some fifteen times the fallback guess.
+      for (var i = 0; i < 12; i++) {
+        extents.submitMeasuredSize(i, pixelWidth: 900, pixelHeight: 14000);
+      }
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      _listController(tester).jumpTo(
+        _metricsWithSeams(tester, extents, {
+          for (var c = 1; c < before.chapters.length; c++)
+            before.startOfChapter(c): kChapterSeamExtent,
+        }).offsetToPage(14),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final was = screenTopOf(before, '3:2');
+
+      final after = ReaderFeed.of(
+        [_unsizedChapter('2'), _unsizedChapter('3'), _unsizedChapter('4')],
+      );
+      await tester.pumpWidget(reader(after));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+
+      expect(
+        screenTopOf(after, '3:2') - was,
+        moreOrLessEquals(0, epsilon: 1),
+        reason: 'the departing chapter has to be measured with the geometry '
+            'it was laid out in, not the one that replaced it',
+      );
+    });
+  });
+
+  /// The owner's report end to end: "while reading the manhwa in all together
+  /// after 2-3 chapter it sends me back to 2-3 back i have to get back to
+  /// position again and again".
+  ///
+  /// A real [ReaderFeedController] driving a real [ReaderContent], scrolled
+  /// forward a page at a time through ten chapters — so the window slides
+  /// seven times, which is where "after 2-3 chapters" lives. Every shape is
+  /// emitted by the controller rather than by the test, so a shape the tests
+  /// above did not think of still has to hold here.
+  ///
+  /// On iOS physics specifically, since that is the device it was reported
+  /// from: a correction lands via `correctBy`, which leaves the position
+  /// flagged so an in-flight simulation is re-derived — and `BouncingScroll`
+  /// re-derives differently from `ClampingScroll` when the correction puts
+  /// the offset out of range.
+  testWidgets('reading forward through ten chapters never goes backwards',
+      (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    try {
+      final prefs = await _freshPrefs();
+      await tester.binding.setSurfaceSize(const Size(430, 932));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final controller = ReaderFeedController(
+        anchor: _tallChapter('1'),
+        order: [for (var i = 1; i <= 10; i++) '$i'],
+        loadChapter: (id) async => _tallChapter(id),
+      );
+      addTearDown(controller.dispose);
+
+      final seen = <(int, int)>[];
+      await tester.pumpWidget(
+        _wrap(
+          prefs,
+          _SlidingWindowHost(
+            controller: controller,
+            onPosition: (id, page) => seen.add((int.parse(id), page)),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 600));
+
+      final list = _listController(tester);
+      final backwards = <String>[];
+      for (var step = 0; step < 400; step++) {
+        final target = list.offset + 6450;
+        list.jumpTo(target.clamp(0.0, list.position.maxScrollExtent));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        if (seen.length >= 2) {
+          final was = seen[seen.length - 2];
+          final now = seen.last;
+          if (now.$1 * 1000 + now.$2 < was.$1 * 1000 + was.$2) {
+            backwards.add('step $step: $was -> $now');
+          }
+        }
+        if (seen.isNotEmpty && seen.last.$1 >= 10) break;
+      }
+
+      expect(
+        backwards,
+        isEmpty,
+        reason: 'scrolling only forward must never move the reader backwards',
+      );
+      expect(
+        seen.last.$1,
+        greaterThan(5),
+        reason: 'the window has to actually slide, several times over',
+      );
+    } finally {
+      // Reset inside the body: the binding verifies this before any tearDown
+      // runs, and a leaked override fails the test it was reset after.
+      debugDefaultTargetPlatformOverride = null;
+    }
   });
 
   group('ReaderFeedController', () {
