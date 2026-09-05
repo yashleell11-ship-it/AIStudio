@@ -20,6 +20,17 @@ def get_engine() -> Engine:
     engine = create_engine(
         f"sqlite:///{settings.db_path}",
         connect_args={"check_same_thread": False},
+        # SQLAlchemy's default QueuePool for a file-backed SQLite URL is 5 + 10
+        # overflow -- 15 connections, against anyio's 40-thread pool for the
+        # sync ``def`` endpoints that make up most of this app. Any route that
+        # holds its session across something slow therefore starves unrelated
+        # requests long before the thread pool is busy, and they fail with a
+        # raw ``QueuePool limit ... timed out`` rather than anything the error
+        # envelope knows about. WAL keeps concurrent readers cheap, so the
+        # ceiling can simply match the request pool instead of sitting a third
+        # of the way below it.
+        pool_size=20,
+        max_overflow=20,
     )
 
     @event.listens_for(engine, "connect")

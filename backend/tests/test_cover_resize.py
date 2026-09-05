@@ -766,3 +766,53 @@ def test_route_another_users_gated_profile_cannot_read_the_cached_cover(
     )
 
     assert blocked.status_code == 404
+
+
+# --- the DB connection is not held across the network fetch ----------------
+
+
+class _TransactionWatchingBrowse(_CoverBrowse):
+    """Records whether the caller still held a DB transaction mid-fetch."""
+
+    def __init__(self, data: bytes, session):
+        super().__init__(data)
+        self._session = session
+        self.in_transaction_during_fetch: list[bool] = []
+
+    def resolve_series_cover(self, source_id: str, series_id: str):
+        self.in_transaction_during_fetch.append(self._session.in_transaction())
+        return super().resolve_series_cover(source_id, series_id)
+
+
+def test_no_db_connection_is_held_across_the_cover_fetch(db_session):
+    """Reading the cache row checks a connection out of the pool, and the
+    session holds it until the transaction ends. Fetching the cover while that
+    transaction is open pins one of the pool's 15 connections for the whole
+    upstream request -- so one stalled source painted across a cover grid made
+    unrelated requests (the library list, saving progress, the reader
+    manifest) queue for ``pool_timeout`` and then fail with a raw QueuePool
+    error. An open transaction here is that bug.
+    """
+    browse = _TransactionWatchingBrowse(_noise_jpeg(), db_session)
+    svc = SourceCacheService(db_session, browse)
+
+    svc.get_series_cover(SRC, KEY, width=360, fmt="webp")
+
+    assert browse.in_transaction_during_fetch == [False]
+
+
+def test_no_db_connection_is_held_while_refetching_an_expired_row(db_session):
+    """The same, on the path that has a row to fall back on: the stale-serve
+    snapshot must be taken and the transaction closed before the fetch, not
+    left open so the ORM row stays readable."""
+    browse = _TransactionWatchingBrowse(_noise_jpeg(), db_session)
+    svc = SourceCacheService(db_session, browse)
+    svc.get_series_cover(SRC, KEY, width=360, fmt="webp")
+
+    row = db_session.get(SourceCoverCache, (SRC, KEY, 360, "webp"))
+    row.fetched_at = utcnow() - timedelta(days=400)
+    db_session.commit()
+
+    svc.get_series_cover(SRC, KEY, width=360, fmt="webp")
+
+    assert browse.in_transaction_during_fetch == [False, False]
