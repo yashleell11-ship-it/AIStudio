@@ -1,4 +1,16 @@
-"""Source-native reader endpoints (spec §4.1)."""
+"""Source-native reader endpoints (spec §4.1).
+
+Every read here answers the caller's own 18+ gate, per-(user, profile). The two
+that name a single source — the manifests and ``GET /progress/series`` — run
+``BrowseService.ensure_visible`` first and 404 exactly as browse does; the two
+that list across sources — ``GET /history`` and ``GET /bookmarks`` — fold the
+source's maturity into the per-row rating and omit what is gated, because a
+raise would let one deregistered source in a reader's history take the whole
+list down. Denial is always absence, never 403.
+
+The writes are deliberately ungated: a shut gate is a request not to be *shown*
+adult series, not a request to forget where the account got to.
+"""
 
 from __future__ import annotations
 
@@ -223,7 +235,13 @@ def get_series_progress(
     source: str = Query(..., min_length=1),
     series: str = Query(..., min_length=1),
 ) -> list[dict[str, object]]:
-    """Every stored chapter position for one series."""
+    """Every stored chapter position for one series, for the active profile.
+
+    404 ``source_not_found`` for a source this profile's 18+ gate hides — the
+    same answer ``GET /reader/chapter/manifest`` gives for it. A series that is
+    18+ on a general source comes back as the empty list, which is already this
+    endpoint's answer for a series the profile has never opened.
+    """
     return service.get_series_progress(source, series)
 
 
@@ -234,6 +252,11 @@ def reading_history(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ) -> list[dict[str, object]]:
+    """The active profile's reading history, newest first.
+
+    Gated rows are removed inside the query, so ``limit``/``offset`` page over
+    what this profile can actually see rather than over the unfiltered table.
+    """
     items = service.reading_history(limit=limit, offset=offset)
     set_list_total_header(response, len(items))
     return items

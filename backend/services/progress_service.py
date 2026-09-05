@@ -18,15 +18,23 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import select, tuple_
+from sqlalchemy import and_, case, literal, select, tuple_
 from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
+from core.connector_directory import descriptor_for_source, mature_source_ids
+from core.content_rating import (
+    TRACKER_RATING_MATURE,
+    mature_rating_predicate,
+    resolve_mature_gate,
+    resolve_tracker_rating,
+)
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
 from core.time_utils import utcnow
-from database.models import ChapterProgress, ReadingSession
+from database.models import ChapterProgress, FollowedSeries, ReadingSession
 from database.session import get_db
+from services.browse_service import BrowseService, get_browse_service
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
     from services.bookmark_service import BookmarkService
@@ -217,13 +225,31 @@ class ProgressService:
     def __init__(
         self,
         db: Session,
+        browse: BrowseService | None = None,
         *,
         user_id: int | None = None,
         profile_id: int | None = None,
     ) -> None:
+        """``browse`` carries this caller's resolved 18+ gate for the source
+        check the single-series read makes.
+
+        Optional in signature, never in effect: absent, one is built lazily
+        from this service's own ``(user_id, profile_id)`` through
+        ``resolve_mature_gate`` — the same resolution ``get_browse_service``
+        performs — so there is no way to construct a service whose reads are
+        ungated, which is the invariant ``OcrIngestService`` reaches by making
+        the argument required. Self-building is the stronger form of it here:
+        a required argument can still be handed a BrowseService carrying some
+        *other* profile's gate, and this one cannot disagree with the gate the
+        rest of the service resolves.
+        """
         self._db = db
+        self._browse_service = browse
         self._user_id = user_id
         self._profile_id = profile_id
+        # Resolved once per request: the gate is a property of the (user,
+        # profile) pair and cannot change mid-request.
+        self._gate_cache: bool | None = None
 
     # --- progress ----------------------------------------------------------
 
@@ -260,6 +286,129 @@ class ProgressService:
         else:
             stmt = stmt.where(ChapterProgress.profile_id == self._profile_id)
         return stmt
+
+    # --- the 18+ gate ------------------------------------------------------
+    #
+    # ``chapter_progress`` rows are already scoped to (user_id, profile_id), so
+    # nothing below is about one profile reading another's. It is about the
+    # profile's OWN mature series: with the 18+ toggle shut, browse, the
+    # manifest, Continue Reading, Bookmarks and the statistics screen all hide
+    # a series that these two reads happily described. A gate that holds
+    # everywhere but the history screen is not a gate.
+
+    def _browse(self) -> BrowseService:
+        if self._browse_service is None:
+            self._browse_service = BrowseService(
+                mature_enabled=self._gate_open(),
+                db=self._db,
+                user_id=self._user_id,
+                profile_id=self._profile_id,
+            )
+        return self._browse_service
+
+    def _gate_open(self) -> bool:
+        """This caller's own 18+ gate.
+
+        Resolved from the (user, profile) pair via ``resolve_mature_gate`` —
+        the single resolution path. Reading
+        ``get_settings().mature_content_enabled`` in the service layer instead
+        is what once made the in-app toggle inert.
+        """
+        if self._gate_cache is None:
+            self._gate_cache = resolve_mature_gate(
+                self._db, self._profile_id, self._user_id
+            )
+        return self._gate_cache
+
+    def _follow_join(self, stmt):
+        """Outer-join the follow row a progress row's rating is resolved from.
+
+        OUTER, unlike ``FollowedSeriesService.continue_reading``'s inner join,
+        and the difference is the point: that strip is a view of the *library*,
+        so a series this profile does not follow has no business in it. History
+        is the profile's own record — unfollowing a series is not a rating, and
+        an inner join here would erase the history of everything the reader
+        ever stopped following. ``uq_followed_series`` guarantees at most one
+        match, so the join can never fan a progress row out into duplicates.
+        """
+        return stmt.outerjoin(
+            FollowedSeries,
+            and_(
+                FollowedSeries.user_id == ChapterProgress.user_id,
+                FollowedSeries.profile_id == ChapterProgress.profile_id,
+                FollowedSeries.source_id == ChapterProgress.source_id,
+                FollowedSeries.series_key == ChapterProgress.series_key,
+            ),
+        )
+
+    def _mature_case(self):
+        """1 when a progress row's series is 18+ for this profile, else 0.
+
+        SQL mirror of :func:`core.content_rating.resolve_tracker_rating` in the
+        same priority order — explicit override, the rating captured at follow
+        time, then the source's own maturity — copied verbatim from
+        ``reading_stats_service._progress_mature_case`` (same table, same
+        columns) so the history list and the statistics screen can never
+        disagree about what is adult. Unknown stays 0 for the reason recorded
+        there.
+        """
+        mature_sources = mature_source_ids()
+        source_mature = (
+            case((ChapterProgress.source_id.in_(mature_sources), 1), else_=0)
+            if mature_sources
+            else literal(0)
+        )
+        return case(
+            (FollowedSeries.mature_override == 1, 1),
+            (FollowedSeries.mature_override == 0, 0),
+            (
+                FollowedSeries.content_rating.is_not(None),
+                case(
+                    (mature_rating_predicate(FollowedSeries.content_rating), 1),
+                    else_=0,
+                ),
+            ),
+            else_=source_mature,
+        )
+
+    def _series_visible(self, source_id: str, series_key: str) -> bool:
+        """Whether ONE series' stored positions may be shown to this profile.
+
+        The *source* gate is ``ensure_visible``'s job and has already run by
+        the time this is called; what is left is the series' own rating, which
+        the source gate alone misses — an 18+ series on a general source like
+        mangadex, flagged by ``mature_override`` or by the ``content_rating``
+        captured at follow time.
+
+        No follow row leaves no rating signal but the source's own, which
+        ``ensure_visible`` has already cleared: unknown is deliberately not
+        folded into mature (see :func:`resolve_tracker_rating`), so the profile
+        keeps its own history for a series it stopped following. This is
+        :meth:`_mature_case` resolved in Python because it answers for a single
+        series — calling the authority directly for one row is one fewer place
+        for the two to drift.
+        """
+        if self._gate_open():
+            return True
+        stmt = select(FollowedSeries).where(
+            FollowedSeries.user_id == self._user_id,
+            FollowedSeries.source_id == source_id,
+            FollowedSeries.series_key == series_key,
+        )
+        # Unconditional profile predicate, exactly as ``_scope`` reads it: the
+        # unscoped bucket is a bucket, not a wildcard over the account.
+        stmt = (
+            stmt.where(FollowedSeries.profile_id.is_(None))
+            if self._profile_id is None
+            else stmt.where(FollowedSeries.profile_id == self._profile_id)
+        )
+        follow = self._db.execute(stmt).scalar_one_or_none()
+        if follow is None:
+            return True
+        return (
+            resolve_tracker_rating(follow, descriptor_for_source(source_id))
+            != TRACKER_RATING_MATURE
+        )
 
     def _prefetch(
         self, payloads: list[ProgressInput]
@@ -431,8 +580,30 @@ class ProgressService:
     def get_series_progress(
         self, source_id: str, series_key: str
     ) -> list[dict[str, Any]]:
+        """Every stored chapter position for ONE series, for this profile.
+
+        Gated in the two steps every read that names a source takes, in this
+        order:
+
+        * the *source* gate — ``ensure_visible``, the same call
+          ``ReaderService.manifest`` makes one route above, so a mature source
+          answers here byte-identically to how it answers there: 404
+          ``source_not_found``, never 403, because off-limits has to be
+          indistinguishable from absent;
+        * the *series* gate — ``_series_visible``, because a series that is 18+
+          on a *general* source is something no source-level check can see.
+
+        A withheld series returns the empty list rather than raising: that is
+        already this endpoint's answer for a series the profile has never
+        opened, and it is the same answer for the same reason.
+        ``OcrIngestService.coverage`` resolves the identical pair the identical
+        way.
+        """
         self._require_owner()
         series_key = fully_unquote(series_key)
+        self._browse().ensure_visible(source_id)
+        if not self._series_visible(source_id, series_key):
+            return []
         rows = self._db.execute(
             self._scope(
                 select(ChapterProgress)
@@ -448,14 +619,37 @@ class ProgressService:
     def reading_history(
         self, *, limit: int = 50, offset: int = 0
     ) -> list[dict[str, Any]]:
+        """The profile's own reading history, newest first.
+
+        Spans sources, so it cannot call ``ensure_visible`` the way the
+        single-series read does — that raises, and one deregistered or
+        non-browsable source in a reader's history would take the whole list
+        down with it. The source's maturity is therefore folded into the rating
+        instead (``_mature_case``'s fall-through), which is how every other
+        cross-source listing of stored rows resolves it: ``list_bookmarks``,
+        the statistics screen.
+
+        The join is load-bearing rather than decorative — with no
+        ``followed_series`` row in the statement there is nothing to resolve a
+        rating against, which is exactly why this read had no gate. And the
+        filter is SQL rather than a Python pass afterwards so ``limit`` and
+        ``offset`` still count the rows the caller can actually see: dropping
+        them after the page is cut hands back short pages, and a client paging
+        on ``offset`` then steps clean over the removed rows and loses the tail
+        of its own history.
+        """
         self._require_owner()
+        stmt = self._scope(select(ChapterProgress))
+        if not self._gate_open():
+            # Joined only when the gate is shut. The other 99% of requests are
+            # an open gate with nothing to resolve, and an unconditional join
+            # would make every one of them pay an index probe per progress row
+            # (the cost ``ReadingStatsService._sessions`` measured).
+            stmt = self._follow_join(stmt).where(self._mature_case() == 0)
         rows = self._db.execute(
-            self._scope(
-                select(ChapterProgress)
-                .order_by(ChapterProgress.last_read_at.desc())
-                .limit(limit)
-                .offset(offset)
-            )
+            stmt.order_by(ChapterProgress.last_read_at.desc())
+            .limit(limit)
+            .offset(offset)
         ).scalars().all()
         return [self._serialize(r) for r in rows]
 
@@ -561,6 +755,11 @@ def _iso(value: datetime | None) -> str | None:
 
 def get_progress_service(
     db: Annotated[Session, Depends(get_db)],
+    browse: Annotated[BrowseService, Depends(get_browse_service)],
     ctx: Annotated[ProfileContext, Depends(resolve_profile_context)],
 ) -> ProgressService:
-    return ProgressService(db, user_id=ctx.user_id, profile_id=ctx.profile_id)
+    # ``browse`` already carries this request's resolved 18+ gate, so the read
+    # paths reuse it rather than resolving the same (user, profile) twice.
+    return ProgressService(
+        db, browse, user_id=ctx.user_id, profile_id=ctx.profile_id
+    )
