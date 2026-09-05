@@ -13,9 +13,9 @@ import type { SaveChapterRequest } from "./protocol";
  *   payload  {apiBase}/reader/chapter/manifest?source=&series=&chapter=
  *   pages    absolute source-proxy URLs straight from the manifest
  *
- * TODO(1b): the service worker URL matcher (`sw.js` / `sw-policy.js`) and the
- * offline hooks/tests still need repointing to these shapes — that is the
- * dedicated later slice (spec §3.2, step 5).
+ * The service worker matcher was repointed at these shapes in the 1b slice:
+ * `sw-policy.js` carries the source-proxy page-bytes route and the c1 -> c2
+ * cache migration for chapters that were keyed the old way.
  */
 
 /** Unique per chapter. The cache it lives in is already per (user, profile). */
