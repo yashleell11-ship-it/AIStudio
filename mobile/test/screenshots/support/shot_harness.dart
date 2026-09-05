@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -176,7 +175,7 @@ const double kShotPixelRatio = 2.0;
 void useShotViewport(WidgetTester tester) {
   tester.view.physicalSize = kShotLogicalSize * kShotPixelRatio;
   tester.view.devicePixelRatio = kShotPixelRatio;
-  tester.view.padding = FakeViewPadding(
+  tester.view.padding = const FakeViewPadding(
     top: 59 * kShotPixelRatio,
     bottom: 34 * kShotPixelRatio,
   );
