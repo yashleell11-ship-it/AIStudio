@@ -1,8 +1,10 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/core/logging/app_logger.dart';
 import 'package:manhwamaniacs/features/downloads/providers/bookmark_outbox_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/progress_outbox_provider.dart';
@@ -184,15 +186,58 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
   @override
   void didUpdateWidget(covariant _ManifestReaderBody oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The neighbours the screen watches land after first paint (spec R3), and
-    // the feed needs them to know what to continue into. Anything else about
-    // the anchor changing means a different chapter entirely.
-    if (oldWidget.chapterKey != widget.chapterKey ||
-        !identical(oldWidget.resolved.chapter, widget.resolved.chapter)) {
+    final was = oldWidget.resolved.chapter;
+    final now = widget.resolved.chapter;
+
+    // A different chapter in the ROUTE is a different read. Everything keyed
+    // off it moves with it — the scroll storage key, [ReaderContent]'s own
+    // key, and so that widget's whole state — so there is no window left to
+    // preserve and a fresh feed is the only honest answer.
+    if (oldWidget.chapterKey != widget.chapterKey) {
+      // Guarded at the call site, not inside: [kDebugMode] is a compile-time
+      // constant, so this way the arguments — which walk a page list — are
+      // dropped from a release build along with the call.
+      if (kDebugMode) {
+        _reportFeedChange(
+          reason: 'the route moved to another chapter',
+          wasKey: oldWidget.chapterKey,
+          nowKey: widget.chapterKey,
+          chaptersHeld: _controller.feed.chapters.length,
+          outcome: 'feed rebuilt from the new chapter',
+        );
+      }
       _controller.dispose();
       _controller = _buildController();
       return;
     }
+
+    // Same chapter, resolved again — reported whether or not anything about
+    // it actually moved. An EQUIVALENT re-emission is precisely what the old
+    // reference-equality guard threw the whole feed away for, so how often
+    // one arrives during a real read is the measurement that settles what
+    // reading the code could not.
+    if (kDebugMode && !identical(was, now)) {
+      _reportFeedChange(
+        reason: 'the chapter re-resolved — ${_chapterDifference(was, now)}',
+        wasKey: was.id,
+        nowKey: now.id,
+        chaptersHeld: _controller.feed.chapters.length,
+        outcome: was == now
+            ? 'nothing to do (the old reference guard rebuilt the feed here)'
+            : _controller.feed.contains(now.id)
+                ? 'swapped in place, window kept'
+                : 'dropped, the window has already released this chapter',
+      );
+    }
+    // [resolvedReaderChapterProvider] builds a fresh [ReaderChapter] on every
+    // run, so only a change of VALUE is worth acting on — and even then the
+    // window survives it: the feed holds chapters either side of the anchor in
+    // a Read-all run, and starting over would drop the reader back at the
+    // chapter the route opened at.
+    if (was != now) _controller.replaceChapter(now);
+
+    // The neighbours the screen watches land after first paint (spec R3), and
+    // the feed needs them to know what to continue into.
     _controller.noteNeighbours(
       widget.chapterKey,
       prev: _prev,
@@ -390,4 +435,56 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
           .then((bookmark) => bookmark != null),
     );
   }
+}
+
+/// Which fields moved between two resolutions of the same chapter, named
+/// rather than printed: a webtoon page list is megabytes of URLs, and the
+/// question this answers is *what kind* of change fired the reset, not what
+/// the new value was.
+///
+/// "nothing differs" is the interesting answer here, not the boring one: it
+/// means the provider re-emitted an equivalent chapter, and every reset the
+/// old reference-equality guard fired was for a change that never happened.
+String _chapterDifference(ReaderChapter was, ReaderChapter now) {
+  final moved = <String>[
+    if (was.id != now.id) 'id',
+    if (was.seriesId != now.seriesId) 'seriesId',
+    if (was.title != now.title) 'title',
+    if (was.pageCount != now.pageCount)
+      'pageCount ${was.pageCount}->${now.pageCount}',
+    if (was.sourceId != now.sourceId) 'sourceId',
+    if (was.seriesTitle != now.seriesTitle) 'seriesTitle',
+    if (was.previousChapterId != now.previousChapterId) 'previousChapterId',
+    if (was.nextChapterId != now.nextChapterId) 'nextChapterId',
+    if (was.pages.length != now.pages.length)
+      'pages ${was.pages.length}->${now.pages.length}',
+    if (was.pages.length == now.pages.length &&
+        !listEquals(was.pages, now.pages))
+      'page contents',
+  ];
+  return moved.isEmpty ? 'nothing differs' : 'changed: ${moved.join(', ')}';
+}
+
+/// Report a change at the reader's anchor that the feed had to answer for.
+///
+/// This exists because the reset it describes was invisible: the owner sees
+/// the reader jump backwards after a few chapters and there is nothing in a
+/// log to say a feed was thrown away, let alone what asked for it. One line
+/// per occurrence, naming the trigger, both chapter keys, how much of a
+/// Read-all window was at stake and what was actually done with it, is enough
+/// to settle in one reading session what reading the code could not.
+///
+/// Callers guard on [kDebugMode] so this and its arguments leave a release
+/// build entirely.
+void _reportFeedChange({
+  required String reason,
+  required String wasKey,
+  required String nowKey,
+  required int chaptersHeld,
+  required String outcome,
+}) {
+  appLogger.d(
+    'reader/feed: $reason — chapter "$wasKey" -> "$nowKey", '
+    'feed held $chaptersHeld chapter(s); $outcome.',
+  );
 }

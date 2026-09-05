@@ -147,6 +147,33 @@ class ReaderFeedController extends ChangeNotifier {
     if (next != null) _nextOf[chapterId] = next;
   }
 
+  /// Fold a re-resolved [chapter] back into the feed **in place**, keeping the
+  /// window around it.
+  ///
+  /// The provider behind the anchor can resolve the same chapter again — the
+  /// store answering where the network did a moment ago, or an equivalent
+  /// value for no visible reason at all — and by then a Read-all run
+  /// legitimately holds chapters either side of it. Rebuilding the controller
+  /// for that would collapse the feed to this one chapter and put the reader
+  /// back at whatever the route opened at, which after two or three chapters
+  /// of reading is a jump backwards. Swapping one entry costs nothing and
+  /// keeps everything already loaded and measured.
+  ///
+  /// A chapter the window has already released is not on screen and needs
+  /// nothing: it is a no-op rather than a reason to reset.
+  ///
+  /// Silent, like [setOrder] and [noteNeighbours] and for the same reason —
+  /// the caller is a `didUpdateWidget`, and the build that follows it reads
+  /// [feed] anyway.
+  void replaceChapter(ReaderChapter chapter) {
+    final index = _feed.indexOfChapter(chapter.id);
+    if (index < 0) return;
+    if (_feed.chapters[index] == chapter) return;
+    final chapters = [..._feed.chapters];
+    chapters[index] = chapter;
+    _feed = ReaderFeed.of(chapters);
+  }
+
   String? _nextIdAfter(String chapterId) {
     final order = _order;
     if (order != null) {
