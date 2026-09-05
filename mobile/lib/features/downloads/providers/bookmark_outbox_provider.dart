@@ -83,7 +83,7 @@ class BookmarkOutboxController {
       updatedAt: now,
     );
     final saved = await store.saveBookmark(bookmark);
-    await flush();
+    if (await flush()) await _reconcile();
     return saved;
   }
 
@@ -92,7 +92,7 @@ class BookmarkOutboxController {
     final store = this.store;
     if (store == null) return false;
     final removed = await store.tombstoneBookmark(clientId);
-    if (removed) await flush();
+    if (removed && await flush()) await _reconcile();
     return removed;
   }
 
@@ -106,12 +106,21 @@ class BookmarkOutboxController {
   /// Accepted ops are cleared even when the server *refused* them: a rejected
   /// op is settled, not pending — an upsert against a tombstone can never
   /// become valid — and keeping it would retry it forever.
-  Future<void> flush() async {
+  ///
+  /// Returns whether the server refused anything, so the caller can pull its
+  /// view back down. A refusal means the device is now showing an edit that
+  /// exists nowhere else: the server decides bookmark conflicts by
+  /// last-write-wins on the *client's* clock, so a phone whose clock is behind
+  /// (an Android that rebooted flat before NTP caught up) loses to a stamp it
+  /// cannot see. Clearing the op without reconciling left that phantom edit on
+  /// screen indefinitely, which is worse than losing the edit.
+  Future<bool> flush() async {
     final store = this.store;
-    if (store == null) return;
+    if (store == null) return false;
+    var refused = false;
     try {
       final pending = await store.pendingBookmarkOutbox();
-      if (pending.isEmpty) return;
+      if (pending.isEmpty) return false;
 
       for (var start = 0;
           start < pending.length;
@@ -128,7 +137,8 @@ class BookmarkOutboxController {
         // ordered, and sending a later chunk past a create that never landed
         // would apply a delete to a bookmark the server has not been told
         // about yet.
-        if (result.isErr) return;
+        if (result.isErr) return refused;
+        if (result.value.rejected > 0) refused = true;
         for (final entry in result.value.serverIds.entries) {
           await store.adoptServerId(entry.key, entry.value);
         }
@@ -137,6 +147,24 @@ class BookmarkOutboxController {
     } catch (_) {
       // Offline, a transient server error, or a store that went away under a
       // profile switch — the rows stay queued for the next flush.
+    }
+    return refused;
+  }
+
+  /// Replaces whatever this device thinks with the server's answer. Only worth
+  /// the round trip after a refusal — [sync] already pulls unconditionally.
+  Future<void> _reconcile() async {
+    final store = this.store;
+    if (store == null) return;
+    try {
+      final result = await repository.listBookmarks(
+        includeDeleted: true,
+        limit: 500,
+      );
+      if (result.isOk) await store.mergeServerBookmarks(result.value);
+    } catch (_) {
+      // The refusal is already recorded on the server; the device catches up
+      // on the next sync.
     }
   }
 
