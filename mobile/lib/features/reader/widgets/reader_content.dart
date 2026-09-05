@@ -256,6 +256,11 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   double? _containerWidth;
   double? _containerHeight;
 
+  /// Read in [build] and cached rather than looked up where it is used: the
+  /// prefetch budget needs it on every scroll notification, and that is not a
+  /// place to be walking the inherited-widget chain.
+  double _devicePixelRatio = 1;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -868,6 +873,13 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// page, so a prefetched page is a cache hit (no re-decode) when it scrolls
   /// into view. Monotonic — never re-warms pages already requested.
   ///
+  /// How *many* pages is decided in bytes rather than pages — see
+  /// [readerPrefetchTarget]. The page sizes that budget needs are the ones the
+  /// extents machinery is already learning from every decode, so a heavy
+  /// source narrows the window on its own within a frame or two of the chapter
+  /// opening, and a cheap one widens past the eight pages this used to warm
+  /// unconditionally.
+  ///
   /// Warms from disk for a downloaded page. Before that branch existed a
   /// downloaded chapter — the one that should be the smoothest — got no
   /// warm-up at all: its pages carry an empty [ReaderPage.imageUrl], so every
@@ -876,13 +888,22 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   void _prefetchUpcoming(int visiblePage) {
     if (!mounted) return;
     final pages = widget.feed.pages;
-    final target = (visiblePage + readerPrefetchAhead).clamp(0, pages.length);
+    if (pages.isEmpty) return;
+
+    final decodeWidth = readerDecodeWidth(_containerWidth, _devicePixelRatio);
+    // [visiblePage] is 1-based; the budget is spent from the page on screen
+    // outwards, because that page's bitmap is resident too.
+    final target = readerPrefetchTarget(
+      fromIndex: visiblePage - 1,
+      pageCount: pages.length,
+      knownPageBytes: (index) => readerDecodedPageBytes(
+        decodeWidth: decodeWidth,
+        pixelWidth: _pageExtents.pixelWidthAt(index),
+        ratio: _pageExtents.resolvedRatioAt(index),
+      ),
+    );
     if (target <= _prefetchedThrough) return;
 
-    final decodeWidth = readerDecodeWidth(
-      _containerWidth,
-      MediaQuery.devicePixelRatioOf(context),
-    );
     final headers = apiImageHttpHeaders(
       ref.read(authTokenStoreProvider).token,
       profileId: ref.read(activeProfileProvider)?.id,
@@ -1338,6 +1359,10 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       viewportWidth: viewportWidth,
       viewportHeight: viewportHeight,
       priority: index < 2,
+      // Debug diagnostic only: what the source said this page is, so a decode
+      // that comes back a different shape can be named rather than guessed at.
+      declaredWidth: page.width,
+      declaredHeight: page.height,
       // No per-decode callback: a page loading changes nothing this reader
       // derives from geometry. Extents are forced from [metrics] and the
       // scrollable range from the delegate's own total, so an arriving bitmap
@@ -1494,6 +1519,7 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
 
     _containerWidth = mediaSize.width;
     _containerHeight = mediaSize.height;
+    _devicePixelRatio = MediaQuery.devicePixelRatioOf(context);
 
     final direction = defaults.direction;
     // Leading padding is always [readerListLeadingPadding] in *scroll* terms —
