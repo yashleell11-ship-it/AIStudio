@@ -136,6 +136,16 @@ describe("tocEntry", () => {
     });
   });
 
+  it("does not print a Royal Road ordinal twice on one row", () => {
+    // Every chapter of every RR fiction is titled "N. Title", which the
+    // contents page rendered whole beside its own ordinal column: "1 │ 1. Good
+    // Morning Brother", for all 109 rows.
+    expect(tocEntry({ number: 1, title: "1. Good Morning Brother" })).toEqual({
+      ordinal: "1",
+      title: "Good Morning Brother",
+    });
+  });
+
   it("keeps decimals, which are real chapters", () => {
     expect(tocEntry({ number: 12.5, title: "Interlude" })).toEqual({
       ordinal: "12.5",
