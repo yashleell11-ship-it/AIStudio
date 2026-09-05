@@ -31,7 +31,7 @@ import {
   formatEstimatedWords,
   tocEntry,
 } from "../book";
-import { prefetchNovelChapter, useCachedNovelWordCounts } from "../hooks";
+import { prefetchNovelChapterWindow, useCachedNovelWordCounts } from "../hooks";
 import { novelChapterHref } from "../novel-link";
 import { chapterPercent } from "../progress";
 import { formatChapterLength } from "../reading-time";
@@ -142,17 +142,19 @@ export function NovelSeriesDetailView({
 
   // Warm the opening chapters: "Start reading" becomes instant, and the length
   // estimate below gets its sample.
+  //
+  // As ONE window rather than a chapter at a time. Three simultaneous
+  // `GET /novels/chapter` calls are three trips through the `sources` rate
+  // limit — the bucket the reader's own chapter fetch shares — so arriving on
+  // a book could spend the reader's budget before they opened anything.
+  // `POST /novels/chapters` is one call on the `bulk` bucket for the same
+  // three chapters, and it fans the cache misses out server-side.
   useEffect(() => {
     const opening = [...chapters]
       .sort((a, b) => (a.number ?? Number.MAX_SAFE_INTEGER) - (b.number ?? Number.MAX_SAFE_INTEGER))
-      .slice(0, PREFETCH_CHAPTERS);
-    for (const chapter of opening) {
-      prefetchNovelChapter(queryClient, {
-        sourceId,
-        seriesKey: seriesId,
-        chapterKey: chapter.id,
-      });
-    }
+      .slice(0, PREFETCH_CHAPTERS)
+      .map((chapter) => chapter.id);
+    void prefetchNovelChapterWindow(queryClient, { sourceId, seriesKey: seriesId }, opening);
   }, [chapters, queryClient, seriesId, sourceId]);
 
   const wordCounts = useCachedNovelWordCounts(

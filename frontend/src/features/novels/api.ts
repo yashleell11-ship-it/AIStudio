@@ -1,8 +1,12 @@
 import { http, sourceChapterQuery } from "@/services/http";
-import type { ChapterId } from "@/types/api";
+import type { ChapterId, SeriesId } from "@/types/api";
 import { bucketCount } from "./progress";
 import { countWords } from "./reading-time";
-import type { NovelChapterContent, NovelChapterPayload } from "./types";
+import type {
+  NovelChapterContent,
+  NovelChapterPayload,
+  NovelChapterWindowPayload,
+} from "./types";
 
 /**
  * Build a renderable chapter from the wire payload. The sole content builder,
@@ -49,5 +53,28 @@ export const novelsApi = {
   chapter: (ref: ChapterId) =>
     http.get<NovelChapterPayload>("/novels/chapter", {
       query: sourceChapterQuery(ref),
+    }),
+
+  /**
+   * A bounded window of one book's chapters, in one round trip.
+   *
+   * POST, not GET, for the same reason `readerApi.manifestBatch` is: the body
+   * is a list of opaque keys that routinely contain slashes, and twenty of
+   * them do not belong in a query string. It is still a read.
+   *
+   * The honest claim is not raw speed. Against a warm server cache this is
+   * roughly what the same chapters cost one at a time; what it buys is a cold
+   * cache — the misses fan out server-side instead of queueing behind each
+   * other — and, more importantly here, ONE call against the rate limiter
+   * instead of N. Firing several `GET /novels/chapter` at once spends the
+   * `sources` bucket N times over and trips it; a window spends the `bulk`
+   * bucket once. Callers must bound the list — `boundedWindow` in
+   * `chapter-window.ts` is the guard — because over the cap is a 413.
+   */
+  chapterWindow: (ref: SeriesId, chapterKeys: readonly string[]) =>
+    http.post<NovelChapterWindowPayload>("/novels/chapters", {
+      source_id: ref.sourceId,
+      series_key: ref.seriesKey,
+      chapter_keys: chapterKeys,
     }),
 };

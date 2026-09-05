@@ -30,6 +30,40 @@ export interface NovelChapterPayload {
   cache?: SourceBrowseCache | null;
 }
 
+/** One chapter's slot in a bulk window (`POST /novels/chapters`). */
+export interface NovelChapterWindowItem {
+  /**
+   * The key the request asked for, after the server's percent-decoding — not
+   * the key inside `chapter`, which a connector is free to normalise.
+   */
+  chapter_key: string;
+  status: "ok" | "error";
+  /** Byte-identical to what `GET /novels/chapter` serves, or null. */
+  chapter: NovelChapterPayload | null;
+  /** Exactly one of `chapter` / `error` is non-null. */
+  error: { code: string; status: number; message: string } | null;
+}
+
+/**
+ * `POST /novels/chapters` — a bounded WINDOW of one book's chapters in a
+ * single round trip (`backend/services/novel_service.py.get_chapters_bulk`).
+ *
+ * `items` is the same length and order as the keys asked for, and degrades per
+ * chapter: one chapter failing upstream is an `error` item, not a failed
+ * window. `max_chapters` is the server's own cap, echoed on every answer so a
+ * client paces by the deployment's stride rather than by a compiled-in number;
+ * asking for more than it is a 413 `batch_too_large`.
+ */
+export interface NovelChapterWindowPayload {
+  source_id: string;
+  series_key: string;
+  max_chapters: number;
+  requested: number;
+  ok_count: number;
+  failed_count: number;
+  items: NovelChapterWindowItem[];
+}
+
 /** A chapter ready to render, built from the payload by `toNovelChapter`. */
 export interface NovelChapterContent {
   sourceId: string;
