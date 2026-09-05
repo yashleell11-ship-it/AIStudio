@@ -3,11 +3,14 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
+import { subscribeStorageScope } from "@/lib/scoped-storage";
 import { readerDebug } from "../debug";
 import { continuousPageSizing } from "../fit";
 import {
   DEFAULT_CONTAINER_WIDTH,
   estimatePageHeight,
+  exactPageHeight,
+  pageContentWidth,
   resolveContainerWidth,
 } from "../page-layout";
 import {
@@ -16,6 +19,8 @@ import {
   recordHeight,
   type HeightSamples,
 } from "../page-metrics";
+import { naturalPageRatio, readPageRatios, writePageRatios } from "../page-ratios";
+import { pageImageUrlForBox } from "../page-url";
 import { PRELOAD_AHEAD_CONTINUOUS } from "../preload";
 import { restoreChapterScroll } from "../scroll-preparation";
 import {
@@ -32,7 +37,7 @@ import {
   type StripRow,
 } from "../strip";
 import type { ReaderPage } from "../types";
-import { PageImage } from "./PageImage";
+import { PageImage, type PageFrame } from "./PageImage";
 
 /**
  * Upcoming pages warmed into the browser cache ahead of the reader. Counted in
@@ -101,24 +106,34 @@ interface VirtualPageRowProps {
   /** This row's strip key — what every measurement of it is filed under. */
   rowKey: string;
   page: ReaderPage;
+  /** The page URL resolved for the box this row paints into (`page-url.ts`). */
+  imageUrl: string;
+  chapterKey: string;
   pageNumber: number;
   chapterTitle: string;
   zoom: number;
   priority: boolean;
   pageGap: boolean;
   /**
-   * Takes the row key instead of closing over it, so the strip can hand every
-   * row the SAME function. A closure rebuilt per render defeats this `memo`
-   * and `PageImage`'s below it, which during a fast flick is the difference
-   * between a scroll frame re-rendering nothing and re-rendering every visible
-   * page.
+   * Takes the row's identity instead of closing over it, so the strip can hand
+   * every row the SAME function. A closure rebuilt per render defeats this
+   * `memo` and `PageImage`'s below it, which during a fast flick is the
+   * difference between a scroll frame re-rendering nothing and re-rendering
+   * every visible page.
    */
-  onImageLoad: (rowKey: string) => void;
+  onImageLoad: (
+    rowKey: string,
+    chapterKey: string,
+    pageNumber: number,
+    natural: PageFrame | null,
+  ) => void;
 }
 
 const VirtualPageRow = memo(function VirtualPageRow({
   rowKey,
   page,
+  imageUrl,
+  chapterKey,
   pageNumber,
   chapterTitle,
   zoom,
@@ -127,8 +142,11 @@ const VirtualPageRow = memo(function VirtualPageRow({
   onImageLoad,
 }: VirtualPageRowProps) {
   const sizing = continuousPageSizing(zoom);
-  // Both inputs are stable, so `PageImage` keeps the identity it needs to bail.
-  const handleLoad = useCallback(() => onImageLoad(rowKey), [onImageLoad, rowKey]);
+  // Every input is stable, so `PageImage` keeps the identity it needs to bail.
+  const handleLoad = useCallback(
+    (natural: PageFrame | null) => onImageLoad(rowKey, chapterKey, pageNumber, natural),
+    [onImageLoad, rowKey, chapterKey, pageNumber],
+  );
   return (
     <div
       id={`reader-page-${pageNumber}`}
@@ -139,7 +157,7 @@ const VirtualPageRow = memo(function VirtualPageRow({
       style={sizing}
     >
       <PageImage
-        imageUrl={page.imageUrl}
+        imageUrl={imageUrl}
         alt={`${chapterTitle} page ${pageNumber}`}
         width={page.width}
         height={page.height}
@@ -238,6 +256,13 @@ export const ContinuousStrip = memo(function ContinuousStrip({
   const measuredByKeyRef = useRef<Map<string, number>>(new Map());
   const releasedHeightsRef = useRef<Map<string, number>>(new Map());
   const heightSamplesRef = useRef<HeightSamples>(EMPTY_HEIGHT_SAMPLES);
+  // Per-page aspect ratios, by chapter: what the browser learned on decode plus
+  // whatever a previous read left in storage. Layout-INDEPENDENT, unlike every
+  // other map here, which is why the resize handler below wipes the heights and
+  // leaves these alone — after a resize, every page seen once still reserves its
+  // real extent immediately.
+  const ratiosRef = useRef<Map<string, (number | null)[]>>(new Map());
+  const dirtyChaptersRef = useRef<Set<string>>(new Set());
   const lastAvgEstimateRef = useRef(0);
   const layoutKeyRef = useRef<string | null>(null);
   const firstChapterKeyRef = useRef<string | null>(null);
@@ -247,10 +272,55 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     onPositionChangeRef.current = onPositionChange;
   }, [onPositionChange]);
 
+  // Layout inputs the image-load handler needs but must not DEPEND on: it is
+  // handed to every visible row, and a new identity for it re-renders each one.
+  const containerWidthRef = useRef(containerWidth);
+  containerWidthRef.current = containerWidth;
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
+  const pageGapRef = useRef(pageGap);
+  pageGapRef.current = pageGap;
+
   const releasedHeight = useCallback(
     (chapterKey: string) => releasedHeightsRef.current.get(chapterKey) ?? 0,
     [],
   );
+
+  /** This chapter's remembered shapes, read from storage at most once. */
+  const chapterRatios = useCallback((chapterKey: string): (number | null)[] => {
+    const held = ratiosRef.current.get(chapterKey);
+    if (held) return held;
+    const loaded = readPageRatios(chapterKey);
+    ratiosRef.current.set(chapterKey, loaded);
+    return loaded;
+  }, []);
+
+  const rememberedRatio = useCallback(
+    (chapterKey: string, pageNumber: number): number | null =>
+      chapterRatios(chapterKey)[pageNumber - 1] ?? null,
+    [chapterRatios],
+  );
+
+  // Remembered shapes belong to a profile, and the cache above is keyed only by
+  // chapter. A switch has to drop it unflushed, or the arriving profile reads
+  // the departing one's measurements — and writes them back under its own key.
+  useEffect(
+    () =>
+      subscribeStorageScope(() => {
+        dirtyChaptersRef.current.clear();
+        ratiosRef.current.clear();
+      }),
+    [],
+  );
+
+  /** Flush every chapter measured since the last flush. Best-effort by design. */
+  const flushRatios = useCallback(() => {
+    for (const chapterKey of dirtyChaptersRef.current) {
+      const ratios = ratiosRef.current.get(chapterKey);
+      if (ratios) writePageRatios(chapterKey, ratios);
+    }
+    dirtyChaptersRef.current.clear();
+  }, []);
 
   const rows = useMemo(
     () => buildStripRows(chapters, { released, releasedHeight }),
@@ -270,17 +340,41 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     return () => observer.disconnect();
   }, [scrollElement]);
 
+  /**
+   * What one page will occupy, best answer first.
+   *
+   * The order is the whole point. A page whose SOURCE reported dimensions, or
+   * one this profile has already watched decode, has an exact extent — and the
+   * running average must not be allowed to overwrite a fact with a mean. Only a
+   * page nobody can size yet falls through to the samples, and only a strip
+   * with no samples at all falls through to the population prior.
+   */
+  const pageRowHeight = useCallback(
+    (page: ReaderPage, chapterKey: string, pageNumber: number): number => {
+      const gap = pageGap ? PAGE_GAP_PX : 0;
+      const exact = exactPageHeight(page, containerWidth, zoom);
+      if (exact != null) return exact + gap;
+      const remembered = rememberedRatio(chapterKey, pageNumber);
+      if (remembered != null) {
+        return pageContentWidth(containerWidth, zoom) * remembered + gap;
+      }
+      return estimateFromSamples(
+        heightSamplesRef.current,
+        estimatePageHeight(page, containerWidth, zoom) + gap,
+      );
+    },
+    [containerWidth, pageGap, rememberedRatio, zoom],
+  );
+
   const rowHeight = useCallback(
     (row: StripRow): number => {
       const measured = measuredByKeyRef.current.get(row.key);
       if (measured != null) return measured;
       if (row.kind === "spacer") return row.height;
       if (row.kind === "divider") return DIVIDER_HEIGHT_PX;
-      const fallback =
-        estimatePageHeight(row.page, containerWidth, zoom) + (pageGap ? PAGE_GAP_PX : 0);
-      return estimateFromSamples(heightSamplesRef.current, fallback);
+      return pageRowHeight(row.page, row.chapterKey, row.pageNumber);
     },
-    [containerWidth, pageGap, zoom],
+    [pageRowHeight],
   );
 
   const virtualizer = useVirtualizer({
@@ -348,6 +442,9 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     layoutKeyRef.current = layoutKey;
     if (previous === null || previous === layoutKey) return;
 
+    // `ratiosRef` deliberately survives: an aspect ratio is a property of the
+    // page, not of the column it was measured in, so a resize is exactly when
+    // it is most valuable.
     measuredByKeyRef.current = new Map();
     releasedHeightsRef.current = new Map();
     heightSamplesRef.current = EMPTY_HEIGHT_SAMPLES;
@@ -365,16 +462,20 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     // otherwise, and re-warming an already-cached URL costs nothing.
     if (seen.size > PREFETCH_MEMORY_LIMIT) seen.clear();
     const strip = rowsRef.current;
+    const box = pageContentWidth(containerWidthRef.current, zoomRef.current);
     let warmed = 0;
     for (let index = activeIndex + 1; index < strip.length && warmed < PREFETCH_AHEAD; index += 1) {
       const row = strip[index];
       if (row.kind !== "page") continue;
       warmed += 1;
-      if (seen.has(row.page.imageUrl)) continue;
-      seen.add(row.page.imageUrl);
+      // Resolved through the SAME rule the row renders with: warming the baked
+      // URL and then painting a different one downloads every page twice.
+      const url = pageImageUrlForBox(row.page.imageUrl, box);
+      if (seen.has(url)) continue;
+      seen.add(url);
       const preloader = new window.Image();
       preloader.decoding = "async";
-      preloader.src = row.page.imageUrl;
+      preloader.src = url;
     }
   }, []);
 
@@ -452,6 +553,9 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     return () => onHandleReady(null);
   });
 
+  /** The CSS box one page paints into — what the page URL is resolved against. */
+  const contentWidth = pageContentWidth(containerWidth, zoom);
+
   const notifyReady = useCallback(() => {
     if (readyNotifiedRef.current) return;
     readyNotifiedRef.current = true;
@@ -520,15 +624,41 @@ export const ContinuousStrip = memo(function ContinuousStrip({
    * prepended chapter shifts every index while no key moves.
    */
   const handleImageLoad = useCallback(
-    (rowKey: string) => {
+    (
+      rowKey: string,
+      chapterKey: string,
+      pageNumber: number,
+      natural: PageFrame | null,
+    ) => {
+      // The decoded image's own shape, remembered for this chapter so the next
+      // open of it reserves exact extents from the first frame.
+      const ratio = natural ? naturalPageRatio(natural.width, natural.height) : null;
+      if (ratio != null) {
+        const ratios = chapterRatios(chapterKey);
+        if (ratios[pageNumber - 1] !== ratio) {
+          ratios[pageNumber - 1] = ratio;
+          dirtyChaptersRef.current.add(chapterKey);
+        }
+      }
+
       const element = virtualizer.elementsCache.get(rowKey);
       if (element) {
-        // Measured BEFORE `measureElement`, not after. `measureElement` ends by
-        // correcting the scroll offset to absorb the height change, and a read
-        // taken after that write has to flush layout a second time; taken
-        // first, it is the only flush and the one inside `measureElement`
-        // reads a layout that is still clean.
-        const height = Math.round(element.getBoundingClientRect().height);
+        // Derived from the intrinsic size when there is one, NOT from the row's
+        // box. `setLoaded` in `PageImage` has not been committed yet at this
+        // point in the event, so the row is still standing at its placeholder
+        // aspect ratio — reading it back here would feed the estimate its own
+        // guess and the running average would never learn anything.
+        //
+        // The DOM read is still the fallback, and still taken BEFORE
+        // `measureElement`: that call ends by correcting the scroll offset to
+        // absorb the height change, and a read taken after that write has to
+        // flush layout a second time.
+        const height =
+          ratio != null
+            ? Math.round(
+                pageContentWidth(containerWidthRef.current, zoomRef.current) * ratio,
+              ) + (pageGapRef.current ? PAGE_GAP_PX : 0)
+            : Math.round(element.getBoundingClientRect().height);
         if (height > 0) {
           virtualizer.measureElement(element);
           recordMeasuredHeight(rowKey, height);
@@ -539,7 +669,7 @@ export const ContinuousStrip = memo(function ContinuousStrip({
       notifyReady();
       reportPosition();
     },
-    [notifyReady, recordMeasuredHeight, reportPosition, virtualizer],
+    [chapterRatios, notifyReady, recordMeasuredHeight, reportPosition, virtualizer],
   );
 
   useEffect(() => {
@@ -581,11 +711,7 @@ export const ContinuousStrip = memo(function ContinuousStrip({
       const { total, frozen } = freezeChapterHeight(
         chapter,
         measuredByKeyRef.current,
-        (page) =>
-          estimateFromSamples(
-            heightSamplesRef.current,
-            estimatePageHeight(page, containerWidth, zoom) + (pageGap ? PAGE_GAP_PX : 0),
-          ),
+        (page, pageNumber) => pageRowHeight(page, chapter.chapterKey, pageNumber),
       );
       for (const [key, height] of frozen) {
         measuredByKeyRef.current.set(key, height);
@@ -593,9 +719,26 @@ export const ContinuousStrip = memo(function ContinuousStrip({
       releasedHeightsRef.current.set(chapter.chapterKey, total);
     }
 
+    // A released chapter is done being measured, so its shapes are final: this
+    // is the natural moment to write them down, and it keeps a Read-all session
+    // from touching localStorage once per decoded page.
+    flushRatios();
     readerDebug("strip-released", { released: next.size, chapters: chapters.length });
     setReleased(next);
-  }, [activeChapterKey, chapters, containerWidth, pageGap, released, zoom]);
+  }, [
+    activeChapterKey,
+    chapters,
+    containerWidth,
+    flushRatios,
+    pageGap,
+    pageRowHeight,
+    released,
+    zoom,
+  ]);
+
+  // The chapter being read is never released, so without this the one chapter
+  // the reader actually finished would be the one never remembered.
+  useEffect(() => flushRatios, [flushRatios]);
 
   if (rows.length === 0) {
     return null;
@@ -626,6 +769,8 @@ export const ContinuousStrip = memo(function ContinuousStrip({
               <VirtualPageRow
                 rowKey={row.key}
                 page={row.page}
+                imageUrl={pageImageUrlForBox(row.page.imageUrl, contentWidth)}
+                chapterKey={row.chapterKey}
                 pageNumber={row.pageNumber}
                 chapterTitle={row.label}
                 zoom={zoom}

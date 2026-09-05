@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   estimatePageHeight,
+  exactPageHeight,
   pageAspectRatio,
   pageContainerStyle,
+  UNKNOWN_PAGE_ASPECT,
 } from "./page-layout";
 import type { ReaderPage } from "./types";
 
@@ -21,16 +23,27 @@ describe("pageAspectRatio", () => {
     expect(pageAspectRatio(900, 16000)).toBe("900 / 16000");
   });
 
-  it("falls back to 2/3 when dimensions are unknown", () => {
-    expect(pageAspectRatio(null, null)).toBe("2 / 3");
-    expect(pageAspectRatio(undefined, undefined)).toBe("2 / 3");
-    expect(pageAspectRatio(0, 100)).toBe("2 / 3");
+  it("falls back to the measured population prior when dimensions are unknown", () => {
+    const fallback = `1 / ${UNKNOWN_PAGE_ASPECT}`;
+    expect(pageAspectRatio(null, null)).toBe(fallback);
+    expect(pageAspectRatio(undefined, undefined)).toBe(fallback);
+    expect(pageAspectRatio(0, 100)).toBe(fallback);
+  });
+
+  it("uses the SAME prior the height estimate does", () => {
+    // The placeholder box is what the row measures as before the image
+    // decodes. If the two priors disagreed, every first paint would hand the
+    // virtualizer a measurement contradicting its own estimate.
+    const [w, h] = pageAspectRatio(null, null).split(" / ").map(Number);
+    expect(estimatePageHeight(makePage(null, null), 768, 1)).toBeCloseTo((768 / w) * h);
   });
 });
 
 describe("pageContainerStyle", () => {
   it("reserves placeholder space while the image is loading", () => {
-    expect(pageContainerStyle(false, null, null)).toEqual({ aspectRatio: "2 / 3" });
+    expect(pageContainerStyle(false, null, null)).toEqual({
+      aspectRatio: `1 / ${UNKNOWN_PAGE_ASPECT}`,
+    });
     expect(pageContainerStyle(false, 900, 16000)).toEqual({
       aspectRatio: "900 / 16000",
     });
@@ -53,8 +66,41 @@ describe("estimatePageHeight", () => {
     expect(estimatePageHeight(page, 768, 1)).toBeCloseTo((768 / 900) * 16000);
   });
 
-  it("uses the 3/2 fallback only when dimensions are unknown", () => {
+  it("uses the measured fallback only when dimensions are unknown", () => {
     const page = makePage(null, null);
-    expect(estimatePageHeight(page, 768, 1)).toBeCloseTo(768 * 1.5);
+    expect(estimatePageHeight(page, 768, 1)).toBeCloseTo(768 * UNKNOWN_PAGE_ASPECT);
+  });
+
+  it("reserves a real webtoon strip's extent instead of guessing 13x short", () => {
+    // The case this exists for: 900x16000 in a 768px column lays out at
+    // ~13,653px. The old fixed-aspect guess reserved 1,152px for it.
+    const strip = makePage(900, 16000);
+    const reserved = estimatePageHeight(strip, 768, 1);
+    expect(reserved).toBeCloseTo(13653.33, 1);
+    expect(reserved / (768 * 1.5)).toBeGreaterThan(11);
+  });
+
+  it("scales with zoom, so a zoomed strip still reserves its own height", () => {
+    const strip = makePage(900, 16000);
+    expect(estimatePageHeight(strip, 768, 2)).toBeCloseTo(
+      estimatePageHeight(strip, 768, 1) * 2,
+    );
+  });
+
+  it("clamps to the reader column, not the whole viewport", () => {
+    const strip = makePage(900, 16000);
+    expect(estimatePageHeight(strip, 1920, 1)).toBeCloseTo(
+      estimatePageHeight(strip, 768, 1),
+    );
+  });
+});
+
+describe("exactPageHeight", () => {
+  it("answers only for pages the source actually measured", () => {
+    expect(exactPageHeight(makePage(900, 16000), 768, 1)).toBeCloseTo(13653.33, 1);
+    expect(exactPageHeight(makePage(null, null), 768, 1)).toBeNull();
+    expect(exactPageHeight(makePage(900, null), 768, 1)).toBeNull();
+    expect(exactPageHeight(makePage(0, 1200), 768, 1)).toBeNull();
+    expect(exactPageHeight(makePage(800, 0), 768, 1)).toBeNull();
   });
 });

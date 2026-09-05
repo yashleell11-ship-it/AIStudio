@@ -1,6 +1,7 @@
 import { env } from "@/config/env";
 import { http, sourceChapterQuery } from "@/services/http";
 import type { ChapterId, SeriesId } from "@/types/api";
+import { readerColumnWidth, withPageWidth } from "./page-url";
 import type { ReaderChapterContent, ReaderPage } from "./types";
 
 /** `GET /reader/chapter/manifest` (backend `ReaderService.manifest`). */
@@ -10,7 +11,18 @@ export interface ChapterManifest {
   chapter_key: string;
   chapter_number: number | null;
   page_count: number;
-  pages: Array<{ number: number; url: string }>;
+  /**
+   * `width`/`height` are the SOURCE's own pixel dimensions, null when the
+   * connector does not report them (backend `_serialize_page` uses the same
+   * names and the same null rule). They are what lets the reader reserve a
+   * page's real extent before it decodes instead of guessing an aspect ratio.
+   */
+  pages: Array<{
+    number: number;
+    url: string;
+    width?: number | null;
+    height?: number | null;
+  }>;
   /** Adjacent chapter keys, or null at the ends. */
   prev: string | null;
   next: string | null;
@@ -85,6 +97,7 @@ function absoluteImageUrl(url: string): string {
 export function manifestToChapterContent(
   manifest: ChapterManifest,
 ): ReaderChapterContent {
+  const column = readerColumnWidth();
   const title =
     manifest.chapter_number != null
       ? `Chapter ${manifest.chapter_number}`
@@ -102,9 +115,14 @@ export function manifestToChapterContent(
       (page): ReaderPage => ({
         id: `${manifest.chapter_key}:${page.number}`,
         number: page.number,
-        imageUrl: absoluteImageUrl(page.url),
-        width: null,
-        height: null,
+        // The width is baked in HERE, once, rather than at render: this string
+        // is what the strip prefetches, what the `<img>` requests and what an
+        // offline save stores the page under, and those three have to be the
+        // same URL or the chapter is fetched twice and never reads offline.
+        // `page-url.ts` explains the box it is derived from.
+        imageUrl: withPageWidth(absoluteImageUrl(page.url), column),
+        width: page.width ?? null,
+        height: page.height ?? null,
       }),
     ),
   };

@@ -28,29 +28,13 @@
  * and no `srcset` is generated — see the note in `next.config.ts`.
  */
 
-/**
- * Device pixels per CSS pixel that a cover is ever requested at.
- *
- * Past 3x the extra rows are not resolvable on the panels that report them, and
- * the server's ladder tops out anyway: 4x on a phone grid asks for the original.
- */
-const MAX_PIXEL_RATIO = 3;
+import { imagePixelRatio } from "./device-pixels";
 
 /**
- * What is assumed when there is no `window`.
- *
- * `devicePixelRatio` and the viewport are browser facts. None of the views that
- * paint covers are server-rendered with rows in hand — every one of them gets
- * its rows from react-query in the browser, so the server renders skeletons and
- * the first markup that ever carries a cover URL is produced on the client with
- * the real numbers available. These constants exist so the builders stay pure
- * functions under Node (and vitest), not because they are ever hydrated.
- *
- * They are also why the ratio is read synchronously during render rather than
- * settled in an effect: an effect that upgraded a placeholder ratio after mount
- * would rewrite every cover URL on the page and fetch every cover a second time.
+ * The viewport assumed when there is no `window`, alongside the shared pixel
+ * ratio in `device-pixels.ts` and for the same reason: these builders have to
+ * stay pure functions under Node, and no cover is ever server-rendered.
  */
-const SSR_PIXEL_RATIO = 2;
 const SSR_VIEWPORT_WIDTH = 1280;
 
 /**
@@ -72,15 +56,6 @@ const COVER_PROXY_SUFFIX = "/cover";
  */
 const SIZES_ENTRY =
   /^(?:\(\s*(min|max)-width\s*:\s*(\d+(?:\.\d+)?)px\s*\)\s+)?(?:calc\(\s*(\d+(?:\.\d+)?)vw\s*([+-])\s*(\d+(?:\.\d+)?)px\s*\)|(\d+(?:\.\d+)?)(px|vw))$/;
-
-/** Device pixels per CSS pixel, clamped to what a cover is worth rendering at. */
-export function coverPixelRatio(): number {
-  if (typeof window === "undefined") {
-    return SSR_PIXEL_RATIO;
-  }
-  const ratio = window.devicePixelRatio;
-  return Number.isFinite(ratio) && ratio > 0 ? Math.min(ratio, MAX_PIXEL_RATIO) : 1;
-}
 
 function viewportWidth(): number {
   if (typeof window === "undefined") {
@@ -131,7 +106,7 @@ export function coverRequestWidth(sizes: string): number | null {
   if (cssWidth === null || !(cssWidth > 0)) {
     return null;
   }
-  const width = Math.round(cssWidth * coverPixelRatio());
+  const width = Math.round(cssWidth * imagePixelRatio());
   return Math.min(Math.max(width, 1), MAX_REQUEST_WIDTH);
 }
 

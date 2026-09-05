@@ -3,7 +3,8 @@ import { libraryCoverUrl, seriesCoverUrl } from "@/features/library/api";
 import { densityCoverSizes, LIBRARY_DENSITIES } from "@/features/library/density";
 import { sourceImageUrl } from "@/features/sources/api";
 import { SHELF_PLATE_SIZES } from "@/features/novels/shelf";
-import { coverCssWidth, coverPixelRatio, withCoverWidth } from "./cover-url";
+import { coverCssWidth, withCoverWidth } from "./cover-url";
+import { imagePixelRatio } from "./device-pixels";
 
 const API = "http://127.0.0.1:8000";
 const COVER = `${API}/sources/mangadex/series/abc/cover`;
@@ -59,19 +60,19 @@ describe("coverCssWidth", () => {
   });
 });
 
-describe("coverPixelRatio", () => {
+describe("imagePixelRatio", () => {
   it("clamps at 3, above which the server's ladder tops out anyway", () => {
     browser(375, 4);
-    expect(coverPixelRatio()).toBe(3);
+    expect(imagePixelRatio()).toBe(3);
     browser(375, 2.625);
-    expect(coverPixelRatio()).toBe(2.625);
+    expect(imagePixelRatio()).toBe(2.625);
   });
 
   it("falls back to 1 for a ratio the browser reports as nonsense", () => {
     browser(375, 0);
-    expect(coverPixelRatio()).toBe(1);
+    expect(imagePixelRatio()).toBe(1);
     browser(375, Number.NaN);
-    expect(coverPixelRatio()).toBe(1);
+    expect(imagePixelRatio()).toBe(1);
   });
 });
 
@@ -134,7 +135,7 @@ describe("without a window", () => {
   // an effect upgraded after mount would rewrite every cover URL on the page
   // and fetch every cover a second time.
   it("resolves to the documented fallback rather than throwing", () => {
-    expect(coverPixelRatio()).toBe(2);
+    expect(imagePixelRatio()).toBe(2);
     expect(withCoverWidth(COVER, "64px")).toBe(`${COVER}?w=128`);
   });
 
