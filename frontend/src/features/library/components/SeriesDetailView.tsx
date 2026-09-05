@@ -15,9 +15,9 @@ import {
   useToggleFavorite,
 } from "@/features/library/hooks";
 // Direct rather than through the `@/features/novels` barrel, which also pulls
-// in the novel reader — all this page wants from it is the one boolean.
+// in the novel reader — this page only links into it, it never renders it.
 import { useIsNovelSource } from "@/features/novels/hooks";
-import { readerChapterHref } from "@/features/reader/reader-link";
+import { useChapterHref } from "@/features/novels/use-chapter-href";
 import { ApiError } from "@/types/api";
 import type { SeriesId } from "@/types/api";
 import {
@@ -25,6 +25,7 @@ import {
   writeScopedString,
 } from "@/lib/scoped-storage";
 import { cn } from "@/lib/cn";
+import { chapterLinksReady } from "../chapter-links";
 import { libraryReadAllHref } from "../read-all-link";
 import { READING_STATUSES } from "../url-state";
 import type { KnownChapter, SeriesDetail } from "../types";
@@ -66,7 +67,11 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
 
   const toggleFavorite = useToggleFavorite();
   const patchSeries = usePatchSeries();
+  // One question, asked once, and every reader link on this page hangs off the
+  // answer: prose opens in the novel reader, pages in the page strip, and
+  // "Read all" is offered for pages alone.
   const isNovel = useIsNovelSource(series?.source_id ?? "");
+  const chapterHref = useChapterHref();
 
   const sortKey = series ? `mm.chapter-sort:${series.source_id}:${series.series_key}` : null;
   const [sort, setSort] = useState<ChapterSort>(() => {
@@ -152,6 +157,22 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   // cover download on the page.
   const cover = libraryCoverUrl(detail.cover_url, POSTER_SIZES);
   const hasProgress = Object.keys(detail.progress).length > 0;
+  const linksReady = chapterLinksReady(isNovel);
+  /**
+   * Continue, in whichever reader this series calls for.
+   *
+   * `resumeTarget.page` is the stored `last_page` either way: a novel has no
+   * pages, so its position rides in that same field as a progress bucket
+   * (`features/novels/progress.ts`) and `useChapterHref` hands it to the novel
+   * route's `?page=`. Neither medium's position is translated on the way out.
+   */
+  const resumeHref =
+    linksReady && resumeTarget
+      ? chapterHref(
+          { ...seriesRef, chapterKey: resumeTarget.chapter.key },
+          resumeTarget.page,
+        )
+      : null;
   /**
    * Read all, beside Continue and never instead of it. The source series page
    * has offered it since the run reader shipped, and this is the series page a
@@ -293,14 +314,11 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
               ) : null}
             </div>
 
-            {resumeTarget || readAllTarget ? (
+            {resumeHref || readAllTarget ? (
               <div className="mt-6 flex flex-wrap items-center gap-2">
-                {resumeTarget ? (
+                {resumeHref ? (
                   <PrimaryPillButton
-                    href={readerChapterHref(
-                      { ...seriesRef, chapterKey: resumeTarget.chapter.key },
-                      resumeTarget.page,
-                    )}
+                    href={resumeHref}
                     className="shadow-glow"
                     icon={<Play className="size-4 fill-current" />}
                   >
@@ -352,8 +370,25 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
             </div>
           </div>
 
-          <div className="glass-panel divide-y divide-border/60 overflow-hidden rounded-3xl border border-border">
-            {orderedChapters.length === 0 ? (
+          <div
+            className="glass-panel divide-y divide-border/60 overflow-hidden rounded-3xl border border-border"
+            aria-busy={!linksReady}
+          >
+            {!linksReady ? (
+              // The chapters are known; which reader they open in is not yet.
+              Array.from({ length: Math.min(detail.chapters.length, 6) }).map(
+                (_, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-4 px-4 py-3.5"
+                    aria-hidden
+                  >
+                    <div className="size-9 shrink-0 animate-pulse rounded-xl bg-surface-2" />
+                    <div className="h-4 w-1/3 animate-pulse rounded bg-surface-2" />
+                  </div>
+                ),
+              )
+            ) : orderedChapters.length === 0 ? (
               <p className="p-6 text-sm text-muted">No chapters found for this series.</p>
             ) : (
               orderedChapters.map((chapter, index) => {
@@ -363,7 +398,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                 return (
                   <Link
                     key={chapter.key}
-                    href={readerChapterHref(
+                    href={chapterHref(
                       { ...seriesRef, chapterKey: chapter.key },
                       progress?.last_page,
                     )}
