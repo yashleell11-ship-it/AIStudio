@@ -31,21 +31,50 @@ export function matureToggleBlockReason(activeProfileId: number | null): string 
  * `sources` covers the installed-source list and federated search
  * (`BrowseService` is 18+ scoped); `library` and `library-discovery` cover
  * everything that goes through `FollowedSeriesService._visible` — the library
- * grid, the followed index, library search, the continue-reading strip and
- * recommendations; `preferences` is the flag itself.
+ * grid, the followed index, library search, the continue-reading strip,
+ * history, statistics and recommendations; `bookmarks`, `updates`, `ocr` and
+ * `reader` each front a service that applies `mature_tracker_case` to its own
+ * table (`BookmarkService`, `UpdateService`, `OcrIngestService`,
+ * `ProgressService`); `novels` is served through the same per-caller gate
+ * before any cache row is read; `preferences` is the flag itself.
  *
- * This list used to name `intelligence`, the discovery root's name BEFORE the
- * source-native rewrite renamed it to `library-discovery`, and no longer named
- * `library` at all. Invalidating a root nothing is cached under matches
- * nothing: turning the gate off and walking straight to the library kept
- * listing adult titles out of cache, and turning it on hid titles that were
- * now allowed, until each query happened to go stale on its own.
+ * This list has now drifted twice. It once named `intelligence`, the discovery
+ * root's name BEFORE the source-native rewrite renamed it to
+ * `library-discovery`, and no longer named `library` at all — invalidating a
+ * root nothing is cached under matches nothing, so turning the gate off and
+ * walking straight to the library kept listing adult titles out of cache. Then
+ * bookmarks, novels, OCR and updates were each added as their own root and none
+ * of them was added here. `mature-gate.test.ts` now reads every root declared
+ * anywhere in `src/` off disk and fails unless it appears in this list or in
+ * {@link NOT_MATURE_GATED_QUERY_ROOTS}, so a new feature cannot be given a
+ * cache root without someone deciding which of the two it is.
  */
 export const MATURE_GATED_QUERY_ROOTS = [
   "preferences",
   "sources",
   "library",
   "library-discovery",
+  "bookmarks",
+  "novels",
+  "ocr",
+  "updates",
+  "reader",
+] as const;
+
+/**
+ * The roots deliberately left alone, and why — the other half of the partition
+ * the drift test checks.
+ *
+ * None of these carries series content: `auth` is the session, `profiles` is
+ * the account's own profile list, `backup` is the instance snapshot's status
+ * and `status` is instance health. Flipping the 18+ gate cannot change a single
+ * field in any of them.
+ */
+export const NOT_MATURE_GATED_QUERY_ROOTS = [
+  "auth",
+  "profiles",
+  "backup",
+  "status",
 ] as const;
 
 /**
