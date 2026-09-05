@@ -153,15 +153,6 @@ export interface CollectionDetail extends Collection {
   series: CollectionSeriesRef[];
 }
 
-// --- Tags ---
-
-export interface Tag {
-  id: number;
-  name: string;
-  category: string;
-  color: string | null;
-}
-
 // --- Search ---
 
 export type SearchResponse = SeriesListResponse;
