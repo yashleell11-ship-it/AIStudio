@@ -39,8 +39,9 @@ export function AccountSecurityPanel() {
     try {
       await logoutAll.mutateAsync();
     } catch (failure) {
-      // The local cache is cleared in `onSettled` regardless, so the app is
-      // already signed out here; only say so if the server refused.
+      // Nothing was revoked, and `useLogoutAll` leaves the local session alone
+      // on failure precisely so this message survives to be read — a redirect
+      // here would tell the user "everywhere" about a call that never landed.
       setError(describeAuthError(failure, "Could not sign out everywhere. Please try again."));
       setConfirmOpen(false);
       return;

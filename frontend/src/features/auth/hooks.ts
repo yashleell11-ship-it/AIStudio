@@ -148,15 +148,24 @@ export function useLogout() {
 
 /**
  * Sign out everywhere: revokes every session for the account, this one
- * included, and clears the cookie. Locally identical to `useLogout` — the
- * caller ends up signed out here too, so the cache is dropped and the session
- * marked gone regardless of the outcome.
+ * included, and clears the cookie.
+ *
+ * Unlike `useLogout`, this clears local state on SUCCESS only. Clearing it on
+ * failure too made a refused revocation indistinguishable from a completed
+ * one: nulling the cached user trips the shell's route guard
+ * (`resolveSessionGate` answers "redirect" the moment `/auth/me` data is null),
+ * so the caller was bounced to /login before the panel's error could be read —
+ * while every session the server never revoked stayed alive. This is the
+ * control a user reaches for when they think someone else has their password,
+ * so a silent failure is the one outcome it must not have. A `logout-all` that
+ * failed because the session was already dead still resolves itself: the next
+ * `/auth/me` answers 401, which `useCurrentUser` reports as null.
  */
 export function useLogoutAll() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: () => authApi.logoutAll(),
-    onSettled: () => {
+    onSuccess: () => {
       queryClient.removeQueries();
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
     },
