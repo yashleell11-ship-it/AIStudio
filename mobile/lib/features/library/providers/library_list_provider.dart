@@ -1,19 +1,17 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_metrics.dart';
 import 'package:manhwamaniacs/app/theme/preset_controller.dart';
-import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_list_state.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
-import 'package:manhwamaniacs/features/library/providers/dashboard_providers.dart';
+import 'package:manhwamaniacs/features/library/providers/library_series_actions.dart';
 import 'package:manhwamaniacs/features/library/utils/followed_series_cache.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
 import 'package:manhwamaniacs/features/sources/models/source_search_group.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_pins_provider.dart';
-import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 
@@ -183,130 +181,62 @@ class LibraryListNotifier extends AutoDisposeAsyncNotifier<LibraryListState> {
     final series = current.items.where((s) => s.id == followedId).firstOrNull;
     if (series == null) return;
 
-    final repo = ref.read(libraryRepositoryProvider);
-    final result = await repo.patchSeries(
-      followedId,
-      isFavorite: !series.isFavorite,
-    );
-    if (result.isErr) {
-      state = AsyncData(current.copyWith(error: result.error));
-      return;
-    }
-
-    final updatedItems = current.items.map((s) {
-      if (s.id != followedId) return s;
-      return result.value;
-    }).toList();
-
-    state = AsyncData(current.copyWith(items: updatedItems, clearError: true));
+    // Through the shared action, so the grid's star and the long-press sheet's
+    // star are one implementation — and so a favorite toggled here also lands
+    // in the followed cache the Library tab draws its shelf from.
+    final error = await ref
+        .read(librarySeriesActionsProvider)
+        .setFavorite(series, favorite: !series.isFavorite);
+    if (error == null) return;
+    final latest = state.valueOrNull;
+    if (latest == null) return;
+    state = AsyncData(latest.copyWith(error: error));
   }
 
-  /// Removes a series from the library: deletes the `followed_series` row the
-  /// shelf is made of. Reading progress is keyed by `(source, series)` rather
-  /// than by that row and outlives it (see `FollowedSeriesService.unfollow`),
-  /// so the whole cost of a mistaken removal is one re-follow — which is why
-  /// the caller offers an undo instead of a confirmation step.
+  /// Takes [followedId] out of the loaded page and reports the slot it held,
+  /// or -1 when this list does not have it.
   ///
-  /// The card leaves the grid before the request resolves, so the library
-  /// answers the tap at once, and slots back into the place it held if the
-  /// server refuses.
-  ///
-  /// Returns the removed row and the slot it came out of, so an undo can hand
-  /// both straight back to [restoreSeries].
-  Future<({AppError? error, FollowedSeries? removed, int index})> removeSeries(
-    int followedId,
-  ) async {
-    const nothing = (error: null, removed: null, index: 0);
+  /// State only — the removal itself lives in [librarySeriesActionsProvider],
+  /// which is what every shelf calls and which drives this.
+  int forgetSeries(int followedId) {
     final current = state.valueOrNull;
-    if (current == null) return nothing;
+    if (current == null) return -1;
     final index = current.items.indexWhere((series) => series.id == followedId);
-    if (index < 0) return nothing;
-    final removed = current.items[index];
-
+    if (index < 0) return -1;
     state = AsyncData(
       current.copyWith(
         items: [...current.items]..removeAt(index),
         total: current.total > 0 ? current.total - 1 : 0,
       ),
     );
-
-    final result =
-        await ref.read(libraryRepositoryProvider).unfollow(followedId);
-    if (result.isErr) {
-      _reinsert(removed, index);
-      return (error: result.error, removed: null, index: 0);
-    }
-
-    _dropFollowedCaches();
-    return (error: null, removed: removed, index: index);
+    return index;
   }
 
-  /// Undo of [removeSeries]: re-follow, and put the row back in the slot it
-  /// was pulled from rather than refetching — a refetch would blank the whole
-  /// grid to a skeleton to undo one card.
-  ///
-  /// Following hands back a *new* `followed_series` row, so the shelf metadata
-  /// the deleted one carried (favorite, reading status, notify, mature
-  /// override) is patched onto it. Without that the undo would quietly return
-  /// the series unstarred and back at the default reading status.
-  Future<AppError?> restoreSeries(
-    FollowedSeries series, {
-    required int index,
-  }) async {
-    final repo = ref.read(libraryRepositoryProvider);
-    final followed = await repo.follow(
-      sourceId: series.sourceId,
-      seriesKey: series.seriesKey,
-    );
-    if (followed.isErr) return followed.error;
-
-    var restored = followed.value;
-    if (restored.isFavorite != series.isFavorite ||
-        restored.readingStatus != series.readingStatus ||
-        restored.notify != series.notify ||
-        restored.matureOverride != series.matureOverride) {
-      final patched = await repo.patchSeries(
-        restored.id,
-        isFavorite: series.isFavorite,
-        readingStatus: series.readingStatus,
-        notify: series.notify,
-        matureOverride: series.matureOverride,
+  /// Puts [series] into the loaded page: in place when the row is already
+  /// there (a favorite toggled), otherwise back in the slot an undo pulled it
+  /// from — clamped, because a refresh may have reshaped the list while the
+  /// request was in flight, and appended when there is no slot to honour.
+  void rememberSeries(FollowedSeries series, {int index = -1}) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    final at = current.items.indexWhere((item) => item.id == series.id);
+    if (at >= 0) {
+      state = AsyncData(
+        current.copyWith(
+          items: [...current.items]..[at] = series,
+          clearError: true,
+        ),
       );
-      // A failed patch still leaves the series back in the library, which is
-      // what the undo was for; only the metadata is off, and a refresh will
-      // show whatever the server actually kept.
-      if (patched.isOk) restored = patched.value;
+      return;
     }
-
-    _reinsert(restored, index);
-    _dropFollowedCaches();
-    return null;
-  }
-
-  /// Puts [series] back into the grid at [index], clamped because a refresh
-  /// may have reshaped the list while the request was in flight. A row already
-  /// present (a refresh beat us to it) is left alone rather than duplicated.
-  void _reinsert(FollowedSeries series, int index) {
-    final latest = state.valueOrNull;
-    if (latest == null) return;
-    if (latest.items.any((item) => item.id == series.id)) return;
+    final slot =
+        index < 0 ? current.items.length : index.clamp(0, current.items.length);
     state = AsyncData(
-      latest.copyWith(
-        items: [...latest.items]
-          ..insert(index.clamp(0, latest.items.length), series),
-        total: latest.total + 1,
+      current.copyWith(
+        items: [...current.items]..insert(slot, series),
+        total: current.total + 1,
       ),
     );
-  }
-
-  /// Drop the other caches of the followed set after it changes here: the
-  /// shared list behind every `SeriesFollowButton` and the Updates tab, and
-  /// the dashboard's recently-updated rail. Both are `autoDispose`, so
-  /// invalidating them while unwatched is a no-op.
-  void _dropFollowedCaches() {
-    ref
-      ..invalidate(updatesProvider)
-      ..invalidate(dashboardProvider);
   }
 
   /// Batch favorite/unfavorite a multi-selected set of series. Only calls

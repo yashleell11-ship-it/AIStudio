@@ -97,6 +97,7 @@ class FollowedSeriesCard extends ConsumerWidget {
     required this.coverWidth,
     required this.meta,
     required this.onTap,
+    this.onLongPress,
   });
 
   final FollowedSeries series;
@@ -107,6 +108,11 @@ class FollowedSeriesCard extends ConsumerWidget {
 
   final FollowedSeriesMeta meta;
   final VoidCallback onTap;
+
+  /// Opens the per-series menu (favourite, remove). Null on a surface that
+  /// has no menu to open — a multi-select, say — rather than a no-op, so the
+  /// press has no haptic to answer with either.
+  final VoidCallback? onLongPress;
 
   /// One muted line: the latest chapter we actually know about, else a chapter
   /// count only when the checker has populated one, else nothing at all.
@@ -126,6 +132,7 @@ class FollowedSeriesCard extends ConsumerWidget {
 
     return Pressable(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

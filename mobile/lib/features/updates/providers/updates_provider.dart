@@ -141,6 +141,74 @@ class UpdatesNotifier extends AutoDisposeAsyncNotifier<UpdatesState> {
     return null;
   }
 
+  /// Takes [followedId] out of the shared followed list and reports the slot
+  /// it held, or -1 when this cache does not have it.
+  ///
+  /// Spliced rather than invalidated because the Library tab is drawn from
+  /// this cache and rebuilding it costs three requests: blanking the whole
+  /// shelf to a skeleton to delete one card is how a working delete reads as a
+  /// broken one.
+  ///
+  /// Its notifications go with it, because they go with it on the server —
+  /// `update_notifications.followed_series_id` is `ON DELETE CASCADE`, so
+  /// keeping them here would leave the Updates tab listing chapters of a
+  /// series nobody follows and the unread badge counting rows that no longer
+  /// exist. An undo re-follows into a new row with no notification history,
+  /// which is exactly what the server will report.
+  ///
+  /// State only; the removal itself lives in `librarySeriesActionsProvider`,
+  /// which is what drives this.
+  int forgetFollowed(int followedId) {
+    final current = state.valueOrNull;
+    if (current == null) return -1;
+    final index =
+        current.followed.indexWhere((series) => series.id == followedId);
+    if (index < 0) return -1;
+
+    var unread = current.unreadCount;
+    final notifications = <UpdateNotification>[];
+    for (final notification in current.notifications) {
+      if (notification.followedSeriesId != followedId) {
+        notifications.add(notification);
+      } else if (!notification.isRead) {
+        unread--;
+      }
+    }
+
+    state = AsyncData(
+      current.copyWith(
+        followed: [...current.followed]..removeAt(index),
+        notifications: notifications,
+        unreadCount: unread < 0 ? 0 : unread,
+      ),
+    );
+    return index;
+  }
+
+  /// Puts [series] into the shared followed list: in place when the row is
+  /// already there, otherwise back in the slot an undo pulled it from —
+  /// clamped, because a refresh may have reshaped the list while the request
+  /// was in flight, and appended when there is no slot to honour.
+  void rememberFollowed(FollowedSeries series, {int index = -1}) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    final at = current.followed.indexWhere((item) => item.id == series.id);
+    if (at >= 0) {
+      state = AsyncData(
+        current.copyWith(followed: [...current.followed]..[at] = series),
+      );
+      return;
+    }
+    final slot = index < 0
+        ? current.followed.length
+        : index.clamp(0, current.followed.length);
+    state = AsyncData(
+      current.copyWith(
+        followed: [...current.followed]..insert(slot, series),
+      ),
+    );
+  }
+
   /// Returns the followed-series row for the given source+series, or null if
   /// the active profile is not following it. Used by [SeriesFollowButton] to
   /// drive the Follow / Unfollow label and action.

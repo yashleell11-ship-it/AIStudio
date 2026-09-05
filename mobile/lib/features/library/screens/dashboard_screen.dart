@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +13,7 @@ import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_switch.
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/utils/library_shelf.dart';
 import 'package:manhwamaniacs/features/library/widgets/home/followed_series_card.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/series_actions_sheet.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_shelf.dart';
 import 'package:manhwamaniacs/features/profiles/widgets/profile_switcher_chip.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
@@ -50,6 +53,20 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 
   Future<void> _refresh() => ref.read(updatesProvider.notifier).refresh();
+
+  /// The same menu the browse screen under this tab opens, on the tab the
+  /// reader actually lands on. Unconditional, unlike over there: this screen
+  /// has no multi-select for a long-press to fire underneath.
+  void _showSeriesActions(FollowedSeries series) {
+    unawaited(
+      showSeriesActionsSheet(
+        context,
+        ref,
+        series,
+        onOpen: () => _openSeries(context, series),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +131,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                 ),
               ),
               onOpenSeries: (series) => _openSeries(context, series),
+              onSeriesLongPress: _showSeriesActions,
             ),
           );
         },
@@ -138,6 +156,7 @@ class _FollowedShelf extends ConsumerWidget {
     required this.followed,
     required this.metaBySeries,
     required this.onOpenSeries,
+    required this.onSeriesLongPress,
     required this.isNovelMode,
   });
 
@@ -149,6 +168,9 @@ class _FollowedShelf extends ConsumerWidget {
   final Map<int, FollowedSeriesMeta> metaBySeries;
 
   final void Function(FollowedSeries) onOpenSeries;
+
+  /// The per-row menu: favourite, and take it out of the library.
+  final void Function(FollowedSeries) onSeriesLongPress;
 
   /// Novels are shelved, not gridded — the same inversion browsing makes, for
   /// the same reason. The reader's own library is where it matters most: the
@@ -233,6 +255,7 @@ class _FollowedShelf extends ConsumerWidget {
                 note: latestChapterNote(meta.latestChapterLabel),
                 unreadCount: meta.unreadCount,
                 onTap: () => onOpenSeries(series),
+                onLongPress: () => onSeriesLongPress(series),
               );
             },
           )
@@ -256,6 +279,7 @@ class _FollowedShelf extends ConsumerWidget {
                     coverWidth: coverWidth,
                     meta: metaBySeries[series.id] ?? FollowedSeriesMeta.none,
                     onTap: () => onOpenSeries(series),
+                    onLongPress: () => onSeriesLongPress(series),
                   ),
                 );
               },

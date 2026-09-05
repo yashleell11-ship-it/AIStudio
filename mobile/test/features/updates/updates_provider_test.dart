@@ -44,15 +44,23 @@ FollowedSeries _followed({
 /// Notifications repository fake used by every group below; always empty
 /// unless a test needs otherwise.
 class _FakeUpdatesRepository implements UpdatesRepository {
+  _FakeUpdatesRepository({
+    this.notifications = const [],
+    this.unreadCount = 0,
+  });
+
+  final List<UpdateNotification> notifications;
+  final int unreadCount;
+
   @override
   Future<Result<List<UpdateNotification>>> listNotifications({
     bool unreadOnly = false,
     int limit = 100,
   }) async =>
-      const Ok([]);
+      Ok(notifications);
 
   @override
-  Future<Result<int>> getUnreadCount() async => const Ok(0);
+  Future<Result<int>> getUnreadCount() async => Ok(unreadCount);
 
   @override
   Future<Result<void>> markRead(int notificationId) async => const Ok(null);
@@ -370,6 +378,125 @@ void main() {
         notifier.followedFor(sourceId: 'toonily', seriesKey: 'abc'),
         isNotNull,
       );
+    });
+  });
+
+  /// The splices `librarySeriesActionsProvider` drives when a series is
+  /// removed from — or restored to — a shelf drawn from this cache. Splices,
+  /// not invalidations: rebuilding this cache costs three requests, and the
+  /// Library tab is drawn from it.
+  group('UpdatesNotifier.forgetFollowed / rememberFollowed', () {
+    UpdateNotification notification({
+      required int id,
+      required int followedSeriesId,
+      bool isRead = false,
+    }) =>
+        UpdateNotification(
+          id: id,
+          followedSeriesId: followedSeriesId,
+          sourceId: 'mangadex',
+          seriesKey: 'series-1',
+          chapterKey: 'ch-$id',
+          chapterTitle: 'Chapter $id',
+          isRead: isRead,
+        );
+
+    Future<ProviderContainer> loaded({
+      List<FollowedSeries> followed = const [],
+      List<UpdateNotification> notifications = const [],
+      int unreadCount = 0,
+    }) async {
+      final container = ProviderContainer(
+        overrides: [
+          updatesRepositoryProvider.overrideWithValue(
+            _FakeUpdatesRepository(
+              notifications: notifications,
+              unreadCount: unreadCount,
+            ),
+          ),
+          libraryRepositoryProvider
+              .overrideWithValue(_FakeLibraryRepository(followed: followed)),
+        ],
+      );
+      addTearDown(container.dispose);
+      await container.read(updatesProvider.future);
+      return container;
+    }
+
+    test('forgetFollowed drops the row and reports the slot it held', () async {
+      final container = await loaded(
+        followed: [
+          _followed(id: 1, seriesKey: 'a'),
+          _followed(id: 2, seriesKey: 'b'),
+          _followed(id: 3, seriesKey: 'c'),
+        ],
+      );
+      final notifier = container.read(updatesProvider.notifier);
+
+      expect(notifier.forgetFollowed(2), 1);
+      expect(
+        container.read(updatesProvider).value!.followed.map((s) => s.id),
+        [1, 3],
+      );
+    });
+
+    test('forgetFollowed reports -1 for a row this cache does not hold',
+        () async {
+      final container = await loaded(followed: [_followed(id: 1)]);
+      expect(container.read(updatesProvider.notifier).forgetFollowed(99), -1);
+    });
+
+    test('forgetFollowed takes the notifications with it, and their unread',
+        () async {
+      // `update_notifications.followed_series_id` is ON DELETE CASCADE, so
+      // keeping them would leave the Updates tab listing chapters of a series
+      // nobody follows, counted by a badge that outlives them.
+      final container = await loaded(
+        followed: [_followed(id: 1), _followed(id: 2, seriesKey: 'other')],
+        notifications: [
+          notification(id: 10, followedSeriesId: 1),
+          notification(id: 11, followedSeriesId: 1, isRead: true),
+          notification(id: 12, followedSeriesId: 2),
+        ],
+        unreadCount: 2,
+      );
+
+      container.read(updatesProvider.notifier).forgetFollowed(1);
+      final state = container.read(updatesProvider).value!;
+
+      expect(state.notifications.map((n) => n.id), [12]);
+      expect(state.unreadCount, 1);
+    });
+
+    test('rememberFollowed puts an undone removal back in its slot', () async {
+      final container = await loaded(
+        followed: [
+          _followed(id: 1, seriesKey: 'a'),
+          _followed(id: 2, seriesKey: 'b'),
+        ],
+      );
+      final notifier = container.read(updatesProvider.notifier);
+
+      final slot = notifier.forgetFollowed(1);
+      // A re-follow is a brand new row, so the undo puts back a different id.
+      notifier.rememberFollowed(_followed(id: 100, seriesKey: 'a'), index: slot);
+
+      expect(
+        container.read(updatesProvider).value!.followed.map((s) => s.id),
+        [100, 2],
+      );
+    });
+
+    test('rememberFollowed replaces a row that is already there', () async {
+      // The favorite toggle's path: same row, new metadata, same place.
+      final container = await loaded(followed: [_followed(id: 1)]);
+      final notifier = container.read(updatesProvider.notifier);
+
+      notifier.rememberFollowed(_followed(id: 1).copyWith(isFavorite: true));
+      final followed = container.read(updatesProvider).value!.followed;
+
+      expect(followed, hasLength(1));
+      expect(followed.single.isFavorite, isTrue);
     });
   });
 }
