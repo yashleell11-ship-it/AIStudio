@@ -139,7 +139,11 @@ def test_parse_browse_page_reads_the_whole_paginator_envelope():
     assert first.id == "iwao-1-2-3-4-5-6-7-8-9-10-11-12"
     assert first.cover_url == "https://cdn.hentaihand.com/nhentai/storage/comics/thumbs/705460.webp"
     assert first.canonical_path == f"/comic/{first.id}"
-    assert first.status == "Doujinshi / Japanese"
+    # A gallery is a finished work; category and language ride along as chips
+    # the way the registered nhentai source surfaces them.
+    assert first.status == "completed"
+    assert first.latest_chapter == "10 pages"
+    assert first.genres[:2] == ("Doujinshi", "Japanese")
     assert "Sole Female" in first.genres
 
 
@@ -178,7 +182,9 @@ def test_detail_fills_in_the_fields_a_listing_card_omits():
     assert series.id == SERIES_KEY
     assert "寝取られ" in series.title
     assert series.artist == "Netorare No Tami"
-    assert len(series.genres) == 14
+    # 14 tags plus the category, language and parody the listing card omits.
+    assert len(series.genres) == 17
+    assert "Original" in series.genres
 
 
 def test_a_gallery_is_exactly_one_chapter():

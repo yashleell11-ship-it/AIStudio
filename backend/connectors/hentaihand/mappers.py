@@ -214,13 +214,20 @@ def comic_to_series(item: dict[str, Any]) -> Series | None:
 
     category = item.get("category") if isinstance(item.get("category"), dict) else {}
     language = item.get("language") if isinstance(item.get("language"), dict) else {}
-    genres = _names(item.get("tags"))
-    # The catalogue is untitled doujinshi with no "status" of its own, so the
-    # only honest status line is the language + category the API does publish.
-    facets = [name for name in (_text(category.get("name")), _text(language.get("name"))) if name]
+    # Category, language and parody are separate objects here where nhentai
+    # ships them as tags; folding them into genres keeps this source's chips
+    # reading the same as the gallery sources already registered.
+    facets = tuple(
+        name for name in (_text(category.get("name")), _text(language.get("name"))) if name
+    )
+    genres = facets + _names(item.get("parodies")) + _names(item.get("tags"))
 
     artists = _names(item.get("artists")) or _names(item.get("groups"))
     authors = _names(item.get("authors"))
+    try:
+        page_count = int(item.get("pages") or 0)
+    except (TypeError, ValueError):
+        page_count = 0
 
     return Series(
         id=slug,
@@ -230,10 +237,12 @@ def comic_to_series(item: dict[str, Any]) -> Series | None:
         cover_url=_text(item.get("thumb_url")) or _text(item.get("image_url")),
         author=", ".join(authors) if authors else None,
         artist=", ".join(artists) if artists else None,
-        status=" / ".join(facets) if facets else None,
+        # A gallery is a finished work by construction -- the same call the
+        # registered nhentai/asmhentai gallery sources make.
+        status="completed",
         genres=genres,
         chapter_count=1,
-        latest_chapter=CHAPTER_TITLE,
+        latest_chapter=f"{page_count} pages" if page_count else CHAPTER_TITLE,
     )
 
 
