@@ -76,3 +76,29 @@ def test_fetch_proxied_image_uses_site_referer():
         cover_url,
         extra_headers={"Referer": "https://hentai20.io/"},
     )
+
+
+def test_search_paginates_by_path_like_elftoon():
+    """Hentai20 is the same WordPress build; ``?page=N`` is ignored there too.
+
+    Measured from the VPS: ``/?s=love&page=2`` repeated page 1's ids, while
+    ``/page/2/?s=love`` returned a different set.
+    """
+    connector = Hentai20Connector()
+    page1 = _fixture("search_demon_page1.html")
+    page2 = _fixture("search_demon_page2.html")
+    captured: list[tuple[str, dict | None]] = []
+
+    def fake_get_text(path: str, *, params=None):
+        captured.append((path, params))
+        return page2 if path == "/page/2/" else page1
+
+    with patch.object(connector._http, "get_text", side_effect=fake_get_text):
+        first = connector.search_series("love", 1)
+        second = connector.search_series("love", 2)
+
+    assert captured == [
+        ("/", {"s": "love", "post_type": "wp-manga"}),
+        ("/page/2/", {"s": "love", "post_type": "wp-manga"}),
+    ]
+    assert not {item.id for item in first.items} & {item.id for item in second.items}

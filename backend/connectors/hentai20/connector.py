@@ -22,6 +22,7 @@ from connectors.elftoon.mappers import (
     parse_series_detail,
     parse_series_list,
     search_params,
+    search_path,
     series_id_to_path,
 )
 from connectors.http.cache import TTLCache
@@ -45,6 +46,11 @@ _THUMB_COVER_RE = re.compile(
     r'class="thumb"[^>]*>.*?<img[^>]+src="([^"]+)"',
     re.I | re.S,
 )
+
+
+def _is_not_found(exc: ConnectorHttpError) -> bool:
+    """True when the failure was an upstream HTTP 404."""
+    return exc.status_code == 404 or "404 Not Found" in str(exc)
 
 
 def _cover_from_detail_html(html_text: str) -> str | None:
@@ -202,13 +208,25 @@ class Hentai20Connector(SourceConnector):
         normalized = query.strip()
         if not normalized:
             return self.get_series_list(page)
-        path = "/"
-        params = search_params(normalized, page=page)
+        path = search_path(page)
+        params = search_params(normalized)
         try:
             html = self._http.get_text(path, params=params)
         except ConnectorHttpError as exc:
+            # Same WordPress 404-past-the-end as elftoon; see that connector.
+            if page > 1 and _is_not_found(exc):
+                self._log("search", path, params=params, status="ok", detail="past last page")
+                return PaginatedSeriesList(
+                    items=[],
+                    page=page,
+                    page_size=PAGE_SIZE,
+                    total=(page - 1) * PAGE_SIZE,
+                    api_has_more=False,
+                )
             self._log("search", path, params=params, status="error", detail=str(exc))
             raise
+        # Hentai20's search pages hold 20 posts, not WordPress's default 10
+        # (measured from the VPS), so it keeps PAGE_SIZE where elftoon does not.
         listing = parse_search_results(html, page=page, page_size=PAGE_SIZE)
         self._log(
             "search",

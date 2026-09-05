@@ -7,13 +7,18 @@ import pytest
 
 from connectors.elftoon.connector import ElfToonConnector
 from connectors.elftoon.mappers import (
+    SEARCH_PAGE_SIZE,
     chapter_id_to_path,
     listing_params,
     parse_chapter_pages,
     parse_chapters,
+    parse_search_results,
     parse_series_detail,
     parse_series_list,
+    search_params,
+    search_path,
 )
+from connectors.http.client import ConnectorHttpError
 
 FIXTURES = Path(__file__).parent / "fixtures" / "elftoon"
 
@@ -94,6 +99,80 @@ def test_search_finds_titles(elftoon_connector: ElfToonConnector):
     )
     assert listing.items
     assert any("infinite" in item.title.casefold() or "solo" in item.id for item in listing.items) or listing.items
+    # A single page of hits: nothing to scroll to.
+    assert listing.has_more is False
+
+
+def test_search_paginates_by_path_not_query():
+    """``?page=N`` is ignored by WordPress; the page number belongs in the path."""
+    assert search_path(1) == "/"
+    assert search_path(2) == "/page/2/"
+    assert search_path(7) == "/page/7/"
+    assert "page" not in search_params("demon")
+
+
+def test_search_page_2_returns_different_series(elftoon_connector: ElfToonConnector):
+    """The bug this guards: every page used to answer with page 1's ids."""
+    page1 = _load("search_demon_page1.html")
+    page2 = _load("search_demon_page2.html")
+    captured: list[tuple[str, dict | None]] = []
+
+    def fake_get_text(path: str, *, params=None):
+        captured.append((path, params))
+        return page2 if path == "/page/2/" else page1
+
+    with patch.object(elftoon_connector._http, "get_text", side_effect=fake_get_text):
+        first = elftoon_connector.search_series("demon", 1)
+        second = elftoon_connector.search_series("demon", 2)
+
+    assert captured == [
+        ("/", {"s": "demon", "post_type": "wp-manga"}),
+        ("/page/2/", {"s": "demon", "post_type": "wp-manga"}),
+    ]
+    first_ids = [item.id for item in first.items]
+    second_ids = [item.id for item in second.items]
+    assert first_ids and second_ids
+    assert not set(first_ids) & set(second_ids)
+    assert first.has_more is True
+    assert second.has_more is True
+    assert first.page_size == SEARCH_PAGE_SIZE
+
+
+def test_search_last_page_reports_no_more():
+    """Page 3 of "demon" is the last: the paginator shows no Next link."""
+    last = parse_search_results(_load("search_demon_page3.html"), page=3)
+    assert last.items
+    assert last.has_more is False
+    assert last.total == 2 * SEARCH_PAGE_SIZE + len(last.items)
+
+
+def test_search_past_last_page_is_empty_not_an_error(
+    elftoon_connector: ElfToonConnector,
+):
+    """WordPress 404s past the end; infinite scroll must see an empty page."""
+    not_found = ConnectorHttpError(
+        "Client error '404 Not Found' for url 'https://elftoon.com/page/4/?s=demon'",
+        status_code=404,
+    )
+
+    with patch.object(elftoon_connector._http, "get_text", side_effect=not_found):
+        listing = elftoon_connector.search_series("demon", 4)
+
+    assert listing.items == []
+    assert listing.has_more is False
+    assert listing.page == 4
+
+
+def test_search_page_1_404_still_raises(elftoon_connector: ElfToonConnector):
+    """``/?s=...`` answers 200 even with zero hits, so a 404 there is a fault."""
+    not_found = ConnectorHttpError(
+        "Client error '404 Not Found' for url 'https://elftoon.com/?s=demon'",
+        status_code=404,
+    )
+
+    with patch.object(elftoon_connector._http, "get_text", side_effect=not_found):
+        with pytest.raises(ConnectorHttpError):
+            elftoon_connector.search_series("demon", 1)
 
 
 def test_parse_series_detail():

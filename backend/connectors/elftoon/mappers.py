@@ -19,6 +19,10 @@ from connectors.titles import normalize_chapter_title
 
 SITE_BASE = "https://elftoon.com"
 PAGE_SIZE = 20
+#: WordPress core search returns 10 posts per page regardless of the theme's
+#: own archive page size (measured from the VPS: ``?s=demon`` pages hold
+#: 10/10/9). Reporting PAGE_SIZE here would misstate ``total`` to the client.
+SEARCH_PAGE_SIZE = 10
 
 # Themesia /manga/ filter form ``order`` values.
 SORT_TO_ORDER: dict[str, str] = {
@@ -53,6 +57,12 @@ _CHAPTER_SLUG_RE = re.compile(
 _TS_READER_RE = re.compile(r"ts_reader\.run\((\{.*?\})\);", re.S)
 
 _NEXT_PAGE_RE = re.compile(r'[?&]page=(\d+)', re.I)
+# WordPress core's search paginator (``<div class="pagination">``), distinct
+# from the Themesia archive's ``hpage`` Prev/Next block.
+_PAGINATION_BLOCK_RE = re.compile(r'<div class="pagination">(.*?)</div>', re.S | re.I)
+_PAGE_NUMBER_LINK_RE = re.compile(r'class="[^"]*page-numbers"[^>]*/page/(\d+)/', re.I)
+_CURRENT_PAGE_RE = re.compile(r'class="page-numbers current"[^>]*>\s*(\d+)', re.I)
+_NEXT_PAGE_LINK_RE = re.compile(r'class="next page-numbers"', re.I)
 _HPAGE_NEXT_RE = re.compile(
     r'<div class="hpage">[^<]*<a[^>]+href="[^"]*page=(\d+)[^"]*"[^>]*class="r"',
     re.I,
@@ -76,11 +86,21 @@ def listing_params(*, page: int, sort: str | None = None) -> dict[str, Any]:
     return params
 
 
-def search_params(query: str, *, page: int) -> dict[str, Any]:
-    params: dict[str, Any] = {"s": query.strip(), "post_type": "wp-manga"}
-    if page > 1:
-        params["page"] = page
-    return params
+def search_params(query: str) -> dict[str, Any]:
+    """Query string for a WordPress search. Deliberately carries no page.
+
+    ``?page=N`` is WordPress's *within-a-single-post* paginator; on a search
+    query it is silently dropped and every request answers page 1. The page
+    number belongs in the path -- see :func:`search_path`.
+    """
+    return {"s": query.strip(), "post_type": "wp-manga"}
+
+
+def search_path(page: int) -> str:
+    """Path for search page ``page``; WordPress paginates search by path."""
+    if page <= 1:
+        return "/"
+    return f"/page/{page}/"
 
 
 def series_id_to_path(series_id: str) -> str:
@@ -233,9 +253,36 @@ def parse_search_results(
     html_text: str,
     *,
     page: int,
-    page_size: int = PAGE_SIZE,
+    page_size: int = SEARCH_PAGE_SIZE,
 ) -> PaginatedSeriesList:
-    return parse_series_list(html_text, page=page, page_size=page_size)
+    """Parse a WordPress search result page.
+
+    Search results come from WP core, not the Themesia archive template, so
+    they carry a ``page-numbers`` block instead of the theme's ``hpage``
+    Prev/Next pair -- which is why this cannot reuse
+    :func:`parse_series_list`, whose "next page" test looks for a ``page=``
+    query parameter that a search page never emits.
+    """
+    items = parse_series_cards(html_text)
+    block = _PAGINATION_BLOCK_RE.search(html_text)
+    nav = block.group(1) if block else ""
+    numbers = [int(value) for value in _PAGE_NUMBER_LINK_RE.findall(nav)]
+    current = _CURRENT_PAGE_RE.search(nav)
+    numbers.append(int(current.group(1)) if current else page)
+    has_more = bool(_NEXT_PAGE_LINK_RE.search(nav))
+    if has_more:
+        total = max(numbers) * page_size
+    else:
+        # Last page: the only exact count we ever get, since WP never states
+        # a result total. Anything beyond this is a 404 (see the connector).
+        total = (page - 1) * page_size + len(items)
+    return PaginatedSeriesList(
+        items=items,
+        page=page,
+        page_size=page_size,
+        total=total,
+        api_has_more=has_more,
+    )
 
 
 def parse_series_detail(html_text: str, series_id: str) -> Series | None:
