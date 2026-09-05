@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_concurrency.dart';
 import 'package:manhwamaniacs/features/downloads/models/series_storage_usage.dart';
 import 'package:manhwamaniacs/features/downloads/models/storage_cap.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_storage_providers.dart';
@@ -124,10 +125,39 @@ void main() {
     expect(container.read(storageCapProvider), StorageCap.gb2);
   });
 
+  testWidgets('picking a chapter concurrency persists it', (tester) async {
+    final container = await pumpCard(tester);
+    expect(
+      container.read(downloadConcurrencyProvider),
+      DownloadConcurrency.two,
+      reason: 'the default is one step up from serial, not the maximum',
+    );
+
+    await tester.tap(find.byKey(const Key('download-concurrency-three')));
+    await tester.pump();
+
+    expect(container.read(downloadConcurrencyProvider),
+        DownloadConcurrency.three,);
+  });
+
+  testWidgets('says what the tradeoff costs, not just that it is faster',
+      (tester) async {
+    await pumpCard(tester);
+
+    expect(find.text('Chapters at once'), findsOneWidget);
+    // The honest half: the owner's own server, and a source that may refuse.
+    expect(find.textContaining('your own server'), findsOneWidget);
+    expect(find.textContaining('refusing requests'), findsOneWidget);
+  });
+
   testWidgets('free up space calls through and reports the result', (tester) async {
     final actions = _FakeDownloadsStorageActions(2);
     await pumpCard(tester, actions: actions);
 
+    // The card grew a concurrency section above this button, which puts it
+    // past the bottom of the 800x600 test viewport.
+    await tester.ensureVisible(find.byKey(const Key('free-up-space')));
+    await tester.pump();
     await tester.tap(find.byKey(const Key('free-up-space')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));
@@ -140,6 +170,10 @@ void main() {
     final actions = _FakeDownloadsStorageActions(0);
     await pumpCard(tester, actions: actions);
 
+    // The card grew a concurrency section above this button, which puts it
+    // past the bottom of the 800x600 test viewport.
+    await tester.ensureVisible(find.byKey(const Key('free-up-space')));
+    await tester.pump();
     await tester.tap(find.byKey(const Key('free-up-space')));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 100));

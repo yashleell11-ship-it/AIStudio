@@ -7,7 +7,41 @@ const int kFreeSpaceFloorBytes = 1536 * 1024 * 1024;
 /// possible": the reader endpoints sit behind the per-request auth gate
 /// (`docs/OFFLINE_READING.md` §1), so unbounded concurrency turns one
 /// chapter download into a burst of SQLite write contention on the backend.
+///
+/// Fixed, and deliberately NOT a second user setting next to
+/// [DownloadConcurrency]: two multiplying knobs is how a user arrives at a
+/// number neither of them looks like. Chapter parallelism is the one that is
+/// exposed; this one stays where the auth gate put it.
 const int kPageFetchConcurrency = 2;
+
+/// The hard ceiling on requests the download queue has open against the
+/// user's server at once — manifests, novel text and page images together,
+/// across *every* chapter in flight.
+///
+/// This is the number that actually bounds the blast radius, and the reason
+/// [DownloadConcurrency] can be offered at all. Without it the real
+/// concurrency would be the product (3 chapters x [kPageFetchConcurrency] = 6
+/// and climbing with the setting); with it, the worst case is four whatever
+/// the user picks, so raising the setting overlaps dead time — manifest round
+/// trips, retry backoffs, blob writes — rather than multiplying the request
+/// rate.
+///
+/// Four, not more: `services/bulk_fetch.py` is the backend's own answer to
+/// "how much concurrent upstream work does this box want", and it sizes its
+/// pool at 4 by default with a hard `MAX_CONCURRENCY = 16` — "the box has
+/// 2 vCPU and these threads each hold an upstream socket". Page-image proxying
+/// is exactly that shape of work. Four is also inside the shape of the
+/// `sources` rate-limit bucket the page proxy is charged to, which the
+/// serial queue was already pressing against.
+///
+/// Per-source politeness is not this constant's job and does not need to be:
+/// everything that scrapes a source's own site resolves through the ONE cached
+/// connector instance per source, whose `min_interval` is held under a lock
+/// (`backend/connectors/registry.py`), so fanning out across a single source
+/// is spaced upstream by the server no matter what this app does. Page bytes
+/// come from CDNs on a pooled client with no such spacing — which is precisely
+/// why they need a ceiling here.
+const int kQueueRequestConcurrency = 4;
 
 /// Consecutive manifest-fetch failures before a chapter is marked
 /// [DownloadChapterState.failed] rather than retried again on this pass.

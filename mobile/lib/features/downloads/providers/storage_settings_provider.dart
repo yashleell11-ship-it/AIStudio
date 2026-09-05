@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_concurrency.dart';
 import 'package:manhwamaniacs/features/downloads/models/retention_policy.dart';
 import 'package:manhwamaniacs/features/downloads/models/storage_cap.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -43,5 +44,28 @@ class RetentionIntervalNotifier extends Notifier<RetentionInterval> {
     await ref
         .read(preferencesProvider)
         .setDownloadRetentionInterval(interval.name);
+  }
+}
+
+/// How many chapters the queue downloads at once — per install for the same
+/// reason the cap is: one device, one connection to one server.
+///
+/// The queue reads this fresh on every pass rather than watching it, so a
+/// change lands on the next batch instead of restarting the run mid-chapter.
+final downloadConcurrencyProvider =
+    NotifierProvider<DownloadConcurrencyNotifier, DownloadConcurrency>(
+  DownloadConcurrencyNotifier.new,
+  name: 'downloadConcurrency',
+);
+
+class DownloadConcurrencyNotifier extends Notifier<DownloadConcurrency> {
+  @override
+  DownloadConcurrency build() => DownloadConcurrency.fromWire(
+        ref.watch(preferencesProvider).downloadConcurrency,
+      );
+
+  Future<void> setConcurrency(DownloadConcurrency value) async {
+    state = value;
+    await ref.read(preferencesProvider).setDownloadConcurrency(value.name);
   }
 }
