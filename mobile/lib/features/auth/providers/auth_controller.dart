@@ -40,6 +40,24 @@ class AuthController extends Notifier<AuthState> {
   /// — real requests keep the generous timeout.
   static const Duration _probeTimeout = Duration(seconds: 3);
 
+  /// The backend's code for "that password is wrong" — a 401, exactly like an
+  /// expired session (`services/auth_service.change_password`).
+  static const String _invalidCredentialsCode = 'invalid_credentials';
+
+  /// Raised while a request that can answer 401 for a reason *other* than a
+  /// dead session is in flight — today only `/auth/change-password`, which
+  /// answers 401 `invalid_credentials` when the current password is wrong.
+  ///
+  /// The Dio interceptor sees a status code and nothing else, so it fires
+  /// [onSessionExpired] for both; without this guard one mistyped character
+  /// would sign the user out of the app instead of showing "Current password
+  /// is incorrect." The request's own result decides which it was
+  /// ([changePassword] calls [onSessionExpired] by hand for a genuine one).
+  ///
+  /// The window is a single in-flight request wide, so at worst an unrelated
+  /// request that 401s inside it is not acted on — the next one still is.
+  var _expectsCredentialCheck = false;
+
   late Future<void> _restored;
 
   /// Completes once the launch-time token restoration has settled. Exposed so
@@ -183,23 +201,91 @@ class AuthController extends Notifier<AuthState> {
   /// clear locally. The local token is cleared regardless of the server result.
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
-    await _clearSession();
-    await ref.read(activeProfileProvider.notifier).clear();
-    ref.read(profileSessionReadyProvider.notifier).reset();
-    // Drop the previous account's cached profile list so the next sign-in
-    // never briefly renders another user's profiles.
-    ref.invalidate(profilesProvider);
-    state = const AuthUnauthenticated();
+    await _signOutLocally();
+  }
+
+  /// Sign out everywhere: revoke every session for the account — this device's
+  /// included — then tear the local session down.
+  ///
+  /// Unlike [logout] this does NOT clear locally when the server call fails.
+  /// The button's whole promise is "no device keeps this account signed in",
+  /// and a failed call has revoked nothing; dropping this device alone would
+  /// leave the user believing an intruder was signed out while the intruder's
+  /// session is still live. So the error is handed back for the screen to show
+  /// and the user can retry (plain Sign out is still one screen away).
+  ///
+  /// What the local teardown clears is the session and only the session: the
+  /// bearer token (in-memory and keychain), the cached identity, the active
+  /// profile selection and its once-per-session gate, and the cached profile
+  /// list. Downloaded chapters are deliberately left on disk — a revoke is not
+  /// a data wipe, the blobs cost real bandwidth to re-fetch, and the store is
+  /// keyed `u{userId}p{profileId}` (see `downloads_scope.dart`), so no other
+  /// account signing in on this device can address them. Removing them stays
+  /// where it already lives: Settings -> Storage.
+  Future<AppError?> logoutEverywhere() async {
+    final result = await ref.read(authRepositoryProvider).logoutAll();
+    if (result.isErr) return result.error;
+    await _signOutLocally();
+    return null;
+  }
+
+  /// Change the account password. Null on success, the [AppError] to render on
+  /// failure — same contract as [login].
+  ///
+  /// The session survives: the backend revokes every *other* session and keeps
+  /// the one that made the request, so there is no state change on success.
+  ///
+  /// [_expectsCredentialCheck] is what keeps a mistyped current password from
+  /// signing the user out of the app: see its declaration.
+  Future<AppError?> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    _expectsCredentialCheck = true;
+    final Result<void> result;
+    try {
+      result = await ref.read(authRepositoryProvider).changePassword(
+            currentPassword: currentPassword,
+            newPassword: newPassword,
+          );
+    } finally {
+      _expectsCredentialCheck = false;
+    }
+    if (result.isOk) return null;
+    final error = result.error;
+    // A 401 that is *not* the wrong-current-password answer really is a dead
+    // session, and the guard above swallowed the interceptor's call — so make
+    // it by hand rather than leaving the app on a session the server disowned.
+    if (error is ApiError &&
+        error.isUnauthorized &&
+        error.code != _invalidCredentialsCode) {
+      onSessionExpired();
+    }
+    return error;
   }
 
   /// Reaction to a mid-session 401 raised by the auth interceptor: the token is
   /// already invalid server-side, so only clear locally (no logout call, which
   /// would 401 again) and drop to unauthenticated. Idempotent.
   void onSessionExpired() {
+    if (_expectsCredentialCheck) return;
     if (state is AuthUnauthenticated) return;
     unawaited(_clearSession());
     unawaited(ref.read(activeProfileProvider.notifier).clear());
     ref.read(profileSessionReadyProvider.notifier).reset();
+    ref.invalidate(profilesProvider);
+    state = const AuthUnauthenticated();
+  }
+
+  /// Drop this device's session and everything scoped to it, then land on
+  /// unauthenticated. Shared by [logout] and [logoutEverywhere] so the two can
+  /// never tear down different amounts of state.
+  Future<void> _signOutLocally() async {
+    await _clearSession();
+    await ref.read(activeProfileProvider.notifier).clear();
+    ref.read(profileSessionReadyProvider.notifier).reset();
+    // Drop the previous account's cached profile list so the next sign-in
+    // never briefly renders another user's profiles.
     ref.invalidate(profilesProvider);
     state = const AuthUnauthenticated();
   }

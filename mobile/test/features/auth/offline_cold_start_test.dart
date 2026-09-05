@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_response.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_user.dart';
 import 'package:manhwamaniacs/features/auth/models/bootstrap_status.dart';
+import 'package:manhwamaniacs/features/auth/models/user_session.dart';
 import 'package:manhwamaniacs/features/auth/repositories/auth_repository.dart';
 import 'package:manhwamaniacs/features/auth/screens/login_screen.dart';
 import 'package:manhwamaniacs/features/profiles/screens/profile_picker_screen.dart';
@@ -51,6 +52,24 @@ class _UnreachableAuthRepository implements AuthRepository {
 
   @override
   Future<Result<AuthUser>> me() async => const Err<AuthUser>(_unreachable);
+
+  @override
+  Future<Result<void>> changePassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async =>
+      const Err<void>(_unreachable);
+
+  @override
+  Future<Result<List<UserSession>>> sessions() async =>
+      const Err<List<UserSession>>(_unreachable);
+
+  @override
+  Future<Result<void>> revokeSession(int sessionId) async =>
+      const Err<void>(_unreachable);
+
+  @override
+  Future<Result<void>> logoutAll() async => const Err<void>(_unreachable);
 }
 
 /// A session token left behind by a previous, online launch.

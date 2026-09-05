@@ -63,5 +63,32 @@ void main() {
       expect(labels, contains('Refresh rate'));
       expect(labels, contains('Volume key navigation'));
     });
+
+    // The security controls live one push deeper than any tab, so the entry
+    // has to answer to the words people type rather than to its own label
+    // alone — a search for "change password" that finds nothing is a user who
+    // concludes the app cannot change a password.
+    test('the security page answers to what people call it', () {
+      for (final query in [
+        'change password',
+        'sessions',
+        'devices',
+        'sign out everywhere',
+        'security',
+      ]) {
+        expect(
+          _android(query).map((e) => e.label),
+          contains('Password & security'),
+          reason: 'searching "$query" should surface the security page',
+        );
+      }
+    });
+
+    test('and lands on the General tab, where its card is', () {
+      final entry = _android('change password').single;
+
+      expect(entry.label, 'Password & security');
+      expect(entry.tabIndex, 0);
+    });
   });
 }
