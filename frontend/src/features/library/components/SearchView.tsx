@@ -56,7 +56,7 @@ import { SearchResultCardSkeleton } from "./GlobalSearchResultCard";
  * one per letter is the whole fix; 300 ms is what the Flutter client already
  * waits (`search_screen.dart`).
  */
-export const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_DEBOUNCE_MS = 300;
 
 const TRENDING_SUGGESTIONS = [
   "fantasy",
