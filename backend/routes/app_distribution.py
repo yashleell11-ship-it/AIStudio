@@ -134,6 +134,21 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.4.1",
+        build=34,
+        date="September 2026",
+        highlights=[
+            "Hold a cover on the Library tab to get the menu: open it, "
+            "favourite it, or remove it from your library with an undo. The "
+            "menu existed but only on the browse screen, not the tab you land "
+            "on",
+            "Choose how many chapters download at once, in Settings under "
+            "Storage. It was strictly one at a time. The ceiling is set by "
+            "what your own server can take rather than by how fast a phone "
+            "can ask",
+        ],
+    ),
+    ChangelogEntry(
         version="2.4.0",
         build=33,
         date="September 2026",
