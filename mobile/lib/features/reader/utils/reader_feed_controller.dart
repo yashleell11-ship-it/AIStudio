@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
@@ -44,8 +46,10 @@ class ReaderFeedController extends ChangeNotifier {
     String? prev,
     String? next,
     this.maxChapters = kMaxFeedChapters,
+    DateTime Function()? clock,
   })  : _feed = ReaderFeed.single(anchor),
-        _order = order {
+        _order = order,
+        _clock = clock ?? DateTime.now {
     _prevOf[anchor.id] = prev;
     _nextOf[anchor.id] = next;
   }
@@ -81,12 +85,49 @@ class ReaderFeedController extends ChangeNotifier {
   final Map<String, String?> _prevOf = {};
   final Map<String, String?> _nextOf = {};
 
-  bool _extending = false;
+  /// One request in flight per DIRECTION, not one overall.
+  ///
+  /// A single lock cost Read-all its opening seam: entering mid-series fires
+  /// the backward trigger on the first frames (the reader is at flat index 0),
+  /// and a forward extension raised while that was in flight simply returned
+  /// and waited for another scroll event. Forward is the direction Read-all is
+  /// about; it should never queue behind backward.
+  bool _extendingForward = false;
+  bool _extendingBackward = false;
   bool _disposed = false;
+
+  /// Clock behind the retry backoff, injectable so a test can prove the backoff
+  /// without sleeping through it.
+  final DateTime Function() _clock;
+
+  /// A chapter that would not load, and the earliest it is worth asking again.
+  ///
+  /// The forward trigger re-arms on every scroll notification, and at the end
+  /// of the feed the reader sits exactly where overscroll bounces keep firing
+  /// them — so a source that had just started refusing was asked again as fast
+  /// as it could refuse. "Every attempt is a network round trip" bounds the
+  /// rate to the round-trip time, which against a 429 is the wrong bound.
+  final Map<String, DateTime> _retryAfter = {};
+  final Map<String, int> _failures = {};
+
+  static const Duration _firstRetryDelay = Duration(seconds: 2);
+  static const Duration _maxRetryDelay = Duration(seconds: 30);
 
   /// Whether a chapter is being fetched right now. The reader does not wait on
   /// this — the seam is only ever *approached* while it resolves.
-  bool get isExtending => _extending;
+  bool get isExtending => _extendingForward || _extendingBackward;
+
+  /// The chapter after the LAST one in the feed, and the one before the FIRST —
+  /// where the edge prompts have to point.
+  ///
+  /// Not the anchor's neighbours: in a slid Read-all window the anchor left the
+  /// feed long ago, and a run that dead-ends at chapter 30 offering "next
+  /// chapter" for the anchor's neighbour sends the reader back to chapter 6.
+  String? get nextBeyondFeed =>
+      _feed.chapters.isEmpty ? null : _nextIdAfter(_feed.chapters.last.id);
+
+  String? get previousBeforeFeed =>
+      _feed.chapters.isEmpty ? null : _prevIdBefore(_feed.chapters.first.id);
 
   @override
   void dispose() {
@@ -137,30 +178,30 @@ class ReaderFeedController extends ChangeNotifier {
   Future<void> extendBackward() => _extend(forward: false);
 
   Future<void> _extend({required bool forward}) async {
-    if (_extending || _disposed) return;
+    if (_disposed) return;
+    if (forward ? _extendingForward : _extendingBackward) return;
 
     final edge = forward ? _feed.chapters.last.id : _feed.chapters.first.id;
     final targetId = forward ? _nextIdAfter(edge) : _prevIdBefore(edge);
     if (targetId == null || _feed.contains(targetId)) return;
 
-    _extending = true;
-    try {
-      final chapter = await loadChapter(targetId);
-      if (_disposed) return;
-      if (chapter == null || chapter.pages.isEmpty) return;
+    final retryAt = _retryAfter[targetId];
+    if (retryAt != null && _clock().isBefore(retryAt)) return;
 
-      // Learn what is beyond the new chapter now, so the seam AFTER it is
-      // already known by the time the reader gets near it.
-      if (_order == null && neighboursOf != null) {
-        try {
-          final neighbours = await neighboursOf!(targetId);
-          if (_disposed) return;
-          _prevOf[targetId] = neighbours.prev;
-          _nextOf[targetId] = neighbours.next;
-        } catch (_) {
-          // Unknown neighbours cost the seam past this chapter, not this one.
-        }
+    if (forward) {
+      _extendingForward = true;
+    } else {
+      _extendingBackward = true;
+    }
+    try {
+      final chapter = await _loadOrNull(targetId);
+      if (_disposed) return;
+      if (chapter == null || chapter.pages.isEmpty) {
+        _noteFailure(targetId);
+        return;
       }
+      _retryAfter.remove(targetId);
+      _failures.remove(targetId);
 
       var next = forward
           ? _feed.withAppended(chapter)
@@ -180,7 +221,61 @@ class ReaderFeedController extends ChangeNotifier {
       _feed = next;
       notifyListeners();
     } finally {
-      _extending = false;
+      if (forward) {
+        _extendingForward = false;
+      } else {
+        _extendingBackward = false;
+      }
     }
+
+    // Only now, with the seam already open behind the reader.
+    unawaited(_learnNeighbours(targetId));
+  }
+
+  /// The loader's contract is null rather than a throw, but [_extend] is only
+  /// ever launched unawaited — a future that failed out of it is an unhandled
+  /// async error in the reader, so a throw is absorbed here and treated as the
+  /// refusal it is.
+  Future<ReaderChapter?> _loadOrNull(String chapterId) async {
+    try {
+      return await loadChapter(chapterId);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  /// Learn what sits either side of [chapterId] — *after* its pages are on
+  /// screen, never in front of them.
+  ///
+  /// Both loaders are disk-first, so a downloaded chapter is fully in hand the
+  /// moment [loadChapter] returns. Awaiting prev/next before committing the
+  /// feed put a network round trip back in front of a seam that needed no
+  /// network at all (spec R3), and held the extension lock for its duration —
+  /// on a flaky connection, the full connect timeout with the chapter sitting
+  /// unused. Knowing what is beyond the NEXT chapter is not a precondition for
+  /// showing this one.
+  Future<void> _learnNeighbours(String chapterId) async {
+    final loader = neighboursOf;
+    if (loader == null || _order != null || _disposed) return;
+    if (_prevOf.containsKey(chapterId) && _nextOf.containsKey(chapterId)) return;
+    try {
+      final neighbours = await loader(chapterId);
+      if (_disposed) return;
+      _prevOf[chapterId] = neighbours.prev;
+      _nextOf[chapterId] = neighbours.next;
+    } catch (_) {
+      // Unknown neighbours cost the seam past this chapter, not this one.
+    }
+  }
+
+  /// Back off from a chapter that would not come, doubling each time and
+  /// capped, so a source that is refusing gets asked once in a while rather
+  /// than once per scroll frame.
+  void _noteFailure(String chapterId) {
+    final attempts = (_failures[chapterId] ?? 0) + 1;
+    _failures[chapterId] = attempts;
+    var delay = _firstRetryDelay * (1 << (attempts - 1).clamp(0, 5));
+    if (delay > _maxRetryDelay) delay = _maxRetryDelay;
+    _retryAfter[chapterId] = _clock().add(delay);
   }
 }
