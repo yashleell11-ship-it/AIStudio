@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
@@ -49,6 +50,7 @@ class UpdatesScreen extends ConsumerWidget {
         ),
         title: Text('Updates', style: context.text.h3),
         actions: [
+          const ContentModeChip(),
           IconButton(
             tooltip: 'Check now',
             color: context.colors.primary,

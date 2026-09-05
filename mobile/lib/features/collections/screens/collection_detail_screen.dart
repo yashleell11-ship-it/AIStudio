@@ -10,6 +10,7 @@ import 'package:manhwamaniacs/features/collections/widgets/add_series_dialog.dar
 import 'package:manhwamaniacs/features/collections/widgets/collection_widgets.dart';
 import 'package:manhwamaniacs/features/collections/widgets/collections_skeleton.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -36,6 +37,9 @@ class CollectionDetailScreen extends ConsumerWidget {
           data: (collection) => Text(collection.name),
           orElse: () => const Text('Collection'),
         ),
+        // A collection holds both media; the mode decides which half of it
+        // this screen is showing, so it has to be changeable from here.
+        actions: const [ContentModeChip()],
       ),
       body: detailAsync.when(
         loading: () => const CollectionDetailSkeleton(),

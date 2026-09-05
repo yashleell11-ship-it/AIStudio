@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/library/models/global_search_result.dart';
 import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
@@ -351,9 +352,20 @@ class _SearchHeader extends StatelessWidget {
         FadeIn(
           child: Padding(
             padding: EdgeInsets.only(bottom: context.space.xl2),
-            child: const Align(
-              alignment: Alignment.centerLeft,
-              child: HeroHeading(text: 'Search', fontSize: 40),
+            // The mode decides which sources answer a query at all, so it
+            // belongs on this screen — but beside the heading, not above the
+            // All / With results / Pinned row, where a second segmented
+            // control would read as a fourth per-view filter.
+            child: const Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: HeroHeading(text: 'Search', fontSize: 40),
+                  ),
+                ),
+                ContentModeChip(padding: EdgeInsets.zero),
+              ],
             ),
           ),
         ),

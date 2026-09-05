@@ -5,6 +5,7 @@ import 'package:manhwamaniacs/app/router/routes.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/downloads/models/download_chapter_state.dart';
 import 'package:manhwamaniacs/features/downloads/models/downloaded_series_group.dart';
 import 'package:manhwamaniacs/features/downloads/models/saved_chapter.dart';
@@ -72,6 +73,11 @@ class _DownloadsScreenState extends ConsumerState<DownloadsScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('Downloads'),
+        // The saved shelf and the queue below are both scoped to the active
+        // mode; without this the only way to change it was the Library tab.
+        // Absent with no scope for the same reason the TabBar is: there is no
+        // list to be in the wrong mode about.
+        actions: scopeId == null ? null : const [ContentModeChip()],
         bottom: scopeId == null
             ? null
             : TabBar(

@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/library/providers/bookmarks_provider.dart';
 import 'package:manhwamaniacs/features/novels/utils/novel_book.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
@@ -31,6 +32,7 @@ class BookmarksScreen extends ConsumerWidget {
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.library),
         ),
         title: const Text('Bookmarks'),
+        actions: const [ContentModeChip()],
       ),
       body: bookmarksAsync.when(
         loading: () => ListView(

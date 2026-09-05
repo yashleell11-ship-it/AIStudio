@@ -16,6 +16,11 @@ import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart
 /// still one app-wide setting: flipping it on either screen flips it
 /// everywhere.
 ///
+/// Every OTHER screen the mode scopes reaches this exact widget through
+/// `ContentModeChip`, which puts the active mode in the app bar and opens this
+/// switch in a sheet. There is one implementation of choosing a mode, and this
+/// is it — the chip only carries it.
+///
 /// Renders **nothing at all** when the novels gate is shut. Not a disabled
 /// control, not a greyed pill — nothing, so that a deployment without novels
 /// is byte-for-byte the app the owner uses today.

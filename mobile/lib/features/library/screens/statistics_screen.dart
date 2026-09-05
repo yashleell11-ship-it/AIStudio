@@ -6,6 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/library/widgets/statistics/statistics_sections.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
@@ -37,6 +38,7 @@ class StatisticsScreen extends ConsumerWidget {
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.library),
         ),
         title: const Text('Statistics'),
+        actions: const [ContentModeChip()],
       ),
       body: statsAsync.when(
         loading: () => const _StatisticsSkeleton(),
