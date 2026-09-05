@@ -134,6 +134,22 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.5.0",
+        build=36,
+        date="September 2026",
+        highlights=[
+            "Ninety-three sources, up from sixty-four. Twenty-nine new ones, "
+            "most of them adult manhwa and manhua, every one checked from the "
+            "server all the way through to a page image actually arriving",
+            "Seven more were built and then deleted, because they listed "
+            "series and could not open one. A source that only ever fails "
+            "costs you a tap and a wait to find that out again",
+            "Two adult sources were registered as general audience and would "
+            "have shown up with the 18+ setting switched off. Both are behind "
+            "the gate now",
+        ],
+    ),
+    ChangelogEntry(
         version="2.4.2",
         build=35,
         date="September 2026",
