@@ -9,6 +9,7 @@ import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { libraryCoverUrl } from "@/features/library/api";
+import { CONTENT_MODE_COPY, useContentModeFilter } from "@/features/content-mode";
 import {
   type CollectionMember,
   collectionMemberKeys,
@@ -59,6 +60,10 @@ function DetailSkeleton() {
 export function CollectionDetailView({ collectionId }: CollectionDetailViewProps) {
   const collectionQuery = useCollection(collectionId);
   const allSeriesQuery = useSeriesList({ page: 1, per_page: 200, sort: "title" });
+  // A collection is a shelf, not a medium: it can hold both, so the mode scopes
+  // what is listed INSIDE it rather than which collections exist — the same
+  // split `collection_detail_screen.dart` makes. A no-op when novels are off.
+  const { filterRows, mode, novelsEnabled } = useContentModeFilter();
   const addSeries = useAddSeriesToCollection();
   const removeSeries = useRemoveSeriesFromCollection();
   const updateCollection = useUpdateCollection();
@@ -89,8 +94,11 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
 
   const members = useMemo<FollowedSeries[]>(
     () =>
-      allSeries.filter((s) => memberKeys.has(seriesRefKey(s.source_id, s.series_key))),
-    [allSeries, memberKeys],
+      filterRows(
+        allSeries.filter((s) => memberKeys.has(seriesRefKey(s.source_id, s.series_key))),
+        (s) => s.source_id,
+      ),
+    [allSeries, filterRows, memberKeys],
   );
 
   // The remove list runs off the refs, not `members`: a series that was
@@ -121,8 +129,14 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     );
   }
 
-  const availableSeries = allSeries.filter(
-    (series) => !memberKeys.has(seriesRefKey(series.source_id, series.series_key)),
+  // The picker offers what this mode can add, for the same reason the grid
+  // shows what this mode holds: a Novels-mode shelf that lists manhwa to add is
+  // the mixing the mode exists to stop.
+  const availableSeries = filterRows(
+    allSeries.filter(
+      (series) => !memberKeys.has(seriesRefKey(series.source_id, series.series_key)),
+    ),
+    (series) => series.source_id,
   );
   const filteredAvailable = addSearch.trim()
     ? availableSeries.filter((series) =>
@@ -251,6 +265,12 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
               icon: Plus,
               onClick: () => setShowAddDialog(true),
             }}
+          />
+        ) : novelsEnabled && members.length === 0 && !allSeriesQuery.isLoading ? (
+          <EmptyState
+            icon={BookOpen}
+            title={`No ${CONTENT_MODE_COPY[mode].plural} in this collection`}
+            description="It holds titles from the other mode. Switch modes to see them."
           />
         ) : (
           <SeriesGrid items={members} isLoading={allSeriesQuery.isLoading} />
