@@ -1,10 +1,12 @@
 import {
   Bell,
   BookOpenText,
+  DatabaseBackup,
   Keyboard,
   LayoutTemplate,
   Palette,
   ShieldAlert,
+  ShieldCheck,
   type LucideIcon,
 } from "lucide-react";
 import { isRoleVisibleNavItem } from "./nav";
@@ -15,7 +17,9 @@ export type SettingsTabId =
   | "reader"
   | "notifications"
   | "content"
-  | "shortcuts";
+  | "security"
+  | "shortcuts"
+  | "backup";
 
 export interface SettingsTab {
   id: SettingsTabId;
@@ -29,17 +33,22 @@ export interface SettingsTab {
 /**
  * The sections of `/settings`, in render order.
  *
- * All but one are the reader's own, which is why the route itself is not
+ * All but two are the reader's own, which is why the route itself is not
  * admin-only and why this list mirrors `settings_screen.dart` — the Flutter
  * client shows the same preferences to every account and gates none of them.
  *
- * "Notifications" is the exception and the reason the split exists: it edits the
+ * "Notifications" is the first exception and the reason the split exists: it edits the
  * singleton `UpdateSettings` row — whether the checker runs at all, how often it
  * sweeps every followed series, whether it runs on startup — which is one
  * setting for the whole instance, not one per reader. The backend already
  * refuses it to non-admins (`PUT /updates/settings` carries
  * `require_admin_user`), so leaving the tab visible would only offer every
  * account a form whose Save returns 403. Mobile has no equivalent panel at all.
+ *
+ * "Backup" is the second, and is gated harder for the same reason the backend
+ * gates it: the file is the whole SQLite database — every account on the
+ * instance — and restoring one replaces it. Mobile keeps this on its own screen
+ * at `/settings/backup`; on the web it is a section of this page.
  */
 export const SETTINGS_TABS: SettingsTab[] = [
   {
@@ -74,10 +83,23 @@ export const SETTINGS_TABS: SettingsTab[] = [
     description: "Mature (18+) content",
   },
   {
+    id: "security",
+    label: "Security",
+    icon: ShieldCheck,
+    description: "Password and sessions",
+  },
+  {
     id: "shortcuts",
     label: "Shortcuts",
     icon: Keyboard,
     description: "Keyboard bindings",
+  },
+  {
+    id: "backup",
+    label: "Backup",
+    icon: DatabaseBackup,
+    description: "Export and restore",
+    adminOnly: true,
   },
 ];
 

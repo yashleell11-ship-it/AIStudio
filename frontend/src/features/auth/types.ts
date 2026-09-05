@@ -66,6 +66,28 @@ export interface BootstrapStatus {
   novels_enabled?: boolean;
 }
 
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
+}
+
+/**
+ * One row of `GET /auth/sessions` — the backend's `SessionOut`. `current` is
+ * computed per-request by comparing the row's token hash against the caller's
+ * own token, so it is only meaningful on the response that produced it.
+ */
+export interface AccountSession {
+  id: number;
+  created_at: string;
+  last_used_at: string;
+  expires_at: string;
+  /** The `User-Agent` recorded at login; null when the client sent none. */
+  user_agent: string | null;
+  ip_address: string | null;
+  /** True for the session making the request. */
+  current: boolean;
+}
+
 export interface LoginPayload {
   username: string;
   password: string;

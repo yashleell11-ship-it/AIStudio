@@ -20,6 +20,7 @@ describe("visibleSettingsTabs", () => {
       "appearance",
       "reader",
       "content",
+      "security",
       "shortcuts",
     ]);
   });
@@ -34,6 +35,14 @@ describe("visibleSettingsTabs", () => {
     // instance. `PUT /updates/settings` carries require_admin_user, so showing
     // the form would only hand every account a Save that 403s.
     expect(ids(NON_ADMIN)).not.toContain("notifications");
+  });
+
+  it("gives a non-admin the account-security tab", () => {
+    // Password and sessions are the account's own, not the instance's: every
+    // account has both, and /auth/change-password and /auth/sessions act on
+    // the caller. Gating it on is_admin would leave a friend's account with no
+    // way to rotate a credential short of a shell on the VPS.
+    expect(ids(NON_ADMIN)).toContain("security");
   });
 
   it("leaves a non-admin a usable page rather than an empty one", () => {
