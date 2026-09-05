@@ -52,9 +52,14 @@ abstract final class AppTheme {
     );
   }
 
-  /// The default theme — Eclipse colour on Signature shape, what the app
-  /// wore before either axis was selectable.
-  static ThemeData get dark => fromPalette(AppPalettes.eclipse);
+  /// The default theme — [AppPalettes.defaultPalette] on Signature shape.
+  ///
+  /// The name predates both selectable axes, when Eclipse was the only look
+  /// there was. It follows the default rather than pinning Eclipse so that
+  /// "the app with nothing chosen" has one answer, not two: this is what a
+  /// `MaterialApp` built without the theme controller wears, and it should be
+  /// what a fresh install wears too.
+  static ThemeData get dark => fromPalette(AppPalettes.defaultPalette);
 
   /// Builds the app theme from a colour palette and a shape preset.
   ///

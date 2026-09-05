@@ -15,7 +15,12 @@ import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 /// *watches* the auth user and active profile, switching profiles re-reads
 /// the incoming persona's saved theme automatically; signing out (or having
 /// no profile picked yet) falls back to a device-level key, which is empty on
-/// a fresh install and therefore resolves to the Eclipse default.
+/// a fresh install and therefore resolves to [AppPalettes.defaultPalette].
+///
+/// Themes stay per-persona: moving the default moves only the unset case. A
+/// profile with a stored id keeps reading that id from its own key, and the
+/// key is derived from the watched `(user, profile)` pair, so the switch
+/// between two personas swaps palettes rather than sharing one.
 final themeControllerProvider = NotifierProvider<ThemeController, AppPalette>(
   ThemeController.new,
   name: 'themeController',
@@ -36,8 +41,8 @@ class ThemeController extends Notifier<AppPalette> {
   }
 
   /// Apply and persist [id] for the active persona. Unknown ids are ignored
-  /// (byId falls back to Eclipse only for *reads*, where a stale persisted id
-  /// must not brick startup — a live tap on a bad id should be a no-op).
+  /// (byId falls back to the default only for *reads*, where a stale persisted
+  /// id must not brick startup — a live tap on a bad id should be a no-op).
   Future<void> setTheme(String id) async {
     if (!AppPalettes.all.any((p) => p.id == id)) return;
     state = AppPalettes.byId(id);

@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
-/// Primary call-to-action pill using the warm "cta-gradient".
+/// Primary call-to-action pill — the app's most prominent control.
 ///
-/// Mirrors the web `PrimaryPillButton`: a rounded-full pill filled with the
-/// 123deg warm gradient, a white 2px inset outline, a warm glow shadow, and an
-/// uppercase DM Sans label in white.
+/// Mirrors the web `.cta-gradient`: a rounded-full pill filled with a ~123deg
+/// ramp from the palette's primary-hover to its primary, a 2px inset outline,
+/// a glow shadow, and an uppercase DM Sans label.
+///
+/// Every colour is a palette role. It used to hold four literal Eclipse hexes
+/// (a near-black-to-amber ramp with a hard white outline), which meant the
+/// button on the login, register and setup screens — the screens that can only
+/// ever paint the default, because the theme key is per `(user, profile)` and
+/// neither exists yet — stayed amber whatever the app's default was. The white
+/// label was the same bet in miniature: legible over the dark end of that one
+/// ramp and nowhere else.
 class PrimaryPillButton extends StatelessWidget {
   const PrimaryPillButton({
     super.key,
@@ -23,30 +31,31 @@ class PrimaryPillButton extends StatelessWidget {
   /// When true the pill stretches to fill its parent's width.
   final bool expanded;
 
-  /// The warm CTA gradient (matches web `.cta-gradient`, ~123deg).
-  static const LinearGradient _ctaGradient = LinearGradient(
+  /// The CTA ramp: deeper primary into brighter primary, which is the same
+  /// direction in every palette. Stops match the web rule exactly
+  /// (`primary-hover 0%, primary-hover 30%, primary 100%`).
+  static LinearGradient _ctaGradient(AppPalette colors) => LinearGradient(
     // 123deg ≈ pointing toward lower-right; approximated with begin/end.
-    begin: Alignment(-0.85, -1),
-    end: Alignment(0.85, 1),
-    colors: [
-      Color(0xFF1A0A00),
-      Color(0xFFBE4C00),
-      Color(0xFFC2410C),
-      Color(0xFFF59E0B),
-    ],
-    stops: [0.07, 0.37, 0.72, 1.0],
+    begin: const Alignment(-0.85, -1),
+    end: const Alignment(0.85, 1),
+    colors: [colors.primaryHover, colors.primaryHover, colors.primary],
+    stops: const [0.0, 0.3, 1.0],
   );
 
   @override
   Widget build(BuildContext context) {
     final radius = BorderRadius.circular(context.radii.pill);
+    final colors = context.colors;
+    // The label colour each palette nominates for a filled primary surface —
+    // the one pairing the contrast suite holds to AA.
+    final onPrimary = colors.primaryFg;
 
     final content = Row(
       mainAxisSize: expanded ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         if (icon != null) ...[
-          Icon(icon, size: 18, color: Colors.white),
+          Icon(icon, size: 18, color: onPrimary),
           SizedBox(width: context.space.sm),
         ],
         Flexible(
@@ -56,7 +65,7 @@ class PrimaryPillButton extends StatelessWidget {
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             style: context.text.labelLg.copyWith(
-              color: Colors.white,
+              color: onPrimary,
               fontWeight: FontWeight.w500,
               letterSpacing: 1.2,
             ),
@@ -67,12 +76,12 @@ class PrimaryPillButton extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: _ctaGradient,
+        gradient: _ctaGradient(colors),
         borderRadius: radius,
         boxShadow: [
-          // Warm outer glow (--shadow-glow) + inset-like ambient depth.
+          // Outer glow (--shadow-glow) + inset-like ambient depth.
           BoxShadow(
-            color: context.colors.primary.withValues(alpha: 0.28),
+            color: colors.primary.withValues(alpha: 0.28),
             blurRadius: 24,
             spreadRadius: -2,
           ),
@@ -88,13 +97,17 @@ class PrimaryPillButton extends StatelessWidget {
         child: InkWell(
           onTap: onPressed,
           borderRadius: radius,
-          splashColor: Colors.white.withValues(alpha: 0.16),
-          highlightColor: Colors.white.withValues(alpha: 0.08),
+          splashColor: onPrimary.withValues(alpha: 0.16),
+          highlightColor: onPrimary.withValues(alpha: 0.08),
           child: Container(
             decoration: BoxDecoration(
               borderRadius: radius,
-              // 2px white outline sitting inside the pill (outline-offset:-3).
-              border: Border.all(color: Colors.white, width: 2),
+              // 2px outline sitting inside the pill (outline-offset:-3), at
+              // the same 35% of the label colour the web rule uses.
+              border: Border.all(
+                color: onPrimary.withValues(alpha: 0.35),
+                width: 2,
+              ),
             ),
             padding: EdgeInsets.symmetric(
               horizontal: context.space.xl2,

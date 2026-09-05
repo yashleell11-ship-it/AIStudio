@@ -1,10 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:manhwamaniacs/app/theme/app_palettes.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 
-/// Large Syne uppercase heading filled with a bronze→cream vertical gradient.
+/// Large Syne uppercase heading filled with a vertical gradient from the
+/// palette's accent into its body colour.
 ///
-/// Mirrors the web `.hero-heading`: `linear-gradient(180deg,#9A8B7A,#E8DFD0)`
-/// clipped to the text, uppercase, font-black, tight `leading-none` (height 1).
+/// Mirrors the web `.hero-heading`: `linear-gradient(180deg, var(--mm-hero-from),
+/// var(--mm-hero-to))` clipped to the text, uppercase, font-black, tight
+/// `leading-none` (height 1).
+///
+/// The stops were a literal `#9A8B7A → #E8DFD0` — Eclipse's bronze-and-cream —
+/// which put Eclipse's title above every other palette's app, including on the
+/// login screen, where the theme key does not exist yet and the app can only
+/// paint its default.
 class HeroHeading extends StatelessWidget {
   const HeroHeading({
     super.key,
@@ -20,15 +28,14 @@ class HeroHeading extends StatelessWidget {
 
   final TextAlign? textAlign;
 
-  /// Bronze → cream fill (top → bottom), matching web `.hero-heading`.
-  static const LinearGradient _bronzeCream = LinearGradient(
-    begin: Alignment.topCenter,
-    end: Alignment.bottomCenter,
-    colors: [Color(0xFF9A8B7A), Color(0xFFE8DFD0)],
-  );
-
   @override
   Widget build(BuildContext context) {
+    final colors = context.colors;
+    final fill = LinearGradient(
+      begin: Alignment.topCenter,
+      end: Alignment.bottomCenter,
+      colors: [colors.heroFrom, colors.heroTo],
+    );
     // Responsive default: scale with available width, clamped to a sane range.
     final width = MediaQuery.sizeOf(context).width;
     final resolvedSize = fontSize ?? (width * 0.13).clamp(40.0, 72.0);
@@ -43,7 +50,7 @@ class HeroHeading extends StatelessWidget {
 
     return ShaderMask(
       blendMode: BlendMode.srcIn,
-      shaderCallback: (bounds) => _bronzeCream.createShader(bounds),
+      shaderCallback: fill.createShader,
       child: Text(
         text.toUpperCase(),
         textAlign: textAlign,

@@ -6,10 +6,10 @@ import 'package:manhwamaniacs/app/theme/app_palettes.generated.dart';
 ///
 /// Two kinds live here.
 ///
-/// **House palettes**, written by hand and declared below: Eclipse (the
-/// default, and the app's own look), its OLED twin, Daylight, Paper, and the
-/// three systems the base16 corpus has no shippable equivalent for — Tokyo
-/// Night, Solarized Dark and Solarized Light.
+/// **House palettes**, written by hand and declared below: Eclipse (the app's
+/// own look, and the default until GitHub Dark took that job), its OLED twin,
+/// Daylight, Paper, and the three systems the base16 corpus has no shippable
+/// equivalent for — Tokyo Night, Solarized Dark and Solarized Light.
 ///
 /// **base16 palettes**, in [Base16Palettes], converted by
 /// `tool/themes/build_palettes.dart` from the exact set the web app ships, so
@@ -26,7 +26,9 @@ import 'package:manhwamaniacs/app/theme/app_palettes.generated.dart';
 /// each system's identity survives review; generated ones carry their worst
 /// measured pairing in the doc comment.
 abstract final class AppPalettes {
-  /// The shipped "Eclipse Warm" look — unchanged, and the default.
+  /// The shipped "Eclipse Warm" look — unchanged, and still first in the
+  /// gallery; it is simply no longer what an unset preference resolves to.
+  /// See [defaultPalette].
   static const AppPalette eclipse = AppPalette(
     id: 'eclipse',
     name: 'Eclipse',
@@ -223,8 +225,20 @@ abstract final class AppPalettes {
     ...Base16Palettes.light,
   ];
 
-  /// Gallery order: darks then lights, the default first in both senses.
+  /// Gallery order: darks then lights, house palettes leading each section.
   static const List<AppPalette> all = [...darkPalettes, ...lightPalettes];
+
+  /// What an unset preference means, and what a fresh install wears.
+  ///
+  /// GitHub Dark, matching the web app's `DEFAULT_READING_THEME` — the two
+  /// clients are one product and a reader who has chosen nothing should not
+  /// meet two different apps. It is also what the pre-profile screens paint:
+  /// the theme key is per `(user, profile)` and neither exists at the login,
+  /// setup or profile-picker step, so [byId] resolves this for all of them.
+  ///
+  /// Moving this does NOT move anybody's stored choice — [ThemeController]
+  /// reads a persisted id first and only lands here when there is none.
+  static const AppPalette defaultPalette = Base16Palettes.githubDark;
 
   /// The palettes this app drew itself, as opposed to the ones it borrowed.
   /// The gallery leads each section with them; they are also the ones whose
@@ -239,13 +253,13 @@ abstract final class AppPalettes {
     solarizedLight,
   ];
 
-  /// Resolve a persisted id; unknown/absent ids fall back to [eclipse] so a
-  /// removed palette can never brick startup.
+  /// Resolve a persisted id; unknown/absent ids fall back to [defaultPalette]
+  /// so a removed palette can never brick startup.
   static AppPalette byId(String? id) {
     for (final palette in all) {
       if (palette.id == id) return palette;
     }
-    return eclipse;
+    return defaultPalette;
   }
 }
 
@@ -256,5 +270,5 @@ abstract final class AppPalettes {
 /// tests that pump a bare `MaterialApp(theme: ThemeData(...))` working.
 extension AppPaletteContext on BuildContext {
   AppPalette get colors =>
-      Theme.of(this).extension<AppPalette>() ?? AppPalettes.eclipse;
+      Theme.of(this).extension<AppPalette>() ?? AppPalettes.defaultPalette;
 }

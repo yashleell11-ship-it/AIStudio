@@ -523,16 +523,16 @@ abstract final class Base16Palettes {
     surfaceElevated: Color(0xFF23282F),
     fg: Color(0xFFC9D1D9),
     muted: Color(0xFF8B949E),
-    primary: Color(0xFFD2A8FF),
-    primaryHover: Color(0xFFD0B0F7),
+    primary: Color(0xFF58A6FF),
+    primaryHover: Color(0xFF6FAFF7),
     primaryFg: Color(0xFF0D1117),
-    primarySoft: Color(0xFFE0C2FF),
-    accent: Color(0xFFFF7B72),
-    accentSoft: Color(0xFFFFA39C),
+    primarySoft: Color(0xFF8AC1FF),
+    accent: Color(0xFFD2A8FF),
+    accentSoft: Color(0xFFE0C2FF),
     accentFg: Color(0xFF0D1117),
-    danger: Color(0xFFFFA657),
-    success: Color(0xFFA5D6FF),
-    warning: Color(0xFFBB8009),
+    danger: Color(0xFFF85149),
+    success: Color(0xFF3FB950),
+    warning: Color(0xFFD29922),
   );
 
   /// Flexoki Dark — Steph Ango.
@@ -887,7 +887,7 @@ abstract final class Base16Palettes {
   ///
   /// GitHub's default: plain white and a confident blue.
   ///
-  /// Worst pairing: warning on surface at 4.34:1.
+  /// Worst pairing: warning on surface at 4.58:1.
   static const AppPalette github = AppPalette(
     id: 'github',
     name: 'GitHub Light',
@@ -900,16 +900,16 @@ abstract final class Base16Palettes {
     surfaceElevated: Color(0xFFEFF0F0),
     fg: Color(0xFF424A53),
     muted: Color(0xFF636C75),
-    primary: Color(0xFF7D4ED6),
-    primaryHover: Color(0xFF714DBC),
+    primary: Color(0xFF0969DA),
+    primaryHover: Color(0xFF1463BF),
     primaryFg: Color(0xFFFFFFFF),
-    primarySoft: Color(0xFF6141A2),
-    accent: Color(0xFFCF222E),
-    accentSoft: Color(0xFF9A222C),
+    primarySoft: Color(0xFF1054A5),
+    accent: Color(0xFF7D4ED6),
+    accentSoft: Color(0xFF6141A2),
     accentFg: Color(0xFFFFFFFF),
-    danger: Color(0xFF953800),
-    success: Color(0xFF0A3069),
-    warning: Color(0xFF976E0A),
+    danger: Color(0xFFCF222E),
+    success: Color(0xFF1A7F37),
+    warning: Color(0xFF9A6700),
   );
 
   /// Flexoki Light — Steph Ango.

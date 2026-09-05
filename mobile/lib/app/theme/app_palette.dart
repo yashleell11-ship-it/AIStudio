@@ -89,6 +89,20 @@ class AppPalette extends ThemeExtension<AppPalette> {
   Color get violetGlow => primary.withValues(alpha: 0.20);
   Color get cyanGlow => accent.withValues(alpha: 0.13);
 
+  /// The two stops of the clipped-gradient display heading ([HeroHeading]).
+  ///
+  /// Accent into body colour, which is the rule the web's theme generator uses
+  /// for every palette it maps (`--mm-hero-from` / `--mm-hero-to`). Derived
+  /// rather than stored for the reason the whole section exists: the heading
+  /// used to be a literal bronze→cream pair copied out of Eclipse, so a reader
+  /// on Nord or Catppuccin Latte got Eclipse's title on top of their own app.
+  ///
+  /// Both stops are legible for free — [primary] and [fg] each already clear
+  /// their floor against the page, and this is display-sized text held only to
+  /// 3:1.
+  Color get heroFrom => primary;
+  Color get heroTo => fg;
+
   /// Modal barrier / overlay scrim — stays dark on every palette (it sits
   /// over content, not over theme surfaces).
   Color get scrim => const Color(0xCC000000);
