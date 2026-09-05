@@ -40,8 +40,9 @@ import {
 } from "@/features/offline/chapter-savers";
 import { chapterLinksReady } from "../chapter-links";
 import { libraryReadAllHref } from "../read-all-link";
+import { compareChapters, hasStartedReading, resumeTarget } from "../resume-target";
 import { READING_STATUSES } from "../url-state";
-import type { KnownChapter, SeriesDetail } from "../types";
+import type { SeriesDetail } from "../types";
 
 /**
  * The poster: capped at `max-w-[220px]`, and 220px wide from `lg` up. Both a
@@ -68,12 +69,6 @@ function statusBadgeStyle(status: string): string {
 
 type ChapterSort = "newest" | "oldest";
 
-function chapterOrder(a: KnownChapter, b: KnownChapter): number {
-  const an = a.number ?? Number.NEGATIVE_INFINITY;
-  const bn = b.number ?? Number.NEGATIVE_INFINITY;
-  return an - bn;
-}
-
 export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const seriesQuery = useSeries(seriesId);
   const series = seriesQuery.data;
@@ -98,29 +93,15 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
 
   const orderedChapters = useMemo(() => {
     if (!series) return [];
-    const asc = [...series.chapters].sort(chapterOrder);
+    const asc = [...series.chapters].sort(compareChapters);
     return sort === "newest" ? asc.reverse() : asc;
   }, [series, sort]);
 
-  const resumeTarget = useMemo(() => {
-    if (!series) return null;
-    const asc = [...series.chapters].sort(chapterOrder);
-    // First chapter with progress that is not completed, else the first unread,
-    // else the very first chapter.
-    const inProgress = asc.find((chapter) => {
-      const p = series.progress[chapter.key];
-      return p != null && !p.is_completed;
-    });
-    if (inProgress) {
-      return {
-        chapter: inProgress,
-        page: series.progress[inProgress.key]?.last_page ?? 1,
-      };
-    }
-    const firstUnread = asc.find((chapter) => !series.progress[chapter.key]);
-    const target = firstUnread ?? asc[0] ?? null;
-    return target ? { chapter: target, page: 1 } : null;
-  }, [series]);
+  // Furthest-wins, from the module every client resolves "where was I" through.
+  const resume = useMemo(
+    () => (series ? resumeTarget(series.chapters, series.progress) : null),
+    [series],
+  );
 
   /**
    * Downloads, on the series page a follower actually opens.
@@ -227,7 +208,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   // poster's width, and a second `100vw` request for it would be the largest
   // cover download on the page.
   const cover = libraryCoverUrl(detail.cover_url, POSTER_SIZES);
-  const hasProgress = Object.keys(detail.progress).length > 0;
+  const hasProgress = hasStartedReading(detail.progress);
   const linksReady = chapterLinksReady(isNovel);
   /**
    * Continue, in whichever reader this series calls for.
@@ -238,11 +219,8 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
    * route's `?page=`. Neither medium's position is translated on the way out.
    */
   const resumeHref =
-    linksReady && resumeTarget
-      ? chapterHref(
-          { ...seriesRef, chapterKey: resumeTarget.chapter.key },
-          resumeTarget.page,
-        )
+    linksReady && resume
+      ? chapterHref({ ...seriesRef, chapterKey: resume.chapter.key }, resume.page)
       : null;
   /**
    * Read all, beside Continue and never instead of it. The source series page
@@ -255,7 +233,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const readAllTarget = libraryReadAllHref(
     seriesRef,
     detail.chapters.length,
-    hasProgress ? resumeTarget?.chapter.key ?? null : null,
+    hasProgress ? resume?.chapter.key ?? null : null,
     isNovel,
   );
 
