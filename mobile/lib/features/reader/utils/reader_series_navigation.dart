@@ -52,6 +52,43 @@ void openSeriesFromReader(
   context.go(RoutePaths.sourceSeriesDetail(sourceId, seriesKey));
 }
 
+/// Leaves an open chapter — the Back button, the Android back gesture and the
+/// hardware key all land here.
+///
+/// Back is not "go to the series page": it is "undo the step that opened
+/// this", so a reader reached from Bookmarks belongs back in Bookmarks. A bare
+/// `context.pop()` says that correctly, right up until the reader has moved
+/// between chapters — which every reader does with `go` rather than `push`, so
+/// that a thirty-chapter sitting does not build a thirty-deep stack to walk
+/// back down.
+///
+/// `go` rebuilds the whole stack from the target location, and what it rebuilds
+/// beneath the reader is whatever the ROUTE TREE puts there — not what the
+/// reader was pushed from. The manga readers are nested (under the library tab
+/// root and under the source series page), so a shell is always rebuilt under
+/// them and `pop` still has a destination. The novel reader is registered
+/// top-level (see [Routes.novelReader]), so after a chapter change it is the
+/// entire stack: `pop` throws `GoError('There is nothing to pop')` and does
+/// nothing visible, and the system back gesture — finding nothing to pop
+/// either — closes the app mid-book.
+///
+/// So: pop when there is something to pop, and otherwise land on the series
+/// page, the one destination reachable from the `(sourceId, seriesKey)` pair
+/// every reader carries (see [openSeriesFromReader] for why that is
+/// [RoutePaths.sourceSeriesDetail] for prose and pictures alike). Which is what
+/// "Back always leaves the reader" was supposed to mean all along.
+void leaveReader(
+  BuildContext context, {
+  required String sourceId,
+  required String seriesKey,
+}) {
+  if (context.canPop()) {
+    context.pop();
+    return;
+  }
+  context.go(RoutePaths.sourceSeriesDetail(sourceId, seriesKey));
+}
+
 /// Whether a series page for `(sourceId, seriesKey)` is what the reader would
 /// return to if it were popped right now.
 ///
