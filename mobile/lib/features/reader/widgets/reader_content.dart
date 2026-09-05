@@ -322,162 +322,131 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// Fold a grown or trimmed feed into the geometry **without moving what the
   /// reader is looking at**.
   ///
-  /// Appending is free: every existing index keeps its meaning and the pages
-  /// simply continue past the old end. Prepending and releasing are not —
-  /// they shift every index, and with it every pixel above the viewport, so
-  /// the scroll offset has to move by exactly the extent that appeared or
-  /// disappeared above. That correction is the whole reason [ReaderFeed] is
-  /// immutable: the difference between the two feeds is recoverable.
+  /// Every shape the Read-all window produces — a chapter appended, one
+  /// prepended, one released from either end, and the slides that are two of
+  /// those in a single assignment — is the same fact stated differently: a run
+  /// of chapters survived, some fell off each end, some appeared. So this
+  /// finds that run once and derives the four counts from it, rather than
+  /// matching a branch per shape.
   ///
-  /// Read-all's window slide is both at once — released from the front, grown
-  /// at the end, same assignment — and composes the two arithmetics.
+  /// A branch per shape is only ever as complete as the shapes someone thought
+  /// of, and the one nobody thought of was the backward slide: three chapters
+  /// before and three after, released from the END. It matched nothing and
+  /// fell through to the rebuild below, which corrects no offset — so a whole
+  /// chapter appeared above the viewport and the reader went backwards by its
+  /// height. That is the reported "after 2-3 chapters it sends me back".
   ///
-  /// Anything that is not one of those five shapes rebuilds the extents, which
-  /// costs a re-measure but cannot be wrong.
+  /// That [ReaderFeed] is immutable is what makes the run recoverable, and
+  /// with it the correction: where the first surviving page sits now, minus
+  /// where it sat before. Everything below that page keeps its extent, so
+  /// pinning one page pins the whole feed.
   void _reconcileFeed(ReaderFeed before, ReaderFeed after) {
-    // The geometry the reader is sitting in *right now*, read before the cache
-    // is dropped. Every correction below measures what left from ABOVE the
-    // viewport, and only the outgoing extents know how tall that was — taking
-    // this after the clear left every release correcting by zero.
-    final old = _cachedMetrics;
+    // The geometry the reader is sitting in *right now*, read before the
+    // extents are touched — only the outgoing geometry knows how tall the
+    // departing pages were. Rebuilt from [before] when the cache happens to be
+    // empty rather than correcting by zero: that is not a jump of nothing, it
+    // is a jump nobody corrects.
+    final old = _cachedMetrics ?? _metricsForFeed(before);
     _cachedMetrics = null;
-    final oldIds = [for (final chapter in before.chapters) chapter.id];
-    final newIds = [for (final chapter in after.chapters) chapter.id];
-    bool sameIds(List<String> a, List<String> b) =>
-        a.length == b.length &&
-        List.generate(a.length, (i) => a[i] == b[i]).every((match) => match);
 
-    // Appended — the forward seam. Nothing above the viewport changed.
-    if (newIds.length > oldIds.length &&
-        sameIds(newIds.sublist(0, oldIds.length), oldIds)) {
-      _pageExtents.appendPages(after.pages.sublist(before.length));
-      return;
-    }
-
-    // Prepended — the backward seam. Everything moved down by the extent of
-    // the new pages plus the seam divider now sitting above the old first one.
-    if (newIds.length > oldIds.length &&
-        sameIds(newIds.sublist(newIds.length - oldIds.length), oldIds)) {
-      final added = after.length - before.length;
-      _pageExtents.prependPages(after.pages.sublist(0, added));
-      _prefetchedThrough += added;
-      final metrics = _cachedMetrics = _buildMetrics();
-      final delta = metrics.offsetToPage(added + 1) +
-          metrics.leadingInsetAt(added) -
-          readerListLeadingPadding;
-      // A restore still homing in is chasing an absolute offset, and everything
-      // it was aimed at just moved down by [delta] — so move the target with it
-      // rather than abandoning it. Opening Read-all mid-series asks for the
-      // chapter behind the reader on the very first frames, and a downloaded
-      // one can answer inside the restore's window; dropping the restore there
-      // is how resuming lands at the top of the chapter instead of where they
-      // stopped.
-      final pending = _pendingRestoreOffset;
-      if (pending != null) {
-        _pendingRestoreOffset = pending + delta;
-        _lastRestoreMaxExtent = -1;
+    final run = _survivingRun(before, after);
+    if (run == null) {
+      // Nothing carried over — a caller replaced the feed wholesale. Start the
+      // geometry over rather than guessing what moved.
+      if (_ownsPageExtents) {
+        _abandonPendingRestore();
+        _pageExtents
+          ..removeTrailingPages(before.length)
+          ..appendPages(after.pages);
+        _prefetchedThrough = 0;
       }
-      _scrollController.applyExtentCorrection(delta);
       return;
     }
 
-    // Released from the front — Read-all letting go of what is far behind.
-    if (newIds.length < oldIds.length &&
-        sameIds(oldIds.sublist(oldIds.length - newIds.length), newIds)) {
-      final removed = before.length - after.length;
-      _releaseLeading(removed, after, old);
-      return;
-    }
+    // Pages held by the chapters at [from] onwards. Spelled out rather than
+    // left to [ReaderFeed.startOfChapter], whose clamp answers a run that
+    // already ends at the last chapter with that chapter's start.
+    int tailPages(ReaderFeed feed, int from) => from >= feed.chapters.length
+        ? 0
+        : feed.length - feed.startOfChapter(from);
 
-    // Released from the end. Below the viewport by definition, so nothing to
-    // correct — only the prefetch high-water mark to pull back.
-    if (newIds.length < oldIds.length &&
-        sameIds(oldIds.sublist(0, newIds.length), newIds)) {
-      _pageExtents.removeTrailingPages(before.length - after.length);
-      _prefetchedThrough = _prefetchedThrough.clamp(0, after.length);
-      return;
-    }
+    final droppedLeading = before.startOfChapter(run.oldStart);
+    final droppedTrailing = tailPages(before, run.oldStart + run.length);
+    final addedLeading = after.startOfChapter(run.newStart);
+    final addedTrailing = tailPages(after, run.newStart + run.length);
 
-    // Slid — Read-all's window moving on, which is a release from the front and
-    // an append at the end in the SAME assignment. The chapter count is three
-    // before and three after, so none of the four branches above matches on its
-    // own; before this branch existed every seam from the second onwards fell
-    // through to the wholesale rebuild below, which corrects no scroll offset
-    // and throws away every page height the decoder had measured. The two
-    // arithmetics compose: the tail is a plain append, the head is a plain
-    // release, and only the head moves anything above the viewport.
-    final released = _releasedLeadingChapters(oldIds, newIds);
-    if (released > 0) {
-      final removed = before.startOfChapter(released);
-      final survivors = oldIds.length - released;
-      final keptPages = survivors < newIds.length
-          ? after.startOfChapter(survivors)
-          : after.length;
-      // The surviving chapters have to be the same length in both feeds or the
-      // per-index extents no longer describe the same pages. They always are —
-      // the feed is immutable and the chapters are the same objects — but a
-      // mismatch here would silently corrupt the geometry, and the rebuild
-      // below is merely slow.
-      if (keptPages == before.length - removed) {
-        final appended = after.length - keptPages;
-        if (appended > 0) {
-          _pageExtents.appendPages(after.pages.sublist(keptPages));
-        }
-        _releaseLeading(removed, after, old);
-        return;
-      }
+    // Trailing first: dropping from the front would shift the indices the
+    // trailing removal is expressed in.
+    if (droppedTrailing > 0) _pageExtents.removeTrailingPages(droppedTrailing);
+    if (droppedLeading > 0) _pageExtents.removeLeadingPages(droppedLeading);
+    if (addedLeading > 0) {
+      _pageExtents.prependPages(after.pages.sublist(0, addedLeading));
     }
-
-    // Not a shape this widget produces — a caller replaced the feed wholesale.
-    // Start the geometry over rather than guessing what moved.
-    if (_ownsPageExtents) {
-      _abandonPendingRestore();
+    if (addedTrailing > 0) {
       _pageExtents
-        ..removeTrailingPages(before.length)
-        ..appendPages(after.pages);
-      _prefetchedThrough = 0;
+          .appendPages(after.pages.sublist(after.length - addedTrailing));
     }
+    _prefetchedThrough = (_prefetchedThrough - droppedLeading + addedLeading)
+        .clamp(0, after.length);
+
+    final metrics = _cachedMetrics = _buildMetrics();
+    // The first surviving page's own top edge, then and now. Its seam divider
+    // counts as part of that: a chapter that was mid-feed and is now the first
+    // one loses the 96px it used to sit below, and so does everything under it.
+    final delta = (metrics.offsetToPage(addedLeading + 1) +
+            metrics.leadingInsetAt(addedLeading)) -
+        (old.offsetToPage(droppedLeading + 1) +
+            old.leadingInsetAt(droppedLeading));
+
+    // A restore still homing in is chasing an absolute offset, and everything
+    // it was aimed at just moved by [delta] — so move the target with it rather
+    // than abandoning it. Opening Read-all mid-series asks for the chapter
+    // behind the reader on the very first frames, and a downloaded one can
+    // answer inside the restore's window; dropping the restore there is how
+    // resuming lands at the top of the chapter instead of where they stopped.
+    final pending = _pendingRestoreOffset;
+    if (pending != null && delta != 0) {
+      _pendingRestoreOffset = pending + delta;
+      _lastRestoreMaxExtent = -1;
+    }
+    _scrollController.applyExtentCorrection(delta);
   }
 
-  /// Drop [removed] pages off the front and slide the scroll offset up by
-  /// exactly the extent they occupied, so the page under the reader's thumb
-  /// stays under it.
+  /// The longest run of chapters appearing, in order and unchanged, in both
+  /// feeds — the pages whose measured extents survive the change, and the
+  /// geometry the correction is measured against. Null when nothing survived.
   ///
-  /// [old] is the geometry from before the feed changed — the only thing that
-  /// can say how tall the departing pages were, since they are gone from the
-  /// new one.
-  void _releaseLeading(int removed, ReaderFeed after, ReaderPageMetrics? old) {
-    final delta = old == null
-        ? 0.0
-        : old.offsetToPage(removed + 1) +
-            old.leadingInsetAt(removed) -
-            readerListLeadingPadding;
-    _abandonPendingRestore();
-    _pageExtents.removeLeadingPages(removed);
-    _prefetchedThrough = (_prefetchedThrough - removed).clamp(0, after.length);
-    _cachedMetrics = _buildMetrics();
-    _scrollController.applyExtentCorrection(-delta);
-  }
-
-  /// How many chapters left the FRONT of [oldIds], given that whatever survived
-  /// still sits at the head of [newIds]. Zero when that is not the shape.
-  ///
-  /// Scans shallowest first so a series that legitimately repeats a chapter id
-  /// resolves to the smallest release, which is the one the window produces.
-  static int _releasedLeadingChapters(List<String> oldIds, List<String> newIds) {
-    for (var released = 1; released < oldIds.length; released++) {
-      final survivors = oldIds.length - released;
-      if (survivors > newIds.length) continue;
-      var matches = true;
-      for (var i = 0; i < survivors; i++) {
-        if (oldIds[released + i] != newIds[i]) {
-          matches = false;
-          break;
+  /// Chapter ids are unique within a feed ([ReaderFeed.of] drops duplicates),
+  /// so the longest run is unambiguous. Page counts are compared as well as
+  /// ids because a chapter reloaded at a different length shares no per-index
+  /// geometry with the one it replaces: carrying its extents over would put
+  /// every page below it at the wrong height, where treating it as dropped and
+  /// re-added costs only a re-measure.
+  static ({int oldStart, int newStart, int length})? _survivingRun(
+    ReaderFeed before,
+    ReaderFeed after,
+  ) {
+    ({int oldStart, int newStart, int length})? best;
+    for (var o = 0; o < before.chapters.length; o++) {
+      for (var n = 0; n < after.chapters.length; n++) {
+        var length = 0;
+        var pages = 0;
+        while (o + length < before.chapters.length &&
+            n + length < after.chapters.length) {
+          final was = before.chapters[o + length];
+          final now = after.chapters[n + length];
+          if (was.id != now.id || was.pages.length != now.pages.length) break;
+          pages += was.pages.length;
+          length++;
+        }
+        // A run of nothing but empty chapters pins no page, so it can carry no
+        // correction — that is no run at all.
+        if (pages > 0 && length > (best?.length ?? 0)) {
+          best = (oldStart: o, newStart: n, length: length);
         }
       }
-      if (matches) return released;
     }
-    return 0;
+    return best;
   }
 
   @override
@@ -570,8 +539,12 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
   /// first — the seam divider, as geometry rather than as a widget the list
   /// happens to contain. Empty for a single-chapter feed, which is what keeps
   /// that case pixel-identical to before.
-  Map<int, double> get _seamInsets {
-    final feed = widget.feed;
+  Map<int, double> get _seamInsets => _seamInsetsFor(widget.feed);
+
+  /// Takes the feed rather than reading [widget.feed], so [_reconcileFeed] can
+  /// still ask what the OUTGOING feed's dividers were — by the time it runs,
+  /// [widget.feed] is already the new one.
+  Map<int, double> _seamInsetsFor(ReaderFeed feed) {
     if (feed.isSingleChapter) return const {};
     return {
       for (var c = 1; c < feed.chapters.length; c++)
@@ -649,6 +622,25 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       viewportWidth: _containerWidth ?? MediaQuery.sizeOf(context).width,
       viewportHeight: _containerHeight ?? MediaQuery.sizeOf(context).height,
       zoom: ref.read(readerUiProvider).zoomLevel,
+    );
+  }
+
+  /// Geometry for [feed] against the extents exactly as they stand — reading
+  /// no cache and writing none.
+  ///
+  /// Only [_reconcileFeed] wants this, and only when the cache is empty: the
+  /// correction it computes is where a page sits now minus where it sat, and
+  /// without the outgoing geometry there is no first half of that subtraction.
+  ReaderPageMetrics _metricsForFeed(ReaderFeed feed) {
+    final defaults = _defaults;
+    return ReaderPageMetrics.of(
+      _pageExtents,
+      direction: defaults.direction,
+      fitMode: defaults.fitMode,
+      viewportWidth: _containerWidth ?? MediaQuery.sizeOf(context).width,
+      viewportHeight: _containerHeight ?? MediaQuery.sizeOf(context).height,
+      zoom: ref.read(readerUiProvider).zoomLevel,
+      leadingInsets: _seamInsetsFor(feed),
     );
   }
 
@@ -862,7 +854,12 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
         correction += scrollCorrectionForExtentChange(
           pageStart: metrics.offsetToPage(index + 1),
           oldExtent: metrics.extentAt(index),
-          newExtent: metrics.extentForRatio(pending[index]!),
+          // Both sides have to span the same thing, and [pageStart] is the top
+          // of the page's seam divider — which [extentAt] includes and
+          // [extentForRatio] does not. Without the inset every seam page
+          // resolving above the viewport under-corrected by the divider's 96px.
+          newExtent: metrics.extentForRatio(pending[index]!) +
+              metrics.leadingInsetAt(index),
           scrollOffset: scrollOffset,
         );
       }
