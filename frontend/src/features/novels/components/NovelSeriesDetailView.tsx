@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEffect, useMemo, useState } from "react";
-import { BookX, TriangleAlert } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { BookX, CloudDownload, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { OfflineState } from "@/components/ui/offline-state";
@@ -23,6 +23,17 @@ import { useSourceSeriesProgress } from "@/features/sources/source-progress";
 import { cn } from "@/lib/cn";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { ApiError } from "@/types/api";
+import {
+  ChapterCheckbox,
+  ChapterDownloadBar,
+  ChapterDownloadTrigger,
+  SavedChapterMark,
+  useChapterPicker,
+  type ChapterDownloadState,
+} from "@/features/offline";
+// Direct rather than through the barrel: the savers pull in the reader API and
+// the novels hooks, and the barrel is what the reader itself imports.
+import { useNovelChapterSaver } from "@/features/offline/chapter-savers";
 import {
   byline,
   estimateSeriesLength,
@@ -156,6 +167,67 @@ export function NovelSeriesDetailView({
       .map((chapter) => chapter.id);
     void prefetchNovelChapterWindow(queryClient, { sourceId, seriesKey: seriesId }, opening);
   }, [chapters, queryClient, seriesId, sourceId]);
+
+  /**
+   * Downloading a book — the owner's "add download whole series for novels too".
+   *
+   * A prose chapter is one JSON GET, so a whole book is a few megabytes of text
+   * where the same count of manga chapters is gigabytes of page images. That is
+   * why the whole-series helper exists here and not on the manga page, and why
+   * "Download book" is a headline action rather than something buried in a
+   * selection mode.
+   *
+   * Nothing new is stored: `buildNovelSaveRequest` produces the same
+   * `SaveChapterRequest` the reader's own download sends, with no images and
+   * the chapter endpoint as its payload, so the same cache, the same quota
+   * reserve and the same retention rules apply. `sw-policy.js` already
+   * classifies `/novels/chapter` network-then-saved, which is the rule prose
+   * wants: the live copy whenever there is one, the stored copy when the fetch
+   * fails.
+   */
+  const chapterTitles = useMemo(() => {
+    const titles = new Map<string, string>();
+    for (const chapter of chapters) {
+      titles.set(
+        chapter.id,
+        chapter.title?.trim() ||
+          (chapter.number != null ? `Chapter ${chapter.number}` : chapter.id),
+      );
+    }
+    return titles;
+  }, [chapters]);
+
+  // Display order, not listing order: shift-click ranges over the rows as they
+  // are on screen, and the contents can be flipped last-to-first.
+  const pickerRows = useMemo(
+    () =>
+      orderedChapters.map((chapter) => ({
+        key: chapter.id,
+        number: chapter.number,
+        read: progressMap[chapter.id]?.completed ?? false,
+      })),
+    [orderedChapters, progressMap],
+  );
+
+  const titleOf = useCallback(
+    (chapterKey: string) => chapterTitles.get(chapterKey) ?? chapterKey,
+    [chapterTitles],
+  );
+  const saver = useNovelChapterSaver({
+    sourceId,
+    seriesKey: seriesId,
+    seriesTitle: series?.title ?? null,
+    titleOf,
+  });
+
+  const picker = useChapterPicker({
+    sourceId,
+    seriesKey: seriesId,
+    chapters: pickerRows,
+    buildRequest: saver.buildRequest,
+    prepare: saver.prepare,
+    medium: "novel",
+  });
 
   const wordCounts = useCachedNovelWordCounts(
     series ? { sourceId, seriesKey: seriesId } : null,
@@ -343,6 +415,24 @@ export function NovelSeriesDetailView({
                     ? "In your library"
                     : "Add to library"}
               </Button>
+              {/* The whole book, in one action. Hidden once there is nothing
+                  left to fetch rather than shown disabled: "0 chapters" is not
+                  a state worth a button. */}
+              {!picker.downloads.unavailable &&
+              picker.unsaved.length > 0 &&
+              !picker.downloads.running ? (
+                <Button
+                  variant="ghost"
+                  disabled={!picker.downloads.scope}
+                  onClick={() => picker.startKeys(picker.unsaved)}
+                >
+                  <CloudDownload className="size-4" aria-hidden />
+                  Download book
+                  <span className="ml-1 font-mono text-xs tabular-nums text-muted">
+                    {picker.unsaved.length}
+                  </span>
+                </Button>
+              ) : null}
             </div>
             {feedback ? <p className="mt-3 text-sm text-muted">{feedback}</p> : null}
           </div>
@@ -352,6 +442,9 @@ export function NovelSeriesDetailView({
         <section className="mt-14">
           <div className="flex flex-wrap items-baseline justify-between gap-3 border-b border-border pb-3">
             <h2 className="font-book text-xl text-fg">Contents</h2>
+            {chapters.length > 0 && !picker.selecting ? (
+              <ChapterDownloadTrigger picker={picker} label="Pick chapters" />
+            ) : null}
             {chapters.length > 1 ? (
               <div className="flex items-center gap-3 text-xs">
                 {(["oldest", "newest"] as const).map((order) => (
@@ -429,6 +522,10 @@ export function NovelSeriesDetailView({
                     entry={tocEntry(chapter)}
                     wordCount={wordCounts.get(chapter.id) ?? null}
                     progress={progressMap[chapter.id] ?? null}
+                    download={picker.stateOf(chapter.id)}
+                    selecting={picker.selecting}
+                    selected={picker.isSelected(chapter.id)}
+                    onPick={(shift) => picker.pick(chapter.id, shift)}
                   />
                 ))}
               </ol>
@@ -441,6 +538,9 @@ export function NovelSeriesDetailView({
               ) : null}
             </>
           )}
+          {picker.selecting || picker.downloads.running || picker.downloads.summary ? (
+            <ChapterDownloadBar picker={picker} className="mt-4" />
+          ) : null}
         </section>
       </div>
     </div>
@@ -453,11 +553,19 @@ function TocRow({
   entry,
   wordCount,
   progress,
+  download,
+  selecting,
+  selected,
+  onPick,
 }: {
   href: string;
   entry: { ordinal: string | null; title: string | null };
   wordCount: number | null;
   progress: { page: number; pageCount: number; completed: boolean } | null;
+  download: ChapterDownloadState;
+  selecting: boolean;
+  selected: boolean;
+  onPick: (shift: boolean) => void;
 }) {
   const length = formatChapterLength(wordCount);
   const completed = progress?.completed ?? false;
@@ -471,8 +579,24 @@ function TocRow({
     <li>
       <Link
         href={href}
-        className="group flex items-baseline gap-4 py-3 transition-colors hover:bg-fg/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+        // While the contents are in selection mode the row ticks rather than
+        // opens. The whole line stays the hit area either way — a 20px checkbox
+        // beside a full-width row would make choosing forty chapters harder
+        // than opening one.
+        onClick={(event) => {
+          if (!selecting) return;
+          event.preventDefault();
+          onPick(event.shiftKey);
+        }}
+        aria-pressed={selecting ? selected : undefined}
+        className={cn(
+          "group flex items-baseline gap-4 py-3 transition-colors hover:bg-fg/[0.03] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50",
+          selecting && selected && "bg-primary/10",
+        )}
       >
+        {selecting ? (
+          <ChapterCheckbox checked={selected} disabled={download === "saved"} />
+        ) : null}
         <span
           className={cn(
             "w-10 shrink-0 text-right font-book text-sm tabular-nums",
@@ -490,6 +614,7 @@ function TocRow({
         >
           {entry.title ?? (entry.ordinal ? `Chapter ${entry.ordinal}` : "Chapter")}
         </span>
+        <SavedChapterMark state={download} className="self-center" />
         <span className="shrink-0 text-right text-xs">
           {percent != null ? (
             <span className="block tabular-nums text-primary">{percent}%</span>

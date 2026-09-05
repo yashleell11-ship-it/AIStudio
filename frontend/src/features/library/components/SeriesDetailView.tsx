@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, Check, ChevronRight, Play, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,19 @@ import {
   writeScopedString,
 } from "@/lib/scoped-storage";
 import { cn } from "@/lib/cn";
+import {
+  ChapterCheckbox,
+  ChapterDownloadBar,
+  ChapterDownloadTrigger,
+  SavedChapterMark,
+  useChapterPicker,
+} from "@/features/offline";
+// Direct rather than through the barrel: the savers pull in the reader API and
+// the novels hooks, and the barrel is what the reader itself imports.
+import {
+  useMangaChapterSaver,
+  useNovelChapterSaver,
+} from "@/features/offline/chapter-savers";
 import { chapterLinksReady } from "../chapter-links";
 import { libraryReadAllHref } from "../read-all-link";
 import { READING_STATUSES } from "../url-state";
@@ -108,6 +121,64 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
     const target = firstUnread ?? asc[0] ?? null;
     return target ? { chapter: target, page: 1 } : null;
   }, [series]);
+
+  /**
+   * Downloads, on the series page a follower actually opens.
+   *
+   * This screen serves both media, so both savers are built and the one this
+   * series calls for is handed to the picker — `useIsNovelSource` is already
+   * the single question every other link on this page hangs off. Until it
+   * answers, `linksReady` is false and the chapter list renders its skeleton,
+   * so nothing downloadable is on screen to be wired wrongly.
+   */
+  const sourceId = series?.source_id ?? "";
+  const seriesKey = series?.series_key ?? "";
+  const chapterTitles = useMemo(() => {
+    const titles = new Map<string, string>();
+    for (const chapter of series?.chapters ?? []) {
+      titles.set(
+        chapter.key,
+        chapter.title?.trim() ||
+          (chapter.number != null ? `Chapter ${chapter.number}` : chapter.key),
+      );
+    }
+    return titles;
+  }, [series]);
+  const titleOf = useCallback(
+    (chapterKey: string) => chapterTitles.get(chapterKey) ?? chapterKey,
+    [chapterTitles],
+  );
+  const mangaSaver = useMangaChapterSaver({
+    sourceId,
+    seriesKey,
+    seriesTitle: series?.title ?? null,
+  });
+  const novelSaver = useNovelChapterSaver({
+    sourceId,
+    seriesKey,
+    seriesTitle: series?.title ?? null,
+    titleOf,
+  });
+  const saver = isNovel === true ? novelSaver : mangaSaver;
+  // Display order, not listing order: shift-click ranges over the rows as they
+  // are on screen, and this list's sort is remembered per series.
+  const pickerRows = useMemo(
+    () =>
+      orderedChapters.map((chapter) => ({
+        key: chapter.key,
+        number: chapter.number,
+        read: series?.progress[chapter.key]?.is_completed ?? false,
+      })),
+    [orderedChapters, series],
+  );
+  const picker = useChapterPicker({
+    sourceId,
+    seriesKey,
+    chapters: pickerRows,
+    buildRequest: saver.buildRequest,
+    prepare: saver.prepare,
+    medium: isNovel === true ? "novel" : "manga",
+  });
 
   if (seriesQuery.isLoading) {
     return (
@@ -345,12 +416,15 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
         </div>
 
         <section className="mt-10">
-          <div className="mb-4 flex items-center gap-2">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
             <BookOpen className="size-4 text-primary" aria-hidden />
             <h2 className="text-sm font-semibold uppercase tracking-wider text-fg">
               Chapters
             </h2>
             <span className="text-xs text-muted">({detail.chapters.length})</span>
+            {linksReady && detail.chapters.length > 0 && !picker.selecting ? (
+              <ChapterDownloadTrigger picker={picker} />
+            ) : null}
             <div className="ml-auto flex gap-1 text-xs">
               {(["newest", "oldest"] as const).map((option) => (
                 <button
@@ -395,6 +469,8 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                 const progress = detail.progress[chapter.key];
                 const isCompleted = progress?.is_completed ?? false;
                 const inProgress = progress != null && !isCompleted;
+                const downloadState = picker.stateOf(chapter.key);
+                const picked = picker.isSelected(chapter.key);
                 return (
                   <Link
                     key={chapter.key}
@@ -402,11 +478,26 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                       { ...seriesRef, chapterKey: chapter.key },
                       progress?.last_page,
                     )}
+                    // In selection mode the row ticks instead of opening; the
+                    // whole row stays the hit area either way.
+                    onClick={(event) => {
+                      if (!picker.selecting) return;
+                      event.preventDefault();
+                      picker.pick(chapter.key, event.shiftKey);
+                    }}
+                    aria-pressed={picker.selecting ? picked : undefined}
                     className={cn(
                       "group flex items-center gap-4 px-4 py-3.5 transition-colors hover:bg-primary/[0.06]",
                       isCompleted && "bg-black/25",
+                      picker.selecting && picked && "bg-primary/10",
                     )}
                   >
+                    {picker.selecting ? (
+                      <ChapterCheckbox
+                        checked={picked}
+                        disabled={downloadState === "saved"}
+                      />
+                    ) : null}
                     <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-white/5 font-mono text-xs tabular-nums text-muted transition-colors group-hover:bg-primary/20 group-hover:text-primary">
                       {chapter.number ?? index + 1}
                     </span>
@@ -438,6 +529,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                         ) : null}
                       </div>
                     </div>
+                    <SavedChapterMark state={downloadState} />
                     {inProgress ? (
                       <Badge
                         variant="primary"
@@ -445,7 +537,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                       >
                         In progress
                       </Badge>
-                    ) : (
+                    ) : picker.selecting ? null : (
                       <ChevronRight className="size-4 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100" />
                     )}
                   </Link>
@@ -453,6 +545,9 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
               })
             )}
           </div>
+          {picker.selecting || picker.downloads.running || picker.downloads.summary ? (
+            <ChapterDownloadBar picker={picker} className="mt-4" />
+          ) : null}
         </section>
       </div>
     </div>

@@ -68,6 +68,8 @@ export function DownloadsView() {
   const [persisted, setPersisted] = useState<boolean | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [busySeries, setBusySeries] = useState<string | null>(null);
+  const [confirmSeries, setConfirmSeries] = useState<string | null>(null);
   // 0 until the clock is subscribed, which hides a countdown for one frame
   // rather than rendering one computed from a server-side timestamp.
   const now = useNow();
@@ -89,6 +91,30 @@ export function DownloadsView() {
         await removeSavedChapter(scope, key);
       } finally {
         setBusyKey(null);
+      }
+    },
+    [scope],
+  );
+
+  /**
+   * Free a whole series at once.
+   *
+   * The unit a reader thinks in changed when downloading did: picking "all
+   * unread" on a series page stores twenty chapters in one action, and undoing
+   * that one trash icon at a time is not an undo. Removal still goes through
+   * the worker per chapter — it is the only writer of Cache Storage — so this
+   * is a loop, not a new message.
+   */
+  const handleRemoveSeries = useCallback(
+    async (entries: SavedChapterEntry[]) => {
+      if (!scope) return;
+      setBusySeries(entries[0]?.key ?? null);
+      try {
+        for (const entry of entries) {
+          await removeSavedChapter(scope, entry.key);
+        }
+      } finally {
+        setBusySeries(null);
       }
     },
     [scope],
@@ -242,9 +268,10 @@ export function DownloadsView() {
                 title="Nothing downloaded yet"
                 description={
                   <>
-                    Open a chapter and press{" "}
-                    <span className="text-primary">Download</span> in the reader.
-                    Its pages are stored here and stay readable with no connection.
+                    Pick chapters on a series page and press{" "}
+                    <span className="text-primary">Download</span>, or press it in
+                    the reader for the chapter you have open. What you save is
+                    stored here and stays readable with no connection.
                   </>
                 }
                 action={{ label: "Go to library", href: "/library" }}
@@ -263,9 +290,34 @@ export function DownloadsView() {
                       >
                         {group.seriesTitle}
                       </Link>
-                      <span className="shrink-0 font-mono text-xs tabular-nums text-muted">
-                        {formatBytes(group.bytes)}
-                      </span>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="font-mono text-xs tabular-nums text-muted">
+                          {formatBytes(group.bytes)}
+                        </span>
+                        <button
+                          type="button"
+                          disabled={busySeries === group.entries[0]?.key}
+                          onClick={() =>
+                            confirmSeries === group.id
+                              ? void handleRemoveSeries(group.entries).then(() =>
+                                  setConfirmSeries(null),
+                                )
+                              : setConfirmSeries(group.id)
+                          }
+                          className={cn(
+                            "rounded-lg px-2 py-1 text-xs transition-colors disabled:opacity-40",
+                            confirmSeries === group.id
+                              ? "bg-danger/10 text-danger"
+                              : "text-muted hover:text-fg",
+                          )}
+                        >
+                          {busySeries === group.entries[0]?.key
+                            ? "Removing…"
+                            : confirmSeries === group.id
+                              ? `Remove all ${group.entries.length}?`
+                              : "Remove series"}
+                        </button>
+                      </div>
                     </div>
                     <ul>
                       {group.entries.map((entry) => (
