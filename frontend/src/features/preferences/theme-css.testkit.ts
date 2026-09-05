@@ -56,8 +56,12 @@ export const BASE_ROLES = roleBlock(":root {");
 
 /**
  * The fully resolved role set a viewer on `theme` gets: its own declarations
- * over the `:root` defaults. The default theme IS those defaults and declares
- * nothing of its own beyond `color-scheme`.
+ * over the `:root` defaults.
+ *
+ * The default theme resolves to the defaults themselves. It also has a block of
+ * its own in the generated stylesheet (it is a normal palette anyone can pick
+ * by name), and the two are required to be identical — `theme.test.ts` asserts
+ * that separately, which is the only reason it is safe to short-circuit here.
  */
 export function paletteFor(theme: ReadingTheme): Record<string, string> {
   if (theme === DEFAULT_READING_THEME) return BASE_ROLES;

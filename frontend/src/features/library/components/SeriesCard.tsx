@@ -234,7 +234,7 @@ function SeriesCardContent({
                     isHovered || series.is_favorite
                       ? "opacity-100"
                       : "opacity-100 sm:opacity-0 sm:group-hover:opacity-100",
-                    series.is_favorite ? "text-amber-400" : "text-white/70 hover:text-white",
+                    series.is_favorite ? "text-primary" : "text-white/70 hover:text-white",
                   )}
                   aria-label={
                     series.is_favorite ? "Remove from favorites" : "Add to favorites"
@@ -374,7 +374,7 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
             }}
             className={cn(
               "flex size-9 items-center justify-center rounded-full bg-white/5 transition-colors hover:bg-white/10",
-              series.is_favorite ? "text-amber-400" : "text-muted",
+              series.is_favorite ? "text-primary" : "text-muted",
             )}
             aria-label={series.is_favorite ? "Remove from favorites" : "Add to favorites"}
           >

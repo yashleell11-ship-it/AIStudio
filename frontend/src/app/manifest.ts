@@ -35,10 +35,11 @@ export default function manifest(): MetadataRoute.Manifest {
     scope: "/",
     display: "standalone",
     orientation: "portrait-primary",
-    // Matches --color-bg in globals.css. The splash and the OS chrome have to
-    // be the same near-black as the app or the launch flashes white.
-    background_color: "#0A0A0A",
-    theme_color: "#0A0A0A",
+    // Matches --color-bg in globals.css (GitHub Dark, the default palette). The
+    // splash and the OS chrome have to be the same near-black as the app or the
+    // launch flashes white.
+    background_color: "#0D1117",
+    theme_color: "#0D1117",
     categories: ["books", "entertainment"],
     icons: [
       {

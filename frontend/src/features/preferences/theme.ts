@@ -10,9 +10,8 @@
  * ### Two kinds of theme, one list
  *
  * **Built-in**: Eclipse, Midnight, Sepia and Daylight. The app's own look,
- * hand-tuned, amber-accented, and unchanged — Eclipse in particular is
- * byte-identical to what shipped before any of this existed and is still the
- * default.
+ * hand-tuned and amber-accented. Eclipse is byte-identical to what shipped
+ * before any of this existed; it is simply no longer the default.
  *
  * **Generated**: base16 schemes from `tinted-theming/schemes`, mapped onto the
  * same role set by `scripts/themes/map.mjs` and gated at WCAG AA. These are the
@@ -20,17 +19,17 @@
  * base16 repaints a terminal, an editor and a window manager from a single
  * palette. They are data, not code — see `scripts/themes/` to add or regenerate.
  *
- * The distinction matters to exactly two things: the default (always Eclipse)
- * and the credit line on a tile (community schemes are somebody's work). Every
- * other consumer treats the list as flat.
+ * The distinction matters to exactly one thing now: the credit line on a tile
+ * (community schemes are somebody's work). Every other consumer treats the list
+ * as flat — including the default, which is a generated palette.
  */
 
 import { GENERATED_THEMES } from "./themes.generated";
 import type { GeneratedThemeMeta, ThemeScheme, ThemeSwatch } from "./theme-types";
 
 /**
- * The hand-written palettes, in the order the picker shows them: the default
- * first, then its true-black sibling, then the two paper themes.
+ * The hand-written palettes, in the order the picker shows them: the app's
+ * original look, then its true-black sibling, then the two paper themes.
  */
 export const BUILT_IN_THEMES = ["dark", "midnight", "sepia", "light"] as const;
 
@@ -38,8 +37,22 @@ export type BuiltInTheme = (typeof BUILT_IN_THEMES)[number];
 export type GeneratedTheme = (typeof GENERATED_THEMES)[number]["id"];
 export type ReadingTheme = BuiltInTheme | GeneratedTheme;
 
-/** What the app has always looked like, and what an unset preference means. */
-export const DEFAULT_READING_THEME: ReadingTheme = "dark";
+/**
+ * What an unset preference means, and what the app looks like out of the box.
+ *
+ * GitHub Dark: near-black, low-chroma, blue-grey — the look the app is asked to
+ * have by default. It is not just the seed for a new profile; it is the ONLY
+ * palette the pre-auth screens can paint, because `data-theme` comes from a
+ * per-(user, profile) key that does not exist before sign-in and the boot
+ * script declines on /login and /register by design.
+ *
+ * Whatever this names must also be the bare `:root` role block in globals.css.
+ * Nothing enforces that at runtime — the browser reads the CSS and this module
+ * never does — so `theme.test.ts` compares the two and fails on a drift. Change
+ * one and you must change the other, or the app paints one palette before
+ * hydration and a different one after.
+ */
+export const DEFAULT_READING_THEME: ReadingTheme = "github-dark";
 
 /**
  * The unscoped half of the localStorage key the choice is stored under;
@@ -173,20 +186,22 @@ export function parseReadingTheme(raw: string | null): ReadingTheme | null {
 }
 
 /**
- * The theme to show right now.
+ * The theme to show right now: the stored choice, or the default.
  *
- * `prefersLight` is consulted ONLY when nothing is stored. That is the whole
- * contract: the OS preference seeds a first visit, and from then on an explicit
- * choice wins — a viewer who picked Sepia does not get flipped back to dark
- * every sunset.
+ * There is deliberately no third input. This used to take a `prefersLight` flag
+ * and seed a first visit with Daylight on a light-mode OS, mirrored by a
+ * `prefers-color-scheme` block in globals.css. Both are gone: the app has a
+ * named default now, and a default that changed colour with the viewer's OS
+ * would mean the sign-in page — which can never read a stored choice, and so
+ * only ever paints the default — was white on one phone and near-black on
+ * another.
+ *
+ * A stored choice still wins over everything, which is the part that always
+ * mattered: a viewer who picked Sepia keeps Sepia, and every light palette is
+ * one click away in the picker.
  */
-export function initialReadingTheme(
-  stored: string | null,
-  prefersLight: boolean,
-): ReadingTheme {
-  const parsed = parseReadingTheme(stored);
-  if (parsed !== null) return parsed;
-  return prefersLight ? "light" : DEFAULT_READING_THEME;
+export function initialReadingTheme(stored: string | null): ReadingTheme {
+  return parseReadingTheme(stored) ?? DEFAULT_READING_THEME;
 }
 
 /** The themes of one variant, in declared order — how the picker groups them. */

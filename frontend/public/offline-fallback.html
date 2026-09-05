@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#0A0A0A" />
+    <meta name="theme-color" content="#0D1117" />
     <title>Offline · ManhwaManiacs</title>
     <!--
       Served by the service worker when a navigation fails and no copy of the
@@ -15,12 +15,17 @@
     <style>
       :root {
         color-scheme: dark;
-        --bg: #0a0a0a;
-        --surface: #111111;
-        --fg: #dde4ea;
-        --muted: #9aa8b4;
-        --primary: #f59e0b;
-        --border: rgba(221, 228, 234, 0.12);
+        /* GitHub Dark, the app's default palette. This page cannot read the
+           reader's chosen theme — it is served when the network is gone and
+           nothing of the app is running — so it wears the default, which is
+           what an unthemed first paint of the app looks like too. */
+        --bg: #0d1117;
+        --surface: #161b22;
+        --fg: #c9d1d9;
+        --muted: #8b949e;
+        --primary: #d2a8ff;
+        --primary-hover: #d0b0f7;
+        --border: rgba(201, 209, 217, 0.14);
       }
       * {
         box-sizing: border-box;
@@ -87,12 +92,12 @@
       }
       button {
         background: var(--primary);
-        color: #0c0c0c;
+        color: var(--bg);
         border: none;
       }
       button:hover {
-        background: #c2410c;
-        color: #fff;
+        background: var(--primary-hover);
+        color: var(--bg);
       }
       a {
         background: rgba(255, 255, 255, 0.04);

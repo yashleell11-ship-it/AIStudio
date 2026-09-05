@@ -110,8 +110,9 @@ function ThemeGroup({ scheme, themes, active, enabled, onPick }: GroupProps) {
  * The choice is stored per (user, profile), and `scoped-storage` drops a write
  * with no scope rather than falling back to a device-global key. So without an
  * active profile the radios are DISABLED rather than merely unsaved: clicking
- * one would write nothing, the store would re-read the OS preference, and the
- * selection would spring back — a control that visibly ignores you is worse
+ * one would write nothing, the store would fall straight back to the default,
+ * and the selection would spring back — a control that visibly ignores you is
+ * worse
  * than one that explains why it is off. Same shape as the mature-content
  * toggle's `blockReason`.
  */
@@ -137,7 +138,7 @@ export function AppearancePanel() {
           <p className="mt-0.5 text-sm text-muted">
             {isExplicit
               ? `${READING_THEMES.length} palettes. Each one recolours the whole app. Saved for this profile on this device.`
-              : `Following your system appearance. Pick one of ${READING_THEMES.length} palettes to fix it for this profile.`}
+              : `Using the default palette. Pick one of ${READING_THEMES.length} to set your own for this profile.`}
           </p>
         </div>
       </div>

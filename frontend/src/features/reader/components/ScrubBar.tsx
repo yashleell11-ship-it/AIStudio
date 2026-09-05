@@ -54,7 +54,7 @@ export function ScrubBar({
       <div className="relative flex h-6 min-w-0 flex-1 items-center rounded-full focus-within:ring-2 focus-within:ring-primary/50">
         <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/10">
           <div
-            className="h-full rounded-full bg-primary shadow-[0_0_10px_rgba(245,158,11,0.45)]"
+            className="h-full rounded-full bg-primary shadow-[0_0_10px_color-mix(in_srgb,var(--mm-primary)_45%,transparent)]"
             style={{ width: `${percent}%`, marginLeft: rtl ? "auto" : undefined }}
           />
         </div>

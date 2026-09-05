@@ -21,62 +21,66 @@
 @import "./presets.css";
 
 /*
- * Eclipse Warm design tokens. Tailwind v4 turns each `--color-*` into utilities.
+ * The default palette's tokens. Tailwind v4 turns each `--color-*` into utilities.
  *
- * These literals are the DARK theme — the original Eclipse Warm palette, kept
- * verbatim so the default look is byte-identical to before reading themes
- * existed. The `:root` block further down re-points every one of them at a
- * `--mm-*` ROLE variable; the theme blocks then only have to restate the roles.
- * Keeping literals here (rather than `var()`) matters: Tailwind reads these
- * values at build time to emit the static fallbacks its opacity modifiers use
- * outside `@supports (color: color-mix(...))`.
+ * These literals are GitHub Dark — the default theme, and they are kept in step
+ * with the `:root` role block further down (which re-points every one of them at
+ * a `--mm-*` ROLE variable; the theme blocks then only have to restate the
+ * roles). Keeping literals here (rather than `var()`) matters: Tailwind reads
+ * these values at build time to emit the static fallbacks its opacity modifiers
+ * use outside `@supports (color: color-mix(...))`.
+ *
+ * The names are historical (`--color-accent-amber`, `--color-violet-500`) and
+ * are kept because markup all over the app spells them; they are aliases for
+ * "the primary accent" and "its tint", not promises about a hue. Eclipse Warm,
+ * the old default, is now `[data-theme="dark"]` and still owns the amber.
  */
 @theme {
-  --color-bg: #0A0A0A;
-  --color-obsidian: #0A0A0A;
-  --color-abyss: #0A0A0A;
+  --color-bg: #0D1117;
+  --color-obsidian: #0D1117;
+  --color-abyss: #0D1117;
   --color-void: #111111;
   --color-panel: #111111;
-  --color-surface: #111111;
-  --color-surface-2: #181818;
-  --color-border: rgba(221, 228, 234, 0.12);
-  --color-sidebar: #111111;
+  --color-surface: #161B22;
+  --color-surface-2: #23282F;
+  --color-border: rgba(201, 209, 217, 0.14);
+  --color-sidebar: #161B22;
 
-  --color-fg: #DDE4EA;
-  --color-muted: #9AA8B4;
-  --color-muted-foreground: #9AA8B4;
-  --color-background: #0A0A0A;
+  --color-fg: #C9D1D9;
+  --color-muted: #8B949E;
+  --color-muted-foreground: #8B949E;
+  --color-background: #0D1117;
 
-  --color-primary: #F59E0B;
-  --color-primary-hover: #C2410C;
-  --color-primary-fg: #0C0C0C;
-  --color-primary-foreground: #0C0C0C;
-  --color-accent: #BE4C00;
-  --color-accent-fg: #FFFFFF;
+  --color-primary: #D2A8FF;
+  --color-primary-hover: #D0B0F7;
+  --color-primary-fg: #0D1117;
+  --color-primary-foreground: #0D1117;
+  --color-accent: #FF7B72;
+  --color-accent-fg: #0D1117;
 
-  --color-danger: #ef4444;
-  --color-success: #10b981;
-  --color-warning: #F59E0B;
+  --color-danger: #FFA657;
+  --color-success: #A5D6FF;
+  --color-warning: #BB8009;
 
-  --color-violet-400: #F6C177;
-  --color-violet-500: #F59E0B;
-  --color-violet-600: #C2410C;
-  --color-cyan-400: #F6C177;
-  --color-cyan-500: #BE4C00;
+  --color-violet-400: #E0C2FF;
+  --color-violet-500: #D2A8FF;
+  --color-violet-600: #D0B0F7;
+  --color-cyan-400: #E0C2FF;
+  --color-cyan-500: #FF7B72;
 
-  /* Eclipse Warm — new semantic tokens for page agents */
-  --color-bg-void: #0A0A0A;
-  --color-bg-surface: #111111;
-  --color-bg-elevated: #181818;
+  /* Semantic token names for page agents (see the note above about the hues) */
+  --color-bg-void: #0D1117;
+  --color-bg-surface: #161B22;
+  --color-bg-elevated: #23282F;
   --color-bg-light: #FFFFFF;
-  --color-text-primary: #DDE4EA;
-  --color-text-muted: #9AA8B4;
-  --color-text-dark: #0C0C0C;
-  --color-accent-amber: #F59E0B;
-  --color-accent-rose: #BE4C00;
-  --color-accent-warm: #C2410C;
-  --color-border-subtle: rgba(221, 228, 234, 0.12);
-  --color-border-light: rgba(12, 12, 12, 0.12);
+  --color-text-primary: #C9D1D9;
+  --color-text-muted: #8B949E;
+  --color-text-dark: #0D1117;
+  --color-accent-amber: #D2A8FF;
+  --color-accent-rose: #FF7B72;
+  --color-accent-warm: #79C0FF;
+  --color-border-subtle: rgba(201, 209, 217, 0.14);
+  --color-border-light: rgba(13, 17, 23, 0.16);
 
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
@@ -106,7 +110,7 @@
    */
   --font-book: "Iowan Old Style", "Palatino Linotype", Palatino, Charter, "Bitstream Charter", Georgia, Cambria, "Times New Roman", serif;
 
-  --shadow-glow: 0 0 24px rgba(245, 158, 11, 0.22);
+  --shadow-glow: 0 0 24px rgba(210, 168, 255, 0.22);
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.37);
 }
 
@@ -130,47 +134,69 @@
    These rules are UNLAYERED, so they win over Tailwind's `@layer theme`
    regardless of selector specificity.
 
-   Eclipse Warm survives all four: amber/rose stay the accent family
-   everywhere. The light themes deepen it to burnt amber (#92400E) purely so
-   accent TEXT clears WCAG AA on paper — same family, more ink.
+   Each of the app's own four keeps its identity: Eclipse and Midnight are
+   amber/rose, the two paper themes deepen that to burnt amber (#92400E) purely
+   so accent TEXT clears WCAG AA on paper — same family, more ink. The generated
+   palettes each keep their own accent family, by design.
 */
 
+/*
+ * THE DEFAULT PALETTE, and what an unset preference paints.
+ *
+ * This is GitHub Dark, restated verbatim from its generated `github-dark` block
+ * in themes.generated.css so the two cannot disagree (`theme.test.ts` compares
+ * them). It is a bare `:root`, so every `[data-theme=…]` block outranks it on
+ * specificity — which is what makes it the FALLBACK rather than an override.
+ *
+ * It is also the only palette some screens will ever see. `data-theme` is set
+ * from a per-(user, profile) key that does not exist before the session and the
+ * profile resolve, and the boot script deliberately declines on /login and
+ * /register (see `appearance-boot-source.ts`), so the auth screens paint from
+ * here start to finish. That is why the default is a real palette and not a
+ * placeholder.
+ *
+ * `color-scheme` is stated so form controls, scrollbars and the caret are dark
+ * on those screens too, rather than defaulting to the light UA styling and
+ * putting a white dropdown on a near-black page.
+ */
 :root {
-  /* ---- Role values: the dark theme, and the only place its hexes live ---- */
-  --mm-bg: #0A0A0A;
-  --mm-surface: #111111;
-  --mm-elevated: #181818;
-  --mm-fg: #DDE4EA;
-  --mm-muted: #9AA8B4;
-  --mm-border: rgba(221, 228, 234, 0.12);
+  color-scheme: dark;
+
+  /* ---- Role values: GitHub Dark, the default theme ---- */
+  --mm-bg: #0D1117;
+  --mm-surface: #161B22;
+  --mm-elevated: #23282F;
+  --mm-fg: #C9D1D9;
+  --mm-muted: #8B949E;
+  --mm-border: rgba(201, 209, 217, 0.14);
 
   /* The inverted "contrast section" band (ContrastSection / .bg-bg-light). */
   --mm-contrast-bg: #FFFFFF;
-  --mm-contrast-fg: #0C0C0C;
-  --mm-contrast-border: rgba(12, 12, 12, 0.12);
+  --mm-contrast-fg: #0D1117;
+  --mm-contrast-border: rgba(13, 17, 23, 0.16);
 
-  --mm-primary: #F59E0B;
-  --mm-primary-hover: #C2410C;
-  --mm-primary-fg: #0C0C0C;
-  --mm-primary-tint: #F6C177;
-  --mm-accent: #BE4C00;
-  --mm-accent-fg: #FFFFFF;
-  --mm-accent-warm: #C2410C;
+  --mm-primary: #D2A8FF;
+  --mm-primary-hover: #D0B0F7;
+  --mm-primary-fg: #0D1117;
+  --mm-primary-tint: #E0C2FF;
+  --mm-accent: #FF7B72;
+  --mm-accent-fg: #0D1117;
+  --mm-accent-warm: #79C0FF;
 
-  --mm-danger: #ef4444;
-  --mm-success: #10b981;
-  --mm-warning: #F59E0B;
+  --mm-danger: #FFA657;
+  --mm-success: #A5D6FF;
+  --mm-warning: #BB8009;
 
-  --mm-glass-panel: rgba(17, 17, 17, 0.7);
-  --mm-glass-card: rgba(24, 24, 24, 0.6);
-  --mm-glass-border: rgba(221, 228, 234, 0.1);
-  --mm-hero-from: #9A8B7A;
-  --mm-hero-to: #E8DFD0;
-  --mm-scrollbar: rgba(100, 116, 139, 0.3);
-  --mm-scrollbar-hover: rgba(100, 116, 139, 0.5);
-  --mm-glow: 0 0 24px rgba(245, 158, 11, 0.22);
+  --mm-glass-panel: rgba(22, 27, 34, 0.72);
+  --mm-glass-card: rgba(35, 40, 47, 0.62);
+  --mm-glass-border: rgba(201, 209, 217, 0.1);
+  --mm-hero-from: #D2A8FF;
+  --mm-hero-to: #C9D1D9;
+  --mm-scrollbar: rgba(139, 148, 158, 0.35);
+  --mm-scrollbar-hover: rgba(139, 148, 158, 0.55);
+  --mm-glow: 0 0 24px rgba(210, 168, 255, 0.22);
   --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
-  --mm-focus: #F59E0B;
+  --mm-focus: #D2A8FF;
 
   /* ---- Alias fan-out: every Tailwind token, pointed at its role ---- */
   --color-bg: var(--mm-bg);
@@ -237,15 +263,59 @@
 }
 
 /*
- * Dark needs no block: it is the `:root` role set above. Declared only so the
- * attribute is a complete, closed set for anything reading it back.
+ * Eclipse Warm — the app's original look, and the default until GitHub Dark
+ * took that job.
+ *
+ * It used to be the bare `:root` set above and declared nothing of its own.
+ * Now that the fallback is a different palette it has to restate the lot:
+ * anything left out would be inherited from GitHub Dark, and a half-Eclipse is
+ * exactly the "theme applied to everything except one element" bug the role
+ * indirection exists to prevent. The hexes below are the ones that were in
+ * `:root` before, moved, not retuned — a reader who chose Eclipse sees the same
+ * app they saw yesterday.
  */
 :root[data-theme="dark"] {
   color-scheme: dark;
+  --mm-bg: #0A0A0A;
+  --mm-surface: #111111;
+  --mm-elevated: #181818;
+  --mm-fg: #DDE4EA;
+  --mm-muted: #9AA8B4;
+  --mm-border: rgba(221, 228, 234, 0.12);
+
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #0C0C0C;
+  --mm-contrast-border: rgba(12, 12, 12, 0.12);
+
+  --mm-primary: #F59E0B;
+  --mm-primary-hover: #C2410C;
+  --mm-primary-fg: #0C0C0C;
+  --mm-primary-tint: #F6C177;
+  --mm-accent: #BE4C00;
+  --mm-accent-fg: #FFFFFF;
+  --mm-accent-warm: #C2410C;
+
+  --mm-danger: #ef4444;
+  --mm-success: #10b981;
+  --mm-warning: #F59E0B;
+
+  --mm-glass-panel: rgba(17, 17, 17, 0.7);
+  --mm-glass-card: rgba(24, 24, 24, 0.6);
+  --mm-glass-border: rgba(221, 228, 234, 0.1);
+  --mm-hero-from: #9A8B7A;
+  --mm-hero-to: #E8DFD0;
+  --mm-scrollbar: rgba(100, 116, 139, 0.3);
+  --mm-scrollbar-hover: rgba(100, 116, 139, 0.5);
+  --mm-glow: 0 0 24px rgba(245, 158, 11, 0.22);
+  --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
+  --mm-focus: #F59E0B;
 }
 
 /* True black for OLED panels: pixels are actually off at #000, and the text
-   is lifted a little because there is no surface glow to read against. */
+   is lifted a little because there is no surface glow to read against.
+   Midnight is Eclipse's amber on true black, so it restates Eclipse's accent
+   and status roles verbatim — it used to inherit them from `:root`, which is
+   now a different palette entirely. */
 :root[data-theme="midnight"] {
   color-scheme: dark;
   --mm-bg: #000000;
@@ -254,9 +324,33 @@
   --mm-fg: #E7EDF3;
   --mm-muted: #A6B3BF;
   --mm-border: rgba(221, 228, 234, 0.14);
+
+  --mm-contrast-bg: #FFFFFF;
+  --mm-contrast-fg: #0C0C0C;
+  --mm-contrast-border: rgba(12, 12, 12, 0.12);
+
+  --mm-primary: #F59E0B;
+  --mm-primary-hover: #C2410C;
+  --mm-primary-fg: #0C0C0C;
+  --mm-primary-tint: #F6C177;
+  --mm-accent: #BE4C00;
+  --mm-accent-fg: #FFFFFF;
+  --mm-accent-warm: #C2410C;
+
+  --mm-danger: #ef4444;
+  --mm-success: #10b981;
+  --mm-warning: #F59E0B;
+
   --mm-glass-panel: rgba(7, 7, 7, 0.72);
   --mm-glass-card: rgba(16, 16, 16, 0.62);
+  --mm-glass-border: rgba(221, 228, 234, 0.1);
+  --mm-hero-from: #9A8B7A;
+  --mm-hero-to: #E8DFD0;
+  --mm-scrollbar: rgba(100, 116, 139, 0.3);
+  --mm-scrollbar-hover: rgba(100, 116, 139, 0.5);
+  --mm-glow: 0 0 24px rgba(245, 158, 11, 0.22);
   --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  --mm-focus: #F59E0B;
 }
 
 /* Warm paper. Surfaces get LIGHTER as they rise, which keeps the app's many
@@ -280,6 +374,7 @@
   --mm-primary-fg: #FFF7ED;
   --mm-primary-tint: #B45309;
   --mm-accent: #9A3412;
+  --mm-accent-fg: #FFFFFF;
   --mm-accent-warm: #B45309;
 
   /* Deeper than their dark-theme counterparts: a status colour is body-sized
@@ -320,6 +415,7 @@
   --mm-primary-fg: #FFFFFF;
   --mm-primary-tint: #B45309;
   --mm-accent: #9A3412;
+  --mm-accent-fg: #FFFFFF;
   --mm-accent-warm: #B45309;
 
   /* See the sepia block: paper needs deeper status colours to clear AA. */
@@ -340,56 +436,21 @@
 }
 
 /*
- * FIRST PAINT ONLY. Until the client has resolved the active profile it cannot
- * know the stored theme, so `data-theme` is absent and the app would paint dark
- * at a viewer who asked their OS for light. This mirrors what
- * `initialReadingTheme()` will pick for someone with no stored choice, so the
- * two agree and there is no flash. The moment a theme is applied the attribute
- * lands and `:not([data-theme])` stops matching — which is what makes
- * prefers-color-scheme an INITIAL value and not an override.
+ * There is deliberately NO `@media (prefers-color-scheme: light)` fallback.
  *
- * Must stay in step with `:root[data-theme="light"]` above; the "light theme
- * and the prefers-color-scheme fallback agree" case in
- * `src/features/preferences/theme.test.ts` parses this file and fails if they
- * drift.
+ * There used to be one: with the default being Eclipse, a viewer whose OS asked
+ * for light got Daylight on their first visit, and `initialReadingTheme()`
+ * agreed so the two never disagreed mid-load. The default is now GitHub Dark
+ * because that is what the app is asked to look like out of the box, and "out of
+ * the box" has to include the screens that can never read a stored preference —
+ * /login and /register, where the boot script declines by design. Seeding those
+ * from the OS would make the sign-in page white on a light-mode phone and black
+ * on a dark-mode one, which is not a default anyone chose.
+ *
+ * The OS preference is not ignored so much as outranked once: every light
+ * palette is still one click away in the theme picker, and a stored choice
+ * always wins (`initialReadingTheme()` has no other input).
  */
-@media (prefers-color-scheme: light) {
-  :root:not([data-theme]) {
-    color-scheme: light;
-    --mm-bg: #EFEDE9;
-    --mm-surface: #F7F5F2;
-    --mm-elevated: #FCFBF9;
-    --mm-fg: #1A1917;
-    --mm-muted: #5A5751;
-    --mm-border: rgba(26, 25, 23, 0.16);
-
-    --mm-contrast-bg: #171614;
-    --mm-contrast-fg: #F4F2EE;
-    --mm-contrast-border: rgba(244, 242, 238, 0.16);
-
-    --mm-primary: #92400E;
-    --mm-primary-hover: #7C2D12;
-    --mm-primary-fg: #FFFFFF;
-    --mm-primary-tint: #B45309;
-    --mm-accent: #9A3412;
-    --mm-accent-warm: #B45309;
-
-    --mm-danger: #B91C1C;
-    --mm-success: #065F46;
-    --mm-warning: #854D0E;
-
-    --mm-glass-panel: rgba(247, 245, 242, 0.72);
-    --mm-glass-card: rgba(252, 251, 249, 0.66);
-    --mm-glass-border: rgba(26, 25, 23, 0.1);
-    --mm-hero-from: #8A6A48;
-    --mm-hero-to: #2B211A;
-    --mm-scrollbar: rgba(90, 87, 81, 0.35);
-    --mm-scrollbar-hover: rgba(90, 87, 81, 0.55);
-    --mm-glow: 0 2px 16px rgba(146, 64, 14, 0.18);
-    --mm-glass-shadow: 0 8px 24px rgba(26, 25, 23, 0.12);
-    --mm-focus: #92400E;
-  }
-}
 
 /* ==========================================================================
    SHAPE ROLES
@@ -501,12 +562,35 @@ main {
   color: transparent;
 }
 
+/*
+ * The primary call to action: the sign-in and register buttons, and
+ * `PrimaryPillButton` everywhere else.
+ *
+ * Every colour here is a theme role. It used to be four literal Eclipse hexes
+ * (a near-black-to-amber ramp with a hard white outline), which meant the most
+ * prominent control on the app — including on the two screens that can only
+ * ever paint the default palette — stayed amber no matter what theme was
+ * chosen. It also meant the white text was a fixed bet: legible over the dark
+ * end of that particular ramp and nowhere else.
+ *
+ * The ramp now runs `--mm-primary-hover` → `--mm-primary`, which is the same
+ * direction (deeper to brighter) in every palette, and the label is
+ * `--mm-primary-fg` — the foreground each theme already nominates for a filled
+ * primary surface, and the one pairing `theme-contrast.test.ts` holds to AA.
+ */
 .cta-gradient {
-  background: linear-gradient(123deg, #1A0A00 7%, #BE4C00 37%, #C2410C 72%, #F59E0B 100%);
-  box-shadow: 0px 4px 4px rgba(190, 76, 0, 0.25), 4px 4px 12px #C2410C inset;
-  outline: 2px solid white;
+  background: linear-gradient(
+    123deg,
+    var(--mm-primary-hover) 0%,
+    var(--mm-primary-hover) 30%,
+    var(--mm-primary) 100%
+  );
+  box-shadow:
+    0px 4px 4px color-mix(in srgb, var(--mm-primary-hover) 25%, transparent),
+    4px 4px 12px color-mix(in srgb, var(--mm-primary-hover) 70%, transparent) inset;
+  outline: 2px solid color-mix(in srgb, var(--mm-primary-fg) 35%, transparent);
   outline-offset: -3px;
-  color: #fff;
+  color: var(--mm-primary-fg);
 }
 
 .font-display {
@@ -533,7 +617,7 @@ main {
 }
 
 .text-glow {
-  text-shadow: 0 0 20px rgba(245, 158, 11, 0.3);
+  text-shadow: 0 0 20px color-mix(in srgb, var(--mm-primary) 30%, transparent);
 }
 
 .shadow-glow {
