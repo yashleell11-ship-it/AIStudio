@@ -2,8 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Play } from "lucide-react";
+import { ChevronRight, Play } from "lucide-react";
 import { useChapterHref } from "@/features/novels/use-chapter-href";
+import { cn } from "@/lib/cn";
 import { seriesCoverUrl } from "../api";
 import {
   continueReadingChapterLabel,
@@ -23,6 +24,8 @@ import type { ContinueReadingItem } from "../types";
  */
 const HERO_COVER_SIZES = "(max-width: 639px) 112px, 176px";
 const RAIL_COVER_SIZES = "70px";
+/** The phone strip's cover: a fixed `w-11` (44px) thumbnail. */
+const STRIP_COVER_SIZES = "44px";
 
 interface ContinueReadingProps {
   items: ContinueReadingItem[];
@@ -35,13 +38,16 @@ interface ContinueReadingProps {
 }
 
 /**
- * The "pick up where you left off" section on the library landing.
+ * The "pick up where you left off" section, on `/library/browse` from `md` up.
  *
  * Fed by `GET /library/continue-reading` (most recent unfinished chapter per
  * `(source_id, series_key)`). The lead item renders as a large hero card; the
  * rest follow in the horizontal rail. Covers come from the source proxy; the
  * resume link drops straight onto the last page read. The payload has no series
  * title, so it is joined from the followed-series index (falls back to the key).
+ *
+ * A hero card plus a rail is roughly 400px of vertical space, which is why the
+ * phone gets `ContinueReadingStrip` on `/library` instead — see below.
  */
 export function ContinueReading({ items, isLoading, novels }: ContinueReadingProps) {
   const { titles } = useFollowedIndex();
@@ -184,5 +190,84 @@ export function ContinueReading({ items, isLoading, novels }: ContinueReadingPro
         </div>
       ) : null}
     </section>
+  );
+}
+
+interface ContinueReadingStripProps {
+  items: ContinueReadingItem[];
+  /**
+   * `source_id:series_key -> title`, built by the caller. The strip's caller
+   * (the shelf) already holds the whole followed set, so passing the map keeps
+   * the phone's landing screen from refetching 200 rows to render one title.
+   */
+  titles: ReadonlyMap<string, string>;
+  novels?: boolean;
+  className?: string;
+}
+
+/**
+ * The same "where was I", in one row, for the phone.
+ *
+ * `ContinueReading` — a hero card plus a horizontal rail under a section header
+ * — pushed the first cover on `/library/browse` below the fold at 375px, and
+ * the Flutter client shows no continue-reading section on either library screen
+ * at all (`ContinueReadingSection` in `dashboard_sections.dart` is defined and
+ * never built). But resuming is the single most useful thing on a reading app's
+ * home screen, and `/library/browse` was its only home on the web, so it moves
+ * here rather than disappearing: the most recent unfinished chapter, one tap, on
+ * the tab a phone actually opens on.
+ *
+ * Only the lead item. The rail's job was breadth; a strip's is the one answer.
+ */
+export function ContinueReadingStrip({
+  items,
+  titles,
+  novels,
+  className,
+}: ContinueReadingStripProps) {
+  const chapterHref = useChapterHref();
+
+  if (items.length === 0) {
+    return null;
+  }
+
+  const [item] = items;
+  const percent = continueReadingPercent(item);
+  const title = resolveSeriesTitle(item, titles);
+
+  return (
+    <Link
+      href={chapterHref(continueReadingRef(item), item.last_page)}
+      className={cn("group block focus-visible:outline-none", className)}
+    >
+      <article className="glass-card flex items-center gap-3 overflow-hidden rounded-2xl p-2 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60">
+        <div className="relative aspect-[2/3] w-11 shrink-0 overflow-hidden rounded-lg bg-surface-2">
+          <Image
+            src={seriesCoverUrl(continueReadingRef(item), STRIP_COVER_SIZES)}
+            alt=""
+            fill
+            className="object-cover"
+            sizes={STRIP_COVER_SIZES}
+            unoptimized
+          />
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-medium text-fg">{title}</p>
+          <p className="mt-0.5 truncate text-xs text-muted">
+            {continueReadingChapterLabel(item)} &middot;{" "}
+            {novels
+              ? `${percent}% in`
+              : `page ${item.last_page}${item.page_count > 0 ? ` of ${item.page_count}` : ""}`}
+          </p>
+          <div className="mt-1.5 h-1 w-full overflow-hidden rounded-full bg-white/10">
+            <div className="h-full rounded-full bg-primary" style={{ width: `${percent}%` }} />
+          </div>
+        </div>
+
+        <ChevronRight className="size-5 shrink-0 text-muted" aria-hidden />
+        <span className="sr-only">Continue reading {title}</span>
+      </article>
+    </Link>
   );
 }

@@ -80,12 +80,33 @@ function SuggestionChip({
     <button
       type="button"
       onClick={() => onSelect(label)}
-      // Recent/trending searches sit two rows deep on a phone; `py-1.5` alone
-      // gave a 33px chip, which is a mis-tap between neighbours.
-      className="inline-flex items-center rounded-full border border-border/50 bg-white/[0.03] px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary [@media(pointer:coarse)]:min-h-11"
+      // `py-1.5` alone gave a 33px chip, which is a mis-tap between neighbours
+      // on a touch screen — hence the coarse-pointer floor.
+      className="inline-flex shrink-0 items-center whitespace-nowrap rounded-full border border-border/50 bg-white/[0.03] px-3 py-1.5 text-sm text-muted transition-colors hover:border-primary/30 hover:bg-primary/10 hover:text-primary [@media(pointer:coarse)]:min-h-11"
     >
       {label}
     </button>
+  );
+}
+
+/**
+ * One row that scrolls on a phone, the wrapped block it always was above `md`.
+ *
+ * Eight trending terms of eight different widths inside 327px of phone gutter
+ * wrapped into three ragged rows — the same shape the browse toolbar's filter
+ * chips made before they became a rail, and the tallest block on an idle
+ * `/search`. Recent terms get the same treatment: two neighbouring chip groups
+ * where one scrolls and the other wraps would read as two different controls.
+ *
+ * `max-md:` throughout, so from `md` up this is `flex flex-wrap gap-2` and
+ * nothing else, exactly as before. `-mx-6`/`px-6` lets the rail bleed to the
+ * gutter edge, which is what makes the cut-off last chip say "scroll me".
+ */
+function SuggestionRail({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="max-md:-mx-6 max-md:overflow-x-auto max-md:px-6 max-md:[scrollbar-width:none] max-md:[&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-2 max-md:w-max md:flex-wrap">{children}</div>
+    </div>
   );
 }
 
@@ -228,7 +249,11 @@ export function SearchView() {
           <h1 className="font-display text-4xl uppercase tracking-wide text-fg md:text-5xl">
             Search
           </h1>
-          <p className="mt-2 text-sm text-muted md:text-base">
+          {/* Pointer widths only. Under a 36px hero reading SEARCH, above a
+              field placeheld "Search manga, manhwa, webtoons…", this line told
+              a phone reader nothing the two things touching it had not already
+              said — and the Flutter search screen has no subtitle at all. */}
+          <p className="mt-2 hidden text-sm text-muted md:block md:text-base">
             Find your next favorite series
           </p>
         </header>
@@ -257,21 +282,21 @@ export function SearchView() {
             {recentSearches.length > 0 ? (
               <section>
                 <SectionLabel icon={Clock} label="Recent" />
-                <div className="flex flex-wrap gap-2">
+                <SuggestionRail>
                   {recentSearches.map((term) => (
                     <SuggestionChip key={term} label={term} onSelect={applySuggestion} />
                   ))}
-                </div>
+                </SuggestionRail>
               </section>
             ) : null}
 
             <section>
               <SectionLabel icon={TrendingUp} label="Trending" />
-              <div className="flex flex-wrap gap-2">
+              <SuggestionRail>
                 {TRENDING_SUGGESTIONS.map((term) => (
                   <SuggestionChip key={term} label={term} onSelect={applySuggestion} />
                 ))}
-              </div>
+              </SuggestionRail>
             </section>
 
             <div className="flex justify-center pt-2">
@@ -303,11 +328,18 @@ export function SearchView() {
               </div>
             ) : null}
 
-            <EmptyState
-              icon={Search}
-              title="Start typing to search"
-              description="Search your library and every source connector at once."
-            />
+            {/* Pointer widths only. "Start typing to search" under a heading
+                reading SEARCH, a field already inviting the same, and — one tap
+                away — an Advanced Filters panel whose first line is this card's
+                description almost word for word. On a phone it was the tallest
+                thing on the screen and said the least. */}
+            <div className="hidden md:block">
+              <EmptyState
+                icon={Search}
+                title="Start typing to search"
+                description="Search your library and every source connector at once."
+              />
+            </div>
           </div>
         ) : null}
 

@@ -31,8 +31,16 @@ export function continueReadingKey(item: ContinueReadingItem): string {
  * which is the single place the manga/novel branch is made.
  */
 
-/** Followed-index lookup key for the title join. */
-export function continueReadingSeriesKey(item: ContinueReadingItem): string {
+/**
+ * Followed-index lookup key for the title join.
+ *
+ * Takes the source-native pair rather than a whole `ContinueReadingItem`, so
+ * the same key can be built from a followed row when a caller already holds the
+ * shelf and would otherwise refetch it just to learn one title.
+ */
+export function continueReadingSeriesKey(
+  item: Pick<ContinueReadingItem, "source_id" | "series_key">,
+): string {
   return `${item.source_id}:${item.series_key}`;
 }
 
