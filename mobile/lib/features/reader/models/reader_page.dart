@@ -34,6 +34,28 @@ class ReaderPage {
     return w / h;
   }
 
+  /// Value equality, so a chapter re-resolved from the same bytes compares
+  /// equal to the one it replaces — see [ReaderChapter]'s note for why the
+  /// reader depends on that.
+  ///
+  /// [localFile] is compared by path: `dart:io`'s `File` does not override
+  /// `==`, so two handles on the same file are never equal and comparing them
+  /// directly would report every re-resolution as a change.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ReaderPage &&
+          other.id == id &&
+          other.number == number &&
+          other.imageUrl == imageUrl &&
+          other.width == width &&
+          other.height == height &&
+          other.localFile?.path == localFile?.path;
+
+  @override
+  int get hashCode =>
+      Object.hash(id, number, imageUrl, width, height, localFile?.path);
+
   ReaderPage withLocalFile(File file) => ReaderPage(
         id: id,
         number: number,
