@@ -1,5 +1,8 @@
 import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_concurrency.dart';
+import 'package:manhwamaniacs/features/downloads/providers/storage_settings_provider.dart';
 import 'package:manhwamaniacs/features/downloads/services/blob_store.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_db.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_store.dart';
@@ -49,4 +52,25 @@ class TestDownloadsHarness {
   Future<void> dispose() async {
     if (tempDir.existsSync()) await tempDir.delete(recursive: true);
   }
+}
+
+/// Pins how many chapters the queue downloads at once.
+///
+/// Every container that drives the real loop needs this for the same reason it
+/// needs a pinned `storageCapProvider`: the notifier is preferences-backed and
+/// these tests deliberately never stand up SharedPreferences. Defaults to
+/// [DownloadConcurrency.one] so a test that is not *about* concurrency keeps
+/// the strictly serial queue its assertions were written against.
+Override downloadConcurrencyOverride([
+  DownloadConcurrency value = DownloadConcurrency.one,
+]) =>
+    downloadConcurrencyProvider
+        .overrideWith(() => _FixedDownloadConcurrencyNotifier(value));
+
+class _FixedDownloadConcurrencyNotifier extends DownloadConcurrencyNotifier {
+  _FixedDownloadConcurrencyNotifier(this._value);
+  final DownloadConcurrency _value;
+
+  @override
+  DownloadConcurrency build() => _value;
 }

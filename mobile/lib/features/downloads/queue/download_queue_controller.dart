@@ -9,6 +9,7 @@ import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart'
 import 'package:manhwamaniacs/features/downloads/providers/retention_maintenance_provider.dart';
 import 'package:manhwamaniacs/features/downloads/providers/storage_settings_provider.dart';
 import 'package:manhwamaniacs/features/downloads/queue/download_constants.dart';
+import 'package:manhwamaniacs/features/downloads/queue/download_request_gate.dart';
 import 'package:manhwamaniacs/features/downloads/services/chapter_page_fetcher.dart';
 import 'package:manhwamaniacs/features/downloads/services/device_storage_info.dart';
 import 'package:manhwamaniacs/features/downloads/store/downloads_store.dart';
@@ -49,6 +50,7 @@ class DownloadQueueState {
     this.currentChapter,
     this.pagesDone = 0,
     this.pageTotal = 0,
+    this.activeChapterCount = 0,
     this.queueRevision = 0,
   });
 
@@ -58,6 +60,13 @@ class DownloadQueueState {
   /// not).
   final bool isDownloading;
   final DownloadQueuePauseReason pauseReason;
+
+  /// The chapter whose progress this state reports — the **lead** of the batch
+  /// in flight, not the only member of it. With
+  /// [downloadConcurrencyProvider] above one, siblings download alongside it;
+  /// [activeChapterCount] is how many, and their rows read `downloading` in
+  /// the store. Only the lead moves [pagesDone] so the bar stays monotonic
+  /// instead of two workers taking turns overwriting each other's count.
   final ChapterIdentity? currentChapter;
 
   /// Pages of [currentChapter] already on disk, and how many it has in total.
@@ -66,6 +75,11 @@ class DownloadQueueState {
   /// indeterminate bar rather than a misleading "0 of 0".
   final int pagesDone;
   final int pageTotal;
+
+  /// How many chapters are mid-download right now, [currentChapter] included.
+  /// 0 when idle, 1 on the serial setting. Exists so the UI can say that more
+  /// is happening than the one chapter it has room to draw a bar for.
+  final int activeChapterCount;
 
   /// Bumped on every change to *which rows exist and in what state* — a
   /// chapter queued, completed, failed or cancelled — and deliberately **not**
@@ -93,6 +107,7 @@ class DownloadQueueState {
     bool clearCurrentChapter = false,
     int? pagesDone,
     int? pageTotal,
+    int? activeChapterCount,
     int? queueRevision,
   }) {
     return DownloadQueueState(
@@ -102,6 +117,7 @@ class DownloadQueueState {
           clearCurrentChapter ? null : (currentChapter ?? this.currentChapter),
       pagesDone: pagesDone ?? this.pagesDone,
       pageTotal: pageTotal ?? this.pageTotal,
+      activeChapterCount: activeChapterCount ?? this.activeChapterCount,
       queueRevision: queueRevision ?? this.queueRevision,
     );
   }
@@ -122,6 +138,19 @@ enum _ChapterOutcome {
 /// free-space floor / storage cap without ever dropping a queued chapter or
 /// touching an unread one.
 ///
+/// Chapters are taken a batch at a time — [downloadConcurrencyProvider] wide —
+/// and run concurrently, but every guard is still per chapter and unchanged:
+/// each has its own row, its own retry bound, its own completeness check, and
+/// re-checks the free-space floor, the storage cap, a pause and a cancel
+/// between page chunks. A sibling failing, or being cancelled mid-flight,
+/// costs that chapter and nothing else.
+///
+/// What the setting does *not* do is raise the request rate: every outbound
+/// call goes through one [DownloadRequestGate] of [kQueueRequestConcurrency]
+/// slots shared by the whole batch, so widening the batch overlaps the dead
+/// time between chapters — manifest round trips, retry backoffs, blob writes —
+/// rather than multiplying what lands on the server.
+///
 /// A durable queue, not an in-memory one: every "queued" row lives in
 /// `saved_chapters` the instant [enqueueChapter] returns, so a kill mid-run
 /// loses at most the current page — never the fact that a chapter was asked
@@ -141,6 +170,17 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   /// Row ids the user cancelled while the loop still owned their writes. See
   /// [cancelChapter] for why the deletion is deferred to the loop.
   final Set<int> _cancelledRowIds = {};
+
+  /// Row ids of the batch currently mid-download. What [cancelChapter] tests
+  /// to decide whether it may delete inline — the loop owns these rows' writes
+  /// until it clears them, and with a batch wider than one that is no longer
+  /// the same question as "is this the chapter on the progress bar".
+  final Set<int> _inFlightRowIds = {};
+
+  /// The one ceiling every outbound call in this queue passes through, shared
+  /// across the whole batch so the user's chapter setting cannot multiply it.
+  final DownloadRequestGate _gate =
+      DownloadRequestGate(kQueueRequestConcurrency);
 
   /// Novel chapter text fetched ahead of the loop by [_primeNovelWindow],
   /// waiting for the pass that owns its row. Entries are removed as they are
@@ -256,18 +296,19 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
 
   /// Drops [id] from the queue and removes whatever it had already written.
   ///
-  /// Cancelling the chapter the loop is *currently* fetching cannot delete
-  /// its rows here: pages already in flight would insert `saved_pages` rows
+  /// Cancelling a chapter the loop is *currently* fetching cannot delete its
+  /// rows here: pages already in flight would insert `saved_pages` rows
   /// pointing at a chapter row that no longer exists, leaking the blob
   /// refcounts those rows hold. So that case is flagged and the loop performs
-  /// the deletion itself the moment its current page chunk lands.
+  /// the deletion itself once that chapter's worker lands — which it does
+  /// whether or not its siblings are still fetching.
   Future<void> cancelChapter(ChapterIdentity id) async {
     final store = ref.read(downloadsStoreProvider);
     if (store == null) return;
     final chapter = await store.getChapter(id);
     if (chapter == null) return;
 
-    if (_loopRunning && state.currentChapter == id) {
+    if (_loopRunning && _inFlightRowIds.contains(chapter.rowId)) {
       _cancelledRowIds.add(chapter.rowId);
       _bumpRevision();
       return;
@@ -324,6 +365,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
         state = state.copyWith(
           isDownloading: false,
           pauseReason: DownloadQueuePauseReason.userPaused,
+          activeChapterCount: 0,
         );
         return;
       }
@@ -333,6 +375,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
           isDownloading: false,
           pauseReason: DownloadQueuePauseReason.backgrounded,
           clearCurrentChapter: true,
+          activeChapterCount: 0,
         );
         return;
       }
@@ -343,6 +386,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
           isDownloading: false,
           pauseReason: DownloadQueuePauseReason.noScope,
           clearCurrentChapter: true,
+          activeChapterCount: 0,
         );
         return;
       }
@@ -359,6 +403,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
           clearCurrentChapter: true,
           pagesDone: 0,
           pageTotal: 0,
+          activeChapterCount: 0,
         );
         return;
       }
@@ -368,6 +413,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
         state = state.copyWith(
           isDownloading: false,
           pauseReason: DownloadQueuePauseReason.freeSpaceFloor,
+          activeChapterCount: 0,
         );
         return;
       }
@@ -377,66 +423,101 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
         state = state.copyWith(
           isDownloading: false,
           pauseReason: DownloadQueuePauseReason.cap,
+          activeChapterCount: 0,
         );
         return;
       }
 
-      final chapter = pending.first;
-      // Only when several chapters of the same series are waiting: one round
-      // trip for the next twenty instead of twenty. Runs after the floor/cap
-      // checks above so a blocked queue never fetches.
-      if (chapter.kind.isNovel) {
-        await _primeNovelWindow(chapter, pending);
-      } else {
-        await _primeManifestWindow(chapter, pending);
+      // The user's setting is read fresh each pass rather than watched: a
+      // change takes effect on the next batch instead of disturbing chapters
+      // already in flight.
+      final width = ref.read(downloadConcurrencyProvider).chapters;
+      final batch = pending.take(width).toList();
+      final lead = batch.first;
+
+      // Claimed before the priming awaits below, not after: a cancel that
+      // lands in that gap must be deferred to this loop like any other, or it
+      // deletes a row the batch is about to start writing into.
+      _inFlightRowIds.addAll(batch.map((chapter) => chapter.rowId));
+
+      // Windows are primed here, on the loop, with nothing else in flight —
+      // never from inside a worker. Two workers on the same series would
+      // otherwise each spend a token on the tightest bucket the server has to
+      // fetch overlapping halves of one window.
+      for (final chapter in batch) {
+        if (chapter.kind.isNovel) {
+          await _primeNovelWindow(chapter, pending);
+        } else {
+          await _primeManifestWindow(chapter, pending);
+        }
       }
 
       state = state.copyWith(
         isDownloading: true,
         pauseReason: DownloadQueuePauseReason.none,
-        currentChapter: chapter.identity,
+        currentChapter: lead.identity,
         pagesDone: 0,
-        pageTotal: chapter.pageCount,
+        pageTotal: lead.pageCount,
+        activeChapterCount: batch.length,
       );
 
-      final outcome = await _downloadOneChapter(store, chapter);
+      // Every chapter is awaited even once one of them has decided to stop:
+      // a sibling abandoned mid-write is how `saved_pages` rows outlive their
+      // chapter. They each see the same pause/cancel flags at their next chunk
+      // boundary and come back on their own.
+      final outcomes = await Future.wait([
+        for (final chapter in batch)
+          _downloadOneChapter(
+            store,
+            chapter,
+            reportsProgress: chapter.rowId == lead.rowId,
+          ),
+      ]);
+      _inFlightRowIds.removeAll(batch.map((chapter) => chapter.rowId));
 
-      // A cancel that landed while this chapter was in flight is honoured
-      // whatever the outcome was — including a chapter that finished a
-      // moment too late to notice it had been cancelled.
-      if (_cancelledRowIds.remove(chapter.rowId)) {
-        await store.deleteDownload(chapter.identity);
-        _bumpRevision();
-        continue;
+      for (final chapter in batch) {
+        // A cancel that landed while this chapter was in flight is honoured
+        // whatever its outcome was — including a chapter that finished a
+        // moment too late to notice it had been cancelled.
+        if (_cancelledRowIds.remove(chapter.rowId)) {
+          await store.deleteDownload(chapter.identity);
+        }
       }
+      // One bump for the batch: the rows' states changed on disk and the
+      // store-backed lists need to re-read, but three chapters landing
+      // together must not cost them three re-queries.
+      _bumpRevision();
 
-      switch (outcome) {
-        case _ChapterOutcome.pausedFloor:
-          state = state.copyWith(
-            isDownloading: false,
-            pauseReason: DownloadQueuePauseReason.freeSpaceFloor,
-          );
-          return;
-        case _ChapterOutcome.pausedCap:
-          state = state.copyWith(
-            isDownloading: false,
-            pauseReason: DownloadQueuePauseReason.cap,
-          );
-          return;
-        case _ChapterOutcome.pausedUser:
-          state = state.copyWith(
-            isDownloading: false,
-            pauseReason: DownloadQueuePauseReason.userPaused,
-          );
-          return;
-        case _ChapterOutcome.completed:
-        case _ChapterOutcome.failed:
-        case _ChapterOutcome.cancelled:
-          // The row's state changed on disk; the store-backed lists need to
-          // re-read. Loop around to the next pending chapter.
-          _bumpRevision();
+      final stop = _stopReason(outcomes);
+      if (stop != null) {
+        state = state.copyWith(
+          isDownloading: false,
+          pauseReason: stop,
+          activeChapterCount: 0,
+        );
+        return;
       }
+      // Deliberately no reset here: the next pass either picks a new batch and
+      // overwrites this, or leaves through a guard above that zeroes it. A
+      // reset between batches would flicker the count to nothing mid-run.
     }
+  }
+
+  /// Why the loop should stop, if any chapter in the batch hit something that
+  /// stops it. Ordered the way [_processLoop]'s own guards are — a deliberate
+  /// pause outranks a disk limit — so the reason the user is shown is the same
+  /// one they would get from a fresh pass.
+  DownloadQueuePauseReason? _stopReason(List<_ChapterOutcome> outcomes) {
+    if (outcomes.contains(_ChapterOutcome.pausedUser)) {
+      return DownloadQueuePauseReason.userPaused;
+    }
+    if (outcomes.contains(_ChapterOutcome.pausedFloor)) {
+      return DownloadQueuePauseReason.freeSpaceFloor;
+    }
+    if (outcomes.contains(_ChapterOutcome.pausedCap)) {
+      return DownloadQueuePauseReason.cap;
+    }
+    return null;
   }
 
   Future<bool> _isBelowFreeSpaceFloor() async {
@@ -473,8 +554,9 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   /// next pass fetches a fresh manifest over the network.
   Future<_ChapterOutcome> _downloadOneChapter(
     DownloadsStore store,
-    SavedChapter chapter,
-  ) async {
+    SavedChapter chapter, {
+    required bool reportsProgress,
+  }) async {
     if (_cancelledRowIds.contains(chapter.rowId)) {
       return _ChapterOutcome.cancelled;
     }
@@ -482,7 +564,13 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     // Prose takes a different fetch and a different blob shape, but the same
     // row, the same retry bound and the same completeness guard — see
     // [_downloadOneNovelChapter].
-    if (chapter.kind.isNovel) return _downloadOneNovelChapter(store, chapter);
+    if (chapter.kind.isNovel) {
+      return _downloadOneNovelChapter(
+        store,
+        chapter,
+        reportsProgress: reportsProgress,
+      );
+    }
 
     // Already fetched as part of a window. Removed on the way out: a chapter
     // is served from a window exactly once, so a retry after a failed page
@@ -490,11 +578,13 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     // be the reason the fetch failed.
     var manifest = _manifestWindow.remove(chapter.identity);
     if (manifest == null) {
-      final manifestResult = await ref.read(readerRepositoryProvider).manifest(
-            sourceId: chapter.sourceId,
-            seriesKey: chapter.seriesKey,
-            chapterKey: chapter.chapterKey,
-          );
+      final manifestResult = await _gate.run(
+        () => ref.read(readerRepositoryProvider).manifest(
+              sourceId: chapter.sourceId,
+              seriesKey: chapter.seriesKey,
+              chapterKey: chapter.chapterKey,
+            ),
+      );
       if (manifestResult.isErr) {
         return _recordChapterFailure(
           store,
@@ -518,6 +608,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
       store,
       chapter.rowId,
       pages: manifest.pages,
+      reportsProgress: reportsProgress,
     );
     if (pauseOutcome != null) return pauseOutcome;
 
@@ -552,19 +643,22 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   /// separate pipeline, it is this one with fewer round trips.
   Future<_ChapterOutcome> _downloadOneNovelChapter(
     DownloadsStore store,
-    SavedChapter chapter,
-  ) async {
+    SavedChapter chapter, {
+    required bool reportsProgress,
+  }) async {
     // Already fetched as part of a window (spec R5). Removed on the way out:
     // a chapter is served from a window exactly once, so a retry after a
     // failed WRITE goes back to the network rather than replaying text that
     // may be why the write failed.
     var novel = _novelWindow.remove(chapter.identity);
     if (novel == null) {
-      final result = await ref.read(novelsRepositoryProvider).chapter(
-            sourceId: chapter.sourceId,
-            seriesKey: chapter.seriesKey,
-            chapterKey: chapter.chapterKey,
-          );
+      final result = await _gate.run(
+        () => ref.read(novelsRepositoryProvider).chapter(
+              sourceId: chapter.sourceId,
+              seriesKey: chapter.seriesKey,
+              chapterKey: chapter.chapterKey,
+            ),
+      );
       if (result.isErr) {
         return _recordChapterFailure(store, chapter, result.error.userMessage);
       }
@@ -580,7 +674,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
       chapterNumber: novel.chapterNumber,
       title: novel.title,
     );
-    _reportPageProgress(done: 0, total: 1);
+    if (reportsProgress) _reportPageProgress(done: 0, total: 1);
 
     try {
       await store.saveNovelText(
@@ -590,7 +684,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     } catch (error) {
       return _recordChapterFailure(store, chapter, 'Could not save the text.');
     }
-    _reportPageProgress(done: 1, total: 1);
+    if (reportsProgress) _reportPageProgress(done: 1, total: 1);
 
     if (_cancelledRowIds.contains(chapter.rowId)) {
       return _ChapterOutcome.cancelled;
@@ -810,16 +904,22 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   /// genuinely stop mid-download. Returns a stop outcome when it had to bail
   /// early, or `null` to mean "kept going / finished" — the caller then checks
   /// page completeness.
+  ///
+  /// [kPageFetchConcurrency] is what this chapter *asks* for; the shared
+  /// [DownloadRequestGate] is what it gets. Every sibling chapter runs this
+  /// same loop, so the chunk size stays a per-chapter shape while the gate
+  /// keeps the sum of them at [kQueueRequestConcurrency].
   Future<_ChapterOutcome?> _fetchMissingPages(
     DownloadsStore store,
     int rowId, {
     required List<ManifestPage> pages,
+    required bool reportsProgress,
   }) async {
     final already = await store.existingPageNumbers(rowId);
     final missing = pages.where((p) => !already.contains(p.number)).toList();
     // A resumed chapter starts partway along the bar rather than at zero.
     var done = pages.length - missing.length;
-    _reportPageProgress(done: done, total: pages.length);
+    if (reportsProgress) _reportPageProgress(done: done, total: pages.length);
 
     for (var i = 0; i < missing.length; i += kPageFetchConcurrency) {
       if (_cancelledRowIds.contains(rowId)) return _ChapterOutcome.cancelled;
@@ -838,7 +938,12 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
           );
           // Only a page actually on disk moves the bar — a page that
           // exhausted its retries must not read as progress.
-          if (saved) _reportPageProgress(done: ++done, total: pages.length);
+          if (saved) {
+            done++;
+            if (reportsProgress) {
+              _reportPageProgress(done: done, total: pages.length);
+            }
+          }
         }),
       );
     }
@@ -858,8 +963,12 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   }) async {
     for (var attempt = 1; attempt <= kMaxPageRetries; attempt++) {
       try {
-        final bytes =
-            await ref.read(chapterPageFetcherProvider).fetchPageBytes(url);
+        // Only the fetch is inside the gate. Holding a slot across the blob
+        // write would let SQLite contention — the thing the write is already
+        // serialised by — narrow the network ceiling as well.
+        final bytes = await _gate.run(
+          () => ref.read(chapterPageFetcherProvider).fetchPageBytes(url),
+        );
         if (bytes.isEmpty) throw StateError('Empty page response');
         await store.savePage(rowId: rowId, pageNumber: number, bytes: bytes);
         return true;

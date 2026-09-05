@@ -161,6 +161,7 @@ void main() {
         storageCapProvider.overrideWith(
           () => _FixedStorageCapNotifier(storageCap),
         ),
+        downloadConcurrencyOverride(),
       ],
     );
     addTearDown(container.dispose);

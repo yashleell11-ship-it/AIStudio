@@ -231,6 +231,7 @@ void main() {
           storage ?? _FixedDeviceStorageInfo(10 * 1024 * 1024 * 1024),
         ),
         storageCapProvider.overrideWith(_FixedStorageCapNotifier.new),
+        downloadConcurrencyOverride(),
       ],
     );
     addTearDown(container.dispose);

@@ -31,6 +31,7 @@ abstract final class _Keys {
   static const String downloadStorageCap = 'settings_download_storage_cap';
   static const String downloadRetentionInterval =
       'settings_download_retention_interval';
+  static const String downloadConcurrency = 'settings_download_concurrency';
 }
 
 /// Light preferences that do not need encryption.
@@ -187,6 +188,12 @@ class PreferencesService {
       _prefs.getString(_Keys.downloadRetentionInterval);
   Future<void> setDownloadRetentionInterval(String value) =>
       _prefs.setString(_Keys.downloadRetentionInterval, value);
+
+  /// How many chapters download at once, as a [DownloadConcurrency] wire name.
+  String? get downloadConcurrency =>
+      _prefs.getString(_Keys.downloadConcurrency);
+  Future<void> setDownloadConcurrency(String value) =>
+      _prefs.setString(_Keys.downloadConcurrency, value);
 
   List<String> get pinnedSources =>
       _prefs.getStringList(_Keys.pinnedSources) ?? [];

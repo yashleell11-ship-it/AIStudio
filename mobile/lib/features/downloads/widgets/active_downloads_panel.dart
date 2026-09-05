@@ -238,6 +238,17 @@ class _CurrentChapterProgress extends ConsumerWidget {
           ),
         ),
         SizedBox(height: context.space.xs),
+        // The bar tracks one chapter, but the user's concurrency setting may
+        // have several going. Saying so is the difference between "my setting
+        // did nothing" and "the other two just don't have their own bar".
+        if (queue.activeChapterCount > 1)
+          Text(
+            queue.activeChapterCount == 2
+                ? '1 more chapter downloading alongside this one'
+                : '${queue.activeChapterCount - 1} more chapters downloading '
+                    'alongside this one',
+            style: context.text.caption.copyWith(color: context.colors.muted),
+          ),
         _SeriesProgressLine(chapter: chapter),
       ],
     );

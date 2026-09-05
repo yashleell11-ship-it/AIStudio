@@ -173,6 +173,7 @@ void main() {
         deviceStorageInfoProvider
             .overrideWithValue(_FixedDeviceStorageInfo(freeBytes)),
         storageCapProvider.overrideWith(_FixedStorageCapNotifier.new),
+        downloadConcurrencyOverride(),
       ],
     );
     addTearDown(container.dispose);
@@ -341,6 +342,7 @@ void main() {
         chapterPageFetcherProvider.overrideWithValue(_ForbiddenPageFetcher()),
         deviceStorageInfoProvider.overrideWithValue(storage),
         storageCapProvider.overrideWith(_FixedStorageCapNotifier.new),
+        downloadConcurrencyOverride(),
       ],
     );
     addTearDown(container.dispose);

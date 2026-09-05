@@ -2,11 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
+import 'package:manhwamaniacs/features/downloads/models/download_concurrency.dart';
 import 'package:manhwamaniacs/features/downloads/models/retention_policy.dart';
 import 'package:manhwamaniacs/features/downloads/models/storage_cap.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_scope.dart';
 import 'package:manhwamaniacs/features/downloads/providers/downloads_storage_providers.dart';
 import 'package:manhwamaniacs/features/downloads/providers/storage_settings_provider.dart';
+import 'package:manhwamaniacs/features/downloads/queue/download_constants.dart';
 import 'package:manhwamaniacs/shared/widgets/glass_card.dart';
 import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 
@@ -97,6 +99,40 @@ class DownloadsStorageCard extends ConsumerWidget {
                       ref.read(storageCapProvider.notifier).setCap(option),
                 ),
             ],
+          ),
+          SizedBox(height: context.space.md),
+          Text('Chapters at once', style: context.text.labelLg),
+          SizedBox(height: context.space.xs),
+          Text(
+            'How many chapters download in parallel. More gets a big batch '
+            'done sooner, but it also puts more work on your own server at '
+            'once and raises the chance a source starts refusing requests — '
+            'which has cost this app several minutes of downloads before. '
+            'Pages within a chapter are capped separately, so the queue never '
+            'holds more than $kQueueRequestConcurrency requests open no '
+            'matter what you pick here.',
+            style: context.text.caption.copyWith(color: context.colors.muted),
+          ),
+          SizedBox(height: context.space.xs),
+          Consumer(
+            builder: (context, ref, _) {
+              final concurrency = ref.watch(downloadConcurrencyProvider);
+              return Wrap(
+                spacing: context.space.sm,
+                runSpacing: context.space.sm,
+                children: [
+                  for (final option in DownloadConcurrency.values)
+                    ChoiceChip(
+                      key: Key('download-concurrency-${option.name}'),
+                      label: Text(option.label),
+                      selected: concurrency == option,
+                      onSelected: (_) => ref
+                          .read(downloadConcurrencyProvider.notifier)
+                          .setConcurrency(option),
+                    ),
+                ],
+              );
+            },
           ),
           SizedBox(height: context.space.md),
           Text('Auto-delete after reading', style: context.text.labelLg),
