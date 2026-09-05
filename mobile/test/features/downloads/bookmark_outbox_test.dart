@@ -25,6 +25,13 @@ class _ScriptedReaderRepository implements ReaderRepository {
   final List<List<BookmarkOp>> batches = [];
   bool failPush = false;
 
+  /// How many ops the server refuses per batch (a `STATUS_STALE` last-write
+  /// loss, in practice).
+  int rejectPerBatch = 0;
+
+  /// How many times the client pulled the server's view back down.
+  int pulls = 0;
+
   /// Server ids handed back per client id, or 0 to hand none back (a delete
   /// of an id the server never saw echoes no body).
   int nextServerId = 1;
@@ -39,7 +46,7 @@ class _ScriptedReaderRepository implements ReaderRepository {
         created: ops.where((o) => !o.isDelete).length,
         updated: 0,
         tombstoned: ops.where((o) => o.isDelete).length,
-        rejected: 0,
+        rejected: rejectPerBatch,
         serverIds: {
           for (final op in ops)
             if (!op.isDelete) op.bookmark.clientId: nextServerId++,
@@ -55,8 +62,10 @@ class _ScriptedReaderRepository implements ReaderRepository {
     DateTime? since,
     bool includeDeleted = false,
     int? limit,
-  }) async =>
-      Ok(remote);
+  }) async {
+    pulls++;
+    return Ok(remote);
+  }
 
   @override
   Future<Result<void>> deleteBookmark(int bookmarkId) =>
@@ -349,6 +358,58 @@ void main() {
       expect(await controller.sync(), isFalse);
       expect(await store.listBookmarks(), hasLength(1));
       expect(await store.pendingBookmarkOutbox(), hasLength(1));
+    });
+  });
+
+  group('a refused op', () {
+    test('is reconciled from the server rather than left on screen', () async {
+      // Last-write-wins runs on the device's own clock, so a phone whose clock
+      // is behind loses to a stamp it cannot see. The op is settled either
+      // way; what must not happen is the device going on showing an edit that
+      // exists nowhere else.
+      final repo = _ScriptedReaderRepository()..rejectPerBatch = 1;
+      final controller = controllerFor(repo);
+
+      await bookmarkAt(controller);
+
+      expect(repo.pulls, 1);
+    });
+
+    test('an accepted flush costs no extra round trip', () async {
+      final repo = _ScriptedReaderRepository();
+      final controller = controllerFor(repo);
+
+      await bookmarkAt(controller);
+
+      expect(repo.pulls, 0);
+    });
+
+    test('the reconcile brings the server\'s answer back down', () async {
+      final repo = _ScriptedReaderRepository()
+        ..rejectPerBatch = 1
+        ..remote = [
+          Bookmark(
+            id: 9,
+            clientId: 'the-version-that-won',
+            sourceId: _chapter.sourceId,
+            seriesKey: _chapter.seriesKey,
+            chapterKey: _chapter.chapterKey,
+            anchorIndex: 3,
+            anchorTotal: 11,
+            createdAt: DateTime.utc(2026, 9, 5),
+            updatedAt: DateTime.utc(2026, 9, 5),
+          ),
+        ];
+      final controller = controllerFor(repo);
+
+      await bookmarkAt(controller);
+
+      // Not just a request: the pull is folded into the device's rows, so the
+      // screen shows what the server actually holds.
+      expect(
+        (await store.listBookmarks()).map((b) => b.clientId),
+        contains('the-version-that-won'),
+      );
     });
   });
 
