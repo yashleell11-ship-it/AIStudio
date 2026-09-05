@@ -6,15 +6,17 @@ import { useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, Check, ChevronRight, Play, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { GhostPillButton } from "@/components/premium/GhostPillButton";
 import { PrimaryPillButton } from "@/components/premium/PrimaryPillButton";
 import { libraryCoverUrl } from "@/features/library/api";
 import {
-  useAddTagToSeries,
   usePatchSeries,
   useSeries,
-  useTags,
   useToggleFavorite,
 } from "@/features/library/hooks";
+// Direct rather than through the `@/features/novels` barrel, which also pulls
+// in the novel reader — all this page wants from it is the one boolean.
+import { useIsNovelSource } from "@/features/novels/hooks";
 import { readerChapterHref } from "@/features/reader/reader-link";
 import { ApiError } from "@/types/api";
 import type { SeriesId } from "@/types/api";
@@ -23,6 +25,7 @@ import {
   writeScopedString,
 } from "@/lib/scoped-storage";
 import { cn } from "@/lib/cn";
+import { libraryReadAllHref } from "../read-all-link";
 import { READING_STATUSES } from "../url-state";
 import type { KnownChapter, SeriesDetail } from "../types";
 
@@ -61,11 +64,9 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   const seriesQuery = useSeries(seriesId);
   const series = seriesQuery.data;
 
-  const tagsQuery = useTags();
   const toggleFavorite = useToggleFavorite();
   const patchSeries = usePatchSeries();
-  const addTag = useAddTagToSeries();
-  const [showTagPicker, setShowTagPicker] = useState(false);
+  const isNovel = useIsNovelSource(series?.source_id ?? "");
 
   const sortKey = series ? `mm.chapter-sort:${series.source_id}:${series.series_key}` : null;
   const [sort, setSort] = useState<ChapterSort>(() => {
@@ -151,6 +152,20 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   // cover download on the page.
   const cover = libraryCoverUrl(detail.cover_url, POSTER_SIZES);
   const hasProgress = Object.keys(detail.progress).length > 0;
+  /**
+   * Read all, beside Continue and never instead of it. The source series page
+   * has offered it since the run reader shipped, and this is the series page a
+   * reader who already follows the series actually opens.
+   *
+   * It starts at the chapter Continue opens, for the reason Continue exists:
+   * forty chapters in, nobody means chapter one.
+   */
+  const readAllTarget = libraryReadAllHref(
+    seriesRef,
+    detail.chapters.length,
+    hasProgress ? resumeTarget?.chapter.key ?? null : null,
+    isNovel,
+  );
 
   return (
     <div className="min-h-full bg-bg">
@@ -278,44 +293,28 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
               ) : null}
             </div>
 
-            {resumeTarget ? (
-              <PrimaryPillButton
-                href={readerChapterHref(
-                  { ...seriesRef, chapterKey: resumeTarget.chapter.key },
-                  resumeTarget.page,
-                )}
-                className="mt-6 shadow-glow"
-                icon={<Play className="size-4 fill-current" />}
-              >
-                {hasProgress ? "Continue" : "Read"}
-              </PrimaryPillButton>
-            ) : null}
-
-            <div className="mt-6 flex flex-wrap items-center gap-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowTagPicker(!showTagPicker)}
-                className="text-muted hover:text-fg"
-              >
-                + Tag
-              </Button>
-            </div>
-            {showTagPicker && tagsQuery.data ? (
-              <div className="mt-2 flex flex-wrap gap-2">
-                {tagsQuery.data.map((tag) => (
-                  <Badge
-                    key={tag.id}
-                    variant="default"
-                    className="cursor-pointer border-border/50 bg-white/5 hover:bg-primary/15"
-                    onClick={() => {
-                      addTag.mutate({ ref: seriesRef, tagId: tag.id });
-                      setShowTagPicker(false);
-                    }}
+            {resumeTarget || readAllTarget ? (
+              <div className="mt-6 flex flex-wrap items-center gap-2">
+                {resumeTarget ? (
+                  <PrimaryPillButton
+                    href={readerChapterHref(
+                      { ...seriesRef, chapterKey: resumeTarget.chapter.key },
+                      resumeTarget.page,
+                    )}
+                    className="shadow-glow"
+                    icon={<Play className="size-4 fill-current" />}
                   >
-                    + {tag.name}
-                  </Badge>
-                ))}
+                    {hasProgress ? "Continue" : "Read"}
+                  </PrimaryPillButton>
+                ) : null}
+                {readAllTarget ? (
+                  <span
+                    className="inline-flex"
+                    title="Every chapter in one continuous scroll"
+                  >
+                    <GhostPillButton href={readAllTarget}>Read all</GhostPillButton>
+                  </span>
+                ) : null}
               </div>
             ) : null}
 
