@@ -134,6 +134,30 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.6.0",
+        build=37,
+        date="September 2026",
+        highlights=[
+            "The website is dark by default, GitHub Dark rather than the amber "
+            "look \u2014 including the sign-in page, which was gold no matter "
+            "which theme you picked, because it painted before any theme had "
+            "loaded",
+            "Search stopped showing you the previous query. The offline cache "
+            "was answering searches from its own store and fetching the real "
+            "results for next time, so every search was one behind and a "
+            "reload was the only way to catch up",
+            "Search runs from a single letter, on every box \u2014 two of them "
+            "only searched when you pressed enter",
+            "The phone layout is quieter. The site was stacking eleven bands "
+            "and twelve controls above the first cover; the app never shows "
+            "more than one row of controls, and now neither does the website. "
+            "The desktop is unchanged",
+            "New pictures on the install page. The old ones were screenshots "
+            "of the website rather than the app, and predated novels, the "
+            "themes and the presets",
+        ],
+    ),
+    ChangelogEntry(
         version="2.5.0",
         build=36,
         date="September 2026",
