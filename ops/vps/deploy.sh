@@ -63,7 +63,10 @@ cmd_deploy() {
   # honest evidence that the container is running the source we just shipped.
   # It also catches a version bumped without its release-notes entry.
   echo ">> deployed-code check:"
-  if ! docker exec manhwamaniacs-backend python - <<'PYCHECK'
+  # `-i` is load-bearing: without it docker exec does not attach stdin, python
+  # reads an empty program and exits 0, and this check silently passes without
+  # running. It did exactly that on its first deploy.
+  if ! docker exec -i manhwamaniacs-backend python - <<'PYCHECK'
 import json, sys, time, urllib.request
 
 def get(path):
