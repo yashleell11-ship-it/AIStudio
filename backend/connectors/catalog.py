@@ -77,6 +77,7 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #               through every enumerable route (36/36 sampled series
     #               returned exactly 24, none starting at chapter 1; the
     #               chapter-1 URLs are live but unreachable from any listing).
+    #               A source you can never start reading from the beginning.
     #
     # Probed 2026-09-05 and NOT catalog lines -- real catalogues worth having,
     # but none of them runs Madara, so each needs a bespoke connector instead
@@ -91,7 +92,33 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #               ids and self-hosted /_f/ images, so not a MangaDex proxy.
     #   xyzcomics.com - WordPress + Themify, one post per work, and its front
     #               page is /multkomix/ rather than /.
-    #               A source you can never start reading from the beginning.
+    #   yaoimangaonline.com - WordPress on the Herald magazine theme: zero
+    #               wp-manga markup, no admin-ajax, no /manga/ post type.
+    #               Every post is one chapter at a flat permalink and series
+    #               exist only as /tag/ pages, so a connector would have to
+    #               synthesise series from tags and chapter order from post
+    #               titles. Adult, so mature=True if it is ever built.
+    #
+    # Probed 2026-09-05 (shard 12) and NOT added, the only genuine Madara of
+    # the batch: zazamanga.com (canonical www.zazamanga.com, the apex 301s).
+    # The install strips trailing slashes and two shared MadaraHtml patterns
+    # require them, so the generic connector parses the live HTML into
+    # nothing. parse_series_list returns 0 items -- every card anchor is
+    # href="…/manga/<slug>" with no trailing "/", which none of the four
+    # _card_anchor patterns accept -- and parse_chapters returns 0, because
+    # rows are <div class="wp-manga-chapter"> while _chapter_link matches
+    # only <li class="wp-manga-chapter"> and _chapter_item_link only
+    # <div class="chapter-item">. parse_chapter_pages is the one stage that
+    # already works: 140 pages off img-r1.2xstorage.com, single-quoted src
+    # and all, since _img_src accepts either quote. Widening those two
+    # patterns is a mappers.py change affecting every Madara site, so it is
+    # not a catalog decision; with it applied locally the site parsed 12
+    # series/page and 112 chapters and the entry would be
+    #   _site("zazamanga", "ZazaManga", "www.zazamanga.com", mature=True,
+    #         extra_image_hosts=frozenset({"2xstorage.com", "zinmanga1.com"}))
+    # mature=True: the front page mixes explicitly adult titles in with
+    # general series. Covers sit on 2xstorage as well, so that allowlist is
+    # load-bearing for browse and not only for page images.
     _site("mangaread", "MangaRead", "mangaread.org"),
     _site("manhuaplus", "ManhuaPlus", "manhuaplus.com", extra_image_hosts=frozenset({"cdn.manhuaplus.com"})),
     _site("manhuahot", "ManhuaHot", "manhuahot.com", use_cf=False, mature=True),
