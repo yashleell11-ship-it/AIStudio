@@ -4,6 +4,7 @@ import json
 import os
 import re
 from datetime import datetime, timezone
+from html import escape
 from pathlib import Path
 
 import pytest
@@ -188,8 +189,11 @@ def test_install_page_shows_the_newest_release_notes(
     html = client.get("/").text
     assert f"What's new in {newest['version']}" in html
     for highlight in newest["highlights"]:
-        # HTML-escaped, so compare on a distinctive escape-free prefix.
-        assert highlight.split(".")[0][:40] in html
+        # Escape the expectation rather than requiring release notes to avoid
+        # apostrophes: the page escapes what it renders, and a prefix rule that
+        # silently fails on "GitHub's" sent three correct changelogs back as
+        # broken. This asserts the whole highlight is present, not a prefix.
+        assert escape(highlight) in html
 
 
 def test_install_page_omits_screenshots_it_cannot_serve(
