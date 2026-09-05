@@ -343,8 +343,21 @@ function hueGap(a, b) {
  * Returns `{ ok: true, roles, notes }` or `{ ok: false, reason }`. `notes`
  * records every token that had to be walked and by how much, so the audit can
  * show what was changed rather than quietly shipping it.
+ *
+ * `overrides` is the escape hatch for the one thing the slot mapping cannot
+ * know: base16 describes a SYNTAX highlighter, and a handful of schemes are
+ * ports of a real interface whose UI colours are not the ones their token slots
+ * carry. GitHub is the case that forced it — base0D is the function-name purple
+ * and base08 the constant orange, so the honest slot mapping produces a
+ * lavender-and-orange app that nobody would recognise as GitHub. See
+ * `curated.mjs` for who sets what, and why it is only two schemes.
+ *
+ * An override names a colour; it does not lift the floor. Each one goes through
+ * the same `lift` gate the derived value would have, against the same
+ * backgrounds, so a hand-set role that is unreadable is either walked until it
+ * is not or rejects the scheme outright.
  */
-export function mapScheme(scheme) {
+export function mapScheme(scheme, overrides = {}) {
   const p = scheme.palette;
   const isDark = scheme.variant === "dark";
   const notes = [];
@@ -402,21 +415,58 @@ export function mapScheme(scheme) {
     return null;
   };
 
-  const primaryPick = chooseAccent(PRIMARY_ORDER, null, 0);
-  if (!primaryPick) return { ok: false, reason: "no accent reaches 4.5:1 on all three surfaces" };
-  const primary = primaryPick.value;
-  if (primaryPick.slot !== "base0D") {
-    notes.push(`primary from ${primaryPick.slot} (base0D unusable)`);
-  }
-  if (primaryPick.drift) {
-    notes.push(`primary lifted ${primaryPick.drift * 100}% along its own ramp`);
+  /**
+   * A hand-set role, held to the floor a derived one would be held to.
+   *
+   * Returns the (possibly walked) value, or `null` when the cap is reached
+   * first — which the caller turns into a rejection rather than shipping a
+   * curated colour nobody can read. The note records the hex that was ASKED
+   * for, so the audit shows the intent next to whatever the gate allowed.
+   */
+  const forced = (value, label, backgrounds, min, cap) => {
+    const asked = value.toUpperCase();
+    const walked = lift(asked, backgrounds, min, target, cap);
+    if (!walked) return null;
+    notes.push(
+      walked.drift
+        ? `${label} set by hand to ${asked}, lifted ${walked.drift * 100}% to clear the floor`
+        : `${label} set by hand to ${asked}`,
+    );
+    return walked.value;
+  };
+
+  let primary;
+  if (overrides.primary) {
+    primary = forced(overrides.primary, "primary", surfaces, FLOOR.ACCENT, CAP.accent);
+    if (!primary) {
+      return { ok: false, reason: "the hand-set primary cannot reach 4.5:1 on all three surfaces" };
+    }
+  } else {
+    const primaryPick = chooseAccent(PRIMARY_ORDER, null, 0);
+    if (!primaryPick) return { ok: false, reason: "no accent reaches 4.5:1 on all three surfaces" };
+    primary = primaryPick.value;
+    if (primaryPick.slot !== "base0D") {
+      notes.push(`primary from ${primaryPick.slot} (base0D unusable)`);
+    }
+    if (primaryPick.drift) {
+      notes.push(`primary lifted ${primaryPick.drift * 100}% along its own ramp`);
+    }
   }
 
-  const accentPick = chooseAccent(ACCENT_ORDER, primary, 40) ?? chooseAccent(ACCENT_ORDER, primary, 0);
-  const accent = accentPick ? accentPick.value : primary;
-  if (!accentPick) notes.push("no second readable accent; reusing primary");
-  else if (accentPick.drift) {
-    notes.push(`accent lifted ${accentPick.drift * 100}% along its own ramp`);
+  let accent;
+  if (overrides.accent) {
+    accent = forced(overrides.accent, "accent", surfaces, FLOOR.ACCENT, CAP.accent);
+    if (!accent) {
+      return { ok: false, reason: "the hand-set accent cannot reach 4.5:1 on all three surfaces" };
+    }
+  } else {
+    const accentPick =
+      chooseAccent(ACCENT_ORDER, primary, 40) ?? chooseAccent(ACCENT_ORDER, primary, 0);
+    accent = accentPick ? accentPick.value : primary;
+    if (!accentPick) notes.push("no second readable accent; reusing primary");
+    else if (accentPick.drift) {
+      notes.push(`accent lifted ${accentPick.drift * 100}% along its own ramp`);
+    }
   }
 
   /**
@@ -460,6 +510,12 @@ export function mapScheme(scheme) {
     ["success", "base0B"],
     ["warning", "base0A"],
   ]) {
+    if (overrides[role]) {
+      const set = forced(overrides[role], role, [bg], FLOOR.TEXT, CAP.status);
+      if (!set) return { ok: false, reason: `the hand-set ${role} cannot reach 4.5:1 on the page` };
+      status[role] = set;
+      continue;
+    }
     const lifted = lift(p[slot].toUpperCase(), [bg], FLOOR.TEXT, target, CAP.status);
     if (!lifted) return { ok: false, reason: `${role} (${slot}) cannot reach 4.5:1 on the page` };
     if (lifted.drift) notes.push(`${role} lifted ${lifted.drift * 100}% along its own ramp`);

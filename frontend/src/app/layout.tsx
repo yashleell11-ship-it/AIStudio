@@ -43,11 +43,16 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // GitHub Dark's canvas: the right answer for the default theme and for anyone
-  // who has not chosen one. Must match `--mm-bg` in the bare `:root` block of
-  // globals.css. `useApplyReadingTheme` rewrites the tag to the active
+  // The two canvases an unset preference can paint, in the same order and from
+  // the same media query globals.css uses: GitHub Dark's `--mm-bg` in the bare
+  // `:root` block, GitHub Light's in the `prefers-color-scheme: light` one. A
+  // single dark value here would put a black PWA title bar above a white
+  // sign-in page. `useApplyReadingTheme` rewrites the tag to the active
   // palette's background once the profile has resolved.
-  themeColor: "#0D1117",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#FFFFFF" },
+    { media: "(prefers-color-scheme: dark)", color: "#0D1117" },
+  ],
   // The reader runs edge to edge; without this an installed iOS window letterboxes.
   viewportFit: "cover",
 };

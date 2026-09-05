@@ -272,7 +272,7 @@ export const GENERATED_THEMES = [
       surface: "#23282F",
       fg: "#C9D1D9",
       muted: "#8B949E",
-      accent: "#D2A8FF",
+      accent: "#58A6FF",
     },
   },
   {
@@ -454,7 +454,7 @@ export const GENERATED_THEMES = [
       surface: "#EFF0F0",
       fg: "#424A53",
       muted: "#636C75",
-      accent: "#7D4ED6",
+      accent: "#0969DA",
     },
   },
   {

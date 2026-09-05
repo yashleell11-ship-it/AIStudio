@@ -34,6 +34,16 @@ const READING_THEME_BASE = READING_THEME_STORAGE_BASE;
 /** Same-tab notification; `storage` only fires in the tabs that did not write. */
 const READING_THEME_EVENT = "manhwamaniacs:reading-theme";
 
+/**
+ * Whether the viewer's OS asks for a light UI. Read at snapshot time rather
+ * than cached, so the *first* resolution on a machine that prefers light picks
+ * light even if the module was imported before the media query was readable.
+ */
+function prefersLight(): boolean {
+  if (typeof window === "undefined" || !window.matchMedia) return false;
+  return window.matchMedia("(prefers-color-scheme: light)").matches;
+}
+
 /** The stored choice for the active profile, or `null` when there is none. */
 export function readStoredReadingTheme(): ReadingTheme | null {
   return parseReadingTheme(readScopedString(READING_THEME_BASE));
@@ -49,13 +59,13 @@ export function writeReadingTheme(theme: ReadingTheme): void {
 // string, so the identity check is free and no snapshot cache is needed here
 // (unlike the list-shaped scoped stores).
 function getSnapshot(): ReadingTheme {
-  return initialReadingTheme(readScopedString(READING_THEME_BASE));
+  return initialReadingTheme(readScopedString(READING_THEME_BASE), prefersLight());
 }
 
 function getServerSnapshot(): ReadingTheme {
-  // No storage on the server, and nothing else feeds the resolution — the
-  // default is what an unset preference means on the client too, so this cannot
-  // produce a mismatch the viewer sees.
+  // No storage and no media query on the server. The `prefers-color-scheme`
+  // block in globals.css covers the light case for that first paint, so
+  // rendering the dark default here cannot produce a mismatch the viewer sees.
   return DEFAULT_READING_THEME;
 }
 
@@ -67,9 +77,15 @@ function subscribe(onStoreChange: () => void): () => void {
   // A profile switch changes which key this reads without touching storage, so
   // no DOM event announces it.
   const unsubscribeScope = subscribeStorageScope(handler);
+  const media = window.matchMedia?.("(prefers-color-scheme: light)");
+  // Only matters while nothing is stored — `initialReadingTheme` ignores the
+  // query once there is a choice — but without this the very first visit would
+  // not follow the OS flipping to dark mode until the next reload.
+  media?.addEventListener("change", handler);
   return () => {
     window.removeEventListener(READING_THEME_EVENT, handler);
     window.removeEventListener("storage", handler);
+    media?.removeEventListener("change", handler);
     unsubscribeScope();
   };
 }
@@ -78,15 +94,15 @@ export interface ReadingThemeState {
   theme: ReadingTheme;
   setTheme: (theme: ReadingTheme) => void;
   /**
-   * False while the theme is only the default — no choice has been stored for
-   * this profile yet, or there is no profile to store one against. The panel
-   * says so rather than showing a selection the viewer never made as if they
-   * had.
+   * False while the theme is only a default — no choice has been stored for
+   * this profile yet, or there is no profile to store one against — including
+   * when it is the light default the OS asked for. The panel says so rather
+   * than showing a selection the viewer never made as if they had.
    */
   isExplicit: boolean;
 }
 
-/** Whether a choice is actually stored, as opposed to being the default. */
+/** Whether a choice is actually stored, as opposed to defaulted or inferred. */
 function getExplicitSnapshot(): boolean {
   return hasStorageScope() && readStoredReadingTheme() !== null;
 }
@@ -143,7 +159,7 @@ export function useApplyReadingTheme(honourBootTheme = true): ReadingTheme {
      *
      * With no attribute present there is nothing to protect (the boot script
      * declines on the auth screens, and finds nothing for a profile that has
-     * never chosen), so the default is written as before.
+     * never chosen), so the OS-derived default is written as before.
      *
      * `honourBootTheme` is how the shell says the wait is over: on the auth
      * screens the scope will NEVER resolve, so a boot value carried in by a
@@ -153,12 +169,23 @@ export function useApplyReadingTheme(honourBootTheme = true): ReadingTheme {
     if (honourBootTheme && !scoped && root.dataset.theme) return;
 
     root.dataset.theme = theme;
-    // The installed-PWA window paints its title bar and the pull-to-refresh
-    // gutter from this tag, not from the stylesheet. Left alone it would keep
-    // the static GitHub Dark canvas declared in `layout.tsx`, so a Catppuccin
-    // Latte install would read as a light app in a black frame.
-    const meta = document.querySelector('meta[name="theme-color"]');
-    meta?.setAttribute("content", READING_THEME_META[theme].swatch.bg);
+    /*
+     * The installed-PWA window paints its title bar and the pull-to-refresh
+     * gutter from this tag, not from the stylesheet. Left alone it would keep
+     * the static canvas declared in `layout.tsx`, so a Catppuccin Latte install
+     * would read as a light app in a black frame.
+     *
+     * There are TWO of those tags, one per `prefers-color-scheme` — that is how
+     * a viewer with no stored choice gets a frame matching the palette the CSS
+     * fallback paints. Once a theme has actually resolved the OS no longer has
+     * a say, so every tag is rewritten and its `media` dropped: updating only
+     * the first would leave the other one to win on the half of devices whose
+     * scheme it matches.
+     */
+    for (const meta of document.querySelectorAll('meta[name="theme-color"]')) {
+      meta.removeAttribute("media");
+      meta.setAttribute("content", READING_THEME_META[theme].swatch.bg);
+    }
   }, [theme, scoped, honourBootTheme]);
 
   return theme;

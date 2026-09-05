@@ -603,7 +603,7 @@
 }
 
 /* GitHub Dark — Tinted Theming.
- * Adjusted: elevated derived (base02 is a selection tone, not a panel). */
+ * Adjusted: elevated derived (base02 is a selection tone, not a panel); primary set by hand to #58A6FF; accent set by hand to #D2A8FF; danger set by hand to #F85149; success set by hand to #3FB950; warning set by hand to #D29922. */
 :root[data-theme="github-dark"] {
   color-scheme: dark;
   --mm-bg: #0D1117;
@@ -615,26 +615,26 @@
   --mm-contrast-bg: #FFFFFF;
   --mm-contrast-fg: #0D1117;
   --mm-contrast-border: rgba(13, 17, 23, 0.16);
-  --mm-primary: #D2A8FF;
-  --mm-primary-hover: #D0B0F7;
+  --mm-primary: #58A6FF;
+  --mm-primary-hover: #6FAFF7;
   --mm-primary-fg: #0D1117;
-  --mm-primary-tint: #E0C2FF;
-  --mm-accent: #FF7B72;
+  --mm-primary-tint: #8AC1FF;
+  --mm-accent: #D2A8FF;
   --mm-accent-fg: #0D1117;
   --mm-accent-warm: #79C0FF;
-  --mm-danger: #FFA657;
-  --mm-success: #A5D6FF;
-  --mm-warning: #BB8009;
+  --mm-danger: #F85149;
+  --mm-success: #3FB950;
+  --mm-warning: #D29922;
   --mm-glass-panel: rgba(22, 27, 34, 0.72);
   --mm-glass-card: rgba(35, 40, 47, 0.62);
   --mm-glass-border: rgba(201, 209, 217, 0.1);
-  --mm-hero-from: #D2A8FF;
+  --mm-hero-from: #58A6FF;
   --mm-hero-to: #C9D1D9;
   --mm-scrollbar: rgba(139, 148, 158, 0.35);
   --mm-scrollbar-hover: rgba(139, 148, 158, 0.55);
-  --mm-glow: 0 0 24px rgba(210, 168, 255, 0.22);
+  --mm-glow: 0 0 24px rgba(88, 166, 255, 0.22);
   --mm-glass-shadow: 0 8px 32px rgba(0, 0, 0, 0.37);
-  --mm-focus: #D2A8FF;
+  --mm-focus: #58A6FF;
 }
 
 /* Flexoki Dark — Steph Ango.
@@ -1058,7 +1058,7 @@
 }
 
 /* GitHub Light — Tinted Theming.
- * Adjusted: surfaces derived downward (the page is already white); muted derived 45% along base05→base03; primary lifted 5% along its own ramp; warning lifted 25% along its own ramp. */
+ * Adjusted: surfaces derived downward (the page is already white); muted derived 45% along base05→base03; primary set by hand to #0969DA; accent set by hand to #8250DF, lifted 5% to clear the floor; danger set by hand to #CF222E; success set by hand to #1A7F37; warning set by hand to #9A6700. */
 :root[data-theme="github"] {
   color-scheme: light;
   --mm-bg: #FFFFFF;
@@ -1070,26 +1070,26 @@
   --mm-contrast-bg: #1F2328;
   --mm-contrast-fg: #FFFFFF;
   --mm-contrast-border: rgba(255, 255, 255, 0.16);
-  --mm-primary: #7D4ED6;
-  --mm-primary-hover: #714DBC;
+  --mm-primary: #0969DA;
+  --mm-primary-hover: #1463BF;
   --mm-primary-fg: #FFFFFF;
-  --mm-primary-tint: #6141A2;
-  --mm-accent: #CF222E;
+  --mm-primary-tint: #1054A5;
+  --mm-accent: #7D4ED6;
   --mm-accent-fg: #FFFFFF;
   --mm-accent-warm: #0550AE;
-  --mm-danger: #953800;
-  --mm-success: #0A3069;
-  --mm-warning: #976E0A;
+  --mm-danger: #CF222E;
+  --mm-success: #1A7F37;
+  --mm-warning: #9A6700;
   --mm-glass-panel: rgba(247, 248, 248, 0.72);
   --mm-glass-card: rgba(239, 240, 240, 0.62);
   --mm-glass-border: rgba(66, 74, 83, 0.1);
-  --mm-hero-from: #7D4ED6;
+  --mm-hero-from: #0969DA;
   --mm-hero-to: #424A53;
   --mm-scrollbar: rgba(99, 108, 117, 0.35);
   --mm-scrollbar-hover: rgba(99, 108, 117, 0.55);
-  --mm-glow: 0 2px 16px rgba(125, 78, 214, 0.18);
+  --mm-glow: 0 2px 16px rgba(9, 105, 218, 0.18);
   --mm-glass-shadow: 0 8px 24px rgba(66, 74, 83, 0.12);
-  --mm-focus: #7D4ED6;
+  --mm-focus: #0969DA;
 }
 
 /* Flexoki Light — Steph Ango.

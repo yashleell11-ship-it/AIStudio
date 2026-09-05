@@ -24,9 +24,38 @@
  * `label` overrides the upstream `name` only where that name reads badly in a
  * settings list ("Gruvbox dark, hard"). `blurb` is the one line under the tile;
  * it describes the palette, not the project it came from.
+ *
+ * ## `roles`: the two schemes that are ports of a real interface
+ *
+ * base16 is a syntax spec, and `map.mjs` reads its slots for what the spec says
+ * they mean. That is right for the thirty-six schemes here that only ever
+ * existed as an editor theme. It is wrong for the two GitHub ports, because
+ * GitHub is an INTERFACE first: its base0D is the function-name lavender and
+ * its base08 the constant orange, so the honest slot mapping ships a purple app
+ * with orange errors and nobody looking at it thinks "GitHub". The colours the
+ * site itself uses for links, buttons, errors, merges and warnings are in
+ * Primer, not in the sixteen slots.
+ *
+ * So those two — and only those two — name their semantic roles by hand, from
+ * Primer's own `accent.fg` / `done.fg` / `danger.fg` / `success.fg` /
+ * `attention.fg`. It is a mapping correction, not a retint: every hex below is
+ * a colour GitHub ships. `map.mjs` still derives everything downstream (the
+ * hover, the tint, the label colour on a filled button, the focus ring, the
+ * glow, the hero gradient) and still gates each one at AA, so an override is a
+ * choice of hue and never a waiver on contrast.
+ *
+ * Reach for this only when a scheme's slots and its own interface genuinely
+ * disagree. "I would have picked a different blue" is not that.
  */
 
-/** @type {{ slug: string, label?: string, blurb: string }[]} */
+/**
+ * @type {{
+ *   slug: string,
+ *   label?: string,
+ *   blurb: string,
+ *   roles?: { primary?: string, accent?: string, danger?: string, success?: string, warning?: string },
+ * }[]}
+ */
 export const CURATED_DARK = [
   {
     slug: "gruvbox-dark-hard",
@@ -67,7 +96,22 @@ export const CURATED_DARK = [
   { slug: "onedark-dark", label: "One Dark", blurb: "Atom's default, and half the internet's." },
   { slug: "monokai", blurb: "Sublime's green, pink and orange on graphite." },
   { slug: "material-darker", label: "Material", blurb: "Teal and coral on true dark grey." },
-  { slug: "github-dark", label: "GitHub Dark", blurb: "GitHub's own dark mode, familiar and neutral." },
+  {
+    slug: "github-dark",
+    label: "GitHub Dark",
+    blurb: "GitHub's own dark mode, familiar and neutral.",
+    // Primer dark: accent.fg / done.fg / danger.fg / success.fg / attention.fg.
+    // The purple is the one base0D vacates — it is still in the palette, just
+    // spent on the supporting accent (the "on hold" badge) where GitHub spends
+    // it on a merged pull request, rather than on every link and button.
+    roles: {
+      primary: "#58A6FF",
+      accent: "#D2A8FF",
+      danger: "#F85149",
+      success: "#3FB950",
+      warning: "#D29922",
+    },
+  },
   { slug: "flexoki-dark", blurb: "Ink-and-paper pigments tuned for E Ink." },
   { slug: "oxocarbon-dark", label: "Oxocarbon", blurb: "IBM Carbon — cool blue with electric magenta." },
   { slug: "spaceduck", blurb: "Deep space navy with cyan and violet instruments." },
@@ -84,7 +128,21 @@ export const CURATED_LIGHT = [
   { slug: "rose-pine-dawn", blurb: "Warm blush paper with muted rose ink." },
   { slug: "gruvbox-light-medium", label: "Gruvbox Light", blurb: "Cream paper, earth-tone ink." },
   { slug: "one-light", blurb: "One Dark inverted — crisp, neutral, familiar." },
-  { slug: "github", label: "GitHub Light", blurb: "GitHub's default: plain white and a confident blue." },
+  {
+    slug: "github",
+    label: "GitHub Light",
+    blurb: "GitHub's default: plain white and a confident blue.",
+    // Primer light, the same five roles as GitHub Dark. The blurb has always
+    // promised "a confident blue"; until these were set the tile painted
+    // lavender, because base0D on white is `#8250DF`.
+    roles: {
+      primary: "#0969DA",
+      accent: "#8250DF",
+      danger: "#CF222E",
+      success: "#1A7F37",
+      warning: "#9A6700",
+    },
+  },
   { slug: "flexoki-light", blurb: "Warm paper pigments; the E Ink palette by daylight." },
   { slug: "nord-light", blurb: "Arctic blues on snow." },
   { slug: "tokyo-night-light", blurb: "The night city at noon — indigo ink on white." },

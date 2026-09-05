@@ -55,6 +55,21 @@ export type ReadingTheme = BuiltInTheme | GeneratedTheme;
 export const DEFAULT_READING_THEME: ReadingTheme = "github-dark";
 
 /**
+ * What an unset preference means on a device whose OS asks for a light UI.
+ *
+ * GitHub Light, deliberately: it is the same interface as the dark default at a
+ * different brightness, so following the OS changes the room the app is lit in
+ * and not what app it is. Seeding a light machine with Daylight — the app's own
+ * warm paper theme, which is what this used to do — meant the two "no choice
+ * made" states had nothing to do with each other.
+ *
+ * Like {@link DEFAULT_READING_THEME}, this has a copy in CSS that must agree:
+ * the `@media (prefers-color-scheme: light)` block in globals.css paints it
+ * before any of this module runs. `theme.test.ts` compares the two.
+ */
+export const DEFAULT_LIGHT_READING_THEME: ReadingTheme = "github";
+
+/**
  * The unscoped half of the localStorage key the choice is stored under;
  * `scoped-storage` appends the `(user, profile)` namespace.
  *
@@ -186,22 +201,31 @@ export function parseReadingTheme(raw: string | null): ReadingTheme | null {
 }
 
 /**
- * The theme to show right now: the stored choice, or the default.
+ * The theme to show right now: the stored choice, or — failing that — the
+ * default for the brightness the viewer's OS asked for.
  *
- * There is deliberately no third input. This used to take a `prefersLight` flag
- * and seed a first visit with Daylight on a light-mode OS, mirrored by a
- * `prefers-color-scheme` block in globals.css. Both are gone: the app has a
- * named default now, and a default that changed colour with the viewer's OS
- * would mean the sign-in page — which can never read a stored choice, and so
- * only ever paints the default — was white on one phone and near-black on
- * another.
+ * `prefersLight` is consulted ONLY when nothing is stored. That is the whole
+ * contract, and the order matters in both directions: a viewer who picked Sepia
+ * is not flipped back every sunrise, and a viewer who has picked nothing is not
+ * handed a near-black sign-in page on a phone that is in light mode.
  *
- * A stored choice still wins over everything, which is the part that always
- * mattered: a viewer who picked Sepia keeps Sepia, and every light palette is
- * one click away in the picker.
+ * The sign-in and register screens are the case this exists for. They can never
+ * read a stored choice — the key is per (user, profile) and the boot script
+ * declines there by design — so whatever this returns with `stored === null` is
+ * the entire palette they will ever wear. Both answers have to be a palette the
+ * app is happy to be seen in, which is why the light one is GitHub Light rather
+ * than an unrelated look.
+ *
+ * Mirrored in CSS by the `prefers-color-scheme` block in globals.css, which
+ * paints the same choice before this module has run.
  */
-export function initialReadingTheme(stored: string | null): ReadingTheme {
-  return parseReadingTheme(stored) ?? DEFAULT_READING_THEME;
+export function initialReadingTheme(
+  stored: string | null,
+  prefersLight: boolean,
+): ReadingTheme {
+  const parsed = parseReadingTheme(stored);
+  if (parsed !== null) return parsed;
+  return prefersLight ? DEFAULT_LIGHT_READING_THEME : DEFAULT_READING_THEME;
 }
 
 /** The themes of one variant, in declared order — how the picker groups them. */
