@@ -25,6 +25,7 @@ import { Input } from "@/components/ui/input";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { useContentModeFilter } from "@/features/content-mode";
 import { useShortcut } from "@/lib/keyboard";
+import { useDebouncedValue } from "@/lib/use-debounced-value";
 import { cn } from "@/lib/cn";
 import { useFederatedSearch, useRetrySearchSource } from "@/features/sources/hooks";
 import {
@@ -41,6 +42,21 @@ import {
 } from "@/features/library/recent-searches";
 import { GlobalSearchGroupSection } from "./GlobalSearchGroupSection";
 import { SearchResultCardSkeleton } from "./GlobalSearchResultCard";
+
+/**
+ * How long the box waits before it searches.
+ *
+ * Every keystroke used to be its own federated fan-out across all 63 sources.
+ * Typing a 13-character query fired 13 of them, and because each source's
+ * search-scoped connector is a single shared instance behind a politeness token
+ * bucket, those 13 queued up on each other: measured per-search latency went
+ * from 2.5s pasted to 7-9s typed, healthy sources were recorded as "Timed out"
+ * because they missed a deadline they spent waiting in that queue, and backend
+ * RSS went from 78 MB to 588 MB on a 3.8 GB box. One search per word instead of
+ * one per letter is the whole fix; 300 ms is what the Flutter client already
+ * waits (`search_screen.dart`).
+ */
+export const SEARCH_DEBOUNCE_MS = 300;
 
 const TRENDING_SUGGESTIONS = [
   "fantasy",
@@ -97,9 +113,13 @@ export function SearchView() {
   const searchRef = useRef<HTMLInputElement>(null);
   const lastPersistedRef = useRef<string | null>(null);
   const trimmedQuery = query.trim();
+  // The typed value drives the screen's own state — the suggestions panel, the
+  // results heading — and the settled one drives the request. See
+  // `SEARCH_DEBOUNCE_MS`.
+  const [settledQuery, searchNow] = useDebouncedValue(trimmedQuery, SEARCH_DEBOUNCE_MS);
   const searchParams = useMemo(
-    () => ({ q: trimmedQuery, page: 1, per_page: 40 }),
-    [trimmedQuery],
+    () => ({ q: settledQuery, page: 1, per_page: 40 }),
+    [settledQuery],
   );
   const searchQuery = useFederatedSearch(searchParams);
   const { filterRows } = useContentModeFilter();
@@ -110,17 +130,19 @@ export function SearchView() {
     getRecentSearchesServerSnapshot,
   );
 
+  // Keyed on the SETTLED query: a recents list built from every keystroke
+  // would fill with the prefixes of one word.
   useEffect(() => {
     if (
-      trimmedQuery.length >= 2 &&
+      settledQuery.length >= 2 &&
       searchQuery.data &&
       !searchQuery.isLoading &&
-      lastPersistedRef.current !== trimmedQuery
+      lastPersistedRef.current !== settledQuery
     ) {
-      lastPersistedRef.current = trimmedQuery;
-      writeRecentSearch(trimmedQuery);
+      lastPersistedRef.current = settledQuery;
+      writeRecentSearch(settledQuery);
     }
-  }, [trimmedQuery, searchQuery.data, searchQuery.isLoading]);
+  }, [settledQuery, searchQuery.data, searchQuery.isLoading]);
 
   useShortcut({
     id: "search.focus-input",
@@ -132,12 +154,22 @@ export function SearchView() {
     }, []),
   });
 
-  const applySuggestion = useCallback((value: string) => {
-    setQuery(value);
-    searchRef.current?.focus();
-  }, []);
+  const applySuggestion = useCallback(
+    (value: string) => {
+      setQuery(value);
+      // A chosen term is a finished query, so it skips the wait entirely.
+      searchNow();
+      searchRef.current?.focus();
+    },
+    [searchNow],
+  );
 
   const hasQuery = trimmedQuery.length > 0;
+  // The typed query has moved on and the request has not left yet. Counted as
+  // searching so the first letter draws skeletons instead of flashing "No
+  // results found" for the length of the debounce.
+  const debouncePending = trimmedQuery !== settledQuery;
+  const searching = searchQuery.isLoading || debouncePending;
   // The flat `items` list is the backend's legacy view; sections are rendered
   // from `groups` so a source that failed or returned nothing says so itself.
   // Scoped to the active content mode. A group's `source` is null for the
@@ -154,7 +186,11 @@ export function SearchView() {
   // own retry; this only fires when the request as a whole never came back
   // (most often the backend being unreachable).
   const viewState = resolveViewState({
-    isLoading: searchQuery.isLoading,
+    // Only the FIRST search waits behind the debounce; once there are results
+    // on screen they stay there while the next query settles, which is what
+    // `placeholderData` is for.
+    isLoading:
+      searchQuery.isLoading || (debouncePending && searchQuery.data === undefined),
     error: searchQuery.error,
     isEmpty: visible.length === 0 && quiet.length === 0,
   });
@@ -199,6 +235,9 @@ export function SearchView() {
             ref={searchRef}
             value={query}
             onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") searchNow();
+            }}
             placeholder="Search manga, manhwa, webtoons..."
             className="h-14 rounded-2xl border-border/50 bg-white/[0.03] pl-14 text-base focus-visible:ring-primary/40"
             aria-label="Search library and sources"
@@ -271,11 +310,11 @@ export function SearchView() {
             {viewState === "content" || viewState === "empty" ? (
               <div className="mb-4">
                 <p className="text-sm text-muted">
-                  {searchQuery.isLoading
+                  {searching
                     ? "Searching sources…"
                     : `${resultCount.toLocaleString()} ${resultCount === 1 ? "result" : "results"} found`}
                 </p>
-                {!searchQuery.isLoading && scopeLabel ? (
+                {!searching && scopeLabel ? (
                   <p className="mt-0.5 text-xs text-muted/70">{scopeLabel}</p>
                 ) : null}
               </div>
