@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 import { moreSections } from "@/config/more-nav";
 import { isRoleVisibleNavItem } from "@/config/nav";
 import { useCurrentUser } from "@/features/auth/hooks";
+import { ContentModeSwitch } from "@/features/content-mode";
 import { useUnreadNotificationCount } from "@/features/updates/hooks";
 
 /**
@@ -13,6 +14,12 @@ import { useUnreadNotificationCount } from "@/features/updates/hooks";
  * On desktop the sidebar covers these; a phone has no sidebar, so this screen
  * is the only way to reach roughly a third of the app without typing a URL.
  * Mirrors `more_screen.dart` — same groups, same order.
+ *
+ * That includes the Manga / Novels switch. It was mounted in exactly one place,
+ * the sidebar, which is `hidden … md:flex` — so below 768px the whole novel
+ * half of the app was unreachable, and the mode is per-browser localStorage, so
+ * flipping it on a laptop did not carry over. `more_screen.dart` puts the same
+ * chip at the top of this screen for the same reason.
  */
 export default function MorePage() {
   const { data: user } = useCurrentUser();
@@ -23,6 +30,10 @@ export default function MorePage() {
   return (
     <div className="px-5 pb-8 pt-6 md:px-8">
       <h1 className="font-display text-3xl font-bold text-fg">More</h1>
+
+      {/* Renders nothing at all when the server has novels off, exactly as in
+          the sidebar — a dark deployment keeps the screen it has today. */}
+      <ContentModeSwitch className="mt-5" />
 
       <div className="mt-6 space-y-8">
         {moreSections.map((section) => {
