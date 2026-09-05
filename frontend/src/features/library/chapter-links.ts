@@ -10,11 +10,11 @@
  * Whether the reader links on the library series page may be drawn yet.
  *
  * Which reader a chapter opens in is the source's answer, made once in
- * `useChapterHref` (`features/novels/use-chapter-href`). Until the sources
- * listing resolves there is no answer there — only its fallback to the page
- * strip, which is the wrong reader for a novel. The library shelves novels
- * beside manga and the command palette links every library hit straight to
- * `/library/<id>`, so that fallback is reachable here, and prose in the page
+ * `useChapterHref` (`features/novels/use-chapter-href`). Until the novels flag
+ * AND the sources listing resolve there is no answer there — only its fallback
+ * to the page strip, which is the wrong reader for a novel. The library shelves
+ * novels beside manga and the command palette links every library hit straight
+ * to `/library/<id>`, so that fallback is reachable here, and prose in the page
  * strip is a reader that cannot render what it was handed.
  *
  * Waiting is the choice "Read all" already makes on this page

@@ -4,7 +4,11 @@ export { NovelShelf } from "./components/NovelShelf";
 export { novelsApi, toNovelChapter } from "./api";
 export { isNovelSource, isNovelsEnabled } from "./gate";
 export { novelChapterHref } from "./novel-link";
-export { useChapterHref } from "./use-chapter-href";
+export {
+  useChapterHref,
+  useChapterLinksReady,
+  type ChapterHref,
+} from "./use-chapter-href";
 export {
   prefetchNovelChapter,
   useCachedNovelWordCounts,

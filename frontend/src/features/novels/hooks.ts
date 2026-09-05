@@ -4,9 +4,14 @@ import { useQuery, useQueryClient, type QueryClient } from "@tanstack/react-quer
 import { useEffect, useMemo, useReducer } from "react";
 import { useBootstrapStatus } from "@/features/auth/hooks";
 import { useSources } from "@/features/sources/hooks";
+import type { SourceSummary } from "@/features/sources/types";
 import type { ChapterId, SeriesId } from "@/types/api";
 import { novelsApi, toNovelChapter } from "./api";
-import { isNovelsEnabled, isNovelSource } from "./gate";
+import {
+  isNovelsEnabled,
+  resolveNovelSource,
+  resolveNovelsEnabled,
+} from "./gate";
 import type { NovelChapterPayload } from "./types";
 
 const NOVELS_KEY = ["novels"] as const;
@@ -40,25 +45,52 @@ export function prefetchNovelChapter(queryClient: QueryClient, ref: ChapterId) {
   });
 }
 
-/** Whether this deployment serves novels at all (`/auth/bootstrap-status`). */
+/**
+ * Whether novel UI may be mounted right now (`/auth/bootstrap-status`).
+ *
+ * Two-state on purpose: an unanswered probe reads as off, which is the safe
+ * answer for MOUNTING — a surface that appears a frame late is recoverable, a
+ * novel tab flashed onto a manga-only deployment is not. "Which reader does
+ * this chapter open in" is a different question and needs the honest third
+ * state; that one goes through `useNovelSourceKinds`.
+ */
 export function useNovelsEnabled(): boolean {
   const { data: status } = useBootstrapStatus();
   return isNovelsEnabled(status);
 }
 
 /**
- * Whether a given source is a novel source, resolved from the sources listing.
+ * The two facts every "which reader?" decision is made from, each honest about
+ * not knowing yet: whether this deployment serves novels, and the listing that
+ * says which of its sources are prose.
  *
- * `undefined` while the listing is still loading, so a caller can hold a
- * "which reader?" decision for a frame instead of guessing and then swapping
- * the whole screen under the reader.
+ * The listing is fetched only once novels are known to be ON — not merely to
+ * save a request, but because that is what lets a manga-only deployment answer
+ * immediately: `/sources` is never requested from here, so nothing here can
+ * ever be waiting on it.
+ */
+export function useNovelSourceKinds(): {
+  novelsEnabled: boolean | undefined;
+  sources: SourceSummary[] | undefined;
+} {
+  const { data: status, isPending } = useBootstrapStatus();
+  const novelsEnabled = resolveNovelsEnabled(status, isPending);
+  const { data: sources } = useSources({ enabled: novelsEnabled === true });
+  return { novelsEnabled, sources };
+}
+
+/**
+ * Whether a given source serves prose.
+ *
+ * `undefined` means the answer does not exist yet — the bootstrap probe or the
+ * sources listing is still in flight — so a caller can hold a "which reader?"
+ * decision for a frame instead of guessing and then swapping the whole screen
+ * under the reader. `false` is a real answer: this source serves pages, or this
+ * deployment has novels off and none of them do.
  */
 export function useIsNovelSource(sourceId: string): boolean | undefined {
-  const novelsEnabled = useNovelsEnabled();
-  const { data: sources } = useSources({ enabled: novelsEnabled });
-  if (!novelsEnabled) return false;
-  if (!sources) return undefined;
-  return isNovelSource(sources.find((source) => source.id === sourceId));
+  const { novelsEnabled, sources } = useNovelSourceKinds();
+  return resolveNovelSource(novelsEnabled, sources, sourceId);
 }
 
 /**
