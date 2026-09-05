@@ -22,9 +22,10 @@ import type { SeriesId } from "@/types/api";
  * The third is this page's alone. The library shelves novels beside manga and
  * the command palette links every library hit straight here, so a novel CAN
  * reach this page — and Read-all is the page strip, which prose has no pages
- * for. `undefined` (the sources listing has not answered yet) holds the button
- * back instead of guessing: guessing wrong offers a novel a reader that cannot
- * open it, and a button that appears a frame late costs nothing.
+ * for. `undefined` (the novels flag or the sources listing has not answered
+ * yet) holds the button back instead of guessing: guessing wrong offers a novel
+ * a reader that cannot open it, and a button that appears a frame late costs
+ * nothing.
  */
 export function libraryReadAllHref(
   ref: SeriesId,

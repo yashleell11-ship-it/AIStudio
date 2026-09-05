@@ -42,7 +42,14 @@ import type {
   SeriesReading,
   Statistics,
 } from "@/features/library/types";
-import { readerChapterHref, seriesPageHref } from "@/features/reader/reader-link";
+// Direct rather than through the `@/features/novels` barrel, which also pulls
+// in the novel reader — this screen only links into it, it never renders it.
+import {
+  useChapterHref,
+  useChapterLinksReady,
+  type ChapterHref,
+} from "@/features/novels/use-chapter-href";
+import { seriesPageHref } from "@/features/reader/reader-link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -320,7 +327,13 @@ function SeriesRow({ row }: { row: SeriesReading }) {
   );
 }
 
-function RecentSessionRow({ row }: { row: RecentSession }) {
+function RecentSessionRow({
+  row,
+  chapterHref,
+}: {
+  row: RecentSession;
+  chapterHref: ChapterHref;
+}) {
   const ref = {
     sourceId: row.source_id,
     seriesKey: row.series_key,
@@ -336,7 +349,7 @@ function RecentSessionRow({ row }: { row: RecentSession }) {
           {seriesTitle(row)}
         </Link>
         <Link
-          href={readerChapterHref(ref)}
+          href={chapterHref(ref)}
           className="text-xs text-primary hover:underline"
         >
           {chapterLabel(row)}
@@ -450,6 +463,11 @@ export function StatisticsView() {
   // a no-op when the server has novels off. Only the three source-carrying
   // lists move — see `scopeBreakdowns` for why the aggregates do not.
   const { keepSource, ready: modeReady, mode, novelsEnabled } = useContentModeFilter();
+  // Recent sessions link into a chapter, so this screen carries the same
+  // "which reader?" answer every other linking screen does — and the same wait
+  // for it. In Novels mode a guess here is not one wrong row, it is all of them.
+  const chapterHref = useChapterHref();
+  const linksReady = useChapterLinksReady();
   const stats = useMemo(
     () => (statsQuery.data ? scopeBreakdowns(statsQuery.data, keepSource) : undefined),
     [keepSource, statsQuery.data],
@@ -458,8 +476,10 @@ export function StatisticsView() {
   const viewState = resolveViewState({
     // Held on `modeReady` so the breakdowns are never drawn against an empty
     // source index, which in Novels mode is every row filtered out: a frame of
-    // "nothing read yet" before the real lists arrive.
-    isLoading: statsQuery.isLoading || !modeReady,
+    // "nothing read yet" before the real lists arrive. `linksReady` is the same
+    // bargain for the session links, and adds no wait a manga-only deployment
+    // can see: it is satisfied the moment the novels flag says off.
+    isLoading: statsQuery.isLoading || !modeReady || !linksReady,
     error: statsQuery.error,
     // Empty means the profile has NEVER read and follows nothing — the common
     // case on a fresh profile, and the one case where a grid of zeroes would
@@ -513,6 +533,7 @@ export function StatisticsView() {
             range={range}
             mode={mode}
             novelsEnabled={novelsEnabled}
+            chapterHref={chapterHref}
           />
         ) : null}
       </div>
@@ -525,11 +546,13 @@ function StatisticsContent({
   range,
   mode,
   novelsEnabled,
+  chapterHref,
 }: {
   stats: Statistics;
   range: StatisticsRange;
   mode: ContentMode;
   novelsEnabled: boolean;
+  chapterHref: ChapterHref;
 }) {
   const rangeLabel = STATISTICS_RANGE_LABELS[range].toLowerCase();
   const everRead = hasReadingHistory(stats);
@@ -640,6 +663,7 @@ function StatisticsContent({
                 <RecentSessionRow
                   key={`${row.source_id}:${row.series_key}:${row.chapter_key}:${row.started_at}`}
                   row={row}
+                  chapterHref={chapterHref}
                 />
               ))}
             </ul>
