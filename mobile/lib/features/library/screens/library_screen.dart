@@ -15,10 +15,13 @@ import 'package:manhwamaniacs/features/library/models/library_query.dart';
 import 'package:manhwamaniacs/features/library/providers/library_display_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/library_list_provider.dart';
 import 'package:manhwamaniacs/features/library/providers/library_selection_provider.dart';
+import 'package:manhwamaniacs/features/library/utils/library_shelf.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/library_skeleton.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/library_toolbar.dart';
 import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
+import 'package:manhwamaniacs/features/novels/widgets/novel_shelf.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
 
@@ -211,11 +214,26 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
     final listAsync = ref.watch(libraryListProvider);
     final list = listAsync.valueOrNull;
     _canLoadMore = list != null && list.hasNext && !list.isLoadingMore;
+    // Read once for the whole screen so the loading state and the loaded one
+    // cannot disagree about which mode this library is a library of — a
+    // poster-grid skeleton that resolves into a shelf reflows the page.
+    final scope = ref.watch(contentModeScopeProvider);
     final coverScale = ref.watch(libraryCoverScaleProvider);
     final selection = ref.watch(librarySelectionProvider);
     final selectionController = ref.read(librarySelectionProvider.notifier);
     void onCoverScaleChanged(double value) =>
         ref.read(libraryCoverScaleProvider.notifier).setScale(value);
+
+    // Scoped, because the loaded list holds both modes' follows and only one
+    // mode's are on screen. "Select all" in Novels mode picking up every
+    // followed manhwa would hand the batch bar rows the owner cannot see.
+    final selectableIds = [
+      for (final series in scope.filter(
+        list?.items ?? const <FollowedSeries>[],
+        (row) => row.sourceId,
+      ))
+        series.id,
+    ];
 
     return Scaffold(
       appBar: selection.active
@@ -230,9 +248,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                 IconButton(
                   icon: const Icon(Icons.select_all),
                   tooltip: 'Select all',
-                  onPressed: () => selectionController.selectAll(
-                    listAsync.valueOrNull?.items.map((s) => s.id) ?? const [],
-                  ),
+                  onPressed: () => selectionController.selectAll(selectableIds),
                 ),
               ],
             )
@@ -272,6 +288,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                     LibraryToolbar(
                       query: query,
                       seriesCount: 0,
+                      novels: scope.isNovel,
                       coverScale: coverScale,
                       onCoverScaleChanged: onCoverScaleChanged,
                       onSearchChanged: _onSearchChanged,
@@ -283,7 +300,10 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                           _updateQuery((q) => q.copyWith(viewMode: viewMode)),
                     ),
                     SizedBox(height: context.space.xl2),
-                    LibrarySkeleton(viewMode: query.viewMode),
+                    LibrarySkeleton(
+                      viewMode: query.viewMode,
+                      novels: scope.isNovel,
+                    ),
                   ],
                 ),
               ),
@@ -299,7 +319,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         data: (state) => _LibraryBody(
           query: query,
           state: state,
-          scope: ref.watch(contentModeScopeProvider),
+          scope: scope,
           scrollController: _scrollController,
           coverScale: coverScale,
           onCoverScaleChanged: onCoverScaleChanged,
@@ -378,7 +398,7 @@ class _SelectionActionBar extends StatelessWidget {
   }
 }
 
-class _LibraryBody extends StatelessWidget {
+class _LibraryBody extends ConsumerWidget {
   const _LibraryBody({
     required this.query,
     required this.state,
@@ -424,9 +444,13 @@ class _LibraryBody extends StatelessWidget {
   final Set<int> selectedIds;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final visible = scope.filter(state.items, (series) => series.sourceId);
     final gutter = context.space.xl2;
+    // Resolved here, not inside the shelf's row builder: that builder runs
+    // lazily, long after this build has finished, and a `watch` from there
+    // would be a read on a closed element.
+    final baseUrl = ref.watch(apiBaseUrlProvider);
     return _LibraryScrollView(
       scrollController: scrollController,
       onRefresh: onRefresh,
@@ -444,6 +468,7 @@ class _LibraryBody extends StatelessWidget {
                   seriesCount: visible.length == state.items.length
                       ? state.total
                       : visible.length,
+                  novels: scope.isNovel,
                   coverScale: coverScale,
                   onCoverScaleChanged: onCoverScaleChanged,
                   onSearchChanged: onSearchChanged,
@@ -460,27 +485,59 @@ class _LibraryBody extends StatelessWidget {
             ),
           ),
         ),
-        SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: gutter),
-          sliver: visible.isEmpty
-              ? SliverToBoxAdapter(
-                  child: LibraryEmptyPanel(emptyState: query.emptyState),
-                )
-              : SeriesGrid(
-                  items: visible,
-                  viewMode: query.viewMode,
-                  // The shelf spans the viewport inside this screen's own
-                  // gutters, so its width is arithmetic rather than a
-                  // measurement — see [SeriesGrid.contentWidth].
-                  contentWidth: context.screenWidth - gutter * 2,
-                  coverScale: coverScale,
-                  onSeriesTap: onSeriesTap,
-                  onSeriesLongPress: onSeriesLongPress,
-                  onToggleFavorite: onToggleFavorite,
-                  selectionMode: selectionMode,
-                  selectedIds: selectedIds,
-                ),
-        ),
+        if (visible.isEmpty)
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: gutter),
+            sliver: SliverToBoxAdapter(
+              child: LibraryEmptyPanel(
+                emptyState: query.emptyState,
+                novels: scope.isNovel,
+              ),
+            ),
+          )
+        // Books get the shelf, not the poster grid: a followed novel's cover
+        // is an aggregator's placeholder, so the grid this screen shows for
+        // manhwa would show the owner a page of identical rectangles — see
+        // [NovelShelf]. Given the page gutter rather than wrapped in it, so
+        // the rows line up with the toolbar while their hairlines still run
+        // the full width.
+        else if (scope.isNovel)
+          NovelShelf(
+            itemCount: visible.length,
+            selectionMode: selectionMode,
+            gutter: gutter,
+            bookAt: (index) {
+              final series = visible[index];
+              return libraryShelfBook(
+                series,
+                apiBaseUrl: baseUrl,
+                note: readingStatusNote(series.readingStatus),
+                selected: selectedIds.contains(series.id),
+                onTap: () => onSeriesTap(series),
+                onLongPress: onSeriesLongPress == null
+                    ? null
+                    : () => onSeriesLongPress!(series),
+              );
+            },
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: gutter),
+            sliver: SeriesGrid(
+              items: visible,
+              viewMode: query.viewMode,
+              // The shelf spans the viewport inside this screen's own
+              // gutters, so its width is arithmetic rather than a
+              // measurement — see [SeriesGrid.contentWidth].
+              contentWidth: context.screenWidth - gutter * 2,
+              coverScale: coverScale,
+              onSeriesTap: onSeriesTap,
+              onSeriesLongPress: onSeriesLongPress,
+              onToggleFavorite: onToggleFavorite,
+              selectionMode: selectionMode,
+              selectedIds: selectedIds,
+            ),
+          ),
         SliverToBoxAdapter(
           child: Column(
             children: [

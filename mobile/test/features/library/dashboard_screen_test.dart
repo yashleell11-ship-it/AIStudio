@@ -3,8 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
 import 'package:manhwamaniacs/features/library/screens/dashboard_screen.dart';
+import 'package:manhwamaniacs/features/library/widgets/home/followed_series_card.dart';
+import 'package:manhwamaniacs/features/novels/widgets/novel_shelf.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/features/updates/models/update_notification.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
@@ -73,6 +78,7 @@ UpdateNotification _notification({
 Future<Widget> _buildTestApp({
   required UpdatesState state,
   bool shouldFail = false,
+  bool novels = false,
 }) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
@@ -86,7 +92,25 @@ Future<Widget> _buildTestApp({
       // Pinned so the screen does not probe /auth/bootstrap-status for the
       // novels gate — a real request, with a real pending timer, in a test
       // that never wanted one.
-      ...contentModeOverrides(),
+      ...contentModeOverrides(
+        mode: novels ? ContentMode.novel : ContentMode.manga,
+        novelsEnabled: novels,
+      ),
+      // A follow row carries a source id and no kind, so this listing is what
+      // makes the fixtures novels. Stubbed either way: with the gate open the
+      // scope builds its index from a real /sources call otherwise.
+      sourcesListProvider.overrideWith(
+        (ref) async => [
+          const SourceSummary(
+            id: 'asurascans',
+            name: 'Fixture source',
+            description: '',
+            browsable: true,
+            supportsImport: false,
+            contentKind: kNovelContentKind,
+          ),
+        ],
+      ),
     ],
     child: const MaterialApp(
       home: DashboardScreen(),
@@ -401,6 +425,140 @@ void main() {
       // the retry control keeps its FilledButton.icon "Try Again" label.
       expect(find.text('Something went wrong — please try again.'), findsOneWidget);
       expect(find.text('Try Again'), findsOneWidget);
+    });
+  });
+
+  group('DashboardScreen in Novels mode', () {
+    /// Pumps the Library tab with the fixture source tagged as a novel
+    /// connector. The extra pump is the `/sources` listing resolving: until it
+    /// does, the source-mode index is empty and every follow reads as manga.
+    Future<void> pumpShelf(WidgetTester tester, UpdatesState state) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(await _buildTestApp(state: state, novels: true));
+      await tester.pump();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+    }
+
+    testWidgets('shelves the follows instead of gridding their covers',
+        (tester) async {
+      await pumpShelf(
+        tester,
+        UpdatesState(
+          notifications: const [],
+          unreadCount: 0,
+          followed: [
+            _followed(id: 1, title: 'The Count of Monte Cristo'),
+            _followed(id: 2, title: 'Dune', seriesKey: 'dune'),
+          ],
+        ),
+      );
+
+      // The whole point: a novel cover is an aggregator's placeholder, so the
+      // poster grid must not be what the owner sees here.
+      expect(find.byType(NovelShelf), findsOneWidget);
+      expect(find.byType(FollowedSeriesCard), findsNothing);
+      expect(find.text('The Count of Monte Cristo'), findsOneWidget);
+      expect(find.text('Dune'), findsOneWidget);
+      expect(find.text('2 novels on your shelf'), findsOneWidget);
+    });
+
+    testWidgets('a shelved book keeps its unread badge and latest chapter',
+        (tester) async {
+      await pumpShelf(
+        tester,
+        UpdatesState(
+          notifications: [
+            _notification(id: 1, followedSeriesId: 1, chapterNumber: 120),
+            _notification(id: 2, followedSeriesId: 1, chapterNumber: 121),
+            _notification(
+              id: 3,
+              followedSeriesId: 1,
+              chapterNumber: 119,
+              isRead: true,
+            ),
+          ],
+          unreadCount: 2,
+          followed: [_followed(id: 1, title: 'Dune', chapterCount: 0)],
+        ),
+      );
+
+      expect(find.text('2 NEW'), findsOneWidget);
+      expect(find.textContaining('Latest: Chapter 121'), findsOneWidget);
+    });
+
+    testWidgets('shows length and latest chapter together, not one or other',
+        (tester) async {
+      // The card had one muted line and had to choose; a shelf row has a
+      // metadata run and can say both.
+      await pumpShelf(
+        tester,
+        UpdatesState(
+          notifications: [
+            _notification(id: 1, followedSeriesId: 1, chapterNumber: 121),
+          ],
+          unreadCount: 1,
+          followed: [_followed(id: 1, title: 'Dune', chapterCount: 117)],
+        ),
+      );
+
+      expect(find.textContaining('117 chapters'), findsOneWidget);
+      expect(find.textContaining('Latest: Chapter 121'), findsOneWidget);
+    });
+
+    testWidgets('never claims "0 chapters" on a shelf row either',
+        (tester) async {
+      await pumpShelf(
+        tester,
+        UpdatesState(
+          notifications: const [],
+          unreadCount: 0,
+          followed: [_followed(id: 1, title: 'Dune', chapterCount: 0)],
+        ),
+      );
+
+      expect(find.text('Dune'), findsOneWidget);
+      expect(find.textContaining('chapters'), findsNothing);
+    });
+
+    testWidgets('an empty shelf asks for a book, not a folder of manhua',
+        (tester) async {
+      await pumpShelf(
+        tester,
+        const UpdatesState(notifications: [], unreadCount: 0, followed: []),
+      );
+
+      expect(find.text('Your shelf is empty'), findsOneWidget);
+      expect(
+        find.text('Add a book from a novel source to start your shelf.'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('manga mode is untouched — still the poster grid',
+        (tester) async {
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.resetPhysicalSize);
+
+      await tester.pumpWidget(
+        await _buildTestApp(
+          state: UpdatesState(
+            notifications: const [],
+            unreadCount: 0,
+            followed: [_followed(id: 1, title: 'Solo Leveling')],
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byType(NovelShelf), findsNothing);
+      expect(find.byType(FollowedSeriesCard), findsOneWidget);
+      expect(find.text('1 series followed'), findsOneWidget);
     });
   });
 }

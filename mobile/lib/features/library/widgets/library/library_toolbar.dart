@@ -12,6 +12,7 @@ class LibraryToolbar extends StatefulWidget {
     required this.onSortChanged,
     required this.onFilterChanged,
     required this.onViewModeChanged,
+    this.novels = false,
     this.coverScale,
     this.onCoverScaleChanged,
   });
@@ -22,6 +23,13 @@ class LibraryToolbar extends StatefulWidget {
   final ValueChanged<LibrarySort> onSortChanged;
   final ValueChanged<LibraryFilter> onFilterChanged;
   final ValueChanged<LibraryViewMode> onViewModeChanged;
+
+  /// Whether this is the Novels library.
+  ///
+  /// Counts books rather than series, and drops the grid/list toggle with the
+  /// cover-size slider: both size posters, and a shelf of books has none, so
+  /// leaving them would offer the owner two controls that do nothing.
+  final bool novels;
 
   /// When provided (grid mode), shows a cover-size slider.
   final double? coverScale;
@@ -58,6 +66,10 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
   @override
   Widget build(BuildContext context) {
     final countLabel = widget.seriesCount.toString();
+    // "series" is already its own plural; "novel" is not.
+    final countNoun = widget.novels
+        ? (widget.seriesCount == 1 ? 'novel' : 'novels')
+        : 'series';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -72,16 +84,17 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
                   Text('Library', style: context.text.h1),
                   SizedBox(height: context.space.xs),
                   Text(
-                    '$countLabel ${widget.seriesCount == 1 ? 'series' : 'series'}',
+                    '$countLabel $countNoun',
                     style: context.text.body.copyWith(color: context.colors.muted),
                   ),
                 ],
               ),
             ),
-            _ViewModeToggle(
-              viewMode: widget.query.viewMode,
-              onChanged: widget.onViewModeChanged,
-            ),
+            if (!widget.novels)
+              _ViewModeToggle(
+                viewMode: widget.query.viewMode,
+                onChanged: widget.onViewModeChanged,
+              ),
           ],
         ),
         SizedBox(height: context.space.xl2),
@@ -129,7 +142,8 @@ class _LibraryToolbarState extends State<LibraryToolbar> {
             if (value != null) widget.onSortChanged(value);
           },
         ),
-        if (widget.coverScale != null &&
+        if (!widget.novels &&
+            widget.coverScale != null &&
             widget.onCoverScaleChanged != null &&
             widget.query.viewMode == LibraryViewMode.grid) ...[
           SizedBox(height: context.space.sm),
