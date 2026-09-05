@@ -129,9 +129,18 @@ export const DESIGN_PRESET_META: Record<DesignPreset, DesignPresetMeta> = {
     readerCinema: false,
     motion: 1,
   },
+  // Stored as `flat`, shown as "Matte". The id is a persisted preference and
+  // the `data-preset` attribute `presets.css` matches on, so renaming it would
+  // strand every profile that had already chosen it; the LABEL is free to move
+  // and is what a reader carries between clients. The phone shipped this same
+  // preset as "Matte" (`mobile/lib/app/theme/app_presets.dart`), and "Matte"
+  // is the better half of the pair: it names the finish that actually changed
+  // — Signature's glass came off — where "Flat" names a design era and reads
+  // like a second helping of Compact. `preset.test.ts` pins the two clients'
+  // labels to each other so this cannot drift apart again.
   flat: {
     id: "flat",
-    label: "Flat",
+    label: "Matte",
     description: "Solid surfaces, crisp hairlines, no blur.",
     character: "The same app rendered as a tool rather than a showcase — and cheaper to paint.",
     preview: { radius: 2, gap: 4, pad: 6, translucent: false, bordered: true, serif: false },

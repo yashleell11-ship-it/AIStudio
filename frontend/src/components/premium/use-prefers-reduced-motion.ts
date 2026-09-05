@@ -37,7 +37,7 @@ export function usePrefersReducedMotion(): boolean {
  *
  * Two inputs, one number. The viewer's OS setting is absolute and wins outright
  * — `prefers-reduced-motion` is an accessibility request, not a preference to
- * be blended — and below that, the active design preset scales everything: Flat
+ * be blended — and below that, the active design preset scales everything: Matte
  * and Editorial trim the entrance animations, Cinema cuts them to a third
  * because an interface you are looking through should not be moving.
  *

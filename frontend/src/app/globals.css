@@ -222,7 +222,7 @@
 
   /* Via the shape roles, which default to these theme values: the COLOUR of
      the glow is the theme's, whether there is a glow at all is the preset's
-     (Flat and Cinema switch both to `none`). */
+     (Matte and Cinema switch both to `none`). */
   --shadow-glow: var(--shape-glow);
   --shadow-glass: var(--shape-panel-shadow);
 
@@ -516,7 +516,7 @@ main {
 /*
  * The two app surfaces. Everything about them that a preset owns — the fill's
  * SOURCE, the blur, the edge weight — reads from `--shape-*`; the colour comes
- * from whichever theme role the shape role points at. `Flat` swaps the fill
+ * from whichever theme role the shape role points at. `Matte` swaps the fill
  * from the glass roles to the opaque ones and drops the blur to zero without
  * naming a single colour.
  */

@@ -331,3 +331,45 @@ describe("the novel reading surface is a third, independent axis", () => {
     expect(paper.rule).toContain(paper.muted);
   });
 });
+
+describe("the two clients name the same five presets", () => {
+  /**
+   * The presets are presented as ONE system, not as a web design system and a
+   * phone one: the settings screens list the same five positions, in the same
+   * order, with the same one-line character. A reader who picks a look on the
+   * phone and then opens the site is looking for the name they just chose.
+   *
+   * That is a claim no single-client test can make. `matte`/`flat` shipped as
+   * "Matte" on the phone and "Flat" on the web and both suites stayed green,
+   * because each only ever checked itself. So this reads the phone's registry
+   * off disk — the same trick the novel-palette suite above plays on
+   * `palettes.ts`, one tree over.
+   *
+   * IDS are deliberately not compared. Each client persists its own id
+   * locally, so they are free to disagree and expensive to change: the web
+   * still stores `flat` (and `presets.css` still matches on it) under the
+   * label "Matte", because renaming the id would strand every profile that had
+   * chosen it. What the reader sees is the label, and the label is the thing
+   * that has to agree.
+   */
+  const MOBILE_PRESETS_DART = readFileSync(
+    path.resolve(__dirname, "../../../../mobile/lib/app/theme/app_presets.dart"),
+    "utf8",
+  );
+
+  /** Every `id: '…', name: '…'` pair in `AppPresets`, in declaration order. */
+  const mobileNames = [...MOBILE_PRESETS_DART.matchAll(/id:\s*'[^']+',\s*name:\s*'([^']+)',/g)].map(
+    (match) => match[1],
+  );
+
+  it("finds the phone's registry where it is expected", () => {
+    // A regex that silently matched nothing would make every assertion below
+    // vacuously true, which is worse than no test at all.
+    expect(mobileNames.length).toBe(DESIGN_PRESETS.length);
+  });
+
+  it("shows the same name for the same preset on both clients", () => {
+    const webLabels = DESIGN_PRESETS.map((id) => DESIGN_PRESET_META[id].label);
+    expect([...mobileNames].sort()).toEqual([...webLabels].sort());
+  });
+});
