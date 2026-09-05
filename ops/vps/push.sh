@@ -150,8 +150,40 @@ apk_abis(){
 # covers everything modern, and armeabi-v7a is the 32-bit-only budget hardware
 # that is still inside minSdk 24. A --split-per-abi build does not produce
 # app-release.apk at all, so it fails the earlier existence check instead.
+# versionName+versionCode read out of the APK itself. A Flutter release build
+# can FAIL while still exiting 0 — a bad JAVA_HOME does exactly that — and it
+# leaves the PREVIOUS apk sitting in build/app/outputs/ for this script to
+# publish. Comparing file size or mtime does not catch it either: two releases
+# whose only difference is a same-length version string can weigh exactly the
+# same to the byte, which 2.2.0 and 2.3.0 did.
+apk_version(){
+  local aapt
+  aapt="$(ls -d "${ANDROID_HOME:-$HOME/Android/Sdk}"/build-tools/*/aapt2 2>/dev/null \
+          | sort -V | tail -1)"
+  [ -x "$aapt" ] || return 1
+  "$aapt" dump badging "$1" 2>/dev/null \
+    | sed -n "s/.*versionCode='\([^']*\)'.*versionName='\([^']*\)'.*/\2+\1/p" \
+    | head -1
+}
+
 verify_apk(){
   local apk="$1" abis missing=""
+  local want got
+  want="$(sed -n 's/^version: *//p' "$REPO/mobile/pubspec.yaml" | head -1 | tr -d '[:space:]')"
+  got="$(apk_version "$apk")" || got=""
+  if [ -z "$got" ]; then
+    say "note: no aapt2 on this machine — cannot confirm the APK's version"
+  elif [ "$got" != "$want" ]; then
+    cat >&2 <<EOF
+!! REFUSING TO PUBLISH: this APK is $got, but mobile/pubspec.yaml says $want.
+   A Flutter release build can fail and still exit 0, leaving the PREVIOUS apk
+   in build/app/outputs/ for this script to find. Rebuild before publishing:
+     (cd mobile && JAVA_HOME=/home/yash/jdk17 flutter build apk --release)
+EOF
+    exit 3
+  else
+    say "APK version: $got (matches the pubspec)"
+  fi
   abis="$(apk_abis "$apk")"
   [ -n "$abis" ] || {
     echo "!! $apk carries no runnable ABI (no lib/<abi>/ with both libflutter.so" >&2
