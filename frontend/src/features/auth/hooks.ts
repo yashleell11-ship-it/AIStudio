@@ -1,12 +1,21 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ApiError } from "@/types/api";
+import { isUnauthorizedError } from "./access";
 import { authApi } from "./api";
-import type { LoginPayload, RegisterPayload, User } from "./types";
+import type {
+  AccountSession,
+  ChangePasswordPayload,
+  LoginPayload,
+  RegisterPayload,
+  User,
+} from "./types";
 
 export const AUTH_KEY = ["auth"] as const;
 /** The single source of truth for "who is signed in" — read by the guard, menu, and sidebar. */
 export const CURRENT_USER_QUERY_KEY = [...AUTH_KEY, "me"] as const;
 export const BOOTSTRAP_QUERY_KEY = [...AUTH_KEY, "bootstrap"] as const;
+/** This account's live sessions. Account-level, so it survives a profile switch. */
+export const SESSIONS_QUERY_KEY = [...AUTH_KEY, "sessions"] as const;
 
 /**
  * The current signed-in user, or `null` when not authenticated. A 401 from
@@ -63,6 +72,66 @@ export function useRegister() {
   });
 }
 
+/**
+ * The account's live sessions. Never cached across a mount: `current` is
+ * computed against the caller's own token and a revoked row must disappear the
+ * moment it is revoked, so a stale list here is a list that lies about who is
+ * signed in.
+ */
+export function useSessions() {
+  const queryClient = useQueryClient();
+  return useQuery<AccountSession[]>({
+    queryKey: SESSIONS_QUERY_KEY,
+    queryFn: async () => {
+      try {
+        return await authApi.sessions();
+      } catch (error) {
+        // The global 401 handler skips the whole `auth` namespace (it would
+        // loop on /auth/me), so an expired session has to be reported from
+        // here — otherwise the panel shows an error the guard never acts on
+        // and the user sits in an app they are no longer signed in to.
+        if (isUnauthorizedError(error)) {
+          queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+        }
+        throw error;
+      }
+    },
+    retry: false,
+    staleTime: 0,
+  });
+}
+
+/**
+ * Rotate the password. The server revokes every OTHER session on success and
+ * keeps this one, so the cached list is refetched rather than assumed.
+ *
+ * The payload is passed straight through and never cached: react-query holds
+ * `variables` for the lifetime of the mutation observer, which is why callers
+ * must not park form values in it beyond the call.
+ */
+export function useChangePassword() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (payload: ChangePasswordPayload) => authApi.changePassword(payload),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+    },
+  });
+}
+
+/** Revoke one other session. Never called for the current one — see `sessionRowAction`. */
+export function useRevokeSession() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: number) => authApi.revokeSession(sessionId),
+    onSettled: () => {
+      // Also on failure: a 404 means the row is already gone, and the list
+      // should stop offering to revoke it either way.
+      void queryClient.invalidateQueries({ queryKey: SESSIONS_QUERY_KEY });
+    },
+  });
+}
+
 export function useLogout() {
   const queryClient = useQueryClient();
   return useMutation({
@@ -70,6 +139,23 @@ export function useLogout() {
     // Runs on success and error: even if the cookie was already invalid we
     // still drop every cached query (so the next user starts clean) and mark
     // the session as signed out.
+    onSettled: () => {
+      queryClient.removeQueries();
+      queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);
+    },
+  });
+}
+
+/**
+ * Sign out everywhere: revokes every session for the account, this one
+ * included, and clears the cookie. Locally identical to `useLogout` — the
+ * caller ends up signed out here too, so the cache is dropped and the session
+ * marked gone regardless of the outcome.
+ */
+export function useLogoutAll() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: () => authApi.logoutAll(),
     onSettled: () => {
       queryClient.removeQueries();
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, null);

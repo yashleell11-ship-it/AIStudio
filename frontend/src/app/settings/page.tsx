@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import { Activity, Bell, ChevronRight, History } from "lucide-react";
 import { NotificationSettingsPanel } from "@/features/updates";
+import { BackupPanel } from "@/features/backup";
+import { AccountSecurityPanel } from "@/features/auth/components/account-security-panel";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
   AppearancePanel,
@@ -77,8 +79,8 @@ export default function SettingsPage() {
           </HeroHeading>
           <p className="mt-3 max-w-xl text-sm text-muted">
             Reshape the app with a design preset, recolour it with a reading
-            theme, tune the reader, and set your mature-content gate and
-            keyboard shortcuts.
+            theme, tune the reader, set your mature-content gate and keyboard
+            shortcuts, and manage your password and signed-in devices.
           </p>
         </FadeIn>
 
@@ -148,7 +150,12 @@ export default function SettingsPage() {
                 <NotificationSettingsPanel />
               )}
               {activeTab === "content" && <MatureContentPanel />}
+              {activeTab === "security" && <AccountSecurityPanel />}
               {activeTab === "shortcuts" && <KeyboardShortcutsPanel />}
+              {/* Admin-gated in `visibleSettingsTabs`, and re-checked here for
+                  the same reason as notifications: the panel restores the whole
+                  instance database, not this reader's data. */}
+              {activeTab === "backup" && isAdmin && <BackupPanel />}
             </div>
           </FadeIn>
         </div>
