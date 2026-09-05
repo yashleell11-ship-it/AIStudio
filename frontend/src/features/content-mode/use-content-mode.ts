@@ -2,7 +2,7 @@
 
 import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { useBootstrapStatus } from "@/features/auth/hooks";
-import { isNovelsEnabled } from "@/features/novels/gate";
+import { isNovelsEnabled, resolveNovelsEnabled, sourceKindsKnown } from "@/features/novels/gate";
 import { useSources } from "@/features/sources/hooks";
 import {
   buildSourceModeIndex,
@@ -88,6 +88,14 @@ export function useContentModeFilter(): ContentModeFilter {
   // app and shared through the query cache, so this adds no request in
   // practice; `enabled` just keeps a dark deployment from making one at all.
   const sourcesQuery = useSources({ enabled: novelsEnabled });
+  // `novelsEnabled` above is deliberately two-state: it decides whether novel
+  // UI mounts at all, and "not yet" must mount nothing, same as "off". But
+  // readiness is a different question, and answering it from the same two-state
+  // read is what made this hook claim it was ready before the flag had arrived
+  // — every consumer then scoped its lists against a mode resolved from a
+  // default. `isPending` distinguishes an unanswered probe from a resolved off.
+  const { data: bootstrapStatus, isPending: bootstrapPending } = useBootstrapStatus();
+  const novelsResolved = resolveNovelsEnabled(bootstrapStatus, bootstrapPending);
   const index = useMemo(
     () => buildSourceModeIndex(novelsEnabled ? sourcesQuery.data : undefined),
     [novelsEnabled, sourcesQuery.data],
@@ -125,6 +133,6 @@ export function useContentModeFilter(): ContentModeFilter {
     keepSource,
     filterRows,
     filterSources,
-    ready: !novelsEnabled || sourcesQuery.data !== undefined,
+    ready: sourceKindsKnown(novelsResolved, sourcesQuery.data),
   };
 }
