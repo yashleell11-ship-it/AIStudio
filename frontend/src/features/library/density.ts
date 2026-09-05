@@ -29,9 +29,8 @@ import {
  * things a DESIGN PRESET decides — Compact opens on the dense cover grid,
  * Editorial on the list, everything else on the poster grid — so an unset
  * density resolves through the active preset rather than through a constant
- * here. An explicit choice still wins forever after, exactly as an explicitly
- * chosen theme wins over the OS preference: the preset seeds, it does not
- * override.
+ * here. An explicit choice still wins forever after, exactly as a chosen theme
+ * wins over the default palette: the preset seeds, it does not override.
  */
 
 const STORAGE_BASE = "manhwamaniacs:library-density";

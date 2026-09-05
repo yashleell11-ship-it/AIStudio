@@ -16,8 +16,10 @@ import { NovelShelf } from "@/features/novels/components/NovelShelf";
 import { SHELF_PLATE_SIZES, coverPath, type ShelfBook } from "@/features/novels/shelf";
 import { libraryCoverUrl } from "../api";
 import { shelfCountLine } from "../count-line";
-import { useSeriesList } from "../hooks";
+import { continueReadingSeriesKey } from "../continue-reading";
+import { useContinueReading, useSeriesList } from "../hooks";
 import { readingStatusLabel } from "../reading-stats";
+import { ContinueReadingStrip } from "./ContinueReading";
 import { FollowedSeriesCard } from "./FollowedSeriesCard";
 
 /**
@@ -26,6 +28,10 @@ import { FollowedSeriesCard } from "./FollowedSeriesCard";
  * Source-native: reads `GET /library/series`, the per-profile `followed_series`
  * set. One heading, one grid of covers. Browse Sources is the single call to
  * action, in the empty state or the small header button.
+ *
+ * Below `md` it also carries the one-row resume strip that used to be a hero
+ * card and a rail on `/library/browse` — this is the tab a phone opens on, and
+ * "where was I" belongs on it. See `ContinueReadingStrip`.
  */
 export function LibraryShelfView() {
   const seriesQuery = useSeriesList({
@@ -33,6 +39,7 @@ export function LibraryShelfView() {
     per_page: 200,
     sort: "recently_updated",
   });
+  const continueQuery = useContinueReading(1);
 
   // Scoped to the active content mode (Manga / Novels). A no-op when the
   // server has novels off — `filterRows` returns the array untouched.
@@ -42,6 +49,21 @@ export function LibraryShelfView() {
     () => filterRows(seriesQuery.data?.items, (series) => series.source_id),
     [filterRows, seriesQuery.data],
   );
+  const continueItems = useMemo(
+    () => filterRows(continueQuery.data, (item) => item.source_id),
+    [filterRows, continueQuery.data],
+  );
+  // The progress payload carries no title, and the shelf is already holding
+  // every followed row — so the join happens here rather than through
+  // `useFollowedIndex`, which would refetch the same 200 rows under a second
+  // cache key to learn one string.
+  const continueTitles = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const series of followed) {
+      if (series.title) map.set(continueReadingSeriesKey(series), series.title);
+    }
+    return map;
+  }, [followed]);
 
   // A followed row carries no author, blurb or genres — those live on the
   // source — so a shelved novel shows what the library actually knows.
@@ -125,6 +147,13 @@ export function LibraryShelfView() {
           </Link>
         </div>
       </FadeIn>
+
+      <ContinueReadingStrip
+        items={continueItems}
+        titles={continueTitles}
+        novels={isNovelMode}
+        className="mt-5 md:hidden"
+      />
 
       {isNovelMode ? (
         <NovelShelf className="mt-6" books={shelfBooks} />

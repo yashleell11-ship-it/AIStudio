@@ -252,12 +252,28 @@ export function LibraryView() {
           seriesCount={seriesCount}
         />
 
+        {/* Pointer widths only.
+
+            On a phone this section is a hero card and a horizontal rail under
+            their own header — about 400px — sitting between the toolbar and the
+            grid, so at 375px the reader scrolled past a heading, a count, three
+            controls, a search box, a chip rail, a section header, a hero card
+            and a rail before a single cover. The Flutter client shows no
+            continue-reading section on EITHER library screen (the
+            `ContinueReadingSection` in `dashboard_sections.dart` is defined and
+            never built), and this is the catalogue, not the home screen.
+
+            It is not lost: `/library`, the tab a phone opens on, now carries the
+            lead item as a one-row `ContinueReadingStrip`. From `md` up, where
+            there is room for it above the fold, the full section is unchanged. */}
         {isLanding && viewState !== "offline" && viewState !== "error" ? (
-          <ContinueReading
-            items={continueItems}
-            isLoading={continueQuery.isLoading}
-            novels={isNovelMode}
-          />
+          <div className="hidden md:block">
+            <ContinueReading
+              items={continueItems}
+              isLoading={continueQuery.isLoading}
+              novels={isNovelMode}
+            />
+          </div>
         ) : null}
 
         {viewState === "offline" ? (
