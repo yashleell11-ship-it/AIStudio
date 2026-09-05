@@ -23,6 +23,7 @@ from pydantic import BaseModel, Field
 from core.errors import AppError
 from core.profile_context import require_profile_context
 from core.rate_limit import bulk_limit, limiter
+from core.time_utils import clamp_client_clock
 from services.bookmark_service import (
     OP_UPSERT,
     BookmarkOp,
@@ -45,6 +46,20 @@ BookmarkDep = Annotated[BookmarkService, Depends(get_bookmark_service)]
 
 
 class ProgressRequest(BaseModel):
+    """One progress push on the wire.
+
+    ``last_read_at`` is the instant the DEVICE recorded this position, and it
+    is the whole reason the merge can tell an offline replay from a fresh read.
+    Without it every push is stamped at flush time, so a week-old push made on
+    a plane arrives claiming to be the newest read of the account: it wins the
+    ``merge_progress`` tie-break against a scroll offset set on the web an hour
+    ago, and it takes rank 1 of Continue Reading away from the chapter actually
+    read last. Optional, because the shipped clients do not send it yet; any
+    offset is accepted and normalized to UTC, and a *future* value is capped
+    (``clamp_client_clock``) so a wrong device clock cannot pin itself to the
+    head of the strip forever.
+    """
+
     source_id: str = Field(min_length=1, max_length=64)
     series_key: str = Field(min_length=1, max_length=512)
     chapter_key: str = Field(min_length=1, max_length=512)
@@ -53,6 +68,10 @@ class ProgressRequest(BaseModel):
     page_count: int = Field(default=0, ge=0)
     scroll_offset_px: int = Field(default=0, ge=0)
     is_completed: bool = False
+    last_read_at: datetime | None = None
+    #: Wall-clock time spent in the chapter SINCE THIS CLIENT'S LAST PUSH, not
+    #: a running total: the server accumulates (``merge_progress``), so a
+    #: cumulative figure would be re-added on every push and on every replay.
     time_spent_seconds: int = Field(default=0, ge=0)
 
     def to_input(self) -> ProgressInput:
@@ -65,6 +84,7 @@ class ProgressRequest(BaseModel):
             page_count=self.page_count,
             scroll_offset_px=self.scroll_offset_px,
             is_completed=self.is_completed,
+            last_read_at=clamp_client_clock(self.last_read_at),
             time_spent_seconds=self.time_spent_seconds,
         )
 
