@@ -9,6 +9,7 @@ from typing import Any
 from connectors.base import SourceConnector
 from connectors.elftoon.mappers import (
     PAGE_SIZE,
+    SEARCH_PAGE_SIZE,
     SITE_BASE,
     chapter_id_to_path,
     listing_params,
@@ -21,6 +22,7 @@ from connectors.elftoon.mappers import (
     parse_series_detail,
     parse_series_list,
     search_params,
+    search_path,
     series_id_to_path,
 )
 from connectors.http.cache import TTLCache
@@ -38,6 +40,16 @@ BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
 )
+
+
+def _is_not_found(exc: ConnectorHttpError) -> bool:
+    """True when the failure was an upstream HTTP 404.
+
+    ``status_code`` is populated for a 404 here, but httpx's
+    ``raise_for_status`` message ("Client error '404 Not Found' for url ...")
+    is the form other connectors in this tree match on, so match both.
+    """
+    return exc.status_code == 404 or "404 Not Found" in str(exc)
 
 
 class ElfToonConnector(SourceConnector):
@@ -167,14 +179,29 @@ class ElfToonConnector(SourceConnector):
         normalized = query.strip()
         if not normalized:
             return self.get_series_list(page)
-        path = "/"
-        params = search_params(normalized, page=page)
+        path = search_path(page)
+        params = search_params(normalized)
         try:
             html = self._http.get_text(path, params=params)
         except ConnectorHttpError as exc:
+            # Past the last page WordPress answers a real 404, not an empty
+            # result set. Infinite scroll must see the end of the list, not an
+            # error banner. Page 1 is exempt: /?s=... always answers 200 even
+            # for a term with no hits, so a 404 there is a genuine site fault
+            # and has to stay visible to the source health check. ``total``
+            # can only be a floor here -- the pages before this one existed.
+            if page > 1 and _is_not_found(exc):
+                self._log("search", path, params=params, status="ok", detail="past last page")
+                return PaginatedSeriesList(
+                    items=[],
+                    page=page,
+                    page_size=SEARCH_PAGE_SIZE,
+                    total=(page - 1) * SEARCH_PAGE_SIZE,
+                    api_has_more=False,
+                )
             self._log("search", path, params=params, status="error", detail=str(exc))
             raise
-        listing = parse_search_results(html, page=page, page_size=PAGE_SIZE)
+        listing = parse_search_results(html, page=page, page_size=SEARCH_PAGE_SIZE)
         self._log(
             "search",
             path,
