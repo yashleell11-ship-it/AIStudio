@@ -11,6 +11,7 @@ export {
 } from "./use-chapter-href";
 export {
   prefetchNovelChapter,
+  prefetchNovelChapterWindow,
   useCachedNovelWordCounts,
   useIsNovelSource,
   useNovelChapter,

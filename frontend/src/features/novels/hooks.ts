@@ -7,6 +7,7 @@ import { useSources } from "@/features/sources/hooks";
 import type { SourceSummary } from "@/features/sources/types";
 import type { ChapterId, SeriesId } from "@/types/api";
 import { novelsApi, toNovelChapter } from "./api";
+import { boundedWindow, collectChapterWindow } from "./chapter-window";
 import {
   isNovelsEnabled,
   resolveNovelSource,
@@ -43,6 +44,51 @@ export function prefetchNovelChapter(queryClient: QueryClient, ref: ChapterId) {
     queryFn: () => novelsApi.chapter(ref),
     staleTime: NOVEL_CHAPTER_STALE_MS,
   });
+}
+
+/**
+ * Warm several of one book's chapters through the bulk window.
+ *
+ * The same result as calling {@link prefetchNovelChapter} once per key — the
+ * chapters land in the same per-chapter cache entries, so anything already
+ * reading them sees no difference — bought with one request instead of N.
+ *
+ * That matters less for latency than it sounds: against a warm server cache a
+ * window costs about what the same chapters cost individually. It matters for
+ * the RATE LIMITER. `GET /novels/chapter` is on the `sources` bucket and each
+ * miss is a live scrape, so firing a handful at once is the naive pipelining
+ * that trips it and leaves the reader with a 429 on the chapter they actually
+ * opened; the window spends the `bulk` bucket once. On a cold cache it is also
+ * genuinely faster, because the misses fan out server-side.
+ *
+ * Best-effort, and silent when it fails. A warm nobody asked for must not
+ * raise an error at a reader — every chapter it did not deliver is still
+ * fetched on demand by `useNovelChapter`, with the real error handling.
+ */
+export async function prefetchNovelChapterWindow(
+  queryClient: QueryClient,
+  ref: SeriesId,
+  chapterKeys: readonly string[],
+): Promise<void> {
+  // Only ask for what is not in hand. Chapter text is immutable in practice,
+  // so a cached copy of any age is a copy worth keeping.
+  const missing = boundedWindow(chapterKeys).filter(
+    (chapterKey) =>
+      queryClient.getQueryData(novelChapterQueryKey({ ...ref, chapterKey })) ===
+      undefined,
+  );
+  if (missing.length === 0) return;
+
+  try {
+    const payload = await novelsApi.chapterWindow(ref, missing);
+    const { chapters } = collectChapterWindow(missing, payload);
+    for (const [chapterKey, chapter] of chapters) {
+      queryClient.setQueryData(novelChapterQueryKey({ ...ref, chapterKey }), chapter);
+    }
+  } catch {
+    // The gate, the cap or the rate limit refused the whole window. Nothing to
+    // recover: these chapters were speculative.
+  }
 }
 
 /**
