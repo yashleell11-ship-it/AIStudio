@@ -312,7 +312,7 @@ class _MoodTakeover extends StatelessWidget {
         Text(
           profile.name,
           textAlign: TextAlign.center,
-          style: context.text.h2,
+          style: context.text.h2.copyWith(color: context.colors.fg),
         ),
       ],
     );
@@ -327,9 +327,16 @@ class _MoodTakeover extends StatelessWidget {
       );
     }
 
-    return IgnorePointer(
-      child: Opacity(
-        opacity: fill,
+    // This overlay is a SIBLING of the Scaffold in the picker's Stack, so
+    // nothing inside it has a Material ancestor. A Text whose style sets no
+    // colour then resolves against Flutter's error DefaultTextStyle and paints
+    // red with a yellow double underline — which the profile name did on every
+    // switch. Transparency supplies the ancestor without painting a surface.
+    return Material(
+      type: MaterialType.transparency,
+      child: IgnorePointer(
+        child: Opacity(
+          opacity: fill,
         child: Stack(
           fit: StackFit.expand,
           children: [
@@ -368,6 +375,7 @@ class _MoodTakeover extends StatelessWidget {
                 ),
               ),
           ],
+        ),
         ),
       ),
     );
