@@ -262,6 +262,18 @@ describe("freezeChapterHeight", () => {
     expect(total).toBe(0);
   });
 
+  it("hands the estimator the STRIP page number, not the source's numbering", () => {
+    // Anything filed per page — the reader's remembered page shapes — has to be
+    // indexed the way the strip keys its rows, or a source that numbers pages
+    // from 0 (or from a volume offset) reads back another page's height.
+    const seen: number[] = [];
+    freezeChapterHeight(one, new Map(), (_page, pageNumber) => {
+      seen.push(pageNumber);
+      return 1500;
+    });
+    expect(seen).toEqual([1, 2, 3]);
+  });
+
   it("has nothing to freeze for a chapter with no pages", () => {
     const empty = { ...one, pages: [], pageCount: 0 };
     expect(freezeChapterHeight(empty, measured, estimate)).toEqual({

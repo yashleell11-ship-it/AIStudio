@@ -4,12 +4,15 @@ import Image from "next/image";
 import { memo, useEffect, useState } from "react";
 import { cn } from "@/lib/cn";
 import { readerDebug } from "../debug";
-import { pageContainerStyle } from "../page-layout";
+import { pageContainerStyle, UNKNOWN_PAGE_ASPECT } from "../page-layout";
 
 export interface PageFrame {
   width: number;
   height: number;
 }
+
+/** Only ever a denominator: `next/image` wants a number, the layout wants a ratio. */
+const DEFAULT_INTRINSIC_WIDTH = 800;
 
 interface PageImageProps {
   imageUrl: string;
@@ -25,7 +28,14 @@ interface PageImageProps {
    * scrolling leaves this unset and stays fluid.
    */
   frame?: PageFrame | null;
-  onLoad?: () => void;
+  /**
+   * Fired once the image has decoded, carrying its INTRINSIC size — `null` when
+   * the browser resolved none. That size is the only trustworthy shape a page
+   * has when its connector reports no dimensions: the row's own box is still
+   * the placeholder at this point in the commit, so a caller that measured the
+   * DOM here would sample the guess it is trying to replace.
+   */
+  onLoad?: (natural: PageFrame | null) => void;
 }
 
 export const PageImage = memo(function PageImage({
@@ -39,8 +49,12 @@ export const PageImage = memo(function PageImage({
   onLoad,
 }: PageImageProps) {
   const [loaded, setLoaded] = useState(false);
-  const imageWidth = width && width > 0 ? width : 800;
-  const imageHeight = height && height > 0 ? height : 1200;
+  // `next/image` requires an intrinsic size, and with an unknown page the only
+  // honest one is the same prior the container's placeholder box uses — a
+  // second guess here would make the image and its box disagree before decode.
+  const imageWidth = width && width > 0 ? width : DEFAULT_INTRINSIC_WIDTH;
+  const imageHeight =
+    height && height > 0 ? height : Math.round(DEFAULT_INTRINSIC_WIDTH * UNKNOWN_PAGE_ASPECT);
 
   useEffect(() => {
     setLoaded(false);
@@ -79,9 +93,14 @@ export const PageImage = memo(function PageImage({
         priority={priority}
         loading={priority ? undefined : "lazy"}
         unoptimized
-        onLoad={() => {
+        onLoad={(event) => {
           setLoaded(true);
-          onLoad?.();
+          const img = event.currentTarget;
+          onLoad?.(
+            img.naturalWidth > 0 && img.naturalHeight > 0
+              ? { width: img.naturalWidth, height: img.naturalHeight }
+              : null,
+          );
         }}
       />
     </div>

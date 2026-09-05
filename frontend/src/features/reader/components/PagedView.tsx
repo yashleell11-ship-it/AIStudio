@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
 import { resolvePageFit, wheelZoomSteps } from "../fit";
+import { pageImageUrlForBox } from "../page-url";
 import { resolveTapZone, type TapZone, type TapZoneConfig } from "../keymap";
 import { PRELOAD_AHEAD_PAGED } from "../preload";
 import { spreadDisplayOrder } from "../spread";
@@ -100,13 +101,31 @@ export function PagedView({
     const lastIndex = Math.max(...view) - 1;
     for (let offset = 1; offset <= PREFETCH_AHEAD; offset += 1) {
       const next = pages[lastIndex + offset];
-      if (!next || warmedRef.current.has(next.imageUrl)) continue;
-      warmedRef.current.add(next.imageUrl);
+      if (!next) continue;
+      // Warmed at the width it will be PAINTED at. A paged fit routinely
+      // resolves wider than the reader column the URL was baked for — fit
+      // height, fit original, or simply a wide stage — and warming the baked
+      // URL there downloads every page once to throw it away.
+      const url = pageImageUrlForBox(
+        next.imageUrl,
+        resolvePageFit({
+          containerWidth: size.width,
+          containerHeight: size.height,
+          pageWidth: next.width,
+          pageHeight: next.height,
+          fitMode,
+          zoom,
+          slots: Math.max(1, slotsPerView),
+          gap: SPREAD_GAP,
+        }).width,
+      );
+      if (warmedRef.current.has(url)) continue;
+      warmedRef.current.add(url);
       const preloader = new window.Image();
       preloader.decoding = "async";
-      preloader.src = next.imageUrl;
+      preloader.src = url;
     }
-  }, [pages, view]);
+  }, [fitMode, pages, size.height, size.width, slotsPerView, view, zoom]);
 
   const handleClick = useCallback(
     (event: React.MouseEvent<HTMLDivElement>) => {
@@ -159,7 +178,7 @@ export function PagedView({
           return (
             <PageImage
               key={page.id}
-              imageUrl={page.imageUrl}
+              imageUrl={pageImageUrlForBox(page.imageUrl, frame.width)}
               alt={`${chapterTitle} page ${pageNumber}`}
               width={page.width}
               height={page.height}

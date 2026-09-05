@@ -330,17 +330,22 @@ export interface FrozenChapterHeight {
  *
  * So every row gets a number here, measured where there is one and estimated
  * where there is not, and the caller remembers all of them.
+ *
+ * `estimate` is handed the page's STRIP page number alongside the page. A
+ * caller sizing from anything filed per page — the reader's remembered page
+ * shapes, say — has to index it the way the strip does, and `page.number` is
+ * the source's numbering, which is not required to agree.
  */
 export function freezeChapterHeight(
   chapter: StripChapter,
   measured: ReadonlyMap<string, number>,
-  estimate: (page: ReaderPage) => number,
+  estimate: (page: ReaderPage, pageNumber: number) => number,
 ): FrozenChapterHeight {
   const frozen: Array<[string, number]> = [];
   let total = 0;
   chapter.pages.forEach((page, index) => {
     const key = stripPageRowKey(chapter.chapterKey, index + 1);
-    const height = measured.get(key) ?? Math.max(0, estimate(page));
+    const height = measured.get(key) ?? Math.max(0, estimate(page, index + 1));
     frozen.push([key, height]);
     total += height;
   });
