@@ -176,6 +176,39 @@ export function readingStatusBreakdown(
 // ---------------------------------------------------------------------------
 
 /**
+ * The payload with its three source-carrying lists scoped to one content mode,
+ * and every aggregate left exactly as the server computed it.
+ *
+ * `by_source`, `by_series` and `recent_sessions` are the only parts of the
+ * response that carry a source id, so they are the only parts the Manga /
+ * Novels switch can split. The totals, the streak, the daily series and the
+ * hour clock are rolled up server-side across everything read, and nothing in
+ * the payload is fine-grained enough to rebuild them per mode: `by_source`
+ * could reconstruct the WINDOW totals alone, which would leave them
+ * contradicting the all-time caption beside them, the chart below them and the
+ * streak above them. Half a scope is worse than none, and a streak is a fact
+ * about the reader rather than about a medium — so they stay whole, and the
+ * screen states the split in a line above the numbers instead of quietly
+ * showing a scoped list under an unscoped total.
+ *
+ * A no-op while novels are disabled, because `keepSource` is then true for
+ * every row — see `features/content-mode/use-content-mode.ts`.
+ */
+export function scopeBreakdowns(
+  stats: Statistics,
+  keepSource: (sourceId: string) => boolean,
+): Statistics {
+  return {
+    ...stats,
+    by_source: (stats.by_source ?? []).filter((row) => keepSource(row.source_id)),
+    by_series: (stats.by_series ?? []).filter((row) => keepSource(row.source_id)),
+    recent_sessions: (stats.recent_sessions ?? []).filter((row) =>
+      keepSource(row.source_id),
+    ),
+  };
+}
+
+/**
  * Whether `reading_sessions` has anything at all for this profile.
  *
  * Drives the difference between "there is nothing here yet, here is how to
