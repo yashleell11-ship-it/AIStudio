@@ -38,7 +38,10 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #   pawmanga  - pawmanga.com is a fingerprint-redirect parking page, 0 series
     #   topmanhua - cdn.topmanhua.net is permanently 526 (CF cannot validate the
     #               origin cert) and topmanhua.com now 302s to a monetisation
-    #               domain, so no page image can ever be served
+    #               domain, so no page image can ever be served. Both are still
+    #               true on 2026-09-05; the topmanhua.net entry below is an
+    #               unrelated apex that serves its own images, and listing
+    #               cdn.topmanhua.net for it would resurrect this exact failure.
     #
     # Removed 2026-09-05 after the VPS probe died in the TLS handshake, not in
     # HTTP:
@@ -74,6 +77,20 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     #               through every enumerable route (36/36 sampled series
     #               returned exactly 24, none starting at chapter 1; the
     #               chapter-1 URLs are live but unreachable from any listing).
+    #
+    # Probed 2026-09-05 and NOT catalog lines -- real catalogues worth having,
+    # but none of them runs Madara, so each needs a bespoke connector instead
+    # of a ``_site(...)`` entry:
+    #   simply-hentai.com - Next.js SSR; the catalogue lives in __NEXT_DATA__
+    #               and /api/search 404s, so there is no JSON API to call.
+    #   timelesstoons.org - custom SSR app with opaque /chapter/<hex>-<hex>/
+    #               ids, and every image behind the generic wsrv.nl proxy.
+    #   wnacg.com - MeiuPic album CMS, gallery-per-work like nhentai; images
+    #               on sharded t*/img*.qy0.ru hosts.
+    #   xcomic.me - Qwik SSR aggregator; MangaDex's tag vocabulary but its own
+    #               ids and self-hosted /_f/ images, so not a MangaDex proxy.
+    #   xyzcomics.com - WordPress + Themify, one post per work, and its front
+    #               page is /multkomix/ rather than /.
     #               A source you can never start reading from the beginning.
     _site("mangaread", "MangaRead", "mangaread.org"),
     _site("manhuaplus", "ManhuaPlus", "manhuaplus.com", extra_image_hosts=frozenset({"cdn.manhuaplus.com"})),
@@ -96,6 +113,17 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     # 2 adult-tagged series site-wide, so it stays a general (non-mature)
     # source like mangaread/manhuaplus.
     _site("mangasushi", "MangaSushi", "mangasushi.org", use_cf=False),
+    # Added 2026-09-05. Not a revival of the topmanhua.com entry removed above:
+    # a separate, healthy apex that serves every page image from its own
+    # /wp-content/uploads (145/145 sampled on the listing), which is why
+    # cdn.topmanhua.net -- still 526 -- must never be added as an image host.
+    # Real Madara; admin-ajax.php answers manga_get_chapters with 403, so
+    # chapters come from the per-series ``{series}/ajax/chapters/`` endpoint
+    # after one probe, same as mangasushi. Plain httpx cleared /manga/ from
+    # the OVH egress, so use_cf=False. Non-mature: /manga-genre/adult/ exists
+    # but its 17 members are mainstream action manhwa (Nano Machine,
+    # Overgeared, Infinite Mage) and no adult interstitial fires anywhere.
+    _site("topmanhua", "TopManhua", "topmanhua.net", use_cf=False),
     # Added 2026-09-05 (shard 5) after an end-to-end probe from the VPS.
     # Stock Madara: /manga/ listing, the per-series ``ajax/chapters/`` POST
     # and 55 wp-manga-chapter-img pages all answered, and every page image is
@@ -552,6 +580,31 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     # images are lazyloaded from cdn.doujinhq.club, so the extractor reads
     # data-src and the allowlist needs that host.
     _site("doujinhq", "DoujinHQ", "www.doujinhq.club", url_segment="dj", mature=True, use_cf=False, extra_image_hosts=frozenset({"cdn.doujinhq.club"})),
+    # Added 2026-09-05. Madara on the ``webtoon`` segment. The apex 301s every
+    # /wp-content/uploads/ URL to cdn.toonizy.com, so that host has to be in
+    # the image proxy's SSRF allowlist or every image is rejected before a
+    # request is made. Chapters come from the per-series
+    # ``{series}/ajax/chapters/`` endpoint -- admin-ajax.php answers
+    # manga_get_chapters with 400. Small catalogue: /webtoon/ paginates to
+    # page 2 only, ~50 Toomics-derived 18+ manhwa, and the theme's over-18
+    # interstitial fires on every series page.
+    _site(
+        "toonizy",
+        "Toonizy",
+        "toonizy.com",
+        url_segment="webtoon",
+        mature=True,
+        use_cf=False,
+        extra_image_hosts=frozenset({"cdn.toonizy.com"}),
+    ),
+    # Added 2026-09-05. Stock Madara sitting behind Cloudflare -- every hit
+    # from the VPS comes back with a cf-ray -- so it keeps the impersonating
+    # client. Yaoi/yuri/hentai webtoons, hence mature. Page images live on
+    # yaoihub.org itself under /wp-content/uploads/WP-manga/data/, so the
+    # host-derived allowlist already covers them. LiteSpeed Cache lazyloads
+    # them, but the extractor already reads data-src and trims the whitespace
+    # this install leaves inside the attribute value.
+    _site("yaoihub", "YaoiHub", "yaoihub.org", mature=True),
     # Added 2026-09-05 after an end-to-end probe from the VPS. Two independent
     # English BL/yaoi smut Madara installs (themes/madara plus a child theme)
     # that cleared browse, wp-manga-search-manga, detail, chapter and page
