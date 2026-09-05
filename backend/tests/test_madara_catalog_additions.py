@@ -667,6 +667,61 @@ def test_expired_manhuakey_domain_stays_withdrawn() -> None:
     assert "manhuakey.com" not in {cfg.site_host for cfg in MADARA_CATALOG}
 
 
+def test_sources_that_failed_the_2026_09_05_read_path_stay_deleted() -> None:
+    """Seven entries added 2026-09-05 could not be read from production, twice.
+
+    Each was probed end-to-end from inside the production container and then
+    re-probed independently; every failure below reproduced identically, so
+    none is a bad moment on the network. Browse or detail passing is not the
+    bar -- the bar is a reader getting page bytes.
+
+    topmanhua is the one to read twice before re-adding anything. It was
+    removed 2026-09-04 because cdn.topmanhua.net answers 526, then re-added
+    the next day at the sibling apex topmanhua.net on the finding that the new
+    host served its own images. It does not: the reader's first page still
+    resolves to cdn.topmanhua.net and still 526s, so a second removal cost the
+    same probe budget as the first. A different domain is not evidence of a
+    different image host.
+    """
+    ids = {cfg.source_id for cfg in MADARA_CATALOG}
+    hosts = {cfg.site_host for cfg in MADARA_CATALOG}
+    # browse 404s on the configured segment and on both LISTING_FALLBACKS.
+    assert "manhuatop" not in ids
+    assert "rawdex" not in ids
+    # browse/detail pass, then get_chapters returns 0 chapters.
+    assert "mangayy" not in ids
+    assert "manhwa68" not in ids
+    # pages resolve, then the bytes never arrive: a 526 CDN (topmanhua), a
+    # bogus content-type clamped to octet-stream (manhwatoon), and a redirect
+    # the image proxy will not follow (toonizy).
+    assert "topmanhua" not in ids
+    assert "topmanhua.net" not in hosts
+    assert "manhwatoon" not in ids
+    assert "toonizy" not in ids
+
+
+def test_kokomangas_and_mangaowl_sit_behind_the_18_plus_gate() -> None:
+    """Both shipped non-mature 2026-09-05 while serving adult work.
+
+    kokomangas was cleared as non-mature because /manga-genre/adult/, /mature/,
+    /smut/ and /ecchi/ all 404 -- but the install publishes no genre taxonomy
+    at all, so those 404s said nothing about the content. 11 of 53 distinct
+    series across listing pages 1-5 are explicitly sexual.
+
+    mangaowl was added with no maturity note, so it defaulted to visible with
+    the gate shut. Its own series pages for the most-viewed works carry
+    Adult + Mature + Smut + Yaoi genres.
+
+    A catalog line with no ``mature=`` is a line that ships to a profile with
+    the gate closed, which is why both are asserted here rather than trusted
+    to the comment above them.
+    """
+    for source_id in ("kokomangas", "mangaowl"):
+        cfg = _config(source_id)
+        assert cfg is not None, f"{source_id} missing from MADARA_CATALOG"
+        assert cfg.mature is True, source_id
+
+
 def test_catalog_source_ids_stay_unique() -> None:
     """Two configs with one source_id would silently drop a source.
 
