@@ -3,19 +3,28 @@
 import Link from "next/link";
 import Image from "next/image";
 import { useMemo, useState } from "react";
-import { ArrowLeft, BookOpen, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Minus, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { libraryCoverUrl } from "@/features/library/api";
 import {
+  type CollectionMember,
+  collectionMemberKeys,
+  collectionUpdateBody,
+  resolveCollectionMembers,
+  seriesRefKey,
+} from "@/features/library/collections";
+import {
   useAddSeriesToCollection,
   useCollection,
   useDeleteCollection,
+  useRemoveSeriesFromCollection,
   useSeriesList,
+  useUpdateCollection,
 } from "@/features/library/hooks";
-import { ApiError } from "@/types/api";
+import { apiErrorMessage } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
 import { SeriesGrid } from "./SeriesGrid";
 import type { FollowedSeries } from "../types";
@@ -23,6 +32,9 @@ import type { FollowedSeries } from "../types";
 interface CollectionDetailViewProps {
   collectionId: number;
 }
+
+/** The cover thumbnail in both membership dialogs — fixed, so no breakpoints. */
+const ROW_COVER_SIZES = "32px";
 
 function DetailSkeleton() {
   return (
@@ -48,9 +60,19 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   const collectionQuery = useCollection(collectionId);
   const allSeriesQuery = useSeriesList({ page: 1, per_page: 200, sort: "title" });
   const addSeries = useAddSeriesToCollection();
+  const removeSeries = useRemoveSeriesFromCollection();
+  const updateCollection = useUpdateCollection();
   const deleteCollection = useDeleteCollection();
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [addSearch, setAddSearch] = useState("");
+  const [showRemoveDialog, setShowRemoveDialog] = useState(false);
+  // Which row has armed its confirm step. Inline rather than a second Dialog:
+  // stacked dialogs both listen for Escape, so one press would close both.
+  const [confirmRemoveKey, setConfirmRemoveKey] = useState<string | null>(null);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [editName, setEditName] = useState("");
+  const [editDescription, setEditDescription] = useState("");
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
 
   const collection = collectionQuery.data;
   const allSeries = useMemo(
@@ -60,17 +82,23 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
 
   // Collection membership is `(source_id, series_key)` refs; resolve them
   // against the followed set for cover + title.
-  const memberKeys = useMemo(() => {
-    const set = new Set<string>();
-    for (const ref of collection?.series ?? []) {
-      set.add(`${ref.source_id}:${ref.series_key}`);
-    }
-    return set;
-  }, [collection]);
+  const memberKeys = useMemo(
+    () => collectionMemberKeys(collection?.series ?? []),
+    [collection],
+  );
 
   const members = useMemo<FollowedSeries[]>(
-    () => allSeries.filter((s) => memberKeys.has(`${s.source_id}:${s.series_key}`)),
+    () =>
+      allSeries.filter((s) => memberKeys.has(seriesRefKey(s.source_id, s.series_key))),
     [allSeries, memberKeys],
+  );
+
+  // The remove list runs off the refs, not `members`: a series that was
+  // unfollowed after being added keeps its membership and would otherwise be
+  // in the collection with no way out.
+  const removableMembers = useMemo(
+    () => resolveCollectionMembers(collection?.series ?? [], allSeries),
+    [collection, allSeries],
   );
 
   if (collectionQuery.isLoading) {
@@ -78,13 +106,11 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   }
 
   if (collectionQuery.error || !collection) {
-    const message =
-      collectionQuery.error instanceof ApiError
-        ? collectionQuery.error.message
-        : "Failed to load collection.";
     return (
       <div className="flex min-h-[40vh] flex-col items-center justify-center gap-4 p-6 text-center">
-        <p className="text-danger">{message}</p>
+        <p className="text-danger">
+          {apiErrorMessage(collectionQuery.error, "Failed to load collection.")}
+        </p>
         <Link href="/library/collections">
           <Button variant="secondary" className="gap-2">
             <ArrowLeft className="size-4" aria-hidden />
@@ -96,13 +122,48 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
   }
 
   const availableSeries = allSeries.filter(
-    (series) => !memberKeys.has(`${series.source_id}:${series.series_key}`),
+    (series) => !memberKeys.has(seriesRefKey(series.source_id, series.series_key)),
   );
   const filteredAvailable = addSearch.trim()
     ? availableSeries.filter((series) =>
         series.title.toLowerCase().includes(addSearch.toLowerCase()),
       )
     : availableSeries;
+
+  const editBody = collectionUpdateBody(collection, {
+    name: editName,
+    description: editDescription,
+  });
+
+  const openEdit = () => {
+    updateCollection.reset();
+    setEditName(collection.name);
+    setEditDescription(collection.description ?? "");
+    setShowEditDialog(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editBody) return;
+    try {
+      await updateCollection.mutateAsync({ collectionId, body: editBody });
+      setShowEditDialog(false);
+    } catch {
+      // Error surfaced via mutation state
+    }
+  };
+
+  const handleRemove = (member: CollectionMember) => {
+    removeSeries.mutate(
+      {
+        collectionId,
+        ref: {
+          sourceId: member.ref.source_id,
+          seriesKey: member.ref.series_key,
+        },
+      },
+      { onSuccess: () => setConfirmRemoveKey(null) },
+    );
+  };
 
   return (
     <div className="min-h-full bg-bg">
@@ -148,6 +209,10 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
               </p>
             </div>
             <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" onClick={openEdit} className="gap-2">
+                <Pencil className="size-4" aria-hidden />
+                Edit
+              </Button>
               <Button
                 variant="secondary"
                 onClick={() => setShowAddDialog(true)}
@@ -156,12 +221,25 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                 <Plus className="size-4" aria-hidden />
                 Add Series
               </Button>
+              {collection.series.length > 0 && (
+                <Button
+                  variant="secondary"
+                  onClick={() => {
+                    removeSeries.reset();
+                    setConfirmRemoveKey(null);
+                    setShowRemoveDialog(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Minus className="size-4" aria-hidden />
+                  Remove Series
+                </Button>
+              )}
               <Button
                 variant="danger"
                 onClick={() => {
-                  if (confirm("Delete this collection? Series will not be removed.")) {
-                    deleteCollection.mutate(collectionId);
-                  }
+                  deleteCollection.reset();
+                  setShowDeleteDialog(true);
                 }}
                 className="gap-2"
               >
@@ -189,6 +267,69 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
           <SeriesGrid items={members} isLoading={allSeriesQuery.isLoading} />
         )}
       </div>
+
+      <Dialog
+        open={showEditDialog}
+        onClose={() => setShowEditDialog(false)}
+        title="Edit Collection"
+        className="glass-panel max-w-md border-border/50"
+      >
+        <div className="space-y-4">
+          <div>
+            <label
+              htmlFor="collection-edit-name"
+              className="mb-1.5 block text-sm font-medium text-fg"
+            >
+              Name
+            </label>
+            <Input
+              id="collection-edit-name"
+              value={editName}
+              onChange={(e) => setEditName(e.target.value)}
+              placeholder="My Reading List"
+              className="border-border/50 bg-white/[0.03]"
+            />
+          </div>
+          <div>
+            <label
+              htmlFor="collection-edit-description"
+              className="mb-1.5 block text-sm font-medium text-fg"
+            >
+              Description
+            </label>
+            <Input
+              id="collection-edit-description"
+              value={editDescription}
+              onChange={(e) => setEditDescription(e.target.value)}
+              placeholder="Optional description"
+              className="border-border/50 bg-white/[0.03]"
+            />
+          </div>
+          {updateCollection.error && (
+            <p className="text-sm text-danger">
+              {apiErrorMessage(updateCollection.error, "Failed to save changes.")}
+            </p>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="secondary"
+              onClick={() => setShowEditDialog(false)}
+              disabled={updateCollection.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSaveEdit}
+              disabled={
+                !editName.trim() || editBody === null || updateCollection.isPending
+              }
+              className="min-w-[100px]"
+            >
+              {updateCollection.isPending ? "Saving…" : "Save"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
 
       <Dialog
         open={showAddDialog}
@@ -252,11 +393,11 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                 >
                   <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2 ring-1 ring-white/10">
                     <Image
-                      src={libraryCoverUrl(series.cover_url, "32px")}
+                      src={libraryCoverUrl(series.cover_url, ROW_COVER_SIZES)}
                       alt={series.title}
                       fill
                       className="object-cover"
-                      sizes="32px"
+                      sizes={ROW_COVER_SIZES}
                       unoptimized
                     />
                   </div>
@@ -266,6 +407,133 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                 </button>
               ))
             )}
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={showRemoveDialog}
+        onClose={() => {
+          setShowRemoveDialog(false);
+          setConfirmRemoveKey(null);
+        }}
+        title="Remove Series from Collection"
+        className="glass-panel max-w-lg border-border/50"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-muted">
+            Removing a series takes it out of this collection only — it stays in your
+            library.
+          </p>
+          {removeSeries.error && (
+            <p className="text-sm text-danger">
+              {apiErrorMessage(removeSeries.error, "Failed to remove that series.")}
+            </p>
+          )}
+          <div className="max-h-[400px] space-y-2 overflow-y-auto pr-1">
+            {removableMembers.length === 0 ? (
+              <p className="py-8 text-center text-sm text-muted">
+                This collection is empty.
+              </p>
+            ) : (
+              removableMembers.map((member) => (
+                <div
+                  key={member.key}
+                  className="flex w-full items-center gap-3 rounded-xl border border-border/50 bg-white/[0.02] px-3 py-2.5"
+                >
+                  <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2 ring-1 ring-white/10">
+                    {member.series && (
+                      <Image
+                        src={libraryCoverUrl(member.series.cover_url, ROW_COVER_SIZES)}
+                        alt=""
+                        fill
+                        className="object-cover"
+                        sizes={ROW_COVER_SIZES}
+                        unoptimized
+                      />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-fg">{member.label}</p>
+                    {!member.series && (
+                      <p className="truncate text-xs text-muted">No longer followed</p>
+                    )}
+                  </div>
+                  {confirmRemoveKey === member.key ? (
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setConfirmRemoveKey(null)}
+                        disabled={removeSeries.isPending}
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleRemove(member)}
+                        disabled={removeSeries.isPending}
+                      >
+                        {removeSeries.isPending ? "Removing…" : "Remove"}
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => {
+                        removeSeries.reset();
+                        setConfirmRemoveKey(member.key);
+                      }}
+                      aria-label={`Remove ${member.label} from this collection`}
+                      className="shrink-0 text-muted hover:text-danger"
+                    >
+                      <X className="size-4" aria-hidden />
+                    </Button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+      </Dialog>
+
+      <Dialog
+        open={showDeleteDialog}
+        onClose={() => setShowDeleteDialog(false)}
+        title="Delete collection?"
+        className="glass-panel max-w-md border-border/50"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-fg/90">
+            Delete <span className="font-medium">{collection.name}</span>? The series in
+            it stay in your library. This cannot be undone.
+          </p>
+          {deleteCollection.error && (
+            <p className="text-sm text-danger">
+              {apiErrorMessage(deleteCollection.error, "Failed to delete this collection.")}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button
+              variant="ghost"
+              onClick={() => setShowDeleteDialog(false)}
+              disabled={deleteCollection.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              onClick={() =>
+                deleteCollection.mutate(collectionId, {
+                  onSuccess: () => setShowDeleteDialog(false),
+                })
+              }
+              disabled={deleteCollection.isPending}
+            >
+              {deleteCollection.isPending ? "Deleting…" : "Delete"}
+            </Button>
           </div>
         </div>
       </Dialog>
