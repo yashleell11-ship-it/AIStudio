@@ -81,6 +81,52 @@ export function windowAfter(
   return order.slice(from, from + size).map((entry) => entry.chapterKey);
 }
 
+/**
+ * The window a run OPENS with: up to `count` keys starting AT `startKey`.
+ *
+ * Not `windowAfter` handed the key before the entry, because this is the one
+ * window whose latency the reader is sitting and watching. `windowAfter` pads
+ * up to the paging stride — right for a window pulled behind the reader's back,
+ * wrong for the one that gates the first page, which only has to carry the
+ * strip's own look-ahead. Asking for it as ONE call is the point: the entry
+ * chapter and the chapters behind it used to be two serial round trips through
+ * a bucket that allows six a minute.
+ */
+export function windowFrom(
+  order: readonly OrderedChapter[],
+  startKey: string,
+  count: number,
+  cap: number,
+): string[] {
+  if (order.length === 0 || count <= 0) return [];
+  const from = orderIndexOf(order, startKey);
+  if (from < 0) return [];
+  const size = Math.max(1, Math.min(count, cap));
+  return order.slice(from, from + size).map((entry) => entry.chapterKey);
+}
+
+/**
+ * Up to `count` keys immediately BEFORE `firstKey`, in reading order.
+ *
+ * The mirror of {@link windowAfter}, and it exists for the same reason: the
+ * bulk bucket is rate-limited per CALL, so pulling the strip's head backwards
+ * one chapter at a time spends the whole minute's budget on six chapters while
+ * the same budget carries thirty-six forwards. A reader who resumed at chapter
+ * 40 and wants 38 and 39 should not pay a round trip each.
+ */
+export function windowBefore(
+  order: readonly OrderedChapter[],
+  firstKey: string | undefined,
+  count: number,
+  cap: number,
+): string[] {
+  if (firstKey === undefined || count <= 0) return [];
+  const index = orderIndexOf(order, firstKey);
+  if (index <= 0) return [];
+  const size = Math.max(1, Math.min(count, cap));
+  return order.slice(Math.max(0, index - size), index).map((entry) => entry.chapterKey);
+}
+
 /** The chapter immediately before `firstKey`, or null at the start of the series. */
 export function keyBefore(
   order: readonly OrderedChapter[],

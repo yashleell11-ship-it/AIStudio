@@ -5,6 +5,18 @@
  * deliberately shallow: ONE chapter ahead, a handful of images. Chapter payloads
  * for online sources are scraped on demand, so pulling further ahead spends
  * someone else's bandwidth on pages the reader will most likely never show.
+ *
+ * SCOPE: the PAGED modes only. Nothing here is on the continuous strip's path,
+ * and nothing here is on Read-all's — `useChapterPreload` is armed with
+ * `!continuous`, and the strip does its own look-ahead in two places that are
+ * better suited to it: `shouldExtendAhead` (strip.ts) pulls the next chapter's
+ * manifest when the reader comes within `ahead` CHAPTERS of the loaded tail —
+ * counted in chapters, so it behaves identically on a 3,000px chapter and a
+ * 40,000px one, which neither a ratio nor a page count does — and
+ * `ContinuousStrip`'s own prefetch warms `PRELOAD_AHEAD_CONTINUOUS` page rows
+ * across the whole strip, spilling over the seam by construction. Tuning
+ * `PRELOAD_TRIGGER_RATIO` or `MAX_PRELOAD_CHAPTERS_AHEAD` will not move a
+ * Read-all run one page.
  */
 
 import type { ReadingMode } from "./types";

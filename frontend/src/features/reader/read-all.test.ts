@@ -7,6 +7,8 @@ import {
   readAllEntryKey,
   readingOrder,
   windowAfter,
+  windowBefore,
+  windowFrom,
   type OrderedChapter,
 } from "./read-all";
 
@@ -89,6 +91,64 @@ describe("windowAfter", () => {
   it("answers nothing for a key the series does not have", () => {
     expect(windowAfter(order, "gone", 1, 5, 20)).toEqual([]);
     expect(windowAfter([], undefined, 1, 5, 20)).toEqual([]);
+  });
+});
+
+describe("windowFrom", () => {
+  const order: OrderedChapter[] = Array.from({ length: 10 }, (_, index) => ({
+    chapterKey: `c${index + 1}`,
+    number: index + 1,
+    title: `Chapter ${index + 1}`,
+  }));
+
+  it("opens ON the entry chapter, carrying the look-ahead with it", () => {
+    expect(windowFrom(order, "c3", 4, 20)).toEqual(["c3", "c4", "c5", "c6"]);
+  });
+
+  it("takes exactly what it was asked for — the reader is watching this one", () => {
+    // Unlike `windowAfter` there is no stride padding here: the opening window
+    // is the one whose latency gates the first page.
+    expect(windowFrom(order, "c1", 1, 20)).toEqual(["c1"]);
+  });
+
+  it("never asks for more than the server's cap", () => {
+    expect(windowFrom(order, "c1", 10, 2)).toEqual(["c1", "c2"]);
+  });
+
+  it("runs out at the end of the series", () => {
+    expect(windowFrom(order, "c9", 4, 20)).toEqual(["c9", "c10"]);
+  });
+
+  it("answers nothing for a key the series does not have", () => {
+    expect(windowFrom(order, "gone", 4, 20)).toEqual([]);
+    expect(windowFrom([], "c1", 4, 20)).toEqual([]);
+  });
+});
+
+describe("windowBefore", () => {
+  const order: OrderedChapter[] = Array.from({ length: 10 }, (_, index) => ({
+    chapterKey: `c${index + 1}`,
+    number: index + 1,
+    title: `Chapter ${index + 1}`,
+  }));
+
+  it("takes the chapters before the head, in reading order", () => {
+    expect(windowBefore(order, "c5", 3, 20)).toEqual(["c2", "c3", "c4"]);
+  });
+
+  it("stops at the start of the series rather than wrapping", () => {
+    expect(windowBefore(order, "c2", 3, 20)).toEqual(["c1"]);
+    expect(windowBefore(order, "c1", 3, 20)).toEqual([]);
+  });
+
+  it("never asks for more than the server's cap", () => {
+    expect(windowBefore(order, "c8", 6, 2)).toEqual(["c6", "c7"]);
+  });
+
+  it("answers nothing without a head, or for a key the series does not have", () => {
+    expect(windowBefore(order, undefined, 3, 20)).toEqual([]);
+    expect(windowBefore(order, "gone", 3, 20)).toEqual([]);
+    expect(windowBefore(order, "c5", 0, 20)).toEqual([]);
   });
 });
 

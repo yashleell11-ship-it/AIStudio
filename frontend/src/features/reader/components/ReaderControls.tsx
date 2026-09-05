@@ -154,6 +154,12 @@ interface ReaderControlsProps {
   onZoomReset: () => void;
   readingMode: ReadingMode;
   onReadingModeChange: (mode: ReadingMode) => void;
+  /**
+   * Hide the layout switch: the reader is somewhere the paged modes cannot go
+   * (a Read-all run is one scroll through a whole series). Offering a control
+   * that would quietly end the run is worse than not offering it.
+   */
+  readingModeLocked?: boolean;
   fitMode: FitMode;
   onFitModeChange: (mode: FitMode) => void;
   direction: ReadingDirection;
@@ -221,6 +227,7 @@ export function ReaderControls({
   onZoomReset,
   readingMode,
   onReadingModeChange,
+  readingModeLocked = false,
   fitMode,
   onFitModeChange,
   direction,
@@ -316,16 +323,18 @@ export function ReaderControls({
               </Button>
             </div>
 
-            <Segmented<ReadingMode>
-              label="Layout"
-              value={readingMode}
-              onChange={onReadingModeChange}
-              options={[
-                { value: "single", label: "Single", icon: Square },
-                { value: "double", label: "Double", icon: Columns2 },
-                { value: "continuous", label: "Strip", icon: ScrollText },
-              ]}
-            />
+            {!readingModeLocked && (
+              <Segmented<ReadingMode>
+                label="Layout"
+                value={readingMode}
+                onChange={onReadingModeChange}
+                options={[
+                  { value: "single", label: "Single", icon: Square },
+                  { value: "double", label: "Double", icon: Columns2 },
+                  { value: "continuous", label: "Strip", icon: ScrollText },
+                ]}
+              />
+            )}
 
             <Segmented<ReadingDirection>
               label="Direction"
