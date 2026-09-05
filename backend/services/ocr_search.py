@@ -22,6 +22,27 @@ from services.followed_series_service import FollowedSeriesService
 from utils.api_pagination import enrich_pagination_aliases
 
 
+def terms_of(raw: str) -> list[str]:
+    """The query's terms, in order. Also drives snippet highlighting, so the
+    two can never disagree about what was searched for."""
+    return [t for t in re.split(r"\s+", raw.strip()) if t]
+
+
+def match_expr(raw: str) -> str:
+    """The FTS5 ``MATCH`` expression for a free-text query.
+
+    Every whitespace-separated term becomes a quoted FTS5 string so that
+    punctuation a reader types (``!``, ``-``, ``*``, ``:``) is matched
+    literally instead of being parsed as query syntax. The quoting is only
+    safe if the term's OWN double quotes are escaped first, by doubling them
+    the way SQL string literals do: ``he"llo`` wrapped naively is
+    ``"he"llo"``, an unterminated FTS5 string, and SQLite answers the whole
+    request with ``OperationalError: unterminated string`` — a 500 on exactly
+    the query someone searching for a remembered line of dialogue types.
+    """
+    return " ".join(f'"{t.replace(chr(34), chr(34) * 2)}"' for t in terms_of(raw))
+
+
 class OcrSearchService:
     def __init__(
         self,
@@ -52,9 +73,8 @@ class OcrSearchService:
                 {"items": [], "total": 0, "offset": offset, "limit": limit}
             )
 
-        # FTS5 MATCH. Quote each term to avoid syntax errors on punctuation.
-        terms = [t for t in re.split(r"\s+", raw) if t]
-        match_expr = " ".join(f'"{t}"' for t in terms)
+        terms = terms_of(raw)
+        expression = match_expr(raw)
 
         rows = self._db.execute(
             text(
@@ -67,7 +87,7 @@ class OcrSearchService:
                 ORDER BY c.word_count DESC
                 """
             ),
-            {"q": match_expr},
+            {"q": expression},
         ).all()
 
         filtered = [
