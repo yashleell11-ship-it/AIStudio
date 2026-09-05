@@ -744,24 +744,24 @@ _RELEASE_NOTES: list[ChangelogEntry] = [
 # (filename, title, caption) — screenshots served from SCREENSHOTS_DIR.
 _SHOWCASE: list[tuple[str, str, str]] = [
     (
-        "shot-library-screenshot.png",
+        "shot-library.png",
         "Your shelf, and nothing else",
         "The series you follow, with unread counts — no feed, no filler.",
     ),
     (
-        "shot-sources-screenshot.png",
-        "Fifty sources, one search",
-        "Filter by name, pin the ones you use, and keep 18+ behind its own gate.",
+        "shot-novels.png",
+        "Books, not just comics",
+        "Novels get their own shelf and a reader built for prose.",
     ),
     (
-        "shot-browse-screenshot.png",
-        "Everything on your server",
-        "The full local catalogue, filterable, however large it grows.",
+        "shot-themes.png",
+        "Forty-two themes",
+        "Every one contrast-checked, and each profile keeps its own.",
     ),
     (
-        "shot-more-screenshot.png",
-        "The rest of the app",
-        "Updates, collections, history, statistics and offline reading.",
+        "shot-statistics.png",
+        "What you actually read",
+        "Streaks, time spent, and which sources you come back to.",
     ),
 ]
 
