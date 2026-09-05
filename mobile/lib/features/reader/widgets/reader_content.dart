@@ -23,6 +23,7 @@ import 'package:manhwamaniacs/features/reader/utils/reader_anchor.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_display_mode.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_image_cache.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_scroll_controller.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_tap_zones.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
 import 'package:manhwamaniacs/features/reader/utils/scroll_storage.dart';
 import 'package:manhwamaniacs/features/reader/widgets/chapter_seam.dart';
@@ -1169,14 +1170,19 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
       return;
     }
 
-    // Controls hidden → tap zones: left/right thirds page, centre reveals
-    // controls. Makes the reader usable one-handed.
-    if (pos.dx < width * 0.33) {
-      _pageBy(forward: false);
-    } else if (pos.dx > width * 0.67) {
-      _pageBy(forward: true);
-    } else {
-      _showControls();
+    // Controls hidden → the reader's own tap zones, so thumb reach is
+    // theirs to retune. Nothing is stored until they pick, which is what keeps
+    // the bands mirroring themselves for a right-to-left series.
+    final defaults = ref.read(readerDefaultsProvider);
+    final zones =
+        defaults.tapZones ?? TapZoneConfig.defaultFor(defaults.direction);
+    switch (resolveTapZone(pos.dx, width, zones)) {
+      case TapZoneAction.advance:
+        _pageBy(forward: true);
+      case TapZoneAction.retreat:
+        _pageBy(forward: false);
+      case TapZoneAction.toggle:
+        _showControls();
     }
   }
 

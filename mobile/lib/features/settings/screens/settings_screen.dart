@@ -13,6 +13,7 @@ import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
 import 'package:manhwamaniacs/features/reader/providers/reader_filter_provider.dart';
+import 'package:manhwamaniacs/features/reader/widgets/tap_zone_picker.dart';
 import 'package:manhwamaniacs/features/settings/models/app_version.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/features/settings/providers/app_update_provider.dart';
@@ -874,6 +875,8 @@ class _ReaderDefaultsSection extends ConsumerWidget {
             onSelectionChanged: (selection) =>
                 notifier.setFitMode(selection.first),
           ),
+          SizedBox(height: context.space.lg),
+          const TapZonePicker(),
           if (hasDisplayModes) ...[
             SizedBox(height: context.space.lg),
             Padding(

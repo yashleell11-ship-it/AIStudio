@@ -50,6 +50,90 @@ enum ReaderFitMode {
       };
 }
 
+/// What one horizontal tap band does while the reader's chrome is hidden.
+///
+/// Same vocabulary as the web reader (`frontend/src/features/reader/keymap.ts`):
+/// [advance] and [retreat] name the page-number direction, not a physical side,
+/// so a configured zone means the same thing whichever way a series reads.
+enum TapZoneAction {
+  advance,
+  retreat,
+  toggle;
+
+  String get label => switch (this) {
+        TapZoneAction.advance => 'Next',
+        TapZoneAction.retreat => 'Previous',
+        TapZoneAction.toggle => 'Toggle',
+      };
+}
+
+/// Left / centre / right tap behaviour.
+///
+/// Held as `null` on [ReaderDefaults] while the reader has never chosen one, so
+/// the bands keep following [defaultFor] — including its right-to-left flip —
+/// instead of freezing today's default into storage the first time the reader
+/// is opened.
+class TapZoneConfig {
+  const TapZoneConfig({
+    required this.left,
+    required this.center,
+    required this.right,
+  });
+
+  /// The behaviour before any customisation: the outer bands turn the page and
+  /// the middle reveals the controls. Mirrored for a right-to-left series,
+  /// where the next page is physically to the LEFT — the same flip the page
+  /// list already applies via [ReadingDirection.reverseScroll].
+  factory TapZoneConfig.defaultFor(ReadingDirection direction) => TapZoneConfig(
+        left: direction.reverseScroll
+            ? TapZoneAction.advance
+            : TapZoneAction.retreat,
+        center: TapZoneAction.toggle,
+        right: direction.reverseScroll
+            ? TapZoneAction.retreat
+            : TapZoneAction.advance,
+      );
+
+  final TapZoneAction left;
+  final TapZoneAction center;
+  final TapZoneAction right;
+
+  TapZoneConfig copyWith({
+    TapZoneAction? left,
+    TapZoneAction? center,
+    TapZoneAction? right,
+  }) =>
+      TapZoneConfig(
+        left: left ?? this.left,
+        center: center ?? this.center,
+        right: right ?? this.right,
+      );
+
+  /// One `left,center,right` string rather than three keys: a half-applied
+  /// write would leave the reader with two zones doing the same thing and no
+  /// way to tell that from a deliberate choice.
+  String get storageValue => '${left.name},${center.name},${right.name}';
+
+  /// `null` for absent or unreadable values — a blob that cannot be read whole
+  /// is no opinion at all, so [defaultFor] keeps applying.
+  static TapZoneConfig? fromStorageValue(String? value) {
+    if (value == null) return null;
+    final parts = value.split(',');
+    if (parts.length != 3) return null;
+    final actions = <TapZoneAction>[];
+    for (final part in parts) {
+      final matches = TapZoneAction.values.where((a) => a.name == part);
+      if (matches.isEmpty) return null;
+      actions.add(matches.first);
+    }
+    return TapZoneConfig(
+      left: actions[0],
+      center: actions[1],
+      right: actions[2],
+    );
+  }
+}
+
 /// Preferred display refresh rate applied while the reader is open.
 ///
 /// On Android this maps to a physical display mode via `flutter_displaymode`;
@@ -98,6 +182,7 @@ class ReaderDefaults {
     required this.lockControls,
     required this.refreshRate,
     required this.volumeKeyNavigation,
+    this.tapZones,
   });
 
   final ReadingDirection direction;
@@ -110,6 +195,9 @@ class ReaderDefaults {
   /// Page-turn on hardware volume keys (Android only; no-op elsewhere).
   final bool volumeKeyNavigation;
 
+  /// Customised tap bands, or `null` for "follow the reading direction".
+  final TapZoneConfig? tapZones;
+
   ReaderDefaults copyWith({
     ReadingDirection? direction,
     ReaderFitMode? fitMode,
@@ -118,6 +206,10 @@ class ReaderDefaults {
     bool? lockControls,
     ReaderRefreshRate? refreshRate,
     bool? volumeKeyNavigation,
+    TapZoneConfig? tapZones,
+    // An optional parameter cannot express "back to null", and null is the
+    // meaningful "follow the reading direction" value for [tapZones].
+    bool clearTapZones = false,
   }) =>
       ReaderDefaults(
         direction: direction ?? this.direction,
@@ -127,6 +219,7 @@ class ReaderDefaults {
         lockControls: lockControls ?? this.lockControls,
         refreshRate: refreshRate ?? this.refreshRate,
         volumeKeyNavigation: volumeKeyNavigation ?? this.volumeKeyNavigation,
+        tapZones: clearTapZones ? null : (tapZones ?? this.tapZones),
       );
 }
 
