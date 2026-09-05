@@ -2,6 +2,11 @@
 
 Following a series is ``POST /library/follow`` now; this router is the
 update-check settings, the resulting notifications, and the run log.
+
+A notification names a series and a chapter title, so every notification path
+here — list, count, mark-one, mark-all — is scoped to the caller's
+(user, profile) *and* passed through that profile's 18+ gate; a withheld one is
+absent, never a 403. See ``UpdateService._visible_notifications``.
 """
 
 from __future__ import annotations
