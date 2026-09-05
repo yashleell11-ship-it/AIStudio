@@ -29,7 +29,7 @@ class ShotSeries {
 
   String get slug => title
       .toLowerCase()
-      .replaceAll(RegExp(r"[^a-z0-9]+"), '-')
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
       .replaceAll(RegExp(r'^-|-$'), '');
 }
 
@@ -43,32 +43,40 @@ String shotCoverPath(ShotSeries series) =>
 
 const shotManga = <ShotSeries>[
   ShotSeries(
-      title: 'The Lantern Courier',
-      chapterCount: 128,
-      status: 'reading',
-      favorite: true),
+    title: 'The Lantern Courier',
+    chapterCount: 128,
+    status: 'reading',
+    favorite: true,
+  ),
   ShotSeries(
-      title: 'Sword of the Ninth Spring',
-      chapterCount: 246,
-      status: 'reading'),
+    title: 'Sword of the Ninth Spring',
+    chapterCount: 246,
+    status: 'reading',
+  ),
   ShotSeries(
-      title: 'Skyward Gardeners', chapterCount: 74, status: 'plan_to_read'),
+    title: 'Skyward Gardeners',
+    chapterCount: 74,
+    status: 'plan_to_read',
+  ),
   ShotSeries(
-      title: 'Paper Tiger Academy',
-      chapterCount: 311,
-      status: 'reading',
-      favorite: true),
+    title: 'Paper Tiger Academy',
+    chapterCount: 311,
+    status: 'reading',
+    favorite: true,
+  ),
   ShotSeries(
-      title: "The Cartographer's Apprentice",
-      chapterCount: 96,
-      status: 'reading'),
+    title: "The Cartographer's Apprentice",
+    chapterCount: 96,
+    status: 'reading',
+  ),
   ShotSeries(title: 'Moonlit Bakery', chapterCount: 152, status: 'completed'),
   ShotSeries(title: 'Iron Kite', chapterCount: 63, status: 'reading'),
   ShotSeries(
-      title: 'Tea House on Rain Street',
-      chapterCount: 208,
-      status: 'reading',
-      favorite: true),
+    title: 'Tea House on Rain Street',
+    chapterCount: 208,
+    status: 'reading',
+    favorite: true,
+  ),
   ShotSeries(title: 'The Quiet Duelist', chapterCount: 187, status: 'reading'),
 ];
 
@@ -141,7 +149,7 @@ List<FollowedSeries> shotFollowed(List<ShotSeries> series) => [
           contentRating: 'safe',
           rating: 'safe',
           chapterCount: series[i].chapterCount,
-          createdAt: DateTime.utc(2026, 3, 1).add(Duration(days: i * 9)),
+          createdAt: DateTime.utc(2026, 3).add(Duration(days: i * 9)),
           updatedAt: DateTime.utc(2026, 8, 20).add(Duration(hours: i * 5)),
         ),
     ];
