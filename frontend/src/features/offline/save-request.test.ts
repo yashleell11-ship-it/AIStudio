@@ -101,6 +101,10 @@ describe("buildSaveRequest", () => {
     ]);
   });
 
+  it("labels the plan page images, not prose", () => {
+    expect(request.medium).toBe("manga");
+  });
+
   it("points the document URL at the unified reader route", () => {
     expect(request.documentUrl).toBe(
       "https://host.example/reader/asura/series%2Fsolo-levelling/ch/50",

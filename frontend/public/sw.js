@@ -624,6 +624,14 @@ async function runSave(payload, cacheName) {
       chapterKey: payload.chapterKey,
       title: payload.title,
       seriesTitle: payload.seriesTitle || null,
+      // Recorded so /downloads can name the right reader for a row it never
+      // opened. Defaulted rather than trusted: an older page that predates the
+      // field still saves manga correctly, and prose is the only thing that
+      // arrives with no page images.
+      medium:
+        payload.medium === "novel" || payload.imageUrls.length === 0
+          ? "novel"
+          : "manga",
       pageCount: payload.imageUrls.length,
       payloadUrl: payload.payloadUrl,
       urls: targets.map(function url(target) {

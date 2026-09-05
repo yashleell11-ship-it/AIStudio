@@ -1,4 +1,26 @@
-import type { SavedChapterEntry, StorageEstimateSnapshot } from "./types";
+import type {
+  SavedChapterEntry,
+  SavedChapterMedium,
+  StorageEstimateSnapshot,
+} from "./types";
+
+/**
+ * Which reader a saved chapter opens in.
+ *
+ * Reads the recorded `medium` when there is one and falls back to the shape of
+ * the entry when there is not: a chapter saved before the field existed is
+ * prose exactly when it has no page images, because `isSavableChapter` refuses
+ * to save a manga chapter whose page list is empty.
+ */
+export function savedChapterMedium(entry: SavedChapterEntry): SavedChapterMedium {
+  if (entry.medium === "novel" || entry.medium === "manga") return entry.medium;
+  return entry.pageCount > 0 ? "manga" : "novel";
+}
+
+/** Whether this saved chapter is prose. */
+export function isSavedNovel(entry: SavedChapterEntry): boolean {
+  return savedChapterMedium(entry) === "novel";
+}
 
 /** Powers of 1024 with one decimal — how a storage screen has to read. */
 export function formatBytes(bytes: number): string {
@@ -14,7 +36,16 @@ export function formatBytes(bytes: number): string {
   return `${rounded} ${units[unit]}`;
 }
 
+/**
+ * How much of this chapter is on the device, 0-100.
+ *
+ * A prose chapter has no pages to count — the text IS the chapter, stored in
+ * one request — so it is complete the moment the worker settles it. Measuring
+ * it against a page count of zero returned 0 and drew an empty progress bar
+ * over a fully saved book.
+ */
 export function savePercent(entry: SavedChapterEntry): number {
+  if (isSavedNovel(entry)) return entry.status === "saving" ? 0 : 100;
   if (entry.pageCount <= 0) return 0;
   return Math.min(100, Math.round((entry.savedPages / entry.pageCount) * 100));
 }
@@ -34,14 +65,26 @@ export interface EntryDescription {
  * place it cannot be fixed.
  */
 export function describeEntry(entry: SavedChapterEntry): EntryDescription {
+  // Prose counts nothing: one request, no pages, so "0 pages · 14 KB" on a book
+  // that is entirely on the device is both wrong and the wrong unit.
+  const novel = isSavedNovel(entry);
+
   if (entry.status === "saving") {
-    return { label: `Saving ${entry.savedPages}/${entry.pageCount}`, tone: "busy" };
+    return {
+      label: novel ? "Saving" : `Saving ${entry.savedPages}/${entry.pageCount}`,
+      tone: "busy",
+    };
   }
   if (entry.status === "paused") {
     return { label: "Paused — device is full", tone: "warn" };
   }
   if (entry.stale) {
     return { label: "Pages changed on the server — save again", tone: "warn" };
+  }
+  if (novel) {
+    return entry.status === "partial"
+      ? { label: "Incomplete — save again", tone: "warn" }
+      : { label: `Saved · ${formatBytes(entry.bytes)}`, tone: "ready" };
   }
   if (entry.status === "partial" || entry.savedPages < entry.pageCount) {
     return {

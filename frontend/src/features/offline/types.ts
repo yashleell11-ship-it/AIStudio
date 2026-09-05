@@ -18,6 +18,9 @@ export type SavedChapterStatus =
   /** Stopped because the device is out of room, not because of an error. */
   | "paused";
 
+/** Which reader a saved chapter opens in. Prose has no page images at all. */
+export type SavedChapterMedium = "manga" | "novel";
+
 export interface SavedChapterEntry {
   /** Unique within a profile's cache; see `chapterCacheKey`. */
   key: string;
@@ -27,6 +30,13 @@ export interface SavedChapterEntry {
   chapterKey: string;
   title: string;
   seriesTitle: string | null;
+  /**
+   * OPTIONAL because entries saved before this field existed do not carry it.
+   * Resolve it with `savedChapterMedium` rather than reading it directly — a
+   * zero-page entry is prose whether or not it was labelled, since a manga
+   * chapter with no pages is never savable (`isSavableChapter`).
+   */
+  medium?: SavedChapterMedium;
   pageCount: number;
   payloadUrl: string;
   /** Everything this chapter put in the cache, so removal takes exactly it. */

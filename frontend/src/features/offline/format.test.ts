@@ -7,6 +7,7 @@ import {
   groupBySeries,
   isFullySaved,
   savePercent,
+  savedChapterMedium,
   summariseStorage,
 } from "./format";
 import type { SavedChapterEntry } from "./types";
@@ -34,8 +35,20 @@ function entry(overrides: Partial<SavedChapterEntry> = {}): SavedChapterEntry {
     savedAt: 1_000,
     lastOpenedAt: null,
     readAt: null,
+    medium: "manga",
     ...overrides,
   };
+}
+
+/** A saved prose chapter: one payload, no page images. */
+function novel(overrides: Partial<SavedChapterEntry> = {}): SavedChapterEntry {
+  return entry({
+    medium: "novel",
+    pageCount: 0,
+    savedPages: 0,
+    bytes: 14 * 1024,
+    ...overrides,
+  });
 }
 
 describe("formatBytes", () => {
@@ -86,6 +99,23 @@ describe("describeEntry", () => {
   });
 });
 
+describe("prose entries", () => {
+  it("reports bytes rather than a page count it does not have", () => {
+    expect(describeEntry(novel({ bytes: 14 * 1024 }))).toEqual({
+      label: "Saved · 14 KB",
+      tone: "ready",
+    });
+  });
+
+  it("says it is saving without counting pages", () => {
+    expect(describeEntry(novel({ status: "saving" })).label).toBe("Saving");
+  });
+
+  it("still flags an interrupted save", () => {
+    expect(describeEntry(novel({ status: "partial" })).tone).toBe("warn");
+  });
+});
+
 describe("isFullySaved", () => {
   it("is true only for a complete, current copy", () => {
     expect(isFullySaved(entry())).toBe(true);
@@ -97,12 +127,31 @@ describe("isFullySaved", () => {
 });
 
 describe("savePercent", () => {
-  it("never divides by a page count of zero", () => {
-    expect(savePercent(entry({ pageCount: 0, savedPages: 0 }))).toBe(0);
-  });
-
   it("clamps to 100", () => {
     expect(savePercent(entry({ pageCount: 10, savedPages: 12 }))).toBe(100);
+  });
+
+  it("calls a settled prose chapter complete rather than dividing by zero", () => {
+    // A novel is one request and no pages; measuring it against a page count
+    // of zero drew an empty bar over a book that was entirely on the device.
+    expect(savePercent(novel())).toBe(100);
+    expect(savePercent(novel({ status: "saving" }))).toBe(0);
+  });
+});
+
+describe("savedChapterMedium", () => {
+  it("reads the recorded medium", () => {
+    expect(savedChapterMedium(entry({ medium: "manga" }))).toBe("manga");
+    expect(savedChapterMedium(entry({ medium: "novel", pageCount: 0 }))).toBe("novel");
+  });
+
+  it("falls back to the shape for entries saved before the field existed", () => {
+    // `isSavableChapter` refuses a manga chapter with no pages, so a
+    // page-less entry can only ever be prose.
+    expect(savedChapterMedium(entry({ medium: undefined }))).toBe("manga");
+    expect(
+      savedChapterMedium(entry({ medium: undefined, pageCount: 0, savedPages: 0 })),
+    ).toBe("novel");
   });
 });
 
