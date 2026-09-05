@@ -8,6 +8,7 @@ import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/library/models/reading_history_item.dart';
 import 'package:manhwamaniacs/features/library/providers/intelligence_providers.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
@@ -35,6 +36,7 @@ class ReadingHistoryScreen extends ConsumerWidget {
           onPressed: () => context.canPop() ? context.pop() : context.go(Routes.library),
         ),
         title: const Text('Reading History'),
+        actions: const [ContentModeChip()],
       ),
       body: historyAsync.when(
         loading: () => ListView(

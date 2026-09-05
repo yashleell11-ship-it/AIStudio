@@ -6,6 +6,7 @@ import 'package:manhwamaniacs/app/theme/app_colors.dart';
 import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
+import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_chip.dart';
 import 'package:manhwamaniacs/features/ocr/providers/ocr_providers.dart';
 import 'package:manhwamaniacs/features/profiles/profile_routes.dart';
 import 'package:manhwamaniacs/features/settings/models/app_version.dart';
@@ -46,7 +47,12 @@ class MoreScreen extends ConsumerWidget {
         isOcrVisible(scope.mode, novelsEnabled: scope.novelsEnabled);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('More')),
+      appBar: AppBar(
+        title: const Text('More'),
+        // The mode decides whether Dialogue search is listed below at all,
+        // and every screen this tab leads to is scoped by it.
+        actions: const [ContentModeChip()],
+      ),
       body: ListView(
         padding: EdgeInsets.only(
           left: context.space.lg,
