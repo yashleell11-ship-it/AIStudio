@@ -17,6 +17,7 @@ import pytest
 import connectors.registry as registry
 from connectors.base import SourceConnector
 from connectors.models import BrowseMode, Chapter, PaginatedSeriesList, Page, Series
+from core import connector_directory
 from services.browse_service import get_browse_service
 from tests._fakes import FakeBrowse
 
@@ -114,10 +115,40 @@ class StubMatureOcrSource(SourceConnector):
 
 @pytest.fixture
 def mature_source():
+    """Put the stub in the REAL registry for one test, and take it back out.
+
+    The registry is process-global, and ``core.connector_directory`` memoizes a
+    descriptor index over it keyed on ``(novels_enabled, len(_REGISTRY))``.
+    Five other modules register a stub of their own, so every one of them moves
+    the registry from N to N+1 and lands on that *same* key: whichever runs
+    first builds the index, and the rest are served it — holding a stub they
+    never registered and missing the one they did. ``descriptor_for_source``
+    then answers ``None`` for their source, which silently switches off rule 3
+    of ``resolve_tracker_rating`` (a follow on an 18+ SOURCE is 18+) and
+    ``mature_source_ids``, so their gate test passes for the wrong reason.
+
+    Dropping the memo on both edges keeps this fixture's registry mutation from
+    outliving it. It is the memo, not the registry, that leaks: ``_REGISTRY``
+    and ``_INSTANCE_CACHE`` were already being restored.
+    """
     registry.register_connector(MATURE_SRC, StubMatureOcrSource)
+    connector_directory.reset_cache()
     yield
     registry._REGISTRY.pop(MATURE_SRC, None)
     registry._INSTANCE_CACHE.pop(MATURE_SRC, None)
+    connector_directory.reset_cache()
+
+
+def test_the_stub_source_is_visible_through_the_connector_directory(mature_source):
+    """The gate test below rests on this, so it is asserted rather than assumed.
+
+    ``ensure_visible`` reads the registry directly and would 404 the stub either
+    way; the *series* half of the gate reads ``descriptor_for_source``. When a
+    stale memo hides the stub, that half stops being exercised and nothing says
+    so — the run still comes back green.
+    """
+    assert connector_directory.descriptor_for_source(MATURE_SRC) is not None
+    assert MATURE_SRC in connector_directory.mature_source_ids()
 
 
 def test_mature_source_transcript_is_gated_per_profile(
