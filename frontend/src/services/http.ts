@@ -65,13 +65,15 @@ export function encodePathKey(key: string): string {
 }
 
 /**
- * Typed fetch wrapper. Resolves to parsed JSON of type T or throws `ApiError`.
- * This is the single entry point for backend calls — feature services build on it.
+ * Issue the request and hand back a successful `Response`, or throw `ApiError`.
+ * Shared by `request` and `requestBlob` so both carry the same credentials, the
+ * same profile header, and the same error contract — only the body differs.
  */
-export async function request<T>(
+async function send(
   path: string,
-  options: RequestOptions = {},
-): Promise<T> {
+  options: RequestOptions,
+  accept: string,
+): Promise<Response> {
   const { method = "GET", body, query, signal, headers } = options;
 
   // Attach the active reading profile so the backend scopes reads and enforces
@@ -80,6 +82,11 @@ export async function request<T>(
   // per-call threading. `null` before a profile is chosen (or on the server) —
   // then the header is omitted. An explicit `headers` override still wins.
   const profileId = getActiveProfileId();
+
+  // A multipart body carries a boundary that only the browser can generate, so
+  // `FormData` is handed to fetch untouched: JSON-encoding it, or naming a
+  // Content-Type for it, produces a body the server cannot parse.
+  const isFormData = typeof FormData !== "undefined" && body instanceof FormData;
 
   let response: Response;
   try {
@@ -91,12 +98,15 @@ export async function request<T>(
       // the credential.
       credentials: "include",
       headers: {
-        Accept: "application/json",
-        ...(body !== undefined ? { "Content-Type": "application/json" } : {}),
+        Accept: accept,
+        ...(body !== undefined && !isFormData
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...(profileId !== null ? { "X-Profile-Id": String(profileId) } : {}),
         ...headers,
       },
-      body: body !== undefined ? JSON.stringify(body) : undefined,
+      body:
+        body === undefined ? undefined : isFormData ? body : JSON.stringify(body),
     });
   } catch (cause) {
     throw new ApiError(0, {
@@ -113,10 +123,54 @@ export async function request<T>(
     throw new ApiError(response.status, await safeParseError(response));
   }
 
+  return response;
+}
+
+/**
+ * Typed fetch wrapper. Resolves to parsed JSON of type T or throws `ApiError`.
+ * This is the single entry point for backend calls — feature services build on it.
+ */
+export async function request<T>(
+  path: string,
+  options: RequestOptions = {},
+): Promise<T> {
+  const response = await send(path, options, "application/json");
+
   if (response.status === 204) {
     return undefined as T;
   }
   return (await response.json()) as T;
+}
+
+/** A file the backend sent us, plus the header that names it. */
+export interface BlobResponse {
+  blob: Blob;
+  /** Raw `Content-Disposition`, or null when the server sent none. */
+  contentDisposition: string | null;
+}
+
+/**
+ * Fetch a binary response — a file download — with the session attached.
+ *
+ * Deliberately not an `<a download href="…">`: `mm_session` is httpOnly and
+ * `SameSite=lax`, so a browser-managed request for another origin (dev's
+ * `127.0.0.1:8000`) never carries it and the download comes back 401. That is
+ * the same failure that took `next/image`'s optimizer out app-wide. Going
+ * through fetch keeps `credentials: "include"` on the request, at the cost of
+ * holding the file in memory until the page has handed it to the user.
+ *
+ * A failure still arrives as JSON in the standard `{code, message}` envelope,
+ * so callers see the same `ApiError` they would from `request`.
+ */
+export async function requestBlob(
+  path: string,
+  options: RequestOptions = {},
+): Promise<BlobResponse> {
+  const response = await send(path, options, "application/octet-stream");
+  return {
+    blob: await response.blob(),
+    contentDisposition: response.headers.get("Content-Disposition"),
+  };
 }
 
 async function safeParseError(response: Response): Promise<Partial<ApiErrorBody>> {
