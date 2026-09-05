@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 import { useSaveProgress } from "./hooks";
+import { useReadingClock } from "./reading-clock";
 import { chapterIndexOf, type StripChapter, type StripPosition } from "./strip";
 
 const PROGRESS_SAVE_MS = 500;
@@ -31,7 +32,9 @@ export interface StripProgressInput {
  * - nothing ever rewinds: scrolling back to re-read is not a claim to be
  *   earlier in a chapter than the reader got to. The server's furthest-wins
  *   merge would refuse it anyway, but the write would still be pointless and
- *   would rewind the optimistic local state the series page reads back.
+ *   would rewind the optimistic local state the series page reads back;
+ * - every write carries how long it has been since the last one, which is what
+ *   the server turns into a session's duration (see `reading-clock.ts`).
  */
 export function useStripProgress({
   sourceId,
@@ -40,6 +43,7 @@ export function useStripProgress({
   onChapterChange,
 }: StripProgressInput): (position: StripPosition) => void {
   const saveProgress = useSaveProgress();
+  const takeElapsed = useReadingClock();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /**
    * Furthest page already REPORTED, per chapter — a strip visits several.
@@ -83,10 +87,11 @@ export function useStripProgress({
           last_page: chapter.pages.length,
           page_count: chapter.pages.length,
           is_completed: true,
+          time_spent_seconds: takeElapsed(),
         },
       });
     },
-    [chapters, saveProgress, seriesKey, sourceId],
+    [chapters, saveProgress, seriesKey, sourceId, takeElapsed],
   );
 
   return useCallback(
@@ -124,10 +129,19 @@ export function useStripProgress({
             page_count: position.pageCount,
             is_completed:
               position.pageCount > 0 && position.pageNumber >= position.pageCount,
+            time_spent_seconds: takeElapsed(),
           },
         });
       }, PROGRESS_SAVE_MS);
     },
-    [chapters, completeChapter, onChapterChange, saveProgress, seriesKey, sourceId],
+    [
+      chapters,
+      completeChapter,
+      onChapterChange,
+      saveProgress,
+      seriesKey,
+      sourceId,
+      takeElapsed,
+    ],
   );
 }

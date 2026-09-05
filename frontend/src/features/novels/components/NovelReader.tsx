@@ -7,6 +7,7 @@ import {
   useBookmarkCapture,
 } from "@/features/bookmarks";
 import { useSaveProgress } from "@/features/reader/hooks";
+import { useReadingClock } from "@/features/reader/reading-clock";
 import { seriesPageHref } from "@/features/reader/reader-link";
 import { setReaderScrollTop } from "@/features/reader/scroll-preparation";
 import { useSourceSeriesDetail } from "@/features/sources/hooks";
@@ -101,6 +102,9 @@ export function NovelReader({
   const chapterQuery = useNovelChapter(ref);
   const seriesQuery = useSourceSeriesDetail(sourceId, seriesKey);
   const saveProgress = useSaveProgress();
+  // How long since this reader's last push — what the server turns into a
+  // session's duration. See `reading-clock.ts`.
+  const takeElapsed = useReadingClock();
   const bookmark = useBookmarkCapture();
 
   const chapter = useMemo(
@@ -156,10 +160,18 @@ export function NovelReader({
           last_page: position.bucket,
           page_count: position.buckets,
           is_completed: position.completed,
+          time_spent_seconds: takeElapsed(),
         },
       });
     },
-    [chapter?.chapterNumber, activeChapterKey, saveProgress, seriesKey, sourceId],
+    [
+      chapter?.chapterNumber,
+      activeChapterKey,
+      saveProgress,
+      seriesKey,
+      sourceId,
+      takeElapsed,
+    ],
   );
 
   const handleProgress = useCallback(
@@ -217,6 +229,7 @@ export function NovelReader({
         last_page: chapter.buckets,
         page_count: chapter.buckets,
         is_completed: true,
+        time_spent_seconds: takeElapsed(),
       },
     });
 
@@ -245,6 +258,7 @@ export function NovelReader({
     scrollElement,
     seriesKey,
     sourceId,
+    takeElapsed,
   ]);
 
   useEffect(() => {
