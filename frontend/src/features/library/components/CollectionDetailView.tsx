@@ -169,18 +169,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
     <div className="min-h-full bg-bg">
       <div className="relative overflow-hidden border-b border-border/50">
         <div className="absolute inset-0">
-          {collection.cover_url ? (
-            <Image
-              src={collection.cover_url}
-              alt=""
-              fill
-              className="object-cover opacity-40 blur-2xl"
-              sizes="100vw"
-              unoptimized
-            />
-          ) : (
-            <div className="h-full w-full bg-gradient-to-br from-accent/30 via-void to-primary/20" />
-          )}
+          <div className="h-full w-full bg-gradient-to-br from-accent/30 via-void to-primary/20" />
           <div className="absolute inset-0 bg-gradient-to-b from-void/40 via-void/80 to-bg" />
         </div>
 

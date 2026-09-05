@@ -133,7 +133,6 @@ export interface Collection {
   id: number;
   name: string;
   description: string | null;
-  cover_url: string | null;
   sort_order: number;
   series_count: number;
 }

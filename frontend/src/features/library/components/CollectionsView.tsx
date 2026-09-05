@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import {
   BookOpen,
   FolderOpen,
@@ -58,26 +57,13 @@ function CollectionBannerCard({ collection }: { collection: Collection }) {
     >
       <article className="relative overflow-hidden rounded-2xl transition-all duration-300 hover:scale-[1.01] hover:shadow-glow">
         <div className="relative aspect-[21/9] min-h-[140px] w-full bg-surface-2 sm:aspect-[24/9]">
-          {collection.cover_url ? (
-            <Image
-              src={collection.cover_url}
-              alt=""
-              fill
-              className="object-cover transition-transform duration-500 group-hover:scale-105"
-              sizes="(max-width: 768px) 100vw, 800px"
-              unoptimized
-            />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-accent/40 via-panel to-primary/20" />
-          )}
+          <div className="absolute inset-0 bg-gradient-to-br from-accent/40 via-panel to-primary/20" />
           <div className="absolute inset-0 bg-gradient-to-r from-void/95 via-void/70 to-void/30" />
           <div className="absolute inset-0 bg-gradient-to-t from-void/80 via-transparent to-transparent" />
 
-          {!collection.cover_url && (
-            <div className="absolute right-6 top-1/2 hidden -translate-y-1/2 font-display text-6xl tracking-widest text-white/10 sm:block">
-              {collectionInitials(collection.name)}
-            </div>
-          )}
+          <div className="absolute right-6 top-1/2 hidden -translate-y-1/2 font-display text-6xl tracking-widest text-white/10 sm:block">
+            {collectionInitials(collection.name)}
+          </div>
 
           <div className="absolute inset-0 flex flex-col justify-end p-5 sm:p-6">
             <h3 className="text-xl font-bold text-white transition-colors group-hover:text-primary sm:text-2xl">

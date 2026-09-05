@@ -718,12 +718,16 @@ class FollowedSeriesService:
     ) -> dict[str, Any]:
         """``series_count`` supplied by the caller avoids the relationship load;
         omitted, it falls back to the relationship (single-collection paths,
-        where the membership is usually loaded already)."""
+        where the membership is usually loaded already).
+
+        No ``cover_url``: nothing ever wrote ``Collection.cover_url``, and the
+        only cover a collection could sensibly show is one of its own members',
+        which a client derives from the membership without a stored column.
+        """
         return {
             "id": row.id,
             "name": row.name,
             "description": row.description,
-            "cover_url": row.cover_url,
             "sort_order": row.sort_order,
             "series_count": len(row.series) if series_count is None else series_count,
         }
