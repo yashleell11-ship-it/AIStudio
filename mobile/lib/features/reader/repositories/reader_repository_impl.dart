@@ -3,6 +3,7 @@ import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest_window.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 
@@ -27,6 +28,29 @@ class ReaderRepositoryImpl implements ReaderRepository {
         },
       );
       return Ok(ChapterManifest.fromJson(r.data!));
+    } on DioException catch (e) {
+      return Err(_err(e));
+    } catch (e) {
+      return Err(UnknownError(message: e.toString(), cause: e));
+    }
+  }
+
+  @override
+  Future<Result<ChapterManifestWindow>> manifestWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
+  }) async {
+    try {
+      final r = await _dio.post<Map<String, dynamic>>(
+        '/reader/chapters/manifest',
+        data: {
+          'source_id': sourceId,
+          'series_key': seriesKey,
+          'chapter_keys': chapterKeys,
+        },
+      );
+      return Ok(ChapterManifestWindow.fromJson(r.data ?? const {}));
     } on DioException catch (e) {
       return Err(_err(e));
     } catch (e) {

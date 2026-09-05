@@ -154,6 +154,21 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   /// stride is the deployment's, not the app's.
   int _novelWindowSize = kNovelWindowChapters;
 
+  /// Chapter manifests fetched ahead of the loop by [_primeManifestWindow],
+  /// waiting for the pass that owns their row. Held in memory only and never
+  /// written to the store — see [_downloadOneChapter] for why a manifest that
+  /// outlives the run that fetched it is not trustworthy.
+  final Map<ChapterIdentity, ChapterManifest> _manifestWindow = {};
+
+  /// [_novelWindowSize]'s counterpart for `POST /reader/chapters/manifest`.
+  /// Separate because the two endpoints are capped by two separate settings
+  /// server-side, so one deployment can raise one and not the other.
+  int _manifestWindowSize = kManifestWindowChapters;
+
+  /// When the queue may next spend a token on the shared `bulk` bucket, or
+  /// null when it is free. Set by [_blockBulkWindows].
+  DateTime? _bulkWindowBlockedUntil;
+
   /// Awaits the current processing pass, if one is running — **test-only**.
   /// Production callers must never await the queue draining: `enqueueChapter`
   /// et al. are deliberately fire-and-forget so the UI stays responsive while
@@ -268,6 +283,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     final store = ref.read(downloadsStoreProvider);
     if (store == null) return;
     _novelWindow.clear();
+    _manifestWindow.clear();
     for (final chapter in await store.unfinishedChapters()) {
       await cancelChapter(chapter.identity);
     }
@@ -333,9 +349,10 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
 
       final pending = await store.pendingChapters();
       if (pending.isEmpty) {
-        // Nothing left to hand it to; a window kept past here would be text
-        // for chapters the user has since cancelled.
+        // Nothing left to hand them to; a window kept past here would be
+        // content for chapters the user has since cancelled.
         _novelWindow.clear();
+        _manifestWindow.clear();
         state = state.copyWith(
           isDownloading: false,
           pauseReason: DownloadQueuePauseReason.none,
@@ -365,10 +382,14 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
       }
 
       final chapter = pending.first;
-      // Prose only, and only when several chapters of the same book are
-      // waiting: one round trip for the next twenty instead of twenty. Runs
-      // after the floor/cap checks above so a blocked queue never fetches.
-      if (chapter.kind.isNovel) await _primeNovelWindow(chapter, pending);
+      // Only when several chapters of the same series are waiting: one round
+      // trip for the next twenty instead of twenty. Runs after the floor/cap
+      // checks above so a blocked queue never fetches.
+      if (chapter.kind.isNovel) {
+        await _primeNovelWindow(chapter, pending);
+      } else {
+        await _primeManifestWindow(chapter, pending);
+      }
 
       state = state.copyWith(
         isDownloading: true,
@@ -436,12 +457,20 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
   }
 
   /// Fetches the manifest, fetches every page not already on disk, and marks
-  /// the chapter complete once every page is present. The manifest is always
-  /// re-fetched — including on a resumed chapter whose page count is already
-  /// known — because manifest page URLs can carry short-lived signed-proxy
-  /// query parameters; a copy cached from before an app kill is not
-  /// trustworthy for a fresh fetch, only [DownloadsStore.existingPageNumbers]
-  /// (what's already safely on disk) is.
+  /// the chapter complete once every page is present. No manifest is ever
+  /// PERSISTED and re-used — including on a resumed chapter whose page count
+  /// is already known — because manifest page URLs can carry short-lived
+  /// signed-proxy query parameters; a copy cached from before an app kill is
+  /// not trustworthy for a fresh fetch, only
+  /// [DownloadsStore.existingPageNumbers] (what's already safely on disk) is.
+  ///
+  /// [_primeManifestWindow]'s in-memory window is the one thing that may
+  /// supply a manifest this pass did not fetch itself, and it stays on the
+  /// right side of that rule: it is never written to the store, it is dropped
+  /// whenever the queue empties or is cancelled, and it dies with the process.
+  /// A window entry is also consumed exactly once, so should a page URL go
+  /// stale anyway, the page retries fail, the chapter is re-queued, and the
+  /// next pass fetches a fresh manifest over the network.
   Future<_ChapterOutcome> _downloadOneChapter(
     DownloadsStore store,
     SavedChapter chapter,
@@ -455,15 +484,26 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     // [_downloadOneNovelChapter].
     if (chapter.kind.isNovel) return _downloadOneNovelChapter(store, chapter);
 
-    final manifestResult = await ref.read(readerRepositoryProvider).manifest(
-          sourceId: chapter.sourceId,
-          seriesKey: chapter.seriesKey,
-          chapterKey: chapter.chapterKey,
+    // Already fetched as part of a window. Removed on the way out: a chapter
+    // is served from a window exactly once, so a retry after a failed page
+    // fetch goes back to the network rather than replaying page URLs that may
+    // be the reason the fetch failed.
+    var manifest = _manifestWindow.remove(chapter.identity);
+    if (manifest == null) {
+      final manifestResult = await ref.read(readerRepositoryProvider).manifest(
+            sourceId: chapter.sourceId,
+            seriesKey: chapter.seriesKey,
+            chapterKey: chapter.chapterKey,
+          );
+      if (manifestResult.isErr) {
+        return _recordChapterFailure(
+          store,
+          chapter,
+          manifestResult.error.userMessage,
         );
-    if (manifestResult.isErr) {
-      return _recordChapterFailure(store, chapter, manifestResult.error.userMessage);
+      }
+      manifest = manifestResult.value;
     }
-    final manifest = manifestResult.value;
     if (manifest.pageCount <= 0 || manifest.pages.isEmpty) {
       return _recordChapterFailure(store, chapter, 'This chapter has no pages.');
     }
@@ -580,6 +620,7 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     List<SavedChapter> pending,
   ) async {
     if (_novelWindow.containsKey(head.identity)) return;
+    if (_bulkWindowBlocked) return;
 
     final keys = <String>[];
     for (final row in pending) {
@@ -601,19 +642,34 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
 
     if (result.isErr) {
       final error = result.error;
-      // The server's cap is lower than ours. Adopt its number when it says
-      // one, otherwise halve — either way the next window fits, and this one
-      // falls through to single fetches rather than being lost.
       if (error is ApiError && error.code == 'batch_too_large') {
-        _novelWindowSize = _capFromBatchTooLarge(error) ??
-            (keys.length ~/ 2).clamp(kMinNovelWindowChapters, _novelWindowSize);
+        // The server's cap is lower than ours. Adopt its number when it says
+        // one, otherwise halve — either way the next window fits, and this one
+        // falls through to single fetches rather than being lost. A refusal
+        // that did NOT shrink us is not a renegotiation, it is a wall: rest
+        // the bucket rather than asking the same question every pass.
+        final before = _novelWindowSize;
+        _novelWindowSize =
+            _capFromBatchTooLarge(error, kMinNovelWindowChapters) ??
+                (keys.length ~/ 2)
+                    .clamp(kMinNovelWindowChapters, _novelWindowSize);
+        if (_novelWindowSize >= before) _blockBulkWindows();
+        return;
       }
+      _blockBulkWindows();
       return;
     }
 
     final window = result.value;
     if (window.maxChapters >= kMinNovelWindowChapters) {
       _novelWindowSize = window.maxChapters;
+    }
+    if (window.chapters.isEmpty) {
+      // Every key came back an error. Asking again on the next pass would
+      // spend a bulk token per chapter — more requests than the single-chapter
+      // path this replaces, aimed at the tightest bucket we have.
+      _blockBulkWindows();
+      return;
     }
     for (final entry in window.chapters.entries) {
       _novelWindow[(
@@ -624,14 +680,105 @@ class DownloadQueueController extends Notifier<DownloadQueueState> {
     }
   }
 
+  /// Fetches the next window of this series' queued chapters' manifests in one
+  /// round trip (`POST /reader/chapters/manifest`).
+  ///
+  /// "Download this series" is the case this exists for: a 300-chapter series
+  /// opens 300 manifest requests before a single page is on disk, and
+  /// pipelining those to make it quick is what previously drew a real,
+  /// minutes-long 429 from a source. Round trips and rate-limit safety are the
+  /// win here — on a warm cache the window is not measurably faster
+  /// server-side, because the floor is our own politeness spacing upstream.
+  ///
+  /// Deliberately best-effort and invisible to everything downstream, exactly
+  /// as [_primeNovelWindow] is. A window that fails — offline, rate-limited,
+  /// an older server without the endpoint — leaves the cache empty and every
+  /// chapter takes the single-chapter path it always took. Nothing here can
+  /// fail a download and nothing here bypasses a guard: each chapter still
+  /// gets its own row, the concurrency cap, the free-space floor, the storage
+  /// cap, pause/resume and its own retry bound.
+  Future<void> _primeManifestWindow(
+    SavedChapter head,
+    List<SavedChapter> pending,
+  ) async {
+    if (_manifestWindow.containsKey(head.identity)) return;
+    if (_bulkWindowBlocked) return;
+
+    final keys = <String>[];
+    for (final row in pending) {
+      if (row.kind.isNovel) continue;
+      if (row.sourceId != head.sourceId) continue;
+      if (row.seriesKey != head.seriesKey) continue;
+      if (_manifestWindow.containsKey(row.identity)) continue;
+      if (keys.contains(row.chapterKey)) continue;
+      keys.add(row.chapterKey);
+      if (keys.length >= _manifestWindowSize) break;
+    }
+    if (keys.length < kMinManifestWindowChapters) return;
+
+    final result = await ref.read(readerRepositoryProvider).manifestWindow(
+          sourceId: head.sourceId,
+          seriesKey: head.seriesKey,
+          chapterKeys: keys,
+        );
+
+    if (result.isErr) {
+      final error = result.error;
+      if (error is ApiError && error.code == 'batch_too_large') {
+        final before = _manifestWindowSize;
+        _manifestWindowSize =
+            _capFromBatchTooLarge(error, kMinManifestWindowChapters) ??
+                (keys.length ~/ 2)
+                    .clamp(kMinManifestWindowChapters, _manifestWindowSize);
+        if (_manifestWindowSize >= before) _blockBulkWindows();
+        return;
+      }
+      _blockBulkWindows();
+      return;
+    }
+
+    final window = result.value;
+    if (window.maxChapters >= kMinManifestWindowChapters) {
+      _manifestWindowSize = window.maxChapters;
+    }
+    if (window.manifests.isEmpty) {
+      _blockBulkWindows();
+      return;
+    }
+    for (final entry in window.manifests.entries) {
+      _manifestWindow[(
+        sourceId: head.sourceId,
+        seriesKey: head.seriesKey,
+        chapterKey: entry.key,
+      )] = entry.value;
+    }
+  }
+
   /// The cap the server named in a `batch_too_large` response, when it named
-  /// one in the shape the reader/novel endpoints use (`details.max_chapters`).
-  int? _capFromBatchTooLarge(ApiError error) {
+  /// one in the shape the reader/novel endpoints use (`details.max_chapters`)
+  /// and it is still worth spending a bulk token on.
+  int? _capFromBatchTooLarge(ApiError error, int floor) {
     final details = error.details;
     if (details is! Map) return null;
     final cap = details['max_chapters'];
-    if (cap is num && cap >= kMinNovelWindowChapters) return cap.toInt();
+    if (cap is num && cap >= floor) return cap.toInt();
     return null;
+  }
+
+  /// Rests the `bulk` bucket after a window came back useless.
+  ///
+  /// One cooldown for both window endpoints because the server charges them to
+  /// ONE bucket — `core/rate_limit.py`'s `bulk_limit` covers
+  /// `POST /reader/chapters/manifest` and `POST /novels/chapters` alike, sized
+  /// far tighter than the single-chapter buckets because one call there is
+  /// worth up to `max_chapters` upstream scrapes. A window that keeps failing
+  /// must not turn into one bulk request per chapter.
+  void _blockBulkWindows() =>
+      _bulkWindowBlockedUntil = DateTime.now().add(kBulkWindowCooldown);
+
+  bool get _bulkWindowBlocked {
+    final until = _bulkWindowBlockedUntil;
+    return until != null && DateTime.now().isBefore(until);
   }
 
   /// Bounded retry at the chapter level: increments `retry_count` and, once

@@ -19,6 +19,7 @@ import 'package:manhwamaniacs/features/library/screens/statistics_screen.dart';
 import 'package:manhwamaniacs/features/more/screens/more_screen.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest_window.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
@@ -258,6 +259,14 @@ class _EmptyReaderRepository implements ReaderRepository {
   Future<Result<List<ReadingProgress>>> seriesProgress({
     required String sourceId,
     required String seriesKey,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ChapterManifestWindow>> manifestWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
   }) =>
       throw UnimplementedError();
 }

@@ -17,6 +17,7 @@ import 'package:manhwamaniacs/features/downloads/services/device_storage_info.da
 import 'package:manhwamaniacs/features/downloads/services/retention_maintenance.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/chapter_manifest.dart';
+import 'package:manhwamaniacs/features/reader/models/chapter_manifest_window.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 import 'package:manhwamaniacs/features/reader/repositories/reader_repository.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
@@ -77,6 +78,14 @@ class _ScriptedReaderRepository implements ReaderRepository {
 
   @override
   Future<Result<void>> deleteBookmark(int bookmarkId) =>
+      throw UnimplementedError();
+
+  @override
+  Future<Result<ChapterManifestWindow>> manifestWindow({
+    required String sourceId,
+    required String seriesKey,
+    required List<String> chapterKeys,
+  }) =>
       throw UnimplementedError();
 }
 
