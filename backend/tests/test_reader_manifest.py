@@ -1,7 +1,8 @@
 """``GET /reader/chapter/manifest`` — the client download plan (spec §4.1, §7).
 
-The manifest is the ordered page list (number + proxy URL), chapter number, and
-prev/next chapter keys. No bytes. Tested against a stub connector.
+The manifest is the ordered page list (number + proxy URL + the source's own
+width/height when it reports them), chapter number, and prev/next chapter keys.
+No bytes. Tested against a stub connector.
 """
 
 from __future__ import annotations
@@ -26,8 +27,20 @@ FIXTURE = {
         ],
         "pages": {
             "ch-2": [
-                {"number": 1, "image_url": "/sources/mangadex/pages/p1/image"},
-                {"number": 2, "image_url": "/sources/mangadex/pages/p2/image"},
+                {
+                    "number": 1,
+                    "image_url": "/sources/mangadex/pages/p1/image",
+                    "width": 720,
+                    "height": 14668,
+                },
+                {
+                    "number": 2,
+                    "image_url": "/sources/mangadex/pages/p2/image",
+                    "width": 720,
+                    "height": 9600,
+                },
+                # No dimensions: the same connector can know some pages and not
+                # others, and the manifest must still answer for every page.
                 {"number": 3, "image_url": "/sources/mangadex/pages/p3/image"},
             ]
         },
@@ -45,9 +58,25 @@ def test_manifest_shape(db_session):
     assert m["chapter_number"] == 2.0
     assert m["page_count"] == 3
     assert m["pages"] == [
-        {"number": 1, "url": "/sources/mangadex/pages/p1/image"},
-        {"number": 2, "url": "/sources/mangadex/pages/p2/image"},
-        {"number": 3, "url": "/sources/mangadex/pages/p3/image"},
+        {
+            "number": 1,
+            "url": "/sources/mangadex/pages/p1/image",
+            "width": 720,
+            "height": 14668,
+        },
+        {
+            "number": 2,
+            "url": "/sources/mangadex/pages/p2/image",
+            "width": 720,
+            "height": 9600,
+        },
+        # Present and null rather than absent, so the client branches on a value.
+        {
+            "number": 3,
+            "url": "/sources/mangadex/pages/p3/image",
+            "width": None,
+            "height": None,
+        },
     ]
     assert m["prev"] == "ch-1"
     assert m["next"] == "ch-3"

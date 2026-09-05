@@ -192,8 +192,22 @@ class ReaderService:
             "chapter_key": chapter_key,
             "chapter_number": chapter.get("number"),
             "page_count": len(pages),
+            # ``width``/``height`` ride along under the SAME names and the same
+            # ``None``-when-unknown rule as ``BrowseService._serialize_page``,
+            # so a client learns one page shape rather than two. Dropping them
+            # here cost the web reader its only honest layout prior: it had to
+            # guess a page's extent from a fixed aspect ratio, which on a
+            # webtoon strip reserves ~1.1k px for a row that lays out at ~15k.
+            # Emitted unconditionally, so "unknown" is a null the client can
+            # branch on rather than an absent key it has to probe for.
             "pages": [
-                {"number": p["number"], "url": p["image_url"]} for p in pages
+                {
+                    "number": p["number"],
+                    "url": p["image_url"],
+                    "width": p.get("width"),
+                    "height": p.get("height"),
+                }
+                for p in pages
             ],
             "prev": _chapter_key(chapters[idx - 1]) if idx > 0 else None,
             "next": (
@@ -211,7 +225,9 @@ class ReaderService:
     ) -> dict[str, Any]:
         """The download plan for one chapter (spec §4.1).
 
-        ``{ page_count, chapter_number, pages: [{number, url}], prev, next }``.
+        ``{ page_count, chapter_number, pages: [{number, url, width, height}],
+        prev, next }``. ``width``/``height`` are the source's own, ``None`` when
+        the connector does not report them.
         ``url`` points at the existing image proxy. ``sha256``/``size`` are
         omitted for v1 (open question O-1) — the client content-addresses by
         hashing what it downloads.

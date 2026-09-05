@@ -83,13 +83,13 @@ def test_assemble_on_a_single_chapter_series_has_no_neighbours() -> None:
 def test_assemble_still_carries_the_chapter_number_and_pages() -> None:
     chapters = _chapters("c1", "c2")
     pages = [
-        {"number": 1, "image_url": "/proxy/a"},
+        {"number": 1, "image_url": "/proxy/a", "width": 720, "height": 14668},
         {"number": 2, "image_url": "/proxy/b"},
     ]
     payload = ReaderService._assemble("src", "series", "c2", chapters, 1, pages)
     assert payload["chapter_number"] == 2.0
     assert payload["page_count"] == 2
     assert payload["pages"] == [
-        {"number": 1, "url": "/proxy/a"},
-        {"number": 2, "url": "/proxy/b"},
+        {"number": 1, "url": "/proxy/a", "width": 720, "height": 14668},
+        {"number": 2, "url": "/proxy/b", "width": None, "height": None},
     ]
