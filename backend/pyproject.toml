@@ -27,16 +27,13 @@ dev = [
     "pytest==9.1.1",
 ]
 
-[project.scripts]
-manhwamaniacs = "cli:main"
-
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["api*", "connectors*", "core*", "database*", "routes*", "services*", "utils*"]
 exclude = ["tests*", "scripts*", "venv*"]
 
 [tool.setuptools]
-py-modules = ["main", "cli", "bootstrap"]
+py-modules = ["main", "bootstrap"]
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
