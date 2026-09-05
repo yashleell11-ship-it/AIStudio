@@ -21,6 +21,7 @@ import 'package:manhwamaniacs/features/downloads/widgets/series_download_progres
 import 'package:manhwamaniacs/features/library/models/known_chapter.dart';
 import 'package:manhwamaniacs/features/library/models/series_detail.dart';
 import 'package:manhwamaniacs/features/library/providers/series_detail_provider.dart';
+import 'package:manhwamaniacs/features/library/utils/continue_target.dart';
 import 'package:manhwamaniacs/features/library/utils/cover_url.dart';
 import 'package:manhwamaniacs/features/library/utils/series_display.dart';
 import 'package:manhwamaniacs/features/library/widgets/series_detail/series_detail_skeleton.dart';
@@ -233,17 +234,16 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
     return chapterLabel(number: newest.number, title: newest.title).primary;
   }
 
-  /// The chapter "Continue"/"Start Reading" would open: the highest-numbered
-  /// chapter with unfinished progress, or the first chapter when nothing has
-  /// been read yet.
-  KnownChapter? _continueChapter() {
-    KnownChapter? inProgress;
-    for (final chapter in _oldestFirst) {
-      final entry = _series.progress[chapter.key];
-      if (entry != null && !entry.isCompleted) inProgress = chapter;
-    }
-    return inProgress ?? _oldestFirst.firstOrNull;
-  }
+  /// The chapter "Continue"/"Start Reading" would open — see
+  /// [resolveContinueTarget] for the rule and why it lives outside this class.
+  ContinueTarget<KnownChapter>? _continueTarget() => resolveContinueTarget(
+        _oldestFirst,
+        progressOf: (chapter) {
+          final entry = _series.progress[chapter.key];
+          if (entry == null) return null;
+          return (lastPage: entry.lastPage, isCompleted: entry.isCompleted);
+        },
+      );
 
   /// This series' domain identity — the key every downloads provider is
   /// keyed by, and never the follow row's [SeriesDetail.id].
@@ -254,9 +254,14 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
   Widget build(BuildContext context) {
     _ensureSorted();
     final baseUrl = ref.watch(apiBaseUrlProvider);
-    final continueChapter = _continueChapter();
-    final continueProgress =
-        continueChapter == null ? null : _series.progress[continueChapter.key];
+    final continueTarget = _continueTarget();
+    final continueChapter = continueTarget?.chapter;
+    final isResume = continueTarget?.isResume ?? false;
+    // Page 1 is the reader's own default, so it is left off the deep link
+    // rather than spelled out — a fresh start builds the same URL every other
+    // entry point does.
+    final continuePage =
+        (continueTarget?.page ?? 1) > 1 ? continueTarget!.page : null;
 
     final sortedChapters = _sortOrder == SeriesChapterSortOrder.newest
         ? _newestFirst
@@ -316,14 +321,13 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
                   child: PrimaryPillButton(
                     key: const Key('read-primary'),
                     expanded: true,
-                    icon: continueProgress != null
+                    icon: isResume
                         ? Icons.play_arrow_rounded
                         : Icons.menu_book_outlined,
-                    label:
-                        continueProgress != null ? 'Continue' : 'Start Reading',
+                    label: isResume ? 'Continue' : 'Start Reading',
                     onPressed: () => _openChapter(
                       continueChapter,
-                      page: continueProgress?.lastPage,
+                      page: continuePage,
                     ),
                   ),
                 ),
@@ -335,7 +339,7 @@ class _SeriesDetailContentState extends ConsumerState<_SeriesDetailContent> {
                   ReadAllButton(
                     onPressed: () => _openChapter(
                       continueChapter,
-                      page: continueProgress?.lastPage,
+                      page: continuePage,
                       readAll: true,
                     ),
                   ),

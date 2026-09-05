@@ -485,6 +485,65 @@ void main() {
       expect(navigated, contains('page=5'));
       expect(find.text('READER'), findsOneWidget);
     });
+
+    testWidgets(
+        'Continue advances to the first unread chapter after one is finished '
+        'cleanly, instead of reopening chapter 1', (tester) async {
+      useTallSurface(tester);
+
+      // Closing the reader on the last page of chapter 1 (no auto-advance)
+      // used to leave Continue pointing back at chapter 1's final page.
+      final detail = _sampleSeriesDetail(
+        progress: const {
+          'ch-1': ChapterProgressEntry(lastPage: 20, isCompleted: true),
+        },
+      );
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+
+      String? navigated;
+      final router = GoRouter(
+        initialLocation: '/library/1',
+        routes: [
+          GoRoute(
+            path: '/library/:seriesId',
+            builder: (_, __) => const SeriesDetailScreen(seriesId: 1),
+          ),
+          GoRoute(
+            path: '/library/read/:sourceId/:seriesKey/:chapterKey',
+            builder: (_, state) {
+              navigated = state.uri.toString();
+              return const Scaffold(body: Text('READER'));
+            },
+          ),
+        ],
+      );
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            apiBaseUrlOverride('http://127.0.0.1:8000'),
+            sharedPrefsProvider.overrideWithValue(prefs),
+            libraryRepositoryProvider.overrideWithValue(
+              _FakeLibraryRepository(detail),
+            ),
+            updatesRepositoryProvider.overrideWithValue(_FakeUpdatesRepository()),
+            seriesDetailProvider(1)
+                .overrideWith((ref) async => (series: detail, isOffline: false)),
+          ],
+          child: MaterialApp.router(routerConfig: router),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Still "Continue": a chapter of history is not a fresh start, even
+      // though the chapter it opens has no progress row of its own.
+      await tester.tap(find.text('CONTINUE'));
+      await tester.pumpAndSettle();
+
+      expect(navigated, contains('/library/read/mangadex/manga-1/ch-2'));
+      expect(navigated, isNot(contains('page=')));
+    });
   });
 
   group('SeriesDetailScreen Follow control', () {
