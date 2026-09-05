@@ -9,13 +9,19 @@ class LibrarySkeleton extends StatelessWidget {
   const LibrarySkeleton({
     super.key,
     required this.viewMode,
+    this.novels = false,
   });
 
   final LibraryViewMode viewMode;
 
+  /// Novels are shelved as rows whatever the view mode says, so they load as
+  /// rows too — a grid of poster blocks resolving into a shelf would reflow
+  /// the whole page on arrival.
+  final bool novels;
+
   @override
   Widget build(BuildContext context) {
-    if (viewMode == LibraryViewMode.list) {
+    if (novels || viewMode == LibraryViewMode.list) {
       return Column(
         children: List.generate(
           8,
@@ -51,26 +57,49 @@ class LibrarySkeleton extends StatelessWidget {
 }
 
 class LibraryEmptyPanel extends StatelessWidget {
-  const LibraryEmptyPanel({super.key, required this.emptyState});
+  const LibraryEmptyPanel({
+    super.key,
+    required this.emptyState,
+    this.novels = false,
+  });
 
   final LibraryEmptyState emptyState;
 
+  /// Whether this is the Novels library. An empty shelf that offers to import
+  /// a folder of manhua is an empty shelf that answers the wrong question.
+  final bool novels;
+
   @override
   Widget build(BuildContext context) {
-    final copy = switch (emptyState) {
-      LibraryEmptyState.search => (
-          'No results found',
-          'Try a different search term or clear filters.',
-        ),
-      LibraryEmptyState.filter => (
-          'No series match these filters',
-          'Adjust your filters or favorites toggle to see more series.',
-        ),
-      LibraryEmptyState.library => (
-          'Your library is empty',
-          'Import a folder containing your manhwa, manga, or manhua collection to get started.',
-        ),
-    };
+    final copy = novels
+        ? switch (emptyState) {
+            LibraryEmptyState.search => (
+                'No results found',
+                'Try a different search term or clear filters.',
+              ),
+            LibraryEmptyState.filter => (
+                'No novels match these filters',
+                'Adjust your filters or favorites toggle to see more books.',
+              ),
+            LibraryEmptyState.library => (
+                'Your shelf is empty',
+                'Add a book from a novel source to start your shelf.',
+              ),
+          }
+        : switch (emptyState) {
+            LibraryEmptyState.search => (
+                'No results found',
+                'Try a different search term or clear filters.',
+              ),
+            LibraryEmptyState.filter => (
+                'No series match these filters',
+                'Adjust your filters or favorites toggle to see more series.',
+              ),
+            LibraryEmptyState.library => (
+                'Your library is empty',
+                'Import a folder containing your manhwa, manga, or manhua collection to get started.',
+              ),
+          };
 
     return Container(
       width: double.infinity,

@@ -9,9 +9,12 @@ import 'package:manhwamaniacs/core/utils/responsive.dart';
 import 'package:manhwamaniacs/features/content_mode/content_mode_controller.dart';
 import 'package:manhwamaniacs/features/content_mode/widgets/content_mode_switch.dart';
 import 'package:manhwamaniacs/features/library/models/followed_series.dart';
+import 'package:manhwamaniacs/features/library/utils/library_shelf.dart';
 import 'package:manhwamaniacs/features/library/widgets/home/followed_series_card.dart';
+import 'package:manhwamaniacs/features/novels/widgets/novel_shelf.dart';
 import 'package:manhwamaniacs/features/profiles/widgets/profile_switcher_chip.dart';
 import 'package:manhwamaniacs/features/updates/providers/updates_provider.dart';
+import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/fade_in.dart';
 import 'package:manhwamaniacs/shared/widgets/premium/hero_heading.dart';
@@ -22,11 +25,12 @@ import 'package:manhwamaniacs/shared/widgets/skeleton_box.dart';
 /// Library tab — the followed series, and nothing else.
 ///
 /// Deliberately spare (DESIGN_SYSTEM.md hard constraint: "Library tab (mobile)
-/// = followed series only"): one heading, one grid of covers. Tapping a card
-/// opens that series' detail screen, where the full chapter list lives with the
-/// latest chapter first. Browse Sources is reachable from exactly one place at
-/// a time — the empty state when there is nothing followed yet, otherwise the
-/// small app-bar action.
+/// = followed series only"): one heading, and one grid of covers — or, in
+/// Novels mode, one shelf of books. Tapping either opens that series' detail
+/// screen, where the full chapter list lives with the latest chapter first.
+/// Browse Sources is reachable from exactly one place at a time — the empty
+/// state when there is nothing followed yet, otherwise the small app-bar
+/// action.
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
 
@@ -85,7 +89,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ],
       ),
       body: updatesAsync.when(
-        loading: () => const _LibrarySkeleton(),
+        loading: () => _LibrarySkeleton(novels: scope.isNovel),
         error: (error, _) => _FollowedSeriesError(
           error: error is AppError
               ? error
@@ -93,12 +97,14 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           onRetry: () => ref.invalidate(updatesProvider),
         ),
         data: (data) {
-          if (followed.isEmpty) return _LibraryEmpty(onRefresh: _refresh);
+          if (followed.isEmpty) {
+            return _LibraryEmpty(onRefresh: _refresh, novels: scope.isNovel);
+          }
 
           return RefreshIndicator(
             color: context.colors.primary,
             onRefresh: _refresh,
-            child: _FollowedGrid(
+            child: _FollowedShelf(
               isNovelMode: scope.isNovel,
               followed: followed,
               metaBySeries: FollowedSeriesMeta.indexBySeries(
@@ -125,9 +131,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
   }
 }
 
-/// The whole screen body: a heading and the followed-series cover grid.
-class _FollowedGrid extends StatelessWidget {
-  const _FollowedGrid({
+/// The whole screen body: a heading, and under it the follows — a grid of
+/// covers for manhwa, a shelf of books for novels.
+class _FollowedShelf extends ConsumerWidget {
+  const _FollowedShelf({
     required this.followed,
     required this.metaBySeries,
     required this.onOpenSeries,
@@ -143,18 +150,25 @@ class _FollowedGrid extends StatelessWidget {
 
   final void Function(FollowedSeries) onOpenSeries;
 
-  /// Only the count line changes wording: the grid itself is the same grid,
-  /// because a followed novel still has a cover and a title and the shelf
-  /// inversion belongs to browsing, not to the reader's own library.
+  /// Novels are shelved, not gridded — the same inversion browsing makes, for
+  /// the same reason. The reader's own library is where it matters most: the
+  /// browse grid at least holds books the reader has never seen, while this
+  /// screen would be showing him a page of identical generated rectangles and
+  /// asking him to find the one he was reading last night.
   final bool isNovelMode;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final bottomPad = MediaQuery.paddingOf(context).bottom;
-    // "series" is already its own plural; "book" is not.
-    final noun = isNovelMode
-        ? (followed.length == 1 ? 'book' : 'books')
-        : 'series';
+    // "series" is already its own plural; "novel" is not.
+    final countLine = isNovelMode
+        ? '${followed.length} '
+            '${followed.length == 1 ? 'novel' : 'novels'} on your shelf'
+        : '${followed.length} series followed';
+    final gutter = context.space.xl2;
+    // Resolved here rather than inside the shelf's row builder, which runs
+    // lazily — a `watch` from there would be a read on a closed element.
+    final baseUrl = ref.watch(apiBaseUrlProvider);
     final columns = context.layout.columnsFor(context.seriesGridColumns);
     // The grid spans the viewport inside its own horizontal padding, so the
     // tile width is arithmetic rather than a measurement — and a card cannot
@@ -172,9 +186,9 @@ class _FollowedGrid extends StatelessWidget {
       slivers: [
         SliverPadding(
           padding: EdgeInsets.fromLTRB(
-            context.space.xl2,
+            gutter,
             _headingTopPadding(context),
-            context.space.xl2,
+            gutter,
             context.space.xl,
           ),
           sliver: SliverToBoxAdapter(
@@ -185,7 +199,7 @@ class _FollowedGrid extends StatelessWidget {
                   const HeroHeading(text: 'Library', fontSize: 40),
                   SizedBox(height: context.space.xs),
                   Text(
-                    '${followed.length} $noun followed',
+                    countLine,
                     style:
                         context.text.caption.copyWith(color: context.colors.muted),
                   ),
@@ -200,30 +214,53 @@ class _FollowedGrid extends StatelessWidget {
             ),
           ),
         ),
-        SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
-          sliver: SliverGrid.builder(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: columns,
-              crossAxisSpacing: context.space.md,
-              mainAxisSpacing: context.space.xl,
-              childAspectRatio: 0.5,
-            ),
+        if (isNovelMode)
+          NovelShelf(
             itemCount: followed.length,
-            itemBuilder: (context, index) {
+            // Given the page gutter rather than wrapped in it, so the rows
+            // line up with the heading while their hairlines still run the
+            // full width — the edge of a shelf, not the side of a card.
+            gutter: gutter,
+            bookAt: (index) {
               final series = followed[index];
-              return ScrollReveal(
-                index: index,
-                child: FollowedSeriesCard(
-                  series: series,
-                  coverWidth: coverWidth,
-                  meta: metaBySeries[series.id] ?? FollowedSeriesMeta.none,
-                  onTap: () => onOpenSeries(series),
-                ),
+              final meta = metaBySeries[series.id] ?? FollowedSeriesMeta.none;
+              return libraryShelfBook(
+                series,
+                apiBaseUrl: baseUrl,
+                // What the grid card says in its one muted line, in the slot
+                // the shelf keeps for it — and beside a chapter count the row
+                // can now show as well, instead of choosing between them.
+                note: latestChapterNote(meta.latestChapterLabel),
+                unreadCount: meta.unreadCount,
+                onTap: () => onOpenSeries(series),
               );
             },
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: gutter),
+            sliver: SliverGrid.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount: columns,
+                crossAxisSpacing: context.space.md,
+                mainAxisSpacing: context.space.xl,
+                childAspectRatio: 0.5,
+              ),
+              itemCount: followed.length,
+              itemBuilder: (context, index) {
+                final series = followed[index];
+                return ScrollReveal(
+                  index: index,
+                  child: FollowedSeriesCard(
+                    series: series,
+                    coverWidth: coverWidth,
+                    meta: metaBySeries[series.id] ?? FollowedSeriesMeta.none,
+                    onTap: () => onOpenSeries(series),
+                  ),
+                );
+              },
+            ),
           ),
-        ),
         SliverToBoxAdapter(
           child: SizedBox(height: context.space.xl6 + bottomPad),
         ),
@@ -239,9 +276,14 @@ double _headingTopPadding(BuildContext context) =>
 /// Empty shelf — every account on this server starts here, so it has to say
 /// what to do and offer the one way to do it.
 class _LibraryEmpty extends StatelessWidget {
-  const _LibraryEmpty({required this.onRefresh});
+  const _LibraryEmpty({required this.onRefresh, required this.novels});
 
   final Future<void> Function() onRefresh;
+
+  /// An empty shelf in Novels mode is a different sentence: there is nothing
+  /// to follow *series* from here, and "library" is not what the owner calls
+  /// the place he keeps books.
+  final bool novels;
 
   @override
   Widget build(BuildContext context) {
@@ -258,9 +300,10 @@ class _LibraryEmpty extends StatelessWidget {
               child: Center(
                 child: EmptyState(
                   icon: Icons.menu_book_outlined,
-                  message: 'Your library is empty',
-                  subtitle:
-                      'Follow series from Sources to build your warm little shelf.',
+                  message: novels ? 'Your shelf is empty' : 'Your library is empty',
+                  subtitle: novels
+                      ? 'Add a book from a novel source to start your shelf.'
+                      : 'Follow series from Sources to build your warm little shelf.',
                   action: PrimaryPillButton(
                     label: 'Browse Sources',
                     icon: Icons.travel_explore_rounded,
@@ -276,9 +319,13 @@ class _LibraryEmpty extends StatelessWidget {
   }
 }
 
-/// Loading shimmer shaped like the real grid, so nothing shifts on load.
+/// Loading shimmer shaped like the real thing, so nothing shifts on load —
+/// which is why it has to know the mode too: a grid of poster blocks
+/// resolving into a shelf of rows reflows the whole page on arrival.
 class _LibrarySkeleton extends StatelessWidget {
-  const _LibrarySkeleton();
+  const _LibrarySkeleton({required this.novels});
+
+  final bool novels;
 
   @override
   Widget build(BuildContext context) {
@@ -296,23 +343,36 @@ class _LibrarySkeleton extends StatelessWidget {
             child: SkeletonBox(width: 200, height: 40),
           ),
         ),
-        SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
-          sliver: SliverGrid.builder(
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: context.layout.columnsFor(context.seriesGridColumns),
-              crossAxisSpacing: context.space.md,
-              mainAxisSpacing: context.space.xl,
-              childAspectRatio: 0.5,
+        if (novels)
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
+            sliver: SliverList.builder(
+              itemCount: 6,
+              itemBuilder: (_, __) => Padding(
+                padding: EdgeInsets.only(bottom: context.space.md),
+                child: const SkeletonBox(width: double.infinity, height: 92),
+              ),
             ),
-            itemCount: 6,
-            itemBuilder: (_, __) => SkeletonBox(
-              width: double.infinity,
-              height: double.infinity,
-              borderRadius: context.radii.xl,
+          )
+        else
+          SliverPadding(
+            padding: EdgeInsets.symmetric(horizontal: context.space.xl2),
+            sliver: SliverGrid.builder(
+              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                crossAxisCount:
+                    context.layout.columnsFor(context.seriesGridColumns),
+                crossAxisSpacing: context.space.md,
+                mainAxisSpacing: context.space.xl,
+                childAspectRatio: 0.5,
+              ),
+              itemCount: 6,
+              itemBuilder: (_, __) => SkeletonBox(
+                width: double.infinity,
+                height: double.infinity,
+                borderRadius: context.radii.xl,
+              ),
             ),
           ),
-        ),
       ],
     );
   }

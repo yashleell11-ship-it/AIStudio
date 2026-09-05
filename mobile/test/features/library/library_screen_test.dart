@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/core/error/app_error.dart';
 import 'package:manhwamaniacs/core/utils/pagination.dart';
 import 'package:manhwamaniacs/core/utils/result.dart';
+import 'package:manhwamaniacs/features/content_mode/content_mode.dart';
 import 'package:manhwamaniacs/features/library/models/collection.dart';
 import 'package:manhwamaniacs/features/library/models/collection_detail.dart';
 import 'package:manhwamaniacs/features/library/models/continue_reading_item.dart';
@@ -17,6 +18,10 @@ import 'package:manhwamaniacs/features/library/models/tag.dart';
 import 'package:manhwamaniacs/features/library/repositories/library_repository.dart';
 import 'package:manhwamaniacs/features/library/screens/library_screen.dart';
 import 'package:manhwamaniacs/features/library/utils/library_preferences.dart';
+import 'package:manhwamaniacs/features/library/widgets/library/series_grid.dart';
+import 'package:manhwamaniacs/features/novels/widgets/novel_shelf.dart';
+import 'package:manhwamaniacs/features/sources/models/source.dart';
+import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:manhwamaniacs/shared/providers/repository_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -258,6 +263,9 @@ FollowedSeries _series({
   required int id,
   required String title,
   String seriesKey = 'series',
+  // The fixture connector the novels tests tag as a novel source; anything
+  // else is a row that stays manga.
+  String sourceId = 'asurascans',
   bool isFavorite = false,
   String readingStatus = 'reading',
   int chapterCount = 10,
@@ -266,7 +274,7 @@ FollowedSeries _series({
 }) {
   return FollowedSeries(
     id: id,
-    sourceId: 'asurascans',
+    sourceId: sourceId,
     seriesKey: seriesKey,
     title: title,
     coverUrl: '',
@@ -282,7 +290,10 @@ FollowedSeries _series({
   );
 }
 
-Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
+Future<Widget> _buildTestApp({
+  LibraryRepository? repo,
+  bool novels = false,
+}) async {
   SharedPreferences.setMockInitialValues({});
   final prefs = await SharedPreferences.getInstance();
 
@@ -290,6 +301,27 @@ Future<Widget> _buildTestApp({LibraryRepository? repo}) async {
     overrides: [
       apiBaseUrlOverride('http://127.0.0.1:8000'),
       sharedPrefsProvider.overrideWithValue(prefs),
+      // Pinned so the screen does not probe /auth/bootstrap-status for the
+      // novels gate on its way to answering "no".
+      ...contentModeOverrides(
+        mode: novels ? ContentMode.novel : ContentMode.manga,
+        novelsEnabled: novels,
+      ),
+      // A follow row carries a source id and no kind, so this listing is what
+      // makes the fixtures novels — and with the gate open the scope would
+      // otherwise build its index from a real /sources call.
+      sourcesListProvider.overrideWith(
+        (ref) async => [
+          const SourceSummary(
+            id: 'asurascans',
+            name: 'Fixture source',
+            description: '',
+            browsable: true,
+            supportsImport: false,
+            contentKind: kNovelContentKind,
+          ),
+        ],
+      ),
       libraryRepositoryProvider.overrideWithValue(
         repo ??
             _FakeLibraryRepository([
@@ -649,6 +681,142 @@ void main() {
 
       expect(find.byType(SliverList), findsOneWidget);
       expect(find.text('Series 40'), findsNothing);
+    });
+  });
+
+  group('LibraryScreen in Novels mode', () {
+    Future<void> pumpShelf(WidgetTester tester, {LibraryRepository? repo}) async {
+      await tester.pumpWidget(await _buildTestApp(repo: repo, novels: true));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('shelves the library instead of gridding it', (tester) async {
+      await pumpShelf(tester);
+
+      // A followed novel's cover is an aggregator's placeholder, so the poster
+      // grid would be a page of interchangeable rectangles.
+      expect(find.byType(NovelShelf), findsOneWidget);
+      expect(find.byType(SeriesGrid), findsNothing);
+      expect(find.byType(SliverGrid), findsNothing);
+      expect(find.text('Solo Leveling'), findsOneWidget);
+      expect(find.text('Tower of God'), findsOneWidget);
+    });
+
+    testWidgets('counts novels, and drops the controls that size posters',
+        (tester) async {
+      await pumpShelf(tester);
+
+      expect(find.text('2 novels'), findsOneWidget);
+      // Grid/list and the cover-size slider both size covers; a shelf has none,
+      // so offering them would be offering two controls that do nothing.
+      expect(find.byIcon(Icons.grid_view), findsNothing);
+      expect(find.byIcon(Icons.view_list), findsNothing);
+      expect(find.byType(Slider), findsNothing);
+    });
+
+    testWidgets('a row states its length and where the reader put it',
+        (tester) async {
+      await pumpShelf(tester);
+
+      expect(find.text('179 chapters  ·  Reading'), findsOneWidget);
+      expect(find.text('120 chapters  ·  Completed'), findsOneWidget);
+      // Favourite survives losing the grid's star button: only Solo Leveling
+      // is starred in the fixture.
+      expect(find.byIcon(Icons.star), findsOneWidget);
+    });
+
+    testWidgets('long-pressing a row still opens Remove from library',
+        (tester) async {
+      final repo = _FakeLibraryRepository([
+        _series(id: 1, title: 'Solo Leveling', seriesKey: 'solo-leveling'),
+        _series(id: 2, title: 'Tower of God', seriesKey: 'tower-of-god'),
+      ]);
+      await pumpShelf(tester, repo: repo);
+
+      await tester.ensureVisible(find.text('Solo Leveling'));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.text('Solo Leveling'));
+      await tester.pumpAndSettle();
+      expect(find.text('Remove from library'), findsOneWidget);
+
+      await tester.tap(find.text('Remove from library'));
+      await tester.pumpAndSettle();
+
+      expect(repo.unfollowed, [1]);
+      expect(find.text('Solo Leveling'), findsNothing);
+      expect(find.text('Tower of God'), findsOneWidget);
+      expect(find.text('Undo'), findsOneWidget);
+    });
+
+    testWidgets('tapping a row in selection mode picks it', (tester) async {
+      await pumpShelf(tester);
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Solo Leveling'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Solo Leveling'));
+      await tester.pump();
+      expect(find.text('1 selected'), findsOneWidget);
+
+      await tester.tap(find.text('Solo Leveling'));
+      await tester.pump();
+      expect(find.text('0 selected'), findsOneWidget);
+    });
+
+    testWidgets('long-press is suppressed on a shelf row too', (tester) async {
+      await pumpShelf(tester);
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(find.text('Solo Leveling'));
+      await tester.pumpAndSettle();
+      await tester.longPress(find.text('Solo Leveling'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Remove from library'), findsNothing);
+    });
+
+    testWidgets('Select all picks the books on the shelf, not the manhwa too',
+        (tester) async {
+      // `/library` has no `kind` parameter, so the loaded page holds both
+      // modes' follows and the screen filters them. Select all used to reach
+      // past that filter into rows the owner could not see.
+      final repo = _FakeLibraryRepository([
+        _series(id: 1, title: 'Dune', seriesKey: 'dune'),
+        _series(
+          id: 2,
+          title: 'Solo Leveling',
+          seriesKey: 'solo-leveling',
+          sourceId: 'mangadex',
+        ),
+      ]);
+      await pumpShelf(tester, repo: repo);
+
+      expect(find.text('Dune'), findsOneWidget);
+      expect(find.text('Solo Leveling'), findsNothing);
+      // The count reports the rows actually shelved, not the server's total
+      // for a list it did not scope.
+      expect(find.text('1 novel'), findsOneWidget);
+
+      await tester.tap(find.byIcon(Icons.checklist));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byIcon(Icons.select_all));
+      await tester.pump();
+
+      expect(find.text('1 selected'), findsOneWidget);
+    });
+
+    testWidgets('an empty shelf does not offer to import a folder of manhua',
+        (tester) async {
+      await pumpShelf(tester, repo: _FakeLibraryRepository([]));
+
+      expect(find.text('Your shelf is empty'), findsOneWidget);
+      expect(
+        find.text('Add a book from a novel source to start your shelf.'),
+        findsOneWidget,
+      );
     });
   });
 }
