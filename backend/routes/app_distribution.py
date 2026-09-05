@@ -134,6 +134,42 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.2.0",
+        build=31,
+        date="September 2026",
+        highlights=[
+            "Your account has its own security settings, on the phone and the "
+            "web: change your password, see every device signed in with when "
+            "and where it was last used, sign one out, or sign out everywhere",
+            "Mature series stay hidden when the 18+ setting is off. They were "
+            "correctly hidden from browse and search, but still appeared in "
+            "reading history, in stored progress and in new-chapter "
+            "notifications",
+            "Novels look like books on the phone. The Library shelved them "
+            "with titles, authors and length instead of a grid of blank "
+            "rectangles \u2014 and a novel opened from your library now opens "
+            "in the novel reader rather than the page-by-page manga one",
+            "Backup and restore came to the web. The phone could already "
+            "export and import; a desktop could not",
+            "The reader holds far fewer pages in memory. It used to warm the "
+            "next eight pages whatever their size, which on the tallest "
+            "sources meant over 400 MB of decoded image at once against a "
+            "384 MB budget \u2014 so it threw pages away and re-read them "
+            "constantly. It now spends a memory budget instead of counting "
+            "pages, and warms further ahead on light sources",
+            "The Manga/Novels switch reaches every screen it filters, instead "
+            "of only two",
+            "Reader tap zones can be retuned on the phone, which the web "
+            "could already do \u2014 left, centre and right each get an action",
+            "Downloading a whole series stopped opening one request per "
+            "chapter. A 300-chapter book was 300 round trips",
+            "Read all reached the library series page, collections can be "
+            "renamed and have series taken out of them, and reading "
+            "statistics follow the Manga/Novels mode the way every other "
+            "screen already did",
+        ],
+    ),
+    ChangelogEntry(
         version="2.1.0",
         build=30,
         date="September 2026",
