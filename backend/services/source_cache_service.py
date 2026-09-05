@@ -16,10 +16,12 @@ Semantics (all three tables):
   * connector failure with nothing cached       → raise
 
 Rows are GLOBAL — a page one caller fetched serves every caller — but the
-18+ gate is applied per caller on every browse-cache read
-(``BrowseService.ensure_visible``), so a mature source's cached page can
-never reach a profile whose gate is closed. The same rule, enforced the same
-way, covers the cover cache: see ``get_series_cover``.
+18+ gate is applied per caller on every read, before any row is touched
+(``BrowseService.ensure_visible``), so a mature source's cached data can
+never reach a profile whose gate is closed. One rule, enforced the same way
+at all three read entry points: ``get_browse_page``, ``get_series_meta``
+(and ``get_chapter_list``, which is a projection of it) and
+``get_series_cover``.
 """
 
 from __future__ import annotations
@@ -204,6 +206,20 @@ class SourceCacheService:
     def get_series_meta(
         self, source_id: str, series_key: str, *, force: bool = False
     ) -> dict[str, Any]:
+        # Per-caller 18+ gate before any row is read, exactly as
+        # ``get_browse_page`` and ``get_series_cover`` do it. This method used
+        # to gate only by accident and only sometimes: a MISS reached
+        # ``BrowseService.get_series``, which resolves the connector and so
+        # applied the gate, while a FRESH HIT served the global row without
+        # ever asking — and on a miss the gate's own 404 is an ``AppError``,
+        # which the degrade-to-stale handler below then swallowed and served
+        # the row anyway. Every caller today gates before it gets here (reader
+        # manifest, novels, followed detail), so nothing leaked; but "gated
+        # unless the row happens to be cached" is not a gate, and the next
+        # caller added would have inherited it. Costs no network — registry
+        # lookup only.
+        self._browse.ensure_visible(source_id)
+
         series_key = fully_unquote(series_key)
         row = self._db.get(SourceSeriesCache, (source_id, series_key))
         # ``chapters is not None`` guards against browse write-through rows: a
@@ -239,6 +255,8 @@ class SourceCacheService:
     def get_chapter_list(
         self, source_id: str, series_key: str, *, force: bool = False
     ) -> list[dict[str, Any]]:
+        """The series' chapter list — a projection of ``get_series_meta``, and
+        gated by it for the same reason."""
         return self.get_series_meta(source_id, series_key, force=force).get(
             "chapters", []
         )
