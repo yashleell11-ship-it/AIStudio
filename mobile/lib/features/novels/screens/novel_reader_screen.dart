@@ -24,7 +24,9 @@ import 'package:manhwamaniacs/features/novels/widgets/novel_reader_chrome.dart';
 import 'package:manhwamaniacs/features/novels/widgets/novel_type_panel.dart';
 import 'package:manhwamaniacs/features/reader/models/bookmark.dart';
 import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
+import 'package:manhwamaniacs/features/reader/utils/reader_series_navigation.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
+import 'package:manhwamaniacs/features/reader/utils/reading_clock.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_error_state.dart';
 import 'package:manhwamaniacs/features/settings/providers/settings_provider.dart';
 
@@ -102,42 +104,63 @@ class NovelReaderScreen extends ConsumerWidget {
       ref.invalidate(resolvedNovelChapterProvider(_key));
     }
 
-    return chapterAsync.when(
-      loading: () => const _NovelReaderSkeleton(),
-      error: (error, _) {
-        final appError = error is AppError
-            ? error
-            : UnknownError(message: error.toString(), cause: error);
-        return ReaderErrorState(
-          error: appError,
-          onRetry: retry,
-          onBack: () => context.pop(),
-        );
+    void back() =>
+        leaveReader(context, sourceId: sourceId, seriesKey: seriesKey);
+
+    // The Android back gesture and the hardware key never reach the chrome's
+    // button — they go to the router, which for this top-level route has
+    // nothing to pop after a chapter change and would close the app instead.
+    // This is what routes them through the same exit as everything else.
+    //
+    // Unconditionally `canPop: false` rather than `context.canPop()`: this
+    // route is either the whole stack or not depending on how the reader was
+    // reached, the two answers disagree for the frame a chapter change is
+    // fading out, and a back pressed in that frame is precisely the one that
+    // must not be wrong. [leaveReader] pops for itself when it can, so the
+    // destination is identical either way.
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        back();
       },
-      data: (chapter) {
-        if (chapter.paragraphs.isEmpty) {
+      child: chapterAsync.when(
+        loading: () => const _NovelReaderSkeleton(),
+        error: (error, _) {
+          final appError = error is AppError
+              ? error
+              : UnknownError(message: error.toString(), cause: error);
           return ReaderErrorState(
-            error: const UnknownError(message: 'This chapter has no text.'),
+            error: appError,
             onRetry: retry,
-            onBack: () => context.pop(),
+            onBack: back,
           );
-        }
-        return OpenChapterScope(
-          chapterId: (
-            sourceId: sourceId,
-            seriesKey: seriesKey,
-            chapterKey: chapterKey,
-          ),
-          child: _NovelReaderBody(
-            key: ValueKey('$sourceId:$seriesKey:$chapterKey'),
-            chapter: chapter,
-            neighbours: neighbours,
-            initialBucket: initialBucket,
-            initialParagraph: initialParagraph,
-            initialFraction: initialFraction,
-          ),
-        );
-      },
+        },
+        data: (chapter) {
+          if (chapter.paragraphs.isEmpty) {
+            return ReaderErrorState(
+              error: const UnknownError(message: 'This chapter has no text.'),
+              onRetry: retry,
+              onBack: back,
+            );
+          }
+          return OpenChapterScope(
+            chapterId: (
+              sourceId: sourceId,
+              seriesKey: seriesKey,
+              chapterKey: chapterKey,
+            ),
+            child: _NovelReaderBody(
+              key: ValueKey('$sourceId:$seriesKey:$chapterKey'),
+              chapter: chapter,
+              neighbours: neighbours,
+              initialBucket: initialBucket,
+              initialParagraph: initialParagraph,
+              initialFraction: initialFraction,
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -181,6 +204,9 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
   /// The bucket currently under the reading line, for the read-out.
   int _bucket = 1;
 
+  /// How long this reader has been read, for the reading-time statistic.
+  final ReadingClock _clock = ReadingClock(DateTime.now());
+
   Timer? _progressTimer;
   Timer? _autoNextTimer;
   bool _autoNextTriggered = false;
@@ -213,9 +239,20 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
   /// so a double tap cannot make two bookmarks of one spot.
   bool _bookmarkPending = false;
 
+  /// Resolved once, while the element is alive, because [dispose] has to
+  /// release it and cannot ask for it there: `StatefulElement.unmount` marks
+  /// the element defunct BEFORE calling `dispose()`, so a `ref.read` from
+  /// inside it throws `Cannot use "ref" after the widget was disposed` — in
+  /// release as much as in debug, since that check is a plain `throw` and not
+  /// an assert. Thrown from there it also skipped `super.dispose()` and left
+  /// the screen pinned awake for the rest of the session. The manga reader
+  /// resolves its own outbox handles in `build` for the same reason.
+  late final ReaderWakelock _wakelock;
+
   @override
   void initState() {
     super.initState();
+    _wakelock = ref.read(readerWakelockProvider);
     _paragraphKeys = List.generate(
       widget.chapter.paragraphs.length,
       (_) => GlobalKey(),
@@ -237,14 +274,13 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
     // Symmetric with initState: leaving a chapter restores exactly what the
     // app launched with rather than permanently changing its shape.
     applyRestingSystemUiMode();
-    ref.read(readerWakelockProvider).disable();
+    _wakelock.disable();
     super.dispose();
   }
 
   void _applyWakelock() {
     final keepAwake = ref.read(readerDefaultsProvider).keepScreenAwake;
-    final wakelock = ref.read(readerWakelockProvider);
-    keepAwake ? wakelock.enable() : wakelock.disable();
+    keepAwake ? _wakelock.enable() : _wakelock.disable();
   }
 
   // ── Restore ──────────────────────────────────────────────────────────────
@@ -517,6 +553,7 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
             lastPage: position.bucket,
             pageCount: position.buckets,
             isCompleted: position.completed,
+            timeSpentSeconds: _clock.elapsed(DateTime.now()),
           ),
         );
     if (position.completed) {
@@ -670,7 +707,11 @@ class _NovelReaderBodyState extends ConsumerState<_NovelReaderBody> {
             title: chapter.title,
             percent: chapterPercent(_bucket, chapter.buckets),
             isOffline: chapter.isOffline,
-            onBack: () => context.pop(),
+            onBack: () => leaveReader(
+              context,
+              sourceId: chapter.sourceId,
+              seriesKey: chapter.seriesKey,
+            ),
             onPrevious: _previousKey == null
                 ? null
                 : () => _openChapter(_previousKey!),

@@ -73,6 +73,7 @@ class ProgressPush {
     this.scrollOffsetPx = 0,
     this.isCompleted = false,
     this.timeSpentSeconds = 0,
+    this.lastReadAt,
   });
 
   final String sourceId;
@@ -83,7 +84,20 @@ class ProgressPush {
   final int pageCount;
   final int scrollOffsetPx;
   final bool isCompleted;
+
+  /// Seconds read SINCE THE LAST PUSH, never a running total: the server adds
+  /// this to the stored value (`merge_progress`), so a cumulative figure would
+  /// inflate the reading-time statistic on every replay.
   final int timeSpentSeconds;
+
+  /// When this position was reached ON THE DEVICE, not when it was flushed.
+  ///
+  /// A push can sit in the offline outbox for a week, and the server stamps
+  /// `now` for a push that omits this; a week-old read then jumps to the head
+  /// of Continue Reading and wins the merge's tie-break against a scroll
+  /// position set since. Stamped at capture by
+  /// `ProgressOutboxController.save`.
+  final DateTime? lastReadAt;
 
   Map<String, dynamic> toJson() => {
         'source_id': sourceId,
@@ -95,6 +109,8 @@ class ProgressPush {
         'scroll_offset_px': scrollOffsetPx,
         'is_completed': isCompleted,
         'time_spent_seconds': timeSpentSeconds,
+        if (lastReadAt != null)
+          'last_read_at': lastReadAt!.toUtc().toIso8601String(),
       };
 
   /// Round-trips [toJson] — the on-device progress outbox (1c-M3) persists
@@ -110,5 +126,24 @@ class ProgressPush {
         scrollOffsetPx: json['scroll_offset_px'] as int? ?? 0,
         isCompleted: json['is_completed'] as bool? ?? false,
         timeSpentSeconds: json['time_spent_seconds'] as int? ?? 0,
+        // Absent on rows queued by a build that predates the field.
+        lastReadAt: json['last_read_at'] != null
+            ? DateTime.tryParse(json['last_read_at'] as String)
+            : null,
+      );
+
+  /// This push as captured at [at] — the timestamp the outbox needs so a
+  /// flush days later still reports when the reading happened.
+  ProgressPush stampedAt(DateTime at) => ProgressPush(
+        sourceId: sourceId,
+        seriesKey: seriesKey,
+        chapterKey: chapterKey,
+        chapterNumber: chapterNumber,
+        lastPage: lastPage,
+        pageCount: pageCount,
+        scrollOffsetPx: scrollOffsetPx,
+        isCompleted: isCompleted,
+        timeSpentSeconds: timeSpentSeconds,
+        lastReadAt: at.toUtc(),
       );
 }
