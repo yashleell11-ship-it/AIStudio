@@ -64,7 +64,12 @@ def test_manifest_shape_and_neighbours(api, h):
     body = resp.json()
     assert body["chapter_number"] == 2.0
     assert body["page_count"] == 2
-    assert body["pages"][0] == {"number": 1, "url": "/sources/mangadex/pages/p1/image"}
+    assert body["pages"][0] == {
+        "number": 1,
+        "url": "/sources/mangadex/pages/p1/image",
+        "width": None,
+        "height": None,
+    }
     assert body["prev"] == "c1"
     assert body["next"] == "c3"
 
