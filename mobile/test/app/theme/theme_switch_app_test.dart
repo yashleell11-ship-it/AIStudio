@@ -46,8 +46,15 @@ void main() {
     ThemeData appTheme() =>
         tester.widget<MaterialApp>(find.byType(MaterialApp)).theme!;
 
-    expect(appTheme().scaffoldBackgroundColor, AppPalettes.eclipse.bg);
-    expect(appTheme().extension<AppPalette>(), same(AppPalettes.eclipse));
+    // Nothing is stored for this persona, so the app opens on the default.
+    expect(
+      appTheme().scaffoldBackgroundColor,
+      AppPalettes.defaultPalette.bg,
+    );
+    expect(
+      appTheme().extension<AppPalette>(),
+      same(AppPalettes.defaultPalette),
+    );
 
     await container.read(themeControllerProvider.notifier).setTheme('paper');
     // AnimatedTheme cross-fades the switch; settle to the end state.

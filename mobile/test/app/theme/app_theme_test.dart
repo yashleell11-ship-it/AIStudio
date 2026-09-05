@@ -14,10 +14,15 @@ void main() {
     }
   });
 
-  test('AppTheme.dark is the Eclipse palette (back-compat)', () {
+  test('AppTheme.dark is whatever the app defaults to', () {
+    // The name predates both selectable axes, from when Eclipse was the only
+    // look there was, and nothing outside these tests reads it. What it still
+    // has to guarantee is that "the app with nothing chosen" has ONE answer:
+    // a MaterialApp built without the theme controller must wear the same
+    // palette a fresh install does, not a second, older default.
     final theme = AppTheme.dark;
-    expect(theme.extension<AppPalette>(), same(AppPalettes.eclipse));
-    expect(theme.scaffoldBackgroundColor, const Color(0xFF0A0A0A));
+    expect(theme.extension<AppPalette>(), same(AppPalettes.defaultPalette));
+    expect(theme.scaffoldBackgroundColor, AppPalettes.defaultPalette.bg);
   });
 
   test('overlay style follows palette brightness on both platforms', () {
@@ -49,7 +54,7 @@ void main() {
     expect(seen, same(Base16Palettes.nord));
   });
 
-  testWidgets('context.colors falls back to Eclipse on a bare ThemeData',
+  testWidgets('context.colors falls back to the default on a bare ThemeData',
       (tester) async {
     // Many widget tests pump plain MaterialApp(theme: ThemeData(...)); the
     // fallback keeps them (and any unthemed embedding) rendering sanely.
@@ -65,6 +70,6 @@ void main() {
         ),
       ),
     );
-    expect(seen, same(AppPalettes.eclipse));
+    expect(seen, same(AppPalettes.defaultPalette));
   });
 }

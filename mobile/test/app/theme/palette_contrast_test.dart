@@ -88,13 +88,28 @@ void main() {
       }
     });
 
-    test('unknown or absent ids fall back to the Eclipse default', () {
-      expect(AppPalettes.byId('no_such_theme'), same(AppPalettes.eclipse));
-      expect(AppPalettes.byId(null), same(AppPalettes.eclipse));
+    test('unknown or absent ids fall back to the default palette', () {
+      expect(
+        AppPalettes.byId('no_such_theme'),
+        same(AppPalettes.defaultPalette),
+      );
+      expect(AppPalettes.byId(null), same(AppPalettes.defaultPalette));
     });
 
-    test('the default palette is first in gallery order', () {
+    test('the default palette is one the gallery actually offers', () {
+      // `byId` resolves it for every unset and every stale id, so a default
+      // that is not registered would leave the picker unable to mark the
+      // active theme as selected and the strip unable to build a tile for it.
+      expect(AppPalettes.all, contains(AppPalettes.defaultPalette));
+    });
+
+    test('a house palette leads each half of the gallery', () {
+      // Gallery order is the app's own palettes first, then the base16 set.
+      // Deliberately not "the default first", which would reshuffle the list
+      // every time the default moved.
       expect(AppPalettes.all.first, same(AppPalettes.eclipse));
+      expect(AppPalettes.darkPalettes.first, same(AppPalettes.eclipse));
+      expect(AppPalettes.lightPalettes.first, same(AppPalettes.daylight));
     });
 
     test('ships the house palettes and the whole base16 set', () {
@@ -116,8 +131,9 @@ void main() {
 
     test('every palette id that has ever shipped still resolves', () {
       // A palette id is persisted per profile. Dropping or renaming one does
-      // not error — `byId` falls back to Eclipse — so the only thing standing
-      // between a rename and somebody's theme silently reverting is this list.
+      // not error — `byId` falls back to the default — so the only thing
+      // standing between a rename and somebody's theme silently reverting is
+      // this list.
       // The first eight were hand-written palettes that the generated base16
       // twins replaced; they kept their ids on purpose.
       const shipped = [
@@ -149,9 +165,11 @@ void main() {
       expect(names.toSet().length, names.length, reason: names.toString());
     });
 
-    test('the Eclipse default still wears the shipped hex values', () {
-      // The owner's current look must survive the multi-theme refactor
-      // byte-for-byte; these mirror the pre-multi-theme AppColors constants.
+    test('Eclipse still wears the shipped hex values', () {
+      // The look the app shipped with must survive the multi-theme refactor
+      // byte-for-byte — it is no longer the default, but it is still in the
+      // gallery and still stored against profiles that chose it. These mirror
+      // the pre-multi-theme AppColors constants.
       expect(AppPalettes.eclipse.bg, const Color(0xFF0A0A0A));
       expect(AppPalettes.eclipse.surface, const Color(0xFF111111));
       expect(AppPalettes.eclipse.fg, const Color(0xFFDDE4EA));

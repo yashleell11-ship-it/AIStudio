@@ -54,9 +54,9 @@ void main() {
     return container;
   }
 
-  test('defaults to Eclipse when nothing is persisted', () async {
+  test('defaults to the app default when nothing is persisted', () async {
     final container = await makeContainer();
-    expect(container.read(themeControllerProvider), AppPalettes.eclipse);
+    expect(container.read(themeControllerProvider), AppPalettes.defaultPalette);
   });
 
   test('setTheme applies immediately and persists per (user, profile)', () async {
@@ -81,10 +81,10 @@ void main() {
     );
   });
 
-  test('a corrupt persisted id falls back to Eclipse', () async {
+  test('a corrupt persisted id falls back to the default', () async {
     final container =
         await makeContainer(seeded: {'mm.theme.u1p1': 'deleted_theme'});
-    expect(container.read(themeControllerProvider), AppPalettes.eclipse);
+    expect(container.read(themeControllerProvider), AppPalettes.defaultPalette);
   });
 
   test('switching profiles switches to that persona\'s saved theme', () async {
@@ -110,7 +110,7 @@ void main() {
         as _SwitchableProfileNotifier;
     profiles.switchTo(_SwitchableProfileNotifier.profileTwo);
 
-    expect(container.read(themeControllerProvider), AppPalettes.eclipse);
+    expect(container.read(themeControllerProvider), AppPalettes.defaultPalette);
   });
 
   test('no active profile: reads and writes the device slot', () async {

@@ -429,13 +429,24 @@ Future<void> _scrollToText(WidgetTester tester, String text) async {
   await tester.pump();
 }
 
+/// Scroll the General tab down to the Theme section.
+///
+/// The section's own heading is not unique enough to steer by, so this uses
+/// the one line that is: the active palette's name, shown beside the
+/// miniature. Nothing is stored in these pumps, so that is the app default —
+/// read from [AppPalettes] rather than spelled out, because the anchor is
+/// incidental to every test that uses it and moving the default should not
+/// silently break four of them.
+Future<void> _scrollToTheme(WidgetTester tester) =>
+    _scrollToText(tester, AppPalettes.defaultPalette.name);
+
 /// Bring one palette thumbnail on the Theme strip into view.
 ///
 /// The strip is a horizontal `ListView` holding every registered palette, so
 /// anything past the first handful is not built until it is scrolled to —
 /// `ensureVisible` alone only works for what already exists.
 Future<void> _revealStripSwatch(WidgetTester tester, String id) async {
-  await _scrollToText(tester, 'Eclipse');
+  await _scrollToTheme(tester);
   final target = find.byKey(Key('theme-strip-$id'));
   if (!tester.any(target)) {
     await tester.scrollUntilVisible(
@@ -592,7 +603,7 @@ void main() {
         (tester) async {
       await _pumpSettings(tester);
 
-      await _scrollToText(tester, 'Eclipse');
+      await _scrollToTheme(tester);
       // The section says what is on and offers the full gallery…
       expect(find.byKey(const Key('theme-open-gallery')), findsOneWidget);
       expect(find.byKey(const Key('theme-strip')), findsOneWidget);
@@ -602,8 +613,9 @@ void main() {
             .semanticChildCount,
         AppPalettes.all.length,
       );
-      // …and the strip carries every registered palette, lazily. The default
-      // is at the head of it, so it is built without scrolling.
+      // …and the strip carries every registered palette, lazily. Gallery
+      // order leads with the house palettes, so Eclipse is at the head of it
+      // and is built without scrolling.
       expect(find.byKey(const Key('theme-strip-eclipse')), findsOneWidget);
       // Something far enough down the strip to prove the rail actually holds
       // the generated set and not just the house palettes.
@@ -614,7 +626,7 @@ void main() {
     testWidgets('the gallery opens with search and a filter', (tester) async {
       final container = await _pumpSettings(tester);
 
-      await _scrollToText(tester, 'Eclipse');
+      await _scrollToTheme(tester);
       await tester.tap(find.byKey(const Key('theme-open-gallery')));
       await tester.pumpAndSettle();
 

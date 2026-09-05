@@ -80,10 +80,17 @@ void main() {
       (tester) async {
     final container = await pumpApp(tester);
 
+    // Whatever the app opens on with nothing stored. The invariant under test
+    // is that the preset switch below does not move it — not which palette it
+    // happens to be — so it is read rather than named.
+    final opening = appTheme(tester).extension<AppPalette>()!;
+    expect(opening, same(AppPalettes.defaultPalette));
+
     await container.read(presetControllerProvider.notifier).setPreset('editorial');
     await tester.pumpAndSettle();
     // Shape changed; the palette did not.
-    expect(appTheme(tester).scaffoldBackgroundColor, AppPalettes.eclipse.bg);
+    expect(appTheme(tester).extension<AppPalette>(), same(opening));
+    expect(appTheme(tester).scaffoldBackgroundColor, opening.bg);
     expect(appTheme(tester).extension<AppMetrics>(), same(AppPresets.editorial));
 
     await container.read(themeControllerProvider.notifier).setTheme('nord');
