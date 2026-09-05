@@ -23,7 +23,9 @@ import {
   readingStatusBreakdown,
   scopeBreakdowns,
   seriesTitle,
+  showsPageCounts,
   sourceShares,
+  statisticsScopeNote,
   STATISTICS_RANGES,
 } from "./reading-stats";
 import type {
@@ -744,5 +746,35 @@ describe("lineStyleFor", () => {
       expect(lineStyleFor(count).opacity).toBeGreaterThanOrEqual(0.6);
       expect(lineStyleFor(count).strokeWidth).toBeGreaterThanOrEqual(1.5);
     }
+  });
+});
+
+
+describe("reading units", () => {
+  it("prints page counts in manga mode and on a deployment with novels off", () => {
+    expect(showsPageCounts("manga", true)).toBe(true);
+    expect(showsPageCounts("manga", false)).toBe(true);
+    // With the flag off the mode is forced to manga anyway, but a stored
+    // "novel" must not be able to change what a manga-only app renders.
+    expect(showsPageCounts("novel", false)).toBe(true);
+  });
+
+  it("drops page counts in Novels mode, where the number is not pages", () => {
+    // `last_page` is a percent-of-chapter bucket for prose, capped at 100 per
+    // chapter, so one novel chapter can register 100 "pages" against a manga
+    // chapter's twenty.
+    expect(showsPageCounts("novel", true)).toBe(false);
+  });
+
+  it("says nothing about scope or units when novels are off", () => {
+    expect(statisticsScopeNote("manga", false)).toBeNull();
+    expect(statisticsScopeNote("novel", false)).toBeNull();
+  });
+
+  it("names the mode the lists are scoped to, and warns that pages mix", () => {
+    const novel = statisticsScopeNote("novel", true);
+    expect(novel).toContain("novels only");
+    expect(novel).toContain("two different things");
+    expect(statisticsScopeNote("manga", true)).toContain("manga only");
   });
 });

@@ -31,7 +31,9 @@ import {
   readingStatusBreakdown,
   scopeBreakdowns,
   seriesTitle,
+  showsPageCounts,
   sourceShares,
+  statisticsScopeNote,
   STATISTICS_RANGE_LABELS,
   STATISTICS_RANGES,
   type StatisticsRange,
@@ -258,7 +260,13 @@ function HourHistogram({ stats }: { stats: Statistics }) {
   );
 }
 
-function SourceBreakdown({ stats }: { stats: Statistics }) {
+function SourceBreakdown({
+  stats,
+  showPages,
+}: {
+  stats: Statistics;
+  showPages: boolean;
+}) {
   const shares = sourceShares(stats.by_source);
 
   return (
@@ -270,13 +278,18 @@ function SourceBreakdown({ stats }: { stats: Statistics }) {
               <div className="flex items-baseline justify-between gap-3">
                 <span className="truncate text-sm font-medium text-fg">{source.name}</span>
                 <span className="shrink-0 text-xs tabular-nums text-muted">
-                  {formatCount(source.pages_read)} pages · {formatDuration(source.seconds_read)}
+                  {showPages
+                    ? `${formatCount(source.pages_read)} pages`
+                    : `${formatCount(source.chapters_read)} ${
+                        source.chapters_read === 1 ? "chapter" : "chapters"
+                      }`}{" "}
+                  · {formatDuration(source.seconds_read)}
                 </span>
               </div>
               <Progress
                 value={source.percent}
                 className="mt-1.5"
-                aria-label={`${source.name}: ${Math.round(source.percent)}% of pages read`}
+                aria-label={`${source.name}: ${Math.round(source.percent)}% of reading in this window`}
               />
             </li>
           ))}
@@ -288,7 +301,7 @@ function SourceBreakdown({ stats }: { stats: Statistics }) {
   );
 }
 
-function SeriesRow({ row }: { row: SeriesReading }) {
+function SeriesRow({ row, showPages }: { row: SeriesReading; showPages: boolean }) {
   const ref = { sourceId: row.source_id, seriesKey: row.series_key };
   return (
     <li className="flex items-center gap-3">
@@ -316,7 +329,8 @@ function SeriesRow({ row }: { row: SeriesReading }) {
           {seriesTitle(row)}
         </Link>
         <p className="mt-0.5 text-xs tabular-nums text-muted">
-          {formatCount(row.pages_read)} pages · {formatCount(row.chapters_read)}{" "}
+          {showPages ? `${formatCount(row.pages_read)} pages · ` : ""}
+          {formatCount(row.chapters_read)}{" "}
           {row.chapters_read === 1 ? "chapter" : "chapters"} · {formatDuration(row.seconds_read)}
         </p>
         {row.last_read_at ? (
@@ -330,9 +344,11 @@ function SeriesRow({ row }: { row: SeriesReading }) {
 function RecentSessionRow({
   row,
   chapterHref,
+  showPages,
 }: {
   row: RecentSession;
   chapterHref: ChapterHref;
+  showPages: boolean;
 }) {
   const ref = {
     sourceId: row.source_id,
@@ -357,7 +373,9 @@ function RecentSessionRow({
       </div>
       <div className="shrink-0 text-xs text-muted sm:text-right">
         <p className="tabular-nums">
-          {formatCount(row.pages_read)} {row.pages_read === 1 ? "page" : "pages"} ·{" "}
+          {showPages
+            ? `${formatCount(row.pages_read)} ${row.pages_read === 1 ? "page" : "pages"} · `
+            : ""}
           {formatDuration(row.seconds_read)}
         </p>
         <p>{formatUtcDateTime(row.started_at, { missing: "Unknown" })}</p>
@@ -555,6 +573,8 @@ function StatisticsContent({
   chapterHref: ChapterHref;
 }) {
   const rangeLabel = STATISTICS_RANGE_LABELS[range].toLowerCase();
+  const showPages = showsPageCounts(mode, novelsEnabled);
+  const scopeNote = statisticsScopeNote(mode, novelsEnabled);
   const everRead = hasReadingHistory(stats);
   const windowEmpty = isWindowEmpty(stats);
   const peak = bestDay(stats.daily);
@@ -579,15 +599,11 @@ function StatisticsContent({
   return (
     <div className="space-y-6">
       {/* The lists below are scoped to the mode and the numbers above them are
-          not. Saying which is which costs one line and is the whole difference
-          between a deliberate split and a page that looks wrong. */}
-      {novelsEnabled ? (
-        <p className="text-sm text-muted">
-          Streak, totals and the charts cover everything you read; the source,
-          series and session lists are {mode === "novel" ? "novels" : "manga"}{" "}
-          only.
-        </p>
-      ) : null}
+          not, and the pages figure inside those numbers is adding page images
+          to prose reading positions. Saying both costs one line and is the
+          whole difference between a deliberate split and a page that looks
+          wrong. */}
+      {scopeNote ? <p className="text-sm text-muted">{scopeNote}</p> : null}
 
       <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
         <StatCard
@@ -640,7 +656,7 @@ function StatisticsContent({
 
       <div className="grid gap-4 lg:grid-cols-2">
         <HourHistogram stats={stats} />
-        <SourceBreakdown stats={stats} />
+        <SourceBreakdown stats={stats} showPages={showPages} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
@@ -648,7 +664,11 @@ function StatisticsContent({
           {stats.by_series.length > 0 ? (
             <ul className="space-y-3">
               {stats.by_series.map((row) => (
-                <SeriesRow key={`${row.source_id}:${row.series_key}`} row={row} />
+                <SeriesRow
+                  key={`${row.source_id}:${row.series_key}`}
+                  row={row}
+                  showPages={showPages}
+                />
               ))}
             </ul>
           ) : (
@@ -664,6 +684,7 @@ function StatisticsContent({
                   key={`${row.source_id}:${row.series_key}:${row.chapter_key}:${row.started_at}`}
                   row={row}
                   chapterHref={chapterHref}
+                  showPages={showPages}
                 />
               ))}
             </ul>

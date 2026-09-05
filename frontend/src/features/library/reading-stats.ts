@@ -10,6 +10,7 @@
  * elements).
  */
 
+import type { ContentMode } from "@/features/content-mode/mode";
 import type {
   DailyReading,
   HourlyReading,
@@ -286,6 +287,49 @@ export function sourceShares(bySource: SourceReading[]): SourceShare[] {
     ...row,
     percent: total > 0 ? (row.pages_read / total) * 100 : 0,
   }));
+}
+
+// ---------------------------------------------------------------------------
+// Units
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether "pages" is a unit worth printing on this screen's scoped lists.
+ *
+ * `last_page` is a page number for manga and a PERCENT-OF-CHAPTER bucket for
+ * prose — `novels/progress.ts` caps it at 100 per chapter — and the server
+ * derives `pages_read` from that same column either way
+ * (`progress_service.py`: `end_page - start_page + 1`). So one 3,000-word novel
+ * chapter can register up to 100 "pages" against a manga chapter's twenty.
+ *
+ * In Novels mode the source, series and session lists are entirely prose, so a
+ * pages figure there is not slightly wrong, it is the wrong unit; those rows
+ * lead with chapters and time instead. Manga mode, and every deployment with
+ * novels off, is unchanged.
+ */
+export function showsPageCounts(mode: ContentMode, novelsEnabled: boolean): boolean {
+  return !novelsEnabled || mode === "manga";
+}
+
+/**
+ * The line under the heading explaining what this screen's numbers cover.
+ *
+ * Two separate facts, and both matter: the totals and charts are not scoped to
+ * the mode (only the lists are), and the pages figure inside them is adding two
+ * different units together. Null when novels are off, where neither is true.
+ */
+export function statisticsScopeNote(
+  mode: ContentMode,
+  novelsEnabled: boolean,
+): string | null {
+  if (!novelsEnabled) return null;
+  const lists = mode === "novel" ? "novels" : "manga";
+  return (
+    `Streak, totals and the charts cover everything you read; the source, ` +
+    `series and session lists are ${lists} only. A page is a page image, and ` +
+    `a novel has none — prose is counted by how far through a chapter you got, ` +
+    `so the pages figure adds up two different things.`
+  );
 }
 
 /** Display title for a series row — the raw key is the honest fallback. */
