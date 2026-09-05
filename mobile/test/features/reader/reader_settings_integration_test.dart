@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_chapter.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
+import 'package:manhwamaniacs/features/reader/providers/reader_ui_provider.dart';
 import 'package:manhwamaniacs/features/reader/utils/reader_wakelock.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
@@ -17,6 +18,7 @@ const _readingDirectionKey = 'settings_reading_direction';
 const _readerFitModeKey = 'settings_reader_fit_mode';
 const _keepScreenAwakeKey = 'settings_keep_screen_awake';
 const _autoNextChapterKey = 'settings_auto_next_chapter';
+const _tapZonesKey = 'settings_reader_tap_zones';
 
 ReaderChapter _tallChapter({String? nextChapterId}) {
   return ReaderChapter(
@@ -393,5 +395,143 @@ void main() {
           tester.widget<CachedNetworkImage>(find.byType(CachedNetworkImage).first);
       expect(cachedImage.fit, BoxFit.fitHeight);
     });
+  });
+
+  // The reader is driven at the default 800x600 test surface on purpose:
+  // `setSurfaceSize` moves the list's layout box without moving what
+  // MediaQuery reports, and the tap bands are measured from MediaQuery — so a
+  // resized surface would put a tap at a different fraction of the page than
+  // the coordinates say.
+  group('Reader tap zones', () {
+    testWidgets(
+      'a right-to-left chapter turns forward on a left-edge tap',
+      (tester) async {
+        final prefs = await _freshPrefs({
+          _readingDirectionKey: 'rightToLeft',
+        });
+        late ProviderContainer container;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
+            child: Builder(
+              builder: (context) {
+                container = ProviderScope.containerOf(context);
+                return MaterialApp(
+                  home: ReaderContent(
+                    feed: ReaderFeed.single(_tallChapter()),
+                    scrollStorageKey: '1',
+                    onBack: () {},
+                    onOpenSeries: () {},
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // Tap zones only act once the chrome is out of the way; a tap while it
+        // is up dismisses it and nothing else.
+        container.read(readerUiProvider.notifier).setControlsVisible(false);
+        await tester.pump();
+
+        await tester.tapAt(const Offset(100, 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        // The next page of a right-to-left chapter is the one to the LEFT, so
+        // the default bands mirror themselves and this moves deeper in.
+        final controller =
+            tester.widget<ListView>(find.byType(ListView)).controller!;
+        expect(controller.offset, greaterThan(0));
+      },
+    );
+
+    testWidgets(
+      'a stored left-handed configuration turns forward on a left-edge tap',
+      (tester) async {
+        final prefs = await _freshPrefs({
+          _tapZonesKey: 'advance,toggle,retreat',
+        });
+        late ProviderContainer container;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
+            child: Builder(
+              builder: (context) {
+                container = ProviderScope.containerOf(context);
+                return MaterialApp(
+                  home: ReaderContent(
+                    feed: ReaderFeed.single(_tallChapter()),
+                    scrollStorageKey: '1',
+                    onBack: () {},
+                    onOpenSeries: () {},
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        container.read(readerUiProvider.notifier).setControlsVisible(false);
+        await tester.pump();
+
+        await tester.tapAt(const Offset(100, 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        final controller =
+            tester.widget<ListView>(find.byType(ListView)).controller!;
+        expect(controller.offset, greaterThan(0));
+      },
+    );
+
+    testWidgets(
+      'bands set to toggle reveal the controls instead of turning the page',
+      (tester) async {
+        final prefs = await _freshPrefs({
+          _tapZonesKey: 'toggle,toggle,toggle',
+        });
+        late ProviderContainer container;
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [sharedPrefsProvider.overrideWithValue(prefs)],
+            child: Builder(
+              builder: (context) {
+                container = ProviderScope.containerOf(context);
+                return MaterialApp(
+                  home: ReaderContent(
+                    feed: ReaderFeed.single(_tallChapter()),
+                    scrollStorageKey: '1',
+                    onBack: () {},
+                    onOpenSeries: () {},
+                  ),
+                );
+              },
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        container.read(readerUiProvider.notifier).setControlsVisible(false);
+        await tester.pump();
+
+        await tester.tapAt(const Offset(100, 300));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(container.read(readerUiProvider).controlsVisible, isTrue);
+        final controller =
+            tester.widget<ListView>(find.byType(ListView)).controller!;
+        expect(controller.offset, 0);
+      },
+    );
   });
 }

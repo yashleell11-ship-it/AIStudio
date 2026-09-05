@@ -23,6 +23,7 @@ abstract final class _Keys {
   static const String setupCompleted = 'settings_setup_completed';
   static const String lastSeenChangelogBuild = 'settings_last_seen_changelog_build';
   static const String volumeKeyNavigation = 'settings_volume_key_navigation';
+  static const String readerTapZones = 'settings_reader_tap_zones';
   static const String cachedAuthUser = 'auth_cached_user';
 
   // On-device chapter store (1c-M3) — device properties, deliberately not
@@ -105,6 +106,15 @@ class PreferencesService {
   String? get readerRefreshRate => _prefs.getString(_Keys.readerRefreshRate);
   Future<void> setReaderRefreshRate(String value) =>
       _prefs.setString(_Keys.readerRefreshRate, value);
+
+  /// Left/centre/right tap actions as a `TapZoneConfig` wire string (e.g.
+  /// `'retreat,toggle,advance'`) — raw here so `core/` stays independent of
+  /// `features/settings`, which owns the shape. Absent means the reader has
+  /// never customised the bands and they follow the reading direction.
+  String? get readerTapZones => _prefs.getString(_Keys.readerTapZones);
+  Future<void> setReaderTapZones(String value) =>
+      _prefs.setString(_Keys.readerTapZones, value);
+  Future<void> clearReaderTapZones() => _prefs.remove(_Keys.readerTapZones);
 
   /// Run the whole app at the panel's fastest refresh rate (Android only).
   ///
@@ -200,6 +210,7 @@ class PreferencesService {
       _Keys.lockReaderControls,
       _Keys.readerRefreshRate,
       _Keys.volumeKeyNavigation,
+      _Keys.readerTapZones,
     ];
     for (final key in keys) {
       await _prefs.remove(key);

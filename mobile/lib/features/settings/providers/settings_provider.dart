@@ -120,6 +120,7 @@ class ReaderDefaultsController extends Notifier<ReaderDefaults> {
       lockControls: prefs.lockReaderControls,
       refreshRate: ReaderRefreshRate.fromStorageValue(prefs.readerRefreshRate),
       volumeKeyNavigation: prefs.volumeKeyNavigation,
+      tapZones: TapZoneConfig.fromStorageValue(prefs.readerTapZones),
     );
   }
 
@@ -156,6 +157,20 @@ class ReaderDefaultsController extends Notifier<ReaderDefaults> {
   Future<void> setRefreshRate(ReaderRefreshRate rate) async {
     state = state.copyWith(refreshRate: rate);
     await ref.read(preferencesProvider).setReaderRefreshRate(rate.name);
+  }
+
+  /// Pass `null` to stop customising: the stored value is removed rather than
+  /// overwritten with today's default, so the bands go back to following the
+  /// reading direction and its right-to-left flip.
+  Future<void> setTapZones(TapZoneConfig? config) async {
+    final prefs = ref.read(preferencesProvider);
+    if (config == null) {
+      state = state.copyWith(clearTapZones: true);
+      await prefs.clearReaderTapZones();
+      return;
+    }
+    state = state.copyWith(tapZones: config);
+    await prefs.setReaderTapZones(config.storageValue);
   }
 }
 
