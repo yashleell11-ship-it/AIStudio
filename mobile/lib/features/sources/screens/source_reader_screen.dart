@@ -65,6 +65,18 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
   ReaderFeedController? _feedController;
 
   @override
+  void didUpdateWidget(covariant SourceReaderScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A different chapter in the ROUTE is a different read: the edge prompts
+    // `go` to a sibling route, and the router reuses this element for it. The
+    // feed belongs to the old read and nothing in it carries over.
+    if (oldWidget.chapterId != widget.chapterId) {
+      _feedController?.dispose();
+      _feedController = null;
+    }
+  }
+
+  @override
   void dispose() {
     _feedController?.dispose();
     super.dispose();
@@ -111,21 +123,36 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
 
   /// Builds the feed once the anchor is in hand, and keeps its idea of the
   /// anchor's neighbours current as they arrive out of band (spec R3).
+  ///
+  /// Built ONCE per route chapter and kept for as long as the route stays on
+  /// it — never re-decided per build. This used to keep the feed only while
+  /// the window still held the chapter the route opened at, and a Read-all
+  /// window slides forward precisely by releasing that chapter: three
+  /// chapters in, the very build the slide scheduled found the anchor gone,
+  /// threw the window away and started over from the entry chapter. That is
+  /// the owner's "after 2-3 chapters it sends me back 2-3 back", recurring
+  /// every three chapters for the whole read.
+  ///
+  /// A re-resolved anchor — the store answering where the network did, or
+  /// an equivalent value for no visible reason — is folded in place, and is
+  /// a no-op once the window has released it. See
+  /// [ReaderFeedController.replaceChapter].
   ReaderFeedController _feedFor(
     ReaderChapter chapter, {
     required String? previousChapterId,
     required String? nextChapterId,
   }) {
     final existing = _feedController;
-    if (existing != null && existing.feed.contains(chapter.id)) {
-      existing.noteNeighbours(
-        chapter.id,
-        prev: previousChapterId,
-        next: nextChapterId,
-      );
+    if (existing != null) {
+      existing
+        ..replaceChapter(chapter)
+        ..noteNeighbours(
+          chapter.id,
+          prev: previousChapterId,
+          next: nextChapterId,
+        );
       return existing;
     }
-    existing?.dispose();
     final controller = ReaderFeedController(
       anchor: chapter,
       prev: previousChapterId,
