@@ -134,6 +134,52 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.7.0",
+        build=40,
+        date="September 2026",
+        highlights=[
+            "Aurora Scans works again. Every chapter on it answered "
+            "'Chapter not found', because the address the reader builds has "
+            "the word chapters in it twice for that source and the server "
+            "split it in the wrong place. BeeHentai and ComicLand were broken "
+            "the same way and are fixed too",
+            "Reading time is actually recorded. Every reading session ever "
+            "stored had the same start and end time, because time spent on a "
+            "page you had already reached was thrown away. Re-reading a "
+            "chapter now counts, and a phone that resends its queue after a "
+            "crash no longer counts the same minutes twice",
+            "The 18+ gate covers six places it did not. Collections listed "
+            "and counted hidden series, following one succeeded and left a "
+            "row you could not see or remove, and an adult series listed on "
+            "an ordinary source was never hidden at all because only the "
+            "source was being checked, never the series",
+            "Adult sources can be checked for updates again. The update "
+            "sweep was asking the site-wide setting instead of yours, so a "
+            "followed series on an adult source could never find a new "
+            "chapter and simply looked dead",
+            "You can see and remove who signed up. Settings has a Members "
+            "list with a deactivate switch and a delete, and deactivating "
+            "someone ends their session immediately rather than whenever "
+            "their login happens to expire",
+            "The phone showed every time in the wrong timezone. Reading "
+            "history and updates were shifted by your offset, and because a "
+            "bookmark's time decides which copy wins, the phone thought every "
+            "bookmark on the server was older than it really was",
+            "Saved chapters are safer. The phone could delete a downloaded "
+            "chapter another profile had just saved, an app rollback left the "
+            "download store permanently unopenable, and on the website a full "
+            "browser could quietly throw away your saved chapters or stop "
+            "remembering your place with no sign anything went wrong",
+            "Restoring a backup can no longer destroy the only copy. The "
+            "database being replaced is kept, a damaged file is refused "
+            "instead of installed, and a backup from a newer version is set "
+            "aside rather than left crash-looping the server",
+            "The home screen and the notification list stopped re-sorting "
+            "your whole history on every open, and the statistics screen "
+            "stopped re-reading every session you have ever had",
+        ],
+    ),
+    ChangelogEntry(
         version="2.6.2",
         build=39,
         date="September 2026",
