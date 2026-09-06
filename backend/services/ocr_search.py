@@ -63,6 +63,25 @@ class OcrSearchService:
         rows = self._followed.list_series(page=1, per_page=10_000)["items"]
         return {(r["source_id"], r["series_key"]) for r in rows}
 
+    @staticmethod
+    def _scope_predicate(
+        allowed: set[tuple[str, str]], params: dict[str, Any]
+    ) -> str:
+        """A SQL predicate for the followed ``(source_id, series_key)`` pairs.
+
+        The set has to be built in Python -- the 18+ gate that produces it
+        needs the connector's own maturity flag, which is code, not a column --
+        but it is handed to SQLite as bound parameters rather than used to
+        filter a fully materialized result set. Sorted so the same library
+        always renders the same statement text.
+        """
+        pairs = []
+        for index, (source_id, series_key) in enumerate(sorted(allowed)):
+            params[f"s{index}"] = source_id
+            params[f"k{index}"] = series_key
+            pairs.append(f"(:s{index}, :k{index})")
+        return f"(c.source_id, c.series_key) IN (VALUES {', '.join(pairs)})"
+
     def search(
         self, query: str, *, limit: int = 20, offset: int = 0
     ) -> dict[str, Any]:
@@ -74,27 +93,40 @@ class OcrSearchService:
             )
 
         terms = terms_of(raw)
-        expression = match_expr(raw)
+        params: dict[str, Any] = {"q": match_expr(raw)}
+        scope = self._scope_predicate(allowed, params)
+
+        # ``chapter_ocr`` is GLOBAL, so an unscoped scan is a scan of every
+        # other profile's transcripts. Both halves matter: the scope predicate
+        # runs in SQLite (an ephemeral index over the followed pairs, probed
+        # once per FTS hit) rather than over a fully materialized result set,
+        # and ``full_text`` -- kilobytes of dialogue per chapter -- is read
+        # only for the rows this page actually renders a snippet for.
+        source = f"""
+            FROM chapter_ocr_fts f
+            JOIN chapter_ocr c ON c.id = f.rowid
+            WHERE chapter_ocr_fts MATCH :q AND {scope}
+        """
+
+        total = self._db.execute(
+            text(f"SELECT COUNT(*) {source}"), params
+        ).scalar_one()
 
         rows = self._db.execute(
             text(
-                """
-                SELECT c.id, c.source_id, c.series_key, c.chapter_key,
+                f"""
+                SELECT c.source_id, c.series_key, c.chapter_key,
                        c.full_text, c.word_count, c.engine
-                FROM chapter_ocr_fts f
-                JOIN chapter_ocr c ON c.id = f.rowid
-                WHERE chapter_ocr_fts MATCH :q
-                ORDER BY c.word_count DESC
+                {source}
+                -- ``c.id`` breaks word_count ties. The window is SQLite's now
+                -- rather than a Python slice, and LIMIT/OFFSET over a partial
+                -- order may repeat a row on one page and skip it on the next.
+                ORDER BY c.word_count DESC, c.id
+                LIMIT :limit OFFSET :offset
                 """
             ),
-            {"q": expression},
+            {**params, "limit": limit, "offset": offset},
         ).all()
-
-        filtered = [
-            r for r in rows if (r.source_id, r.series_key) in allowed
-        ]
-        total = len(filtered)
-        window = filtered[offset : offset + limit]
 
         lowered_terms = [t.lower() for t in terms]
         items = [
@@ -107,7 +139,7 @@ class OcrSearchService:
                 "snippet": self._snippet(r.full_text or "", lowered_terms),
                 "highlighted_terms": terms,
             }
-            for r in window
+            for r in rows
         ]
 
         return enrich_pagination_aliases(

@@ -6,8 +6,10 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
+from sqlalchemy.orm import Session
 
 from core.rate_limit import limiter, sources_limit
+from database.session import get_db
 from services.browse_service import BrowseService, get_browse_service
 from services.reader_service import ReaderService, get_reader_service
 from services.image_resize import (
@@ -39,6 +41,28 @@ CacheDep = Annotated[SourceCacheService, Depends(get_source_cache_service)]
 ReaderDep = Annotated[ReaderService, Depends(get_reader_service)]
 PinDep = Annotated[SourcePinService, Depends(get_source_pin_service)]
 PinWriteDep = Annotated[SourcePinService, Depends(require_source_pin_service)]
+DbDep = Annotated[Session, Depends(get_db)]
+
+
+def _release_pooled_connection(db: Session) -> None:
+    """Hand this request's pooled DB connection back before a slow upstream fetch.
+
+    Authenticating a request resolves the session token through the request's
+    Session, which checks a connection out of the engine pool; the Session
+    holds it until the next commit/rollback/close, and ``AuthService._touch``
+    deliberately does neither for a token used in the last minute. Every route
+    below that then spends up to 30 s fetching from a third-party site would
+    otherwise pin one of the 20+20 pool slots for that whole time — and the
+    page-image proxy runs 20-200 times per chapter read, so a single slow image
+    host is enough to exhaust the pool on a 2-vCPU box.
+
+    Only correct where every DB-dependent decision (the 18+ gate, resolved in
+    ``get_browse_service``) has already been made: the rollback ends the
+    transaction, and any later DB use simply checks a connection out again.
+    Nothing uncommitted is lost — ``_touch`` either modified nothing or
+    committed already.
+    """
+    db.rollback()
 
 
 class SourcePinsUpdate(BaseModel):
@@ -217,6 +241,7 @@ def list_source_series(
     source_id: str,
     service: BrowseDep,
     cache: CacheDep,
+    db: DbDep,
     request: Request,
     response: Response,
     page: int = Query(1, ge=1),
@@ -233,10 +258,15 @@ def list_source_series(
     response carries a ``cache`` block — ``{"status": "fresh"|"live"|"stale",
     "stale": bool, "fetched_at": ISO-8601 UTC}`` — so clients can badge stale
     grids. Searches bypass the cache (unbounded key cardinality) and always
-    report ``status: "live"``. ``refresh=true`` forces a live refetch.
+    report ``status: "live"``, and so does a ``sort``/``genre`` the connector
+    never advertised — those are cache KEYS, so only the source's own closed
+    set of facets may mint rows. ``refresh=true`` forces a live refetch.
     """
     normalized_query = query.strip() if query else None
     if normalized_query:
+        # Search is a bare upstream fetch with nothing left to read locally;
+        # the cached browse below keeps its connection because it writes rows.
+        _release_pooled_connection(db)
         listing = service.list_series(
             source_id, page=page, query=normalized_query, sort=sort, genre=genre
         )
@@ -267,6 +297,29 @@ def list_source_series(
 # into that object and raises at request time if it is missing.
 
 
+_CHAPTERS_SEGMENT = "/chapters/"
+
+
+def _split_at_first_chapters_segment(series_id: str, chapter_id: str) -> tuple[str, str]:
+    """Undo Starlette's greedy split of the reader path's two ``:path`` params.
+
+    Both params are greedy, so when the URL carries more than one
+    ``/chapters/`` the FIRST param swallows through the LAST one. Three
+    connectors (aurorascans, beehentai, comicland) mint chapter ids as
+    ``<series>/chapters/<chapter>``, so every chapter on those sources arrived
+    with the series id over-long and the chapter id truncated, and the reader
+    answered "Chapter not found" (production log, 2026-09-07).
+
+    Rejoining and re-splitting at the FIRST separator is correct because a
+    series key has never contained ``/chapters/`` while a chapter id routinely
+    does; keys that merely contain slashes are unaffected, since the rejoined
+    string reproduces the original path exactly.
+    """
+    joined = f"{series_id}{_CHAPTERS_SEGMENT}{chapter_id}"
+    head, _, tail = joined.partition(_CHAPTERS_SEGMENT)
+    return head, tail
+
+
 @router.get("/{source_id}/series/{series_id:path}/chapters/{chapter_id:path}/reader")
 @limiter.limit(sources_limit)
 def get_source_reader_chapter(
@@ -278,6 +331,7 @@ def get_source_reader_chapter(
     response: Response,
 ) -> dict[str, object]:
     """Return the online reader payload for a chapter, straight from the source."""
+    series_id, chapter_id = _split_at_first_chapters_segment(series_id, chapter_id)
     return service.resolve_source_chapter(source_id, series_id, chapter_id)
 
 
@@ -287,6 +341,7 @@ def get_source_chapters(
     source_id: str,
     series_id: str,
     service: BrowseDep,
+    db: DbDep,
     request: Request,
     response: Response,
 ) -> list[dict[str, object]]:
@@ -296,6 +351,7 @@ def get_source_chapters(
     threadpool, so with no ceiling a caller looping cache-busted keys against
     a dead upstream could pin every worker in retry cycles (audit finding 9).
     """
+    _release_pooled_connection(db)
     items = service.get_chapters(source_id, series_id)
     set_list_total_header(response, len(items))
     return items
@@ -308,6 +364,7 @@ def get_source_series_cover(
     series_id: str,
     service: BrowseDep,
     cache: CacheDep,
+    db: DbDep,
     request: Request,
     w: int | None = Query(
         None,
@@ -358,6 +415,9 @@ def get_source_series_cover(
         "Cache-Control": f"public, max-age={_COVER_MAX_AGE_SECONDS}",
     }
     if w is None:
+        # The ``?w=`` path releases the connection inside the cache service
+        # instead (it still needs the DB to read/write the derived rendering).
+        _release_pooled_connection(db)
         media_type, data = service.resolve_series_cover(source_id, series_id)
         return _conditional_image_response(request, media_type, data, headers)
 
@@ -379,6 +439,7 @@ def get_source_series(
     source_id: str,
     series_id: str,
     service: BrowseDep,
+    db: DbDep,
     request: Request,
     response: Response,
 ) -> dict[str, object]:
@@ -387,6 +448,7 @@ def get_source_series(
 
     Declared last of the ``/series/...`` routes — see the CONTRACT note above.
     """
+    _release_pooled_connection(db)
     return service.get_series(source_id, series_id)
 
 
@@ -410,6 +472,7 @@ def get_source_page_image(
     source_id: str,
     page_id: str,
     service: BrowseDep,
+    db: DbDep,
     request: Request,
     w: int | None = Query(
         None,
@@ -453,6 +516,7 @@ def get_source_page_image(
     shared cache that does not know that will hand a WebP to a client that
     asked for JPEG.
     """
+    _release_pooled_connection(db)
     media_type, data = service.resolve_page_image(source_id, page_id)
     headers = _image_proxy_headers()
     if w is None:
