@@ -2,6 +2,12 @@
 
 Only sources that still have connector code (or legacy aliases) but must not
 register. Madara dead sites were removed from ``catalog.py`` instead.
+
+Adding a line here is a deregistration, and a deregistration now also disposes
+of the source's cached rows: ``services.source_cache_service`` sweeps every
+cache table for source ids the registry no longer knows, on the next boot and
+daily after that. Nothing else to do — and nothing to undo either, since a line
+removed from here simply refetches.
 """
 
 from __future__ import annotations

@@ -11,8 +11,13 @@
 #   backup-db.sh stage-restore FILE.zst
 #                                      DESTRUCTIVE (confirm with MM_CONFIRM=RESTORE):
 #                                      take a fresh backup, then decompress FILE to
-#                                      <db>.pending-restore, which the backend swaps
-#                                      in on its next start (core/backup_restore.py).
+#                                      <db>.pending-restore. The backend validates
+#                                      that file on its next start and swaps it in,
+#                                      keeping the replaced database as
+#                                      <db>.pre-restore-<stamp> (core/backup_restore.py);
+#                                      a corrupt file, or one stamped with an alembic
+#                                      revision this build does not have, is refused and
+#                                      set aside as <db>.pending-restore.rejected.
 #
 # Why not `cp manhwamaniacs.db`: the DB runs in WAL mode and the main file is
 # only rewritten at a checkpoint. On the live box the main file's mtime was

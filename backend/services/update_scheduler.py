@@ -3,6 +3,11 @@
 Mirrors the OCR/download subsystem lifecycle:
 - ``UpdateScheduler`` sleeps between scheduled checks.
 - ``UpdateWorkerManager`` runs checks on a thread pool without blocking the API.
+
+It also carries the daily cache retention sweep. That is not an update check,
+but it wants exactly what this already has — one daemon thread that wakes on a
+timer for the life of the process — and a second scheduler thread to run four
+DELETEs a day would be infrastructure bought for nothing.
 """
 
 from __future__ import annotations
@@ -14,9 +19,17 @@ from concurrent.futures import ThreadPoolExecutor
 
 from core.config import get_settings
 from database.session import SessionLocal
+from services.source_cache_service import sweep_cache_retention
 from services.update_service import UpdateService, run_check_in_new_session
 
 logger = logging.getLogger(__name__)
+
+#: How often the cache retention sweep runs. Daily, because every rule it
+#: applies is measured in days — a finer cadence would scan the same four
+#: tables to delete nothing. The boot sweep in ``main`` covers the case this
+#: cadence is bad at: a source deregistered by a deploy, whose rows should go
+#: on the restart that deregistered it rather than up to a day later.
+_CACHE_SWEEP_INTERVAL_SECONDS = 24 * 60 * 60
 
 _update_manager: UpdateSchedulerManager | None = None
 _update_manager_lock = threading.Lock()
@@ -33,6 +46,10 @@ class UpdateSchedulerManager:
         self._stop_event = threading.Event()
         self._check_lock = threading.Lock()
         self._started = False
+        #: ``None`` until something has swept for this manager. Not 0.0: on
+        #: Linux ``monotonic()`` counts from system boot, so a zero baseline
+        #: silently means "already swept" for the first day of uptime.
+        self._last_cache_sweep: float | None = None
 
     def start(self) -> None:
         if self._started:
@@ -48,6 +65,9 @@ class UpdateSchedulerManager:
             daemon=True,
         )
         self._started = True
+        # Boot already swept (main lifespan), so the first scheduled sweep is a
+        # day from now rather than immediately.
+        self._last_cache_sweep = time.monotonic()
         # Commit the singleton settings row BEFORE any thread reads it, so the
         # scheduler thread and the startup-check always see a committed row and
         # never race to INSERT it simultaneously.
@@ -142,9 +162,38 @@ class UpdateSchedulerManager:
         upstream on the config-default cadence (noted in audit findings
         1/5/6/7). Disabled now means no scheduled sweep; manual checks via
         ``POST /updates/check`` still work.
+
+        Cache retention runs first and unconditionally: turning update checks
+        off is a statement about contacting upstreams, not about letting the
+        disk fill.
         """
+        self._maybe_sweep_caches()
         if self._scheduled_checks_enabled():
             self.trigger_check(trigger="scheduled")
+
+    def _maybe_sweep_caches(self) -> None:
+        """Run the cache retention sweep at most once a day.
+
+        On the scheduler thread rather than the worker pool: it is four DELETEs
+        against tables no request is waiting on, so it must not take a worker
+        an update check could be using, and it must not queue behind the
+        single-check lock that check holds for its whole sweep.
+        """
+        now = time.monotonic()
+        if (
+            self._last_cache_sweep is not None
+            and now - self._last_cache_sweep < _CACHE_SWEEP_INTERVAL_SECONDS
+        ):
+            return
+        self._last_cache_sweep = now
+        db = SessionLocal()
+        try:
+            sweep_cache_retention(db)
+        except Exception:
+            db.rollback()
+            logger.exception("Cache retention sweep failed")
+        finally:
+            db.close()
 
     def _scheduled_checks_enabled(self) -> bool:
         db = SessionLocal()

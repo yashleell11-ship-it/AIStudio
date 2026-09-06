@@ -61,6 +61,27 @@ def descriptor_for_source(source_id: str) -> "ConnectorDescriptor | None":
     return descriptors_by_source().get(source_id)
 
 
+def known_source_ids() -> frozenset[str]:
+    """Every source id the connector code still defines.
+
+    Reads ``_REGISTRY`` rather than :func:`descriptors_by_source` on purpose:
+    the question this answers is "does this source still exist in the build?",
+    and a novel source with ``MM_NOVELS_ENABLED`` off does exist — it is hidden
+    from every listing surface, not deleted. Answering from the flag-filtered
+    index would make the cache retention sweep
+    (``services.source_cache_service.sweep_cache_retention``) delete every
+    novel row the moment the flag went off, and refetch them all when it came
+    back on. A source removed from ``connectors/catalog.py`` or added to
+    ``connectors.excluded.EXCLUDED_CONNECTORS`` is absent from both.
+
+    Not memoized: the one caller runs twice a day, and a stale answer here
+    deletes rows.
+    """
+    from connectors.registry import _REGISTRY
+
+    return frozenset(_REGISTRY)
+
+
 def mature_source_ids() -> tuple[str, ...]:
     """Sorted ids of the sources that are adult by nature.
 

@@ -30,19 +30,31 @@ import json
 import logging
 import threading
 from collections import OrderedDict
+from dataclasses import dataclass
 from datetime import timedelta
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, tuple_
 from sqlalchemy.orm import Session
 
+from connectors.base import SourceConnector
 from connectors.ids import fully_unquote
 from core.config import get_settings
-from core.content_rating import rating_from_genres
+from core.connector_directory import known_source_ids
+from core.content_rating import (
+    TRACKER_RATING_MATURE,
+    rating_from_genres,
+    resolve_series_rating,
+)
 from core.errors import AppError
 from core.time_utils import utcnow
-from database.models import SourceBrowseCache, SourceCoverCache, SourceSeriesCache
+from database.models import (
+    NovelChapterCache,
+    SourceBrowseCache,
+    SourceCoverCache,
+    SourceSeriesCache,
+)
 from database.session import get_db
 from services.browse_service import BrowseService, get_browse_service
 from services.image_resize import COVER_FORMATS, resize_cover
@@ -158,6 +170,21 @@ _COVER_LRU_BUMP_MINUTES = 60
 # so an eviction never pulls the blobs it is about to throw away into memory.
 _COVER_EVICT_BATCH = 256
 
+# The ``source_cover_cache.resize_failure`` vocabulary. One value, because one
+# value is all ``resize_cover`` can tell us: it answers bytes-or-None and
+# folds "already small enough", "animated", "not an image", "no Pillow" into
+# that single None. The column exists so a future policy change can invalidate
+# one class of negative entry without flushing the table, which needs
+# ``image_resize`` to report a reason first; until it does, adding names here
+# would only be guessing at the row's own history.
+_RESIZE_FAILURE_NO_GAIN = "no_downscale"
+
+#: Error codes the 18+ gate itself raises. The degrade-to-stale handlers below
+#: must re-raise these rather than treat them as a connector outage: a gate
+#: refusing a series is an ANSWER, and answering it with the cached row is the
+#: exact disclosure the gate exists to prevent.
+_GATE_ERROR_CODES = frozenset({"source_not_found", "series_not_found"})
+
 
 def _normalize_sort(sort: str | None) -> str:
     """Cache-key form of the ``sort`` facet; mirrors ``list_series``."""
@@ -194,6 +221,69 @@ def _open_warm_session() -> Session:
 
 def _build_warm_browse(db: Session, mature_enabled: bool) -> BrowseService:
     return BrowseService(mature_enabled=mature_enabled, db=db)
+
+
+def _evict_cover_bytes_to_budget(db: Session) -> int:
+    """Delete least-recently-used rows until the table fits its byte budget.
+
+    A byte budget rather than the row cap the JSON caches use: these rows are
+    encoded images, they differ in size by an order of magnitude, and the thing
+    that actually has to be bounded on a 20 GB VPS is bytes.
+    ``settings.cover_cache_max_bytes`` is therefore a HARD ceiling on what this
+    feature can ever occupy. Returns how many rows went; the caller commits.
+
+    The ``SUM`` runs on every store, not only when the budget is blown:
+    measured on the VPS it is 22 ms over 10,000 rows (13 ms at the ~6,000 the
+    default budget actually holds), against the ~130 ms of CPU the render that
+    triggered it just spent. It stays cheap because ``byte_size`` is declared
+    BEFORE ``data`` in the table, so the scan reads each record's first page
+    instead of walking blob overflow pages.
+    """
+    cap = get_settings().cover_cache_max_bytes
+    if cap <= 0:
+        return 0
+    # autoflush is off session-wide; flush so the row just added counts.
+    db.flush()
+    total = db.execute(
+        select(func.coalesce(func.sum(SourceCoverCache.byte_size), 0))
+    ).scalar_one()
+    if total <= cap:
+        return 0
+    evicted = 0
+    while total > cap:
+        batch = db.execute(
+            select(
+                SourceCoverCache.source_id,
+                SourceCoverCache.series_key,
+                SourceCoverCache.width,
+                SourceCoverCache.fmt,
+                SourceCoverCache.byte_size,
+            )
+            .order_by(SourceCoverCache.last_used_at.asc())
+            .limit(_COVER_EVICT_BATCH)
+        ).all()
+        if not batch:
+            break
+        for victim in batch:
+            if total <= cap:
+                break
+            db.execute(
+                delete(SourceCoverCache).where(
+                    SourceCoverCache.source_id == victim.source_id,
+                    SourceCoverCache.series_key == victim.series_key,
+                    SourceCoverCache.width == victim.width,
+                    SourceCoverCache.fmt == victim.fmt,
+                )
+            )
+            total -= victim.byte_size or 0
+            evicted += 1
+    if evicted:
+        logger.info(
+            "cover_cache: evicted %d least-recently-used row(s) (budget %d bytes)",
+            evicted,
+            cap,
+        )
+    return evicted
 
 
 class SourceCacheService:
@@ -233,12 +323,17 @@ class SourceCacheService:
             and self._is_fresh(row)
             and row.chapters is not None
         ):
-            return self._serialize(row)
+            return self._serve(source_id, row)
 
         try:
             meta = self._browse.get_series(source_id, series_key)
             chapters = self._browse.get_chapters(source_id, series_key)
         except (AppError, Exception) as exc:  # noqa: BLE001 - cache must degrade
+            if isinstance(exc, AppError) and exc.code in _GATE_ERROR_CODES:
+                # The gate refused, so there is nothing to degrade TO: this
+                # handler existed for a connector that could not answer, and a
+                # gate that will not answer is not the same thing.
+                raise
             if row is not None:
                 logger.warning(
                     "source_cache: connector failed for %s/%s, serving stale (%s)",
@@ -246,11 +341,50 @@ class SourceCacheService:
                     series_key,
                     exc,
                 )
-                return self._serialize(row)
+                return self._serve(source_id, row)
             raise
 
         row = self._upsert(source_id, series_key, meta, chapters)
+        return self._serve(source_id, row)
+
+    def _serve(self, source_id: str, row: SourceSeriesCache) -> dict[str, Any]:
+        """Serialize one cached row, after the ROW's own 18+ rating is checked.
+
+        ``ensure_visible`` above answers for the whole SOURCE, which said
+        nothing about an adult series listed on a general-audience one — a
+        madara site tagging a work "Smut". The same series, once followed, is
+        hidden from that profile's library by ``resolve_tracker_rating``, so
+        this surface printed by name exactly what that one withheld.
+
+        The rule is ``core.content_rating.resolve_series_rating`` — the row's
+        stored rating first, its genres behind it (the same signal the follow
+        path captures), and unknown stays VISIBLE, for the reason recorded
+        there: almost no catalog rates itself, so hiding the unrated would
+        empty the app rather than clean it. ``BrowseService._row_visible``
+        applies that same function to a live listing; the two agree because
+        they call one implementation, not because they were written alike.
+        """
+        if self._rating_hides(row):
+            raise AppError(
+                "Series not found.",
+                code="series_not_found",
+                status_code=404,
+                details={"source_id": source_id, "series_id": row.series_key},
+            )
         return self._serialize(row)
+
+    def _rating_hides(self, row: SourceSeriesCache) -> bool:
+        """Whether this caller's 18+ gate hides ``row`` on its own rating."""
+        gate = getattr(self._browse, "_gate_open", None)
+        # A browse stand-in that cannot report a gate is treated as SHUT: the
+        # rating rule then still applies, which is the safe direction to fail.
+        if callable(gate) and gate():
+            return False
+        # ``source_mature`` is not passed: a mature source never reaches here
+        # with the gate shut — ``ensure_visible`` already refused it — so the
+        # only question left is what this row itself says.
+        rating = resolve_series_rating(row.content_rating, _loads(row.genres) or [])
+        return rating == TRACKER_RATING_MATURE
 
     def get_chapter_list(
         self, source_id: str, series_key: str, *, force: bool = False
@@ -286,6 +420,8 @@ class SourceCacheService:
 
         Search results (``query=...``) never come through here: they bypass the
         cache entirely (unbounded key cardinality; see ``routes/sources.py``).
+        A ``sort``/``genre`` the connector never advertised is served the same
+        way — live, and stored nowhere (see ``_uncacheable_facet``).
         """
         # Per-caller 18+ gate, applied on EVERY read. Cache rows are global;
         # whether *this* caller may see the source is not. No network involved.
@@ -293,6 +429,28 @@ class SourceCacheService:
 
         sort_key = _normalize_sort(sort)
         genre_key = _normalize_genre(genre)
+        reason = self._uncacheable_facet(source_id, sort_key, genre_key)
+        if reason is not None:
+            logger.info(
+                "browse_cache: %s for %s (sort=%r genre=%r); browsing live",
+                reason,
+                source_id,
+                sort_key,
+                genre_key,
+            )
+            payload = dict(
+                self._browse.list_series(
+                    source_id,
+                    page=page,
+                    sort=sort_key or None,
+                    genre=genre_key or None,
+                )
+            )
+            payload["cache"] = live_cache_info()
+            # No warm either: warming a key we refuse to store would fetch the
+            # next page on every request and throw it away.
+            return payload
+
         key = (source_id, sort_key, genre_key, page)
         try:
             row = self._db.get(SourceBrowseCache, key)
@@ -385,8 +543,11 @@ class SourceCacheService:
         missing cover is a hole in the grid.
 
         Every resize failure — corrupt bytes, an unsupported format, a source
-        answering with HTML, Pillow missing entirely — falls back to the
-        original bytes and stores nothing. See ``image_resize.resize_cover``.
+        answering with HTML, Pillow missing entirely — serves the ORIGINAL
+        bytes and records a NEGATIVE entry, so the next read of that key
+        neither fetches upstream nor decodes again until it expires. See
+        ``image_resize.resize_cover`` for what counts as a failure and
+        ``database.models.SourceCoverCache`` for how such a row reads back.
         """
         self._browse.ensure_visible(source_id)
 
@@ -397,15 +558,27 @@ class SourceCacheService:
 
         key = (source_id, fully_unquote(series_key), width, fmt)
         row = self._cover_row(key)
+        # A NEGATIVE entry (``resize_failed_at`` set) records that this key does
+        # not shrink; its ``data`` is the ORIGINAL bytes, or empty when the
+        # original was too large to keep. See ``database.models.SourceCoverCache``.
+        negative = row is not None and row.resize_failed_at is not None
+        skip_resize = False
         if row is not None and self._cover_row_fresh(row):
-            self._touch_cover(row)
-            return row.media_type, bytes(row.data), width
+            if not negative:
+                self._touch_cover(row)
+                return row.media_type, bytes(row.data), width
+            if row.byte_size:
+                self._touch_cover(row)
+                return row.media_type, bytes(row.data), None
+            # Nothing stored to serve, but the verdict still stands: fetch the
+            # original below and skip the decode this key has already failed.
+            skip_resize = True
 
         # The stale-serve fallback, snapshotted as plain values: the pooled
         # connection is released below and ``row`` must not be read after that.
         stale = (
-            (row.media_type, bytes(row.data), row.fetched_at)
-            if row is not None
+            (row.media_type, bytes(row.data), row.fetched_at, negative)
+            if row is not None and row.data
             else None
         )
 
@@ -429,7 +602,7 @@ class SourceCacheService:
             media_type, data = self._browse.resolve_series_cover(source_id, series_key)
         except (AppError, Exception):  # noqa: BLE001 - cache must degrade
             if stale is not None:
-                stale_media_type, stale_data, stale_fetched_at = stale
+                stale_media_type, stale_data, stale_fetched_at, stale_negative = stale
                 logger.warning(
                     "cover_cache: connector failed for %s/%s, serving stale "
                     "(w=%d fmt=%s, fetched %s)",
@@ -442,14 +615,27 @@ class SourceCacheService:
                 refreshed = self._cover_row(key)
                 if refreshed is not None:
                     self._touch_cover(refreshed)
-                return stale_media_type, stale_data, width
+                # A negative entry's bytes are the original, so the served
+                # width is what a passthrough would report: unknown.
+                return (
+                    stale_media_type,
+                    stale_data,
+                    None if stale_negative else width,
+                )
             raise
 
-        resized = resize_cover(data, width=width, fmt=fmt)
+        resized = None if skip_resize else resize_cover(data, width=width, fmt=fmt)
         if resized is None:
-            # Nothing to gain (or nothing decodable) — the original is served
-            # and deliberately NOT stored: only derived, downscaled bytes ever
-            # land on disk.
+            # Nothing to gain (or nothing decodable). The original is what gets
+            # served, but the FAILURE is recorded, so the next read of this key
+            # neither fetches upstream nor decodes again until the entry
+            # expires. Without that row this branch was an upstream fetch plus
+            # a Pillow decode on every single grid paint, forever — for exactly
+            # the covers this table exists to stop re-fetching.
+            if not skip_resize:
+                self._store_cover(
+                    key, media_type, data, resize_failure=_RESIZE_FAILURE_NO_GAIN
+                )
             return media_type, data, None
 
         out_media_type, out_data = resized
@@ -489,18 +675,33 @@ class SourceCacheService:
             self._db.rollback()
 
     def _store_cover(
-        self, key: tuple[str, str, int, str], media_type: str, data: bytes
+        self,
+        key: tuple[str, str, int, str],
+        media_type: str,
+        data: bytes,
+        *,
+        resize_failure: str | None = None,
     ) -> None:
-        """Upsert one rendered cover and sweep the byte budget. Best effort."""
+        """Upsert one rendered cover and sweep the byte budget. Best effort.
+
+        With ``resize_failure`` set this writes a NEGATIVE entry instead:
+        ``data`` is then the ORIGINAL bytes rather than a downscale, and the
+        row records that this key produced nothing to serve.
+        """
         max_row_bytes = get_settings().cover_cache_max_row_bytes
         if max_row_bytes > 0 and len(data) > max_row_bytes:
-            # Served, never stored: one pathological source must not be able to
-            # spend the whole budget.
-            logger.info(
-                "cover_cache: %d bytes exceeds the per-row ceiling; not stored",
-                len(data),
-            )
-            return
+            if resize_failure is None:
+                # Served, never stored: one pathological source must not be
+                # able to spend the whole budget.
+                logger.info(
+                    "cover_cache: %d bytes exceeds the per-row ceiling; not stored",
+                    len(data),
+                )
+                return
+            # The verdict is still worth keeping when the original it describes
+            # is not: the marker alone spares the decode on every later read,
+            # and the fetch it cannot spare was going to happen anyway.
+            data = b""
         source_id, series_key, width, fmt = key
         try:
             row = self._db.get(SourceCoverCache, key)
@@ -517,6 +718,11 @@ class SourceCacheService:
             row.byte_size = len(data)
             row.fetched_at = utcnow()
             row.last_used_at = utcnow()
+            # Written unconditionally, so a successful downscale CLEARS the
+            # negative entry that preceded it rather than leaving a row that
+            # claims both.
+            row.resize_failure = resize_failure
+            row.resize_failed_at = utcnow() if resize_failure else None
             self._evict_cover_bytes()
             self._db.commit()
         except Exception:  # noqa: BLE001 - a cache write must never break a read
@@ -524,66 +730,8 @@ class SourceCacheService:
             self._db.rollback()
 
     def _evict_cover_bytes(self) -> None:
-        """Delete least-recently-used rows until the table fits its byte budget.
-
-        A byte budget rather than the row cap the JSON caches use: these rows
-        are encoded images, they differ in size by an order of magnitude, and
-        the thing that actually has to be bounded on a 20 GB VPS is bytes.
-        ``settings.cover_cache_max_bytes`` is therefore a HARD ceiling on what
-        this feature can ever occupy. The caller commits.
-
-        The ``SUM`` runs on every store, not only when the budget is blown:
-        measured on the VPS it is 22 ms over 10,000 rows (13 ms at the ~6,000
-        the default budget actually holds), against the ~130 ms of CPU the
-        render that triggered it just spent. It stays cheap because
-        ``byte_size`` is declared BEFORE ``data`` in the table, so the scan
-        reads each record's first page instead of walking blob overflow pages.
-        """
-        cap = get_settings().cover_cache_max_bytes
-        if cap <= 0:
-            return
-        # autoflush is off session-wide; flush so the row just added counts.
-        self._db.flush()
-        total = self._db.execute(
-            select(func.coalesce(func.sum(SourceCoverCache.byte_size), 0))
-        ).scalar_one()
-        if total <= cap:
-            return
-        evicted = 0
-        while total > cap:
-            batch = self._db.execute(
-                select(
-                    SourceCoverCache.source_id,
-                    SourceCoverCache.series_key,
-                    SourceCoverCache.width,
-                    SourceCoverCache.fmt,
-                    SourceCoverCache.byte_size,
-                )
-                .order_by(SourceCoverCache.last_used_at.asc())
-                .limit(_COVER_EVICT_BATCH)
-            ).all()
-            if not batch:
-                break
-            for victim in batch:
-                if total <= cap:
-                    break
-                self._db.execute(
-                    delete(SourceCoverCache).where(
-                        SourceCoverCache.source_id == victim.source_id,
-                        SourceCoverCache.series_key == victim.series_key,
-                        SourceCoverCache.width == victim.width,
-                        SourceCoverCache.fmt == victim.fmt,
-                    )
-                )
-                total -= victim.byte_size or 0
-                evicted += 1
-        if evicted:
-            logger.info(
-                "cover_cache: evicted %d least-recently-used row(s) "
-                "(budget %d bytes)",
-                evicted,
-                cap,
-            )
+        """Sweep the rendered-cover byte budget on this request's session."""
+        _evict_cover_bytes_to_budget(self._db)
 
     def write_through(
         self,
@@ -678,6 +826,51 @@ class SourceCacheService:
         return row
 
     # --- browse-listing cache internals --------------------------------
+
+    def _uncacheable_facet(
+        self, source_id: str, sort_key: str, genre_key: str
+    ) -> str | None:
+        """Why this (sort, genre) pair must be served live, or ``None``.
+
+        ``source_browse_cache`` keys on the facets VERBATIM, so without this
+        anything a caller can type is a primary key — and the route hands
+        ``?genre=`` straight through. Two ways that goes wrong, both of them
+        the rule this module's docstring already states for searches:
+
+          * ``BrowseService.list_series`` answers a genre the connector cannot
+            browse by SEARCHING for it (its ``browse_by_genre`` default raises
+            ``NotImplementedError``; most connectors never override it), so the
+            row stored under a browse key holds search results; and
+          * every distinct string mints another row, bounded only by
+            ``browse_cache_max_rows`` — 2,000 junk genres evict every real page.
+
+        So a facet is cacheable only when the connector itself advertised it.
+        Genres match on id OR label because the web client puts the human label
+        in the URL; both are the connector's own strings, so either way the key
+        space stays closed. Registry lookup only — no network.
+        """
+        if not sort_key and not genre_key:
+            return None
+        resolve = getattr(self._browse, "_get_connector", None)
+        if not callable(resolve):
+            # Only a test stand-in for BrowseService lands here; the real one
+            # always resolves, and ``ensure_visible`` above is that same call.
+            return None
+        connector = resolve(source_id)
+
+        if sort_key and sort_key not in {
+            mode.id for mode in connector.list_browse_modes()
+        }:
+            return "unadvertised sort"
+
+        if genre_key:
+            genres = connector.list_genres()
+            advertised = {mode.id for mode in genres} | {mode.label for mode in genres}
+            if genre_key not in advertised:
+                return "unadvertised genre"
+            if type(connector).browse_by_genre is SourceConnector.browse_by_genre:
+                return "genre browse unsupported"
+        return None
 
     def _browse_row_fresh(self, row: SourceBrowseCache) -> bool:
         ttl = timedelta(minutes=get_settings().browse_cache_ttl_minutes)
@@ -831,18 +1024,10 @@ class SourceCacheService:
         excess = count - cap
         if excess <= 0:
             return
-        victims = (
-            self._db.execute(
-                select(model).order_by(model.fetched_at.asc()).limit(excess)
-            )
-            .scalars()
-            .all()
-        )
-        for victim in victims:
-            self._db.delete(victim)
+        evicted = _delete_oldest_rows(self._db, model, "fetched_at", excess)
         logger.info(
             "source_cache: evicted %d oldest %s row(s) (cap %d)",
-            len(victims),
+            evicted,
             model.__tablename__,
             cap,
         )
@@ -865,6 +1050,198 @@ class SourceCacheService:
             "chapters": _memoized_chapters(row),
             "fetched_at": row.fetched_at.isoformat() if row.fetched_at else None,
         }
+
+
+# --- retention -------------------------------------------------------------
+#
+# Every eviction above — ``_evict_oldest``, ``_evict_cover_bytes_to_budget``,
+# and ``NovelService._evict_lru`` — runs only inside a WRITE and only once a
+# cap is exceeded. That makes them a disk brake, not a retention policy, and it
+# leaves two kinds of row in place forever.
+#
+# ROWS OF A SOURCE THAT NO LONGER EXISTS. ``manhuakey`` was dropped from
+# ``connectors/catalog.py`` when its domain lapsed; the production database
+# still held 40 ``source_series_cache`` rows and 4 ``source_browse_cache`` rows
+# for it. No read path can ever use them (every one resolves the connector
+# first) and no write path can ever reach them, so nothing shrinks them and
+# nothing refreshes them — they are pure residue, and residue that names a
+# source is worse than residue that does not: ``BookmarkService`` resolves a
+# bookmark's maturity from the registry, so a row whose source has LEFT the
+# registry reads as "not adult" there.
+#
+# ROWS THAT ARE MERELY ANCIENT. 1,539 of 1,550 series rows are browse
+# write-throughs, whose ``fetched_at`` is deliberately never bumped
+# (``_merge_series_row``), so all of them sit past their 6 h TTL waiting for a
+# 20,000-row cap that a handful of users will never reach.
+#
+# So the policy lives here, declared once for all four tables, and is applied
+# by a sweep that runs at boot (``main`` lifespan) and daily (the existing
+# ``update_scheduler`` thread) — never on a read path: a cache read must not be
+# able to trigger a table scan. Nothing it deletes is data; every row is
+# rebuilt by the next read that wants it, so the cost of an over-eager rule is
+# one connector fetch.
+
+
+@dataclass(frozen=True)
+class CacheRetentionRule:
+    """One cache table's retention policy. The tuple below is the readable form."""
+
+    model: Any
+    #: The column that decides a row's age. ``last_used_at`` wherever the table
+    #: has one, for the same reason those tables evict by LRU: a well-read old
+    #: chapter should outlive a once-opened new one.
+    age_column: str
+    #: Rows older than this by ``age_column`` go, whatever the caps say. 0
+    #: disables the age rule.
+    max_age_days: int
+    #: ``core.config`` attribute holding this table's row ceiling, or ``None``
+    #: when the table is bounded by bytes instead. Read at sweep time so the
+    #: env override still applies.
+    max_rows_setting: str | None = None
+    #: ``core.config`` attribute holding the byte ceiling (covers only).
+    max_bytes_setting: str | None = None
+
+
+#: THE retention policy for the four connector caches. The caps are the
+#: existing settings (already env-overridable); the ages are declared here
+#: because nothing else in the system has an opinion about them. Each age is a
+#: multiple of that table's TTL — long enough that a row still being read is
+#: never removed under a reader, short enough that a source nobody opens does
+#: not accumulate.
+CACHE_RETENTION_RULES: tuple[CacheRetentionRule, ...] = (
+    # TTL 6 h. A month covers a reader who follows a series and opens it
+    # monthly; past that the row is a browse write-through nobody came back to.
+    CacheRetentionRule(SourceSeriesCache, "fetched_at", 30, "source_cache_max_rows"),
+    # TTL 60 min, and a page is only ever re-served fresh. A week of nobody
+    # opening this (source, sort, genre, page) means the facet is unused.
+    CacheRetentionRule(SourceBrowseCache, "fetched_at", 7, "browse_cache_max_rows"),
+    # TTL 30 days, LRU by use. Two TTLs of nobody painting this cover.
+    CacheRetentionRule(
+        SourceCoverCache, "last_used_at", 60, max_bytes_setting="cover_cache_max_bytes"
+    ),
+    # TTL 7 days, LRU by use. Kept longest of the four: published novel text is
+    # immutable, the rows are ~15 KB, and a re-read costs a full scrape.
+    CacheRetentionRule(NovelChapterCache, "last_used_at", 90, "novel_cache_max_rows"),
+)
+
+#: Composite primary keys are deleted with a row-value ``IN``; chunked so the
+#: statement stays inside SQLite's variable limit.
+_RETENTION_DELETE_CHUNK = 200
+
+
+def _delete_oldest_rows(db: Session, model, age_column: str, limit: int) -> int:
+    """Delete the ``limit`` oldest rows of ``model`` by ``age_column``.
+
+    Victims are selected as bare KEY TUPLES and deleted with a row-value
+    ``IN``. Selecting whole entities to hand to ``Session.delete`` instead
+    pulled every column of the excess into the process to throw it away — and
+    these tables are where the blobs live: ``source_series_cache.chapters``
+    reaches 314 KB (3,174 entries), ``novel_chapter_cache.paragraphs`` 645 KB.
+    A delete needs the key and nothing else, which is what
+    ``_evict_cover_bytes_to_budget`` already does for the image rows.
+
+    Returns the number removed; the caller commits. ``synchronize_session`` is
+    off because the keys are already known — the ORM re-SELECTing them to
+    reconcile its identity map would put back the read this exists to avoid.
+    """
+    primary_key = tuple(model.__table__.primary_key.columns)
+    victims = db.execute(
+        select(*primary_key).order_by(getattr(model, age_column).asc()).limit(limit)
+    ).all()
+    deleted = 0
+    for start in range(0, len(victims), _RETENTION_DELETE_CHUNK):
+        chunk = [tuple(victim) for victim in victims[start : start + _RETENTION_DELETE_CHUNK]]
+        result = db.execute(
+            delete(model).where(tuple_(*primary_key).in_(chunk)),
+            execution_options={"synchronize_session": False},
+        )
+        deleted += int(result.rowcount or 0)
+    return deleted
+
+
+def sweep_cache_retention(db: Session) -> dict[str, dict[str, int]]:
+    """Apply :data:`CACHE_RETENTION_RULES` to all four cache tables.
+
+    Returns ``{table: {reason: rows removed}}`` for whatever it removed, and
+    logs one line per table that lost anything. Each table is committed on its
+    own, so one failing rule cannot roll back another table's sweep.
+    """
+    known = sorted(known_source_ids())
+    if not known:
+        # An empty registry means the import failed, not that every source was
+        # deleted. Skipping the orphan rule is the difference between a
+        # degraded boot and an emptied cache.
+        logger.warning(
+            "cache_retention: the connector registry is empty; skipping the "
+            "orphan rule this sweep"
+        )
+    removed: dict[str, dict[str, int]] = {}
+    for rule in CACHE_RETENTION_RULES:
+        table = rule.model.__tablename__
+        counts: dict[str, int] = {}
+        try:
+            if known:
+                counts["orphaned"] = _delete_orphans(db, rule, known)
+            counts["aged out"] = _delete_aged(db, rule)
+            counts["over cap"] = _enforce_cap(db, rule)
+            db.commit()
+        except Exception:  # noqa: BLE001 - a maintenance sweep must never break boot
+            logger.exception("cache_retention: sweep of %s failed", table)
+            db.rollback()
+            continue
+        counts = {reason: n for reason, n in counts.items() if n}
+        if counts:
+            removed[table] = counts
+            logger.info(
+                "cache_retention: removed %s from %s",
+                ", ".join(f"{n} {reason}" for reason, n in counts.items()),
+                table,
+            )
+    if not removed:
+        logger.debug("cache_retention: nothing to remove")
+    return removed
+
+
+def _delete_orphans(db: Session, rule: CacheRetentionRule, known: list[str]) -> int:
+    """Rows whose ``source_id`` is no longer a connector this build defines."""
+    result = db.execute(
+        delete(rule.model).where(rule.model.source_id.notin_(known)),
+        execution_options={"synchronize_session": False},
+    )
+    return int(result.rowcount or 0)
+
+
+def _delete_aged(db: Session, rule: CacheRetentionRule) -> int:
+    if rule.max_age_days <= 0:
+        return 0
+    cutoff = utcnow() - timedelta(days=rule.max_age_days)
+    result = db.execute(
+        delete(rule.model).where(getattr(rule.model, rule.age_column) < cutoff),
+        execution_options={"synchronize_session": False},
+    )
+    return int(result.rowcount or 0)
+
+
+def _enforce_cap(db: Session, rule: CacheRetentionRule) -> int:
+    """The table's own ceiling, applied outside a write for once.
+
+    The write-path sweeps only ever run when somebody browses; a cache that has
+    gone quiet stays over its cap indefinitely, which is exactly the state a
+    disk-bound VPS cares about.
+    """
+    if rule.max_bytes_setting is not None:
+        return _evict_cover_bytes_to_budget(db)
+    if rule.max_rows_setting is None:
+        return 0
+    cap = int(getattr(get_settings(), rule.max_rows_setting, 0) or 0)
+    if cap <= 0:
+        return 0
+    model = rule.model
+    count = db.execute(select(func.count()).select_from(model)).scalar_one()
+    excess = count - cap
+    if excess <= 0:
+        return 0
+    return _delete_oldest_rows(db, model, rule.age_column, excess)
 
 
 def get_source_cache_service(
