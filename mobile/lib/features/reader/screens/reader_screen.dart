@@ -102,6 +102,18 @@ class ReaderScreen extends ConsumerWidget {
         leaveReader(context, sourceId: sourceId, seriesKey: seriesKey);
 
     return resolvedAsync.when(
+      // Only the FIRST resolution may show the skeleton or the error state.
+      // The provider re-runs whenever one of its dependencies changes (the
+      // downloads scope, the API base URL, the manifest behind it), and
+      // Riverpod hands `when` an AsyncLoading for that — a *reload*, which
+      // unlike the refresh an `invalidate` produces is not skipped by
+      // default. Falling back to the skeleton there unmounts the feed body,
+      // and a Read-all window that had slid two or three chapters past the
+      // route's chapter is rebuilt from that chapter when the data lands
+      // again: the reported "it sends me back 2-3 chapters". The value that
+      // is already on screen stays on screen until the new one replaces it.
+      skipLoadingOnReload: true,
+      skipError: true,
       loading: () => const ReaderSkeleton(),
       error: (error, _) {
         final appError = error is AppError

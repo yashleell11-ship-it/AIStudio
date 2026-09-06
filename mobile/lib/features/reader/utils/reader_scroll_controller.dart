@@ -66,5 +66,15 @@ class ReaderScrollPosition extends ScrollPositionWithSingleContext {
   void applyExtentCorrection(double delta) {
     if (delta == 0 || !delta.isFinite || !hasPixels) return;
     correctBy(delta);
+    // A fling is a simulation of ABSOLUTE offsets, computed once at the
+    // moment the finger lifted: every tick writes `x(t)` straight into the
+    // position, in the pre-correction frame of reference. The layout that
+    // would re-derive it from the corrected offset comes *after* the next
+    // tick in frame order, so a correction applied outside layout (the
+    // post-frame extent commit) lasted exactly until that tick put the old
+    // offset back — and the reader was shoved by the full delta, mid-fling.
+    // Re-derive it now, from where the reader actually is and at the speed
+    // they were actually moving; the layout-time re-derive is then a no-op.
+    if (activity is BallisticScrollActivity) goBallistic(activity!.velocity);
   }
 }

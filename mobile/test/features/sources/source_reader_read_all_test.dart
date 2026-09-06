@@ -15,6 +15,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../support/test_overrides.dart';
 
+/// Watched by the payload override so a test can make the chapter provider
+/// RELOAD — a dependency change, not an invalidate — on demand. In the app
+/// that dependency is the repository behind the payload, which follows the
+/// API base URL.
+final _payloadDependencyBump = StateProvider<int>((_) => 0);
+
 /// The owner, a third time: "there are still error with the scroll its
 /// improved but yea it still sends back".
 ///
@@ -125,10 +131,10 @@ Future<_Harness> _openReadAll(WidgetTester tester) async {
         // No `(user, profile)` scope: no on-device store, and no download
         // queue for the eager next-chapter prefetch to reach.
         downloadsStoreProvider.overrideWithValue(null),
-        sourceReaderPayloadProvider.overrideWith(
-          (ref, key) async =>
-              _chapterFor(key.chapterId, pagePrefix: harness.pagePrefix),
-        ),
+        sourceReaderPayloadProvider.overrideWith((ref, key) async {
+          ref.watch(_payloadDependencyBump);
+          return _chapterFor(key.chapterId, pagePrefix: harness.pagePrefix);
+        }),
         seriesReadingOrderProvider((sourceId: _sourceId, seriesId: _seriesId))
             .overrideWith((ref) async => _order),
       ],
@@ -227,6 +233,32 @@ void main() {
           .chapters
           .firstWhere((chapter) => chapter.id == _anchorId);
       expect(anchor.pages.first.imageUrl, contains('/elsewhere/'));
+    });
+
+    testWidgets('a dependency-driven reload of the anchor keeps feed and offset',
+        (tester) async {
+      final harness = await _openReadAll(tester);
+      await _readPastTheAnchor(tester);
+
+      final chaptersBefore = _feedChapterIds(tester);
+      final offsetBefore = _listController(tester).offset;
+      expect(chaptersBefore, isNot(contains(_anchorId)));
+
+      // NOT an invalidate: a dependency of sourceReaderChapterProvider
+      // changes, so Riverpod re-runs it as a reload — an AsyncLoading that
+      // still carries the old value, which `when` does not skip by default.
+      // The screen used to fall back to the skeleton, unmounting the reader,
+      // and rebuild it from the route's chapter when the data landed again.
+      harness.container.read(_payloadDependencyBump.notifier).state++;
+      await _tick(tester);
+
+      expect(
+        find.byType(ReaderContent),
+        findsOneWidget,
+        reason: 'the reader must never drop to the skeleton mid-read',
+      );
+      expect(_feedChapterIds(tester), chaptersBefore);
+      expect(_listController(tester).offset, offsetBefore);
     });
 
     testWidgets('a different chapter in the route is a different read',

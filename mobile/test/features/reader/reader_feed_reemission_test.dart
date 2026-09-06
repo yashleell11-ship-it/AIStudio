@@ -349,4 +349,41 @@ void main() {
       );
     });
   });
+
+  group('a Read-all window survives the anchor RELOADING', () {
+    testWidgets(
+        'a dependency-driven reload of a released anchor keeps feed and offset',
+        (tester) async {
+      final harness = await _openReadAll(tester);
+      await _readPastTheAnchor(tester);
+
+      final chaptersBefore = _feedChapterIds(tester);
+      final offsetBefore = _listController(tester).offset;
+      expect(chaptersBefore, isNot(contains(_anchorKey)));
+
+      // NOT an invalidate. A dependency of resolvedReaderChapterProvider
+      // changes, so Riverpod rebuilds it as a *reload*: `when` is handed an
+      // AsyncLoading that still carries the old value (isReloading), which —
+      // unlike the AsyncData(isLoading) of a refresh — is not skipped by
+      // default. The screen falls back to the skeleton, the feed body is
+      // unmounted, and when data lands again everything starts over from the
+      // chapter the ROUTE opened at.
+      harness.container.read(apiBaseUrlProvider.notifier).state =
+          'http://elsewhere.test';
+      await _tick(tester);
+
+      expect(
+        find.byType(ReaderContent),
+        findsOneWidget,
+        reason: 'the reader must never drop to the skeleton mid-read',
+      );
+      expect(
+        _feedChapterIds(tester),
+        chaptersBefore,
+        reason: 'a reload of a chapter the window released must not collapse '
+            'the window back onto it',
+      );
+      expect(_listController(tester).offset, offsetBefore);
+    });
+  });
 }
