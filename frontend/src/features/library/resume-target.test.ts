@@ -44,6 +44,26 @@ describe("resumeTarget", () => {
     expect(target).toEqual({ chapter: chapters[2], page: 7 });
   });
 
+  it("never falls back past a FINISHED chapter to an older unfinished one", () => {
+    // The phone's continuous feed completes a chapter only when its last page
+    // settles, so chapters scrolled through keep mid-chapter rows. Finishing
+    // chapter 3 must offer chapter 4 — not rewind to chapter 1's page 10.
+    const four: Row[] = [...chapters, { key: "c4", number: 4 }];
+    const target = resumeTarget(four, {
+      c1: partway(10),
+      c2: done(),
+      c3: done(),
+    });
+    expect(target).toEqual({ chapter: four[3], page: 1 });
+  });
+
+  it("offers the chapter after the furthest finished one, even over a skipped gap", () => {
+    // Read 1, skipped 2, read and finished 3: the reader is past 3, so 4.
+    const four: Row[] = [...chapters, { key: "c4", number: 4 }];
+    const target = resumeTarget(four, { c1: done(), c3: done() });
+    expect(target).toEqual({ chapter: four[3], page: 1 });
+  });
+
   it("moves on to the first unread chapter once the read ones are finished", () => {
     // The case that sent the phone back to chapter 1: finish 2 cleanly, close
     // the reader on its last page, and there is no unfinished row anywhere.

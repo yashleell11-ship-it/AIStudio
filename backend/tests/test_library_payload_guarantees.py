@@ -157,24 +157,32 @@ def test_continue_reading_orders_series_by_how_recently_they_were_read(
     assert [r["series_key"] for r in strip] == ["new", "mid", "old"]
 
 
-def test_continue_reading_skips_completed_chapters(
+def test_continue_reading_moves_forward_from_a_completed_chapter(
     db_session, owner, seed_follow, seed_progress
 ):
+    """Finishing ch-2 today offers ch-3 — never yesterday's unfinished ch-1.
+
+    The strip used to skip completed rows and so resumed the newest row that
+    was NOT finished, which after a session that ended on a last page is a
+    chapter the reader had already left behind (see
+    ``test_progress_resume_order``).
+    """
     user_id, profile_id = owner
     now = utcnow()
-    seed_follow(user_id, profile_id, series_key="s1")
+    seed_follow(user_id, profile_id, series_key="s1", known_chapters=CHAPTERS)
     seed_progress(
         user_id, profile_id, series_key="s1", chapter_key="ch-1",
         last_read_at=now - timedelta(days=1),
     )
     seed_progress(
         user_id, profile_id, series_key="s1", chapter_key="ch-2",
-        last_read_at=now, is_completed=True,
+        chapter_number=2.0, last_read_at=now, is_completed=True,
     )
 
     strip = _svc(db_session, user_id, profile_id).continue_reading()
 
-    assert [r["chapter_key"] for r in strip] == ["ch-1"]
+    assert [(r["chapter_key"], r["last_page"]) for r in strip] == [("ch-3", 1)]
+    assert strip[0]["chapter_number"] == 3.0
 
 
 def test_continue_reading_honours_its_limit(

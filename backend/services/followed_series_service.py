@@ -69,6 +69,35 @@ def _loads(value: str | None) -> Any:
         return None
 
 
+def _next_known_chapter(
+    chapters: list[dict[str, Any]], chapter_key: str
+) -> dict[str, Any] | None:
+    """The chapter after ``chapter_key`` in READING order, or None.
+
+    Reading order is by number, ascending, with unnumbered chapters after the
+    numbered ones in their listing order — the same rule the web's
+    ``readingOrder`` and the phone's ``sortSeriesChapters`` derive, because a
+    connector that lists newest-first would otherwise make "next" mean older.
+    A key the list does not carry (a stale list, a chapter the source pulled)
+    yields None: the caller then leaves the series out rather than guessing.
+    """
+    indexed = [
+        (c, i) for i, c in enumerate(chapters) if isinstance(c, dict) and c.get("key")
+    ]
+
+    def _order(item: tuple[dict[str, Any], int]) -> tuple[int, float, int]:
+        number = item[0].get("number")
+        if isinstance(number, (int, float)):
+            return (0, float(number), item[1])
+        return (1, 0.0, item[1])
+
+    ordered = [c for c, _ in sorted(indexed, key=_order)]
+    for index, chapter in enumerate(ordered):
+        if chapter["key"] == chapter_key:
+            return ordered[index + 1] if index + 1 < len(ordered) else None
+    return None
+
+
 class FollowedSeriesService:
     def __init__(
         self,
@@ -378,7 +407,7 @@ class FollowedSeriesService:
         return payload
 
     def continue_reading(self, limit: int = 10) -> list[dict[str, Any]]:
-        """Most recent unfinished chapter per followed series, for this profile.
+        """Where each followed series resumes, newest series first, for this profile.
 
         Two things this must not do, both of which it used to:
 
@@ -392,14 +421,24 @@ class FollowedSeriesService:
           follows and supplies the row ``_rating`` resolves the gate from.
 
         The "one row per series" collapse happens in SQL rather than in Python.
-        It used to hydrate **every** unfinished ``chapter_progress`` row in the
-        profile — with its matching ``followed_series`` row, both as full ORM
-        entities — and then throw all but ten away: 6,000 progress rows cost
-        318 ms to produce a ten-item strip, and the query grew with every
-        chapter the owner ever opened. A window function picks the latest
-        unfinished chapter per series inside the database, so the number of
-        rows crossing into Python is the number of *series*, not chapters, and
-        the columns fetched are the seven this payload prints.
+        It used to hydrate **every** ``chapter_progress`` row in the profile —
+        with its matching ``followed_series`` row, both as full ORM entities —
+        and then throw all but ten away: 6,000 progress rows cost 318 ms to
+        produce a ten-item strip, and the query grew with every chapter the
+        owner ever opened. A window function picks the latest chapter per
+        series inside the database, so the number of rows crossing into Python
+        is the number of *series*, not chapters.
+
+        The row that speaks for a series is its NEWEST one, finished or not.
+        It used to be the newest *unfinished* one, and that is a rewind: the
+        continuous feed completes a chapter only when its last page settles, so
+        the chapters a reader scrolled through keep mid-chapter rows, and the
+        moment the chapter actually being read is finished the strip fell back
+        to the newest of those — "sent back 2-3 chapters" every time a session
+        ended on a last page. When the newest row is completed the strip now
+        goes FORWARD, to the chapter after it in ``known_chapters``; with no
+        next chapter to name the series is left out, which is what it always
+        was once every touched chapter was finished, and never an older one.
         """
         self._require_owner()
         # (last_read_at DESC, id DESC): the old loop kept whichever row the
@@ -418,6 +457,7 @@ class FollowedSeriesService:
                         ChapterProgress.last_page.label("last_page"),
                         ChapterProgress.page_count.label("page_count"),
                         ChapterProgress.last_read_at.label("last_read_at"),
+                        ChapterProgress.is_completed.label("is_completed"),
                         # Carried so the 18+ gate can be resolved without a
                         # second lookup; the join itself is load-bearing (it is
                         # what restricts the strip to *followed* series).
@@ -443,40 +483,77 @@ class FollowedSeriesService:
                     )
                 )
             )
-            .where(ChapterProgress.is_completed.is_(False))
             .subquery()
         )
 
         gate_open = self._gate_open()
+        # No SQL limit: a rank-1 row that is completed with nothing known after
+        # it is dropped below, and a limit applied before that drop would hand
+        # back a short strip while series that belong on it wait beyond the
+        # cut. The row count is bounded by the profile's follow count, not by
+        # its history, which is what the window function bought.
         stmt = (
             select(ranked)
             .where(ranked.c.rank == 1)
             .order_by(ranked.c.last_read_at.desc())
         )
-        if gate_open:
-            # Nothing can be dropped after the fact, so the database can do the
-            # cutting too. With the gate shut the mature rows are removed below
-            # and the limit has to be applied after that; the row count is then
-            # bounded by the profile's follow count, not its history.
-            stmt = stmt.limit(limit)
+        rows = [
+            row
+            for row in self._db.execute(stmt).all()
+            if gate_open or self._rating(row) != TRACKER_RATING_MATURE
+        ]
+
+        # The chapter lists are fetched only for the series whose newest row is
+        # finished — ``known_chapters`` is kilobytes per series and most of the
+        # strip is mid-chapter, where the row itself is the answer.
+        finished = [(r.source_id, r.series_key) for r in rows if r.is_completed]
+        known: dict[tuple[str, str], list[dict[str, Any]]] = {}
+        if finished:
+            for follow in self._db.execute(
+                self._scope(
+                    select(FollowedSeries).where(
+                        tuple_(FollowedSeries.source_id, FollowedSeries.series_key).in_(
+                            finished
+                        )
+                    )
+                )
+            ).scalars():
+                known[(follow.source_id, follow.series_key)] = (
+                    _loads(follow.known_chapters) or []
+                )
 
         out: list[dict[str, Any]] = []
-        for row in self._db.execute(stmt).all():
-            if not gate_open and self._rating(row) == TRACKER_RATING_MATURE:
-                continue
-            out.append(
-                {
-                    "source_id": row.source_id,
-                    "series_key": row.series_key,
-                    "chapter_key": row.chapter_key,
-                    "chapter_number": row.chapter_number,
-                    "last_page": row.last_page,
-                    "page_count": row.page_count,
-                    "last_read_at": row.last_read_at.isoformat()
-                    if row.last_read_at
-                    else None,
-                }
-            )
+        for row in rows:
+            last_read_at = row.last_read_at.isoformat() if row.last_read_at else None
+            if not row.is_completed:
+                out.append(
+                    {
+                        "source_id": row.source_id,
+                        "series_key": row.series_key,
+                        "chapter_key": row.chapter_key,
+                        "chapter_number": row.chapter_number,
+                        "last_page": row.last_page,
+                        "page_count": row.page_count,
+                        "last_read_at": last_read_at,
+                    }
+                )
+            else:
+                nxt = _next_known_chapter(
+                    known.get((row.source_id, row.series_key), []), row.chapter_key
+                )
+                if nxt is None:
+                    continue
+                out.append(
+                    {
+                        "source_id": row.source_id,
+                        "series_key": row.series_key,
+                        "chapter_key": nxt["key"],
+                        "chapter_number": nxt.get("number"),
+                        "last_page": 1,
+                        "page_count": 0,
+                        "last_read_at": last_read_at,
+                    }
+                )
             if len(out) >= limit:
                 break
         return out
