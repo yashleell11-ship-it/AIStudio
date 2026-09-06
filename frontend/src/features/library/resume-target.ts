@@ -11,14 +11,21 @@
  * The rule below is FURTHEST-WINS, which is the same principle the server's
  * progress merge already runs on:
  *
- *   1. the HIGHEST-numbered chapter with an unfinished progress row — you are
- *      furthest along there, and any earlier unfinished chapter was skimmed or
- *      abandoned deliberately;
- *   2. else the LOWEST-numbered chapter with no progress row at all — the first
- *      thing never opened, which is what "continue" means once every chapter
- *      you have touched is finished;
- *   3. else the last chapter — everything is read, so offer the end rather than
+ *   1. the HIGHEST-numbered chapter with ANY progress row decides — you are
+ *      furthest along there, and any earlier chapter, unfinished or untouched,
+ *      was skimmed or skipped deliberately;
+ *   2. if that chapter is unfinished, resume in it at the stored page;
+ *   3. if it is finished, the chapter after it at page 1 — which is what
+ *      "continue" means once the furthest thing you touched is done;
+ *   4. else the last chapter — everything is read, so offer the end rather than
  *      sending a caught-up reader back to the beginning.
+ *
+ * Rule 1 looks at ANY row, not the highest UNFINISHED one, and the difference
+ * is a rewind. The phone's continuous feed completes a chapter only when its
+ * last page settles, so chapters scrolled through keep mid-chapter rows; a rule
+ * that skipped finished chapters then offered the newest of those rows the
+ * moment the chapter actually being read was finished — chapter 4 page 11
+ * after finishing chapter 7.
  *
  * Pure and free of React so the web can test it and the Flutter port can be
  * checked against the same table of cases.
@@ -71,13 +78,16 @@ export function resumeTarget<T extends ResumeChapter>(
   for (let index = ascending.length - 1; index >= 0; index -= 1) {
     const chapter = ascending[index];
     const row = progress[chapter.key];
-    if (row != null && !row.is_completed) {
+    if (row == null) continue;
+    if (!row.is_completed) {
       return { chapter, page: row.last_page > 0 ? row.last_page : 1 };
     }
+    // The furthest chapter touched is finished: continue is the one after it,
+    // or the end of the series when nothing comes after it.
+    return { chapter: ascending[index + 1] ?? ascending[ascending.length - 1], page: 1 };
   }
 
-  const firstUnread = ascending.find((chapter) => progress[chapter.key] == null);
-  return { chapter: firstUnread ?? ascending[ascending.length - 1], page: 1 };
+  return { chapter: ascending[0], page: 1 };
 }
 
 /**

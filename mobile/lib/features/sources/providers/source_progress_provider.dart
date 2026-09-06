@@ -68,6 +68,14 @@ class SourceProgressNotifier
   /// Persist the current page for a chapter. Marks the record completed when
   /// [page] reaches [pageCount] (with ``pageCount > 0``) and stamps
   /// ``updatedAt`` so the latest-read lookup can find the most recent chapter.
+  ///
+  /// Furthest-wins within the chapter, exactly as the server's
+  /// `merge_progress` is: the stored page never moves backwards, finishing is
+  /// sticky and the page count never shrinks. Scrolling back up to re-read a
+  /// panel — or a stray save for a page the continuous feed has already left
+  /// behind — is not a claim to be earlier in the chapter than the reader got
+  /// to, and honouring it rewound "Continue" on the series page. Only
+  /// ``updatedAt`` is unconditional: a re-read is still the most recent read.
   Future<void> record({
     required String sourceId,
     required String seriesId,
@@ -75,17 +83,25 @@ class SourceProgressNotifier
     required int page,
     required int pageCount,
   }) async {
-    final safePage = page < 1 ? 1 : page;
-    final entry = SourceChapterProgress(
-      page: safePage,
-      pageCount: pageCount,
-      completed: pageCount > 0 && safePage >= pageCount,
-      updatedAt: DateTime.now().toUtc(),
-    );
     final key = sourceProgressKey(
       sourceId: sourceId,
       seriesId: seriesId,
       chapterId: chapterId,
+    );
+    final existing = state[key];
+    final safePage = page < 1 ? 1 : page;
+    final furthestPage =
+        existing != null && existing.page > safePage ? existing.page : safePage;
+    final knownCount =
+        existing != null && existing.pageCount > pageCount
+            ? existing.pageCount
+            : pageCount;
+    final entry = SourceChapterProgress(
+      page: furthestPage,
+      pageCount: knownCount,
+      completed: (existing?.completed ?? false) ||
+          (pageCount > 0 && safePage >= pageCount),
+      updatedAt: DateTime.now().toUtc(),
     );
     final next = {...state, key: entry};
     state = next;
