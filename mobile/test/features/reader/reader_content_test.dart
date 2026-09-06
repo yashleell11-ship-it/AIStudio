@@ -827,6 +827,76 @@ void main() {
       },
     );
 
+testWidgets(
+      'a page resolving ABOVE the viewport mid page-turn does not move the reader',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        final chapter = _dimensionlessChapter();
+        final extents = ReaderPageExtents(chapter.pages);
+        addTearDown(extents.dispose);
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              feed: ReaderFeed.single(chapter),
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final metrics = _metricsFor(tester, extents);
+        final controller = _listController(tester);
+        controller.jumpTo(metrics.offsetToPage(4));
+        await tester.pump();
+        expect(find.text('Page 4 / 8'), findsOneWidget);
+
+        // A page turn (tap zone, volume key) is animateTo: a DRIVEN activity
+        // whose ticks, like a fling's, write absolute offsets computed when it
+        // started. Page 1's size lands in its 240 ms window.
+        final flungTo = controller.offset + 600;
+        unawaited(
+          controller.animateTo(
+            flungTo,
+            duration: const Duration(milliseconds: 240),
+            curve: Curves.easeOutCubic,
+          ),
+        );
+        await tester.pump(const Duration(milliseconds: 16));
+
+        final grownExtent = metrics.extentForRatio(900 / 16000);
+        final delta = grownExtent - metrics.extentAt(0);
+        expect(delta, greaterThan(6000), reason: 'fixture must grow a lot');
+
+        extents.submitMeasuredSize(0, pixelWidth: 900, pixelHeight: 16000);
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        // Let the fling finish.
+        await tester.pump(const Duration(seconds: 2));
+
+        final settled = _metricsFor(tester, extents);
+        expect(
+          settled.pageAtOffset(controller.offset),
+          greaterThanOrEqualTo(4),
+          reason: 'the reader was paging forward from page 4; losing the '
+              'correction dumps them back onto page 1',
+        );
+        expect(
+          controller.offset,
+          greaterThanOrEqualTo(flungTo + delta - 1),
+          reason: 'everything below page 1 moved by delta and so must the '
+              'offset, on top of where the page turn was headed',
+        );
+      },
+    );
+
     testWidgets(
       'scrubbing right after the window slides stays in the chapter on screen',
       (tester) async {
