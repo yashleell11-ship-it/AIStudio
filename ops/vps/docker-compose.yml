@@ -28,18 +28,23 @@ services:
       - MM_DB_PATH=/data/manhwamaniacs.db
       - MM_SETTINGS_PATH=/data/settings.json
       - MM_COOKIE_SECURE=true
-      # Closed: the instance is internet-facing via Cloudflare. The owner
-      # account is created out-of-band (ops/vps/deploy.sh create-owner) so the
-      # users table is never empty on a public host.
+      # OPEN, and deliberately so: the owner wants anyone who finds the site
+      # to be able to sign up, and re-confirmed that on 2026-09-06 when an
+      # audit flagged it. Do not "fix" this back to closed.
+      #
+      # What that costs, so the next reader knows it was priced in: with no
+      # invite code set, anyone on the internet can create an account. A new
+      # account is an ordinary user — `is_admin` is only ever granted to the
+      # FIRST registration (`user_count == 0`), and the owner account already
+      # exists, so this is not an admin path while the users table is
+      # populated. The empty-table case is what MM_BOOTSTRAP_WINDOW_MINUTES
+      # below bounds.
       - MM_REGISTRATION_ENABLED=true
-      # Self-service signup for household members is an explicit opt-in: flip
-      # MM_REGISTRATION_ENABLED=true above AND set an invite code below (or via
-      # `ops/vps/deploy.sh set-invite-code`, which persists it in
-      # /data/settings.json — note this env line, when set, wins over that).
-      # Tradeoff: enabled + a code = only people you gave the code to can
-      # register; enabled + NO code = anyone on the internet can. Never ship
-      # the second state on this host.
-      # No invite code: the owner wants anyone able to sign up.
+      # To restrict signup later without closing it: `ops/vps/deploy.sh
+      # set-invite-code` generates a strong code and persists it in
+      # /data/settings.json (never in git). Only people given the code could
+      # then register. An MM_REGISTRATION_INVITE_CODE env line here would win
+      # over that file, which is why there isn't one.
       # If the users table is ever empty (fresh disk, reset-accounts), the
       # first UNINVITED registration is only accepted for this many minutes —
       # after that the empty table stops being a public admin-takeover window
