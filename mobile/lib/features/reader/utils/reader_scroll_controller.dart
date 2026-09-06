@@ -58,6 +58,24 @@ class ReaderScrollPosition extends ScrollPositionWithSingleContext {
     super.debugLabel,
   });
 
+  /// Where the animation a page turn started is heading, so a correction
+  /// can re-aim it. A driven activity keeps its target private.
+  double? _drivenTo;
+  Duration? _drivenDuration;
+  Curve? _drivenCurve;
+
+  @override
+  Future<void> animateTo(
+    double to, {
+    required Duration duration,
+    required Curve curve,
+  }) {
+    _drivenTo = to;
+    _drivenDuration = duration;
+    _drivenCurve = curve;
+    return super.animateTo(to, duration: duration, curve: curve);
+  }
+
   /// Move the offset by [delta] without it counting as a scroll.
   ///
   /// The caller is responsible for the layout that reads the corrected offset;
@@ -75,6 +93,18 @@ class ReaderScrollPosition extends ScrollPositionWithSingleContext {
     // offset back — and the reader was shoved by the full delta, mid-fling.
     // Re-derive it now, from where the reader actually is and at the speed
     // they were actually moving; the layout-time re-derive is then a no-op.
-    if (activity is BallisticScrollActivity) goBallistic(activity!.velocity);
+    final current = activity;
+    if (current is BallisticScrollActivity) {
+      goBallistic(current.velocity);
+      return;
+    }
+    // A page turn (tap zone, volume key) is the same shape without even the
+    // layout-time re-derive: a driven animation ticks absolute offsets to a
+    // target fixed when it started, and the framework never restarts it.
+    // The page it was heading to moved by [delta] as well, so aim there.
+    final to = _drivenTo;
+    if (current is DrivenScrollActivity && to != null) {
+      animateTo(to + delta, duration: _drivenDuration!, curve: _drivenCurve!);
+    }
   }
 }
