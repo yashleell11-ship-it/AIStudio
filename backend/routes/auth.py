@@ -31,12 +31,14 @@ from services.auth_service import (
     get_auth_service,
     get_current_user,
     get_session_token,
+    require_admin_user,
 )
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 AuthDep = Annotated[AuthService, Depends(get_auth_service)]
 CurrentUser = Annotated[User, Depends(get_current_user)]
+AdminUser = Annotated[User, Depends(require_admin_user)]
 
 
 # --- schemas -----------------------------------------------------------------
@@ -75,6 +77,29 @@ class UserOut(BaseModel):
     is_admin: bool
     created_at: datetime
     last_login_at: datetime | None
+
+
+class AccountOut(BaseModel):
+    """A user as the owner administers them.
+
+    Deliberately not a subclass of ``UserOut``: this is the members-screen
+    shape, so it carries the two things administration turns on — whether the
+    account is still allowed in, and how many devices it is signed in on — and
+    drops the contact fields (email, display_name) that the account's own
+    ``/auth/me`` is for. Managing someone is not a reason to read their inbox
+    address."""
+
+    id: int
+    username: str
+    is_admin: bool
+    is_active: bool
+    created_at: datetime
+    last_login_at: datetime | None
+    session_count: int
+
+
+class AccountUpdate(BaseModel):
+    is_active: bool
 
 
 class AuthResponse(BaseModel):
@@ -151,16 +176,37 @@ def _clear_session_cookie(response: Response) -> None:
     )
 
 
+def _client_ip(request: Request) -> str | None:
+    """The address to record on a session row.
+
+    Prefers the header the edge writes — and OVERWRITES — on every request
+    (``MM_TRUSTED_CLIENT_IP_HEADER``, CF-Connecting-IP by default), which is
+    the same source ``core.rate_limit.client_ip`` keys on, so the sessions
+    screen and the rate limiter no longer disagree about where a request came
+    from.
+
+    X-Forwarded-For is only the fallback, and then its LAST hop: proxies
+    *append* to XFF, so the leftmost entry is whatever the client typed — this
+    used to read it, which meant the "recognise this device?" list showed an
+    address the attacker chose. The rightmost entry is the one our own nearest
+    proxy wrote. Behind the tunnel that is the cloudflared container rather
+    than a real client, but a useless-and-honest address beats a
+    plausible-and-forged one. The socket peer closes it out for direct hits.
+    """
+    trusted_header = (get_settings().trusted_client_ip_header or "").strip()
+    if trusted_header:
+        trusted = (request.headers.get(trusted_header) or "").strip()
+        if trusted:
+            return trusted
+    forwarded = request.headers.get("x-forwarded-for") or ""
+    hops = [hop.strip() for hop in forwarded.split(",") if hop.strip()]
+    if hops:
+        return hops[-1]
+    return request.client.host if request.client else None
+
+
 def _client_meta(request: Request) -> tuple[str | None, str | None]:
-    user_agent = request.headers.get("user-agent")
-    # Behind Caddy/Cloudflare the real client IP is forwarded; fall back to the
-    # socket peer for direct connections.
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        ip = forwarded.split(",")[0].strip()
-    else:
-        ip = request.client.host if request.client else None
-    return user_agent, ip
+    return request.headers.get("user-agent"), _client_ip(request)
 
 
 # --- routes ------------------------------------------------------------------
@@ -294,9 +340,14 @@ def change_password(
     user: CurrentUser,
     token: Annotated[str | None, Depends(get_session_token)],
 ) -> Response:
-    """Change the password and revoke all *other* sessions (keep this one)."""
-    auth.change_password(user, body.current_password, body.new_password)
-    auth.revoke_all(user.id, except_token=token)
+    """Change the password and revoke all *other* sessions (keep this one).
+
+    One call, one transaction: the revocation used to be a second commit here,
+    so a failure between them left the new password live and every old session
+    with it."""
+    auth.change_password(
+        user, body.current_password, body.new_password, keep_token=token
+    )
     response.status_code = 204
     return response
 
@@ -328,5 +379,72 @@ def revoke_session(
     revoked = auth.revoke_session_id(user.id, session_id)
     if not revoked:
         raise AppError("Session not found.", code="not_found", status_code=404)
+    response.status_code = 204
+    return response
+
+
+# --- account administration (owner only) -------------------------------------
+#
+# Registration is open on this deployment by choice, so these are the other
+# half of it: the owner must be able to disable or remove an account that
+# signed up. Both mutations refuse the admin's own account (400
+# cannot_manage_self) — see AuthService.get_managed_user.
+
+
+def _account_out(user: User, session_count: int) -> AccountOut:
+    return AccountOut(
+        id=user.id,
+        username=user.username,
+        is_admin=bool(user.is_admin),
+        is_active=bool(user.is_active),
+        created_at=user.created_at,
+        last_login_at=user.last_login_at,
+        session_count=session_count,
+    )
+
+
+@router.get("/users", response_model=list[AccountOut])
+def list_users(auth: AuthDep, _admin: AdminUser) -> list[AccountOut]:
+    """Every account, so the owner can see who signed up, who is disabled, and
+    who is signed in where."""
+    return [
+        _account_out(user, count)
+        for user, count in auth.list_users_with_session_counts()
+    ]
+
+
+@router.patch("/users/{user_id}", response_model=AccountOut)
+def update_user(
+    user_id: int,
+    body: AccountUpdate,
+    auth: AuthDep,
+    admin: AdminUser,
+) -> AccountOut:
+    """Enable or disable an account.
+
+    Disabling is immediate and total: the account's sessions are deleted and
+    every token it holds stops resolving on the next request (401), not at
+    expiry — a 90-day remember-me token is otherwise a quarter of continued
+    access after the owner thought they had removed someone. Its next login
+    attempt is refused with 403 ``account_disabled``. Re-enabling restores
+    login only; the revoked sessions stay revoked.
+    """
+    user = auth.set_user_active(
+        auth.get_managed_user(admin, user_id), body.is_active
+    )
+    return _account_out(user, auth.count_live_sessions(user.id))
+
+
+@router.delete("/users/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    response: Response,
+    auth: AuthDep,
+    admin: AdminUser,
+) -> Response:
+    """Delete an account and everything it owns (profiles, library, progress,
+    bookmarks, collections, tags, notifications, stats, sessions). Irreversible.
+    """
+    auth.delete_user(auth.get_managed_user(admin, user_id))
     response.status_code = 204
     return response

@@ -229,6 +229,71 @@ def test_first_success_closes_the_claim_mid_window(client, race_factory, monkeyp
     assert second.json()["code"] == "registration_disabled"
 
 
+def test_expired_window_refuses_to_mint_an_admin(client, race_factory, monkeypatch):
+    """Serializing the claim bounds it to ONE admin, not to the *right* admin.
+    Under the live posture (registration open, no invite code) an empty table
+    whose window has closed — a wipe, a restored empty DB, a reset-accounts
+    nobody claimed within the 30 minutes — must not hand ownership to the
+    first stranger who posts. The account is refused outright rather than
+    created as a plain user, so the instance stays claimable."""
+    _cfg(monkeypatch, enabled=True)
+    with race_factory() as s:
+        s.add(BootstrapState(id=1, empty_since=utcnow() - timedelta(days=1)))
+        s.commit()
+
+    resp = client.post(
+        "/auth/register", json={"username": "stranger", "password": PASSWORD}
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["code"] == "bootstrap_window_expired"
+
+    admins, total, state_present = _db_counts(race_factory)
+    assert (admins, total) == (0, 0)
+    assert state_present, "the unclaimed marker must survive a refused claim"
+
+
+def test_expired_window_race_mints_no_admin(client, race_factory, monkeypatch):
+    """The same, under the burst the serialized claim exists for: a watcher of
+    /auth/bootstrap-status firing N registrations at a wiped instance gets N
+    refusals, not an owner."""
+    _cfg(monkeypatch, enabled=True)
+    with race_factory() as s:
+        s.add(BootstrapState(id=1, empty_since=utcnow() - timedelta(days=1)))
+        s.commit()
+
+    results = _register_concurrently(client, 8)
+    statuses = sorted(r.status_code for r in results)
+    assert statuses == [403] * 8, statuses
+    assert {r.json()["code"] for r in results} == {"bootstrap_window_expired"}
+    assert _db_counts(race_factory)[:2] == (0, 0)
+
+
+def test_open_registration_after_bootstrap_is_untouched(
+    client, race_factory, monkeypatch
+):
+    """The owner's deliberate posture must survive the fix: once the instance
+    HAS its owner, open self-service signup works exactly as before — the
+    window bounds the admin claim, not registration."""
+    _cfg(monkeypatch, enabled=True)
+    _stamp_window(race_factory)
+
+    owner = client.post(
+        "/auth/register", json={"username": "owner", "password": PASSWORD}
+    )
+    assert owner.status_code == 201, owner.text
+    assert owner.json()["user"]["is_admin"] is True
+    client.cookies.clear()
+
+    member = client.post(
+        "/auth/register", json={"username": "member", "password": PASSWORD}
+    )
+    assert member.status_code == 201, member.text
+    assert member.json()["user"]["is_admin"] is False
+
+    admins, total, _ = _db_counts(race_factory)
+    assert (admins, total) == (1, 2)
+
+
 def test_create_owner_path_still_works(race_factory, monkeypatch):
     """ops/vps/deploy.sh create-owner calls AuthService.register directly (no
     enforce_policy): it must claim an empty instance even when registration is

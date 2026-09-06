@@ -14,7 +14,7 @@ from hmac import compare_digest
 from typing import Annotated
 
 from fastapi import Cookie, Depends, Header, Request
-from sqlalchemy import delete, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -29,13 +29,20 @@ from core.auth import (
 from core.config import get_settings
 from core.errors import AppError
 from core.time_utils import utcnow
-from database.models import BootstrapState, User, UserSession
+from database.models import BootstrapState, ChapterOcr, User, UserSession
 from database.session import get_db
 
 logger = logging.getLogger("manhwamaniacs.auth")
 
 SESSION_TTL = timedelta(days=7)
 REMEMBER_ME_TTL = timedelta(days=90)
+
+# A login is the only thing that ever inserts a session row, and a row lives
+# 7 days (90 with remember-me), so without a ceiling a client stuck in a
+# re-login loop — or anyone holding one valid password — grows the table until
+# the rows age out a quarter later. A household member reads on a handful of
+# devices; the oldest session past this is evicted at the next login.
+MAX_SESSIONS_PER_USER = 10
 
 USERNAME_MIN = 3
 USERNAME_MAX = 64
@@ -169,11 +176,9 @@ class AuthService:
                     status_code=403,
                 )
 
-    def _ensure_registration_allowed_locked(
-        self, invite_code: str | None, user_count: int
-    ) -> None:
-        """Authoritative re-run of the registration rules *inside* the claim
-        transaction (see :meth:`register`).
+    def _bootstrap_window_open_locked(self) -> bool:
+        """:meth:`bootstrap_window_open` re-read *inside* the claim transaction
+        (see :meth:`register`).
 
         MUST NOT commit — a commit would release the ``BEGIN IMMEDIATE`` lock
         mid-claim — so unlike the pre-flight it never lazily stamps
@@ -181,15 +186,60 @@ class AuthService:
         would start *now*, which is open iff a nonzero window is configured
         (matching :meth:`bootstrap_window_open` semantics for minutes=0).
         """
-        if user_count == 0:
-            state = self.db.get(BootstrapState, 1)
-            empty_since = state.empty_since if state is not None else utcnow()
-            deadline = empty_since + timedelta(
-                minutes=max(get_settings().bootstrap_window_minutes, 0)
-            )
-            if utcnow() < deadline:
-                return
+        state = self.db.get(BootstrapState, 1)
+        empty_since = state.empty_since if state is not None else utcnow()
+        deadline = empty_since + timedelta(
+            minutes=max(get_settings().bootstrap_window_minutes, 0)
+        )
+        return utcnow() < deadline
+
+    def _may_claim_admin_locked(
+        self, *, window_open: bool, enforce_policy: bool
+    ) -> bool:
+        """Whether an empty users table may be claimed as admin/owner right now.
+
+        Inside the window: by whoever reaches the host first — that IS the
+        bootstrap. Past it: only by the operator, i.e. the CLI
+        (``enforce_policy=False``, ``ops/vps/deploy.sh create-owner``) or,
+        where the deployment configures an invite code, whoever presents it
+        (:meth:`_ensure_invited` has verified it before this decides).
+        Otherwise nobody — because "the ordinary rules then apply" bounds
+        *registration*, not the *admin* claim: with registration enabled and no
+        invite code (the live posture, deliberately) those rules admit the
+        whole internet, so ownership of a wiped, restored-empty or
+        reset-accounts instance would fall to the first stranger to POST
+        /auth/register, which is the takeover the bounded window exists to
+        prevent.
+        """
+        if window_open or not enforce_policy:
+            return True
+        return bool(get_settings().registration_invite_code)
+
+    def _ensure_registration_allowed_locked(
+        self, invite_code: str | None, user_count: int, window_open: bool
+    ) -> None:
+        """Authoritative re-run of the registration rules *inside* the claim
+        transaction (see :meth:`register`), with ``window_open`` read under the
+        same lock by :meth:`_bootstrap_window_open_locked`.
+        """
+        if user_count == 0 and window_open:
+            return
         self._ensure_invited(invite_code)
+        if user_count == 0 and not self._may_claim_admin_locked(
+            window_open=window_open, enforce_policy=True
+        ):
+            # Clearing _ensure_invited is not enough to become the owner — it
+            # clears everyone when registration is open with no invite code.
+            # Refuse the registration outright rather than create the account:
+            # a non-admin first user would leave the instance unclaimable
+            # (the owner could no longer bootstrap), so the empty table is
+            # kept intact for create-owner / reset-accounts.
+            raise AppError(
+                "This instance's bootstrap window has closed; it must be "
+                "claimed by its operator (ops/vps/deploy.sh create-owner).",
+                code="bootstrap_window_expired",
+                status_code=403,
+            )
 
     def get_user(self, user_id: int) -> User | None:
         return self.db.get(User, user_id)
@@ -255,7 +305,9 @@ class AuthService:
         enforce_policy: bool = False,
     ) -> User:
         """Create an account; the first account in an empty users table becomes
-        the admin/owner (bootstrap).
+        the admin/owner (bootstrap) — but only while that claim is still open
+        (see :meth:`_may_claim_admin_locked`); past the window a self-service
+        attempt is refused rather than promoted.
 
         The whole claim — "is the table empty?" → INSERT → consume the
         ``bootstrap_state`` marker — runs inside one ``BEGIN IMMEDIATE`` write
@@ -294,10 +346,20 @@ class AuthService:
             # Authoritative: read under the write lock, so a lost race sees
             # the winner's committed account.
             count = self.user_count()
+            # Read the window once for the whole claim: the policy re-check and
+            # the admin bit must not be able to disagree across its deadline.
+            window_open = count == 0 and self._bootstrap_window_open_locked()
             if enforce_policy:
-                self._ensure_registration_allowed_locked(invite_code, count)
-            # The very first account is the admin/owner (bootstrap).
-            is_admin = count == 0
+                self._ensure_registration_allowed_locked(
+                    invite_code, count, window_open
+                )
+            # The very first account is the admin/owner (bootstrap) — but only
+            # when it is entitled to claim the instance (see
+            # _may_claim_admin_locked); otherwise the check above already
+            # refused it.
+            is_admin = count == 0 and self._may_claim_admin_locked(
+                window_open=window_open, enforce_policy=enforce_policy
+            )
             user = User(
                 username=normalized,
                 email=(email or None),
@@ -383,7 +445,28 @@ class AuthService:
         self.db.commit()
         return user
 
-    def change_password(self, user: User, current: str, new_password: str) -> None:
+    def change_password(
+        self,
+        user: User,
+        current: str,
+        new_password: str,
+        *,
+        keep_token: str | None = None,
+    ) -> None:
+        """Rotate the password and drop every other session, atomically.
+
+        The rotation and the revocation are ONE transaction because the second
+        is what makes the first mean anything: a password change is how a
+        reader responds to a token they think has leaked, and with two commits
+        an error (or a lost SQLite write) between them leaves the new password
+        in place while every session minted with the old one keeps working —
+        the exact sessions the change exists to kill, and silently, since the
+        caller has already been told the password changed.
+
+        ``keep_token`` is the caller's own session, spared so the person doing
+        it is not signed out of the device they are typing on; omit it (the
+        operator/CLI path) and every session goes.
+        """
         if not verify_password(current, user.password_hash):
             raise AppError(
                 "Current password is incorrect.",
@@ -394,6 +477,12 @@ class AuthService:
         if pw_error:
             raise AppError(pw_error, code="weak_password", status_code=422)
         user.password_hash = hash_password(new_password)
+        stmt = delete(UserSession).where(UserSession.user_id == user.id)
+        if keep_token:
+            stmt = stmt.where(
+                UserSession.token_hash != hash_session_token(keep_token)
+            )
+        self.db.execute(stmt.execution_options(synchronize_session=False))
         self.db.commit()
 
     # --- sessions ------------------------------------------------------------
@@ -415,14 +504,53 @@ class AuthService:
             ip_address=(ip_address or None),
         )
         self.db.add(session)
+        # Flush first so the row this login just minted has an id and counts as
+        # one of the survivors — otherwise the cap would evict a live device to
+        # make room for a session the trim cannot see yet.
+        self.db.flush()
+        # A login is the right place to pay for table hygiene: it is rare, it
+        # is rate-limited, and it is already a write — so both sweeps ride this
+        # transaction and cost no extra commit. The global one catches rows
+        # belonging to accounts that stopped visiting altogether, which the
+        # per-user trim below can never reach.
+        self._delete_expired_sessions()
+        self._evict_surplus_sessions(user.id)
         self.db.commit()
         self.db.refresh(session)
         return token, session
+
+    def _evict_surplus_sessions(self, user_id: int) -> None:
+        """Keep only the ``MAX_SESSIONS_PER_USER`` newest *live* sessions of a
+        user; everything else of theirs — surplus or expired — goes.
+
+        Expired rows are excluded from the survivors rather than counted among
+        them: a 7-day session that died yesterday is "newer" than a 90-day
+        remember-me from last month, so counting it would evict the device the
+        reader is still using in favour of a token nobody can present.
+        """
+        keep = (
+            select(UserSession.id)
+            .where(
+                UserSession.user_id == user_id,
+                UserSession.expires_at > utcnow(),
+            )
+            # id breaks the tie: two logins can share a created_at timestamp,
+            # and an unstable order would evict an arbitrary one of them.
+            .order_by(UserSession.created_at.desc(), UserSession.id.desc())
+            .limit(MAX_SESSIONS_PER_USER)
+            .scalar_subquery()
+        )
+        self.db.execute(
+            delete(UserSession)
+            .where(UserSession.user_id == user_id, UserSession.id.not_in(keep))
+            .execution_options(synchronize_session=False)
+        )
 
     def resolve_session(self, token: str | None) -> User | None:
         """Return the live user for a raw token, or None. Deletes expired rows."""
         if not token:
             return None
+        self._maybe_sweep_expired()
         session = self.db.execute(
             select(UserSession).where(UserSession.token_hash == hash_session_token(token))
         ).scalar_one_or_none()
@@ -456,6 +584,31 @@ class AuthService:
             return
         session.last_used_at = now
         self.db.commit()
+
+    # An expired row is otherwise deleted only by main.prune_expired_sessions at
+    # startup or by presenting that exact dead token again, so a remember-me
+    # token nobody ever presents again sits in the table for its whole 90 days
+    # and across every restartless week. Sweeping every Nth resolve keeps the
+    # table swept while the process runs. It rides on request traffic rather
+    # than a thread of its own because the sweep must not become another writer
+    # racing the update scheduler for SQLite's single write lock: the probe is
+    # an index-only lookup on ix_sessions_expires_at, and only a hit opens a
+    # write transaction, so ordinary read traffic (one request per chapter
+    # page) stays read-only.
+    _SWEEP_EVERY_RESOLVES = 20
+    _resolves_since_sweep = 0
+
+    def _maybe_sweep_expired(self) -> None:
+        # Class-level, not per-instance: AuthService is constructed per request.
+        AuthService._resolves_since_sweep += 1
+        if AuthService._resolves_since_sweep < self._SWEEP_EVERY_RESOLVES:
+            return
+        AuthService._resolves_since_sweep = 0
+        expired = self.db.execute(
+            select(UserSession.id).where(UserSession.expires_at <= utcnow()).limit(1)
+        ).first()
+        if expired is not None:
+            self.cleanup_expired()
 
     def revoke_token(self, token: str | None) -> bool:
         if not token:
@@ -492,12 +645,126 @@ class AuthService:
             ).scalars()
         )
 
-    def cleanup_expired(self) -> int:
+    def _delete_expired_sessions(self) -> int:
+        """Delete every session past its expiry. Does NOT commit — the caller
+        owns the transaction, so this can join one that is already open."""
         result = self.db.execute(
-            delete(UserSession).where(UserSession.expires_at <= utcnow())
+            delete(UserSession)
+            .where(UserSession.expires_at <= utcnow())
+            .execution_options(synchronize_session=False)
         )
-        self.db.commit()
         return int(result.rowcount or 0)
+
+    def cleanup_expired(self) -> int:
+        removed = self._delete_expired_sessions()
+        self.db.commit()
+        return removed
+
+    # --- account administration ----------------------------------------------
+    #
+    # The other half of open registration: anyone who can reach this host can
+    # create an account, so the owner needs a way to take one away again.
+
+    def count_live_sessions(self, user_id: int) -> int:
+        """Unexpired session rows — i.e. devices this account is signed in on.
+
+        Expired rows are excluded because they are indistinguishable from
+        deleted ones to every client: they cannot authenticate, and the next
+        login or sweep removes them. Counting them would show the owner a
+        device count that quietly shrinks on its own."""
+        return int(
+            self.db.execute(
+                select(func.count())
+                .select_from(UserSession)
+                .where(
+                    UserSession.user_id == user_id,
+                    UserSession.expires_at > utcnow(),
+                )
+            ).scalar_one()
+        )
+
+    def list_users_with_session_counts(self) -> list[tuple[User, int]]:
+        """Every account with its live session count, oldest account first.
+
+        The counts come from one grouped LEFT JOIN rather than a query per
+        row: the members screen lists every account on the instance, and a
+        per-row count is the N+1 that turns one page render into one query per
+        person on it."""
+        live = (
+            select(UserSession.user_id, func.count().label("live"))
+            .where(UserSession.expires_at > utcnow())
+            .group_by(UserSession.user_id)
+            .subquery()
+        )
+        rows = self.db.execute(
+            select(User, func.coalesce(live.c.live, 0))
+            .outerjoin(live, live.c.user_id == User.id)
+            .order_by(User.id)
+        ).all()
+        return [(user, int(count)) for user, count in rows]
+
+    def get_managed_user(self, actor: User, user_id: int) -> User:
+        """The account an admin may act on, or raise.
+
+        An admin is refused its own account: the single-admin index means there
+        is no second owner to hand the instance to, and ``bootstrap_state`` was
+        consumed by the original claim — so a self-delete (or a self-disable,
+        which is a delete of the only key) leaves an instance nobody can
+        administer and nobody can re-claim.
+        """
+        if user_id == actor.id:
+            raise AppError(
+                "An administrator cannot disable or delete its own account.",
+                code="cannot_manage_self",
+                status_code=400,
+            )
+        target = self.get_user(user_id)
+        if target is None:
+            raise AppError("User not found.", code="not_found", status_code=404)
+        return target
+
+    def set_user_active(self, user: User, active: bool) -> User:
+        """Enable or disable an account.
+
+        Disabling drops the account's sessions as well as flipping the flag.
+        ``resolve_session`` already refuses an inactive user, so the kick is
+        immediate either way — but leaving the rows behind would mean
+        re-enabling the account silently resurrects every token it ever held,
+        including whatever got it disabled.
+        """
+        user.is_active = active
+        if not active:
+            self.db.execute(delete(UserSession).where(UserSession.user_id == user.id))
+        self.db.commit()
+        self.db.refresh(user)
+        return user
+
+    def delete_user(self, user: User) -> None:
+        """Delete an account and everything owned by it.
+
+        One ORM delete is the whole cascade: the ``sessions`` relationship
+        removes the tokens, and ``reading_profiles`` is ``ON DELETE CASCADE``
+        from ``users`` — which in turn cascades every per-profile table
+        (followed_series, chapter_progress, bookmarks, collections, tags,
+        notifications, ...), exactly as ProfileService.delete_profile relies on
+        (``PRAGMA foreign_keys=ON``, set in database.session).
+
+        ``chapter_ocr`` is the one table that keeps its rows: it is a global
+        cache, one row per chapter, that every account reads — deleting a
+        member would otherwise delete transcripts for everyone. Only the
+        attribution is cleared, and it has to be cleared explicitly because
+        ``contributed_by_user_id`` is a bare Integer with no foreign key to
+        cascade through: SQLite reuses rowids, so an id left behind would end
+        up naming whichever future account inherits it.
+        """
+        self.db.execute(
+            update(ChapterOcr)
+            .where(ChapterOcr.contributed_by_user_id == user.id)
+            .values(contributed_by_user_id=None)
+            .execution_options(synchronize_session=False)
+        )
+        self.db.delete(user)
+        self.db.commit()
 
 
 def get_auth_service(db: Annotated[Session, Depends(get_db)]) -> AuthService:
