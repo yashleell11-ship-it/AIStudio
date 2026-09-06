@@ -14,16 +14,24 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 import time
+from datetime import timedelta
 from typing import Annotated, Any
 
 from fastapi import Depends
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from connectors.registry import list_installed_connectors
 from core.config import get_settings
-from core.content_rating import mature_tracker_case, resolve_mature_gate
+from core.connector_directory import descriptor_for_source
+from core.content_rating import (
+    TRACKER_RATING_MATURE,
+    mature_tracker_case,
+    resolve_followed_rating,
+    resolve_mature_gate,
+)
 from core.errors import AppError
 from core.time_utils import utcnow
 from database.models import (
@@ -38,6 +46,32 @@ logger = logging.getLogger(__name__)
 
 # Indirection so tests can drive the sweep's clock deterministically.
 _monotonic = time.monotonic
+
+# Retention for the two tables the sweep only ever appends to. ``update_runs``
+# gained a row per pass (~35 a day once boot-time sweeps were counted) and a
+# notification, once read, was never removed; neither is ever consulted past
+# this horizon — the run log is a short diagnostic tail and a read notification
+# is a dismissed badge. Unread rows are kept regardless of age: they are the
+# owner's still-pending news.
+_RUN_HISTORY_KEEP = 200
+_READ_NOTIFICATION_TTL = timedelta(days=90)
+
+# One guard per followed-series id, created on first use. Checks reach this
+# module from two threads — the scheduler's worker and the request thread of
+# ``POST /updates/followed/{id}/check`` — and ``_check_one`` explains what the
+# guard protects. Keyed by id and never reaped: a guard is 40-odd bytes and the
+# key space is the number of follows on the instance.
+_series_guards: dict[int, threading.Lock] = {}
+_series_guards_lock = threading.Lock()
+
+
+def _series_guard(followed_id: int) -> threading.Lock:
+    with _series_guards_lock:
+        guard = _series_guards.get(followed_id)
+        if guard is None:
+            guard = threading.Lock()
+            _series_guards[followed_id] = guard
+        return guard
 
 
 def _bool(value: Any) -> bool:
@@ -348,6 +382,42 @@ class UpdateService:
             return stmt.where(FollowedSeries.profile_id.is_(None))
         return stmt.where(FollowedSeries.profile_id == self._profile_id)
 
+    def _within_gate(self, rows: list[FollowedSeries]) -> list[FollowedSeries]:
+        # Ownership is not the only thing that puts a row out of reach. With the
+        # gate shut a mature follow is 404 everywhere else it is addressed by id
+        # (``followed_series_service.get_detail``), and ``_check_one`` now runs
+        # its connector fetch ungated -- so without this a gated profile could
+        # still hand its OWN hidden row's id to ``/updates/check`` and drive a
+        # fetch it is not allowed to see the result of. Same rating rule as the
+        # library listing, so the two cannot disagree about what is adult.
+        if self._gate_open():
+            return list(rows)
+        return [
+            r
+            for r in rows
+            if resolve_followed_rating(r, descriptor_for_source(r.source_id))
+            != TRACKER_RATING_MATURE
+        ]
+
+    def owned_followed_ids(self) -> list[int]:
+        """Every follow in this (user, profile) scope the caller may check.
+
+        The id-less ``POST /updates/check`` used to fall through to the same
+        unfiltered statement the scheduler runs, so any member could sweep
+        every account's rows -- rewriting their snapshots, consuming their
+        notification windows -- and read the aggregate back off the run log.
+        A member's "check now" is their own library, resolved here; the
+        instance-wide sweep belongs to the scheduler and to admins.
+
+        Filtered silently rather than 404'd like ``resolve_followed_ids``:
+        nothing was named, so a follow the gate hides is simply not part of
+        the library being checked. The scheduled sweep still covers it.
+        """
+        rows = self._db.execute(
+            self._followed_scope(select(FollowedSeries))
+        ).scalars().all()
+        return [r.id for r in self._within_gate(rows)]
+
     def resolve_followed_ids(self, followed_ids: list[int]) -> list[int]:
         """Validate caller-supplied followed-series ids against this scope.
 
@@ -364,13 +434,12 @@ class UpdateService:
         wanted = list(dict.fromkeys(followed_ids))
         if self._system:
             return wanted
-        owned = set(
-            self._db.execute(
-                self._followed_scope(
-                    select(FollowedSeries.id).where(FollowedSeries.id.in_(wanted))
-                )
-            ).scalars().all()
-        )
+        rows = self._db.execute(
+            self._followed_scope(
+                select(FollowedSeries).where(FollowedSeries.id.in_(wanted))
+            )
+        ).scalars().all()
+        owned = {r.id for r in self._within_gate(rows)}
         missing = [i for i in wanted if i not in owned]
         if missing:
             raise AppError(
@@ -388,11 +457,31 @@ class UpdateService:
         followed_ids: list[int] | None = None,
         tracker_ids: list[int] | None = None,  # legacy alias
     ) -> dict[str, Any]:
-        followed_ids = followed_ids or tracker_ids
-        if followed_ids:
+        if followed_ids is None:
+            followed_ids = tracker_ids
+        # ``[]`` is a real filter, not "no filter". A member whose library is
+        # empty asks for a check of nothing; collapsing that to ``None`` (which
+        # ``followed_ids or tracker_ids`` did) handed them the instance-wide
+        # sweep ``owned_followed_ids`` exists to withhold.
+        if followed_ids is not None:
             # Scoped *before* the run row is written, so an out-of-scope id
             # leaves no trace in the run log either.
             followed_ids = self.resolve_followed_ids(followed_ids)
+        if trigger == "startup" and not self.startup_sweep_due():
+            # No run row either: the row is what a *pass* leaves behind, and the
+            # whole point is that no pass happened.
+            logger.info(
+                "startup update sweep skipped: the last sweep is within the "
+                "check interval"
+            )
+            return self.serialize_run(
+                UpdateRun(
+                    trigger=trigger,
+                    status="skipped",
+                    series_checked=0,
+                    new_chapters_found=0,
+                )
+            )
         run = UpdateRun(trigger=trigger, status="running")
         self._db.add(run)
         self._db.commit()
@@ -407,10 +496,11 @@ class UpdateService:
             # new chapter produces an ``update_notifications`` row (``_check_one``).
             #
             # The id-less full sweep is deliberately unscoped — it is the
-            # scheduler's job to check every account. Targeted ids went through
-            # ``resolve_followed_ids`` above.
+            # scheduler's (and an admin's) job to check every account. Targeted
+            # ids went through ``resolve_followed_ids`` above; the route
+            # resolves a member's id-less request to their own ids first.
             stmt = select(FollowedSeries)
-            if followed_ids:
+            if followed_ids is not None:
                 stmt = stmt.where(FollowedSeries.id.in_(followed_ids))
             rows = self._db.execute(stmt).scalars().all()
 
@@ -454,6 +544,11 @@ class UpdateService:
                     new_found += self._check_one(row)
                     checked += 1
                 except Exception as exc:  # noqa: BLE001 - one dead source never aborts the sweep
+                    # A failure inside a flush leaves the session refusing every
+                    # later statement until it is rolled back, so without this
+                    # the commit below re-raised, the run row was never
+                    # finalised, and one bad row 500'd the whole sweep.
+                    self._db.rollback()
                     row.last_error = str(exc)[:500]
                     logger.warning(
                         "update check failed for %s/%s: %s",
@@ -468,6 +563,9 @@ class UpdateService:
                 self._db.commit()
             run.status = "completed"
         except Exception as exc:  # noqa: BLE001
+            # Same reason as the per-row rollback: the run row below must be
+            # writable whatever state the failure left the session in.
+            self._db.rollback()
             run.status = "failed"
             run.error = str(exc)[:500]
             logger.exception("update run failed")
@@ -479,6 +577,8 @@ class UpdateService:
             settings.last_run_at = run.finished_at
             self._db.commit()
 
+        if followed_ids is None:
+            self._prune_history()
         return self.serialize_run(run)
 
     def check_followed_by_id(self, followed_id: int) -> dict[str, Any]:
@@ -487,6 +587,62 @@ class UpdateService:
     # legacy alias kept for routes/scheduler that still say "tracker"
     def check_tracker_by_id(self, tracker_id: int) -> dict[str, Any]:
         return self.check_followed_by_id(tracker_id)
+
+    def startup_sweep_due(self) -> bool:
+        """Whether a boot-time sweep would find anything the last one did not.
+
+        Every deploy recreates the container and every boot queued a full
+        sweep, so a day of deploys hit each upstream several times inside one
+        check interval (42 ``startup`` runs in three days). The run log already
+        records when the instance was last swept; a boot inside the interval
+        adds nothing, and the scheduler loop sweeps on schedule regardless.
+
+        Only ``scheduled`` / ``startup`` passes count as evidence: a ``manual``
+        run may be one member's per-series check, which says nothing about the
+        rest of the instance, and a failed run says nothing at all.
+        """
+        last = self._db.execute(
+            select(func.max(UpdateRun.finished_at)).where(
+                UpdateRun.status == "completed",
+                UpdateRun.trigger.in_(("scheduled", "startup")),
+            )
+        ).scalar_one()
+        if last is None:
+            return True
+        interval = max(self.get_global_settings().check_interval_minutes, 5)
+        return utcnow() - last >= timedelta(minutes=interval)
+
+    def _prune_history(self) -> None:
+        """Bound the run log and the read-notification backlog after a sweep.
+
+        Its own transaction, and never allowed to fail the run it follows: the
+        sweep's result is already committed, and a lost prune is a handful of
+        rows the next pass removes.
+        """
+        try:
+            keep = (
+                select(UpdateRun.id)
+                .order_by(UpdateRun.started_at.desc(), UpdateRun.id.desc())
+                .limit(_RUN_HISTORY_KEEP)
+            )
+            self._db.execute(
+                delete(UpdateRun)
+                .where(UpdateRun.id.not_in(keep))
+                .execution_options(synchronize_session=False)
+            )
+            self._db.execute(
+                delete(UpdateNotification)
+                .where(
+                    UpdateNotification.is_read.is_(True),
+                    UpdateNotification.created_at
+                    < utcnow() - _READ_NOTIFICATION_TTL,
+                )
+                .execution_options(synchronize_session=False)
+            )
+            self._db.commit()
+        except Exception:  # noqa: BLE001 - retention must never fail the run it follows
+            logger.exception("update history prune failed")
+            self._db.rollback()
 
     def _check_one(self, row: FollowedSeries) -> int:
         """Diff one followed series against its live connector chapter list.
@@ -498,68 +654,121 @@ class UpdateService:
         from services.browse_service import BrowseService
         from services.source_cache_service import SourceCacheService
 
-        browse = BrowseService(db=self._db)
+        # The sweep is a SYSTEM actor with no viewer, so it carries no 18+ gate
+        # of its own. Leaving ``mature_enabled`` unset made BrowseService fall
+        # back to the global ``mature_content_enabled`` -- False on a stock
+        # deployment -- and ``_get_connector`` then 404'd every adult source, so
+        # a series followed on one was never checked: ``last_error`` on every
+        # run, ``known_chapters`` frozen, its owner never notified. The gate that
+        # matters is the *reader's*, and it is applied where the notification is
+        # read (``_visible_notifications``); ids arriving from a request have
+        # already been gate-checked by ``resolve_followed_ids``.
+        browse = BrowseService(mature_enabled=True, db=self._db)
         cache = SourceCacheService(self._db, browse)
 
         live = browse.get_chapters(row.source_id, row.series_key)
-        known = _loads(row.known_chapters)
 
-        if not live and known:
-            # A connector that *degrades* to an empty list rather than raising
-            # (markup drifted, a soft block, an empty page) is not evidence the
-            # series lost every chapter. Writing [] here is unrecoverable: the
-            # next run has no baseline, so every chapter released in between
-            # never diffs as new and never notifies. Keep the snapshot, record
-            # why, and let the next pass try again.
-            row.last_error = "Source returned no chapters; snapshot kept."
-            logger.warning(
-                "update check for %s/%s returned an empty chapter list; "
-                "keeping the %d-chapter snapshot",
-                row.source_id,
-                row.series_key,
-                len(known),
-            )
-            return 0
+        # Reading the snapshot, diffing it and writing the new one back is one
+        # critical section per followed series. The per-series manual check
+        # (``POST /updates/followed/{id}/check``) runs this inline on the request
+        # thread while the scheduled sweep runs it on a worker thread, and
+        # neither took the other's lock — the scheduler's ``_check_lock`` gates
+        # only what it submits to its own pool, never the request path: both
+        # loaded the row, both diffed the same stale ``known_chapters``, and
+        # both inserted a notification for every new chapter — a UNIQUE
+        # violation on ``uq_update_notifications_chapter`` raised by the per-row
+        # commit in ``run_check``, which fails the entire run rather than the
+        # one series. The connector fetch stays outside the guard: it touches
+        # nothing shared, and holding a lock across a 30s-per-retry HTTP budget
+        # would park the request thread behind the sweep's network wait.
+        with _series_guard(row.id):
+            # Whoever held the guard may have just committed a newer snapshot,
+            # and this row was loaded before the wait. ``None`` means the follow
+            # was deleted meanwhile — there is nothing left to update.
+            if self._db.get(FollowedSeries, row.id, populate_existing=True) is None:
+                return 0
+            known = _loads(row.known_chapters)
 
-        cache.write_through(row.source_id, row.series_key, {}, live)
-        known_keys = {str(c.get("key")) for c in known}
-
-        new_chapters = [c for c in live if str(c["id"]) not in known_keys]
-        settings = self.get_global_settings()
-        if (
-            new_chapters
-            and known
-            and _bool(row.notify)
-            and _bool(settings.notify_enabled)
-        ):
-            for c in new_chapters:
-                self._db.add(
-                    UpdateNotification(
-                        user_id=row.user_id,
-                        profile_id=row.profile_id,
-                        followed_series_id=row.id,
-                        source_id=row.source_id,
-                        series_key=row.series_key,
-                        chapter_key=str(c["id"]),
-                        chapter_title=str(c.get("title") or c["id"]),
-                        chapter_number=c.get("number"),
-                    )
+            if not live and known:
+                # A connector that *degrades* to an empty list rather than
+                # raising (markup drifted, a soft block, an empty page) is not
+                # evidence the series lost every chapter. Writing [] here is
+                # unrecoverable: the next run has no baseline, so every chapter
+                # released in between never diffs as new and never notifies.
+                # Keep the snapshot, record why, and let the next pass try again.
+                row.last_error = "Source returned no chapters; snapshot kept."
+                logger.warning(
+                    "update check for %s/%s returned an empty chapter list; "
+                    "keeping the %d-chapter snapshot",
+                    row.source_id,
+                    row.series_key,
+                    len(known),
                 )
+                return 0
 
-        row.known_chapters = json.dumps(
-            [
-                {
-                    "key": c.get("id"),
-                    "number": c.get("number"),
-                    "title": c.get("title"),
-                    "published_at": c.get("release_date"),
-                }
-                for c in live
-            ]
-        )
-        row.last_checked_at = utcnow()
-        row.last_error = None
-        return len(new_chapters) if known else 0
+            cache.write_through(row.source_id, row.series_key, {}, live)
+            known_keys = {str(c.get("key")) for c in known}
+
+            new_chapters = [c for c in live if str(c["id"]) not in known_keys]
+            settings = self.get_global_settings()
+            if (
+                new_chapters
+                and known
+                and _bool(row.notify)
+                and _bool(settings.notify_enabled)
+            ):
+                # A chapter notifies a follow once — the guarantee
+                # ``uq_update_notifications_chapter`` enforces. A connector that
+                # drops a chapter from its listing and lists it again
+                # (pagination hiccup, partial parse) makes it "new" a second
+                # time, and a listing can even repeat an id within one fetch;
+                # neither is an error, so skip what this follow has already been
+                # told about instead of letting the INSERT fail the run.
+                emitted = set(
+                    self._db.execute(
+                        select(UpdateNotification.chapter_key).where(
+                            UpdateNotification.followed_series_id == row.id
+                        )
+                    )
+                    .scalars()
+                    .all()
+                )
+                for c in new_chapters:
+                    key = str(c["id"])
+                    if key in emitted:
+                        continue
+                    emitted.add(key)
+                    self._db.add(
+                        UpdateNotification(
+                            user_id=row.user_id,
+                            profile_id=row.profile_id,
+                            followed_series_id=row.id,
+                            source_id=row.source_id,
+                            series_key=row.series_key,
+                            chapter_key=key,
+                            chapter_title=str(c.get("title") or c["id"]),
+                            chapter_number=c.get("number"),
+                        )
+                    )
+
+            row.known_chapters = json.dumps(
+                [
+                    {
+                        "key": c.get("id"),
+                        "number": c.get("number"),
+                        "title": c.get("title"),
+                        "published_at": c.get("release_date"),
+                    }
+                    for c in live
+                ]
+            )
+            row.last_checked_at = utcnow()
+            row.last_error = None
+            # Committed before the guard is released: the next checker re-reads
+            # this row on entry, and an uncommitted snapshot is one it cannot
+            # see. ``run_check`` still commits per row for the paths above.
+            self._db.commit()
+            return len(new_chapters) if known else 0
 
 
 def run_check_in_new_session(
@@ -575,10 +784,14 @@ def run_check_in_new_session(
     been ownership-checked by the route that queued them
     (``UpdateService.resolve_followed_ids``).
     """
+    if followed_ids is None:
+        # Not ``or``: ``[]`` from a member with an empty library must stay an
+        # empty check, never widen into the instance-wide sweep.
+        followed_ids = tracker_ids
     db = SessionLocal()
     try:
         return UpdateService(db, system=True).run_check(
-            trigger=trigger, followed_ids=followed_ids or tracker_ids
+            trigger=trigger, followed_ids=followed_ids
         )
     finally:
         db.close()

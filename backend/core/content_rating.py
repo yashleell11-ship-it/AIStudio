@@ -10,13 +10,14 @@ One resolution path (:func:`resolve_mature_gate`) and one rating rule
 (:func:`is_mature_rating` / :func:`mature_rating_predicate`) is what keeps those
 two halves from drifting apart again.
 
-Three things are gated, by three different signals:
+Two things are gated, by two signals:
 
 - whole *sources* that are adult by nature (``SourceConnector.is_mature`` /
-  ``ConnectorDescriptor.mature``);
-- local *series* by their stored ``Series.content_rating``; and
-- *followed remote series* by :func:`resolve_tracker_rating`, since a tracker
-  has no local series row to read a rating off.
+  ``ConnectorDescriptor.mature``); and
+- individual *series* by :func:`resolve_series_rating`, one rule applied to
+  whatever signal the surface has -- a follow's stored rating and override
+  (:func:`resolve_tracker_rating`), a cached row's, or the genres a connector
+  has only just returned.
 """
 
 from __future__ import annotations
@@ -26,7 +27,6 @@ from typing import TYPE_CHECKING
 from sqlalchemy import case, func, literal
 from sqlalchemy.orm import Session
 
-from core.config import get_settings
 from core.connector_directory import mature_source_ids
 from database.models import FollowedSeries, ReadingProfile
 
@@ -53,7 +53,7 @@ MATURE_CONTENT_RATINGS: frozenset[str] = frozenset(
 
 #: Resolved maturity of a followed remote series. ``"unknown"`` is a real third
 #: state, not a synonym for either of the others -- see
-#: :func:`resolve_tracker_rating`.
+#: :func:`resolve_series_rating`.
 TRACKER_RATING_MATURE = "mature"
 TRACKER_RATING_SAFE = "safe"
 TRACKER_RATING_UNKNOWN = "unknown"
@@ -74,7 +74,7 @@ def mature_rating_predicate(column):
     in the other. ``coalesce`` is applied because ``IN`` against NULL evaluates
     to NULL, and a ``NOT IN`` filter therefore *dropped* unrated rows instead of
     keeping them -- the opposite of what an unrated row should do (see
-    :func:`resolve_tracker_rating` on why unknown is not treated as adult).
+    :func:`resolve_series_rating` on why unknown is not treated as adult).
     """
     normalized = func.lower(func.trim(func.coalesce(column, "")))
     return normalized.in_(sorted(MATURE_CONTENT_RATINGS))
@@ -87,45 +87,64 @@ def resolve_mature_gate(
 ) -> bool:
     """Is adult content allowed for this (user, profile) right now?
 
-    The active profile's own toggle wins; the global config value is only the
-    fallback for the unscoped/legacy bucket (and the seed for new profiles).
+    The active profile's own toggle is the ONLY thing that opens the gate.
     Every gated read path resolves the gate here so profile "action" having 18+
     off can never affect profile "porn".
+
+    No owned profile -- header absent, naming another account's profile, or an
+    account that has none yet -- is CLOSED. The instance-wide
+    ``Settings.mature_content_enabled`` used to be the fallback for exactly
+    that bucket, which made the gate for a headerless request from an account
+    whose every profile has 18+ OFF whatever the admin last wrote there: closed
+    today only because the default happens to be False, and the one request
+    shape a client cannot fail to produce (drop a header) would have widened
+    what it could see. The global still seeds nothing either (see
+    ``ProfileService.create_profile``); it survives only for the context-free
+    ``BrowseService`` fallback that has no caller at all.
 
     ``user_id`` is optional only because the callers that predate it already
     pass a ProfileContext-validated id. Pass it whenever you have it: this
     function is deliberately the single resolution path and will attract new
     callers, and one that forwards a raw header would otherwise read another
-    account's gate. A mismatch falls back to the global default rather than
-    honouring the foreign profile.
+    account's gate. A mismatch is closed rather than honouring the foreign
+    profile.
     """
     if profile_id is not None:
         profile = db.get(ReadingProfile, profile_id)
         if profile is not None and (user_id is None or profile.user_id == user_id):
             return bool(profile.mature_content_enabled)
-    return get_settings().mature_content_enabled
+    return False
 
 
-def resolve_tracker_rating(
-    followed: FollowedSeries,
-    descriptor: ConnectorDescriptor | None,
+def resolve_series_rating(
+    content_rating: str | None,
+    genres: tuple[str, ...] | list[str] | None = None,
+    *,
+    mature_override: bool | None = None,
+    source_mature: bool = False,
 ) -> str:
-    """Maturity of a *followed remote* series, resolved in priority order.
+    """Maturity of ONE series, resolved in priority order. The whole rule.
 
-    Source-native (spec §3.2): the signals now live on the ``followed_series``
-    row (``mature_override`` + ``content_rating``, same semantics as the old
-    ``series_trackers`` columns).
+    Every surface that shows a series resolves it here -- a followed row
+    (:func:`resolve_tracker_rating`), a browsed catalog row, a cached one --
+    because the signals differ per surface but the ORDER they are believed in
+    must not. Browse had no rating rule at all until this existed: it gated by
+    SOURCE only, so an adult series listed on a general-audience source was
+    served to the very profile whose library hides it.
 
-    A tracker has no local ``Series`` row to read ``content_rating`` off
-    (``SeriesTracker.local_series_id`` is never written), and
+    A remote series has no local row to read a rating off and
     ``connectors.models.Series`` carries no rating field, so the rating has to
     be assembled from what is actually available:
 
     1. ``mature_override`` -- the user said so explicitly. Wins over everything,
        and is the only signal that works for the many dead connectors where no
-       metadata will ever arrive again.
-    2. ``content_rating`` captured at follow time from the connector's genres.
-    3. The *source's* own maturity: a tracker on an 18+ source is 18+ by
+       metadata will ever arrive again. Only a followed row can carry one.
+    2. ``content_rating``: captured at follow time on a follow, written by the
+       metadata cache on a cached row, and derived from ``genres`` here for a
+       row that has only just been browsed. All three are
+       :func:`rating_from_genres` over the same connector genres, so the
+       library and the browser cannot disagree about a series.
+    3. The *source's* own maturity: a series on an 18+ source is 18+ by
        construction. Free to evaluate, needs no network, and this is where the
        owner's adult content actually comes from (toonily, nhentai, hentai20…).
     4. Otherwise unknown.
@@ -146,17 +165,61 @@ def resolve_tracker_rating(
     (serialized as ``rating: "unknown"``) so the client can badge it and offer
     the one-tap override that writes rule 1.
     """
-    if followed.mature_override is not None:
-        return TRACKER_RATING_MATURE if followed.mature_override else TRACKER_RATING_SAFE
-    if followed.content_rating:
-        return (
-            TRACKER_RATING_MATURE
-            if is_mature_rating(followed.content_rating)
-            else TRACKER_RATING_SAFE
-        )
-    if descriptor is not None and descriptor.mature:
-        return TRACKER_RATING_MATURE
-    return TRACKER_RATING_UNKNOWN
+    if mature_override is not None:
+        return TRACKER_RATING_MATURE if mature_override else TRACKER_RATING_SAFE
+    rating = content_rating or rating_from_genres(genres)
+    if rating:
+        return TRACKER_RATING_MATURE if is_mature_rating(rating) else TRACKER_RATING_SAFE
+    return TRACKER_RATING_MATURE if source_mature else TRACKER_RATING_UNKNOWN
+
+
+def serialized_series_rating(
+    item: dict[str, object], *, source_mature: bool = False
+) -> str:
+    """:func:`resolve_series_rating` for an already-SERIALIZED series row.
+
+    Cache and listing payloads are dicts, not model rows, and they carry the
+    rating under one name and the genres under another. Reaching for them here
+    rather than at each call site is what stops a surface from gating on
+    ``content_rating`` alone and missing the genre-only rows that are most of
+    what a madara source publishes.
+    """
+    genres = item.get("genres")
+    return resolve_series_rating(
+        item.get("content_rating"),  # type: ignore[arg-type]
+        genres if isinstance(genres, (list, tuple)) else None,
+        source_mature=source_mature,
+    )
+
+
+def hidden_by_gate(rating: str, *, gate_open: bool) -> bool:
+    """Whether a resolved rating must be withheld from this caller.
+
+    One line, shared, because it is the half of the gate that keeps getting
+    written as ``rating != safe``: only MATURE is ever hidden. Unknown is
+    visible on purpose (rule 4 above), and a surface that hides it would empty
+    itself the first time the owner shut the gate.
+    """
+    return not gate_open and rating == TRACKER_RATING_MATURE
+
+
+def resolve_tracker_rating(
+    followed: FollowedSeries,
+    descriptor: ConnectorDescriptor | None,
+) -> str:
+    """:func:`resolve_series_rating` read off a *followed remote* series.
+
+    Source-native (spec §3.2): the signals live on the ``followed_series`` row
+    (``mature_override`` + ``content_rating``, same semantics as the old
+    ``series_trackers`` columns), and the source's own maturity comes from the
+    connector descriptor. A follow carries no genres of its own -- the rating
+    was derived from them at follow time and stored.
+    """
+    return resolve_series_rating(
+        followed.content_rating,
+        mature_override=followed.mature_override,
+        source_mature=bool(descriptor is not None and descriptor.mature),
+    )
 
 
 #: Source-native alias. New callers should use this name.
@@ -178,7 +241,7 @@ def mature_tracker_case(source_column):
     to one leaves four unfixed, and the failure is silent -- a series hidden on
     four surfaces and printed by name on the fifth.
 
-    Unknown stays 0, for the reason recorded on :func:`resolve_tracker_rating`.
+    Unknown stays 0, for the reason recorded on :func:`resolve_series_rating`.
 
     The *join* supplying the ``followed_series`` row stays with the caller and
     is deliberately NOT uniform -- outer or inner, conditional or

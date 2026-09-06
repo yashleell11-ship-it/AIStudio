@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import re
 import threading
@@ -11,13 +12,20 @@ from itertools import zip_longest
 from typing import Annotated, Any
 from urllib.parse import quote
 
+from anyio import to_thread
 from fastapi import Depends
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from core.config import get_settings
-from core.content_rating import resolve_mature_gate
+from core.content_rating import (
+    hidden_by_gate,
+    resolve_mature_gate,
+    resolve_series_rating,
+)
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
+from database.models import SourceSeriesCache
 from database.session import get_db
 from connectors.base import SourceConnector
 from connectors.http.client import ConnectorHttpError
@@ -347,15 +355,59 @@ def _invalidate_series_caches(connector: SourceConnector, series_id: str) -> Non
             cache.pop(api_key)
 
 
+def _chapter_key_needle(chapter_key: str) -> str:
+    """The literal substring a cached chapter list holds for this key.
+
+    Built with ``json.dumps`` rather than an f-string so the escaping matches
+    byte for byte what ``SourceCacheService`` wrote -- a key containing a quote
+    or a backslash would otherwise never match its own row.
+    """
+    return json.dumps({"key": chapter_key})[1:-1]
+
+
+def _loads_genres(raw: str | None) -> list[str]:
+    """A cached row's ``genres`` JSON, or nothing when it is absent or broken."""
+    try:
+        parsed = json.loads(raw) if raw else None
+    except ValueError:
+        return []
+    return [str(item) for item in parsed] if isinstance(parsed, list) else []
+
+
+def _row_visible(series: Series, *, gate_open: bool, source_mature: bool) -> bool:
+    """Whether one catalog row survives a caller's 18+ gate.
+
+    The source gate answers for a whole catalog, which left an adult series
+    listed on a general-audience source reaching a gate-closed profile -- the
+    same series that profile's library hides once it is followed.
+    ``resolve_series_rating`` is that library rule, applied here to the genres
+    the connector already returns, so browse and library agree about a row
+    instead of one hiding what the other prints. Unknown stays visible: almost
+    no catalog rates itself.
+
+    Takes the gate as an argument rather than reading it off the service
+    because the federated fan-out is handed its gate by the route.
+    """
+    return not hidden_by_gate(
+        resolve_series_rating(None, series.genres, source_mature=source_mature),
+        gate_open=gate_open,
+    )
+
+
 def _serialize_paginated(
     listing: PaginatedSeriesList,
     source_id: str,
+    items: list[Series],
 ) -> dict[str, object]:
+    """``items`` is passed separately because it is the GATED subset of
+    ``listing.items``; the pagination envelope stays the source's own. Upstream
+    ``total`` counts the whole catalog, not this page, so it cannot be adjusted
+    for rows dropped here without inventing a number."""
     from utils.api_pagination import enrich_pagination_aliases
 
     return enrich_pagination_aliases(
         {
-            "items": [_serialize_series(item, source_id) for item in listing.items],
+            "items": [_serialize_series(item, source_id) for item in items],
             "page": listing.page,
             "page_size": listing.page_size,
             "total": listing.total,
@@ -363,8 +415,6 @@ def _serialize_paginated(
             "has_more": listing.has_more,
         }
     )
-
-
 
 
 class BrowseService:
@@ -391,11 +441,13 @@ class BrowseService:
         callers: the federated search fan-out, cover prefetching for series
         already in a library, and direct construction in connector tests.
 
-        ``db`` is the caller's request-scoped session, used ONLY for source
-        health (reading it, and recording what the search fan-out observed).
-        It is optional for the same reason as the gate: the context-free
-        callers above have no session, and a service without one simply reports
-        every source's health as unknown instead of failing.
+        ``db`` is the caller's request-scoped session, used for source health
+        (reading it, and recording what the search fan-out observed) and for
+        the cached chapter->series lookup a shut gate needs in
+        ``_require_visible_chapter``. It is optional for the same reason as the
+        gate: the context-free callers above have no session, and a service
+        without one simply reports every source's health as unknown instead of
+        failing.
 
         ``user_id``/``profile_id`` scope the NAS browse mode. Downloads belong
         to a (user, profile) pair exactly like library membership does, so
@@ -407,12 +459,80 @@ class BrowseService:
         self._db = db
         self._user_id = user_id
         self._profile_id = profile_id
+        # Guards ``self._db`` for the one read that happens off the request
+        # thread -- see ``_require_visible_chapter``. Per instance, which is
+        # per request, which is the scope of the fan-out that needs it.
+        self._db_lock = threading.Lock()
 
     def _gate_open(self) -> bool:
         """Whether adult content is permitted for whoever built this service."""
         if self._mature_enabled is not None:
             return self._mature_enabled
         return get_settings().mature_content_enabled
+
+    def _series_visible(self, series: Series, connector: SourceConnector) -> bool:
+        """``_row_visible`` for a source resolved through ``_get_connector``."""
+        return _row_visible(
+            series, gate_open=self._gate_open(), source_mature=connector.is_mature
+        )
+
+    def _require_visible_series(
+        self, series: Series, connector: SourceConnector, source_id: str
+    ) -> None:
+        """404 a row this caller's 18+ gate hides, exactly as an absent one."""
+        if self._series_visible(series, connector):
+            return
+        raise AppError(
+            "Series not found.",
+            code="series_not_found",
+            status_code=404,
+            details={"source_id": source_id, "series_id": series.id},
+        )
+
+    def _require_visible_chapter(
+        self, source_id: str, chapter_key: str, connector: SourceConnector
+    ) -> None:
+        """404 a chapter whose SERIES this caller's 18+ gate hides.
+
+        ``/sources/{id}/chapters/{key}/pages`` is the one read that names no
+        series, so the series has to be recovered rather than received: the
+        only signal available is the cached row that remembers this chapter.
+        A chapter no cached row claims resolves unknown, and unknown stays
+        visible -- the alternative is a page route that fails until something
+        happens to have browsed the series.
+
+        Only a SHUT gate pays for the lookup, which also keeps it off the
+        reader's bulk-manifest fan-out for every caller who is allowed the
+        content anyway; the lock is there because that fan-out calls this on
+        worker threads that would otherwise share one Session.
+        """
+        if self._gate_open() or self._db is None:
+            return
+        with self._db_lock:
+            row = self._db.execute(
+                select(SourceSeriesCache)
+                .where(
+                    SourceSeriesCache.source_id == source_id,
+                    SourceSeriesCache.chapters.contains(
+                        _chapter_key_needle(chapter_key), autoescape=True
+                    ),
+                )
+                .limit(1)
+            ).scalar_one_or_none()
+        if row is None:
+            return
+        rating = resolve_series_rating(
+            row.content_rating,
+            _loads_genres(row.genres),
+            source_mature=connector.is_mature,
+        )
+        if hidden_by_gate(rating, gate_open=False):
+            raise AppError(
+                "Chapter not found.",
+                code="chapter_not_found",
+                status_code=404,
+                details={"source_id": source_id, "chapter_id": chapter_key},
+            )
 
     @staticmethod
     def _raise_source_connector_error(source_id: str, exc: Exception) -> None:
@@ -652,7 +772,11 @@ class BrowseService:
             listing.total_pages,
             listing.has_more,
         )
-        return _serialize_paginated(listing, source_id)
+        return _serialize_paginated(
+            listing,
+            source_id,
+            [item for item in listing.items if self._series_visible(item, connector)],
+        )
 
     async def _fan_out_search(
         self,
@@ -740,6 +864,7 @@ class BrowseService:
         query_norm: str,
         tokens: list[str],
         health: SourceHealthState,
+        gate_open: bool,
     ) -> tuple[dict[str, object], float]:
         """Turn one source's outcome into a display group + its best score."""
         source_id = descriptor.source_type
@@ -769,6 +894,13 @@ class BrowseService:
         scored: list[tuple[float, dict[str, object]]] = []
         seen: set[str] = set()
         for series in outcome.items:
+            # Same row-level gate the single-source listing applies: a general
+            # source that answers a query with an adult row must not become the
+            # way past a gate that hides that row when browsing the same source.
+            if not _row_visible(
+                series, gate_open=gate_open, source_mature=descriptor.mature
+            ):
+                continue
             # De-dupe WITHIN one source only. The same series legitimately shows
             # up under several sources and each keeps its own row: collapsing
             # across sources is what reduced the five real Lookism hits to one.
@@ -872,8 +1004,18 @@ class BrowseService:
         # are built so this response reflects what it just observed -- in
         # particular, a source that recovered is un-demoted by the very search
         # that found it working.
+        #
+        # Off the loop: ``_merge_health`` is the only thing in this coroutine
+        # that touches ``self._db``, and it ends in a COMMIT on the request's
+        # synchronous Session. SQLite has a single write lock with a 5 s
+        # busy_timeout, so held by a sweep or a batch of progress writes that
+        # commit blocks whatever thread it is on for seconds -- and on the
+        # event loop that is EVERY request in the process, not just this
+        # search. The thread pool is where the app's sync endpoints already
+        # take that wait.
         health = states_for(
-            self._merge_health(outcomes), [d.source_type for d in descriptors]
+            await to_thread.run_sync(self._merge_health, outcomes),
+            [d.source_type for d in descriptors],
         )
 
         query_norm = _normalize_title(normalized_query)
@@ -889,6 +1031,7 @@ class BrowseService:
                 query_norm=query_norm,
                 tokens=tokens,
                 health=state,
+                gate_open=include_mature,
             )
             if group["status"] == "error":
                 sources_failed += 1
@@ -982,6 +1125,7 @@ class BrowseService:
                 status_code=404,
                 details={"source_id": source_id, "series_id": series_id},
             )
+        self._require_visible_series(series, connector, source_id)
         return _serialize_series(series, source_id)
 
     def get_chapters(self, source_id: str, series_id: str) -> list[dict[str, object]]:
@@ -995,6 +1139,7 @@ class BrowseService:
                 status_code=404,
                 details={"source_id": source_id, "series_id": series_id},
             )
+        self._require_visible_series(series, connector, source_id)
         chapters = connector.get_chapters(series_id)
         if not chapters and series.chapter_count > 0:
             logger.warning(
@@ -1018,6 +1163,7 @@ class BrowseService:
     def get_chapter_pages(self, source_id: str, chapter_id: str) -> list[dict[str, object]]:
         connector = self._get_connector(source_id)
         normalized_chapter_id = _normalize_source_chapter_id(chapter_id)
+        self._require_visible_chapter(source_id, normalized_chapter_id, connector)
         pages = connector.get_chapter_pages(normalized_chapter_id)
         if not pages:
             raise AppError(
@@ -1044,6 +1190,7 @@ class BrowseService:
                 code="series_not_found",
                 status_code=404,
             )
+        self._require_visible_series(series, connector, source_id)
 
         chapters = connector.get_chapters(series_id)
         chapter = next((item for item in chapters if item.id == normalized_chapter_id), None)
@@ -1097,6 +1244,9 @@ class BrowseService:
                 code="cover_not_found",
                 status_code=404,
             )
+        # A cover is the one piece of an adult row that is explicit on its own,
+        # so it is gated with the metadata rather than left reachable by key.
+        self._require_visible_series(series, connector, source_id)
         return self._fetch_url(series.cover_url, connector)
 
     def _fetch_remote_image(self, page: Page, connector: SourceConnector) -> tuple[str, bytes]:
