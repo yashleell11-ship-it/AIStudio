@@ -129,9 +129,18 @@ def upgrade() -> None:
 def downgrade() -> None:
     """Collapse back to one global vocabulary.
 
-    Lossy in the other direction: two profiles' identically-named tags merge
-    into one row, and the associations of all but the surviving row are
-    repointed at it.
+    Lossy in the other direction, and only partly reversible:
+
+    * Identically-named tags from different profiles merge into one row, and
+      the associations of all but the survivor are repointed at it. The
+      survivor is the oldest of them — the row the global vocabulary would
+      have held — and its category and colour travel with it as a unit;
+      every other profile's category and colour for that name are gone, and
+      the re-upgrade hands the survivor's to all of them.
+    * Ownership survives only through ``profile_series_tags``. A tag that was
+      created but never applied to a series keeps its row here, but
+      ``upgrade()`` has no owner to give it back to and drops it, so a plain
+      downgrade-then-upgrade round trip deletes every unapplied tag.
     """
     op.drop_index("ix_tags_scope", table_name="tags")
     op.create_table(
@@ -146,8 +155,14 @@ def downgrade() -> None:
     op.execute(
         """
         INSERT INTO tags_old (name, category, color, created_at)
-        SELECT name, MIN(category), MIN(color), MIN(created_at)
-        FROM tags GROUP BY name
+        SELECT t.name, t.category, t.color, t.created_at
+        FROM tags t
+        WHERE t.id = (
+            SELECT s.id FROM tags s
+            WHERE s.name = t.name
+            ORDER BY s.created_at, s.id
+            LIMIT 1
+        )
         """
     )
     op.execute(

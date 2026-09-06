@@ -37,6 +37,7 @@ independent of the host SQLite's ALTER support.
 """
 from __future__ import annotations
 
+import logging
 import uuid
 from typing import Sequence, Union
 
@@ -47,6 +48,10 @@ revision: str = "0010_smart_bookmarks"
 down_revision: Union[str, Sequence[str], None] = "0009_reading_session_duration"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
+
+#: Alembic's own migration logger, so a downgrade's drop count lands beside
+#: its "Running downgrade" line in the same stream.
+log = logging.getLogger("alembic.runtime.migration")
 
 #: Rows per parameter batch when handing out client ids. The table is small in
 #: practice; this only stops a pathological one from building one giant list.
@@ -165,7 +170,28 @@ def downgrade() -> None:
     rows are dropped rather than revived — a downgrade must not resurrect
     bookmarks the owner deleted, which is the exact failure the tombstone
     exists to prevent.
+
+    Novel bookmarks are dropped too, not carried. ``page`` is a manga page,
+    and the reader this schema belongs to had no novel bookmarks at all, so
+    copying ``anchor_index`` across would quietly turn "paragraph 12 of a
+    novel" into "page 12 of a manga" — and the next upgrade would then stamp
+    that row ``media_type='manga'`` for good. Both drop counts are logged.
     """
+    bind = op.get_bind()
+    tombstoned, novel = bind.execute(
+        sa.text(
+            "SELECT COALESCE(SUM(deleted_at IS NOT NULL), 0),"
+            " COALESCE(SUM(deleted_at IS NULL AND media_type <> 'manga'), 0)"
+            " FROM bookmarks"
+        )
+    ).one()
+    if tombstoned or novel:
+        log.warning(
+            "0010 downgrade drops %d tombstoned and %d non-manga bookmark(s):"
+            " a page-only table cannot hold them",
+            tombstoned,
+            novel,
+        )
     op.create_table(
         "bookmarks_old",
         sa.Column("id", sa.Integer(), primary_key=True),
@@ -192,7 +218,7 @@ def downgrade() -> None:
         SELECT id, user_id, profile_id, source_id, series_key, chapter_key,
                max(1, anchor_index), note, created_at
         FROM bookmarks
-        WHERE deleted_at IS NULL
+        WHERE deleted_at IS NULL AND media_type = 'manga'
         """
     )
     op.drop_table("bookmarks")
