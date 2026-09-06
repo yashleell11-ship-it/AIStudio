@@ -55,11 +55,20 @@ export function useUnreadNotificationCount() {
   });
 }
 
-export function useUpdateRuns() {
+/**
+ * The instance-wide check log.
+ *
+ * `GET /updates/runs` is admin-only: it reports every account's checks, not
+ * the caller's. Pass `false` and the query never fires, so a member's Updates
+ * page does not poll a 403 every ten seconds and then render it as a
+ * page-level error.
+ */
+export function useUpdateRuns(enabled = true) {
   return useQuery({
     queryKey: [...UPDATES_KEY, "runs"],
     queryFn: () => updatesApi.runs(20),
     refetchInterval: 10_000,
+    enabled,
   });
 }
 

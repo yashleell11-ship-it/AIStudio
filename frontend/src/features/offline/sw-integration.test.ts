@@ -527,6 +527,85 @@ describe("stale-while-revalidate", () => {
   });
 });
 
+describe("the per-profile API cache is bounded", () => {
+  // The browser evicts per origin and takes the whole origin, saved chapters
+  // included, so the cache that grows with ordinary browsing is the one that
+  // must not. Mirrors MAX_API_ENTRIES / MAX_API_AGE_MS in sw.js.
+  const CAP = 200;
+  const DAY = 24 * 60 * 60_000;
+  const START = 1_700_000_000_000;
+
+  function seriesUrl(index: number): string {
+    return `${API_BASE}/library/series/${index}/chapters`;
+  }
+
+  async function open(index: number): Promise<void> {
+    route(harness, seriesUrl(index), { body: `{"id":${index}}` });
+    await harness.dispatchFetch({ url: seriesUrl(index) });
+  }
+
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(START);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("drops the oldest entries past the cap, on write", async () => {
+    await boot();
+    for (let index = 0; index < CAP + 50; index += 1) await open(index);
+
+    const cache = harness.cacheFor(ALICE_API_CACHE)!;
+    expect(cache.entries.size).toBeLessThanOrEqual(CAP);
+    expect(await cache.match(seriesUrl(CAP + 49))).toBeTruthy();
+    expect(await cache.match(seriesUrl(0))).toBeUndefined();
+  });
+
+  it("ages a week-old entry out on the next stale-while-revalidate write", async () => {
+    await boot();
+    await open(1);
+    vi.setSystemTime(START + 8 * DAY);
+    await open(2);
+
+    const cache = harness.cacheFor(ALICE_API_CACHE)!;
+    expect(await cache.match(seriesUrl(1))).toBeUndefined();
+    expect(await cache.match(seriesUrl(2))).toBeTruthy();
+  });
+
+  it("ages it out on an offline-fallback write just the same", async () => {
+    await boot();
+    await open(1);
+    vi.setSystemTime(START + 8 * DAY);
+    await harness.dispatchFetch({ url: BOOKMARKS });
+
+    const cache = harness.cacheFor(ALICE_API_CACHE)!;
+    expect(await cache.match(seriesUrl(1))).toBeUndefined();
+    expect(await cache.match(BOOKMARKS)).toBeTruthy();
+  });
+
+  it("keeps an entry that is merely a day old", async () => {
+    await boot();
+    await open(1);
+    vi.setSystemTime(START + 1 * DAY);
+    await open(2);
+
+    const cache = harness.cacheFor(ALICE_API_CACHE)!;
+    expect(await cache.match(seriesUrl(1))).toBeTruthy();
+    expect(await cache.match(seriesUrl(2))).toBeTruthy();
+  });
+
+  it("serves a stored entry back without its bookkeeping changing the body", async () => {
+    await boot();
+    await open(1);
+    harness.offline = true;
+
+    const outcome = await harness.dispatchFetch({ url: seriesUrl(1) });
+    expect(await outcome.response?.text()).toBe('{"id":1}');
+  });
+});
+
 describe("retention and eviction", () => {
   // A fixed clock: the retention rule is `now - readAt >= retentionMs`, and with
   // a real wall clock the millisecond between stamping `readAt` and running the
@@ -642,6 +721,81 @@ describe("retention and eviction", () => {
 
     const index = await readIndex(harness, ALICE_CACHE);
     expect(index?.entries[KEY]).toBeUndefined();
+  });
+
+  /**
+   * A quota meter that answers from what is actually stored.
+   *
+   * The harness reports a fixed estimate, and with a constant "still full" the
+   * question below cannot be asked at all: whether giving up the disposable
+   * caches is ENOUGH to stop the worker reaching for a saved chapter. Bodies
+   * in this suite are a few hundred bytes, so they are scaled into the range
+   * the storage rules are actually written in.
+   */
+  const QUOTA = 10_000_000_000;
+  const METER_FLOOR = 8_500_000_000;
+  const METER_SCALE = 100_000;
+
+  function meterStorage(): void {
+    const workerNavigator = harness.self.navigator as {
+      storage: { estimate: () => Promise<{ usage: number; quota: number }> };
+    };
+    workerNavigator.storage = {
+      estimate: async () => {
+        let bytes = 0;
+        for (const name of await harness.cacheNames()) {
+          for (const stored of harness.cacheFor(name)?.entries.values() ?? []) {
+            bytes += stored.body.length;
+          }
+        }
+        return { usage: METER_FLOOR + bytes * METER_SCALE, quota: QUOTA };
+      },
+    };
+  }
+
+  /** Fill the origin with the things that exist only to save a round trip. */
+  async function fillDisposableCaches(): Promise<void> {
+    for (let index = 0; index < 20; index += 1) {
+      const api = `${API_BASE}/library/series/${index}`;
+      route(harness, api, { body: "a".repeat(500) });
+      await harness.dispatchFetch({ url: api });
+
+      const document = `${ORIGIN}/series/${index}`;
+      route(harness, document, { body: "d".repeat(500) });
+      await harness.dispatchFetch({ url: document, mode: "navigate" });
+    }
+    const chunk = `${ORIGIN}/_next/static/chunks/app.js`;
+    route(harness, chunk, { body: "app" });
+    await harness.dispatchFetch({ url: chunk });
+  }
+
+  it("gives up the disposable caches before it takes a saved chapter", async () => {
+    await saveAndFinish();
+    await harness.dispatchMessage({ type: "mm-offline/chapter-closed", key: KEY });
+    await fillDisposableCaches();
+    meterStorage();
+
+    await harness.dispatchMessage({ type: "mm-offline/sweep", scope: ALICE });
+
+    const index = await readIndex(harness, ALICE_CACHE);
+    expect(index?.entries[KEY]).toBeDefined();
+    expect(await harness.cacheFor(ALICE_CACHE)?.match(PAGE_ONE)).toBeTruthy();
+    expect(harness.cacheFor(ALICE_API_CACHE)?.entries.size ?? 0).toBe(0);
+    expect(harness.cacheFor(`mm-pages-${RUNTIME_VERSION}`)?.entries.size ?? 0).toBe(0);
+  });
+
+  it("keeps the build the saved chapter has to be rendered with", async () => {
+    await saveAndFinish();
+    await harness.dispatchMessage({ type: "mm-offline/chapter-closed", key: KEY });
+    await fillDisposableCaches();
+    meterStorage();
+
+    await harness.dispatchMessage({ type: "mm-offline/sweep", scope: ALICE });
+
+    // Dropping these would leave the downloads intact and unopenable, which is
+    // the same loss by another route.
+    expect(harness.cacheFor(`mm-static-${RUNTIME_VERSION}`)?.entries.size ?? 0).toBeGreaterThan(0);
+    expect(harness.cacheFor(`mm-shell-${RUNTIME_VERSION}`)?.entries.size ?? 0).toBeGreaterThan(0);
   });
 });
 

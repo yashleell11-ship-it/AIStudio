@@ -73,6 +73,19 @@
   var MAX_USAGE_RATIO = 0.9;
 
   /**
+   * Cache kinds that may be thrown away whole to make room, first to go first.
+   *
+   * Both fall back to the network, so losing one costs requests and nothing
+   * else. Deliberately NOT here: `offline` holds the reader's downloads, the
+   * only bytes in this origin that cannot be fetched again at the moment they
+   * are wanted; `static` is the build those chapters are rendered WITH, so
+   * dropping it under pressure would leave them intact and unreadable; `shell`
+   * IS the offline page; `state` is how a restarted worker knows whose caches
+   * to use.
+   */
+  var DISPOSABLE_KINDS = ["api", "pages"];
+
+  /**
    * API GET paths (relative to the API base) that may be answered from cache
    * while a fresh copy is fetched in the background. The bar is "a reader
    * shown the previous answer for a few seconds is not harmed".
@@ -252,6 +265,22 @@
     var out = [];
     for (var i = 0; i < (names || []).length; i += 1) {
       if (isObsoleteCacheName(names[i])) out.push(names[i]);
+    }
+    return out;
+  }
+
+  /**
+   * Every cache that may be dropped whole under storage pressure, in the order
+   * to drop them — across all profiles, because the browser's quota is charged
+   * to the origin and not to whoever happens to be looking.
+   */
+  function selectDisposableCaches(names) {
+    var out = [];
+    for (var kind = 0; kind < DISPOSABLE_KINDS.length; kind += 1) {
+      for (var i = 0; i < (names || []).length; i += 1) {
+        var parsed = parseCacheName(names[i]);
+        if (parsed !== null && parsed.kind === DISPOSABLE_KINDS[kind]) out.push(names[i]);
+      }
     }
     return out;
   }
@@ -577,6 +606,7 @@
     parseCacheName: parseCacheName,
     isObsoleteCacheName: isObsoleteCacheName,
     selectObsoleteCaches: selectObsoleteCaches,
+    selectDisposableCaches: selectDisposableCaches,
     selectScopeCaches: selectScopeCaches,
     apiPath: apiPath,
     isAuthUrl: isAuthUrl,

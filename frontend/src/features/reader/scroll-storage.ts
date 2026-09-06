@@ -1,4 +1,8 @@
-import { readScopedString, writeScopedString } from "@/lib/scoped-storage";
+import {
+  readCappedEntry,
+  registerCappedKeyspace,
+  writeCappedEntry,
+} from "@/lib/scoped-storage";
 
 /**
  * Where you were in a chapter, per (user, profile).
@@ -23,6 +27,19 @@ import { readScopedString, writeScopedString } from "@/lib/scoped-storage";
  */
 const SCROLL_PREFIX = "manhwamaniacs-reader-scroll:";
 
+/**
+ * Positions are ~15 characters each, so the cap is not about their size: it is
+ * that one key per chapter opened, forever, eventually exhausts the origin
+ * quota and takes every OTHER reader write down with it. Five hundred is far
+ * more than the "where was I" window is worth — a chapter left unopened for
+ * five hundred chapters is one being started again, not resumed.
+ */
+const POSITIONS = registerCappedKeyspace({
+  prefix: SCROLL_PREFIX,
+  orderKey: "manhwamaniacs-reader-scroll-order",
+  limit: 500,
+});
+
 export interface ReaderPosition {
   /** 1-based page within the chapter. */
   page: number;
@@ -30,12 +47,8 @@ export interface ReaderPosition {
   offset: number;
 }
 
-function storageKey(chapterKey: string | number): string {
-  return `${SCROLL_PREFIX}${chapterKey}`;
-}
-
 export function readReaderPosition(chapterKey: string | number): ReaderPosition | null {
-  const raw = readScopedString(storageKey(chapterKey));
+  const raw = readCappedEntry(POSITIONS, String(chapterKey));
   if (raw == null) return null;
 
   const match = /^p:(\d+):(\d+)$/.exec(raw);
@@ -55,5 +68,5 @@ export function writeReaderPosition(
 ): void {
   const page = Math.max(1, Math.round(position.page));
   const offset = Math.max(0, Math.round(position.offset));
-  writeScopedString(storageKey(chapterKey), `p:${page}:${offset}`);
+  writeCappedEntry(POSITIONS, String(chapterKey), `p:${page}:${offset}`);
 }

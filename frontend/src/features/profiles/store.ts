@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, type PersistStorage, type StorageValue } from "zustand/middleware";
+import { toMood } from "./mood";
 import { ACTIVE_PROFILE_STORAGE_KEY } from "./storage-key";
 import type { ActiveProfile, Profile } from "./types";
 
@@ -38,6 +39,111 @@ function toSnapshot(profile: Profile | ActiveProfile): ActiveProfile {
   };
 }
 
+/** What actually goes to localStorage (see `partialize`). */
+type PersistedState = Pick<ActiveProfileState, "activeProfile">;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Narrow a persisted value back to a snapshot, or `null` when it is not one.
+ *
+ * Every field must have the type the rest of the app assumes without checking:
+ * `id` becomes a request header, `name` is rendered, `avatar_key` is looked up,
+ * `mood` picks a palette. A field missing or of the wrong type means this is
+ * not a snapshot this store wrote, and re-picking a profile once beats
+ * rendering a guess. The one thing salvaged is a mood *string* outside the
+ * current set — a renamed mood is value drift, not corruption, and `toMood` is
+ * the app's documented fallback for exactly that.
+ */
+function readSnapshot(value: unknown): ActiveProfile | null {
+  if (!isRecord(value)) return null;
+  const { id, name, avatar_key, mood } = value;
+  if (typeof id !== "number" || !Number.isInteger(id)) return null;
+  if (typeof name !== "string") return null;
+  if (avatar_key !== null && typeof avatar_key !== "string") return null;
+  if (typeof mood !== "string") return null;
+  return { id, name, avatar_key, mood: toMood(mood) };
+}
+
+/** The stored envelope, or `null` for anything that is not a readable one. */
+function readEnvelope(raw: string): StorageValue<PersistedState> | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return null;
+  }
+  if (!isRecord(parsed) || !isRecord(parsed.state)) return null;
+
+  // `null` is what a cleared selection persists as; a missing key is not — the
+  // envelope always carries it (see `partialize`), so its absence marks a blob
+  // some other writer produced.
+  const stored = parsed.state.activeProfile;
+  const snapshot = stored === null ? null : readSnapshot(stored);
+  if (stored !== null && snapshot === null) return null;
+
+  const version = parsed.version;
+  return {
+    state: { activeProfile: snapshot },
+    ...(typeof version === "number" ? { version } : {}),
+  };
+}
+
+/** localStorage, or `null` where there is none (SSR) or it is blocked. */
+function deviceStorage(): Storage | null {
+  try {
+    return typeof window === "undefined" ? null : window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The persisted selection, read TOTALLY.
+ *
+ * The shell's profile gate blocks on `hasHydrated`, and zustand only flips it
+ * on the success path: one unreadable byte in this key — a truncated write, a
+ * write that died on quota, a shape from an older build — used to throw out of
+ * hydration and strand the app on a loading screen forever, with no recovery a
+ * reader could find short of clearing site data. So anything that does not read
+ * back as a selection is treated as "nothing stored" AND wiped, which makes the
+ * next load clean instead of repeating the same failure.
+ */
+const activeProfileStorage: PersistStorage<PersistedState> = {
+  getItem: (name) => {
+    // A read that throws (storage revoked mid-session) would surface as a
+    // hydration error — the same dead end as a bad blob, so the same answer.
+    try {
+      const storage = deviceStorage();
+      if (!storage) return null;
+      const raw = storage.getItem(name);
+      if (raw === null) return null;
+      const envelope = readEnvelope(raw);
+      if (envelope === null) storage.removeItem(name);
+      return envelope;
+    } catch {
+      return null;
+    }
+  },
+  setItem: (name, value) => {
+    // A device that cannot remember the selection still has to run.
+    try {
+      deviceStorage()?.setItem(name, JSON.stringify(value));
+    } catch {
+      /* full or blocked storage costs persistence, never the interaction */
+    }
+  },
+  removeItem: (name) => {
+    try {
+      deviceStorage()?.removeItem(name);
+    } catch {
+      /* same as setItem */
+    }
+  },
+};
+
 export const useActiveProfileStore = create<ActiveProfileState>()(
   persist(
     (set, get) => ({
@@ -55,10 +161,15 @@ export const useActiveProfileStore = create<ActiveProfileState>()(
     }),
     {
       name: ACTIVE_PROFILE_STORAGE_KEY,
+      storage: activeProfileStorage,
       // Persist only the selection; `hasHydrated` is runtime-only.
       partialize: (state) => ({ activeProfile: state.activeProfile }),
-      onRehydrateStorage: () => (state) => {
-        state?.setHasHydrated(true);
+      // The gate opens on EVERY path. zustand calls this back with an undefined
+      // state when hydration threw — exactly the case that must not strand the
+      // app — so fall back to the pre-hydration state handed to the factory,
+      // whose `setHasHydrated` closes over the same `set`.
+      onRehydrateStorage: (before) => (state) => {
+        (state ?? before).setHasHydrated(true);
       },
     },
   ),

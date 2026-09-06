@@ -91,6 +91,24 @@ var PROGRESS_THROTTLE_MS = 300;
 var MAX_PAGE_ENTRIES = 60;
 var MAX_STATIC_ENTRIES = 240;
 
+/**
+ * The per-profile API cache is bounded on both axes, for a reason the two caps
+ * above do not have. The browser evicts under storage pressure per ORIGIN,
+ * least recently used origin first, and it takes the whole origin: the saved
+ * chapters go with the catalogue that pushed it over. One entry per series
+ * ever opened, kept forever, was quietly spending the headroom the reader's
+ * downloads depend on — and it is the one cache that grows with ordinary use.
+ *
+ * The age cap covers the profile the entry cap never reaches: one used rarely
+ * writes too little to hit the cap, so without it last year's listings would
+ * sit there until the runtime generation is next bumped. Every entry carries
+ * the time it was stored (`STORED_AT_HEADER`), because the Cache API keeps no
+ * clock of its own and a server's `Date` is the server's clock, not this one.
+ */
+var MAX_API_ENTRIES = 200;
+var MAX_API_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+var STORED_AT_HEADER = "x-mm-stored-at";
+
 // --- Worker state ----------------------------------------------------------
 
 /**
@@ -160,11 +178,52 @@ async function savePersistedState(next) {
  * The (scope, apiBase) a request belongs to. Prefers the tab that made it and
  * falls back to the last published state — never to a default scope, because
  * "no scope" has to mean "no saved chapters", not "somebody's saved chapters".
+ *
+ * `trusted` records which of the two answered, because they are not equally
+ * good: the fallback is the scope whichever tab spoke last happened to publish,
+ * so it names the profile of exactly one tab and guesses for every other.
+ * `apiScope` below is what refuses to act on the guess.
  */
+function contextFor(clientId) {
+  var own = clientId ? clientScopes.get(clientId) : null;
+  if (own) return { scope: own.scope, apiBase: own.apiBase, trusted: true };
+  var stored = persistedState || { scope: null, apiBase: null };
+  return { scope: stored.scope, apiBase: stored.apiBase, trusted: false };
+}
+
 async function resolveContext(clientId) {
-  if (clientId && clientScopes.has(clientId)) return clientScopes.get(clientId);
-  var stored = await loadPersistedState();
-  return stored || { scope: null, apiBase: null };
+  await loadPersistedState();
+  return contextFor(clientId);
+}
+
+/**
+ * The scope whose per-profile caches may answer `request`, or null for "the
+ * network, and store nothing".
+ *
+ * A tab that has published its scope to THIS worker is answered from it. A tab
+ * that has not is the dangerous case: the browser terminates an idle worker
+ * after about thirty seconds, and the one that restarts in its place knows only
+ * the scope published last — answering every tab from that is how a reader on
+ * one profile is handed another profile's library, 18+ rows included. So a
+ * request that cannot name its tab has to name its profile instead:
+ * `X-Profile-Id` rides on every API call the page makes (`services/http.ts`)
+ * and a profile id is unique across the instance, so a header agreeing with the
+ * remembered scope identifies it as precisely as the tab would have. Missing or
+ * disagreeing means no cache at all — being uncached costs one request, being
+ * wrong costs somebody else's reading.
+ *
+ * Page images are the one thing this cannot cover, since an `<img>` cannot send
+ * a custom header; they keep resolving through the client scope above, and the
+ * start announcement at the bottom of this file is what shortens the window in
+ * which a restarted worker has none.
+ */
+function apiScope(request, context) {
+  if (!context || !context.scope) return null;
+  if (context.trusted) return context.scope;
+  var claimed = request.headers.get("x-profile-id");
+  return claimed !== null && claimed === String(context.scope.profileId)
+    ? context.scope
+    : null;
 }
 
 // --- Install / activate ----------------------------------------------------
@@ -231,8 +290,7 @@ self.addEventListener("fetch", function onFetch(event) {
   // the page; once it is in memory the whole decision is synchronous and the
   // worker stays out of the way of every request that is not its business.
   if (persistedStateLoaded) {
-    var context = clientScopes.get(event.clientId) ||
-      persistedState || { scope: null, apiBase: null };
+    var context = contextFor(event.clientId);
     var strategy = classify(request, context.apiBase);
     if (strategy === "bypass") return;
     event.respondWith(dispatch(event, request, strategy, context));
@@ -366,13 +424,63 @@ async function trimCache(cache, max) {
 }
 
 /**
+ * Every write into a per-profile API cache: store, then bound. The one path
+ * for both API strategies, so neither can grow the cache the other is trimming.
+ */
+function storeApi(cache, request, response) {
+  return cache.put(request, stampStoredAt(response)).then(function bound() {
+    return boundApiCache(cache);
+  });
+}
+
+/** The same response with the time it was stored on it — see MAX_API_AGE_MS. */
+function stampStoredAt(response) {
+  var headers = new Headers(response.headers);
+  headers.set(STORED_AT_HEADER, String(Date.now()));
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers: headers,
+  });
+}
+
+function storedAt(response) {
+  var stamp = Number(response.headers.get(STORED_AT_HEADER));
+  return Number.isFinite(stamp) && stamp > 0 ? stamp : 0;
+}
+
+/**
+ * Drop what is over the entry cap, then what is over the age cap.
+ *
+ * Both walk from the front of `keys()`, which is write order (see `trimCache`),
+ * so the age walk reads at most one fresh entry before it stops: the entry
+ * just written is at the back, and everything behind a fresh head is fresher
+ * still. That is what keeps this affordable on every write. An entry with no
+ * stamp predates the stamp and counts as expired, which is how caches written
+ * before it drain without a generation bump.
+ */
+async function boundApiCache(cache) {
+  var keys = await cache.keys();
+  var now = Date.now();
+  var i = 0;
+  for (; i < keys.length - MAX_API_ENTRIES; i += 1) {
+    await cache.delete(keys[i]);
+  }
+  for (; i < keys.length; i += 1) {
+    var hit = await cache.match(keys[i], { ignoreVary: true });
+    if (hit && now - storedAt(hit) < MAX_API_AGE_MS) break;
+    await cache.delete(keys[i]);
+  }
+}
+
+/**
  * Stale-while-revalidate, on the short allowlist in sw-policy.js only, in a
  * cache named for the active profile. Without a scope nothing is stored and
  * nothing is served: an unscoped cache would be exactly the leak this app has
  * spent the day removing from localStorage.
  */
 async function handleApiSwr(event, request, context) {
-  var cacheName = policy.apiCacheName(context.scope);
+  var cacheName = policy.apiCacheName(apiScope(request, context));
   if (cacheName === null) return fetch(request);
 
   var cache = await caches.open(cacheName);
@@ -381,7 +489,7 @@ async function handleApiSwr(event, request, context) {
   var revalidate = fetch(request)
     .then(function store(response) {
       if (policy.isCacheableResponse(response)) {
-        return cache.put(request, response.clone()).then(function pass() {
+        return storeApi(cache, request, response.clone()).then(function pass() {
           return response;
         });
       }
@@ -413,7 +521,7 @@ async function handleApiSwr(event, request, context) {
  * this is a plain fetch, exactly like the SWR path.
  */
 async function handleApiOfflineFallback(event, request, context) {
-  var cacheName = policy.apiCacheName(context.scope);
+  var cacheName = policy.apiCacheName(apiScope(request, context));
   if (cacheName === null) return fetch(request);
 
   var cache = await caches.open(cacheName);
@@ -421,7 +529,7 @@ async function handleApiOfflineFallback(event, request, context) {
     var response = await fetch(request);
     if (policy.isCacheableResponse(response)) {
       var copy = response.clone();
-      event.waitUntil(cache.put(request, copy));
+      event.waitUntil(storeApi(cache, request, copy));
     }
     return response;
   } catch {
@@ -443,14 +551,18 @@ async function handleSavedFirst(request, context) {
  * whenever there is one, and the saved copy is checked for drift as it does.
  */
 async function handleNetworkThenSaved(event, request, context) {
+  // `apiScope`, not the raw context: this both reads a saved chapter back and
+  // marks entries stale in that profile's index, and it is an API call, so it
+  // carries the header that says whose it is.
+  var scope = apiScope(request, context);
   try {
     var response = await fetch(request);
     if (policy.isCacheableResponse(response)) {
-      event.waitUntil(refreshSavedPayload(request, response.clone(), context.scope));
+      event.waitUntil(refreshSavedPayload(request, response.clone(), scope));
     }
     return response;
   } catch {
-    var hit = await matchSaved(request, context.scope);
+    var hit = await matchSaved(request, scope);
     return hit || Response.error();
   }
 }
@@ -787,6 +899,18 @@ async function ensureRoom(scope) {
   var pressure = policy.storagePressure(estimate, {});
   if (!pressure.known || !pressure.underPressure) return true;
 
+  // Everything that can be fetched again goes before anything that cannot. The
+  // API and document caches exist to save a round trip; a saved chapter exists
+  // for the moment there is no round trip to save. Dropping them whole rather
+  // than trimming them, because at this point the origin is about to be cleared
+  // by the browser instead — and it would not stop at the disposable half.
+  var disposable = policy.selectDisposableCaches(await caches.keys());
+  for (var d = 0; d < disposable.length; d += 1) {
+    await caches.delete(disposable[d]);
+    var eased = policy.storagePressure(await storageEstimate(), {});
+    if (!eased.underPressure) return true;
+  }
+
   var index = await readIndex(scope);
   var candidates = policy
     .selectExpiredKeys(index, Date.now(), {
@@ -901,6 +1025,25 @@ async function broadcastState() {
     if (!live.has(id)) clientScopes.delete(id);
   });
 }
+
+/**
+ * Tell every open tab that this worker has just started.
+ *
+ * A worker the browser terminated for being idle — thirty seconds of quiet is
+ * enough — comes back with `clientScopes` empty, and nothing on the page would
+ * otherwise notice: it publishes on mount and on a profile switch, both of
+ * which happened long ago. Each tab answers this by re-publishing its own
+ * scope, which is what puts the requests that carry no profile header of their
+ * own — page images — back on the right profile's cache.
+ */
+async function announceStart() {
+  var clientList = await self.clients.matchAll({ includeUncontrolled: true });
+  for (var i = 0; i < clientList.length; i += 1) {
+    clientList[i].postMessage({ type: "mm-offline/worker-started" });
+  }
+}
+
+announceStart().catch(noop);
 
 self.addEventListener("message", function onMessage(event) {
   var data = event.data;
