@@ -7,6 +7,7 @@ import 'package:manhwamaniacs/features/reader/models/reader_feed.dart';
 import 'package:manhwamaniacs/features/reader/models/reader_page.dart';
 import 'package:manhwamaniacs/features/reader/utils/page_extents.dart';
 import 'package:manhwamaniacs/features/reader/widgets/reader_content.dart';
+import 'package:manhwamaniacs/features/reader/widgets/reader_controls.dart';
 import 'package:manhwamaniacs/features/settings/models/reader_defaults.dart';
 import 'package:manhwamaniacs/shared/providers/core_providers.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -758,6 +759,150 @@ void main() {
 
         expect(controller.offset, moreOrLessEquals(settled, epsilon: 0.01));
         expect(find.text('Page 4 / 8'), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'a page resolving ABOVE the viewport mid-fling does not move the reader',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        final chapter = _dimensionlessChapter();
+        final extents = ReaderPageExtents(chapter.pages);
+        addTearDown(extents.dispose);
+
+        await tester.pumpWidget(
+          _wrapWithPrefs(
+            prefs,
+            ReaderContent(
+              feed: ReaderFeed.single(chapter),
+              scrollStorageKey: '1',
+              pageExtents: extents,
+              onBack: () {},
+              onOpenSeries: () {},
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final metrics = _metricsFor(tester, extents);
+        final controller = _listController(tester);
+        controller.jumpTo(metrics.offsetToPage(4));
+        await tester.pump();
+        expect(find.text('Page 4 / 8'), findsOneWidget);
+
+        // A fling, not a jump: the position is running a ballistic simulation
+        // when page 1's size lands. A simulation is absolute — every tick
+        // writes the offset it computed at fling start — and ticks run before
+        // layout, so a correction that only survives until the next layout
+        // is overwritten by the very next frame.
+        await tester.fling(find.byType(ListView), const Offset(0, -100), 600);
+        final flungTo = controller.offset;
+
+        final grownExtent = metrics.extentForRatio(900 / 16000);
+        final delta = grownExtent - metrics.extentAt(0);
+        expect(delta, greaterThan(6000), reason: 'fixture must grow a lot');
+
+        extents.submitMeasuredSize(0, pixelWidth: 900, pixelHeight: 16000);
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        // Let the fling finish.
+        await tester.pump(const Duration(seconds: 2));
+
+        final settled = _metricsFor(tester, extents);
+        expect(
+          settled.pageAtOffset(controller.offset),
+          greaterThanOrEqualTo(4),
+          reason: 'the reader was flinging forward from page 4; losing the '
+              'correction dumps them back onto page 1',
+        );
+        expect(
+          controller.offset,
+          greaterThanOrEqualTo(flungTo + delta - 1),
+          reason: 'everything below page 1 moved by delta and so must the '
+              'offset, on top of wherever the fling carried it',
+        );
+      },
+    );
+
+    testWidgets(
+      'scrubbing right after the window slides stays in the chapter on screen',
+      (tester) async {
+        final prefs = await _freshPrefs();
+
+        ReaderChapter chapterNamed(String id) => ReaderChapter(
+              id: id,
+              seriesId: '1',
+              title: 'Chapter $id',
+              pageCount: 6,
+              pages: List.generate(
+                6,
+                (index) => ReaderPage(
+                  id: '$id-$index',
+                  number: index + 1,
+                  imageUrl: 'http://example.test/$id/$index',
+                  width: 800,
+                  height: 2400,
+                ),
+              ),
+            );
+        final a = chapterNamed('A');
+        final b = chapterNamed('B');
+        final c = chapterNamed('C');
+        final d = chapterNamed('D');
+
+        Widget reader(ReaderFeed feed) => _wrapWithPrefs(
+              prefs,
+              ReaderContent(
+                feed: feed,
+                scrollStorageKey: '1',
+                onBack: () {},
+                onOpenSeries: () {},
+                onReachedFeedEnd: () async {},
+                onReachedFeedStart: () async {},
+              ),
+            );
+
+        await tester.pumpWidget(reader(ReaderFeed.of([a, b, c])));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        final controller = _listController(tester);
+        controller.jumpTo(controller.position.maxScrollExtent);
+        await tester.pump();
+        expect(find.text('Page 6 / 6'), findsOneWidget);
+        expect(
+          find.descendant(
+            of: find.byType(ReaderTopBar),
+            matching: find.text('Chapter C'),
+          ),
+          findsOneWidget,
+        );
+
+        // The window slides forward under a reader who has not moved since:
+        // the chapter on screen is now at a different index in the feed.
+        await tester.pumpWidget(reader(ReaderFeed.of([b, c, d])));
+        await tester.pump();
+
+        final rail = tester.getRect(find.byType(Slider));
+        await tester.tapAt(rail.center);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        // The rail spans the chapter on screen, so a tap on it must land in
+        // that chapter — never in the one that now sits at its old index.
+        expect(find.text('Page 6 / 6'), findsNothing);
+        expect(
+          find.descendant(
+            of: find.byType(ReaderTopBar),
+            matching: find.text('Chapter C'),
+          ),
+          findsOneWidget,
+          reason: 'the scrub resolved through a stale chapter index and '
+              'jumped into the next chapter',
+        );
       },
     );
 

@@ -247,6 +247,16 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
     }
 
     return chapterAsync.when(
+      // Only the FIRST resolution may show the skeleton or the error state.
+      // A change to one of the provider's dependencies (the downloads scope,
+      // the API base URL behind the payload) re-runs it as a *reload*, which
+      // `when` does not skip by default the way it skips an invalidate's
+      // refresh. Dropping to the skeleton there unmounts the whole reader,
+      // and a Read-all window that had slid past the route's chapter comes
+      // back rebuilt from that chapter — the same jump backwards by another
+      // door. What is on screen stays on screen until the new value lands.
+      skipLoadingOnReload: true,
+      skipError: true,
       loading: () => const ReaderSkeleton(),
       error: (error, _) {
         final appError = error is AppError

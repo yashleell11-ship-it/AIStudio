@@ -388,6 +388,14 @@ class _ReaderContentState extends ConsumerState<ReaderContent> {
     }
     _prefetchedThrough = (_prefetchedThrough - droppedLeading + addedLeading)
         .clamp(0, after.length);
+    // The chrome's idea of "which chapter" is an index into the feed, and
+    // the feed's indices just moved. A slide scrolls nothing — that is the
+    // whole point of the correction below — so nothing refreshes this until
+    // the reader next moves, and a scrub in that gap resolved through the
+    // OLD index into whatever chapter now sits at it: one chapter ahead.
+    _positionNotifier.value = _positionAt(
+      _positionNotifier.value.flatIndex - droppedLeading + addedLeading,
+    );
 
     final metrics = _cachedMetrics = _buildMetrics();
     // The first surviving page's own top edge, then and now. Its seam divider
