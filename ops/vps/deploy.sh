@@ -29,9 +29,13 @@ EDGE_DIR=/opt/mcbots/edge
 CF_ID=e40ede74-c9c0-454d-9983-3a6ce2866a47
 
 ensure_dirs() {
-  for d in data apk ipa; do mkdir -p "$DATA_ROOT/$d"; done
+  for d in data apk ipa backups; do mkdir -p "$DATA_ROOT/$d"; done
   # backend runs as uid 1000; it must own the data dir
   sudo chown -R 1000:1000 "$DATA_ROOT/data" || true
+  # Backups are written by the HOST `ubuntu` user (also uid 1000), never by the
+  # container, and live beside the data on the big /srv disk rather than the
+  # root disk, which the Docker build cache keeps near full.
+  sudo chown 1000:1000 "$DATA_ROOT/backups" || true
 }
 
 cmd_deploy() {
@@ -431,10 +435,54 @@ RandomizedDelaySec=60
 WantedBy=timers.target
 EOF
 
+  # ---- nightly database backup (ops/vps/backup-db.sh) ---------------------
+  # Until this existed the ONLY copies of the database were whatever the owner
+  # had manually downloaded through the admin export button — a disk loss took
+  # every account, follow, progress row and bookmark with it.
+  local backup="$REPO/ops/vps/backup-db.sh"
+  [ -x "$backup" ] || { echo "!! $backup missing or not executable" >&2; exit 1; }
+  sudo tee /etc/systemd/system/mm-db-backup.service >/dev/null <<EOF
+[Unit]
+Description=Nightly consistent snapshot of the ManhwaManiacs SQLite database
+Documentation=file://$backup
+# The database lives on the /srv disk; do not run before it is mounted.
+RequiresMountsFor=$DATA_ROOT
+
+[Service]
+Type=oneshot
+# uid 1000 == the container's app user, which owns $DATA_ROOT/data. The script
+# reads the file directly (?mode=ro), so a wedged container cannot block it.
+User=ubuntu
+Group=ubuntu
+Environment=MM_DB_PATH=$DATA_ROOT/data/manhwamaniacs.db
+Environment=MM_BACKUP_ROOT=$DATA_ROOT/backups
+ExecStart=$backup run
+# A 21 MB database snapshots in ~0.1s; this only guards against a hung disk.
+TimeoutStartSec=300
+Nice=10
+IOSchedulingClass=idle
+EOF
+
+  sudo tee /etc/systemd/system/mm-db-backup.timer >/dev/null <<'EOF'
+[Unit]
+Description=Back up the ManhwaManiacs database every night
+
+[Timer]
+OnCalendar=*-*-* 03:30:00 UTC
+# A missed night (box powered off) runs at the next boot rather than being
+# skipped altogether.
+Persistent=true
+RandomizedDelaySec=10min
+
+[Install]
+WantedBy=timers.target
+EOF
+
   sudo systemctl daemon-reload
   sudo systemctl enable --now mm-fetch-ios.timer
-  echo ">> timer active:"
-  systemctl list-timers mm-fetch-ios.timer --no-pager | head -3
+  sudo systemctl enable --now mm-db-backup.timer
+  echo ">> timers active:"
+  systemctl list-timers mm-fetch-ios.timer mm-db-backup.timer --no-pager | head -4
 }
 
 case "${1:-deploy}" in
