@@ -13,12 +13,16 @@ silently rewinds a reader that synced an older device.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from time import sleep
 from typing import TYPE_CHECKING, Annotated, Any
 
 from fastapi import Depends
 from sqlalchemy import and_, select, tuple_
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from connectors.ids import fully_unquote
@@ -31,7 +35,7 @@ from core.content_rating import (
 )
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
-from core.time_utils import utcnow
+from core.time_utils import clamp_client_clock, utcnow
 from database.models import ChapterProgress, FollowedSeries, ReadingSession
 from database.session import get_db
 from services.browse_service import BrowseService, get_browse_service
@@ -43,6 +47,57 @@ if TYPE_CHECKING:  # pragma: no cover - typing only
 #: (``followed_series_service._IN_CHUNK``): three bound parameters per key, so
 #: 400 keys stay inside even the old 999-variable SQLite ceiling.
 _IN_CHUNK = 300
+
+#: Most reading time ONE push may claim, in seconds.
+#:
+#: The seconds are not just a counter: ``_apply_one`` back-dates the session it
+#: writes by them, so an unbounded value does not merely inflate a total, it
+#: invents *history* — one push claiming three days plants an active day three
+#: days ago, bridges a broken streak and fills the daily chart with reading
+#: that never happened. Both clients already cap their own delta far lower (300
+#: s: ``reading_clock.dart``, ``reading-clock.ts``) and the phone's outbox sums
+#: those deltas per chapter before it flushes, so an hour is well above any
+#: honest push and a refusal to believe anything past it. It is the same number
+#: as ``reading_stats_service.SESSION_SECONDS_CAP`` — which already declines to
+#: count more than an hour out of a single session — deliberately: a value the
+#: read path would throw away has no business back-dating a row on the way in.
+#: Not imported from there, because that cap is a *reading* policy free to
+#: change without touching what is stored.
+MAX_PUSH_SECONDS = 3600
+
+#: How far a client's clock may run BEHIND the server before its stamp stops
+#: being evidence of anything.
+#:
+#: ``clamp_client_clock`` caps only the future, on purpose — a week-old offline
+#: push must stay a week old — so the past has no floor at all. A client whose
+#: ``last_read_at`` serializes as its DateTime *default* therefore writes a
+#: 1970 ``chapter_progress`` row and a 1970 ``reading_sessions`` row, and
+#: ``reading_stats_service._active_days`` scans the whole table rather than a
+#: window: that one row owns ``first_session_at`` and the longest-streak run
+#: for as long as the profile exists, and no later reading can dislodge it.
+#:
+#: The window is deliberately enormous rather than tight. Every stamp inside it
+#: is believed verbatim, and the fallback for one outside it is ``now`` — which
+#: is a lie in the other direction, so the floor must only ever catch a clock
+#: that is broken rather than a device that was genuinely away. Nothing in this
+#: database predates the 2026 baseline (``alembic/versions/0001_source_native``
+#: wiped everything before it), so five years is already unreachable by any
+#: honest push and is still far above the epoch, which is the value actually
+#: observed. A device whose clock is merely a year or two wrong is believed;
+#: that is the trade, and it is the right way round.
+MAX_CLIENT_CLOCK_AGE = timedelta(days=5 * 365)
+
+#: Seconds to tell a client to wait after a 503 ``db_busy``.
+RETRY_AFTER_SECONDS = 2
+
+#: Attempts a progress write gets before it gives up. Each one already waits up
+#: to ``busy_timeout`` (5 s, ``database/session.py``) for SQLite's single
+#: writer, so this is one more full budget, not a busy-loop.
+_WRITE_ATTEMPTS = 2
+
+#: Pause between those attempts. Long enough for the winning writer's commit to
+#: land, short enough to be invisible next to the wait that preceded it.
+_WRITE_RETRY_DELAY = 0.05
 
 
 # ---------------------------------------------------------------------------
@@ -81,6 +136,27 @@ class MergedProgress:
     advanced: bool  # did the stored position actually move forward?
 
 
+def _believable_stamp(stamp: datetime | None, now: datetime) -> datetime:
+    """The instant a push is taken to have happened.
+
+    The client's own clock when it is plausible — that is the whole point of
+    letting it stamp its writes (``routes.reader.ProgressRequest``) — capped
+    into the present when it runs ahead (``clamp_client_clock``), and replaced
+    by ``now`` when it sent nothing at all or a stamp older than
+    :data:`MAX_CLIENT_CLOCK_AGE`.
+
+    Applied here rather than at the route because this is where a stamp turns
+    into stored history: ``merge_progress`` hands it to ``last_read_at``,
+    ``started_at`` and the back-dated ``reading_sessions`` row, and every
+    in-process caller (offline batches, the tests) reaches those through the
+    service without passing a request model at all.
+    """
+    stamp = clamp_client_clock(stamp, now=now)
+    if stamp is None or stamp < now - MAX_CLIENT_CLOCK_AGE:
+        return now
+    return stamp
+
+
 def _position(chapter_number: float | None, last_page: int) -> tuple[float, int]:
     """The comparable position tuple.
 
@@ -112,6 +188,37 @@ def _resolve_number(primary: float | None, fallback: float | None) -> float | No
     return primary if primary is not None else fallback
 
 
+def _credited_seconds(
+    stored: MergedProgress | None,
+    incoming: ProgressInput,
+    incoming_read_at: datetime,
+) -> int:
+    """The seconds this push may ADD to the chapter's stored total.
+
+    ``time_spent_seconds`` is a delta — the time since *this client's* previous
+    push — and it arrives with no id of its own, so two rules stand between it
+    and the ledger.
+
+    **A delta is believed once.** The phone deletes an outbox row only after
+    the 2xx, so a lost response, a kill mid-flush, or two flushes overlapping
+    re-send the identical row, and ``stored + incoming`` bills those minutes
+    again every time it happens. The device's own ``last_read_at`` is the only
+    idempotency key on the wire, and a replay carries exactly the stamp the row
+    already recorded — so a push whose clock is not strictly newer than
+    ``stored.last_read_at`` contributes no time. The position merge below still
+    runs on it: furthest-wins was always idempotent, and this only refuses to
+    pay twice.
+
+    **A delta is bounded** (:data:`MAX_PUSH_SECONDS`) — see there for why an
+    unbounded one is a history-rewriting bug rather than a large number.
+    """
+    if incoming.time_spent_seconds <= 0:
+        return 0
+    if stored is not None and incoming_read_at <= stored.last_read_at:
+        return 0
+    return min(MAX_PUSH_SECONDS, incoming.time_spent_seconds)
+
+
 def merge_progress(
     stored: MergedProgress | None,
     incoming: ProgressInput,
@@ -121,13 +228,16 @@ def merge_progress(
     """Furthest-wins merge (spec §3.3).
 
     * Position ``(chapter_number, last_page)`` only ever moves forward.
-    * ``last_read_at`` decides *only* when the position tuple is equal.
+    * ``last_read_at`` decides *only* when the position tuple is equal, and is
+      the client's own stamp only as far as :func:`_believable_stamp` will go.
     * ``is_completed`` is sticky — once true it stays true; ``completed_at`` is
       stamped the first time it becomes true and never moved.
-    * ``time_spent_seconds`` accumulates.
+    * ``time_spent_seconds`` accumulates, by whatever
+      :func:`_credited_seconds` will believe of this push.
     """
     now = now or utcnow()
-    incoming_read_at = incoming.last_read_at or now
+    incoming_read_at = _believable_stamp(incoming.last_read_at, now)
+    credited = _credited_seconds(stored, incoming, incoming_read_at)
 
     if stored is None:
         completed_at = now if incoming.is_completed else None
@@ -139,7 +249,7 @@ def merge_progress(
             is_completed=bool(incoming.is_completed),
             last_read_at=incoming_read_at,
             completed_at=completed_at,
-            time_spent_seconds=max(0, incoming.time_spent_seconds),
+            time_spent_seconds=credited,
             advanced=True,
         )
 
@@ -155,7 +265,7 @@ def merge_progress(
     completed_at = stored.completed_at
     if is_completed and completed_at is None:
         completed_at = incoming_read_at if incoming.is_completed else now
-    time_spent = stored.time_spent_seconds + max(0, incoming.time_spent_seconds)
+    time_spent = stored.time_spent_seconds + credited
     # last_read_at always advances to the most recent real read.
     last_read_at = max(stored.last_read_at, incoming_read_at)
 
@@ -463,27 +573,26 @@ class ProgressService:
                 )
             ).scalar_one_or_none()
 
-        merged = merge_progress(
-            _row_to_merged(row) if row is not None else None, payload
-        )
-
-        # Captured BEFORE the row is mutated below: a session records only the
-        # stretch this push covered, not the chapter's whole history.
-        previous_last_page = row.last_page if row is not None else 0
-        previous_time_spent = row.time_spent_seconds if row is not None else 0
-
         if row is None:
-            row = ChapterProgress(
-                user_id=user_id,
-                profile_id=profile_id,
-                source_id=source_id,
-                series_key=series_key,
-                chapter_key=chapter_key,
-                started_at=merged.last_read_at,
+            merged = merge_progress(None, payload)
+            row, created = self._claim_row(
+                user_id, profile_id, source_id, series_key, chapter_key, merged
             )
-            self._db.add(row)
             if prefetched is not None:
                 prefetched[(source_id, series_key, chapter_key)] = row
+        else:
+            created = False
+
+        # Captured BEFORE the row is mutated below: a session records only the
+        # stretch this push covered, not the chapter's whole history. A row
+        # this call created has no history at all, and already holds `merged`.
+        if created:
+            previous_last_page = 0
+            previous_time_spent = 0
+        else:
+            merged = merge_progress(_row_to_merged(row), payload)
+            previous_last_page = row.last_page
+            previous_time_spent = row.time_spent_seconds
 
         row.chapter_number = merged.chapter_number
         row.last_page = merged.last_page
@@ -496,18 +605,34 @@ class ProgressService:
 
         self._db.flush()
 
-        # A reading session per *advance*, not per push. Clients ping progress
-        # repeatedly for the same page (autosave, scroll settle), and one row
-        # per ping would bury the real reading history in noise while inflating
-        # every statistic built from it. `advanced` is already the merge's own
-        # answer to "did this move forward", so sessions and the furthest-wins
-        # position can never disagree about whether reading happened.
-        if merged.advanced:
-            # +1 because the previous position was already read: resuming at
-            # page 5 and reaching 8 is three pages (6, 7, 8), not four. A first
-            # push has no previous position, so it starts at page 1.
-            start_page = previous_last_page + 1 if previous_last_page else 1
-            elapsed = max(0, merged.time_spent_seconds - previous_time_spent)
+        # A reading session per *advance*, or per push that carried reading
+        # time. Clients ping progress repeatedly for the same page (autosave,
+        # scroll settle), and one row per ping would bury the real history in
+        # noise — but such a ping reports no seconds either, so `elapsed` sorts
+        # it out without the collateral damage `advanced` alone caused: under
+        # furthest-wins NOTHING advances while a chapter is re-read, so a
+        # chapter read a second time charged its minutes to `chapter_progress`
+        # and wrote nothing here at all. The statistics screen then reported no
+        # reading, no time and a broken streak for a day spent reading, and the
+        # live table showed the shape of it — every session zero-length,
+        # because only the pushes that also moved the position were ever
+        # recorded.
+        elapsed = max(0, merged.time_spent_seconds - previous_time_spent)
+        if merged.advanced or elapsed:
+            if merged.advanced:
+                # +1 because the previous position was already read: resuming
+                # at page 5 and reaching 8 is three pages (6, 7, 8), not four.
+                # A first push has no previous position, so it starts at page 1.
+                start_page = previous_last_page + 1 if previous_last_page else 1
+                end_page = merged.last_page
+                pages_read = None  # the inclusive span
+            else:
+                # Time on ground the row already covers. The page the client
+                # named is the honest span — one page re-read — and when it is
+                # the page the row already points at, nothing new was read at
+                # all, so the session carries the time and no pages.
+                start_page = end_page = max(1, payload.last_page)
+                pages_read = 0 if payload.last_page == previous_last_page else 1
             ended_at = merged.last_read_at
             self.record_session(
                 source_id=source_id,
@@ -515,7 +640,8 @@ class ProgressService:
                 chapter_key=chapter_key,
                 chapter_number=merged.chapter_number,
                 start_page=start_page,
-                end_page=merged.last_page,
+                end_page=end_page,
+                pages_read=pages_read,
                 # Only claim a start time the client actually reported. Without
                 # elapsed time, a zero-length session is honest; inventing a
                 # duration would corrupt the time-read statistic outright.
@@ -528,10 +654,125 @@ class ProgressService:
 
         return row, merged
 
+    def _claim_row(
+        self,
+        user_id: int,
+        profile_id: int,
+        source_id: str,
+        series_key: str,
+        chapter_key: str,
+        merged: MergedProgress,
+    ) -> tuple[ChapterProgress, bool]:
+        """Insert this chapter's first row, or hand back whoever beat us to it.
+
+        Returns ``(row, created)``; ``created`` False means another connection
+        inserted the same chapter between our SELECT and ours, so the caller
+        must redo its merge against THAT row.
+
+        The lookup ran outside SQLite's write lock — pysqlite runs a SELECT in
+        autocommit and the INSERT only takes the lock at flush — so two first
+        pushes for one chapter (the phone flushing its outbox while the web
+        reader live-pushes, or one autosave firing twice) can both see "no row"
+        and both insert. A plain ORM insert makes the loser trip
+        ``uq_chapter_progress``, and an unhandled IntegrityError is a 500 for a
+        push whose entire job was to merge.
+
+        The violation is therefore prevented rather than caught: ``ON CONFLICT
+        DO NOTHING`` leaves the transaction intact, and reading the row back
+        gives the loser the winner's row to merge onto — what it would have
+        done had its SELECT run a moment later. Catching the IntegrityError
+        instead would need a SAVEPOINT to keep the session usable, and pysqlite
+        emits no BEGIN of its own, so releasing that savepoint would commit a
+        batch's earlier items behind its back.
+
+        ``RETURNING`` keeps the winning path at ONE statement, which is what an
+        insert cost before this: the row comes back as a live ORM object, and
+        only the loser — who has to see somebody else's row anyway — pays for a
+        SELECT.
+        """
+        inserted = self._db.scalars(
+            sqlite_insert(ChapterProgress)
+            .values(
+                user_id=user_id,
+                profile_id=profile_id,
+                source_id=source_id,
+                series_key=series_key,
+                chapter_key=chapter_key,
+                chapter_number=merged.chapter_number,
+                last_page=merged.last_page,
+                page_count=merged.page_count,
+                scroll_offset_px=merged.scroll_offset_px,
+                is_completed=merged.is_completed,
+                started_at=merged.last_read_at,
+                last_read_at=merged.last_read_at,
+                completed_at=merged.completed_at,
+                time_spent_seconds=merged.time_spent_seconds,
+            )
+            .on_conflict_do_nothing(
+                index_elements=[
+                    ChapterProgress.user_id,
+                    ChapterProgress.profile_id,
+                    ChapterProgress.source_id,
+                    ChapterProgress.series_key,
+                    ChapterProgress.chapter_key,
+                ]
+            )
+            .returning(ChapterProgress)
+        ).one_or_none()
+        if inserted is not None:
+            return inserted, True
+        row = self._db.execute(
+            self._scope(
+                select(ChapterProgress).where(
+                    ChapterProgress.source_id == source_id,
+                    ChapterProgress.series_key == series_key,
+                    ChapterProgress.chapter_key == chapter_key,
+                )
+            )
+        ).scalar_one()
+        return row, False
+
+    def _write(self, apply: Callable[[], dict[str, Any]]) -> dict[str, Any]:
+        """Run one write unit, retrying once if SQLite's writer is busy.
+
+        A progress write that raises ``database is locked`` has already waited
+        out ``busy_timeout`` (5 s) behind the update sweep or someone's 200-item
+        offline flush. Left alone it reaches ``core.errors``'s catch-all as a
+        500 ``internal_error``: the reader's keep-alive is dropped, and the
+        client cannot tell "come back in a second" from "this request will
+        never work" — so every device in the busy window retries at whatever
+        cadence it feels like, at the writer that is already saturated.
+
+        So: one more attempt (the lock is transient by definition), and if it
+        is still held, a 503 the clients can read, carrying the wait in
+        ``details`` for the ``Retry-After`` the route attaches. Rolling back
+        first is not optional — SQLAlchemy refuses every later statement on a
+        session whose flush failed.
+        """
+        for attempt in range(_WRITE_ATTEMPTS):
+            try:
+                return apply()
+            except OperationalError as exc:
+                if "locked" not in str(exc.orig or exc).lower():
+                    raise
+                self._db.rollback()
+                if attempt + 1 == _WRITE_ATTEMPTS:
+                    raise AppError(
+                        "The database is busy. Try again in a moment.",
+                        code="db_busy",
+                        status_code=503,
+                        details={"retry_after_seconds": RETRY_AFTER_SECONDS},
+                    ) from exc
+                sleep(_WRITE_RETRY_DELAY)
+        raise AssertionError("unreachable: the last attempt returns or raises")
+
     def save_one(self, payload: ProgressInput) -> dict[str, Any]:
-        row, merged = self._apply_one(payload)
-        self._db.commit()
-        return {**self._serialize(row), "advanced": merged.advanced}
+        def apply() -> dict[str, Any]:
+            row, merged = self._apply_one(payload)
+            self._db.commit()
+            return {**self._serialize(row), "advanced": merged.advanced}
+
+        return self._write(apply)
 
     def save_batch(self, payloads: list[ProgressInput]) -> dict[str, Any]:
         """Offline-sync catch-up, applied in ONE transaction.
@@ -541,22 +782,27 @@ class ProgressService:
         SQLite for a single request, which let one large batch monopolise the
         writer (audit finding 12; the route also caps the batch length).
         """
-        prefetched = self._prefetch(payloads)
-        applied = [self._apply_one(p, prefetched=prefetched) for p in payloads]
-        self._db.commit()
-        results = []
-        for row, merged in applied:
-            # No refresh(). The session is created with expire_on_commit=False
-            # and _apply_one flushes, so every column -- including the
-            # Python-side defaults -- is already loaded on the object. The
-            # refresh was one extra SELECT per item, 200 of them for a full
-            # batch, to re-read values this process had just written.
-            results.append({**self._serialize(row), "advanced": merged.advanced})
-        return {
-            "saved": len(results),
-            "advanced": sum(1 for r in results if r.get("advanced")),
-            "items": results,
-        }
+        def apply() -> dict[str, Any]:
+            # Prefetched inside, so a retry after a busy writer re-reads rather
+            # than merging onto rows a rollback has already detached.
+            prefetched = self._prefetch(payloads)
+            applied = [self._apply_one(p, prefetched=prefetched) for p in payloads]
+            self._db.commit()
+            results = []
+            for row, merged in applied:
+                # No refresh(). The session is created with expire_on_commit=False
+                # and _apply_one flushes, so every column -- including the
+                # Python-side defaults -- is already loaded on the object. The
+                # refresh was one extra SELECT per item, 200 of them for a full
+                # batch, to re-read values this process had just written.
+                results.append({**self._serialize(row), "advanced": merged.advanced})
+            return {
+                "saved": len(results),
+                "advanced": sum(1 for r in results if r.get("advanced")),
+                "items": results,
+            }
+
+        return self._write(apply)
 
     def get_series_progress(
         self, source_id: str, series_key: str
@@ -682,12 +928,19 @@ class ProgressService:
         chapter_number: float | None,
         start_page: int,
         end_page: int,
+        pages_read: int | None = None,
         started_at: datetime | None = None,
         ended_at: datetime | None = None,
         commit: bool = True,
     ) -> None:
+        """``pages_read`` defaults to the inclusive span the two pages describe.
+        It is passed explicitly for a session that covered no new ground — the
+        reader spent the time on the page the row already points at — because
+        an inclusive span can never say zero.
+        """
         user_id, profile_id = self._require_profile()
-        pages_read = max(0, end_page - start_page + 1)
+        if pages_read is None:
+            pages_read = max(0, end_page - start_page + 1)
         row = ReadingSession(
             user_id=user_id,
             profile_id=profile_id,

@@ -10,6 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from services.progress_service import (
+    MAX_PUSH_SECONDS,
     MergedProgress,
     ProgressInput,
     merge_progress,
@@ -135,6 +136,40 @@ def test_time_spent_accumulates():
         now=T2,
     )
     assert m.time_spent_seconds == 105
+
+
+def test_a_replayed_delta_is_not_added_twice():
+    """The stamp the row already recorded identifies a re-send: the outbox
+    deletes its row only after the 2xx, so a lost response replays it."""
+    m = merge_progress(
+        _stored(time_spent_seconds=60, last_read_at=T1),
+        _push(time_spent_seconds=60, last_read_at=T1),
+        now=T2,
+    )
+    assert m.time_spent_seconds == 60
+
+
+def test_a_stale_devices_delta_is_not_added():
+    m = merge_progress(
+        _stored(time_spent_seconds=60, last_read_at=T2),
+        _push(time_spent_seconds=45, last_read_at=T1),
+        now=T2,
+    )
+    assert m.time_spent_seconds == 60
+
+
+def test_one_push_cannot_claim_more_than_the_cap():
+    """The seconds back-date the session written from them, so an unbounded
+    delta invents days of reading history rather than merely a big number."""
+    m = merge_progress(
+        _stored(time_spent_seconds=60),
+        _push(time_spent_seconds=3 * 86400, last_read_at=T2),
+        now=T2,
+    )
+    assert m.time_spent_seconds == 60 + MAX_PUSH_SECONDS
+
+    first = merge_progress(None, _push(time_spent_seconds=3 * 86400), now=T2)
+    assert first.time_spent_seconds == MAX_PUSH_SECONDS
 
 
 def test_page_count_never_decreases():

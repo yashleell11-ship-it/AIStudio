@@ -15,7 +15,11 @@ from datetime import datetime, timedelta
 
 import pytest
 
-from services.progress_service import ProgressInput, ProgressService
+from services.progress_service import (
+    MAX_PUSH_SECONDS,
+    ProgressInput,
+    ProgressService,
+)
 
 T0 = datetime(2026, 1, 1, 12, 0, 0)
 
@@ -181,7 +185,9 @@ def test_a_resumed_chapter_counts_only_the_newly_read_pages(svc, db_session):
     assert (rows[1].start_page, rows[1].end_page, rows[1].pages_read) == (6, 8, 3)
 
 
-def test_a_push_that_does_not_advance_records_no_session(svc, db_session):
+def test_a_push_that_does_not_advance_and_reports_no_time_records_no_session(
+    svc, db_session
+):
     common = {
         "source_id": "asurascans",
         "series_key": "a/b",
@@ -192,10 +198,108 @@ def test_a_push_that_does_not_advance_records_no_session(svc, db_session):
     svc.save_one(ProgressInput(**common, last_page=9, last_read_at=T0))
     # Clients re-push the same position constantly (autosave, scroll settle).
     # One row per ping would bury the real history and inflate every statistic.
+    # A ping like that reports no seconds either, which is what keeps it out.
     svc.save_one(ProgressInput(**common, last_page=9, last_read_at=T0))
     svc.save_one(ProgressInput(**common, last_page=4, last_read_at=T0))
 
     assert len(_sessions(db_session)) == 1
+
+
+def test_a_non_advancing_push_that_carried_time_records_a_session(svc, db_session):
+    """Re-reading is reading. Furthest-wins means no push advances while a
+    finished chapter is read again, and gating the session on ``advanced``
+    alone charged those minutes to ``chapter_progress`` and nothing at all to
+    ``reading_sessions`` — the ledger every statistic is built from."""
+    common = {
+        "source_id": "asurascans",
+        "series_key": "a/b",
+        "chapter_key": "a/b/c-1",
+        "chapter_number": 1.0,
+        "page_count": 20,
+    }
+    svc.save_one(ProgressInput(**common, last_page=20, last_read_at=T0))
+    svc.save_one(
+        ProgressInput(
+            **common,
+            last_page=3,
+            time_spent_seconds=90,
+            last_read_at=T0 + timedelta(minutes=5),
+        )
+    )
+
+    rows = _sessions(db_session)
+    assert len(rows) == 2
+    # One page, re-read, for the ninety seconds the client reported.
+    assert (rows[1].start_page, rows[1].end_page, rows[1].pages_read) == (3, 3, 1)
+    assert rows[1].duration_seconds == 90
+
+
+def test_time_on_the_page_the_row_already_points_at_counts_no_pages(svc, db_session):
+    common = {
+        "source_id": "asurascans",
+        "series_key": "a/b",
+        "chapter_key": "a/b/c-1",
+        "chapter_number": 1.0,
+        "page_count": 20,
+    }
+    svc.save_one(ProgressInput(**common, last_page=7, last_read_at=T0))
+    svc.save_one(
+        ProgressInput(
+            **common,
+            last_page=7,
+            time_spent_seconds=45,
+            last_read_at=T0 + timedelta(minutes=1),
+        )
+    )
+
+    rows = _sessions(db_session)
+    assert rows[1].pages_read == 0
+    assert rows[1].duration_seconds == 45
+
+
+def test_a_replayed_push_adds_no_time_and_no_session(svc, db_session):
+    """``time_spent_seconds`` is a delta with no id; the device's own
+    ``last_read_at`` is the only thing that can tell a replay from a read. The
+    phone deletes an outbox row only after the 2xx, so this exact re-send
+    happens on every lost response."""
+    push = ProgressInput(
+        source_id="asurascans",
+        series_key="a/b",
+        chapter_key="a/b/c-1",
+        chapter_number=1.0,
+        last_page=12,
+        page_count=20,
+        time_spent_seconds=120,
+        last_read_at=T0,
+    )
+    first = svc.save_one(push)
+    replay = svc.save_one(push)
+
+    assert first["time_spent_seconds"] == 120
+    assert replay["time_spent_seconds"] == 120
+    assert len(_sessions(db_session)) == 1
+
+
+def test_one_push_cannot_claim_more_than_the_cap(svc, db_session):
+    """An unbounded delta does not just inflate a total: ``started_at`` is
+    ``last_read_at - elapsed``, so it back-dates the session and invents active
+    days (and a streak) that never happened."""
+    svc.save_one(
+        ProgressInput(
+            source_id="asurascans",
+            series_key="a/b",
+            chapter_key="a/b/c-1",
+            chapter_number=1.0,
+            last_page=5,
+            page_count=20,
+            time_spent_seconds=3 * 86400,
+            last_read_at=T0,
+        )
+    )
+
+    row = _sessions(db_session)[0]
+    assert row.duration_seconds == MAX_PUSH_SECONDS
+    assert row.started_at == T0 - timedelta(seconds=MAX_PUSH_SECONDS)
 
 
 def test_batch_progress_records_sessions_in_one_transaction(svc, db_session):
