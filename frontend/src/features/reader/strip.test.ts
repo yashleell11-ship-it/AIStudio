@@ -12,6 +12,7 @@ import {
   shouldPersistFrozenHeights,
   stripChapterLabel,
   stripPositionAt,
+  stripStandingHeights,
   type StripChapter,
 } from "./strip";
 
@@ -334,5 +335,34 @@ describe("nextChapterLabelFor", () => {
 
   it("falls back for an unnumbered chapter", () => {
     expect(nextChapterLabelFor({ ...numbered, chapterNumber: null })).toBe("Next chapter");
+  });
+});
+
+describe("stripStandingHeights", () => {
+  const rows = buildStripRows([one, two]);
+
+  it("reads a chapter's page rows at the height the strip is actually standing at", () => {
+    // ch-1 page 2 never decoded (a failed image keeps its placeholder box), so
+    // the strip's own record has nothing for it while the virtualizer measured
+    // the placeholder. The spacer must stand at THAT height, or releasing the
+    // chapter above the reader moves every page under them by the difference.
+    const standing = stripStandingHeights(rows, "ch-1", (index) =>
+      [1400, 2611.2, 1500][index],
+    );
+    expect([...standing]).toEqual([
+      ["ch-1:1", 1400],
+      ["ch-1:2", 2611.2],
+      ["ch-1:3", 1500],
+    ]);
+  });
+
+  it("skips rows the virtualizer has no measurement for", () => {
+    const standing = stripStandingHeights(rows, "ch-1", () => undefined);
+    expect(standing.size).toBe(0);
+  });
+
+  it("ignores the divider and every other chapter's rows", () => {
+    const standing = stripStandingHeights(rows, "ch-2", () => 100);
+    expect([...standing.keys()]).toEqual(["ch-2:1", "ch-2:2"]);
   });
 });

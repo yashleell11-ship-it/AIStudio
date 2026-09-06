@@ -5,6 +5,7 @@ import {
   estimateResumeOffset,
   resetChapterScrollPreparationForTests,
   restoreChapterScroll,
+  scrollRestoreLanded,
   syncChapterScroll,
 } from "./scroll-preparation";
 
@@ -78,15 +79,22 @@ describe("syncChapterScroll", () => {
     expect(element.scrollTop).toBe(450);
   });
 
-  it("re-syncs when the target offset changes for the same chapter", () => {
+  it("applies a strip's opening offset once; a re-estimate of it does not move a reader who has scrolled on", () => {
     const element = {
       scrollTop: 0,
     } as HTMLElement;
 
-    syncChapterScroll("chapter-1", element, 0);
     syncChapterScroll("chapter-1", element, 2400);
-
     expect(element.scrollTop).toBe(2400);
+
+    // Three chapters further into the same strip, the reader changes zoom. The
+    // opening offset is re-estimated at the new zoom (page heights scale with
+    // it), but it is still the offset the strip OPENED at — re-applying it
+    // would throw the reader back to the entry chapter.
+    element.scrollTop = 38_000;
+    syncChapterScroll("chapter-1", element, 2880);
+
+    expect(element.scrollTop).toBe(38_000);
   });
 
   it("allows a new chapter key to be prepared independently", () => {
@@ -162,5 +170,39 @@ describe("restoreChapterScroll", () => {
 
     expect(restoreChapterScroll(element, 0)).toBe(false);
     expect(element.scrollTop).toBe(0);
+  });
+
+  it("treats a fractional target the browser has snapped to a pixel as already restored", () => {
+    // Browsers keep scrollTop on device pixels: written 2611.2 (768px column x
+    // the 3.4 aspect prior), a 1x display reads back 2611 — for ever. A restore
+    // that keeps writing until the read-back is EXACTLY equal never finishes.
+    let value = 0;
+    const element = {
+      get scrollTop() {
+        return value;
+      },
+      set scrollTop(next: number) {
+        value = Math.round(next);
+      },
+    } as HTMLElement;
+
+    expect(restoreChapterScroll(element, 2611.2)).toBe(true);
+    expect(element.scrollTop).toBe(2611);
+    expect(restoreChapterScroll(element, 2611.2)).toBe(false);
+  });
+});
+
+describe("scrollRestoreLanded", () => {
+  it("is landed within a device pixel of a fractional target", () => {
+    expect(scrollRestoreLanded({ scrollTop: 2611 } as HTMLElement, 2611.2)).toBe(true);
+    expect(scrollRestoreLanded({ scrollTop: 2611.5 } as HTMLElement, 2611.2)).toBe(true);
+  });
+
+  it("is not landed while the browser has clamped the write short", () => {
+    expect(scrollRestoreLanded({ scrollTop: 1900 } as HTMLElement, 2611.2)).toBe(false);
+  });
+
+  it("is not landed for a missing element", () => {
+    expect(scrollRestoreLanded(null, 2611.2)).toBe(false);
   });
 });
