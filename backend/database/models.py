@@ -7,12 +7,15 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     LargeBinary,
     String,
     Text,
     UniqueConstraint,
+    column,
+    desc,
     text,
 )
 from sqlalchemy import event
@@ -36,7 +39,6 @@ class User(Base):
     __tablename__ = "users"
     __table_args__ = (
         UniqueConstraint("username", name="uq_users_username"),
-        Index("ix_users_username", "username"),
         # Single-admin invariant (household model): at most ONE row may have
         # is_admin=1 — the owner. The application already serializes the
         # bootstrap claim (AuthService.register, BEGIN IMMEDIATE); this partial
@@ -78,7 +80,6 @@ class UserSession(Base):
     __table_args__ = (
         UniqueConstraint("token_hash", name="uq_sessions_token_hash"),
         Index("ix_sessions_user_id", "user_id"),
-        Index("ix_sessions_token_hash", "token_hash"),
         Index("ix_sessions_expires_at", "expires_at"),
     )
 
@@ -99,8 +100,12 @@ class ReadingProfile(Base):
 
     __tablename__ = "reading_profiles"
     __table_args__ = (
-        Index("ix_reading_profiles_user_id", "user_id"),
         Index("ix_reading_profiles_user_sort", "user_id", "sort_order"),
+        # The target of every scoped table's ``(user_id, profile_id)`` foreign
+        # key. Redundant as a key -- ``id`` is already unique -- but SQLite
+        # needs a UNIQUE index on exactly the referenced pair before it will
+        # accept a composite reference to it.
+        UniqueConstraint("user_id", "id", name="uq_reading_profiles_user_scope"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -150,7 +155,6 @@ class SourcePin(Base):
         UniqueConstraint(
             "user_id", "profile_id", "source_id", name="uq_source_pins_user_source"
         ),
-        Index("ix_source_pins_user_id", "user_id"),
         Index("ix_source_pins_profile_id", "profile_id"),
         Index("ix_source_pins_user_sort", "user_id", "profile_id", "sort_order"),
     )
@@ -243,6 +247,17 @@ class FollowedSeries(Base):
 
     __tablename__ = "followed_series"
     __table_args__ = (
+        # ISO-2 / IL-03: ``user_id`` and ``profile_id`` were independent
+        # references, so the database accepted a row owned by one account that
+        # pointed at another account's profile -- a row every scoped read then
+        # filters out of existence, invisible and undeletable through the app.
+        # The pair is now checked as a pair.
+        ForeignKeyConstraint(
+            ["user_id", "profile_id"],
+            ["reading_profiles.user_id", "reading_profiles.id"],
+            ondelete="CASCADE",
+            name="fk_followed_series_scope",
+        ),
         UniqueConstraint(
             "user_id",
             "profile_id",
@@ -255,7 +270,11 @@ class FollowedSeries(Base):
         Index(
             "ix_followed_series_favorite", "user_id", "profile_id", "is_favorite"
         ),
-        Index("ix_followed_series_content_rating", "content_rating"),
+        # Every other index here leads with ``user_id``, so the ON DELETE
+        # CASCADE from a profile delete had nothing to seek on and scanned the
+        # whole table. ``content_rating`` used to carry an index of its own; it
+        # is only ever projected, never a predicate, so nothing could use it.
+        Index("ix_followed_series_profile_id", "profile_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -314,6 +333,17 @@ class ChapterProgress(Base):
 
     __tablename__ = "chapter_progress"
     __table_args__ = (
+        # ISO-2 / IL-03: ``user_id`` and ``profile_id`` were independent
+        # references, so the database accepted a row owned by one account that
+        # pointed at another account's profile -- a row every scoped read then
+        # filters out of existence, invisible and undeletable through the app.
+        # The pair is now checked as a pair.
+        ForeignKeyConstraint(
+            ["user_id", "profile_id"],
+            ["reading_profiles.user_id", "reading_profiles.id"],
+            ondelete="CASCADE",
+            name="fk_chapter_progress_scope",
+        ),
         UniqueConstraint(
             "user_id",
             "profile_id",
@@ -328,13 +358,25 @@ class ChapterProgress(Base):
             "profile_id",
             "last_read_at",
         ),
+        # ``continue_reading``'s window function partitions by
+        # ``(source_id, series_key)`` and orders each partition by
+        # ``(last_read_at DESC, id DESC)``. Stopping at ``series_key`` left
+        # SQLite sorting the profile's whole progress history in a temp b-tree
+        # on every home-screen paint (15.6 ms over 6k rows); carrying the sort
+        # terms — in the direction the query asks for — makes the scan ordered.
+        # The four-column prefix this replaces was also a strict prefix of
+        # ``uq_chapter_progress``, so it never earned its keep on its own.
         Index(
             "ix_chapter_progress_series",
             "user_id",
             "profile_id",
             "source_id",
             "series_key",
+            desc(column("last_read_at")),
+            desc(column("id")),
         ),
+        # The profile-delete cascade's seek target; see FollowedSeries.
+        Index("ix_chapter_progress_profile_id", "profile_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -414,6 +456,17 @@ class Bookmark(Base):
 
     __tablename__ = "bookmarks"
     __table_args__ = (
+        # ISO-2 / IL-03: ``user_id`` and ``profile_id`` were independent
+        # references, so the database accepted a row owned by one account that
+        # pointed at another account's profile -- a row every scoped read then
+        # filters out of existence, invisible and undeletable through the app.
+        # The pair is now checked as a pair.
+        ForeignKeyConstraint(
+            ["user_id", "profile_id"],
+            ["reading_profiles.user_id", "reading_profiles.id"],
+            ondelete="CASCADE",
+            name="fk_bookmarks_scope",
+        ),
         # The sync identity. Scoped to the profile, not global: a client id is
         # the profile's own namespace, so two profiles colliding on one is
         # harmless, and scoping it means the "does this id already exist?"
@@ -422,7 +475,6 @@ class Bookmark(Base):
         UniqueConstraint(
             "user_id", "profile_id", "client_id", name="uq_bookmarks_client_id"
         ),
-        Index("ix_bookmarks_user_id", "user_id"),
         Index("ix_bookmarks_profile_id", "profile_id"),
         Index(
             "ix_bookmarks_series",
@@ -493,6 +545,17 @@ class ReadingSession(Base):
 
     __tablename__ = "reading_sessions"
     __table_args__ = (
+        # ISO-2 / IL-03: ``user_id`` and ``profile_id`` were independent
+        # references, so the database accepted a row owned by one account that
+        # pointed at another account's profile -- a row every scoped read then
+        # filters out of existence, invisible and undeletable through the app.
+        # The pair is now checked as a pair.
+        ForeignKeyConstraint(
+            ["user_id", "profile_id"],
+            ["reading_profiles.user_id", "reading_profiles.id"],
+            ondelete="CASCADE",
+            name="fk_reading_sessions_scope",
+        ),
         Index(
             "ix_reading_sessions_started_at",
             "user_id",
@@ -510,6 +573,8 @@ class ReadingSession(Base):
             "source_id",
             "series_key",
         ),
+        # The profile-delete cascade's seek target; see FollowedSeries.
+        Index("ix_reading_sessions_profile_id", "profile_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -541,6 +606,61 @@ class ReadingSession(Base):
     )
 
 
+class ReadingDayStats(Base):
+    """One profile's reading, rolled up to a calendar day.
+
+    ``reading_sessions`` is append-only and never pruned, and the statistics
+    screen aggregates the WHOLE of it — totals, streaks, per-hour, per-source,
+    per-series — on every open. That cost grows with every chapter the owner
+    ever read, on a 2-vCPU box, for a screen whose answer for any day but
+    today can never change again. This table is where that settled answer
+    lives: sessions are still the record of truth, and this is a derived
+    summary that may be dropped and rebuilt from them at any time.
+
+    ``day`` is TEXT, not a date: it is the ``YYYY-MM-DD`` string the roll-ups
+    already group on (``strftime('%Y-%m-%d', started_at, <tz modifier>)``), so
+    the key is written in the same units the reader compares in and no
+    timezone conversion happens on the read path.
+
+    Scoped ``(user_id, profile_id)`` and cascaded off the profile exactly like
+    ``chapter_progress`` and ``reading_sessions``: a rollup is per-profile
+    reading data, so deleting a profile must take it with them.
+    """
+
+    __tablename__ = "reading_day_stats"
+    __table_args__ = (
+        # The primary key leads with ``user_id``, so the profile-delete
+        # cascade has nothing to seek on without this — the same gap IDX-3
+        # closed on the tables this one summarises.
+        Index("ix_reading_day_stats_profile_id", "profile_id"),
+    )
+
+    user_id: Mapped[int] = mapped_column(
+        ForeignKey("users.id"), primary_key=True
+    )
+    profile_id: Mapped[int] = mapped_column(
+        ForeignKey("reading_profiles.id", ondelete="CASCADE"), primary_key=True
+    )
+    #: ``YYYY-MM-DD`` in the reader's configured timezone. See the docstring.
+    day: Mapped[str] = mapped_column(String(10), primary_key=True)
+    sessions: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    pages_read: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    seconds_read: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+    #: Distinct ``(source_id, series_key)`` pairs touched that day. Stored
+    #: rather than summed at read time: distinct counts do not add across
+    #: days, so this column answers "how many series on THAT day" and nothing
+    #: wider.
+    series_count: Mapped[int] = mapped_column(
+        Integer, nullable=False, default=0, server_default="0"
+    )
+
+
 # ---------------------------------------------------------------------------
 # Collections / tags  (spec §3.6–§3.7)
 # ---------------------------------------------------------------------------
@@ -552,7 +672,6 @@ class Collection(Base):
         UniqueConstraint(
             "user_id", "profile_id", "name", name="uq_collections_user_name"
         ),
-        Index("ix_collections_user_id", "user_id"),
         Index("ix_collections_profile_id", "profile_id"),
         Index("ix_collection_sort_order", "sort_order"),
     )
@@ -609,7 +728,6 @@ class Tag(Base):
     __tablename__ = "tags"
     __table_args__ = (
         UniqueConstraint("user_id", "profile_id", "name", name="uq_tags_scope_name"),
-        Index("ix_tags_scope", "user_id", "profile_id"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -660,12 +778,42 @@ class UpdateNotification(Base):
 
     __tablename__ = "update_notifications"
     __table_args__ = (
-        Index("ix_update_notifications_is_read", "is_read"),
-        Index("ix_update_notifications_created_at", "created_at"),
+        # A chapter notifies a follow ONCE. Without this, a connector that
+        # drops a chapter from its listing and lists it again — a pagination
+        # hiccup, a partial parse — makes it "new" a second time and the owner
+        # gets the same chapter twice, forever, once per flap. The sweep
+        # should still skip keys it has already emitted (an IntegrityError at
+        # the per-row commit would fail the whole run); this is the backstop
+        # that makes the duplicate unrepresentable rather than merely unlikely.
         Index(
-            "ix_update_notifications_followed_series_id", "followed_series_id"
+            "uq_update_notifications_chapter",
+            "followed_series_id",
+            "chapter_key",
+            unique=True,
         ),
-        Index("ix_update_notifications_user_id", "user_id"),
+        # Both listings filter on the (user, profile) scope and order by
+        # ``created_at`` DESC; the unread bell adds ``is_read``. There were
+        # five single-column indexes and no composite, so SQLite walked
+        # ``profile_id`` and sorted every notification the profile owns in a
+        # temp b-tree on each call. ``is_read`` sits before ``created_at``
+        # because it is an equality term, not a range.
+        Index(
+            "ix_update_notifications_scope_unread",
+            "user_id",
+            "profile_id",
+            "is_read",
+            "created_at",
+        ),
+        Index(
+            "ix_update_notifications_scope_created",
+            "user_id",
+            "profile_id",
+            "created_at",
+        ),
+        # The profile-delete cascade's seek target. The follow-delete cascade
+        # seeks on the UNIQUE index above, which leads with
+        # ``followed_series_id`` — so the single-column index that used to do
+        # that job is now a strict prefix of it and is gone.
         Index("ix_update_notifications_profile_id", "profile_id"),
     )
 
@@ -701,7 +849,6 @@ class ChapterOcr(Base):
         UniqueConstraint(
             "source_id", "series_key", "chapter_key", name="uq_chapter_ocr"
         ),
-        Index("ix_chapter_ocr_series", "source_id", "series_key"),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
@@ -860,6 +1007,36 @@ class SourceCoverCache(Base):
     COLUMN ORDER IS DELIBERATE: ``byte_size`` is declared before ``data`` so
     the eviction sweep's ``SUM(byte_size)`` can read each record's first page
     and stop, instead of walking every blob's overflow chain.
+
+    NEGATIVE ENTRIES. ``resize_failed_at IS NOT NULL`` marks a row that
+    records the ABSENCE of a downscale: the resize produced nothing to gain
+    (the original is already smaller than the target), or nothing decodable
+    (an animated cover, an HTML error page, no Pillow). Such an outcome used
+    to store no row at all, so the same key went upstream on every single read
+    — a full-size fetch plus a decode attempt per grid paint, for exactly the
+    covers the table exists to stop re-fetching.
+
+    How the service should read one (``SourceCacheService.get_series_cover``):
+
+    * ``resize_failed_at IS NULL`` — an ordinary hit. ``data`` is the
+      downscaled bytes; serve them and report ``width`` as the served size.
+    * ``resize_failed_at IS NOT NULL`` — a negative hit. ``data`` is the
+      ORIGINAL upstream bytes, byte-for-byte what the passthrough would have
+      served, and the served size is ``None``: this key does not shrink, so do
+      not fetch upstream and do not call ``resize_cover`` again. ``data`` is
+      empty (``byte_size == 0``) only when the original exceeded
+      ``cover_cache_max_row_bytes``; then there is nothing to serve from here
+      and the read has to go upstream anyway.
+    * ``resize_failure`` names WHY, so a future policy change can invalidate
+      one class of negative entry without flushing the table. It is opaque to
+      the schema; the service owns the vocabulary.
+
+    Freshness for both kinds is ``fetched_at`` against
+    ``cover_cache_ttl_minutes`` — a negative entry is a cache entry, not a
+    verdict, so an expired one is re-attempted and then either promoted to a
+    real downscale or re-marked with a new ``resize_failed_at``. Re-marking is
+    what stops an expired unshrinkable row being pinned in the table forever
+    with its ``fetched_at`` never moving.
     """
 
     __tablename__ = "source_cover_cache"
@@ -876,6 +1053,12 @@ class SourceCoverCache(Base):
     data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
     fetched_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
     last_used_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    #: NULL on an ordinary row; on a negative entry, why the downscale
+    #: produced nothing. See the class docstring.
+    resize_failure: Mapped[str | None] = mapped_column(String(32))
+    #: NULL on an ordinary row; on a negative entry, when the attempt was
+    #: made. This column is the discriminator — read it, not ``resize_failure``.
+    resize_failed_at: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 # ---------------------------------------------------------------------------

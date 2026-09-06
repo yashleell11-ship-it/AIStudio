@@ -1106,11 +1106,15 @@ def test_the_upgrade_keeps_the_indexes_and_the_sync_uniqueness(tmp_path):
             )
         }
     assert {
-        "ix_bookmarks_user_id",
         "ix_bookmarks_profile_id",
         "ix_bookmarks_series",
         "ix_bookmarks_updated_at",
     } <= indexes
+    # ``ix_bookmarks_user_id`` is deliberately gone: 0012 dropped it as a
+    # strict prefix of ``ix_bookmarks_series``, which every scoped lookup can
+    # seek instead. Asserted rather than merely omitted, so a revival is
+    # noticed.
+    assert "ix_bookmarks_user_id" not in indexes
 
     from sqlalchemy.exc import IntegrityError
 
