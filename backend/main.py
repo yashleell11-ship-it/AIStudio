@@ -98,6 +98,30 @@ def prune_expired_sessions() -> None:
         db.close()
 
 
+def sweep_cache_retention_at_startup() -> None:
+    """Apply the cache retention rules once at boot.
+
+    The daily pass lives on the update-scheduler thread; this one exists for
+    the case that cadence is worst at. A source is deregistered by editing
+    ``connectors/catalog.py`` or ``connectors/excluded.py`` and shipping it,
+    and shipping it restarts this process — so its orphaned cache rows go on
+    the boot that dropped it rather than up to a day later, which matters
+    because those rows are readable by anything that reads the cache tables
+    without resolving a connector first."""
+    db = SessionLocal()
+    try:
+        from services.source_cache_service import sweep_cache_retention
+
+        sweep_cache_retention(db)
+    except Exception:
+        db.rollback()
+        logging.getLogger("uvicorn.error").exception(
+            "Cache retention sweep failed at startup"
+        )
+    finally:
+        db.close()
+
+
 def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> FastAPI:
     settings = get_settings()
 
@@ -110,6 +134,7 @@ def create_app(*, run_migrations: bool = True, run_workers: bool = True) -> Fast
         if run_migrations:
             init_db()
             prune_expired_sessions()
+            sweep_cache_retention_at_startup()
             log_registration_posture()
         update_manager = get_update_manager()
         if run_workers:

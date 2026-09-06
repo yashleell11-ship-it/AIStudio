@@ -5,7 +5,9 @@ Export streams a consistent, point-in-time SQLite snapshot (see
 uploaded backup and stages it; the actual file swap only happens the next
 time the process starts (``core.backup_restore``), since replacing the live
 database file out from under an already-open, process-lifetime SQLAlchemy
-engine is not safe to do while the server keeps running.
+engine is not safe to do while the server keeps running. That swap keeps the
+database it displaces (``core.backup_restore``), which is what makes a wrong
+upload survivable.
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from starlette.background import BackgroundTask
 
-from core.backup_restore import has_pending_restore
+from core.backup_restore import has_pending_restore, retained_copy_hint
 from core.errors import AppError
 from core.rate_limit import import_limit, limiter
 from services.auth_service import require_admin_user
@@ -27,6 +29,7 @@ from services.backup_service import (
     backup_filename,
     clear_pending_restore,
     create_backup_snapshot,
+    spool_dir,
     stage_restore,
 )
 
@@ -43,9 +46,15 @@ class RestoreStaged(BaseModel):
 
 
 @router.get("/export", dependencies=[Depends(require_admin_user)])
-def export_backup() -> FileResponse:
-    """Download a consistent snapshot of the current database."""
-    snapshot_path = create_backup_snapshot()
+def export_backup(include_cache: bool = False) -> FileResponse:
+    """Download a consistent snapshot of the current database.
+
+    User data by default -- the derived connector caches are emptied out of
+    the snapshot (see ``services.backup_service``), so a backup is not mostly
+    re-fetchable cover bytes. ``?include_cache=true`` keeps them, for cloning
+    a box that should come up warm.
+    """
+    snapshot_path = create_backup_snapshot(include_cache=include_cache)
     return FileResponse(
         path=snapshot_path,
         media_type="application/octet-stream",
@@ -65,7 +74,14 @@ def backup_status() -> BackupStatus:
 @limiter.limit(import_limit)
 def import_backup(file: UploadFile, request: Request, response: Response) -> RestoreStaged:
     """Validate an uploaded backup and stage it for restore on next start."""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".db") as tmp:
+    # Spooled beside the database, not in the system temp dir: staging is a
+    # move to a path in that same directory, and only a same-filesystem move
+    # is a rename. Across filesystems it is a copy, so a crash midway leaves a
+    # half-written file sitting exactly where the next boot looks for a
+    # restore to apply.
+    with tempfile.NamedTemporaryFile(
+        delete=False, prefix=".mm-upload-", suffix=".db", dir=spool_dir()
+    ) as tmp:
         shutil.copyfileobj(file.file, tmp)
         tmp_path = Path(tmp.name)
 
@@ -77,7 +93,11 @@ def import_backup(file: UploadFile, request: Request, response: Response) -> Res
 
     return RestoreStaged(
         status="staged",
-        message="Restore staged. Restart the server to finish applying it.",
+        message=(
+            "Restore staged. Restart the server to finish applying it. The "
+            f"database it replaces is kept beside it as {retained_copy_hint()}, "
+            "so a wrong restore can be undone."
+        ),
     )
 
 

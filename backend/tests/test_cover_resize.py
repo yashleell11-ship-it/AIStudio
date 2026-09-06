@@ -384,14 +384,25 @@ def test_connector_down_with_nothing_cached_still_raises(db_session):
         svc.get_series_cover(SRC, KEY, width=360, fmt="webp")
 
 
-def test_a_cover_that_cannot_be_resized_is_served_but_never_stored(db_session):
+def test_a_cover_that_cannot_be_resized_is_served_and_remembered(db_session):
+    """A failure to downscale is a fact worth storing.
+
+    Storing nothing meant every later request re-fetched the same bytes from
+    upstream and re-attempted the same decode, forever. The row records the
+    refusal instead: the caller still gets the original and still sees
+    ``served is None``, but the second reader is answered from the database.
+    """
     svc, browse = _svc(db_session, data=b"<html>upstream is broken</html>")
 
     media_type, data, served = svc.get_series_cover(SRC, KEY, width=360, fmt="webp")
 
     assert data == b"<html>upstream is broken</html>"
     assert served is None  # the caller can tell it got the original
-    assert db_session.get(SourceCoverCache, (SRC, KEY, 360, "webp")) is None
+    row = db_session.get(SourceCoverCache, (SRC, KEY, 360, "webp"))
+    assert row is not None
+    assert row.resize_failed_at is not None  # the discriminator, not the reason
+    assert row.resize_failure == "no_downscale"
+    assert row.data == b"<html>upstream is broken</html>"
 
 
 def test_the_kill_switch_serves_originals_and_stores_nothing(db_session, monkeypatch):

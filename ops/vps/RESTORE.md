@@ -78,14 +78,25 @@ Abort before the restart: `rm -f /srv/manhwamaniacs/data/manhwamaniacs.db.pendin
 (or `DELETE /api/backup/pending` from the admin UI).
 Undo after the restart: stage-restore the `latest.db.zst` that step 1 produced.
 
-Two things the app's restore path does NOT do today (see audit findings; fix
-in `backend/`, not here):
-- it keeps no copy of the file it overwrites — hence the mandatory pre-restore
-  backup above;
-- it does not check the file's `alembic_version` against the code's head — a
-  backup taken from a *newer* build than the one running crash-loops the
-  container at startup (`Can't locate revision identified by ...`) with the
-  old DB already gone. Deploy the matching (or newer) code first, then restore.
+The app's restore path defends itself as of 2.7.0, so a staged file is no
+longer swapped in blind:
+
+- **The replaced database is kept**, renamed to `<db>.pre-restore-<stamp>` with
+  its WAL checkpointed in, newest 3 retained. The path is logged at WARNING.
+  The pre-restore backup in step 1 is still worth taking — it is compressed,
+  off in the backups tree, and covers the case where the process never starts.
+- **A corrupt upload is refused**, by `integrity_check` and `foreign_key_check`
+  at upload time and a `quick_check` again before the swap.
+- **A backup from a newer build is refused**, by comparing the file's
+  `alembic_version` against the revisions this code actually has. A refused
+  staged file is set aside as `<db>.pending-restore.rejected` and the live
+  database is left alone, so the container starts normally on the old data
+  instead of crash-looping on `Can't locate revision identified by ...`.
+  Deploy the matching (or newer) code first, then restore.
+
+If the container starts and the data looks unchanged, look for
+`.pending-restore.rejected` beside the database — that is the refusal, and the
+backend log says which revision it did not recognise.
 
 ### Bare-metal restore (container gone, disk replaced)
 

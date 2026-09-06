@@ -58,10 +58,16 @@ from services.source_cache_service import (
     CACHE_LIVE,
     CACHE_STALE,
     SourceCacheService,
+    _delete_oldest_rows,
     get_source_cache_service,
 )
 
 logger = logging.getLogger("manhwamaniacs.novels")
+
+#: Coarsest resolution the eviction order actually needs. Matches the cover
+#: cache's own throttle, for the same reason: a bump finer than this buys
+#: nothing and costs a write on the single-writer database.
+_NOVEL_LRU_BUMP_MINUTES = 60
 
 
 class _Adjacency:
@@ -110,6 +116,9 @@ class NovelService:
         self._db = db
         self._browse = browse
         self._source_cache = source_cache
+        #: How many rows this request actually moved in the LRU order. The
+        #: bookkeeping commit is worth its write lock only if this is nonzero.
+        self._lru_bumps = 0
 
     # --- public API ------------------------------------------------------
 
@@ -359,9 +368,11 @@ class NovelService:
 
         if wrote:
             self._flush_cache_writes()
-        else:
-            # No new rows, but every serve above bumped ``last_used_at`` — the
-            # LRU signal is worthless if it is never persisted.
+        elif self._lru_bumps:
+            # No new rows, but a serve above moved ``last_used_at`` — the LRU
+            # signal is worthless if it is never persisted. Nothing moved means
+            # nothing to write, which is the common case now that the bump is
+            # throttled: a window of already-warm chapters takes no write lock.
             try:
                 self._db.commit()
             except Exception:  # noqa: BLE001 - bookkeeping must never break a read
@@ -504,6 +515,25 @@ class NovelService:
             logger.exception("novels: cache write failed")
             self._db.rollback()
 
+    def _touch_chapter(self, row: NovelChapterCache) -> bool:
+        """Bump ``last_used_at`` for LRU — at most once an hour per row.
+
+        Every chapter read used to move the stamp and commit, so reading a
+        novel wrote to the single-writer database once per page turn to record
+        something the eviction order cannot tell apart at that resolution. The
+        cover cache already throttles its own bump for exactly this reason.
+        Returns whether the row moved, so the caller can skip a commit that
+        would have nothing to persist.
+        """
+        now = utcnow()
+        if row.last_used_at is not None and (
+            now - row.last_used_at
+        ) < timedelta(minutes=_NOVEL_LRU_BUMP_MINUTES):
+            return False
+        row.last_used_at = now
+        self._lru_bumps += 1
+        return True
+
     def _evict_lru(self, cap: int) -> None:
         """Delete the least-recently-used rows past ``cap`` (no commit)."""
         if cap <= 0:
@@ -515,20 +545,15 @@ class NovelService:
         excess = count - cap
         if excess <= 0:
             return
-        victims = (
-            self._db.execute(
-                select(NovelChapterCache)
-                .order_by(NovelChapterCache.last_used_at.asc())
-                .limit(excess)
-            )
-            .scalars()
-            .all()
+        # Deleted by key rather than by loading the entities: these rows carry
+        # the paragraph blobs (645 KB at the top end), and an eviction has no
+        # use for them.
+        removed = _delete_oldest_rows(
+            self._db, NovelChapterCache, "last_used_at", excess
         )
-        for victim in victims:
-            self._db.delete(victim)
         logger.info(
             "novels: evicted %d least-recently-used chapter row(s) (cap %d)",
-            len(victims),
+            removed,
             cap,
         )
 
@@ -556,8 +581,8 @@ class NovelService:
             prev = live_prev if live_prev is not None else row.prev_key
             next = live_next if live_next is not None else row.next_key
 
-        row.last_used_at = utcnow()
-        if commit:
+        moved = self._touch_chapter(row)
+        if commit and moved:
             try:
                 self._db.commit()
             except Exception:  # noqa: BLE001 - LRU bookkeeping must never break a read
