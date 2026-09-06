@@ -1,4 +1,8 @@
-import { readScopedString, writeScopedString } from "@/lib/scoped-storage";
+import {
+  readCappedEntry,
+  registerCappedKeyspace,
+  writeCappedEntry,
+} from "@/lib/scoped-storage";
 
 /**
  * A chapter's measured page shapes, per (user, profile).
@@ -35,13 +39,26 @@ const RATIO_PREFIX = "manhwamaniacs-reader-page-ratios:";
  */
 const MAX_REMEMBERED_PAGES = 400;
 
+/**
+ * Chapters remembered per profile.
+ *
+ * The per-chapter cap above bounds one blob; nothing bounded how MANY, and a
+ * chapter's shapes are the largest thing the reader writes (a few hundred
+ * characters each). Left to grow they reach the origin quota, and past that
+ * point every OTHER scoped write on the origin is fighting them for room — so
+ * this cap is what keeps reading positions working, not just page shapes. Two hundred covers
+ * the chapters a reader actually returns to; anything older re-measures on its
+ * next open, which costs one first frame.
+ */
+const REMEMBERED_CHAPTERS = registerCappedKeyspace({
+  prefix: RATIO_PREFIX,
+  orderKey: "manhwamaniacs-reader-page-ratios-order",
+  limit: 200,
+});
+
 /** Ratios outside this are not a page shape, they are a decode that went wrong. */
 const MIN_RATIO = 0.05;
 const MAX_RATIO = 100;
-
-function storageKey(chapterKey: string): string {
-  return `${RATIO_PREFIX}${chapterKey}`;
-}
 
 /**
  * Two decimals: at the tallest strip measured (h/w 23) that is a 0.5% error on
@@ -66,7 +83,7 @@ function decodeRatio(raw: string): number | null {
  * unknown.
  */
 export function readPageRatios(chapterKey: string): (number | null)[] {
-  const raw = readScopedString(storageKey(chapterKey));
+  const raw = readCappedEntry(REMEMBERED_CHAPTERS, chapterKey);
   if (raw == null || raw === "") return [];
   return raw.split(",", MAX_REMEMBERED_PAGES).map(decodeRatio);
 }
@@ -86,7 +103,7 @@ export function writePageRatios(
     encoded.pop();
   }
   if (encoded.length === 0) return;
-  writeScopedString(storageKey(chapterKey), encoded.join(","));
+  writeCappedEntry(REMEMBERED_CHAPTERS, chapterKey, encoded.join(","));
 }
 
 /**

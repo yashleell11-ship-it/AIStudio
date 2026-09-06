@@ -90,7 +90,7 @@ export function shouldRegisterWorker(): boolean {
 }
 
 let registrationPromise: Promise<ServiceWorkerRegistration | null> | null = null;
-let messagesWired = false;
+let workerEventsWired = false;
 
 export function registerOfflineWorker(): Promise<ServiceWorkerRegistration | null> {
   if (!shouldRegisterWorker()) {
@@ -99,7 +99,7 @@ export function registerOfflineWorker(): Promise<ServiceWorkerRegistration | nul
   }
   if (registrationPromise) return registrationPromise;
 
-  wireMessages();
+  wireWorkerEvents();
   registrationPromise = window.navigator.serviceWorker
     // `updateViaCache: "none"` so neither sw.js nor the policy it imports can be
     // answered from the HTTP cache — an undetectable worker update is how a
@@ -112,21 +112,80 @@ export function registerOfflineWorker(): Promise<ServiceWorkerRegistration | nul
   return registrationPromise;
 }
 
-function wireMessages(): void {
-  if (messagesWired || !isServiceWorkerSupported()) return;
-  messagesWired = true;
-  window.navigator.serviceWorker.addEventListener("message", (event: MessageEvent) => {
+/**
+ * Announced by the worker when it starts, including the silent restart the
+ * browser performs after terminating an idle one. Not part of `OFFLINE_MESSAGE`
+ * because nothing here asks for it: this is the worker speaking first.
+ */
+const WORKER_STARTED_EVENT = "mm-offline/worker-started";
+
+function wireWorkerEvents(): void {
+  if (workerEventsWired || !isServiceWorkerSupported()) return;
+  workerEventsWired = true;
+  const container = window.navigator.serviceWorker;
+  container.addEventListener("message", (event: MessageEvent) => {
+    if ((event.data as { type?: unknown } | null)?.type === WORKER_STARTED_EVENT) {
+      // A restarted worker has forgotten which profile this tab is on, and
+      // until it is told again it can only answer this tab from the network.
+      republishScope();
+      return;
+    }
     if (!isOfflineStateMessage(event.data)) return;
     applyWorkerState(event.data.state);
   });
+  // The worker that takes over on `controllerchange` is a different worker
+  // from the one this tab introduced itself to — a new build another tab chose
+  // to activate, or a page loaded before any worker existed being claimed —
+  // and the start announcement above cannot reach it: a new worker announces
+  // itself while it is still installing, so the reply goes to the OLD worker,
+  // the one `serviceWorker.ready` still names at that moment.
+  container.addEventListener("controllerchange", republishScope);
+  // Coming back to the front is the other moment, and the cheapest one. The
+  // worker may have been stopped and restarted any number of times while this
+  // tab was hidden; re-introducing the tab once, as it is looked at, costs one
+  // message and closes whatever gap the two events above leave.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") republishScope();
+  });
+}
+
+/**
+ * Say the scope again, if there is one to say. A tab that has not published
+ * yet has nothing to repeat: sending null here would tell the worker "nobody"
+ * for a profile that is still resolving.
+ */
+function republishScope(): void {
+  if (scopePublished) void publishScope(publishedScope);
 }
 
 function applyWorkerState(state: OfflineWorkerState): void {
+  const entries = Array.isArray(state.entries) ? state.entries : [];
   publish({
     ...state,
-    entries: Array.isArray(state.entries) ? state.entries : [],
+    entries,
     readiness: state.scopeToken === null ? "unscoped" : "ready",
   });
+  if (entries.length > 0) ensurePersistentStorage();
+}
+
+/**
+ * Whether this page load has already asked. Once is enough here: Chrome
+ * decides silently from site engagement and installation, neither of which a
+ * tab switch changes, and Firefox asks the user, who should not be asked on
+ * every tab switch. Every save asks again anyway.
+ */
+let persistenceRequested = false;
+
+/**
+ * The moment the page learns this profile has downloads is the moment they
+ * are worth protecting. The request at save time covers the chapter being
+ * saved; it does nothing for the ones already sitting in best-effort storage
+ * because an earlier request was denied, or was never made.
+ */
+function ensurePersistentStorage(): void {
+  if (persistenceRequested) return;
+  persistenceRequested = true;
+  void requestPersistentStorage();
 }
 
 /**
@@ -162,12 +221,24 @@ async function ask(message: Record<string, unknown>, timeoutMs = 15_000): Promis
 }
 
 /**
+ * The scope this tab last told the worker about. Remembered because only the
+ * page knows it: a worker that restarts loses which profile each tab is on, and
+ * has to be told the same thing again.
+ */
+let publishedScope: StorageScope | null = null;
+let scopePublished = false;
+
+/**
  * Tell the worker whose caches to use. Sent on mount and on every profile
- * switch; a null scope publishes "nobody", which makes the worker stop serving
- * saved content rather than fall back to the last profile's.
+ * switch, and said again whenever the tab has reason to think the worker does
+ * not know (`wireWorkerEvents`); a null scope publishes "nobody", which makes
+ * the worker stop serving saved content rather than fall back to the last
+ * profile's.
  */
 export async function publishScope(scope: StorageScope | null): Promise<void> {
   if (!shouldRegisterWorker()) return;
+  publishedScope = scope;
+  scopePublished = true;
   const reply = await ask({
     type: OFFLINE_MESSAGE.setScope,
     scope,

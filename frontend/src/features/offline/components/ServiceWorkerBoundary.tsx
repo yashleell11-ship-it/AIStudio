@@ -62,6 +62,9 @@ export function ServiceWorkerBoundary() {
   useEffect(() => {
     runHousekeeping(true);
     const onVisibility = () => {
+      // Re-introducing this tab to a worker that may have restarted meanwhile
+      // is the client's job (`wireWorkerEvents`), where it is pinned by a test;
+      // this effect is only the throttled housekeeping.
       if (document.visibilityState === "visible") runHousekeeping(false);
     };
     document.addEventListener("visibilitychange", onVisibility);

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Activity, Bell, ChevronRight, History } from "lucide-react";
 import { NotificationSettingsPanel } from "@/features/updates";
 import { BackupPanel } from "@/features/backup";
+import { MembersPanel } from "@/features/admin";
 import { AccountSecurityPanel } from "@/features/auth/components/account-security-panel";
 import { useCurrentUser } from "@/features/auth/hooks";
 import {
@@ -157,9 +158,15 @@ export default function SettingsPage() {
               {activeTab === "security" && <AccountSecurityPanel />}
               {activeTab === "shortcuts" && <KeyboardShortcutsPanel />}
               {/* Admin-gated in `visibleSettingsTabs`, and re-checked here for
-                  the same reason as notifications: the panel restores the whole
-                  instance database, not this reader's data. */}
-              {activeTab === "backup" && isAdmin && <BackupPanel />}
+                  the same reason as notifications: the backup panel restores
+                  the whole instance database, and the members panel lists and
+                  removes every account on it — neither is this reader's data. */}
+              {activeTab === "backup" && isAdmin && (
+                <>
+                  <BackupPanel />
+                  <MembersPanel />
+                </>
+              )}
             </div>
           </FadeIn>
         </div>

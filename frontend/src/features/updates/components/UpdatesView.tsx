@@ -30,6 +30,7 @@ import {
   useUpdateSettings,
 } from "../hooks";
 import type { UpdateNotification } from "../types";
+import { useCurrentUser } from "@/features/auth/hooks";
 
 /**
  * Notification `created_at` and run `started_at` are UTC serialised from a
@@ -96,7 +97,11 @@ function NotificationRow({
 export function UpdatesView() {
   const settings = useUpdateSettings();
   const notifications = useUpdateNotifications();
-  const runs = useUpdateRuns();
+  // "Recent checks" is the instance-wide run log, which the API answers for
+  // admins only. A member sees the rest of the page and never asks for it.
+  const { data: currentUser } = useCurrentUser();
+  const isAdmin = currentUser?.is_admin ?? false;
+  const runs = useUpdateRuns(isAdmin);
   const manualCheck = useManualCheck();
   const markRead = useMarkNotificationRead();
   const markAllRead = useMarkAllNotificationsRead();
@@ -112,7 +117,7 @@ export function UpdatesView() {
   const busy = manualCheck.isPending || markRead.isPending || markAllRead.isPending;
   // Notifications gets its own dedicated empty/error/offline treatment below;
   // keeping it out of this merged banner avoids saying the same failure twice.
-  const error = settings.error ?? runs.error;
+  const error = settings.error ?? (isAdmin ? runs.error : null);
   // Scoped to the active content mode; a no-op when novels are disabled. The
   // unread BADGE is a separate server count and stays whole-account — it is
   // "you have unread updates", not "in this mode".
@@ -235,6 +240,7 @@ export function UpdatesView() {
           </CardContent>
         </Card>
 
+        {isAdmin ? (
         <Card>
           <CardHeader>
             <CardTitle>Recent checks</CardTitle>
@@ -267,6 +273,7 @@ export function UpdatesView() {
             )}
           </CardContent>
         </Card>
+        ) : null}
       </div>
     </div>
   );
