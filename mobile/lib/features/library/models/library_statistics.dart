@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// `GET /library/statistics` — library shape plus everything
 /// `reading_sessions` recorded (`FollowedSeriesService.statistics`, which
 /// delegates the session aggregation to `ReadingStatsService.build`).
@@ -114,8 +116,8 @@ class ReadingTotals {
         chaptersRead: (json['chapters_read'] as num?)?.toInt() ?? 0,
         seriesRead: (json['series_read'] as num?)?.toInt() ?? 0,
         secondsRead: (json['seconds_read'] as num?)?.toInt() ?? 0,
-        firstSessionAt: _instant(json['first_session_at']),
-        lastSessionAt: _instant(json['last_session_at']),
+        firstSessionAt: serverInstant(json['first_session_at']),
+        lastSessionAt: serverInstant(json['last_session_at']),
       );
 }
 
@@ -249,7 +251,7 @@ class SeriesActivity {
         sourceId: json['source_id'] as String? ?? '',
         seriesKey: json['series_key'] as String? ?? '',
         title: (json['title'] as String?)?.trim(),
-        lastReadAt: _instant(json['last_read_at']),
+        lastReadAt: serverInstant(json['last_read_at']),
         sessions: (json['sessions'] as num?)?.toInt() ?? 0,
         pagesRead: (json['pages_read'] as num?)?.toInt() ?? 0,
         chaptersRead: (json['chapters_read'] as num?)?.toInt() ?? 0,
@@ -290,8 +292,8 @@ class RecentSession {
         title: (json['title'] as String?)?.trim(),
         pagesRead: (json['pages_read'] as num?)?.toInt() ?? 0,
         secondsRead: (json['seconds_read'] as num?)?.toInt() ?? 0,
-        startedAt: _instant(json['started_at']),
-        endedAt: _instant(json['ended_at']),
+        startedAt: serverInstant(json['started_at']),
+        endedAt: serverInstant(json['ended_at']),
       );
 }
 
@@ -305,23 +307,6 @@ List<T> _list<T>(Object? raw, T Function(Map<String, dynamic>) fromJson) {
       .map(fromJson)
       .toList(growable: false);
 }
-
-/// An instant reported by the backend.
-///
-/// Every timestamp column in this project is a naive SQLite `DATETIME` holding
-/// UTC (`core/time_utils.utcnow`), so it serialises with no timezone
-/// designator — and `DateTime.parse` reads an offset-less string as **local**,
-/// which silently shifts every "3h ago" on this screen by the device's UTC
-/// offset. The designator is supplied here so callers can `.toLocal()` the way
-/// they would with any other instant. Parsing is lenient: one malformed
-/// timestamp must not blank the whole screen.
-DateTime? _instant(Object? raw) {
-  if (raw is! String || raw.isEmpty) return null;
-  final zoned = raw.endsWith('Z') || _offsetSuffix.hasMatch(raw);
-  return DateTime.tryParse(zoned ? raw : '${raw}Z');
-}
-
-final RegExp _offsetSuffix = RegExp(r'[+-]\d{2}:?\d{2}$');
 
 /// A day bucket (`YYYY-MM-DD`), already bucketed at the offset this client
 /// sent. It is a calendar date and not an instant, so it is parsed as-is —

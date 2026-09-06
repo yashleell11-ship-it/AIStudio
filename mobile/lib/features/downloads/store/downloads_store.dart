@@ -157,8 +157,8 @@ class DownloadsStore {
         if (title != null) DownloadsSchema.colTitle: title,
         if (seriesTitle != null) DownloadsSchema.colSeriesTitle: seriesTitle,
       },
-      where: '${DownloadsSchema.colId} = ?',
-      whereArgs: [rowId],
+      where: '${DownloadsSchema.colId} = ? AND ${DownloadsSchema.colScopeId} = ?',
+      whereArgs: [rowId, scopeId],
     );
   }
 
@@ -180,15 +180,36 @@ class DownloadsStore {
   /// [rowId]. Safe to call twice for the same page (e.g. a retry racing a
   /// resume) — the second call is a no-op for both the blob refcount and the
   /// chapter's byte total.
+  ///
+  /// The bytes are hashed first and written **last, inside the transaction**,
+  /// so the disk only ever holds what a row names: a page number re-saved
+  /// with different bytes is rejected below and never reaches the tree, and
+  /// a write that throws takes the refcount that would have pointed at it
+  /// down with it. Writing before the insert is what used to leave a file
+  /// with nothing referencing it — invisible to every deletion path and to
+  /// `RetentionMaintenance.totalDeviceBytes`.
   Future<void> savePage({
     required int rowId,
     required int pageNumber,
     required List<int> bytes,
   }) async {
     final blob = await blobStore;
-    final written = await blob.write(bytes);
+    final written = (hash: BlobStore.hashOf(bytes), size: bytes.length);
     final db = await database;
     await db.transaction((txn) async {
+      // A page whose chapter row this scope no longer holds — "Remove
+      // download" tapped while the queue was still fetching — has nothing to
+      // belong to. Storing it anyway files bytes under a row no screen can
+      // reach and no deletion path will ever revisit.
+      final chapterRows = await txn.query(
+        DownloadsSchema.savedChapters,
+        columns: [DownloadsSchema.colId],
+        where: '${DownloadsSchema.colId} = ? AND ${DownloadsSchema.colScopeId} = ?',
+        whereArgs: [rowId, scopeId],
+        limit: 1,
+      );
+      if (chapterRows.isEmpty) return;
+
       final pageInserted = await txn.insert(
         DownloadsSchema.savedPages,
         {
@@ -225,9 +246,16 @@ class DownloadsStore {
 
       await txn.rawUpdate(
         'UPDATE ${DownloadsSchema.savedChapters} SET ${DownloadsSchema.colBytes} = ${DownloadsSchema.colBytes} + ? '
-        'WHERE ${DownloadsSchema.colId} = ?',
-        [written.size, rowId],
+        'WHERE ${DownloadsSchema.colId} = ? AND ${DownloadsSchema.colScopeId} = ?',
+        [written.size, rowId, scopeId],
       );
+
+      // Last, and still inside the transaction: the bytes and the rows that
+      // name them commit together. This is also what makes the reclaim in
+      // `downloads_deletion.dart` safe to run — a hash it finds unreferenced
+      // cannot be picked up by a save that is halfway through, because that
+      // save's own transaction has not started or has already finished.
+      await blob.writeHashed(written.hash, bytes);
     });
   }
 
@@ -238,26 +266,45 @@ class DownloadsStore {
     final db = await database;
     final chapterRows = await db.query(
       DownloadsSchema.savedChapters,
-      where: '${DownloadsSchema.colId} = ?',
-      whereArgs: [rowId],
+      where: '${DownloadsSchema.colId} = ? AND ${DownloadsSchema.colScopeId} = ?',
+      whereArgs: [rowId, scopeId],
     );
     if (chapterRows.isEmpty) return false;
     final pageCount = chapterRows.first[DownloadsSchema.colPageCount]! as int;
     if (pageCount <= 0) return false;
 
+    // Counted against the manifest as it stands NOW, not against every page
+    // ever saved for this chapter. A manifest that shrank between passes
+    // leaves pages numbered past its end, and counting those would let a
+    // chapter go complete with one of the pages it actually needs missing.
     final countResult = await db.rawQuery(
       'SELECT COUNT(*) AS n FROM ${DownloadsSchema.savedPages} '
-      'WHERE ${DownloadsSchema.colScopeId} = ? AND ${DownloadsSchema.colChapterRowId} = ?',
-      [scopeId, rowId],
+      'WHERE ${DownloadsSchema.colScopeId} = ? AND ${DownloadsSchema.colChapterRowId} = ? '
+      'AND ${DownloadsSchema.colPageNumber} BETWEEN 1 AND ?',
+      [scopeId, rowId, pageCount],
     );
     final present = Sqflite.firstIntValue(countResult) ?? 0;
     if (present < pageCount) return false;
 
+    // Before the state flips, never after: "complete" is read everywhere as
+    // "openable offline", and [isAvailableOffline] gets there by comparing
+    // the pages on disk against `page_count` — a page left over from a longer
+    // manifest fails that comparison for good. A crash between the prune and
+    // the update leaves the chapter downloading, which resume already knows
+    // how to finish.
+    await prunePagesBeyond(
+      db: db,
+      blobStore: await blobStore,
+      chapterRowId: rowId,
+      scopeId: scopeId,
+      lastPageNumber: pageCount,
+    );
+
     await db.update(
       DownloadsSchema.savedChapters,
       {DownloadsSchema.colState: DownloadChapterState.complete.wire, DownloadsSchema.colError: null},
-      where: '${DownloadsSchema.colId} = ?',
-      whereArgs: [rowId],
+      where: '${DownloadsSchema.colId} = ? AND ${DownloadsSchema.colScopeId} = ?',
+      whereArgs: [rowId, scopeId],
     );
     return true;
   }
@@ -266,8 +313,8 @@ class DownloadsStore {
     final db = await database;
     await db.rawUpdate(
       'UPDATE ${DownloadsSchema.savedChapters} SET ${DownloadsSchema.colRetryCount} = ${DownloadsSchema.colRetryCount} + 1 '
-      'WHERE ${DownloadsSchema.colId} = ?',
-      [rowId],
+      'WHERE ${DownloadsSchema.colId} = ? AND ${DownloadsSchema.colScopeId} = ?',
+      [rowId, scopeId],
     );
   }
 
@@ -276,8 +323,8 @@ class DownloadsStore {
     await db.update(
       DownloadsSchema.savedChapters,
       {DownloadsSchema.colState: DownloadChapterState.failed.wire, DownloadsSchema.colError: error},
-      where: '${DownloadsSchema.colId} = ?',
-      whereArgs: [rowId],
+      where: '${DownloadsSchema.colId} = ? AND ${DownloadsSchema.colScopeId} = ?',
+      whereArgs: [rowId, scopeId],
     );
   }
 

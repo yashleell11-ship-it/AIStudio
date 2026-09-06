@@ -1,3 +1,4 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
 import 'package:manhwamaniacs/features/library/models/known_chapter.dart';
 
 /// A followed series — `backend/services/followed_series_service.py`'s
@@ -90,15 +91,9 @@ class FollowedSeries {
             .map((e) => KnownChapter.fromJson(e as Map<String, dynamic>))
             .toList(),
         chapterCount: (json['chapter_count'] as num?)?.toInt() ?? 0,
-        lastCheckedAt: json['last_checked_at'] != null
-            ? DateTime.tryParse(json['last_checked_at'] as String)
-            : null,
-        createdAt: json['created_at'] != null
-            ? DateTime.tryParse(json['created_at'] as String)
-            : null,
-        updatedAt: json['updated_at'] != null
-            ? DateTime.tryParse(json['updated_at'] as String)
-            : null,
+        lastCheckedAt: serverInstant(json['last_checked_at']),
+        createdAt: serverInstant(json['created_at']),
+        updatedAt: serverInstant(json['updated_at']),
       );
 
   /// Round-trips through [FollowedSeries.fromJson]. Written to the offline

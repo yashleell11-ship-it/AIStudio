@@ -112,7 +112,7 @@ void main() {
 
       final deleted = await maintenance.sweepExpired(
         interval: Duration.zero,
-        excludeOpen: (scopeId: 'u1p1', id: id),
+        excludeOpen: {(scopeId: 'u1p1', id: id)},
       );
       expect(deleted, 0);
       expect(await store.getChapter(id), isNotNull);
@@ -260,7 +260,7 @@ void main() {
 
       final deleted = await maintenance.evictOldestReadFirst(
         targetBytes: 0,
-        excludeOpen: (scopeId: 'u1p1', id: id),
+        excludeOpen: {(scopeId: 'u1p1', id: id)},
       );
 
       expect(deleted, 0);

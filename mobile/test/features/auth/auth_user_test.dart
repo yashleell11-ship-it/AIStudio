@@ -22,8 +22,10 @@ void main() {
       expect(user.email, 'reader@example.com');
       expect(user.displayName, 'Avid Reader');
       expect(user.isAdmin, isTrue);
-      expect(user.createdAt, DateTime.parse('2024-01-01T00:00:00'));
-      expect(user.lastLoginAt, DateTime.parse('2024-06-01T12:00:00'));
+      // The server sends naive UTC with no designator; the model supplies the
+      // 'Z' so a device in +05:30 does not read it as local time.
+      expect(user.createdAt, DateTime.parse('2024-01-01T00:00:00Z'));
+      expect(user.lastLoginAt, DateTime.parse('2024-06-01T12:00:00Z'));
     });
 
     test('handles null optional fields', () {
@@ -57,8 +59,8 @@ void main() {
       expect(restored.email, 'reader@example.com');
       expect(restored.displayName, 'Avid Reader');
       expect(restored.isAdmin, isTrue);
-      expect(restored.createdAt, DateTime.parse('2024-01-01T00:00:00'));
-      expect(restored.lastLoginAt, DateTime.parse('2024-06-01T12:00:00'));
+      expect(restored.createdAt, DateTime.parse('2024-01-01T00:00:00Z'));
+      expect(restored.lastLoginAt, DateTime.parse('2024-06-01T12:00:00Z'));
     });
 
     test('round-trips null optionals', () {

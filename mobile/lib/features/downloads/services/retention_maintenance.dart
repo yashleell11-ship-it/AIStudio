@@ -42,11 +42,19 @@ class RetentionMaintenance {
   /// every profile. `null` [interval] disables the sweep entirely (the
   /// Settings "Off" option) without touching cap-pressure eviction.
   ///
+  /// [excludeOpen] is every chapter a reader currently has on screen, not
+  /// just the one its route opened at — a continuous feed holds a window of
+  /// them and slides it (see `currentlyOpenChaptersProvider`).
+  ///
   /// Returns how many chapters were deleted.
   Future<int> sweepExpired({
     required Duration? interval,
-    ScopedChapterIdentity? excludeOpen,
+    Set<ScopedChapterIdentity> excludeOpen = const {},
   }) async {
+    // Runs even with the timer switched Off, and before the expiry work: an
+    // orphaned blob is not an expiry decision, it is bytes no profile can
+    // reach, and this pass is the only one that ever visits the tree.
+    await reclaimOrphanBlobs();
     if (interval == null) return 0;
     final db = await database;
     final blob = await blobStore;
@@ -90,7 +98,7 @@ class RetentionMaintenance {
   /// Returns how many chapters were deleted.
   Future<int> evictOldestReadFirst({
     required int targetBytes,
-    ScopedChapterIdentity? excludeOpen,
+    Set<ScopedChapterIdentity> excludeOpen = const {},
   }) async {
     final db = await database;
     final blob = await blobStore;
@@ -108,7 +116,10 @@ class RetentionMaintenance {
         ],
         where: '${DownloadsSchema.colPinned} = 0 AND ${DownloadsSchema.colReadAt} IS NOT NULL',
         orderBy: '${DownloadsSchema.colReadAt} ASC',
-        limit: excludeOpen == null ? 1 : 5,
+        // One more row than there are protected ones, so the oldest
+        // *evictable* chapter is always in the page even when every open
+        // chapter sorts ahead of it.
+        limit: excludeOpen.length + 1,
       );
 
       final candidate = rows.firstWhere(
@@ -128,11 +139,105 @@ class RetentionMaintenance {
     return deleted;
   }
 
-  bool _isExcluded(Map<String, Object?> row, ScopedChapterIdentity? excludeOpen) {
-    if (excludeOpen == null) return false;
-    return row[DownloadsSchema.colScopeId] == excludeOpen.scopeId &&
-        row[DownloadsSchema.colSourceId] == excludeOpen.id.sourceId &&
-        row[DownloadsSchema.colSeriesKey] == excludeOpen.id.seriesKey &&
-        row[DownloadsSchema.colChapterKey] == excludeOpen.id.chapterKey;
+  /// How long a file must have sat untouched before the reclaim will call it
+  /// garbage. A blob's bytes and the row naming them commit together
+  /// (`DownloadsStore.savePage`), so a young unreferenced file is far more
+  /// likely to belong to work in flight than to a crash — and waiting one
+  /// launch longer to reclaim a page costs nothing, while deleting a page a
+  /// download is still holding costs that download.
+  static const Duration reclaimGrace = Duration(hours: 1);
+
+  /// How many hashes one statement — and one transaction — covers. The
+  /// check and the unlink hold a write transaction, and a heavily-downloaded
+  /// install has tens of thousands of blobs: long enough for one pass over
+  /// the whole tree to stall a download that starts mid-sweep. Also stays
+  /// clear of SQLite's variables-per-statement ceiling.
+  static const int _reclaimBatch = 200;
+
+  /// How many files one pass will unlink. The reclaim runs on the
+  /// launch/resume path, beside the work the user is actually waiting for,
+  /// and nothing it skips is lost: a file it did not delete is still there
+  /// next launch, so a tree that accumulated a lot of garbage drains over
+  /// several runs instead of stalling one.
+  static const int _reclaimPerRun = 500;
+
+  /// Reclaims blob files no `blobs` row names, plus the `.part` files
+  /// interrupted writes leave behind. Returns how many files it removed.
+  ///
+  /// The index is the authority, so a file it does not name is unreachable:
+  /// no screen can show it, no deletion path will ever revisit it, and
+  /// [totalDeviceBytes] — the figure the storage cap is enforced against —
+  /// cannot see it. Without this pass a download killed at the wrong instant
+  /// leaves storage the user can only get back by reinstalling.
+  Future<int> reclaimOrphanBlobs({
+    Duration grace = reclaimGrace,
+    int perRun = _reclaimPerRun,
+  }) async {
+    final db = await database;
+    final blob = await blobStore;
+    var removed = await blob.sweepInterruptedWrites(olderThan: grace);
+    final orphans = await _unreferencedOnDisk(db, blob, grace, perRun);
+    for (var i = 0; i < orphans.length; i += _reclaimBatch) {
+      removed += await reclaimUnreferencedBlobs(
+        db: db,
+        blobStore: blob,
+        hashes: orphans.skip(i).take(_reclaimBatch),
+      );
+    }
+    return removed;
+  }
+
+  /// At most [perRun] on-disk blobs that no `blobs` row currently names.
+  ///
+  /// Asked in batches and **outside** any transaction, unlike the unlink
+  /// itself. Almost every file in the tree is perfectly well referenced, and
+  /// asking about each of them under a write transaction would put the whole
+  /// index behind a multi-second pass for the ordinary case of nothing to
+  /// reclaim. Being out of date is fine here precisely because it is only a
+  /// filter: [reclaimUnreferencedBlobs] re-asks under the transaction that
+  /// unlinks, and that re-ask is what a concurrent save is serialised
+  /// against.
+  Future<List<String>> _unreferencedOnDisk(
+    Database db,
+    BlobStore blob,
+    Duration grace,
+    int perRun,
+  ) async {
+    final hashes = await blob.hashesOnDisk(untouchedFor: grace);
+    final orphans = <String>[];
+    for (var i = 0; i < hashes.length && orphans.length < perRun; i += _reclaimBatch) {
+      final batch = hashes.skip(i).take(_reclaimBatch).toList();
+      final rows = await db.query(
+        DownloadsSchema.blobs,
+        columns: [DownloadsSchema.colHash],
+        where: '${DownloadsSchema.colHash} IN (${List.filled(batch.length, '?').join(',')})',
+        whereArgs: batch,
+      );
+      final referenced = {
+        for (final row in rows) row[DownloadsSchema.colHash]! as String,
+      };
+      for (final hash in batch) {
+        if (referenced.contains(hash)) continue;
+        orphans.add(hash);
+        if (orphans.length == perRun) break;
+      }
+    }
+    return orphans;
+  }
+
+  bool _isExcluded(
+    Map<String, Object?> row,
+    Set<ScopedChapterIdentity> excludeOpen,
+  ) {
+    if (excludeOpen.isEmpty) return false;
+    final identity = (
+      scopeId: row[DownloadsSchema.colScopeId]! as String,
+      id: (
+        sourceId: row[DownloadsSchema.colSourceId]! as String,
+        seriesKey: row[DownloadsSchema.colSeriesKey]! as String,
+        chapterKey: row[DownloadsSchema.colChapterKey]! as String,
+      ),
+    );
+    return excludeOpen.contains(identity);
   }
 }

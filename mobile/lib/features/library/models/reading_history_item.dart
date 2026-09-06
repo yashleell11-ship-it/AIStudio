@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// `GET /reader/history` row — a stored reading-position row
 /// (`progress_service.py`'s `_serialize`, same shape as `ReadingProgress`).
 /// Carries no series/chapter title.
@@ -33,8 +35,6 @@ class ReadingHistoryItem {
         lastPage: (json['last_page'] as num?)?.toInt() ?? 1,
         pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
         isCompleted: json['is_completed'] as bool? ?? false,
-        lastReadAt: json['last_read_at'] != null
-            ? DateTime.tryParse(json['last_read_at'] as String)
-            : null,
+        lastReadAt: serverInstant(json['last_read_at']),
       );
 }

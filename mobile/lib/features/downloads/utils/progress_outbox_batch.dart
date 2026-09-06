@@ -7,6 +7,27 @@ import 'package:manhwamaniacs/features/reader/models/reading_progress.dart';
 /// the lot — the same rule `kBookmarkBatchMaxItems` states for bookmarks.
 const int kProgressBatchMaxItems = 200;
 
+/// How many rows may pile up before the outbox is folded in place
+/// (`ProgressOutboxController._compact`).
+///
+/// Nothing drains while the device is offline, and a save that finds the
+/// outbox already long pays for its whole length — the flush attempt reads and
+/// JSON-decodes every row. Left alone that is O(rows) per page turn and
+/// O(rows²) over an offline evening; folding at a fixed ceiling keeps the
+/// table (and so the per-save cost) flat. Deliberately well under
+/// [kProgressBatchMaxItems], so the fold is always cheaper than the single
+/// POST it stands in for.
+const int kProgressOutboxCompactRows = 100;
+
+/// The hard ceiling on how many chapters' unsent positions the outbox keeps.
+///
+/// Folding bounds the rows a *chapter* can accumulate, not how many chapters a
+/// device that has been offline for weeks can touch, so the oldest groups past
+/// this are dropped. Losing the position of a chapter read hundreds of
+/// chapters ago costs a scroll to find the page again; an outbox that grows
+/// forever costs every save after it.
+const int kProgressOutboxMaxGroups = 500;
+
 /// One pending outbox row: the id to clear it by, and the push it holds.
 typedef PendingProgress = (int outboxId, ProgressPush push);
 

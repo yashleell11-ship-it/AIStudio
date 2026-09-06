@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// One new-chapter notification
 /// (`backend/services/update_service.py`'s `serialize_notification`).
 class UpdateNotification {
@@ -33,8 +35,6 @@ class UpdateNotification {
         chapterTitle: json['chapter_title'] as String,
         chapterNumber: (json['chapter_number'] as num?)?.toDouble(),
         isRead: json['is_read'] as bool,
-        createdAt: json['created_at'] != null
-            ? DateTime.tryParse(json['created_at'] as String)
-            : null,
+        createdAt: serverInstant(json['created_at']),
       );
 }

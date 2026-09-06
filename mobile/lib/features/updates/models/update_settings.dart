@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// `GET`/`PUT /updates/settings` — global update-check settings. No
 /// `auto_download_enabled` (removed with the server-side download queue).
 class UpdateSettings {
@@ -20,9 +22,7 @@ class UpdateSettings {
         checkIntervalMinutes: json['check_interval_minutes'] as int,
         notifyEnabled: json['notify_enabled'] as bool,
         checkOnStartup: json['check_on_startup'] as bool,
-        lastRunAt: json['last_run_at'] != null
-            ? DateTime.tryParse(json['last_run_at'] as String)
-            : null,
+        lastRunAt: serverInstant(json['last_run_at']),
       );
 }
 
@@ -55,11 +55,7 @@ class UpdateRun {
         seriesChecked: (json['series_checked'] as num?)?.toInt() ?? 0,
         newChaptersFound: (json['new_chapters_found'] as num?)?.toInt() ?? 0,
         error: json['error'] as String?,
-        startedAt: json['started_at'] != null
-            ? DateTime.tryParse(json['started_at'] as String)
-            : null,
-        finishedAt: json['finished_at'] != null
-            ? DateTime.tryParse(json['finished_at'] as String)
-            : null,
+        startedAt: serverInstant(json['started_at']),
+        finishedAt: serverInstant(json['finished_at']),
       );
 }

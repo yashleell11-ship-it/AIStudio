@@ -34,24 +34,24 @@ class DownloadsStorageActions {
   /// The Storage screen's "Free up space": runs the read-then-expire sweep
   /// immediately (rather than waiting for the next launch/resume), then — if
   /// a cap is configured — evicts oldest-read-first until back under it.
-  /// Pinned series and unread chapters are never touched by either step; the
-  /// chapter currently open in a reader never is either. Returns how many
+  /// Pinned series and unread chapters are never touched by either step; nor
+  /// is any chapter a reader currently has on screen. Returns how many
   /// chapters were removed, for the confirmation snackbar.
   Future<int> freeUpSpace() async {
     final maintenance = ref.read(retentionMaintenanceProvider);
-    final openChapter = ref.read(currentlyOpenChapterProvider);
+    final openChapters = ref.read(currentlyOpenChaptersProvider);
     final interval = ref.read(retentionIntervalProvider).duration;
 
     var removed = await maintenance.sweepExpired(
       interval: interval,
-      excludeOpen: openChapter,
+      excludeOpen: openChapters,
     );
 
     final cap = ref.read(storageCapProvider).bytes;
     if (cap != null) {
       removed += await maintenance.evictOldestReadFirst(
         targetBytes: cap,
-        excludeOpen: openChapter,
+        excludeOpen: openChapters,
       );
     }
 
