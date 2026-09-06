@@ -134,6 +134,42 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.6.2",
+        build=39,
+        date="September 2026",
+        highlights=[
+            "Read all no longer sends you back. Reading a browsed series as one "
+            "scroll threw its window away every three chapters and started "
+            "over from the chapter you opened, which is the jump backwards you "
+            "kept getting. The fix the last release made to the library reader "
+            "now covers the source reader too, and the window is kept for the "
+            "whole read",
+            "The website had its own version of the jump. The continuous "
+            "reader kept re-applying the position it opened at every time a "
+            "chapter was added or trimmed, because it was waiting for a "
+            "fractional scroll offset the browser rounds and never reports "
+            "back. It applies once now, a zoom step no longer re-applies it, "
+            "and a chapter trimmed above you is measured at the height it "
+            "actually stood at",
+            "Fast flings no longer shove you back. When a page above the "
+            "screen finished decoding mid-fling, the correction that keeps "
+            "your place was overwritten by the very next frame of the fling, "
+            "so a tall strip resolving above you moved the reader thousands "
+            "of pixels backwards. The fling now continues from where you "
+            "actually are",
+            "Continue Reading no longer rewinds after you finish a chapter. "
+            "Finishing the newest chapter used to make it fall back to the "
+            "newest chapter you had not finished, which after a Read-all "
+            "session is one you scrolled through two or three chapters ago. "
+            "It now offers the chapter after the one you finished, on the "
+            "phone, on the website and on the series page",
+            "The reader no longer drops to its loading screen mid-read when "
+            "something behind the chapter changes, and scrubbing right after "
+            "the window slides lands in the chapter on screen rather than "
+            "one ahead",
+        ],
+    ),
+    ChangelogEntry(
         version="2.6.1",
         build=38,
         date="September 2026",
