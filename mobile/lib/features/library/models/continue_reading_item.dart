@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// `GET /library/continue-reading` item — progress-service shape. Carries no
 /// series/chapter title; callers resolve those by matching
 /// `(sourceId, seriesKey)` against the followed-series list they already
@@ -31,8 +33,6 @@ class ContinueReadingItem {
         chapterNumber: (json['chapter_number'] as num?)?.toDouble(),
         lastPage: (json['last_page'] as num?)?.toInt() ?? 1,
         pageCount: (json['page_count'] as num?)?.toInt() ?? 0,
-        lastReadAt: json['last_read_at'] != null
-            ? DateTime.tryParse(json['last_read_at'] as String)
-            : null,
+        lastReadAt: serverInstant(json['last_read_at']),
       );
 }

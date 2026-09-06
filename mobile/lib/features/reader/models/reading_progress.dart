@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// Source-native reading position, as stored/returned by
 /// `POST /reader/progress`, `POST /reader/progress/batch` and
 /// `GET /reader/progress/series` (`backend/services/progress_service.py`).
@@ -47,15 +49,9 @@ class ReadingProgress {
         pageCount: json['page_count'] as int,
         scrollOffsetPx: json['scroll_offset_px'] as int,
         isCompleted: json['is_completed'] as bool,
-        startedAt: json['started_at'] != null
-            ? DateTime.tryParse(json['started_at'] as String)
-            : null,
-        lastReadAt: json['last_read_at'] != null
-            ? DateTime.tryParse(json['last_read_at'] as String)
-            : null,
-        completedAt: json['completed_at'] != null
-            ? DateTime.tryParse(json['completed_at'] as String)
-            : null,
+        startedAt: serverInstant(json['started_at']),
+        lastReadAt: serverInstant(json['last_read_at']),
+        completedAt: serverInstant(json['completed_at']),
         timeSpentSeconds: json['time_spent_seconds'] as int,
         advanced: json['advanced'] as bool?,
       );

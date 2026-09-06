@@ -134,18 +134,18 @@ class ReaderScreen extends ConsumerWidget {
           );
         }
 
-        return OpenChapterScope(
-          chapterId: _key,
-          child: _ManifestReaderBody(
-            sourceId: sourceId,
-            seriesKey: seriesKey,
-            chapterKey: chapterKey,
-            resolved: resolved,
-            neighbours: neighbours,
-            initialPage: initialPage,
-            initialAnchor: initialAnchor,
-            readAllOrder: readAllOrder,
-          ),
+        // The "currently open" claim lives inside the body, not here: it has
+        // to name every chapter the feed is holding, and the feed is the
+        // body's own state.
+        return _ManifestReaderBody(
+          sourceId: sourceId,
+          seriesKey: seriesKey,
+          chapterKey: chapterKey,
+          resolved: resolved,
+          neighbours: neighbours,
+          initialPage: initialPage,
+          initialAnchor: initialAnchor,
+          readAllOrder: readAllOrder,
         );
       },
     );
@@ -363,88 +363,102 @@ class _ManifestReaderBodyState extends ConsumerState<_ManifestReaderBody> {
     final beforeFeed = _controller.previousBeforeFeed;
     final beyondFeed = _controller.nextBeyondFeed;
 
-    return ReaderContent(
-      key: ValueKey('$sourceId:$seriesKey:${widget.chapterKey}'),
-      feed: _controller.feed,
-      scrollStorageKey: '$sourceId:$seriesKey:${widget.chapterKey}',
-      initialPage: widget.initialPage,
-      initialAnchor: widget.initialAnchor,
-      onBack: () => leaveReader(
-        context,
+    return OpenChapterScope(
+      chapterId: (
         sourceId: sourceId,
         seriesKey: seriesKey,
+        chapterKey: widget.chapterKey,
       ),
-      onOpenSeries: () => openSeriesFromReader(
-        context,
-        sourceId: sourceId,
-        seriesKey: seriesKey,
-      ),
-      // The edge prompts are for a boundary the FEED could not absorb — the
-      // ends of the series, or a chapter that would not load. Crossing a
-      // loaded boundary is scrolling, and never navigation.
-      onPreviousChapter: beforeFeed != null
-          ? () => context.go(RoutePaths.reader(sourceId, seriesKey, beforeFeed))
-          : null,
-      onNextChapter: beyondFeed != null
-          ? () => context.go(RoutePaths.reader(sourceId, seriesKey, beyondFeed))
-          : null,
-      onReachedFeedEnd: _controller.extendForward,
-      onReachedFeedStart: _controller.extendBackward,
-      onSaveProgress: (chapter, page) async {
-        final isCompleted = page >= chapter.pageCount;
-        // Local-first (spec §3): every save writes to the on-device outbox
-        // and is flushed best-effort — the reader never blocks on, or loses
-        // a save to, a flaky or absent connection.
-        //
-        // Filed against the chapter the PAGE belongs to, which in a continuous
-        // feed is not always the one the reader opened: reading into chapter
-        // 12 records chapter 12, so resume lands there.
-        await progressOutbox.save(
-          ProgressPush(
-            sourceId: sourceId,
-            seriesKey: seriesKey,
-            chapterKey: chapter.id,
-            chapterNumber: _chapterNumberOf(chapter),
-            lastPage: page,
-            pageCount: chapter.pageCount,
-            isCompleted: isCompleted,
-            timeSpentSeconds: _clock.elapsed(DateTime.now()),
-          ),
-        );
-        if (isCompleted) {
-          // Read-then-expire (spec §3/§3b): starts the 48h phone-copy timer.
-          // A no-op if this chapter was never downloaded.
-          await downloadsStore?.markRead(
-            (
+      // Republished from here on every feed change, because a Read-all window
+      // slides: the chapters on screen three chapters in are not the one the
+      // route opened at, and the sweep has to be told about all of them.
+      feedChapterIds: [
+        for (final chapter in _controller.feed.chapters)
+          (sourceId: sourceId, seriesKey: seriesKey, chapterKey: chapter.id),
+      ],
+      child: ReaderContent(
+        key: ValueKey('$sourceId:$seriesKey:${widget.chapterKey}'),
+        feed: _controller.feed,
+        scrollStorageKey: '$sourceId:$seriesKey:${widget.chapterKey}',
+        initialPage: widget.initialPage,
+        initialAnchor: widget.initialAnchor,
+        onBack: () => leaveReader(
+          context,
+          sourceId: sourceId,
+          seriesKey: seriesKey,
+        ),
+        onOpenSeries: () => openSeriesFromReader(
+          context,
+          sourceId: sourceId,
+          seriesKey: seriesKey,
+        ),
+        // The edge prompts are for a boundary the FEED could not absorb — the
+        // ends of the series, or a chapter that would not load. Crossing a
+        // loaded boundary is scrolling, and never navigation.
+        onPreviousChapter: beforeFeed != null
+            ? () => context.go(RoutePaths.reader(sourceId, seriesKey, beforeFeed))
+            : null,
+        onNextChapter: beyondFeed != null
+            ? () => context.go(RoutePaths.reader(sourceId, seriesKey, beyondFeed))
+            : null,
+        onReachedFeedEnd: _controller.extendForward,
+        onReachedFeedStart: _controller.extendBackward,
+        onSaveProgress: (chapter, page) async {
+          final isCompleted = page >= chapter.pageCount;
+          // Local-first (spec §3): every save writes to the on-device outbox
+          // and is flushed best-effort — the reader never blocks on, or loses
+          // a save to, a flaky or absent connection.
+          //
+          // Filed against the chapter the PAGE belongs to, which in a continuous
+          // feed is not always the one the reader opened: reading into chapter
+          // 12 records chapter 12, so resume lands there.
+          await progressOutbox.save(
+            ProgressPush(
               sourceId: sourceId,
               seriesKey: seriesKey,
               chapterKey: chapter.id,
+              chapterNumber: _chapterNumberOf(chapter),
+              lastPage: page,
+              pageCount: chapter.pageCount,
+              isCompleted: isCompleted,
+              timeSpentSeconds: _clock.elapsed(DateTime.now()),
             ),
           );
-        }
-      },
-      // Local-first, exactly like progress: the row lands on the phone and
-      // the push is best-effort, so bookmarking with no signal is an ordinary
-      // success rather than a silent loss. `true` means "stored", not "sent".
-      onAddBookmark: (chapter, anchor) => bookmarkOutbox
-          .create(
-            id: (
-              sourceId: sourceId,
-              seriesKey: seriesKey,
-              chapterKey: chapter.id,
-            ),
-            media: BookmarkMedia.manga,
-            anchorIndex: anchor.page,
-            anchorFraction: anchor.fraction,
-            // The pages actually in the feed, not the manifest's reported
-            // count: the anchor was measured against what is on screen, and a
-            // total that disagreed with it would put "page 9 of 8" on the
-            // Bookmarks screen.
-            anchorTotal: chapter.pages.length,
-            chapterNumber: _chapterNumberOf(chapter),
-            seriesTitle: chapter.seriesTitle,
-          )
-          .then((bookmark) => bookmark != null),
+          if (isCompleted) {
+            // Read-then-expire (spec §3/§3b): starts the 48h phone-copy timer.
+            // A no-op if this chapter was never downloaded.
+            await downloadsStore?.markRead(
+              (
+                sourceId: sourceId,
+                seriesKey: seriesKey,
+                chapterKey: chapter.id,
+              ),
+            );
+          }
+        },
+        // Local-first, exactly like progress: the row lands on the phone and
+        // the push is best-effort, so bookmarking with no signal is an ordinary
+        // success rather than a silent loss. `true` means "stored", not "sent".
+        onAddBookmark: (chapter, anchor) => bookmarkOutbox
+            .create(
+              id: (
+                sourceId: sourceId,
+                seriesKey: seriesKey,
+                chapterKey: chapter.id,
+              ),
+              media: BookmarkMedia.manga,
+              anchorIndex: anchor.page,
+              anchorFraction: anchor.fraction,
+              // The pages actually in the feed, not the manifest's reported
+              // count: the anchor was measured against what is on screen, and a
+              // total that disagreed with it would put "page 9 of 8" on the
+              // Bookmarks screen.
+              anchorTotal: chapter.pages.length,
+              chapterNumber: _chapterNumberOf(chapter),
+              seriesTitle: chapter.seriesTitle,
+            )
+            .then((bookmark) => bookmark != null),
+      ),
     );
   }
 }

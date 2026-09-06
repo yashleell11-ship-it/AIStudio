@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// Authenticated user as returned by the `/auth` endpoints.
 ///
 /// Mirrors the backend `UserOut` schema 1-to-1. Immutable — a new instance is
@@ -35,10 +37,11 @@ class AuthUser {
         email: json['email'] as String?,
         displayName: json['display_name'] as String?,
         isAdmin: json['is_admin'] as bool,
-        createdAt: DateTime.parse(json['created_at'] as String),
-        lastLoginAt: json['last_login_at'] != null
-            ? DateTime.parse(json['last_login_at'] as String)
-            : null,
+        // Epoch rather than a throw for an unreadable `created_at`: this is
+        // the identity a cold start restores from cache, and one unparseable
+        // display timestamp must not strand the user on a login screen.
+        createdAt: serverInstant(json['created_at']) ?? _epoch,
+        lastLoginAt: serverInstant(json['last_login_at']),
       );
 
   /// Back to the wire shape, so the identity can be cached on-device and a cold
@@ -55,3 +58,5 @@ class AuthUser {
         'last_login_at': lastLoginAt?.toIso8601String(),
       };
 }
+
+final DateTime _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);

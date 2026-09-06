@@ -1,3 +1,5 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// One live server-side session for the signed-in account, as returned by
 /// `GET /auth/sessions`.
 ///
@@ -29,32 +31,17 @@ class UserSession {
 
   factory UserSession.fromJson(Map<String, dynamic> json) => UserSession(
         id: json['id'] as int,
-        createdAt: _instant(json['created_at']),
-        lastUsedAt: _instant(json['last_used_at']),
-        expiresAt: _instant(json['expires_at']),
+        createdAt: serverInstant(json['created_at']) ?? _epoch,
+        lastUsedAt: serverInstant(json['last_used_at']) ?? _epoch,
+        expiresAt: serverInstant(json['expires_at']) ?? _epoch,
         isCurrent: json['current'] as bool? ?? false,
         userAgent: json['user_agent'] as String?,
         ipAddress: json['ip_address'] as String?,
       );
 }
 
-/// An instant reported by the backend.
-///
-/// Every timestamp column in this project is a naive SQLite `DATETIME` holding
-/// UTC (`core/time_utils.utcnow`), so it serialises with no timezone
-/// designator — and `DateTime.parse` reads an offset-less string as **local**,
-/// which would shift every "last used" on the sessions screen by the device's
-/// UTC offset (+5:30 turns a session in use right now into one last seen five
-/// and a half hours ago). Same fix, same reason, as `bookmarkInstant` and the
-/// statistics parser. A malformed timestamp degrades to the epoch rather than
-/// throwing: one bad row must not cost the user the list they came to audit.
-DateTime _instant(Object? raw) {
-  if (raw is! String || raw.isEmpty) {
-    return DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-  }
-  final zoned = raw.endsWith('Z') || _offsetSuffix.hasMatch(raw);
-  return DateTime.tryParse(zoned ? raw : '${raw}Z')?.toUtc() ??
-      DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
-}
-
-final RegExp _offsetSuffix = RegExp(r'[+-]\d{2}:?\d{2}$');
+/// The floor for a session timestamp the server did not send, or sent
+/// unparseably: one bad row must not cost the user the list of live
+/// sessions they came to audit. Every readable one is normalised by
+/// [serverInstant] — see there for why the designator has to be supplied.
+final DateTime _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);

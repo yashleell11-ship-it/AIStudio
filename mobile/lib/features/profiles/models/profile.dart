@@ -1,3 +1,4 @@
+import 'package:manhwamaniacs/core/time/server_instant.dart';
 import 'package:manhwamaniacs/features/profiles/models/mood.dart';
 
 /// A per-user reading persona (Netflix-style). Mirrors the backend
@@ -32,7 +33,9 @@ class Profile {
         mood: Mood.fromWire(json['mood'] as String?),
         sortOrder: (json['sort_order'] as num?)?.toInt() ?? 0,
         matureContentEnabled: json['mature_content_enabled'] as bool? ?? false,
-        createdAt: DateTime.parse(json['created_at'] as String),
+        // Epoch rather than a throw (see `AuthUser.fromJson`): a profile the
+        // device cannot date is still a profile it can switch to.
+        createdAt: serverInstant(json['created_at']) ?? _epoch,
       );
 
   /// Reduce to the lightweight snapshot persisted as the active selection.
@@ -77,3 +80,5 @@ class ActiveProfile {
         'mood': mood.wire,
       };
 }
+
+final DateTime _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);

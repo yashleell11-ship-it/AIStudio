@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 
+import 'package:manhwamaniacs/core/time/server_instant.dart';
+
 /// Which ordered sequence a bookmark's [Bookmark.anchorIndex] counts.
 ///
 /// Stored on the row rather than derived from the source id: the reader that
@@ -360,19 +362,9 @@ double clampBookmarkFraction(num? value) {
   return number.clamp(0.0, 1.0);
 }
 
-/// An instant reported by the backend.
-///
-/// Every timestamp column in this project is a naive SQLite `DATETIME` holding
-/// UTC (`core/time_utils.utcnow`), so it serialises with no timezone
-/// designator — and `DateTime.parse` reads an offset-less string as **local**.
-/// For a display timestamp that is a cosmetic shift; for [Bookmark.updatedAt]
-/// it is the last-write-wins comparison itself, so a device in +05:30 would
-/// consider every server row five and a half hours stale. The designator is
-/// supplied here, once.
-DateTime? bookmarkInstant(Object? raw) {
-  if (raw is! String || raw.isEmpty) return null;
-  final zoned = raw.endsWith('Z') || _offsetSuffix.hasMatch(raw);
-  return DateTime.tryParse(zoned ? raw : '${raw}Z')?.toUtc();
-}
-
-final RegExp _offsetSuffix = RegExp(r'[+-]\d{2}:?\d{2}$');
+/// [serverInstant], under the name the bookmark store already calls it by
+/// (`features/downloads/store/bookmarks_dao.dart` reads the same naive-UTC
+/// strings back out of SQLite). The single implementation lives in
+/// `core/time/server_instant.dart`; for [Bookmark.updatedAt] getting it
+/// wrong is not cosmetic — that field IS the last-write-wins comparison.
+DateTime? bookmarkInstant(Object? raw) => serverInstant(raw);

@@ -114,30 +114,17 @@ Future<Database> openDownloadsDatabase({String? overridePath}) async {
   return openDatabase(
     path,
     version: _dbVersion,
-    onUpgrade: (db, oldVersion, newVersion) async {
-      // v1 → v2: novels. `ADD COLUMN` with a default is the one schema change
-      // SQLite performs without rewriting the table, so an install with
-      // thousands of downloaded chapters upgrades instantly — and every row
-      // that already exists is a manga chapter, which is exactly what the
-      // default backfills.
-      if (oldVersion < 2) {
-        await db.execute(
-          'ALTER TABLE ${DownloadsSchema.savedChapters} '
-          'ADD COLUMN ${DownloadsSchema.colKind} TEXT NOT NULL '
-          "DEFAULT '$kMangaDownloadKind'",
-        );
-      }
-      // v2 → v3: offline bookmarks. Purely additive — two new tables and
-      // their indexes, nothing dropped and no table rewritten — because the
-      // owner's phone holds real downloads and real reading progress in the
-      // tables above, and a destructive recreate would take them with it.
-      // The same DDL as [onCreate] runs here, from one place, so a phone that
-      // upgrades and a phone installed fresh cannot end up with different
-      // columns.
-      if (oldVersion < 3) {
-        await _createBookmarkTables(db);
-      }
-    },
+    onUpgrade: (db, oldVersion, newVersion) => _migrate(db, oldVersion),
+    // A sideloaded older APK is a one-way trip without this. sqflite runs no
+    // migration on a downgrade and simply stamps `user_version` back down, so
+    // the file keeps its newer tables while claiming to be old — and the next
+    // launch of the current build re-runs a migration whose change is already
+    // there. That threw, during open, forever: a rollback the user made once
+    // left them with a store no build could open again. Re-running the
+    // migrations (each one a no-op when its change is present) puts the file
+    // back at the current version without touching a downloaded byte, which
+    // is why every step in [_migrate] must stay idempotent and additive.
+    onDowngrade: (db, oldVersion, newVersion) => _migrate(db, 0),
     onCreate: (db, version) async {
       await db.execute('''
         CREATE TABLE ${DownloadsSchema.savedChapters} (
@@ -206,6 +193,42 @@ Future<Database> openDownloadsDatabase({String? overridePath}) async {
       await _createBookmarkTables(db);
     },
   );
+}
+
+/// Every additive step from [oldVersion] to the current schema.
+///
+/// Each step checks for its own change first rather than trusting the version
+/// stamp, because the stamp is not trustworthy: an older build that opened
+/// this file lowered it without undoing anything (see `onDowngrade`). A step
+/// that would fail on a change already present is what turns one rollback
+/// into a permanently unopenable store.
+Future<void> _migrate(Database db, int oldVersion) async {
+  // v1 → v2: novels. `ADD COLUMN` with a default is the one schema change
+  // SQLite performs without rewriting the table, so an install with thousands
+  // of downloaded chapters upgrades instantly — and every row that already
+  // exists is a manga chapter, which is exactly what the default backfills.
+  if (oldVersion < 2 &&
+      !await _hasColumn(db, DownloadsSchema.savedChapters, DownloadsSchema.colKind)) {
+    await db.execute(
+      'ALTER TABLE ${DownloadsSchema.savedChapters} '
+      'ADD COLUMN ${DownloadsSchema.colKind} TEXT NOT NULL '
+      "DEFAULT '$kMangaDownloadKind'",
+    );
+  }
+  // v2 → v3: offline bookmarks. Purely additive — two new tables and their
+  // indexes, nothing dropped and no table rewritten — because the owner's
+  // phone holds real downloads and real reading progress in the tables above,
+  // and a destructive recreate would take them with it. The same DDL as
+  // `onCreate` runs here, from one place, so a phone that upgrades and a
+  // phone installed fresh cannot end up with different columns.
+  if (oldVersion < 3) {
+    await _createBookmarkTables(db);
+  }
+}
+
+Future<bool> _hasColumn(Database db, String table, String column) async {
+  final columns = await db.rawQuery('PRAGMA table_info($table)');
+  return columns.any((row) => row['name'] == column);
 }
 
 /// The `bookmarks` + `bookmark_outbox` DDL, run by both `onCreate` and the

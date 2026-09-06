@@ -323,6 +323,18 @@ class _SourceReaderScreenState extends ConsumerState<SourceReaderScreen> {
             seriesKey: widget.seriesId,
             chapterKey: widget.chapterId,
           ),
+          // The whole window, republished on every slide. The route's chapter
+          // alone would leave the two neighbours on screen exposed to the
+          // resume sweep — and in a re-read of a finished series it is exactly
+          // those whose 48h timer has already run out.
+          feedChapterIds: [
+            for (final chapter in feedController.feed.chapters)
+              (
+                sourceId: widget.sourceId,
+                seriesKey: widget.seriesId,
+                chapterKey: chapter.id,
+              ),
+          ],
           child: ReaderContent(
             key: ValueKey(
               '${widget.sourceId}:${widget.seriesId}:${widget.chapterId}',

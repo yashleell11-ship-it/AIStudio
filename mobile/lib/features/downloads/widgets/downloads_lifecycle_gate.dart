@@ -88,11 +88,11 @@ class _DownloadsLifecycleGateState extends ConsumerState<DownloadsLifecycleGate>
 
   Future<void> _sweep() async {
     final interval = ref.read(retentionIntervalProvider).duration;
-    final openChapter = ref.read(currentlyOpenChapterProvider);
+    final openChapters = ref.read(currentlyOpenChaptersProvider);
     try {
       await ref.read(retentionMaintenanceProvider).sweepExpired(
             interval: interval,
-            excludeOpen: openChapter,
+            excludeOpen: openChapters,
           );
     } catch (_) {
       // Best-effort housekeeping — retried on the next launch/resume.

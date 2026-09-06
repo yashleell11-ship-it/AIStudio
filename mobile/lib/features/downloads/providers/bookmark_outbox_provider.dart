@@ -35,10 +35,14 @@ const int kBookmarkBatchMaxItems = 200;
 /// an `await` throws once the provider it belongs to has been disposed. A
 /// profile switch rebuilds this controller with the new scope's store, which
 /// is the same thing watching would have achieved.
+///
+/// [activeScopeId] is the one thing it must read late rather than capture:
+/// see [_switchedAwayFrom].
 class BookmarkOutboxController {
   const BookmarkOutboxController({
     required this.store,
     required this.repository,
+    required this.activeScopeId,
   });
 
   /// The active `(user, profile)` store, or null outside a session — in which
@@ -46,6 +50,23 @@ class BookmarkOutboxController {
   final DownloadsStore? store;
 
   final ReaderRepository repository;
+
+  /// The `(user, profile)` scope active RIGHT NOW, read fresh on every call —
+  /// never the one this controller was built for.
+  final String? Function() activeScopeId;
+
+  /// Whether the reader switched profiles since a call that started under
+  /// [startedIn].
+  ///
+  /// A request carries the `X-Profile-Id` it was built with, so a listing
+  /// answered after a switch describes whichever profile the server saw —
+  /// while [store] is fixed to the profile that was active when this
+  /// controller was constructed. Merging one into the other writes a
+  /// persona's bookmarks into another persona's rows, which is the one thing
+  /// per-profile isolation exists to prevent. There is no way to tell from
+  /// the response which profile it belongs to, so the only safe answer is to
+  /// drop it and let the incoming profile's own sync fetch its own listing.
+  bool _switchedAwayFrom(String? startedIn) => activeScopeId() != startedIn;
 
   /// Bookmark [id] at an exact position. Returns the stored bookmark, or null
   /// when there is no active scope to store it in.
@@ -117,6 +138,7 @@ class BookmarkOutboxController {
   Future<bool> flush() async {
     final store = this.store;
     if (store == null) return false;
+    final startedIn = activeScopeId();
     var refused = false;
     try {
       final pending = await store.pendingBookmarkOutbox();
@@ -125,6 +147,9 @@ class BookmarkOutboxController {
       for (var start = 0;
           start < pending.length;
           start += kBookmarkBatchMaxItems) {
+        // Checked per chunk, not once: a switch between chunks would push the
+        // rest of this profile's ops under the incoming profile's header.
+        if (_switchedAwayFrom(startedIn)) return refused;
         final end = start + kBookmarkBatchMaxItems;
         final chunk = pending.sublist(
           start,
@@ -156,11 +181,13 @@ class BookmarkOutboxController {
   Future<void> _reconcile() async {
     final store = this.store;
     if (store == null) return;
+    final startedIn = activeScopeId();
     try {
       final result = await repository.listBookmarks(
         includeDeleted: true,
         limit: 500,
       );
+      if (_switchedAwayFrom(startedIn)) return;
       if (result.isOk) await store.mergeServerBookmarks(result.value);
     } catch (_) {
       // The refusal is already recorded on the server; the device catches up
@@ -183,13 +210,14 @@ class BookmarkOutboxController {
   Future<bool> sync() async {
     final store = this.store;
     if (store == null) return false;
+    final startedIn = activeScopeId();
     await flush();
     try {
       final result = await repository.listBookmarks(
         includeDeleted: true,
         limit: 500,
       );
-      if (result.isErr) return false;
+      if (result.isErr || _switchedAwayFrom(startedIn)) return false;
       return await store.mergeServerBookmarks(result.value) > 0;
     } catch (_) {
       // The device's own rows are the screen's source of truth; a failed pull
@@ -203,6 +231,16 @@ final bookmarkOutboxControllerProvider = Provider<BookmarkOutboxController>(
   (ref) => BookmarkOutboxController(
     store: ref.watch(downloadsStoreProvider),
     repository: ref.watch(readerRepositoryProvider),
+    activeScopeId: () {
+      try {
+        return ref.read(activeDownloadsScopeIdProvider);
+      } catch (_) {
+        // The container this was built in is gone (sign-out teardown): read
+        // that as "not the scope it started in", so an in-flight pull is
+        // dropped rather than merged into a store nothing is showing.
+        return null;
+      }
+    },
   ),
   name: 'bookmarkOutboxController',
 );
