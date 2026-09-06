@@ -15,10 +15,11 @@ adult series, not a request to forget where the account got to.
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query, Request, Response
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel, Field, ValidationError
 
 from core.errors import AppError
 from core.profile_context import require_profile_context
@@ -31,6 +32,7 @@ from services.bookmark_service import (
     get_bookmark_service,
 )
 from services.progress_service import (
+    RETRY_AFTER_SECONDS,
     ProgressInput,
     ProgressService,
     get_progress_service,
@@ -218,10 +220,37 @@ def chapter_manifest_batch(
     )
 
 
+#: The service's code for "SQLite's single writer is still busy" (503).
+DB_BUSY_CODE = "db_busy"
+
+
+def _busy(exc: AppError) -> JSONResponse:
+    """The 503 envelope, plus the header ``AppError`` cannot carry.
+
+    ``core.errors`` renders every ``AppError`` through one ``JSONResponse``
+    with no way to attach headers, and a 503 with no ``Retry-After`` tells a
+    retrying client nothing — these two routes are the reader's steady drip of
+    keep-alive pushes, which is exactly the traffic that has to back OFF a
+    saturated writer rather than spin on it. Built here, in the only routes
+    that raise it, instead of widening the shared handler for one code; the
+    body is byte-identical to what that handler would have produced.
+    """
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": exc.code, "message": exc.message, "details": exc.details},
+        headers={"Retry-After": str(RETRY_AFTER_SECONDS)},
+    )
+
+
 @router.post("/progress", dependencies=[Depends(require_profile_context)])
 def save_progress(body: ProgressRequest, service: ProgressDep) -> dict[str, object]:
     """Save reading progress. Applies the furthest-wins merge (never rewinds)."""
-    return service.save_one(body.to_input())
+    try:
+        return service.save_one(body.to_input())
+    except AppError as exc:
+        if exc.code != DB_BUSY_CODE:
+            raise
+        return _busy(exc)
 
 
 # Offline-sync batches are bounded: an unbounded array was parsed fully into
@@ -230,12 +259,64 @@ def save_progress(body: ProgressRequest, service: ProgressDep) -> dict[str, obje
 PROGRESS_BATCH_MAX_ITEMS = 200
 
 
-@router.post("/progress/batch", dependencies=[Depends(require_profile_context)])
-def save_progress_batch(
-    body: list[ProgressRequest], service: ProgressDep
-) -> dict[str, object]:
+def _item_errors(exc: ValidationError) -> list[dict[str, str]]:
+    """Pydantic's report, flattened to something JSON can hold.
+
+    ``ValidationError.errors()`` carries ``ctx`` objects and the offending
+    input verbatim; the input is the client's own row (no need to echo it) and
+    ``ctx`` is not always serializable, so only the field path and the message
+    cross the wire.
+    """
+    return [
+        {"field": ".".join(str(part) for part in err["loc"]), "message": err["msg"]}
+        for err in exc.errors()
+    ]
+
+
+@router.post(
+    "/progress/batch",
+    dependencies=[Depends(require_profile_context)],
+    # The handler validates item by item (see below), so the signature can no
+    # longer carry the schema. Declare it here instead, or /docs would show an
+    # array of anything for the endpoint every offline client posts to.
+    openapi_extra={
+        "requestBody": {
+            "content": {
+                "application/json": {
+                    "schema": {
+                        "type": "array",
+                        "items": {
+                            "$ref": "#/components/schemas/ProgressRequest"
+                        },
+                    }
+                }
+            }
+        }
+    },
+)
+def save_progress_batch(body: list[Any], service: ProgressDep) -> dict[str, object]:
     """Offline-sync catch-up: an array of progress pushes, merged in one
-    transaction. Capped at ``PROGRESS_BATCH_MAX_ITEMS`` items."""
+    transaction. Capped at ``PROGRESS_BATCH_MAX_ITEMS`` items.
+
+    Answers ``{saved, advanced, items, rejected}``. ``items`` holds one merged
+    result per ACCEPTED push, in request order; ``rejected`` holds
+    ``{index, errors}`` for each push that could not be parsed, where ``index``
+    is its position in the array the client sent.
+
+    Per-item validation, because ``body: list[ProgressRequest]`` made one
+    unparseable row fatal to the whole flush. An outbox is drained oldest-first
+    and cleared only on a 2xx, so a single such row — a ``last_page`` of 0 from
+    an older build, an identifier a migration left empty — turned every flush
+    into the same 422 for ever, and nothing queued behind it was ever saved.
+    The bookmark batch already states the rule this now follows: "a flush that
+    400s as a whole leaves the device unable to make progress at all."
+
+    An unknown field is not such a row: ``ProgressRequest`` ignores extras, so
+    a client may add one without waiting for the server.
+
+    The batch cap stays fatal (413): that one the client can obey by sending
+    fewer items, and it is about the write lock rather than the payload.
+    """
     if len(body) > PROGRESS_BATCH_MAX_ITEMS:
         raise AppError(
             "Too many progress items in one batch.",
@@ -246,7 +327,20 @@ def save_progress_batch(
                 "received": len(body),
             },
         )
-    return service.save_batch([item.to_input() for item in body])
+    payloads: list[ProgressInput] = []
+    rejected: list[dict[str, object]] = []
+    for index, item in enumerate(body):
+        try:
+            payloads.append(ProgressRequest.model_validate(item).to_input())
+        except ValidationError as exc:
+            rejected.append({"index": index, "errors": _item_errors(exc)})
+    try:
+        result = service.save_batch(payloads)
+    except AppError as exc:
+        if exc.code != DB_BUSY_CODE:
+            raise
+        return _busy(exc)
+    return {**result, "rejected": rejected}
 
 
 @router.get("/progress/series")
