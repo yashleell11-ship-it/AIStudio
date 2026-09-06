@@ -6,9 +6,12 @@ per-user row: two accounts never see each other's pins, and neither do two
 profiles on one account.
 
 ``source_id`` is a connector key, not a foreign key -- connectors are code, not
-rows. A pinned source can therefore stop resolving (connector excluded, renamed,
-or hidden by the mature gate); such a pin is still returned, flagged
-``available: false``, rather than silently vanishing from the user's ordering.
+rows. A pinned source can therefore stop resolving (connector excluded or
+renamed); such a pin is still returned, flagged ``available: false``, rather
+than silently vanishing from the user's ordering. The one exception is a source
+the caller's 18+ gate hides: an adult connector's id is exactly what the gate
+withholds everywhere else, so a pin made while the gate was open is omitted --
+and left alone by writes -- until it opens again.
 """
 
 from __future__ import annotations
@@ -68,6 +71,23 @@ class SourcePinService:
             )
         }
 
+    def _gated_source_ids(self) -> frozenset[str]:
+        """Ids of the installed adult sources while this caller's gate is shut.
+
+        Read from the ungated registry rather than from ``_pinnable_sources``:
+        that listing has already dropped them, and a pin is judged by what it
+        *names*, so the answer has to come from the side that still knows.
+        ``browsable_only`` is deliberately off -- a source that stops being
+        browsable is still adult, and the id is the disclosure.
+        """
+        if self._mature_enabled():
+            return frozenset()
+        return frozenset(
+            descriptor.source_type
+            for descriptor in list_installed_connectors(include_mature=True)
+            if descriptor.mature
+        )
+
     # --- serialization -------------------------------------------------------
 
     @staticmethod
@@ -93,10 +113,15 @@ class SourcePinService:
             # has none rather than sharing one global set.
             return []
         available = self._pinnable_sources()
+        hidden = self._gated_source_ids()
         rows = self._db.execute(
             self._scoped().order_by(SourcePin.sort_order, SourcePin.id)
         ).scalars()
-        return [self._serialize(pin, available.get(pin.source_id)) for pin in rows]
+        return [
+            self._serialize(pin, available.get(pin.source_id))
+            for pin in rows
+            if pin.source_id not in hidden
+        ]
 
     # --- writes --------------------------------------------------------------
 
@@ -152,13 +177,18 @@ class SourcePinService:
             )
 
         wanted = self._validate(source_ids)
+        # A row the gate hides never reached this caller, so its absence from
+        # the list sent back is not a decision about it: deleting it here
+        # would turn a read-side omission into data loss the moment the
+        # profile re-ordered its pins.
+        hidden = self._gated_source_ids()
         existing = {
             pin.source_id: pin
             for pin in self._db.execute(self._scoped()).scalars()
         }
 
         for source_id, pin in existing.items():
-            if source_id not in wanted:
+            if source_id not in wanted and source_id not in hidden:
                 self._db.delete(pin)
 
         for order, source_id in enumerate(wanted):
