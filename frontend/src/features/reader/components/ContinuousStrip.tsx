@@ -22,7 +22,7 @@ import {
 import { naturalPageRatio, readPageRatios, writePageRatios } from "../page-ratios";
 import { pageImageUrlForBox } from "../page-url";
 import { PRELOAD_AHEAD_CONTINUOUS } from "../preload";
-import { restoreChapterScroll } from "../scroll-preparation";
+import { restoreChapterScroll, scrollRestoreLanded } from "../scroll-preparation";
 import {
   buildStripRows,
   chapterFirstPageRow,
@@ -33,6 +33,7 @@ import {
   releasedChapterKeys,
   shouldPersistFrozenHeights,
   stripPositionAt,
+  stripStandingHeights,
   type StripChapter,
   type StripPosition,
   type StripRow,
@@ -490,14 +491,24 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /**
+   * The opening estimate, re-applied only until it has LANDED.
+   *
+   * "Landed" is within a device pixel (`scrollRestoreLanded`), not exact
+   * equality: the estimate is fractional whenever a page height is (768px x
+   * the 3.4 prior = 2611.2), and a browser reads `scrollTop` back on whole
+   * pixels, so exact equality was never reached — which kept this pending for
+   * the whole session and re-ran it on every change of `rows.length`. That is
+   * every chapter appended and every chapter released to a spacer: a reader
+   * resumed mid-chapter was thrown back to the entry chapter's resume point
+   * each time the strip grew or trimmed, two or three chapters on.
+   */
   useLayoutEffect(() => {
     if (rows.length === 0) return;
     if (!initialRestorePendingRef.current || initialScrollTop <= 0) return;
     virtualizer.measure();
-    if (scrollElement.scrollTop !== initialScrollTop) {
-      restoreChapterScroll(scrollElement, initialScrollTop);
-    }
-    if (scrollElement.scrollTop === initialScrollTop) {
+    restoreChapterScroll(scrollElement, initialScrollTop);
+    if (scrollRestoreLanded(scrollElement, initialScrollTop)) {
       initialRestorePendingRef.current = false;
     }
     // virtualizer identity changes each render; remeasure when inputs change.
@@ -510,6 +521,11 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     if (!onHandleReady) return;
     onHandleReady({
       scrollToPosition: (chapterKey, pageNumber, offset = 0) => {
+        // An explicit landing is the last word on where the strip opens; the
+        // estimate above must not be re-applied over it once the reader has
+        // been put on a measured page — even if that estimate never fit
+        // (clamped short at first paint, so it never "landed").
+        initialRestorePendingRef.current = false;
         const index = findStripRow(rowsRef.current, chapterKey, pageNumber);
         if (index < 0) return;
         if (offset > 0) {
@@ -728,9 +744,20 @@ export const ContinuousStrip = memo(function ContinuousStrip({
       // Already released and untouched since: the numbers it was frozen at are
       // still the numbers its spacer is standing on.
       if (!next.has(chapter.chapterKey) || released.has(chapter.chapterKey)) return;
+      // Frozen at what the rows are standing at in the virtualizer's own
+      // layout, not at what this strip has recorded decoding: a rendered page
+      // that never decoded stands at its placeholder box, which the record has
+      // never seen, and a spacer built from the record would be a different
+      // height from the rows it replaces — moving the reader by the difference
+      // whenever the chapter released is above them.
+      const standing = stripStandingHeights(
+        rows,
+        chapter.chapterKey,
+        (rowIndex) => virtualizer.measurementsCache[rowIndex]?.size,
+      );
       const { total, frozen } = freezeChapterHeight(
         chapter,
-        measuredByKeyRef.current,
+        new Map([...measuredByKeyRef.current, ...standing]),
         (page, pageNumber) => pageRowHeight(page, chapter.chapterKey, pageNumber),
       );
       releasedHeightsRef.current.set(chapter.chapterKey, total);
@@ -754,6 +781,9 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     flushRatios();
     readerDebug("strip-released", { released: next.size, chapters: chapters.length });
     setReleased(next);
+    // `virtualizer` identity churns per render and is read, not depended on:
+    // `rows` is what changes the answer, and it is listed.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     activeChapterKey,
     chapters,
@@ -762,6 +792,7 @@ export const ContinuousStrip = memo(function ContinuousStrip({
     pageGap,
     pageRowHeight,
     released,
+    rows,
     zoom,
   ]);
 

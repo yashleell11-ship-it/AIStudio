@@ -33,9 +33,15 @@ export function estimateResumeOffset(input: ResumeEstimateInput): number {
 const syncedScrollTargets = new Map<string, number>();
 
 /**
- * Applies the target scroll offset when a chapter opens or reopens.
- * Re-syncs when the target offset changes (for example after leave and reopen)
- * but does not reset user scrolling on unrelated re-renders.
+ * Applies the target scroll offset when a chapter opens.
+ *
+ * ONCE per scroll key, until {@link clearChapterScrollPreparation} forgets it
+ * (the reader does that on leaving, so reopening is a fresh open). The number
+ * is an estimate of where the strip should OPEN, relative to the entry
+ * chapter's top — and it is recomputed whenever page heights are re-estimated,
+ * a zoom step above all. Re-applying that recomputation used to put a reader
+ * three chapters into a strip back at the entry chapter's resume point every
+ * time they zoomed: it is the same opening, not a new one.
  */
 export function syncChapterScroll(
   scrollKey: string,
@@ -46,8 +52,7 @@ export function syncChapterScroll(
     return;
   }
 
-  const previousTarget = syncedScrollTargets.get(scrollKey);
-  if (previousTarget === scrollTop) {
+  if (syncedScrollTargets.has(scrollKey)) {
     return;
   }
 
@@ -61,17 +66,37 @@ export function syncChapterScroll(
 /**
  * Re-applies a non-zero scroll offset after the virtualizer has measured content
  * height. Browsers can clamp scrollTop while content is still laying out.
+ *
+ * Written and compared in whole pixels. The offset is an estimate — a column
+ * width times an aspect prior, 768 x 3.4 = 2611.2 — and a browser keeps
+ * `scrollTop` on device pixels, so a fractional target can never be read back
+ * exactly. Testing for exact equality made the caller's "has this landed yet"
+ * answer *no* on every frame for the rest of the session, and every re-apply
+ * threw the reader back to the strip's opening position.
  */
 export function restoreChapterScroll(
   element: HTMLElement | null,
   scrollTop: number,
 ): boolean {
-  if (!element || scrollTop <= 0 || element.scrollTop === scrollTop) {
+  if (!element || scrollTop <= 0 || scrollRestoreLanded(element, scrollTop)) {
     return false;
   }
 
-  element.scrollTop = scrollTop;
+  element.scrollTop = Math.round(scrollTop);
   return true;
+}
+
+/**
+ * Whether a restore has put the container where it was asked to, within the
+ * device pixel a browser is allowed to round to. `false` while the write was
+ * clamped short (content not tall enough yet) — the one case worth retrying.
+ */
+export function scrollRestoreLanded(
+  element: HTMLElement | null,
+  scrollTop: number,
+): boolean {
+  if (!element) return false;
+  return Math.abs(element.scrollTop - Math.round(scrollTop)) < 1;
 }
 
 /**

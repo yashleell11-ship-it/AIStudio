@@ -364,6 +364,32 @@ export function shouldPersistFrozenHeights(
   return rendered || chapterIndex < activeIndex;
 }
 
+/**
+ * The heights a chapter's page rows are ACTUALLY standing at, by row key.
+ *
+ * `sizeAt` is the virtualizer's own current size for a row index — measured
+ * from the DOM where the row has been rendered, its estimate where it has not.
+ * That is the number the strip is laid out on right now, and so the number the
+ * spacer replacing those rows has to add up to. The strip's own record of
+ * decoded heights is not the same thing: a page that was rendered but never
+ * decoded (a failed image, a page flicked past before it loaded) stands at its
+ * placeholder box, which that record has never seen — freezing it from the
+ * running average instead moved everything under the reader by the difference.
+ */
+export function stripStandingHeights(
+  rows: readonly StripRow[],
+  chapterKey: string,
+  sizeAt: (rowIndex: number) => number | undefined,
+): Map<string, number> {
+  const standing = new Map<string, number>();
+  rows.forEach((row, index) => {
+    if (row.kind !== "page" || row.chapterKey !== chapterKey) return;
+    const size = sizeAt(index);
+    if (size != null && size > 0) standing.set(row.key, size);
+  });
+  return standing;
+}
+
 export function freezeChapterHeight(
   chapter: StripChapter,
   measured: ReadonlyMap<string, number>,
