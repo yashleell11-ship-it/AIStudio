@@ -23,6 +23,7 @@ from core.config import get_settings
 from core.connector_directory import descriptor_for_source
 from core.content_rating import (
     TRACKER_RATING_MATURE,
+    mature_tracker_case,
     rating_from_genres,
     resolve_mature_gate,
     resolve_tracker_rating,
@@ -213,10 +214,39 @@ class FollowedSeriesService:
             )
         return row
 
+    def _hidden(self, row: FollowedSeries) -> bool:
+        return not self._gate_open() and self._rating(row) == TRACKER_RATING_MATURE
+
+    def _get_visible(self, followed_id: int) -> FollowedSeries:
+        """``_get_owned`` plus the 18+ gate — the row as this profile may see it.
+
+        Every path that addresses a follow by id goes through here, reads and
+        writes alike. ``patch`` and ``unfollow`` used to stop at ``_get_owned``
+        and so answered for a row ``get_detail`` 404s: PATCH echoed the whole
+        hidden row (title, cover, chapter list) and DELETE's 204-versus-404
+        told a gated caller whether the id existed. The denial is the same
+        404 the read path gives, never a 403 — the row must not exist for
+        this profile on any verb.
+        """
+        row = self._get_owned(followed_id)
+        if self._hidden(row):
+            raise AppError(
+                "Series not found.", code="series_not_found", status_code=404
+            )
+        return row
+
     # --- CRUD --------------------------------------------------------
 
     def follow(self, source_id: str, series_key: str) -> dict[str, Any]:
         self._require_profile()
+        # The source gate first, and outside the try below: a source this
+        # profile cannot browse (unknown, or adult while the gate is shut) is
+        # refused with the same 404 browse gives. It used to be applied only
+        # inside ``get_series`` — whose failure the ``except`` deliberately
+        # swallows so a follow survives a source outage — so the 404 was
+        # swallowed too and the row was created for a source the profile is
+        # not allowed to know exists, or for one that does not exist at all.
+        self._browse.ensure_visible(source_id)
         series_key = fully_unquote(series_key)
         existing = self._db.execute(
             self._scope(
@@ -227,6 +257,10 @@ class FollowedSeriesService:
             )
         ).scalar_one_or_none()
         if existing is not None:
+            if self._hidden(existing):
+                raise AppError(
+                    "Series not found.", code="series_not_found", status_code=404
+                )
             return self.serialize(existing)
 
         # Follows are the row count the scheduled sweep walks (a live upstream
@@ -279,6 +313,14 @@ class FollowedSeriesService:
             ),
             last_checked_at=utcnow() if chapters else None,
         )
+        # Resolved before the insert, on the row as it would be stored: a
+        # series whose genres rate it adult is hidden from this profile the
+        # moment it lands, so inserting it hands the caller a follow it can
+        # neither see nor remove. Refused as not-found, like the read paths.
+        if self._hidden(row):
+            raise AppError(
+                "Series not found.", code="series_not_found", status_code=404
+            )
         self._db.add(row)
         self._db.commit()
         self._db.refresh(row)
@@ -288,13 +330,13 @@ class FollowedSeriesService:
 
     def unfollow(self, followed_id: int) -> None:
         self._require_owner()
-        row = self._get_owned(followed_id)
+        row = self._get_visible(followed_id)
         self._db.delete(row)
         self._db.commit()
 
     def patch(self, followed_id: int, **changes: Any) -> dict[str, Any]:
         self._require_owner()
-        row = self._get_owned(followed_id)
+        row = self._get_visible(followed_id)
         if "is_favorite" in changes and changes["is_favorite"] is not None:
             row.is_favorite = bool(changes["is_favorite"])
         if changes.get("reading_status") is not None:
@@ -372,11 +414,7 @@ class FollowedSeriesService:
 
     def get_detail(self, followed_id: int) -> dict[str, Any]:
         self._require_owner()
-        row = self._get_owned(followed_id)
-        if not self._gate_open() and self._rating(row) == TRACKER_RATING_MATURE:
-            raise AppError(
-                "Series not found.", code="series_not_found", status_code=404
-            )
+        row = self._get_visible(followed_id)
         payload = self.serialize(row)
         try:
             meta = self._cache.get_series_meta(row.source_id, row.series_key)
@@ -656,26 +694,71 @@ class FollowedSeriesService:
             return stmt.where(Collection.profile_id.is_(None))
         return stmt.where(Collection.profile_id == self._profile_id)
 
+    def _mature_case(self):
+        """1 when a collection member is 18+ for this profile, else 0.
+
+        The rule is :func:`core.content_rating.mature_tracker_case` — the same
+        one bookmarks, history and notifications resolve, so a series those
+        screens hide cannot be printed by name in a collection. All this names
+        is the column the source's own maturity is read from.
+        """
+        return mature_tracker_case(CollectionSeries.source_id)
+
+    def _visible_members(self, stmt):
+        """Restrict a ``collection_series`` statement to what the gate allows.
+
+        A membership row carries no rating of its own — it is a bare
+        ``(source_id, series_key)`` — so the rating comes from the profile's
+        own follow of that pair, outer-joined on the composite key exactly as
+        bookmarks and history do it. Outer, not inner: a member the profile
+        never followed still has its source's maturity to answer for it and an
+        inner join would silently drop every unfollowed member instead.
+
+        Applied only when the gate is shut: an open gate filters nothing and
+        should not pay for the join.
+        """
+        if self._gate_open():
+            return stmt
+        return stmt.outerjoin(
+            FollowedSeries,
+            and_(
+                FollowedSeries.user_id == self._user_id,
+                FollowedSeries.profile_id == self._profile_id,
+                FollowedSeries.source_id == CollectionSeries.source_id,
+                FollowedSeries.series_key == CollectionSeries.series_key,
+            ),
+        ).where(self._mature_case() == 0)
+
+    def _member_counts(self, collection_ids: list[int]) -> dict[int, int]:
+        """``collection_id -> visible member count``, in one statement.
+
+        ``series_count`` used to come from ``len(row.series)``, which lazy
+        -loads the whole membership relationship — one SELECT per collection,
+        returning every member row, to print a number. One GROUP BY answers
+        them all, and it counts through ``_visible_members`` so the number a
+        gated profile is shown is the number of members it can actually open.
+        """
+        if not collection_ids:
+            return {}
+        return dict(
+            self._db.execute(
+                self._visible_members(
+                    select(
+                        CollectionSeries.collection_id, func.count()
+                    )
+                    .where(
+                        CollectionSeries.collection_id.in_(collection_ids)
+                    )
+                ).group_by(CollectionSeries.collection_id)
+            ).all()
+        )
+
     def list_collections(self) -> list[dict[str, Any]]:
         self._require_owner()
         rows = self._db.execute(
             self._collection_scope(select(Collection)).order_by(Collection.sort_order)
         ).scalars().all()
-        # ``series_count`` used to come from ``len(row.series)``, which lazy
-        # -loads the whole membership relationship — one SELECT per collection,
-        # returning every member row, to print a number. One GROUP BY answers
-        # them all.
-        counts = dict(
-            self._db.execute(
-                select(
-                    CollectionSeries.collection_id, func.count()
-                )
-                .where(
-                    CollectionSeries.collection_id.in_([c.id for c in rows])
-                )
-                .group_by(CollectionSeries.collection_id)
-            ).all()
-        )
+        counts = self._member_counts([c.id for c in rows])
         return [
             self._serialize_collection(c, series_count=counts.get(c.id, 0))
             for c in rows
@@ -699,22 +782,32 @@ class FollowedSeriesService:
     def get_collection(self, collection_id: int) -> dict[str, Any]:
         self._require_owner()
         row = self._owned_collection(collection_id)
-        # Production sessions are built with ``expire_on_commit=False``, so a
-        # ``series`` collection loaded earlier in this same request survives
-        # the commit that changed membership and would serialize one write
-        # behind. ``add_series_to_collection`` does exactly that: it reads
-        # ``row.series`` for the new ``sort_order``, inserts, commits, then
-        # calls this method. Expire the relationship so the reads below come
-        # from the database rather than the identity map.
-        self._db.expire(row, ["series"])
-        payload = self._serialize_collection(row)
+        # Selected rather than read off ``row.series``: the relationship holds
+        # every member, and the 18+ gate is a predicate the database applies
+        # (``_visible_members``) against the profile's follow rows, which a
+        # loaded relationship knows nothing about. It also sidesteps the stale
+        # identity-map read the relationship gave here — production sessions
+        # are built with ``expire_on_commit=False``, so the membership loaded
+        # by ``add_series_to_collection`` for the new ``sort_order`` survived
+        # its own commit and this method served the collection one write
+        # behind.
+        members = self._db.execute(
+            self._visible_members(
+                select(
+                    CollectionSeries.source_id,
+                    CollectionSeries.series_key,
+                    CollectionSeries.sort_order,
+                ).where(CollectionSeries.collection_id == collection_id)
+            ).order_by(CollectionSeries.sort_order)
+        ).all()
+        payload = self._serialize_collection(row, series_count=len(members))
         payload["series"] = [
             {
-                "source_id": cs.source_id,
-                "series_key": cs.series_key,
-                "sort_order": cs.sort_order,
+                "source_id": m.source_id,
+                "series_key": m.series_key,
+                "sort_order": m.sort_order,
             }
-            for cs in sorted(row.series, key=lambda x: x.sort_order)
+            for m in members
         ]
         return payload
 
@@ -729,7 +822,9 @@ class FollowedSeriesService:
             row.sort_order = int(changes["sort_order"])
         self._db.commit()
         self._db.refresh(row)
-        return self._serialize_collection(row)
+        return self._serialize_collection(
+            row, series_count=self._member_counts([row.id]).get(row.id, 0)
+        )
 
     def delete_collection(self, collection_id: int) -> None:
         self._require_owner()
@@ -741,6 +836,13 @@ class FollowedSeriesService:
     ) -> dict[str, Any]:
         self._require_owner()
         row = self._owned_collection(collection_id)
+        # ``sort_order`` below is the membership count at insert time, and
+        # production sessions are built with ``expire_on_commit=False``: a
+        # ``series`` collection loaded by an earlier add in this same session
+        # survives that add's commit, so without this the second member is
+        # counted against stale membership and lands on the first one's
+        # position.
+        self._db.expire(row, ["series"])
         series_key = fully_unquote(series_key)
         exists = self._db.get(
             CollectionSeries, (collection_id, source_id, series_key)
@@ -762,9 +864,20 @@ class FollowedSeriesService:
     ) -> None:
         self._require_owner()
         self._owned_collection(collection_id)
-        row = self._db.get(
-            CollectionSeries, (collection_id, source_id, fully_unquote(series_key))
-        )
+        # Read through the same predicate ``get_collection`` prints members
+        # through, so a member the gate hides is exactly an absent one: the
+        # silent no-op below, row intact. A 404 here — where a member that
+        # was never added answers 204 — would be the very existence oracle
+        # the gate exists to close.
+        row = self._db.execute(
+            self._visible_members(
+                select(CollectionSeries).where(
+                    CollectionSeries.collection_id == collection_id,
+                    CollectionSeries.source_id == source_id,
+                    CollectionSeries.series_key == fully_unquote(series_key),
+                )
+            )
+        ).scalars().first()
         if row is not None:
             self._db.delete(row)
             self._db.commit()

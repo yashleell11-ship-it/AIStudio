@@ -145,21 +145,21 @@ class ProfileService:
             ).scalar_one()
             sort_order = (highest + 1) if highest is not None else 0
 
-        # Seed the per-profile mature gate from the global config default so a
-        # new profile inherits the instance's current stance until changed.
-        from core.config import get_settings
-
+        # A new profile starts with 18+ OFF unless the request said otherwise.
+        # It used to be seeded from the instance-wide
+        # ``Settings.mature_content_enabled``, so an admin flipping that default
+        # would have opened the gate on every profile created afterwards, on
+        # every account -- a per-profile toggle decided somewhere other than the
+        # profile is not a per-profile toggle. It was closed only because the
+        # default happens to be False. ``resolve_mature_gate`` no longer reads
+        # the global either: the profile's own toggle is the one way in.
         profile = ReadingProfile(
             user_id=self._user_id,
             name=clean_name,
             avatar_key=clean_avatar,
             mood=clean_mood,
             sort_order=sort_order,
-            mature_content_enabled=(
-                get_settings().mature_content_enabled
-                if mature_content_enabled is None
-                else bool(mature_content_enabled)
-            ),
+            mature_content_enabled=bool(mature_content_enabled),
         )
         self._db.add(profile)
         self._db.commit()

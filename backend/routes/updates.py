@@ -19,8 +19,9 @@ from sqlalchemy.orm import Session
 
 from core.errors import AppError
 from core.profile_context import ProfileContext, resolve_profile_context
+from database.models import User
 from database.session import get_db
-from services.auth_service import require_admin_user
+from services.auth_service import get_current_user, require_admin_user
 from services.update_scheduler import get_update_manager
 from services.update_service import UpdateService, get_update_service
 from utils.api_pagination import set_list_total_header
@@ -98,35 +99,52 @@ def mark_all_read(service: UpdateDep) -> dict[str, int]:
     return service.mark_all_notifications_read()
 
 
-@router.get("/runs")
+@router.get("/runs", dependencies=[Depends(require_admin_user)])
 def list_runs(
     service: UpdateDep,
     response: Response,
     limit: int = Query(default=20, ge=1, le=100),
 ) -> list[dict[str, object]]:
+    """The run log. **Admin only**: ``update_runs`` has no owner column — a
+    row's ``series_checked`` / ``new_chapters_found`` aggregate every account
+    on the instance — so it is gated with the settings that drive the sweep.
+    A member's own check returns its run inline from ``POST /updates/check``."""
     items = service.list_runs(limit=limit)
     set_list_total_header(response, service.count_runs())
     return items
 
 
-@router.get("/runs/{run_id}")
+@router.get("/runs/{run_id}", dependencies=[Depends(require_admin_user)])
 def get_run(run_id: int, service: UpdateDep) -> dict[str, object]:
     return service.get_run(run_id)
 
 
 @router.post("/check")
-def manual_check(body: ManualCheckRequest, service: UpdateDep) -> dict[str, object]:
+def manual_check(
+    body: ManualCheckRequest,
+    service: UpdateDep,
+    user: Annotated[User, Depends(get_current_user)],
+) -> dict[str, object]:
     """Trigger an update check. Runs on a worker thread when the pool is up.
 
     The worker path hands the ids to ``run_check_in_new_session``, which runs a
     *system*-scoped service on its own session — so the ownership check has to
     happen here, before the ids leave the request. Without it any authenticated
     caller could force a check on another account's followed series.
+
+    An id-less request is the instance-wide sweep only for an admin. For a
+    member it used to be exactly that as well — every account's rows, with the
+    aggregate readable off the run log — so it now resolves to the caller's own
+    library, which is what the client's "check now" button means anyway. The
+    resolved list is passed through even when empty: ``None`` is the sweep.
     """
     manager = get_update_manager()
-    followed_ids = (
-        service.resolve_followed_ids(body.followed_ids) if body.followed_ids else None
-    )
+    if body.followed_ids:
+        followed_ids = service.resolve_followed_ids(body.followed_ids)
+    elif user.is_admin:
+        followed_ids = None
+    else:
+        followed_ids = service.owned_followed_ids()
     if not manager.is_running:
         return service.run_check(trigger="manual", followed_ids=followed_ids)
     if manager.trigger_check(trigger="manual", tracker_ids=followed_ids):

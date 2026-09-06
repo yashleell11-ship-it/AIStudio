@@ -38,10 +38,12 @@ from core.content_rating import mature_tracker_case
 from database.models import (
     Bookmark,
     ChapterProgress,
+    CollectionSeries,
     ReadingSession,
     UpdateNotification,
 )
 from services.bookmark_service import BookmarkService
+from services.followed_series_service import FollowedSeriesService
 from services.progress_service import ProgressService
 from services.reading_stats_service import ReadingStatsService
 from services.update_service import UpdateService
@@ -63,6 +65,15 @@ GATES = [
     ("bookmarks", BookmarkService._mature_case, Bookmark.source_id),
     ("reader/history", ProgressService._mature_case, ChapterProgress.source_id),
     ("updates/notifications", UpdateService._mature_case, UpdateNotification.source_id),
+    # The sixth surface, and the one that arrived after the consolidation:
+    # collection membership rows carry no rating of their own, so
+    # ``FollowedSeriesService`` resolves them through the profile's own follow
+    # exactly as bookmarks and history do. It was written as a delegator from
+    # the start and was still missing from this table, which is the only place
+    # a rewritten copy is visible while it stays behaviour-identical -- an
+    # ``is_(True)`` where the shared rule writes ``== 1`` passes every
+    # behavioural collections test and the source-text scan below alike.
+    ("collections", FollowedSeriesService._mature_case, CollectionSeries.source_id),
 ]
 
 

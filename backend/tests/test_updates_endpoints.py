@@ -129,16 +129,21 @@ def test_notifications_isolated_between_profiles(
 # --- runs -----------------------------------------------------------
 
 
-def test_runs_list_after_a_check(api, h, stub_chapters):
+def test_runs_list_after_a_check(api, h, as_user, make_user, stub_chapters):
     resp = api.post("/updates/check", json={}, headers=h)
     assert resp.status_code == 200, resp.text
     assert resp.json()["status"] == "completed"
 
-    runs = api.get("/updates/runs", headers=h).json()
+    # The run log is instance-wide -- every account's checks land in it -- so
+    # reading it is an admin's job, not a member's.
+    admin_h = as_user(make_user("upd-runs-admin", is_admin=True).id)
+    runs = api.get("/updates/runs", headers=admin_h).json()
     assert len(runs) == 1
     assert runs[0]["trigger"] == "manual"
-    assert api.get(f"/updates/runs/{runs[0]['id']}", headers=h).status_code == 200
-    assert api.get("/updates/runs/999999", headers=h).status_code == 404
+    assert (
+        api.get(f"/updates/runs/{runs[0]['id']}", headers=admin_h).status_code == 200
+    )
+    assert api.get("/updates/runs/999999", headers=admin_h).status_code == 404
 
 
 # --- the check sweep, end to end via HTTP ---------------------------
