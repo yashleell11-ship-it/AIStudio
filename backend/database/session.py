@@ -32,6 +32,23 @@ def get_engine() -> Engine:
         pool_size=20,
         max_overflow=20,
     )
+    install_sqlite_pragmas(engine)
+    return engine
+
+
+def install_sqlite_pragmas(engine: Engine) -> None:
+    """Attach the connect-time pragmas every SQLite engine here needs.
+
+    Public, and not inlined into ``get_engine``, because anything that builds
+    its own engine has to get the same connection settings or it is not
+    testing this server. The pragma that matters most is ``foreign_keys``:
+    SQLite defaults it to OFF per connection, the schema hangs 23 foreign keys
+    (most ``ondelete=CASCADE``) off ``users``/``reading_profiles``, and
+    ``ProfileService.delete_profile`` declares no ORM relationships — it
+    relies entirely on the database cascade. An engine built without this
+    listener therefore silently keeps orphans and accepts rows pointing at
+    nothing, which is exactly the class of bug the suite exists to catch.
+    """
 
     @event.listens_for(engine, "connect")
     def _set_sqlite_pragma(dbapi_connection, _connection_record) -> None:
@@ -69,11 +86,29 @@ def get_engine() -> Engine:
         cursor.execute("PRAGMA cache_size=-65536")
         cursor.close()
 
-    return engine
+
+class _EngineFollowingSessionmaker(sessionmaker):
+    """A sessionmaker that resolves its engine per session, not at import.
+
+    Binding at import froze the very first ``get_engine()`` into the factory,
+    which meant the test suite read the developer's real ``manhwamaniacs.db``
+    for every request whose route did not override ``get_db`` -- the autouse
+    isolation fixture repoints ``MM_DB_PATH`` and clears the engine cache, but
+    a factory that captured the old engine never noticed. One such test read
+    real cached browse rows and silently skipped the connector it meant to
+    assert on.
+
+    Resolving per call costs an ``lru_cache`` hit and makes the factory follow
+    whatever ``get_engine()`` currently answers, which is what every caller
+    already assumed it did.
+    """
+
+    def __call__(self, *args, **kwargs):  # type: ignore[override]
+        kwargs.setdefault("bind", get_engine())
+        return super().__call__(*args, **kwargs)
 
 
-SessionLocal = sessionmaker(
-    bind=get_engine(),
+SessionLocal = _EngineFollowingSessionmaker(
     autoflush=False,
     autocommit=False,
     expire_on_commit=False,

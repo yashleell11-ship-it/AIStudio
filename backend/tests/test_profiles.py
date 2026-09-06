@@ -8,13 +8,32 @@ gate and that the advisory ``X-Profile-Id`` header never fails a request.
 
 from __future__ import annotations
 
+from datetime import timedelta
+
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import func, select
 from sqlalchemy.orm import sessionmaker
 
 from core.config import get_settings
 from core.errors import AppError
-from database.models import User
+from core.time_utils import utcnow
+from database.models import (
+    Base,
+    Bookmark,
+    ChapterProgress,
+    Collection,
+    CollectionSeries,
+    FollowedSeries,
+    ProfileSeriesTag,
+    ReadingDayStats,
+    ReadingSession,
+    SourcePin,
+    Tag,
+    UpdateNotification,
+    User,
+    UserSession,
+)
 from database.session import get_db
 from main import create_app
 from services.profile_service import ProfileService
@@ -129,6 +148,168 @@ def test_max_five_profiles_enforced_per_user(db_session, users):
     # The cap is per-user: Bob is unaffected.
     bob = ProfileService(db_session, user_id=users["bob"])
     assert bob.create_profile(name="Bob's first").name == "Bob's first"
+
+
+# --- ON DELETE CASCADE -------------------------------------------------------
+#
+# ``test_delete_profile`` above asserts the profile is gone. Nothing asserted
+# that its *rows* are, and they are the half the database is doing on its own:
+# ``ProfileService.delete_profile`` is one ``db.delete(profile)`` and
+# ``ReadingProfile`` declares no ORM relationships, so every dependent row is
+# removed by SQLite's ``ON DELETE CASCADE`` and by nothing else. SQLite honours
+# that only while ``PRAGMA foreign_keys=ON`` is set on the connection, which is
+# why these tests are meaningful at all (``install_sqlite_pragmas``, wired into
+# the suite engine in conftest).
+#
+# The parametrisation is derived from the ORM metadata rather than typed out,
+# so a table added later with a ``profile_id`` or ``user_id`` foreign key
+# arrives here as a new failing case instead of quietly going uncovered --
+# which is exactly how ``reading_day_stats`` came to sit outside the
+# hand-written list in test_audit_isolation_profile_delete_cascade.
+
+
+def _fk_children_of(parent_table: str) -> set[str]:
+    return {
+        table.name
+        for table in Base.metadata.tables.values()
+        for fk in table.foreign_keys
+        if fk.column.table.name == parent_table
+    }
+
+
+#: Reached through ``collections``, not by a foreign key of its own: a
+#: collection's membership rows must die with the profile that owned the
+#: collection, and only a second cascade hop takes them.
+TRANSITIVE_DEPENDENTS = {"collection_series"}
+
+PROFILE_DEPENDENTS = sorted(_fk_children_of("reading_profiles") | TRANSITIVE_DEPENDENTS)
+USER_DEPENDENTS = sorted(
+    _fk_children_of("users") | _fk_children_of("reading_profiles") | TRANSITIVE_DEPENDENTS
+)
+
+#: What ``_seed_one_row_everywhere`` actually writes. ``reading_profiles`` is
+#: absent because the test creates that row itself.
+SEEDED_TABLES = frozenset(
+    {
+        "followed_series",
+        "chapter_progress",
+        "bookmarks",
+        "reading_sessions",
+        "reading_day_stats",
+        "collections",
+        "collection_series",
+        "tags",
+        "profile_series_tags",
+        "update_notifications",
+        "source_pins",
+        "sessions",
+    }
+)
+
+SRC, SERIES = "mangadex", "series-1"
+
+
+def _seed_one_row_everywhere(db, user_id: int, profile_id: int) -> None:
+    """One row in every table that hangs off a profile or an account."""
+    follow = FollowedSeries(
+        user_id=user_id, profile_id=profile_id, source_id=SRC,
+        series_key=SERIES, title="Series One", known_chapters="[]",
+    )
+    collection = Collection(user_id=user_id, profile_id=profile_id, name="Coll")
+    tag = Tag(user_id=user_id, profile_id=profile_id, name="tag")
+    db.add_all([follow, collection, tag])
+    db.flush()
+    db.add_all([
+        ChapterProgress(
+            user_id=user_id, profile_id=profile_id, source_id=SRC,
+            series_key=SERIES, chapter_key="c1", chapter_number=1.0, last_page=3,
+        ),
+        Bookmark(
+            user_id=user_id, profile_id=profile_id, client_id="bm-1", source_id=SRC,
+            series_key=SERIES, chapter_key="c1", media_type="manga",
+            anchor_index=1, anchor_fraction=0.0, anchor_total=0,
+        ),
+        ReadingSession(
+            user_id=user_id, profile_id=profile_id, source_id=SRC,
+            series_key=SERIES, chapter_key="c1", pages_read=3,
+        ),
+        ReadingDayStats(user_id=user_id, profile_id=profile_id, day="2026-01-01"),
+        CollectionSeries(
+            collection_id=collection.id, source_id=SRC, series_key=SERIES
+        ),
+        ProfileSeriesTag(
+            user_id=user_id, profile_id=profile_id, source_id=SRC,
+            series_key=SERIES, tag_id=tag.id,
+        ),
+        UpdateNotification(
+            user_id=user_id, profile_id=profile_id, followed_series_id=follow.id,
+            source_id=SRC, series_key=SERIES, chapter_key="c2", chapter_title="Two",
+        ),
+        SourcePin(
+            user_id=user_id, profile_id=profile_id, source_id=SRC, sort_order=0
+        ),
+        UserSession(
+            user_id=user_id, token_hash="tok", expires_at=utcnow() + timedelta(days=1)
+        ),
+    ])
+    db.commit()
+
+
+def _rows_in(db, table_name: str) -> int:
+    return db.execute(
+        select(func.count()).select_from(Base.metadata.tables[table_name])
+    ).scalar_one()
+
+
+def test_the_cascade_seed_covers_every_dependent_table():
+    """Guard against the parametrised tests below passing on an empty table.
+
+    Each case asserts the row count falls to zero; a table nobody seeded starts
+    at zero and passes for free. This is the assertion that turns "no rows
+    left" into "the rows that were there are gone".
+    """
+    assert SEEDED_TABLES == set(USER_DEPENDENTS) - {"reading_profiles"}
+
+
+@pytest.mark.parametrize("table", PROFILE_DEPENDENTS)
+def test_deleting_a_profile_removes_every_dependent_row(db_session, users, table):
+    """A deleted profile leaves nothing behind, table by table.
+
+    Not academic: ``reading_profiles.id`` has no AUTOINCREMENT, so the next
+    profile created gets the freed id back and inherits, through every
+    ``_scope`` helper, whatever the cascade failed to take.
+    """
+    svc = ProfileService(db_session, user_id=users["alice"])
+    profile = svc.create_profile(name="Doomed")
+    _seed_one_row_everywhere(db_session, users["alice"], profile.id)
+    assert _rows_in(db_session, table) == 1
+
+    svc.delete_profile(profile.id)
+
+    assert _rows_in(db_session, table) == 0
+
+
+@pytest.mark.parametrize("table", USER_DEPENDENTS)
+def test_deleting_a_user_removes_every_dependent_row(db_session, users, table):
+    """The same, one level up -- and it takes two mechanisms, not one.
+
+    ``users`` cascades to ``reading_profiles`` in the database, which cascades
+    to everything profile-scoped; ``sessions`` is the odd one out, carrying no
+    ``ondelete`` and being cleared by the ``User.sessions`` ORM relationship
+    instead. Both are asserted the same way here because the row is equally
+    gone either way, and a change that removed either mechanism would leave
+    rows pointing at an account that no longer exists.
+    """
+    profile = ProfileService(db_session, user_id=users["alice"]).create_profile(
+        name="Doomed"
+    )
+    _seed_one_row_everywhere(db_session, users["alice"], profile.id)
+    assert _rows_in(db_session, table) == 1
+
+    db_session.delete(db_session.get(User, users["alice"]))
+    db_session.commit()
+
+    assert _rows_in(db_session, table) == 0
 
 
 # --- HTTP: auth gate + advisory header ---------------------------------------

@@ -19,7 +19,7 @@ from database.models import (
     ReadingSession,
     User,
 )
-from database.session import get_db
+from database.session import get_db, install_sqlite_pragmas
 from services.update_scheduler import reset_update_manager_for_tests
 
 
@@ -42,6 +42,12 @@ def db_engine(tmp_path: Path):
         connect_args={"check_same_thread": False},
         poolclass=StaticPool,
     )
+    # Same connect pragmas as production, WAL + ``foreign_keys=ON`` above all.
+    # Without this the whole suite ran with FK enforcement OFF (SQLite's
+    # per-connection default) against a schema whose per-profile isolation is
+    # held up by ``ON DELETE CASCADE`` alone, so cascades never fired here and
+    # a row pointing at a deleted parent was simply accepted.
+    install_sqlite_pragmas(engine)
     # ``create_all`` also emits the ``chapter_ocr_fts`` virtual table + triggers
     # via the ``after_create`` hook in ``database.models`` (spec §3.12), so the
     # test schema matches what Alembic builds — no local DDL mirror needed.
