@@ -43,6 +43,7 @@ import { compareChapters, hasStartedReading, resumeTarget } from "../resume-targ
 import { READING_STATUSES } from "../url-state";
 import type { SeriesDetail } from "../types";
 import { CoverImage } from "@/components/ui/cover-image";
+import { chapterDateLabel, chapterUploadedAt } from "@/features/sources/chapter-date";
 
 /**
  * The poster: capped at `max-w-[220px]`, and 220px wide from `lg` up. Both a
@@ -448,6 +449,11 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                 const isCompleted = progress?.is_completed ?? false;
                 const inProgress = progress != null && !isCompleted;
                 const downloadState = picker.stateOf(chapter.key);
+                // What the source said about when this went up. Present on the
+                // cached chapter list as `published_at`; absent for the sources
+                // that publish no date at all, in which case the row simply
+                // does not carry one.
+                const uploaded = chapterDateLabel(chapterUploadedAt(chapter));
                 const picked = picker.isSelected(chapter.key);
                 return (
                   <Link
@@ -492,6 +498,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
                             : chapter.key)}
                       </p>
                       <div className="mt-0.5 flex flex-wrap items-center gap-2 text-xs text-muted">
+                        {uploaded ? <span>{uploaded}</span> : null}
                         {inProgress && chapter.page_count ? (
                           <span>
                             {progress!.last_page}/{chapter.page_count} pages

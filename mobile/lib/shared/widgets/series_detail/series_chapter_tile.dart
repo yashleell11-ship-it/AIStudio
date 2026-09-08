@@ -121,6 +121,7 @@ class SeriesChapterTile extends StatelessWidget {
     super.key,
     required this.label,
     this.progressText,
+    this.uploadedLabel,
     this.inProgress = false,
     this.isRead = false,
     this.isCurrent = false,
@@ -133,6 +134,11 @@ class SeriesChapterTile extends StatelessWidget {
 
   /// "7/20 pages" — see `seriesChapterProgressText`.
   final String? progressText;
+
+  /// When the source says this chapter went up ("Today", "3d ago", "Aug 30,
+  /// 2026"). Null for the many sources that publish no date at all, in which
+  /// case the row simply carries no line for it. See `chapterDateLabel`.
+  final String? uploadedLabel;
 
   /// Whether [progressText] describes a part-read chapter, which glows warm
   /// rather than staying muted like an untouched or finished one.
@@ -203,6 +209,12 @@ class SeriesChapterTile extends StatelessWidget {
                             color:
                                 inProgress ? context.colors.primary : context.colors.muted,
                           ),
+                        ),
+                      if (uploadedLabel != null)
+                        Text(
+                          uploadedLabel!,
+                          style: context.text.caption
+                              .copyWith(color: context.colors.muted),
                         ),
                       if (download != null) _DownloadStatusLine(download: download),
                     ],
