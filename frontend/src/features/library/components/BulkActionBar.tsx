@@ -44,7 +44,7 @@ export function BulkActionBar({
   return (
     <div className="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center p-4">
       <div
-        className="glass-panel pointer-events-auto w-full max-w-4xl rounded-2xl border border-border/60 p-3 shadow-glass"
+        className="sheet-up-in glass-panel pointer-events-auto w-full max-w-4xl rounded-2xl border border-border/60 p-3 shadow-glass"
         role="region"
         aria-label="Bulk actions"
       >

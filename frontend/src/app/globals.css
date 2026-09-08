@@ -791,6 +791,161 @@ main {
 }
 
 /*
+ * Content arriving where a skeleton was.
+ *
+ * Every list in the app swaps pulse placeholders for real rows in a single
+ * frame, which reads as a jolt precisely because the skeleton was moving and
+ * the thing replacing it is not. A short lift-and-fade makes the arrival part
+ * of the same gesture.
+ *
+ * `both` is deliberately absent. With no fill mode the element's resting style
+ * is its normal one, so if the animation never runs — an old browser, a paused
+ * tab, styles arriving late — the content is simply visible. A fill of `both`
+ * would leave it at `opacity: 0` forever in exactly those cases.
+ */
+@keyframes content-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.content-in {
+  animation: content-in calc(360ms * var(--shape-motion))
+    cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
+/*
+ * The same arrival, dealt across a grid so covers land in a cascade rather
+ * than all at once.
+ *
+ * Bucketed with `nth-child` instead of a per-item `--index`, so a grid opts in
+ * by adding one class and no call site has to thread an index through its map.
+ * Six per bucket approximates a row (the grids run 3 columns on a phone and 8
+ * at `lg`), and everything past the fifth bucket shares the last delay: a
+ * cascade that kept counting would have the 200th cover waiting seconds for a
+ * turn nobody is watching.
+ */
+.stagger-in > * {
+  animation: content-in calc(360ms * var(--shape-motion))
+    cubic-bezier(0.25, 0.1, 0.25, 1);
+  /*
+   * `backwards`, and only here. A delayed animation with no fill mode shows
+   * the element's NORMAL style while it waits its turn, so a card in the
+   * fourth bucket appeared, vanished the moment its animation started, and
+   * only then faded in. Measured before this line: the 27th child sat at
+   * opacity 1 during its 240ms delay.
+   *
+   * `backwards` fills the waiting phase with the `from` frame and nothing
+   * else — unlike `both` it does not pin the end state, so once the animation
+   * is over the element is back on its ordinary styles and a cancelled or
+   * never-run animation leaves a visible card.
+   */
+  animation-fill-mode: backwards;
+}
+
+.stagger-in > :nth-child(n + 7):nth-child(-n + 12) {
+  animation-delay: calc(60ms * var(--shape-motion));
+}
+
+.stagger-in > :nth-child(n + 13):nth-child(-n + 18) {
+  animation-delay: calc(120ms * var(--shape-motion));
+}
+
+.stagger-in > :nth-child(n + 19):nth-child(-n + 24) {
+  animation-delay: calc(180ms * var(--shape-motion));
+}
+
+.stagger-in > :nth-child(n + 25) {
+  animation-delay: calc(240ms * var(--shape-motion));
+}
+
+/*
+ * Dialogs and the floating action sheet.
+ *
+ * The overlay fades; the panel lifts a little as it does. Exit is not
+ * animated: the dialog unmounts on close, and holding a closing panel in the
+ * tree long enough to animate it out means the focus restore, the Escape
+ * handler and the click-outside target all outlive the interaction that
+ * dismissed them. A dialog that is gone the instant you dismiss it is the
+ * correct feel anyway.
+ */
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes panel-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 8px, 0) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sheet-up-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 16px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.overlay-in {
+  animation: overlay-in calc(200ms * var(--shape-motion)) ease-out;
+}
+
+.panel-in {
+  animation: panel-in calc(260ms * var(--shape-motion))
+    cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.sheet-up-in {
+  animation: sheet-up-in calc(280ms * var(--shape-motion))
+    cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/*
+ * The page changing under a navigation.
+ *
+ * Opacity only, and applied to `<main>` itself rather than a wrapper. `main`
+ * is the app's only scroller: a transform on it would make it the containing
+ * block for anything fixed inside, and a wrapper would put a new block box
+ * between it and every page that assumes it is a direct child. Starting at
+ * 0.55 rather than 0 keeps the shell from flashing empty between two pages
+ * that mostly look alike.
+ *
+ * No fill mode again, for the same reason as `content-in`: the resting state
+ * of the app's only scroller must be visible.
+ */
+@keyframes route-in {
+  from {
+    opacity: 0.55;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.route-in {
+  animation: route-in calc(240ms * var(--shape-motion)) ease-out;
+}
+
+/*
  * Covers fade in as they decode (`components/ui/cover-image.tsx`).
  *
  * The duration rides `--shape-motion` like every other animation here, so
