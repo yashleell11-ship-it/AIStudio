@@ -238,31 +238,16 @@ def test_pages_stay_visible_when_the_chapter_is_safe_or_unknown(
     assert response.json()[0]["chapter_id"] == CHAPTER[series_id]
 
 
-# --- the GLOBAL caches in front of browse (KNOWN GAP) ------------------------
+# --- the GLOBAL caches in front of browse -------------------------------------
 #
-# ``source_browse_cache`` rows are global and are served straight back: the
-# rating rule runs when a page is FETCHED (``BrowseService.list_series``, gated
-# above) and the already-filtered page is what gets stored, so which rows a
-# caller sees is decided by whichever profile happened to warm the row rather
-# than by that caller's own gate. Both directions of that are wrong, and both
-# serves live in ``SourceCacheService`` -- another shard's file, so these pin
-# the behaviour the fix must produce instead of asserting today's.
+# ``source_browse_cache`` rows are shared by every profile, so the gate cannot
+# be baked into what is stored. It used to be: the rating rule ran when a page
+# was FETCHED and the already-filtered page was what got stored, which made the
+# rows a caller sees a function of whichever profile happened to warm the row.
+# The page is now stored whole (``list_series(apply_gate=False)``) and filtered
+# on every serve by ``SourceCacheService._gate_listing``. Both directions are
+# asserted below, because the fix cannot be "cache what the caller was shown".
 
-_CACHED_SERVE_GAP = pytest.mark.xfail(
-    reason=(
-        "SourceCacheService serves source_browse_cache rows after "
-        "ensure_visible (the SOURCE gate) only; the row's own rating is never "
-        "consulted on the way out. Fix: filter each row of a served listing "
-        "through core.content_rating.serialized_series_rating + "
-        "hidden_by_gate, and store the page BEFORE that filter so the stored "
-        "row does not inherit the fetching caller's gate. Delete this marker "
-        "with the fix."
-    ),
-    strict=False,
-)
-
-
-@_CACHED_SERVE_GAP
 def test_a_cached_browse_page_withholds_the_adult_series_from_a_shut_gate(
     api, kid, grown
 ):
@@ -276,7 +261,6 @@ def test_a_cached_browse_page_withholds_the_adult_series_from_a_shut_gate(
     assert ADULT not in _ids(shut.json()), "a cached page served an adult row to a shut gate"
 
 
-@_CACHED_SERVE_GAP
 def test_a_cached_browse_page_keeps_the_adult_series_for_an_open_gate(api, kid, grown):
     """The same bug pointing the other way, and the reason the fix cannot just
     be "cache what the caller was shown": a shut-gate browse stores the page
