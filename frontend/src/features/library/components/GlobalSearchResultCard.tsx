@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Globe, ImageOff, Library } from "lucide-react";
 import { globalSearchHref } from "@/features/sources/global-search";
 import { prettifySourceId } from "@/features/sources/source-branding";
 import type { GlobalSearchItem } from "@/features/sources/types";
 import { withCoverWidth } from "@/lib/cover-url";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * The result card's cover box, a fixed `w-[80px]`.
@@ -68,7 +68,7 @@ export function GlobalSearchResultCard({
       <article className="glass-card group flex gap-4 rounded-2xl p-3 transition-all hover:border-primary/30 hover:shadow-glow">
         <div className="relative h-[120px] w-[80px] shrink-0 overflow-hidden rounded-lg bg-surface-2">
           {item.cover_url ? (
-            <Image
+            <CoverImage
               src={withCoverWidth(item.cover_url, COVER_SIZES)}
               alt={item.title}
               fill

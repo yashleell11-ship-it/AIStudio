@@ -1,9 +1,9 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { libraryCoverUrl } from "../api";
 import type { FollowedSeries } from "../types";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * The shelf grid's cell: `grid-cols-3 gap-x-3` inside the view's `px-5`, which
@@ -32,7 +32,7 @@ export function FollowedSeriesCard({ series }: { series: FollowedSeries }) {
       className="group block rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-primary"
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-xl bg-surface-2">
-        <Image
+        <CoverImage
           src={libraryCoverUrl(series.cover_url, COVER_SIZES)}
           alt={series.title}
           fill

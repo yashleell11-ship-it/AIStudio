@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import {
   BarChart3,
@@ -61,6 +60,7 @@ import { cn } from "@/lib/cn";
 import { formatCalendarDay, formatUtcDate, formatUtcDateTime } from "@/lib/utc-time";
 import { apiErrorMessage, resolveViewState } from "@/lib/view-state";
 import { ActivityChart } from "./ActivityChart";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * What `reading_sessions` has been recording all along.
@@ -307,7 +307,7 @@ function SeriesRow({ row, showPages }: { row: SeriesReading; showPages: boolean 
     <li className="flex items-center gap-3">
       <div className="relative h-16 w-11 shrink-0 overflow-hidden rounded-md bg-surface-2 ring-1 ring-white/5">
         {row.cover_url ? (
-          <Image
+          <CoverImage
             src={libraryCoverUrl(row.cover_url, "44px")}
             alt=""
             fill

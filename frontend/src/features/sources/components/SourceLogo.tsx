@@ -1,6 +1,6 @@
-import Image from "next/image";
 import { cn } from "@/lib/cn";
 import { sourceFaviconUrl } from "../source-branding";
+import { CoverImage } from "@/components/ui/cover-image";
 
 interface SourceLogoProps {
   id: string;
@@ -31,7 +31,7 @@ export function SourceLogo({
       style={{ width: size, height: size }}
     >
       {url ? (
-        <Image
+        <CoverImage
           src={url}
           alt=""
           fill

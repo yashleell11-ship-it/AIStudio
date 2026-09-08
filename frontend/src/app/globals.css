@@ -791,6 +791,29 @@ main {
 }
 
 /*
+ * Covers fade in as they decode (`components/ui/cover-image.tsx`).
+ *
+ * The duration rides `--shape-motion` like every other animation here, so
+ * Cinema's covers arrive in a third of the time Signature's take, and the
+ * reduced-motion block above collapses the transition to nothing.
+ *
+ * `transition-property` names transform as well as opacity on purpose: these
+ * elements also carry Tailwind's `transition-transform` for the hover scale,
+ * and a bare `transition: opacity` here would win on specificity and leave
+ * that hover snapping. Naming both keeps one rule in charge of both.
+ */
+[data-cover] {
+  opacity: 0;
+  transition-property: opacity, transform;
+  transition-duration: calc(320ms * var(--shape-motion));
+  transition-timing-function: ease-out;
+}
+
+[data-cover][data-cover-settled="true"] {
+  opacity: 1;
+}
+
+/*
  * Reader end-of-chapter card (spec §3.3.4). Slides up as the strip reaches the
  * bottom. The reduced-motion block above collapses the animation to an instant
  * appearance, which is the wanted behaviour.

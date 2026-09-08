@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { BookOpen } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { CoverImage } from "@/components/ui/cover-image";
 
 interface BookPlateProps {
   /** Already resolved to a fetchable URL, or null when the source gave none. */
@@ -52,7 +52,7 @@ export function BookPlate({ coverUrl, title, className, sizes, alt = "" }: BookP
         className,
       )}
     >
-      <Image src={coverUrl} alt={alt} fill className="object-cover" sizes={sizes} unoptimized />
+      <CoverImage src={coverUrl} alt={alt} fill className="object-cover" sizes={sizes} unoptimized />
       {alt ? null : <span className="sr-only">{title}</span>}
     </div>
   );

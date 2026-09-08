@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import Image from "next/image";
 import { seriesCoverUrl } from "@/features/library/api";
 import { useContinueReading } from "@/features/library/hooks";
 import { usePrefersReducedMotion } from "@/features/profiles/use-prefers-reduced-motion";
@@ -14,6 +13,7 @@ import {
   sourceHue,
 } from "../loading-carousel";
 import { SourceLogo } from "./SourceLogo";
+import { CoverImage } from "@/components/ui/cover-image";
 
 interface SourceBrowseLoadingProps {
   /** True while the browse request is still in flight. */
@@ -180,7 +180,7 @@ export function SourceBrowseLoading({
                     key={`${item.source_id}:${item.series_key}`}
                     className="relative aspect-[2/3] overflow-hidden rounded-2xl border border-border bg-surface-2"
                   >
-                    <Image
+                    <CoverImage
                       src={seriesCoverUrl(
                         { sourceId: item.source_id, seriesKey: item.series_key },
                         SLIDE_COVER_SIZES,

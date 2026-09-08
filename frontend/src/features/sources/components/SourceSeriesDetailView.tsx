@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -55,6 +54,7 @@ import {
   ChapterRowsSkeleton,
   SourceSeriesDetailSkeleton,
 } from "./SourceSeriesDetailSkeleton";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * The poster: capped at `max-w-[200px]` below `lg`, then the 220px grid column.
@@ -336,7 +336,7 @@ function MangaSeriesDetailView({
             chapter list all start below the fold. */}
         <Card className="mx-auto w-full max-w-[200px] overflow-hidden rounded-3xl lg:mx-0 lg:max-w-none lg:sticky lg:top-24 lg:self-start">
           <div className="relative aspect-[2/3] w-full bg-surface-2">
-            <Image
+            <CoverImage
               src={sourceImageUrl(series.cover_url, POSTER_SIZES)}
               alt={series.title}
               fill

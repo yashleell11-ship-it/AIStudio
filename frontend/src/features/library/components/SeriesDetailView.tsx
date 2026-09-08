@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useCallback, useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, Check, ChevronRight, Play, Star } from "lucide-react";
@@ -43,6 +42,7 @@ import { libraryReadAllHref } from "../read-all-link";
 import { compareChapters, hasStartedReading, resumeTarget } from "../resume-target";
 import { READING_STATUSES } from "../url-state";
 import type { SeriesDetail } from "../types";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * The poster: capped at `max-w-[220px]`, and 220px wide from `lg` up. Both a
@@ -240,7 +240,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
   return (
     <div className="min-h-full bg-bg">
       <section className="relative h-[280px] overflow-hidden md:h-[320px]">
-        <Image
+        <CoverImage
           src={cover}
           alt=""
           fill
@@ -265,7 +265,7 @@ export function SeriesDetailView({ seriesId }: SeriesDetailViewProps) {
         <div className="-mt-36 grid gap-8 lg:grid-cols-[220px_1fr] lg:gap-10">
           <div className="mx-auto w-full max-w-[220px] lg:mx-0 lg:sticky lg:top-24 lg:self-start">
             <div className="relative aspect-[2/3] overflow-hidden rounded-3xl shadow-glow ring-1 ring-white/10">
-              <Image
+              <CoverImage
                 src={cover}
                 alt={detail.title}
                 fill
