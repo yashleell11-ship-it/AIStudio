@@ -78,13 +78,53 @@ def _cover_url(manga_id: str, included: dict[str, list[dict[str, Any]]]) -> str 
     return f"{UPLOADS_BASE}/covers/{manga_id}/{filename}"
 
 
-def _tag_genres(included: dict[str, list[dict[str, Any]]]) -> tuple[str, ...]:
+#: MangaDex tag groups worth surfacing as "genres".
+#:
+#: ``genre`` and ``theme`` are what a reader means by the word. ``content`` is
+#: the advisory group (Gore, Sexual Violence) and is included because it is a
+#: maturity signal the gate can read on a source that publishes one. ``format``
+#: is skipped: "Long Strip" and "Award Winning" describe the artefact, not the
+#: story, and would crowd out the tags a reader is scanning for.
+_GENRE_TAG_GROUPS = frozenset({"genre", "theme", "content"})
+
+
+def _tag_name(name: Any) -> str | None:
+    """A tag's display name. MangaDex localises every one of them."""
+    if isinstance(name, str):
+        return name or None
+    if isinstance(name, dict):
+        value = name.get("en") or next(
+            (v for v in name.values() if isinstance(v, str) and v), None
+        )
+        return value or None
+    return None
+
+
+def _tag_genres(
+    included: dict[str, list[dict[str, Any]]],
+    attributes: dict[str, Any] | None = None,
+) -> tuple[str, ...]:
+    """Genre tags for one manga.
+
+    MangaDex carries tags on ``attributes.tags``, not as relationships, and
+    names them as localisation maps rather than strings. This read looked in
+    the relationship map for a ``str`` name, so it matched nothing on any real
+    payload: every MangaDex row cached in production had an empty genre tuple.
+    That is a hole in the browse UI, and it was also the 18+ rule's only signal
+    on this source until the source's own ``contentRating`` was wired up.
+
+    The relationship shape is still read first, because some MangaDex endpoints
+    do expand tags that way and nothing is gained by breaking them.
+    """
     genres: list[str] = []
-    for tag in included.get("tag") or []:
-        attributes = tag.get("attributes") or {}
-        group = attributes.get("group")
-        name = attributes.get("name")
-        if group == "genre" and isinstance(name, str):
+    sources: list[dict[str, Any]] = list(included.get("tag") or [])
+    sources.extend((attributes or {}).get("tags") or [])
+    for tag in sources:
+        tag_attributes = tag.get("attributes") or {}
+        if tag_attributes.get("group") not in _GENRE_TAG_GROUPS:
+            continue
+        name = _tag_name(tag_attributes.get("name"))
+        if name and name not in genres:
             genres.append(name)
     return tuple(genres)
 
@@ -128,8 +168,18 @@ def manga_to_series(item: dict[str, Any], *, chapter_count: int = 0) -> Series:
         author=_person_name(authors[0]) if authors else None,
         artist=_person_name(artists[0]) if artists else None,
         status=status or None,
-        genres=_tag_genres(included),
+        genres=_tag_genres(included, attributes),
         latest_chapter=_format_latest_chapter(attributes),
+        # MangaDex rates every manga itself, in the same words this app's
+        # vocabulary already uses ("erotica", "pornographic"). The browse query
+        # asks for erotica alongside safe and suggestive, so those titles are in
+        # the listing; before this the verdict was read to build the query and
+        # then discarded, which left them with no rating for the 18+ gate.
+        content_rating=(
+            str(attributes["contentRating"]).strip().lower()
+            if attributes.get("contentRating")
+            else None
+        ),
     )
 
 

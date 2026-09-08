@@ -1014,7 +1014,16 @@ class SourceCacheService:
                 )
                 if item.get(field) is not None
             }
-            rating = rating_from_genres(item.get("genres"))
+            # The source's own verdict first, its genre tags behind it. Same
+            # priority order the rating rule itself uses: a catalog that rates
+            # its own work knows better than a tag sweep, and most catalogs
+            # rate nothing, which is why the genre fallback exists at all.
+            declared = item.get("content_rating")
+            rating = (
+                str(declared).strip().lower()
+                if isinstance(declared, str) and declared.strip()
+                else rating_from_genres(item.get("genres"))
+            )
             if rating is not None:
                 meta["content_rating"] = rating
             self._merge_series_row(
