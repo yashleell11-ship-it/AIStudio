@@ -721,7 +721,25 @@ class BrowseService:
         query: str | None = None,
         sort: str | None = None,
         genre: str | None = None,
+        apply_gate: bool = True,
     ) -> dict[str, object]:
+        """One page of a source's catalog, gated to this caller.
+
+        ``apply_gate=False`` returns the page WITHOUT the per-row 18+ filter,
+        and exists for exactly one caller: ``SourceCacheService``, which stores
+        a browse page in a table shared by every profile. Storing the gated
+        page made the cached row inherit whichever profile happened to warm it,
+        in both directions -- an open gate cached an adult row and a shut gate
+        was later served it, and a shut gate cached a page without that row and
+        the profile allowed it lost the series until the row expired. The cache
+        stores the whole page and applies the gate on the way out instead.
+
+        Nothing else may pass ``False``. The source gate
+        (``ensure_visible``) is unaffected either way: it runs before this and
+        answers for the whole catalog, so an ungated LIST is still only ever a
+        list of a source this caller may already see. What it drops is the
+        per-ROW rule, which is the caller's to re-apply.
+        """
         connector = self._get_connector(source_id)
         normalized_query = query.strip() if query else None
         normalized_sort = sort.strip() if sort else None
@@ -775,7 +793,11 @@ class BrowseService:
         return _serialize_paginated(
             listing,
             source_id,
-            [item for item in listing.items if self._series_visible(item, connector)],
+            list(listing.items)
+            if not apply_gate
+            else [
+                item for item in listing.items if self._series_visible(item, connector)
+            ],
         )
 
     async def _fan_out_search(

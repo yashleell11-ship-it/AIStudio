@@ -57,10 +57,19 @@ class FakeBrowse:
         query: str | None = None,
         sort: str | None = None,
         genre: str | None = None,
+        apply_gate: bool = True,
     ) -> dict[str, Any]:
+        """Mirrors ``BrowseService.list_series``, gate included.
+
+        ``apply_gate`` is honoured rather than accepted and ignored: the cache
+        stores an UNGATED page and filters it on serve, so a fake that always
+        returned the gated page would make the cache's own gating look correct
+        while testing nothing, and one that always returned everything would
+        hide a caller that forgot to ask for it.
+        """
         self.calls.append(
             f"list_series:{source_id}?page={page}&sort={sort}&genre={genre}"
-            f"&query={query}"
+            f"&query={query}&apply_gate={apply_gate}"
         )
         if self.down:
             raise RuntimeError("connector down")
@@ -68,9 +77,25 @@ class FakeBrowse:
         try:
             import json as _json
 
-            return _json.loads(_json.dumps(self.listings[key]))  # deep copy
+            listing = _json.loads(_json.dumps(self.listings[key]))  # deep copy
         except KeyError as exc:  # noqa: TRY003
             raise LookupError(f"no listing fixture for {key}") from exc
+        if apply_gate and not self.gate_open:
+            from core.content_rating import hidden_by_gate, serialized_series_rating
+
+            items = listing.get("items")
+            if isinstance(items, list):
+                listing["items"] = [
+                    item
+                    for item in items
+                    if not (
+                        isinstance(item, dict)
+                        and hidden_by_gate(
+                            serialized_series_rating(item), gate_open=False
+                        )
+                    )
+                ]
+        return listing
 
     # --- helpers ------------------------------------------------------
     def _entry(self, source_id: str, series_key: str) -> dict[str, Any]:

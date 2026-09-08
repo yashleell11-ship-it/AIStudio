@@ -44,8 +44,10 @@ from core.config import get_settings
 from core.connector_directory import known_source_ids
 from core.content_rating import (
     TRACKER_RATING_MATURE,
+    hidden_by_gate,
     rating_from_genres,
     resolve_series_rating,
+    serialized_series_rating,
 )
 from core.errors import AppError
 from core.time_utils import utcnow
@@ -373,6 +375,71 @@ class SourceCacheService:
             )
         return self._serialize(row)
 
+    def _gate_listing(self, payload: dict[str, Any]) -> dict[str, Any]:
+        """Apply THIS caller's 18+ rating rule to a serialized browse page.
+
+        ``source_browse_cache`` rows are global and every profile reads the
+        same one, so the gate cannot be baked into what is stored. The page is
+        stored whole (``list_series(apply_gate=False)``) and filtered here, on
+        every serve, fresh or stale or live.
+
+        Storing the gated page instead meant the cached row inherited whichever
+        profile warmed it, and got it wrong in both directions: an open gate
+        cached an adult row that a shut gate was then served, and a shut gate
+        cached a page missing that row so the profile allowed it lost the
+        series until the row expired.
+
+        The pagination envelope is left alone. ``total`` counts the source's
+        whole catalog rather than this page, so it cannot be adjusted for rows
+        dropped here without inventing a number -- the same reason
+        ``BrowseService._serialize_paginated`` gives for leaving it.
+        """
+        items = payload.get("items")
+        if not isinstance(items, list):
+            return payload
+        gate = getattr(self._browse, "_gate_open", None)
+        # A browse stand-in that cannot report a gate is treated as SHUT, the
+        # same way ``_rating_hides`` treats it: the safe direction to fail.
+        gate_open = bool(callable(gate) and gate())
+        if gate_open:
+            return payload
+        visible = [
+            item
+            for item in items
+            if not (
+                isinstance(item, dict)
+                and hidden_by_gate(
+                    serialized_series_rating(item), gate_open=False
+                )
+            )
+        ]
+        if len(visible) == len(items):
+            return payload
+        gated = dict(payload)
+        gated["items"] = visible
+        return gated
+
+    def _series_key_hides(self, source_id: str, series_key: str) -> bool:
+        """Whether this caller's gate hides the SERIES behind a cached artifact.
+
+        A cover row carries no rating of its own -- it is bytes keyed by
+        ``(source, series, width, format)`` -- so the verdict has to come from
+        the series row beside it. ``BrowseService.resolve_series_cover``
+        already refuses an adult row on a MISS; without this a cached HIT
+        handed the same cover straight back, which made the leak a function of
+        whether anyone had loaded that grid before.
+
+        Cheap on the hot path: a grid is dozens of covers, and an OPEN gate
+        hides nothing, so the extra row is only ever read when the gate is
+        shut. An absent series row is not a refusal -- unknown stays visible,
+        the same as everywhere else this rule is applied.
+        """
+        gate = getattr(self._browse, "_gate_open", None)
+        if callable(gate) and gate():
+            return False
+        row = self._db.get(SourceSeriesCache, (source_id, fully_unquote(series_key)))
+        return row is not None and self._rating_hides(row)
+
     def _rating_hides(self, row: SourceSeriesCache) -> bool:
         """Whether this caller's 18+ gate hides ``row`` on its own rating."""
         gate = getattr(self._browse, "_gate_open", None)
@@ -462,17 +529,22 @@ class SourceCacheService:
             row = None
 
         if row is not None and not force and self._browse_row_fresh(row):
-            payload = self._browse_payload(row, CACHE_FRESH)
+            payload = self._gate_listing(self._browse_payload(row, CACHE_FRESH))
             if warm_next:
                 self._maybe_warm_next(source_id, sort_key, genre_key, page, payload)
             return payload
 
         try:
+            # Ungated on purpose: this page is about to be written to a table
+            # every profile reads. ``_gate_listing`` applies the caller's own
+            # rule on the way out. See its docstring for what storing the
+            # gated page did instead.
             listing = self._browse.list_series(
                 source_id,
                 page=page,
                 sort=sort_key or None,
                 genre=genre_key or None,
+                apply_gate=False,
             )
         except (AppError, Exception) as exc:  # noqa: BLE001 - cache must degrade
             if row is not None:
@@ -486,7 +558,7 @@ class SourceCacheService:
                     row.fetched_at,
                     exc,
                 )
-                return self._browse_payload(row, CACHE_STALE)
+                return self._gate_listing(self._browse_payload(row, CACHE_STALE))
             raise
 
         try:
@@ -503,7 +575,7 @@ class SourceCacheService:
             logger.exception("browse_cache: cache write failed")
             self._db.rollback()
 
-        payload = dict(listing)
+        payload = self._gate_listing(dict(listing))
         payload["cache"] = live_cache_info()
         if warm_next:
             self._maybe_warm_next(source_id, sort_key, genre_key, page, payload)
@@ -550,6 +622,16 @@ class SourceCacheService:
         ``database.models.SourceCoverCache`` for how such a row reads back.
         """
         self._browse.ensure_visible(source_id)
+        # ...and the SERIES' own rating, which ``ensure_visible`` says nothing
+        # about. Before the cache lookup, so a hit cannot answer what a miss
+        # would refuse.
+        if self._series_key_hides(source_id, series_key):
+            raise AppError(
+                "Series not found.",
+                code="series_not_found",
+                status_code=404,
+                details={"source_id": source_id, "series_id": series_key},
+            )
 
         settings = get_settings()
         if width is None or fmt not in COVER_FORMATS or not settings.cover_resize_enabled:

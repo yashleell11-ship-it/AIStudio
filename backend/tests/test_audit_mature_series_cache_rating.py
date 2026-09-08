@@ -53,18 +53,10 @@ def test_cached_series_meta_with_an_adult_rating_is_withheld_from_a_shut_gate(db
     assert payload.get("title") != "Explicit Title", payload
 
 
-@pytest.mark.xfail(
-    reason=(
-        "source_cover_cache rows are served on a fresh hit after "
-        "ensure_visible (the SOURCE gate) only, so the cover of an "
-        "adult-rated series on a general source -- the one part of such a row "
-        "that is explicit on its own -- is handed to a shut gate by key. "
-        "BrowseService.resolve_series_cover already refuses it on a MISS; the "
-        "hit has to ask too. Fix: run the cached hit through the existing "
-        "SourceCacheService._rating_hides. Delete this marker with the fix."
-    ),
-    strict=False,
-)
+# A cover row carries no rating of its own, so a cached HIT has to ask the
+# series row beside it. ``BrowseService.resolve_series_cover`` already refused
+# an adult row on a MISS, which made the leak a function of whether anyone had
+# loaded that grid before.
 def test_cached_cover_of_an_adult_series_is_withheld_from_a_shut_gate(db_session):
     db_session.add(
         SourceSeriesCache(
