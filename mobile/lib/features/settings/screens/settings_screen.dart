@@ -9,6 +9,7 @@ import 'package:manhwamaniacs/app/theme/app_presets.dart';
 import 'package:manhwamaniacs/app/theme/preset_controller.dart';
 import 'package:manhwamaniacs/app/theme/theme_controller.dart';
 import 'package:manhwamaniacs/core/config/env.dart';
+import 'package:manhwamaniacs/features/admin/screens/members_screen.dart';
 import 'package:manhwamaniacs/features/auth/models/auth_state.dart';
 import 'package:manhwamaniacs/features/auth/providers/auth_controller.dart';
 import 'package:manhwamaniacs/features/profiles/providers/profile_scope.dart';
@@ -237,6 +238,20 @@ class _AccountSection extends ConsumerWidget {
             icon: const Icon(Icons.shield_outlined, size: 18),
             label: const Text('Password & security'),
           ),
+          if (user.isAdmin) ...[
+            SizedBox(height: context.space.sm),
+            OutlinedButton.icon(
+              key: const Key('account-open-members'),
+              // Admin-only, and admin-only server-side too: every route it
+              // calls answers 403 for anyone else. Hidden rather than
+              // disabled, because a member has no reason to know it exists.
+              onPressed: () => Navigator.of(context).push<void>(
+                MaterialPageRoute(builder: (_) => const MembersScreen()),
+              ),
+              icon: const Icon(Icons.group_outlined, size: 18),
+              label: const Text('Members'),
+            ),
+          ],
           SizedBox(height: context.space.sm),
           OutlinedButton.icon(
             onPressed: () => _confirmSignOut(context, ref),
