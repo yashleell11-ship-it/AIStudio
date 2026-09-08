@@ -49,6 +49,16 @@ class Series:
     status: str | None = None
     genres: tuple[str, ...] = ()
     latest_chapter: str | None = None
+    #: The source's OWN maturity verdict, when it publishes one.
+    #:
+    #: Most catalogs rate nothing and the 18+ rule has to infer from genre tags
+    #: ("Adult", "Smut"), which is why this is optional. But some sources say so
+    #: outright -- MangaDex answers ``safe``/``suggestive``/``erotica``/
+    #: ``pornographic`` on every manga -- and that verdict was being thrown away,
+    #: leaving an erotica title on a general-audience source with no signal at
+    #: all for the gate to read. Values are passed through verbatim;
+    #: ``core.content_rating`` owns which of them count as mature.
+    content_rating: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

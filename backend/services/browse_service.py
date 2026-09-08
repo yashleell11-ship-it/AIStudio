@@ -316,6 +316,7 @@ def _serialize_series(series: Series, source_id: str) -> dict[str, object]:
         "artist": series.artist,
         "status": series.status,
         "genres": list(series.genres),
+        "content_rating": series.content_rating,
         "latest_chapter": series.latest_chapter,
         "cover_url": f"/sources/{source_id}/series/{quote(series.id, safe='')}/cover",
     }
