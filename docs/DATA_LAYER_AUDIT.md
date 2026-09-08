@@ -144,7 +144,7 @@ The reproduction tests live beside the code they exercise, named `*audit*`.
 | `MG-2` | high | fixed | Update sweep resolves the gate from get_settings() so adult-source follows can never be checked |
 | `MG-3` | medium | fixed | PATCH /library/series/{id} and re-POST /library/follow echo the full hidden row (title, cover, known_chapters) |
 | `MG-4` | medium | fixed | POST /library/follow on a mature source succeeds while the gate is shut (ensure_visible 404 swallowed) |
-| `MG-5` | medium | partial | A series' own rating is never applied on general-source browse/detail/chapters/pages |
+| `MG-5` | medium | fixed | A series' own rating is never applied on general-source browse/detail/chapters/pages. Closed fully in 2.7.2: the shared predicate covers every live surface, the browse cache stores pages ungated and filters on serve, and a cached cover asks the series row beside it. |
 | `MG-8` | medium | fixed | Gate regression test walks only 5 surfaces; extend it to every read route |
 | `MG-6` | low | fixed | Unscoped bucket and new-profile seed read the global gate; fails closed only because the global is False |
 | `MG-7` | low | fixed | GET /sources/pins discloses a hidden adult source id via a stale pin |
@@ -241,10 +241,6 @@ Three rows say **partial**, and each has a named remainder:
   DISTINCT chapter and series counts still do. Those are not additive across
   days, so no per-day table can answer them; it needs a differently shaped
   table and therefore its own migration.
-- `MG-5` — a series' own rating now gates every live browse surface. The two
-  global caches in front of browse are not row-gated yet: a page cached by an
-  open-gate profile can be served to a shut one. Both are pinned by xfail
-  regressions, and the fix is to store the page unfiltered and filter on serve.
 - `CONC-5` — the five slow routes in the sources router release their pooled
   connection before the upstream fetch. The two reader-manifest routes, and
   `get_chapter_pages` (whose gate query lives inside the service), still hold.
