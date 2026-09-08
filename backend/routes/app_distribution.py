@@ -134,6 +134,30 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.7.2",
+        build=42,
+        date="September 2026",
+        highlights=[
+            "Every chapter now says when it went up. Recent ones read as an "
+            "age, 'Today' or '3d ago', and older ones show the date. It was "
+            "already being sent and simply never shown, so a series you follow "
+            "gave you no way to tell this morning's chapter from one posted in "
+            "2022",
+            "MangaDex titles finally have genres. The tags were being looked "
+            "for in the wrong place in the response, so every MangaDex series "
+            "in the app showed none at all. They are there now",
+            "And MangaDex adult titles are gated properly. It rates its own "
+            "work, and that rating was being read to build the search and then "
+            "thrown away, so an explicit title on that source reached a "
+            "profile with the 18+ gate shut. Its own verdict is now believed",
+            "The browse and cover caches ask about the series, not just the "
+            "source. A page loaded by one profile was being reused for "
+            "another, which both leaked adult titles to a shut gate and hid "
+            "them from a profile that was allowed them until the cache "
+            "expired",
+        ],
+    ),
+    ChangelogEntry(
         version="2.7.1",
         build=41,
         date="September 2026",
