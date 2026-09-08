@@ -1,11 +1,11 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import { GRID_ITEM_ATTRIBUTE } from "@/lib/keyboard";
 import { sourceImageUrl } from "../api";
 import type { SourceSeriesSummary } from "../types";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * The catalog grid's cell. `SourceSeriesGrid` is `grid-cols-2 gap-4` inside the
@@ -36,7 +36,7 @@ export function SourceSeriesCard({ sourceId, series }: SourceSeriesCardProps) {
     >
       <Card className="group overflow-hidden border-transparent bg-transparent shadow-none transition-colors">
         <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl border border-border bg-surface-2 transition duration-200 group-hover:border-primary/40 group-hover:ring-2 group-hover:ring-primary/20">
-          <Image
+          <CoverImage
             src={sourceImageUrl(series.cover_url, COVER_SIZES)}
             alt={series.title}
             fill

@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import { ArrowLeft, BookOpen, Minus, Pencil, Plus, Search, Trash2, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -29,6 +28,7 @@ import { apiErrorMessage } from "@/lib/view-state";
 import { cn } from "@/lib/cn";
 import { SeriesGrid } from "./SeriesGrid";
 import type { FollowedSeries } from "../types";
+import { CoverImage } from "@/components/ui/cover-image";
 
 interface CollectionDetailViewProps {
   collectionId: number;
@@ -401,7 +401,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                   )}
                 >
                   <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2 ring-1 ring-white/10">
-                    <Image
+                    <CoverImage
                       src={libraryCoverUrl(series.cover_url, ROW_COVER_SIZES)}
                       alt={series.title}
                       fill
@@ -452,7 +452,7 @@ export function CollectionDetailView({ collectionId }: CollectionDetailViewProps
                 >
                   <div className="relative h-12 w-8 shrink-0 overflow-hidden rounded-lg bg-surface-2 ring-1 ring-white/10">
                     {member.series && (
-                      <Image
+                      <CoverImage
                         src={libraryCoverUrl(member.series.cover_url, ROW_COVER_SIZES)}
                         alt=""
                         fill

@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { ChevronRight, Play } from "lucide-react";
 import { useChapterHref } from "@/features/novels/use-chapter-href";
@@ -15,6 +14,7 @@ import {
 } from "../continue-reading";
 import { useFollowedIndex } from "../hooks";
 import type { ContinueReadingItem } from "../types";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * The hero card's cover: `w-28` (112px) below `sm`, `w-40`/`w-44` above — and
@@ -90,7 +90,7 @@ export function ContinueReading({ items, isLoading, novels }: ContinueReadingPro
       >
         <article className="glass-card relative flex gap-4 overflow-hidden rounded-3xl p-3 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60 sm:gap-6 sm:p-4">
           <div className="relative aspect-[2/3] w-28 shrink-0 overflow-hidden rounded-2xl bg-surface-2 sm:w-40 md:w-44">
-            <Image
+            <CoverImage
               src={seriesCoverUrl(continueReadingRef(hero), HERO_COVER_SIZES)}
               alt={resolveSeriesTitle(hero, titles)}
               fill
@@ -145,7 +145,7 @@ export function ContinueReading({ items, isLoading, novels }: ContinueReadingPro
               >
                 <article className="glass-card flex h-full gap-3 overflow-hidden rounded-2xl p-2 transition-colors hover:border-primary/40">
                   <div className="relative h-[104px] w-[70px] shrink-0 overflow-hidden rounded-lg bg-surface-2">
-                    <Image
+                    <CoverImage
                       src={seriesCoverUrl(continueReadingRef(item), RAIL_COVER_SIZES)}
                       alt={resolveSeriesTitle(item, titles)}
                       fill
@@ -242,7 +242,7 @@ export function ContinueReadingStrip({
     >
       <article className="glass-card flex items-center gap-3 overflow-hidden rounded-2xl p-2 transition-colors group-hover:border-primary/40 group-focus-visible:border-primary/60">
         <div className="relative aspect-[2/3] w-11 shrink-0 overflow-hidden rounded-lg bg-surface-2">
-          <Image
+          <CoverImage
             src={seriesCoverUrl(continueReadingRef(item), STRIP_COVER_SIZES)}
             alt=""
             fill

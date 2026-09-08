@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { Check } from "lucide-react";
@@ -15,6 +14,7 @@ import type { FollowedSeries } from "@/features/library/types";
 import { GRID_ITEM_ATTRIBUTE } from "@/lib/keyboard";
 import { cn } from "@/lib/cn";
 import { FollowButton } from "./FollowButton";
+import { CoverImage } from "@/components/ui/cover-image";
 
 /**
  * Marks a card as a cell of the keyboard-navigable grid, and gives it the focus
@@ -154,7 +154,7 @@ function SeriesCardContent({
       )}
     >
       <div className="relative aspect-[2/3] w-full overflow-hidden rounded-2xl bg-surface-2 ring-1 ring-white/5 transition-all duration-300 group-hover:ring-primary/30">
-        <Image
+        <CoverImage
           src={libraryCoverUrl(series.cover_url, densityCoverSizes(density))}
           alt={series.title}
           fill
@@ -329,7 +329,7 @@ export function SeriesListItem({ series, selection }: SeriesCardProps) {
         />
       ) : null}
       <div className="relative size-16 shrink-0 overflow-hidden rounded-lg bg-surface-2">
-        <Image
+        <CoverImage
           src={libraryCoverUrl(series.cover_url, LIST_COVER_SIZES)}
           alt={series.title}
           fill
