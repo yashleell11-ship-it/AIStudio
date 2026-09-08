@@ -147,15 +147,44 @@ def test_reader_redirect_to_twmanga_is_permitted(baozimh_connector: BaoZiMHConne
     listing thousands of chapters it could not open. twmanga.com is declared
     explicitly; anything else must still be refused.
     """
+    from unittest.mock import patch
+
     from connectors.http.redirect_policy import redirect_rejection_reason
 
     allowed = baozimh_connector._http._redirect_hosts
 
-    assert redirect_rejection_reason("https://www.twmanga.com/comic/chapter/x", allowed) is None
-    assert redirect_rejection_reason("https://baozimh.com/comic/x", allowed) is None
-    assert redirect_rejection_reason("https://evil.example.com/x", allowed) is not None
-    # a lookalike must not slip through on a suffix match
-    assert redirect_rejection_reason("https://nottwmanga.com/x", allowed) is not None
+    # The subject here is the ALLOWLIST, not the address check that runs after
+    # it. Left live, this resolved twmanga.com for real and failed on any
+    # NAT64 network, where the resolver synthesises 64:ff9b::/96 addresses the
+    # guard rightly refuses as non-public — a false negative that blocked the
+    # deploy gate on 2026-09-08. The address check keeps its own coverage in
+    # test_public_address_cache.py, which pins that private, loopback,
+    # link-local, reserved and unresolvable hosts are all still refused.
+    with patch(
+        "connectors.http.redirect_policy.is_public_address", return_value=True
+    ):
+        assert (
+            redirect_rejection_reason(
+                "https://www.twmanga.com/comic/chapter/x", allowed
+            )
+            is None
+        )
+        assert redirect_rejection_reason("https://baozimh.com/comic/x", allowed) is None
+        assert redirect_rejection_reason("https://evil.example.com/x", allowed) is not None
+        # a lookalike must not slip through on a suffix match
+        assert redirect_rejection_reason("https://nottwmanga.com/x", allowed) is not None
+
+    # And the allowlist is not the only gate: a host it accepts is still
+    # refused when it does not resolve to a public address.
+    with patch(
+        "connectors.http.redirect_policy.is_public_address", return_value=False
+    ):
+        assert (
+            redirect_rejection_reason(
+                "https://www.twmanga.com/comic/chapter/x", allowed
+            )
+            is not None
+        )
 
 
 def test_allowed_image_hosts(baozimh_connector: BaoZiMHConnector):

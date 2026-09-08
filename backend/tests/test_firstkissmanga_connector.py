@@ -18,6 +18,28 @@ from connectors.firstkissmanga.mappers import (
     parse_chapters,
     parse_series_list,
 )
+
+
+@pytest.fixture
+def resolvable():
+    """Answer the SSRF guard's address check without touching the network.
+
+    ``_bypass_url_from_gate`` holds the gate's link to the same per-hop policy
+    as a redirect Location, and that policy ends in a real ``getaddrinfo``.
+    Left live, these tests resolved 1stkissmanga.io for real and failed on any
+    NAT64 network, where the resolver synthesises 64:ff9b::/96 addresses the
+    guard rightly refuses as non-public — a false negative that blocked the
+    deploy gate on 2026-09-08.
+
+    Only the address half is answered. The allowlist still runs, and
+    ``test_a_gate_pointing_somewhere_unresolvable_is_still_refused`` below
+    proves this fixture is not hiding the check it stands in for.
+    """
+    with patch(
+        "connectors.http.redirect_policy.is_public_address", return_value=True
+    ):
+        yield
+
 from connectors.excluded import EXCLUDED_CONNECTORS
 from connectors.registry import create_connector, list_installed_connectors
 
@@ -71,14 +93,14 @@ def test_parking_page_detection():
     assert not is_parking_page(_load("browse_latest.html"), url="https://1stkissmanga.io/manga/")
 
 
-def test_cheq_bypass_url_includes_fp():
+def test_cheq_bypass_url_includes_fp(resolvable):
     client = FirstKissHttpClient("https://1stkissmanga.io")
     bypass_url = client._bypass_url_from_gate(_load("cheq_gate.html"))
     assert bypass_url.startswith("https://1stkissmanga.io/manga/")
     assert "fp=-3" in bypass_url
 
 
-def test_fingerprint_bypass_url_uses_manual_fp_token():
+def test_fingerprint_bypass_url_uses_manual_fp_token(resolvable):
     gate_html = """
     <script src="fingerprintjs"></script>
     <script>var redirect_link = 'http://1stkissmanga.io/manga/?tr_uuid=test&';</script>
@@ -86,6 +108,20 @@ def test_fingerprint_bypass_url_uses_manual_fp_token():
     client = FirstKissHttpClient("https://1stkissmanga.io")
     bypass_url = client._bypass_url_from_gate(gate_html)
     assert bypass_url == "https://1stkissmanga.io/manga/?tr_uuid=test&fp=-3"
+
+
+def test_a_gate_pointing_somewhere_unresolvable_is_still_refused(monkeypatch):
+    """The fixture above answers the address check; this proves it is real.
+
+    Without this, `resolvable` could be hiding a regression that let the gate
+    follow a link to a host that resolves nowhere public.
+    """
+    monkeypatch.setattr(
+        "connectors.http.redirect_policy.is_public_address", lambda hostname: False
+    )
+    client = FirstKissHttpClient("https://1stkissmanga.io")
+    with pytest.raises(Exception, match="Anti-bot gate redirect blocked"):
+        client._bypass_url_from_gate(_load("cheq_gate.html"))
 
 
 def test_unrecognized_html_raises():
