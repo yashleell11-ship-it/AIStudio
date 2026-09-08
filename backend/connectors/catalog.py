@@ -698,12 +698,24 @@ MADARA_CATALOG: tuple[MadaraSiteConfig, ...] = (
     # curl cleared apex, listing, series, chapter and image bytes on both, so
     # use_cf=False buys the cheaper client.
     #
-    # HentaiSco keeps its chapter list inline in the series HTML (6
-    # ``wp-manga-chapter`` <li> on the sampled series), so the AJAX probe
-    # never runs. Its page images are on cdn.hentaisco.cc -- a subdomain the
-    # host-derived allowlist would already accept, named here anyway so the
-    # real image origin stays visible if the CDN ever moves off the apex.
-    _site("hentaisco", "HentaiSco", "hentaisco.cc", url_segment="hentai", mature=True, use_cf=False, extra_image_hosts=frozenset({"cdn.hentaisco.cc"})),
+    # HentaiSco REMOVED 2026-09-09 after an end-to-end sweep of every
+    # registered connector. It is not down and it is not blocked -- it stopped
+    # being a Madara site. Two changes, found in that order:
+    #
+    #   1. It is behind a Cloudflare challenge now (``cf-mitigated: challenge``
+    #      on the apex), which the entry's ``use_cf=False`` cannot clear. That
+    #      part was a one-word fix and the CF client did clear it.
+    #   2. Underneath, the site has been rebuilt as a JavaScript app. The
+    #      archive moved from /hentai/ to /hentai-list/, and that page is 93 KB
+    #      of bundle references (/build/assets/) with ZERO ``wp-manga`` markers
+    #      and no series links in the HTML. /manga/ and /webtoon/ 404;
+    #      /wp-json/ 301s away; no JSON API answers on the obvious paths.
+    #
+    # So the Madara reader cannot see anything here whatever the client does.
+    # Re-adding it means writing a new connector against whatever API that
+    # bundle talks to, the way aurorascans reads QiManga -- not restoring this
+    # line. Everything else in this catalog was verified working end to end in
+    # the same sweep.
     # HentaiSyaoi names Madara in its generator meta and is the plain case:
     # /manga/ segment, chapters from the per-series ``{series}/ajax/chapters/``
     # endpoint (admin-ajax answers manga_get_chapters with 400, so the
