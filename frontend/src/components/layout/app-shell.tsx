@@ -14,6 +14,7 @@ import {
   isImmersiveReaderPath,
 } from "@/lib/reader-route";
 import { cn } from "@/lib/cn";
+import { useRouteFade } from "./use-route-fade";
 import { useUiStore } from "@/stores/ui-store";
 // Direct, not via the `@/features/preferences` barrel: that barrel also exports
 // the settings panels, and the shell wraps every page.
@@ -89,6 +90,10 @@ function AuthenticatedShell({ children }: { children: React.ReactNode }) {
   const isMangaChapter = isImmersiveReaderPath(pathname);
   const isNovelChapter = isImmersiveNovelPath(pathname);
   const isReaderChapter = isImmersivePath(pathname);
+  // Cross-fades <main> when the route under it changes. Reads the scroller out
+  // of the state ScrollContainerProvider already keeps, so no second ref has to
+  // be merged onto the element.
+  useRouteFade(scrollContainer, pathname);
 
   const assignScrollContainer = useCallback((node: HTMLElement | null) => {
     setScrollContainer(node);

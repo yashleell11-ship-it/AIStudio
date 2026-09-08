@@ -158,7 +158,7 @@ export function LibraryShelfView() {
       {isNovelMode ? (
         <NovelShelf className="mt-6" books={shelfBooks} />
       ) : (
-        <div className="mt-6 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
+        <div className="stagger-in mt-6 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
           {followed.map((series) => (
             <FollowedSeriesCard key={series.id} series={series} />
           ))}

@@ -70,7 +70,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
         type="button"
         aria-hidden
         tabIndex={-1}
-        className="absolute inset-0 bg-bg/80 backdrop-blur-sm transition-opacity"
+        className="overlay-in absolute inset-0 bg-bg/80 backdrop-blur-sm transition-opacity"
         onClick={onClose}
       />
       <div
@@ -83,7 +83,7 @@ export function Dialog({ open, onClose, title, children, className }: DialogProp
           // (a long form, an on-screen keyboard eating half a short phone
           // screen) scrolls internally instead of clipping its Close button or
           // its bottom actions off-screen.
-          "glass-panel relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-y-auto rounded-2xl border border-border/50 p-6 shadow-glass",
+          "panel-in glass-panel relative z-10 flex max-h-[calc(100dvh-2rem)] w-full max-w-lg flex-col overflow-y-auto rounded-2xl border border-border/50 p-6 shadow-glass",
           className,
         )}
       >

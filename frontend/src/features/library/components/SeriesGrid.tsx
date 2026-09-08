@@ -134,6 +134,10 @@ export function SeriesGrid({
       {...gridNavigation}
       className={cn(
         densityGridClassName(density),
+        // Cards arrive in a short cascade rather than all in one frame. Not
+        // applied while selecting: re-running an entrance every time the
+        // selection changes would animate the grid on each click.
+        !selection?.selecting && "stagger-in",
         // Shift-click drags the browser's own text selection across every card
         // it passes, which looks like a bug and hides the highlight.
         selection?.selecting && "select-none",
