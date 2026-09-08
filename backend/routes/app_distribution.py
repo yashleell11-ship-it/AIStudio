@@ -134,6 +134,34 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.7.1",
+        build=41,
+        date="September 2026",
+        highlights=[
+            "The phone can see and remove who signed up. Settings has a "
+            "Members list for admins, showing every account with when it "
+            "joined, when it was last seen and how many devices it is signed "
+            "in on, plus a deactivate switch and a delete. Your own row is "
+            "there but you cannot act on it. The website got this last "
+            "release; now it is on the device you actually carry",
+            "The website stopped snapping and started moving. Covers fade in "
+            "as they load instead of forty of them popping in at forty "
+            "different moments, grids deal their covers out in a short "
+            "cascade instead of appearing in one frame, dialogs and the "
+            "selection bar slide in, and the page cross-fades when you move "
+            "between sections. The phone has worked this way for a long time; "
+            "this is the website catching up",
+            "None of that touches the reader. The reading strip measures each "
+            "page to hold your place, so it deliberately keeps the plain, "
+            "instant behaviour, and moving between chapters never dims the "
+            "page you are reading",
+            "All of it respects the motion setting. Every animation is scaled "
+            "by the design preset you picked, so Cinema stays restrained, and "
+            "turning on reduce motion in your phone or browser settings "
+            "switches the whole lot off",
+        ],
+    ),
+    ChangelogEntry(
         version="2.7.0",
         build=40,
         date="September 2026",
