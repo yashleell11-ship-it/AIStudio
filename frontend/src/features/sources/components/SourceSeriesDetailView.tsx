@@ -55,6 +55,7 @@ import {
   SourceSeriesDetailSkeleton,
 } from "./SourceSeriesDetailSkeleton";
 import { CoverImage } from "@/components/ui/cover-image";
+import { chapterDateLabel, chapterUploadedAt } from "../chapter-date";
 
 /**
  * The poster: capped at `max-w-[200px]` below `lg`, then the 220px grid column.
@@ -491,6 +492,10 @@ function MangaSeriesDetailView({
               const completed = progress?.completed ?? false;
               const reading = progress != null && !completed;
               const pageCount = progress?.pageCount || chapter.page_count;
+              // When the source says this chapter went up. Serialized as
+              // `release_date` on this live listing; the followed-series list
+              // normalises the same value to `published_at`.
+              const uploaded = chapterDateLabel(chapterUploadedAt(chapter));
               let progressText: string | null;
               if (progress && completed) {
                 progressText = pageCount > 0 ? `${pageCount}/${pageCount} pages` : "Read";
@@ -553,6 +558,9 @@ function MangaSeriesDetailView({
                         <p className={cn("text-sm", reading ? "text-primary" : "text-muted")}>
                           {progressText}
                         </p>
+                      )}
+                      {uploaded != null && (
+                        <p className="text-xs text-muted">{uploaded}</p>
                       )}
                     </div>
                   </div>

@@ -24,6 +24,7 @@ import 'package:manhwamaniacs/features/sources/models/source_chapter_progress.da
 import 'package:manhwamaniacs/features/sources/models/source_series.dart';
 import 'package:manhwamaniacs/features/sources/providers/source_progress_provider.dart';
 import 'package:manhwamaniacs/features/sources/providers/sources_provider.dart';
+import 'package:manhwamaniacs/features/sources/utils/chapter_date.dart';
 import 'package:manhwamaniacs/features/sources/utils/chapter_label.dart';
 import 'package:manhwamaniacs/features/updates/widgets/series_follow_button.dart';
 import 'package:manhwamaniacs/shared/widgets/empty_state.dart';
@@ -384,6 +385,7 @@ class _SeriesDetailBodyState extends ConsumerState<_SeriesDetailBody> {
     return SeriesChapterTile(
       key: Key('chapter-${chapter.id}'),
       label: chapterLabel(number: chapter.number, title: chapter.title),
+      uploadedLabel: chapterDateLabel(chapter.releaseDate),
       progressText: seriesChapterProgressText(
         pageCount: effectiveCount,
         page: progress?.page,
