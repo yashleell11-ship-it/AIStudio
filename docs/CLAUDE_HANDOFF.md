@@ -93,7 +93,7 @@ current work is.
   Android: `ops/vps/push.sh apk` (build with `JAVA_HOME=/home/yash/jdk17`, or
   Gradle fails while still exiting 0 and leaving a STALE apk in place — check
   the byte count changed before publishing). iOS: this laptop *can* push to
-  `github` (`git@github.com:yashleell11-ship-it/AIStudio.git`, which is a
+  `github` (`git@github.com:yashleell11-ship-it/ManhwaManiacs.git`, which is a
   **public** repo), a push to `feat/vps-slim-source-native` triggers
   `.github/workflows/ios-build.yml` on a cloud Mac, and `mm-fetch-ios.timer`
   on the VPS publishes the resulting IPA to `/app/source.json` within 15

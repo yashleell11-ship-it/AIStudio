@@ -23,7 +23,7 @@
 # =============================================================================
 set -uo pipefail
 
-REPO="${MM_IOS_REPO:-yashleell11-ship-it/AIStudio}"
+REPO="${MM_IOS_REPO:-yashleell11-ship-it/ManhwaManiacs}"
 WORKFLOW="${MM_IOS_WORKFLOW:-ios-build.yml}"
 BRANCH="${MM_IOS_BRANCH:-feat/vps-slim-source-native}"
 ARTIFACT="${MM_IOS_ARTIFACT:-ManhwaManiacs-ipa}"

@@ -5,7 +5,7 @@
 #
 # Setup (one time):
 #   1. Sign in at https://codemagic.io with GitHub, authorize the repo
-#      yashleell11-ship-it/AIStudio.
+#      yashleell11-ship-it/ManhwaManiacs.
 #   2. Codemagic auto-detects this codemagic.yaml. Pick the "ios-sideload" workflow.
 #   3. Start build. When it finishes, download ManhwaManiacs.ipa from artifacts
 #      (also emailed to you).
