@@ -30,3 +30,9 @@ venv/
 .env.local
 .DS_Store
 Thumbs.db
+
+# Flutter tool state, not source. The Android DEBUG keystore in here is the
+# standard androiddebugkey and signs nothing that ships, but it is build
+# output and does not belong in a public repo.
+.flutterconfig/
+mobile/.flutter-config/
