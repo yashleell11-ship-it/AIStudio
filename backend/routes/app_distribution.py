@@ -134,6 +134,32 @@ class Changelog(BaseModel):
 # consume the exact same source of truth.
 _RELEASE_NOTES: list[ChangelogEntry] = [
     ChangelogEntry(
+        version="2.7.3",
+        build=43,
+        date="September 2026",
+        highlights=[
+            "Chapter dates now actually show up on the phone. Last release "
+            "added them and the website got them; the phone showed nothing for "
+            "most sources, because it threw the date away the moment it "
+            "arrived unless it was written in one exact format. Manhwa18, "
+            "MangaTown, FanFox and MangaFreak all write theirs differently, "
+            "and all four came out blank",
+            "A chapter posted late last night reads the same on both. The "
+            "website counted hours and the phone counted days, so something "
+            "put up at 11pm said 'Today' on one and 'Yesterday' on the other. "
+            "Both now count days the way you do, in your own timezone rather "
+            "than the server's",
+            "Dates the server sends without a timezone are no longer read as "
+            "local time. That quietly shifted every chapter by your offset, "
+            "which is five and a half hours here and enough to land a chapter "
+            "on the wrong day",
+            "A source that writes its dates in its own words keeps them. If "
+            "it says '18 Mar 2021', that is what both the phone and the "
+            "website show, instead of one guessing at it and the other giving "
+            "up and showing nothing",
+        ],
+    ),
+    ChangelogEntry(
         version="2.7.2",
         build=42,
         date="September 2026",
