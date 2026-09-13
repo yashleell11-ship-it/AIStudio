@@ -108,6 +108,38 @@ PYCHECK
   # two green builds once sat unpublished. A subshell contains its `exit 1`, and
   # a failure here must not fail an otherwise healthy deploy.
   ( cmd_install_timers ) || echo ">> WARNING: could not install the iOS fetch timer"
+
+  reclaim_build_cache
+}
+
+# Every `build` above writes layers to the ROOT disk (/dev/sda), which this box
+# shares with the Minecraft-bot stack — the big /srv/manhwamaniacs volume holds
+# only data, never images. Left alone the cache accretes a couple of GB per
+# deploy and never evicts: RESTORE.md measured 18.78 GB of it, 18.59 GB
+# reclaimable and none in use, against 8 GB of free root disk. Filling that disk
+# takes the bots down too, so reclaim here rather than waiting to be paged.
+#
+# Deliberately narrow:
+#   - `builder prune --filter until=72h` keeps the last three days of cache, so
+#     back-to-back deploys still hit it and only genuinely cold layers go.
+#   - `image prune` without `-a` removes DANGLING images only. Tagged images
+#     stay, which is what keeps a rollback target and every bot image intact.
+#   - runs only after the deploy verified, so a rebuild we might need to
+#     re-examine is never pruned out from under us.
+# A prune failure is never worth failing a healthy deploy over.
+reclaim_build_cache() {
+  echo ">> reclaiming docker build cache on the root disk"
+  local before after
+  before="$(df --output=avail -BM / | tail -1 | tr -dc '0-9')"
+  docker builder prune -f --filter until=72h >/dev/null 2>&1 \
+    || echo ">> WARNING: docker builder prune failed"
+  docker image prune -f >/dev/null 2>&1 \
+    || echo ">> WARNING: docker image prune failed"
+  after="$(df --output=avail -BM / | tail -1 | tr -dc '0-9')"
+  if [ -n "$before" ] && [ -n "$after" ]; then
+    echo ">> root disk free: ${before}M -> ${after}M (reclaimed $((after - before))M)"
+  fi
+  df -h / | tail -1 | sed 's/^/>> /'
 }
 
 cmd_create_owner() {
