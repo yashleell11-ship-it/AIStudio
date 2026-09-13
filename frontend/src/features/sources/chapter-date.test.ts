@@ -44,6 +44,38 @@ describe("chapterDateLabel", () => {
     expect(chapterDateLabel("Yesterday", NOW)).toBe("Yesterday");
   });
 
+  it("counts by calendar day, not by elapsed hours", () => {
+    // Posted at 23:00 last night: two hours old, but it is Yesterday's chapter
+    // and a reader scanning the list reads it that way. This used to return
+    // "Today" here while the Flutter client returned "Yesterday" for the same
+    // chapter. Built from LOCAL constructors so the assertion holds in any
+    // timezone the suite runs in — the rule is about the reader's calendar.
+    const lastNight = new Date(2026, 8, 8, 23);
+    const earlyToday = new Date(2026, 8, 9, 1).getTime();
+
+    expect(chapterDateLabel(lastNight.toISOString(), earlyToday)).toBe("Yesterday");
+  });
+
+  it("reads a bare calendar day as a DAY, not as UTC midnight", () => {
+    // A date-only string names a day, not an instant. Read as UTC midnight it
+    // lands on the previous day anywhere west of Greenwich, which is the
+    // off-by-one parseCalendarDay exists to prevent.
+    const noonToday = new Date(2026, 8, 9, 12).getTime();
+
+    expect(chapterDateLabel("2026-09-09", noonToday)).toBe("Today");
+    expect(chapterDateLabel("2026-09-08", noonToday)).toBe("Yesterday");
+  });
+
+  it("passes through the non-ISO shapes real connectors publish", () => {
+    // Each of these is asserted in the backend's own connector tests. The
+    // Flutter client used to parse them with a bare DateTime.tryParse, get
+    // null, and render no date at all while the web showed the source's wording.
+    expect(chapterDateLabel("18 Mar 2021", NOW)).toBe("18 Mar 2021");
+    expect(chapterDateLabel("Apr 22,2016", NOW)).toBe("Apr 22,2016");
+    expect(chapterDateLabel("Nov 05,2018", NOW)).toBe("Nov 05,2018");
+    expect(chapterDateLabel("2019/07/13", NOW)).toBe("2019/07/13");
+  });
+
   it("does not promise a future a reader cannot act on", () => {
     // A source clock ahead of ours, or a scheduled chapter.
     expect(chapterDateLabel("2026-09-10T09:00:00Z", NOW)).toBe("Just now");

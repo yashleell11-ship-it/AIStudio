@@ -12,7 +12,12 @@ class KnownChapter {
   final String key;
   final double? number;
   final String? title;
-  final DateTime? publishedAt;
+  /// The source's RAW date string, unparsed. Sources publish wildly
+  /// different shapes and several are not ISO at all, so parsing here threw
+  /// the value away for those sources and the row rendered no date. See
+  /// `chapterDateLabel`, which owns the parse and passes through what it
+  /// cannot read.
+  final String? publishedAt;
 
   /// Only present on the cache-backed detail chapter list.
   final int? pageCount;
@@ -21,9 +26,7 @@ class KnownChapter {
         key: json['key'] as String,
         number: (json['number'] as num?)?.toDouble(),
         title: json['title'] as String?,
-        publishedAt: json['published_at'] != null
-            ? DateTime.tryParse(json['published_at'] as String)
-            : null,
+        publishedAt: json['published_at'] as String?,
         pageCount: (json['page_count'] as num?)?.toInt(),
       );
 
@@ -34,7 +37,7 @@ class KnownChapter {
         'key': key,
         'number': number,
         'title': title,
-        'published_at': publishedAt?.toIso8601String(),
+        'published_at': publishedAt,
         'page_count': pageCount,
       };
 }

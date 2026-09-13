@@ -20,9 +20,21 @@
 /// one bad row must not blank the screen the user came to read. Callers that
 /// need a non-null instant supply their own floor.
 DateTime? serverInstant(Object? raw) {
-  if (raw is! String || raw.isEmpty) return null;
-  final zoned = raw.endsWith('Z') || _offsetSuffix.hasMatch(raw);
-  return DateTime.tryParse(zoned ? raw : '${raw}Z')?.toUtc();
+  if (raw is! String) return null;
+  final value = raw.trim();
+  if (value.isEmpty) return null;
+  // A date with no time is ALREADY read as UTC midnight, and appending the
+  // designator to one produces a string Dart cannot parse at all
+  // ('2026-09-08Z' -> null), so a bare `YYYY-MM-DD` would come back null and
+  // the caller would see "no date" for a date the source did publish. Chapter
+  // lists are full of them. This mirrors the HAS_TIME guard in the web's
+  // `lib/utc-time.ts`, which is the contract this function is meant to share.
+  final needsDesignator = _timeComponent.hasMatch(value) &&
+      !value.endsWith('Z') &&
+      !value.endsWith('z') &&
+      !_offsetSuffix.hasMatch(value);
+  return DateTime.tryParse(needsDesignator ? '${value}Z' : value)?.toUtc();
 }
 
 final RegExp _offsetSuffix = RegExp(r'[+-]\d{2}:?\d{2}$');
+final RegExp _timeComponent = RegExp(r'\d{2}:\d{2}');

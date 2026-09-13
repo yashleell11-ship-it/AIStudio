@@ -64,7 +64,11 @@ class SourceChapterSummary {
   final String title;
   final double? number;
   final int pageCount;
-  final DateTime? releaseDate;
+  /// The source's RAW date string, unparsed. Sources publish shapes that are
+  /// not all ISO, and parsing here dropped the value for those — see
+  /// `chapterDateLabel`, which owns the parse and passes through what it
+  /// cannot read. Same reason as `KnownChapter.publishedAt`.
+  final String? releaseDate;
 
   factory SourceChapterSummary.fromJson(Map<String, dynamic> json) => SourceChapterSummary(
         id: json['id'] as String,
@@ -73,8 +77,6 @@ class SourceChapterSummary {
         title: json['title'] as String,
         number: json['number'] != null ? (json['number'] as num).toDouble() : null,
         pageCount: json['page_count'] as int,
-        releaseDate: json['release_date'] != null
-            ? DateTime.tryParse(json['release_date'] as String)
-            : null,
+        releaseDate: json['release_date'] as String?,
       );
 }
